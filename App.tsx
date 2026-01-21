@@ -2203,7 +2203,7 @@ const App: React.FC = () => {
                </div>
                
                {/* Sección final: Firmas, Observaciones y Footer - Posicionado al final */}
-               <div className="mt-auto pt-2" style={{ marginTop: 'auto', paddingTop: '2mm' }}>
+               <div className="mt-auto pt-2" style={{ marginTop: 'auto', paddingTop: '1mm' }}>
                  <div className="mb-2">
                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">
                      Conformidad del Servicio
@@ -2251,7 +2251,7 @@ const App: React.FC = () => {
                  </div>
                  
                 {/* Footer fijo al final */}
-                <div className="mt-2 pt-2 border-t border-slate-200 text-[9px] text-slate-500" style={{ marginTop: '11mm', paddingTop: '2mm' }}>
+                <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ marginTop: '10mm', paddingTop: '1mm' }}>
                    <div className="relative flex items-end justify-between">
                      {/* IZQUIERDA – LOGOS */}
                      <div className="flex items-end">
