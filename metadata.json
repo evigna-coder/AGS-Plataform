@@ -1,0 +1,7 @@
+{
+  "name": "Reporte de servicio",
+  "description": "Una aplicación profesional para la generación de reportes técnicos de mantenimiento y reparación de equipos de laboratorio, con integración de base de datos de clientes y equipos.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
