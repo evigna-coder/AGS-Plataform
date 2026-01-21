@@ -351,6 +351,8 @@ const App: React.FC = () => {
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showNewOtModal, setShowNewOtModal] = useState(false);
+  const [pendingOt, setPendingOt] = useState<string>('');
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
@@ -468,6 +470,99 @@ const App: React.FC = () => {
 
   const handleGenerateRemoteSign = () => {
     setShowQRModal(true);
+  };
+
+  // Función para cargar/validar OT al salir del campo (onBlur)
+  const confirmLoadOt = async () => {
+    const v = otInput.trim();
+    const regex = /^\d{5}(?:\.\d{2})?$/;
+    
+    if (!v) return;
+    
+    // Validar formato
+    if (!regex.test(v)) {
+      alert("Formato inválido. Use 5 dígitos, opcional .NN (ej: 25660 o 25660.02)");
+      return;
+    }
+
+    // Si ya es la OT actual, no hacer nada
+    if (v === otNumber) {
+      return;
+    }
+
+    console.log("📥 CARGA OT solicitada:", v);
+    hasInitialized.current = false; // Bloquear autosave mientras buscamos
+
+    try {
+      const data = await firebase.getReport(v);
+      
+      if (data) {
+        // 🟢 EXISTE → rehidratar
+        setOtNumber(data.otNumber || v);
+        setBudgets(data.budgets || ['']);
+        setTipoServicio(data.tipoServicio || 'Visita de diagnóstico / reparación');
+        setEsFacturable(!!data.esFacturable);
+        setTieneContrato(!!data.tieneContrato);
+        setEsGarantia(!!data.esGarantia);
+        setRazonSocial(data.razonSocial || '');
+        setContacto(data.contacto || '');
+        setDireccion(data.direccion || '');
+        setLocalidad(data.localidad || '');
+        setProvincia(data.provincia || '');
+        setSistema(data.sistema || '');
+        setModuloModelo(data.moduloModelo || '');
+        setModuloDescripcion(data.moduloDescripcion || '');
+        setModuloSerie(data.moduloSerie || '');
+        setCodigoInternoCliente(data.codigoInternoCliente || '');
+        setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
+        setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
+        setHorasTrabajadas(data.horasTrabajadas || '');
+        setTiempoViaje(data.tiempoViaje || '');
+        setReporteTecnico(data.reporteTecnico || '');
+        setAccionesTomar(data.accionesTomar || '');
+        const articulosData = (data.articulos || []).map((p: Part) => ({
+          ...p,
+          id: p.id || uid()
+        }));
+        setArticulos(articulosData);
+        setEmailPrincipal(data.emailPrincipal || '');
+        setSignatureEngineer(data.signatureEngineer || null);
+        setSignatureClient(data.signatureClient || null);
+        if (data.signatureClient) {
+          setClientConfirmed(true);
+        }
+        setAclaracionCliente(data.aclaracionCliente || '');
+        setAclaracionEspecialista(data.aclaracionEspecialista || '');
+        setStatus(data.status || 'BORRADOR');
+        hasUserInteracted.current = true;
+        console.log("✅ OT cargada desde Firebase:", v);
+      } else {
+        // 🟡 NO EXISTE → mostrar modal de confirmación
+        console.log("⚠️ OT no encontrada, solicitando confirmación...");
+        setPendingOt(v);
+        setShowNewOtModal(true);
+        return; // No habilitar autosave todavía
+      }
+    } catch (error) {
+      console.error("❌ Error al cargar OT:", error);
+      alert("Error al cargar la OT. Intente nuevamente.");
+      return;
+    }
+
+    // 🔓 habilitamos autosave solo si se cargó correctamente
+    hasInitialized.current = true;
+  };
+
+  // Confirmar creación de nueva OT
+  const confirmCreateNewOt = () => {
+    const v = pendingOt;
+    setOtNumber(v);
+    setStatus('BORRADOR');
+    setShowNewOtModal(false);
+    setPendingOt('');
+    hasInitialized.current = true;
+    hasUserInteracted.current = true;
+    console.log("✅ Nueva OT creada:", v);
   };
 
   // Función para generar PDF como Blob
@@ -1103,7 +1198,8 @@ const App: React.FC = () => {
                     const v = (e.target as HTMLInputElement).value.trim();
                     if (!v) return;
                     setOtInput(v);
-                    // NO establecer otNumber aquí - solo se establece al hacer clic en "Cargar OT"
+                    // Validar y cargar OT al salir del campo
+                    confirmLoadOt();
                   }}
 
                 maxLength={10}
@@ -2156,6 +2252,43 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Confirmar Nueva OT */}
+      <div 
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print transition-all duration-300 ${showNewOtModal ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+        onClick={() => {
+          setShowNewOtModal(false);
+          setPendingOt('');
+        }}
+      >
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter mb-4">OT No Encontrada</h3>
+          <p className="text-sm text-slate-600 mb-6">
+            La OT <span className="font-black text-blue-700">{pendingOt}</span> no existe en el sistema.
+          </p>
+          <p className="text-xs text-slate-500 mb-6">
+            ¿Desea crear una nueva orden de trabajo con este número?
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowNewOtModal(false);
+                setPendingOt('');
+              }}
+              className="flex-1 bg-slate-200 text-slate-700 font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-slate-300"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmCreateNewOt}
+              className="flex-1 bg-blue-600 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-blue-700 shadow-lg"
+            >
+              Crear OT
+            </button>
+          </div>
+        </div>
+      </div>
+
       {isPreviewMode && (
   <button
     onClick={() => setIsPreviewMode(false)}
