@@ -272,9 +272,9 @@ const MobileSignatureView: React.FC<{
               disabled={isSharing}
               className="mt-6 w-full bg-purple-600 text-white font-black py-3 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSharing ? 'Preparando documento...' : 'Compartir / Enviar'}
+              {isSharing ? 'Preparando...' : 'Compartir / Enviar PDF'}
             </button>
-            <p className="text-[10px] text-slate-300 mt-6 uppercase font-bold">Redirigiendo al reporte completo...</p>
+            <p className="text-[10px] text-slate-300 mt-4 uppercase font-bold">Puede compartir el reporte ahora o continuar al reporte completo</p>
           </div>
         )}
       </div>
@@ -287,6 +287,7 @@ const App: React.FC = () => {
   const isModoFirma = queryParams.get('modo') === 'firma';
   const dataFromUrl = queryParams.get('data');
   const reportIdFromUrl = queryParams.get('reportId');
+  const shouldShare = queryParams.get('share') === 'true';
 
   const [otNumber, setOtNumber] = useState(reportIdFromUrl || '');
   const [budgets, setBudgets] = useState<string[]>(['']);
@@ -474,6 +475,23 @@ const App: React.FC = () => {
     }
   }, [showQRModal, otNumber, razonSocial]);
 
+  // Auto-compartir cuando se carga con parámetro share=true
+  useEffect(() => {
+    if (shouldShare && !isModoFirma && otNumber) {
+      // Esperar un momento para que el PDF container esté listo y los datos carguen
+      const timer = setTimeout(() => {
+        if (hasInitialized.current) {
+          shareReportPDF();
+          // Limpiar el parámetro de la URL
+          const url = new URL(window.location.href);
+          url.searchParams.delete('share');
+          window.history.replaceState({}, '', url.toString());
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldShare, isModoFirma, otNumber]);
+
   const handleGenerateRemoteSign = () => {
     setShowQRModal(true);
   };
@@ -626,6 +644,16 @@ const App: React.FC = () => {
   // Función para compartir PDF
   const shareReportPDF = async (otParam?: string) => {
     const otToUse = otParam || otNumber;
+    
+    // Si estamos en modo móvil, redirigir a la vista principal para compartir
+    if (isModoFirma) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('modo');
+      url.searchParams.set('share', 'true'); // Indicar que debe compartir al cargar
+      window.location.href = url.toString();
+      return;
+    }
+    
     setIsSharing(true);
     try {
       console.log("Preparando documento...");
@@ -2135,7 +2163,21 @@ const App: React.FC = () => {
           </div>
         )}
         {!isPreviewMode ? (
-          <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
+          <>
+            {status === 'FINALIZADO' ? (
+              // Si el reporte está finalizado, mostrar botón de compartir
+              <button
+                onClick={shareReportPDF}
+                disabled={isSharing}
+                className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
+              </button>
+            ) : (
+              // Si no está finalizado, mostrar botón de revisar
+              <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
+            )}
+          </>
         ) : (
           <>
             <button 
