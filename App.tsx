@@ -2163,21 +2163,7 @@ const App: React.FC = () => {
           </div>
         )}
         {!isPreviewMode ? (
-          <>
-            {status === 'FINALIZADO' ? (
-              // Si el reporte está finalizado, mostrar botón de compartir
-              <button
-                onClick={shareReportPDF}
-                disabled={isSharing}
-                className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
-              </button>
-            ) : (
-              // Si no está finalizado, mostrar botón de revisar
-              <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
-            )}
-          </>
+          <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
         ) : (
           <>
             <button 
