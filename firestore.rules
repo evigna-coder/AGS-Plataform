@@ -27,13 +27,14 @@ service cloud.firestore {
     // Función auxiliar para validar que es una actualización de firma (solo campos de firma)
     function isSignatureUpdate() {
       let allowedFields = ['signatureClient', 'signedAt', 'signedFrom'];
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields)
-             && (!('signatureClient' in request.resource.data.diff(resource.data)) 
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return changedKeys.hasOnly(allowedFields)
+             && (!changedKeys.hasAny(['signatureClient']) 
                  || request.resource.data.signatureClient is string 
                  || request.resource.data.signatureClient == null)
-             && (!('signedAt' in request.resource.data.diff(resource.data)) 
+             && (!changedKeys.hasAny(['signedAt']) 
                  || request.resource.data.signedAt is number)
-             && (!('signedFrom' in request.resource.data.diff(resource.data)) 
+             && (!changedKeys.hasAny(['signedFrom']) 
                  || request.resource.data.signedFrom is string);
     }
     
@@ -45,7 +46,8 @@ service cloud.firestore {
       return data.otNumber is string
              && data.otNumber.size() > 0
              && isValidOT(data.otNumber)
-             && (data.budgets is list || data.budgets == null)
+             // Validar budgets: puede ser null, undefined, o array (vacío o con strings)
+             && (data.budgets == null || data.budgets is list)
              && (data.tipoServicio == null || data.tipoServicio is string)
              && (data.esFacturable == null || data.esFacturable is bool)
              && (data.tieneContrato == null || data.tieneContrato is bool)
@@ -66,6 +68,7 @@ service cloud.firestore {
              && (data.tiempoViaje == null || data.tiempoViaje is string)
              && (data.reporteTecnico == null || (data.reporteTecnico is string && isValidStringSize(data.reporteTecnico, 50000)))
              && (data.accionesTomar == null || data.accionesTomar is string)
+             // Validar articulos: puede ser null, undefined, o array (validación de estructura interna opcional)
              && (data.articulos == null || (data.articulos is list && data.articulos.size() <= 100))
              && (data.emailPrincipal == null || data.emailPrincipal is string)
              && (data.signatureEngineer == null || (data.signatureEngineer is string && isValidStringSize(data.signatureEngineer, 100000)))
@@ -102,22 +105,30 @@ service cloud.firestore {
                     && (request.resource.data.status == null || request.resource.data.status == 'BORRADOR');
       
       // Permitir actualización de documentos
+      // Maneja correctamente setDoc con merge: true que puede crear o actualizar
       allow update: if isValidOTDocument()
                     && (
-                      // Caso 1: Actualización de firma anónima (solo campos de firma)
+                      // Caso 1: Documento no existe (merge que crea) - tratar como create
+                      (!resource.exists && isValidReportData())
+                      ||
+                      // Caso 2: Actualización de firma anónima (solo campos de firma)
                       (isSignatureUpdate())
                       ||
-                      // Caso 2: Actualización normal (solo en BORRADOR)
+                      // Caso 3: Actualización normal en BORRADOR
                       (
-                        // El documento debe estar en estado BORRADOR
                         resource.data.status == 'BORRADOR'
                         && isValidReportData()
                         && (
-                          // No se puede cambiar status directamente aquí, solo a través de finalización
-                          // O si se está cambiando a FINALIZADO, debe ser la única operación permitida
-                          (request.resource.data.status == 'BORRADOR' && resource.data.status == 'BORRADOR')
-                          || (request.resource.data.status == 'FINALIZADO' && resource.data.status == 'BORRADOR')
+                          request.resource.data.status == 'BORRADOR'
+                          || request.resource.data.status == 'FINALIZADO'
                         )
+                      )
+                      ||
+                      // Caso 4: Actualización de metadata en FINALIZADO (solo updatedAt)
+                      (
+                        resource.data.status == 'FINALIZADO'
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+                        && request.resource.data.updatedAt is string
                       )
                     );
       
