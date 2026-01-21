@@ -763,11 +763,11 @@ const App: React.FC = () => {
       if (!confirmar) return;
     }
 
-    const newOt = `OT-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
     const today = new Date().toISOString().split('T')[0];
 
-    setOtInput(newOt);
-    setOtNumber(newOt);
+    // Dejar OT en blanco - el usuario debe ingresar un número válido (5 dígitos + opcional .NN)
+    setOtInput('');
+    setOtNumber('');
     setBudgets(['']);
     setTipoServicio('Visita de diagnóstico / reparación');
     setEsFacturable(false);
