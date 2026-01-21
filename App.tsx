@@ -2251,7 +2251,7 @@ const App: React.FC = () => {
                  </div>
                  
                 {/* Footer fijo al final */}
-                <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ marginTop: '10mm', paddingTop: '1mm' }}>
+                <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ marginTop: '8mm', paddingTop: '1mm' }}>
                    <div className="relative flex items-end justify-between">
                      {/* IZQUIERDA – LOGOS */}
                      <div className="flex items-end">
