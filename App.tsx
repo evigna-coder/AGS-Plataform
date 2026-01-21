@@ -843,8 +843,49 @@ const App: React.FC = () => {
           },
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
+        
         const pdfWorker = html2pdf().set(opt).from(element);
-        await pdfWorker.save();
+        const filename = `${otNumber}_Reporte_AGS.pdf`;
+        
+        // Detectar si es dispositivo móvil
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // En móviles, generar Blob y compartir con Web Share API
+        if (isMobile && navigator.share && navigator.canShare) {
+          try {
+            console.log("Dispositivo móvil detectado, generando PDF como Blob para compartir...");
+            const pdfBlob = await pdfWorker.outputPdf('blob');
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+            
+            if (navigator.canShare({ files: [file] })) {
+              console.log("Compartiendo PDF con Web Share API...");
+              await navigator.share({
+                files: [file],
+                title: `Reporte ${otNumber}`,
+                text: `Reporte OT ${otNumber}`
+              });
+              console.log("PDF compartido exitosamente");
+              alert("PDF compartido exitosamente.");
+            } else {
+              // Si no puede compartir archivos, descargar
+              console.log("Web Share API no soporta archivos, descargando...");
+              await pdfWorker.save();
+            }
+          } catch (shareError: any) {
+            // Si el usuario cancela el share, no es un error
+            if (shareError.name === 'AbortError') {
+              console.log("Usuario canceló el compartir");
+              // Descargar como fallback
+              await pdfWorker.save();
+            } else {
+              console.error("Error al compartir, descargando como fallback:", shareError);
+              await pdfWorker.save();
+            }
+          }
+        } else {
+          // En desktop o si no hay Web Share API, descargar normalmente
+          await pdfWorker.save();
+        }
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         alert("No se pudo generar PDF. El reporte fue guardado en Firebase.");
