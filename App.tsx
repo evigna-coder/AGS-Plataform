@@ -429,7 +429,7 @@ const App: React.FC = () => {
       return;
     }
 
-    const timeout = window.setTimeout(() => {
+    const timeout = window.setTimeout(async () => {
       const dataToSave = {
         ...reportState,
         status: 'BORRADOR',
@@ -437,7 +437,13 @@ const App: React.FC = () => {
       };
 
       console.log("📝 Autosave BORRADOR", otNumber);
-      firebase.saveReport(otNumber, dataToSave);
+      try {
+        await firebase.saveReport(otNumber, dataToSave);
+      } catch (error: any) {
+        console.error("❌ Error en autosave:", error);
+        // No mostrar alert en autosave para no interrumpir al usuario
+        // Los errores se verán en la consola
+      }
     }, 700); // debounce 700ms
 
     return () => {
@@ -2004,7 +2010,7 @@ const App: React.FC = () => {
 
                </div>
 
-               <div className="mt-2 mb-2 border-b border-slate-200 pb-2">
+               <div className="mt-2 mb-2 pb-2">
                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Materiales / Repuestos Utilizados</label>
                  <table className="w-full border border-slate-100 rounded-lg overflow-hidden shadow-sm">
                    <thead className="bg-slate-50 text-[10px] uppercase text-slate-400 font-black border-b border-slate-100">

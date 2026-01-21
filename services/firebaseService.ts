@@ -12,9 +12,38 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
+// Validar que las variables de entorno estén definidas
+const requiredEnvVars = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID'
+];
+
+const missingVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
+if (missingVars.length > 0) {
+  console.error('❌ Variables de entorno faltantes:', missingVars);
+  console.error('Por favor, verifica tu archivo .env.local');
+} else {
+  console.log('✅ Variables de entorno de Firebase cargadas correctamente');
+  console.log('📋 Project ID:', firebaseConfig.projectId);
+}
+
+let app;
+let db;
+let storage;
+
+try {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  storage = getStorage(app);
+  console.log('✅ Firebase inicializado correctamente');
+} catch (error) {
+  console.error('❌ Error al inicializar Firebase:', error);
+  throw error;
+}
 
 /**
  * Guarda o actualiza el documento del reporte en Firestore.
@@ -22,9 +51,22 @@ const storage = getStorage(app);
  * @param data Datos del reporte a guardar
  */
 export const saveReporte = async (ot: string, data: any): Promise<void> => {
-  if (!ot) return;
-  const docRef = doc(db, "reportes", ot);
-  await setDoc(docRef, data, { merge: true });
+  if (!ot) {
+    console.warn('⚠️ saveReporte: OT vacía, no se guardará');
+    return;
+  }
+  
+  try {
+    console.log('💾 Guardando reporte:', ot);
+    const docRef = doc(db, "reportes", ot);
+    await setDoc(docRef, data, { merge: true });
+    console.log('✅ Reporte guardado exitosamente:', ot);
+  } catch (error: any) {
+    console.error('❌ Error al guardar reporte:', error);
+    console.error('Código de error:', error.code);
+    console.error('Mensaje:', error.message);
+    throw error;
+  }
 };
 
 /**
@@ -47,13 +89,39 @@ export class FirebaseService {
   private collectionName = "reportes";
 
   async saveReport(reportId: string, data: any) {
-    return saveReporte(reportId, data);
+    try {
+      return await saveReporte(reportId, data);
+    } catch (error: any) {
+      console.error('❌ FirebaseService.saveReport error:', error);
+      // Re-lanzar el error para que el componente pueda manejarlo
+      throw error;
+    }
   }
 
   async getReport(reportId: string) {
-    const docRef = doc(db, this.collectionName, reportId);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? docSnap.data() : null;
+    if (!reportId) {
+      console.warn('⚠️ getReport: reportId vacío');
+      return null;
+    }
+    
+    try {
+      console.log('📖 Leyendo reporte:', reportId);
+      const docRef = doc(db, this.collectionName, reportId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        console.log('✅ Reporte encontrado:', reportId);
+        return docSnap.data();
+      } else {
+        console.log('ℹ️ Reporte no encontrado:', reportId);
+        return null;
+      }
+    } catch (error: any) {
+      console.error('❌ Error al leer reporte:', error);
+      console.error('Código de error:', error.code);
+      console.error('Mensaje:', error.message);
+      throw error;
+    }
   }
 
   subscribeToReport(reportId: string, callback: (data: any) => void) {
@@ -61,18 +129,31 @@ export class FirebaseService {
   }
 
   async updateSignature(reportId: string, signatureData: string) {
-  const docRef = doc(db, this.collectionName, reportId);
-
-  await setDoc(
-    docRef,
-    {
-      signatureClient: signatureData,
-      signedAt: Date.now(),
-      signedFrom: 'mobile'
-    },
-    { merge: true }
-  );
-}
+    if (!reportId) {
+      console.warn('⚠️ updateSignature: reportId vacío');
+      throw new Error('reportId es requerido');
+    }
+    
+    try {
+      console.log('✍️ Actualizando firma:', reportId);
+      const docRef = doc(db, this.collectionName, reportId);
+      await setDoc(
+        docRef,
+        {
+          signatureClient: signatureData,
+          signedAt: Date.now(),
+          signedFrom: 'mobile'
+        },
+        { merge: true }
+      );
+      console.log('✅ Firma actualizada exitosamente:', reportId);
+    } catch (error: any) {
+      console.error('❌ Error al actualizar firma:', error);
+      console.error('Código de error:', error.code);
+      console.error('Mensaje:', error.message);
+      throw error;
+    }
+  }
 
   /**
    * Sube un Blob de PDF a Firebase Storage y devuelve la URL de descarga
