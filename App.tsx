@@ -351,8 +351,6 @@ const App: React.FC = () => {
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showNewOtModal, setShowNewOtModal] = useState(false);
-  const [pendingOt, setPendingOt] = useState<string>('');
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
@@ -415,10 +413,14 @@ const App: React.FC = () => {
 
   // Autosave consolidado con debounce 700ms
   useEffect(() => {
+    // Validar formato de OT antes de guardar: 5 dígitos, opcional .NN
+    const otRegex = /^\d{5}(?:\.\d{2})?$/;
+    const isValidOt = otNumber && otRegex.test(otNumber);
+    
     if (
       !hasInitialized.current ||        // ⛔ todavía cargando desde Firebase
       !hasUserInteracted.current ||      // ⛔ el usuario no tocó nada
-      !otNumber ||                       // ⛔ no hay OT válida
+      !isValidOt ||                      // ⛔ OT no tiene formato válido (5 dígitos + opcional .NN)
       isModoFirma ||
       isPreviewMode
     ) {
@@ -440,161 +442,6 @@ const App: React.FC = () => {
       clearTimeout(timeout);
     };
   }, [reportState, otNumber, isModoFirma, isPreviewMode, firebase]);
-
-  // Función para cargar OT con validación
-  const confirmLoadOt = async () => {
-    const v = otInput.trim();
-    
-    // Validar formato: 5 dígitos, opcional .NN
-    const regex = /^\d{5}(?:\.\d{2})?$/;
-    if (!regex.test(v)) {
-      alert("Formato inválido. Use 5 dígitos, opcional .02 (ejemplo: 25660 o 25660.02)");
-      return;
-    }
-
-    console.log("📥 CARGA OT solicitada:", v);
-    
-    // 🔒 Bloqueamos autosave mientras buscamos
-    hasInitialized.current = false;
-
-    try {
-      const data = await firebase.getReport(v);
-      
-      if (data) {
-        // 🟢 EXISTE → rehidratar
-        console.log("✅ OT encontrada, rehidratando...");
-        setOtNumber(data.otNumber || v);
-
-        setBudgets(data.budgets || ['']);
-        setTipoServicio(data.tipoServicio || 'Visita de diagnóstico / reparación');
-        setEsFacturable(!!data.esFacturable);
-        setTieneContrato(!!data.tieneContrato);
-        setEsGarantia(!!data.esGarantia);
-        setRazonSocial(data.razonSocial || '');
-        setContacto(data.contacto || '');
-        setDireccion(data.direccion || '');
-        setLocalidad(data.localidad || '');
-        setProvincia(data.provincia || '');
-        setSistema(data.sistema || '');
-        setModuloModelo(data.moduloModelo || '');
-        setModuloDescripcion(data.moduloDescripcion || '');
-        setModuloSerie(data.moduloSerie || '');
-        setCodigoInternoCliente(data.codigoInternoCliente || '');
-        setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
-        setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
-        setHorasTrabajadas(data.horasTrabajadas || '');
-        setTiempoViaje(data.tiempoViaje || '');
-        setReporteTecnico(data.reporteTecnico || '');
-        setAccionesTomar(data.accionesTomar || '');
-        // Asegurar que los artículos tengan id
-        const articulosData = (data.articulos || []).map((p: Part) => ({
-          ...p,
-          id: p.id || uid()
-        }));
-        setArticulos(articulosData);
-        setEmailPrincipal(data.emailPrincipal || '');
-        setSignatureEngineer(data.signatureEngineer || null);
-        setSignatureClient(data.signatureClient || null);
-        // Si hay firma del cliente, establecer como confirmada
-        if (data.signatureClient) {
-          setClientConfirmed(true);
-        }
-        setAclaracionCliente(data.aclaracionCliente || '');
-        setAclaracionEspecialista(data.aclaracionEspecialista || '');
-        setStatus(data.status || 'BORRADOR');
-        
-        // 🔓 habilitamos autosave
-        hasInitialized.current = true;
-        hasUserInteracted.current = true;
-      } else {
-        // 🟡 NO EXISTE → pedir confirmación antes de crear
-        console.log("⚠️ OT no encontrada, solicitando confirmación...");
-        setPendingOt(v);
-        setShowNewOtModal(true);
-      }
-    } catch (error) {
-      console.error("Error al cargar OT:", error);
-      alert("Error al cargar la OT. Intente nuevamente.");
-      hasInitialized.current = true;
-    }
-  };
-
-  // Función para confirmar creación de nueva OT
-  const confirmCreateNewOt = () => {
-    const v = pendingOt;
-    setOtNumber(v);
-    setStatus('BORRADOR');
-    setShowNewOtModal(false);
-    setPendingOt('');
-    
-    // 👇 habilita creación
-    hasInitialized.current = true;
-    hasUserInteracted.current = true;
-    console.log("✅ Nueva OT creada:", v);
-  };
-
-  // Carga automática inicial desde URL (solo una vez al montar)
-  useEffect(() => {
-    if (reportIdFromUrl && reportIdFromUrl.trim()) {
-      const v = reportIdFromUrl.trim();
-      const regex = /^\d{5}(?:\.\d{2})?$/;
-      if (regex.test(v)) {
-        console.log("📥 Carga automática desde URL:", v);
-        hasInitialized.current = false;
-        firebase.getReport(v).then((data) => {
-          if (data) {
-            // 🟢 EXISTE → rehidratar
-            console.log("✅ OT encontrada, rehidratando...");
-            setOtNumber(data.otNumber || v);
-            setBudgets(data.budgets || ['']);
-            setTipoServicio(data.tipoServicio || 'Visita de diagnóstico / reparación');
-            setEsFacturable(!!data.esFacturable);
-            setTieneContrato(!!data.tieneContrato);
-            setEsGarantia(!!data.esGarantia);
-            setRazonSocial(data.razonSocial || '');
-            setContacto(data.contacto || '');
-            setDireccion(data.direccion || '');
-            setLocalidad(data.localidad || '');
-            setProvincia(data.provincia || '');
-            setSistema(data.sistema || '');
-            setModuloModelo(data.moduloModelo || '');
-            setModuloDescripcion(data.moduloDescripcion || '');
-            setModuloSerie(data.moduloSerie || '');
-            setCodigoInternoCliente(data.codigoInternoCliente || '');
-            setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
-            setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
-            setHorasTrabajadas(data.horasTrabajadas || '');
-            setTiempoViaje(data.tiempoViaje || '');
-            setReporteTecnico(data.reporteTecnico || '');
-            setAccionesTomar(data.accionesTomar || '');
-            const articulosData = (data.articulos || []).map((p: Part) => ({
-              ...p,
-              id: p.id || uid()
-            }));
-            setArticulos(articulosData);
-            setEmailPrincipal(data.emailPrincipal || '');
-            setSignatureEngineer(data.signatureEngineer || null);
-            setSignatureClient(data.signatureClient || null);
-            if (data.signatureClient) {
-              setClientConfirmed(true);
-            }
-            setAclaracionCliente(data.aclaracionCliente || '');
-            setAclaracionEspecialista(data.aclaracionEspecialista || '');
-            setStatus(data.status || 'BORRADOR');
-            hasInitialized.current = true;
-            hasUserInteracted.current = true;
-          } else {
-            // Si no existe desde URL, no crear automáticamente
-            console.log("⚠️ OT desde URL no encontrada, esperando acción del usuario");
-            hasInitialized.current = true;
-          }
-        }).catch((error) => {
-          console.error("Error al cargar OT desde URL:", error);
-          hasInitialized.current = true;
-        });
-      }
-    }
-  }, []); // Solo ejecutar una vez al montar
 
   useEffect(() => {
     if (showQRModal && qrRef.current) {
@@ -1222,62 +1069,53 @@ const App: React.FC = () => {
                 OT #
               </label>
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={otInput}
+              <input
+                type="text"
+                value={otInput}
 
-                  onChange={(e) => {
-    if (readOnly) return;
+                onChange={(e) => {
+  if (readOnly) return;
+  
+  // Detener propagación para evitar que markUserInteracted se dispare
+  e.stopPropagation();
 
-    let value = e.target.value;
+  let value = e.target.value;
 
-    // Solo números y punto
-    value = value.replace(/[^0-9.]/g, '');
+  // Solo números y punto
+  value = value.replace(/[^0-9.]/g, '');
 
-    // Si llega a 5 dígitos sin punto → agregar "."
-    if (/^\d{5}$/.test(value)) {
-      value = value + '.';
-    }
+  // Si llega a 5 dígitos sin punto → agregar "."
+  if (/^\d{5}$/.test(value)) {
+    value = value + '.';
+  }
 
-    // Máximo: 5 dígitos + punto + 2 decimales
-    if (!/^\d{0,5}(\.\d{0,2})?$/.test(value)) {
-      return;
-    }
+  // Máximo: 5 dígitos + punto + 2 decimales
+  if (!/^\d{0,5}(\.\d{0,2})?$/.test(value)) {
+    return;
+  }
 
-    setOtInput(value);
-    // NO marcar hasUserInteracted solo por editar otInput
-  }}
+  setOtInput(value);
+  // NO marcar hasUserInteracted solo por editar otInput - evita autosave prematuro
+}}
 
                   onBlur={(e) => {
                     if (readOnly) return;
                     const v = (e.target as HTMLInputElement).value.trim();
                     if (!v) return;
                     setOtInput(v);
-                    // Opcionalmente llamar a confirmLoadOt en onBlur
-                    // confirmLoadOt();
+                    // NO establecer otNumber aquí - solo se establece al hacer clic en "Cargar OT"
                   }}
 
-                  maxLength={10}
-                  disabled={readOnly}
+                maxLength={10}
+                disabled={readOnly}
 
-                  className={`flex-1 border rounded-lg px-3 py-1.5 text-sm font-mono font-bold
-                  ${baseInputClass}
-                    ${readOnly
-                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      : 'bg-white border-slate-300 text-blue-700'}
-                  `}
-                />
-                {otInput && !readOnly && (
-                  <button
-                    type="button"
-                    onClick={confirmLoadOt}
-                    className="bg-blue-600 text-white font-black px-4 py-1.5 rounded-lg uppercase tracking-widest text-[10px] transition-all hover:bg-blue-700 active:scale-95 shadow-lg"
-                  >
-                    Cargar OT
-                  </button>
-                )}
-              </div>
+                className={`w-full border rounded-lg px-3 py-1.5 text-sm font-mono font-bold
+                ${baseInputClass}
+                  ${readOnly
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-white border-slate-300 text-blue-700'}
+                `}
+              />
             </div>
                   <div>
                   <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">
@@ -2287,40 +2125,6 @@ const App: React.FC = () => {
               className="w-full bg-slate-200 text-slate-700 font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-slate-300"
             >
               Cerrar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal Confirmar Nueva OT */}
-      <div 
-        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print transition-all duration-300 ${showNewOtModal ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
-        onClick={() => setShowNewOtModal(false)}
-      >
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-          <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter mb-4">OT No Encontrada</h3>
-          <p className="text-sm text-slate-600 mb-6">
-            La OT <span className="font-black text-blue-700">{pendingOt}</span> no existe en el sistema.
-          </p>
-          <p className="text-xs text-slate-500 mb-6">
-            ¿Desea crear una nueva orden de trabajo con este número?
-          </p>
-          
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                setShowNewOtModal(false);
-                setPendingOt('');
-              }}
-              className="flex-1 bg-slate-200 text-slate-700 font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-slate-300"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={confirmCreateNewOt}
-              className="flex-1 bg-blue-600 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-blue-700 shadow-lg"
-            >
-              Crear OT
             </button>
           </div>
         </div>
