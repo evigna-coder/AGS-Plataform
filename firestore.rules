@@ -1,0 +1,152 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función auxiliar para validar formato de OT (5 dígitos + opcional .NN)
+    function isValidOT(ot) {
+      return ot.matches('\\d{5}(?:\\.\\d{2})?');
+    }
+    
+    // Función auxiliar para validar que un string no exceda un tamaño máximo
+    function isValidStringSize(value, maxSize) {
+      return value is string && value.size() <= maxSize;
+    }
+    
+    // Función auxiliar para validar estructura de Part (artículo)
+    function isValidPart(part) {
+      return part.keys().hasAll(['id', 'codigo', 'descripcion', 'cantidad', 'origen'])
+             && part.id is string
+             && part.codigo is string
+             && part.descripcion is string
+             && part.cantidad is int
+             && part.origen is string
+             && (part.nroSerie == null || part.nroSerie is string);
+    }
+    
+    // Función auxiliar para validar que es una actualización de firma (solo campos de firma)
+    function isSignatureUpdate() {
+      let allowedFields = ['signatureClient', 'signedAt', 'signedFrom'];
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields)
+             && (!('signatureClient' in request.resource.data.diff(resource.data)) 
+                 || request.resource.data.signatureClient is string 
+                 || request.resource.data.signatureClient == null)
+             && (!('signedAt' in request.resource.data.diff(resource.data)) 
+                 || request.resource.data.signedAt is number)
+             && (!('signedFrom' in request.resource.data.diff(resource.data)) 
+                 || request.resource.data.signedFrom is string);
+    }
+    
+    // Función auxiliar para validar estructura completa del documento
+    function isValidReportData() {
+      let data = request.resource.data;
+      
+      // Validar campos requeridos y tipos básicos
+      return data.otNumber is string
+             && data.otNumber.size() > 0
+             && isValidOT(data.otNumber)
+             && (data.budgets is list || data.budgets == null)
+             && (data.tipoServicio == null || data.tipoServicio is string)
+             && (data.esFacturable == null || data.esFacturable is bool)
+             && (data.tieneContrato == null || data.tieneContrato is bool)
+             && (data.esGarantia == null || data.esGarantia is bool)
+             && (data.razonSocial == null || data.razonSocial is string)
+             && (data.contacto == null || data.contacto is string)
+             && (data.direccion == null || data.direccion is string)
+             && (data.localidad == null || data.localidad is string)
+             && (data.provincia == null || data.provincia is string)
+             && (data.sistema == null || data.sistema is string)
+             && (data.moduloModelo == null || data.moduloModelo is string)
+             && (data.moduloDescripcion == null || data.moduloDescripcion is string)
+             && (data.moduloSerie == null || data.moduloSerie is string)
+             && (data.codigoInternoCliente == null || data.codigoInternoCliente is string)
+             && (data.fechaInicio == null || data.fechaInicio is string)
+             && (data.fechaFin == null || data.fechaFin is string)
+             && (data.horasTrabajadas == null || data.horasTrabajadas is string)
+             && (data.tiempoViaje == null || data.tiempoViaje is string)
+             && (data.reporteTecnico == null || (data.reporteTecnico is string && isValidStringSize(data.reporteTecnico, 50000)))
+             && (data.accionesTomar == null || data.accionesTomar is string)
+             && (data.articulos == null || (data.articulos is list && data.articulos.size() <= 100))
+             && (data.emailPrincipal == null || data.emailPrincipal is string)
+             && (data.signatureEngineer == null || (data.signatureEngineer is string && isValidStringSize(data.signatureEngineer, 100000)))
+             && (data.aclaracionEspecialista == null || data.aclaracionEspecialista is string)
+             && (data.signatureClient == null || (data.signatureClient is string && isValidStringSize(data.signatureClient, 100000)))
+             && (data.aclaracionCliente == null || data.aclaracionCliente is string)
+             && (data.status == null || (data.status is string && data.status in ['BORRADOR', 'FINALIZADO']))
+             && (data.updatedAt == null || data.updatedAt is string)
+             && (data.signedAt == null || data.signedAt is number)
+             && (data.signedFrom == null || data.signedFrom is string);
+    }
+    
+    // Colección de reportes
+    match /reportes/{ot} {
+      
+      // Validar formato de OT en el ID del documento
+      function isValidOTDocument() {
+        return isValidOT(ot);
+      }
+      
+      // Permitir lectura (modo temporal sin auth)
+      // En el futuro, cuando se implemente autenticación, descomentar:
+      // allow read: if request.auth != null && isValidOTDocument();
+      allow read: if isValidOTDocument();
+      
+      // Permitir creación de documentos
+      // En el futuro, cuando se implemente autenticación, descomentar:
+      // allow create: if request.auth != null 
+      //               && isValidOTDocument()
+      //               && isValidReportData()
+      //               && request.resource.data.status == 'BORRADOR';
+      allow create: if isValidOTDocument()
+                    && isValidReportData()
+                    && (request.resource.data.status == null || request.resource.data.status == 'BORRADOR');
+      
+      // Permitir actualización de documentos
+      allow update: if isValidOTDocument()
+                    && (
+                      // Caso 1: Actualización de firma anónima (solo campos de firma)
+                      (isSignatureUpdate())
+                      ||
+                      // Caso 2: Actualización normal (solo en BORRADOR)
+                      (
+                        // El documento debe estar en estado BORRADOR
+                        resource.data.status == 'BORRADOR'
+                        && isValidReportData()
+                        && (
+                          // No se puede cambiar status directamente aquí, solo a través de finalización
+                          // O si se está cambiando a FINALIZADO, debe ser la única operación permitida
+                          (request.resource.data.status == 'BORRADOR' && resource.data.status == 'BORRADOR')
+                          || (request.resource.data.status == 'FINALIZADO' && resource.data.status == 'BORRADOR')
+                        )
+                      )
+                    );
+      
+      // En el futuro, cuando se implemente autenticación, descomentar y usar:
+      // allow update: if request.auth != null
+      //               && isValidOTDocument()
+      //               && (
+      //                 // Actualización de firma (cualquier usuario autenticado)
+      //                 (isSignatureUpdate())
+      //                 ||
+      //                 // Actualización normal (solo técnicos y admins)
+      //                 (
+      //                   (request.auth.token.role == 'technician' || request.auth.token.role == 'admin')
+      //                   && resource.data.status == 'BORRADOR'
+      //                   && isValidReportData()
+      //                   && (
+      //                     (request.resource.data.status == 'BORRADOR' && resource.data.status == 'BORRADOR')
+      //                     || (request.resource.data.status == 'FINALIZADO' && resource.data.status == 'BORRADOR')
+      //                   )
+      //                 )
+      //               );
+      
+      // No permitir eliminación (por seguridad)
+      allow delete: if false;
+    }
+    
+    // Bloquear acceso a cualquier otra colección
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
