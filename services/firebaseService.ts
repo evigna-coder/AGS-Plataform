@@ -58,6 +58,7 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
   
   try {
     console.log('💾 Guardando reporte:', ot);
+    console.log('📋 Datos a guardar:', JSON.stringify(data, null, 2));
     const docRef = doc(db, "reportes", ot);
     await setDoc(docRef, data, { merge: true });
     console.log('✅ Reporte guardado exitosamente:', ot);
@@ -65,6 +66,7 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     console.error('❌ Error al guardar reporte:', error);
     console.error('Código de error:', error.code);
     console.error('Mensaje:', error.message);
+    console.error('📋 Datos que fallaron:', JSON.stringify(data, null, 2));
     throw error;
   }
 };

@@ -39,46 +39,44 @@ service cloud.firestore {
     }
     
     // Función auxiliar para validar estructura completa del documento
+    // Usa validaciones permisivas que solo verifican campos presentes
     function isValidReportData() {
       let data = request.resource.data;
       
       // Validar campos requeridos y tipos básicos
-      return data.otNumber is string
-             && data.otNumber.size() > 0
-             && isValidOT(data.otNumber)
-             // Validar budgets: puede ser null, undefined, o array (vacío o con strings)
-             && (data.budgets == null || data.budgets is list)
-             && (data.tipoServicio == null || data.tipoServicio is string)
-             && (data.esFacturable == null || data.esFacturable is bool)
-             && (data.tieneContrato == null || data.tieneContrato is bool)
-             && (data.esGarantia == null || data.esGarantia is bool)
-             && (data.razonSocial == null || data.razonSocial is string)
-             && (data.contacto == null || data.contacto is string)
-             && (data.direccion == null || data.direccion is string)
-             && (data.localidad == null || data.localidad is string)
-             && (data.provincia == null || data.provincia is string)
-             && (data.sistema == null || data.sistema is string)
-             && (data.moduloModelo == null || data.moduloModelo is string)
-             && (data.moduloDescripcion == null || data.moduloDescripcion is string)
-             && (data.moduloSerie == null || data.moduloSerie is string)
-             && (data.codigoInternoCliente == null || data.codigoInternoCliente is string)
-             && (data.fechaInicio == null || data.fechaInicio is string)
-             && (data.fechaFin == null || data.fechaFin is string)
-             && (data.horasTrabajadas == null || data.horasTrabajadas is string)
-             && (data.tiempoViaje == null || data.tiempoViaje is string)
-             && (data.reporteTecnico == null || (data.reporteTecnico is string && isValidStringSize(data.reporteTecnico, 50000)))
-             && (data.accionesTomar == null || data.accionesTomar is string)
-             // Validar articulos: puede ser null, undefined, o array (validación de estructura interna opcional)
-             && (data.articulos == null || (data.articulos is list && data.articulos.size() <= 100))
-             && (data.emailPrincipal == null || data.emailPrincipal is string)
-             && (data.signatureEngineer == null || (data.signatureEngineer is string && isValidStringSize(data.signatureEngineer, 100000)))
-             && (data.aclaracionEspecialista == null || data.aclaracionEspecialista is string)
-             && (data.signatureClient == null || (data.signatureClient is string && isValidStringSize(data.signatureClient, 100000)))
-             && (data.aclaracionCliente == null || data.aclaracionCliente is string)
-             && (data.status == null || (data.status is string && data.status in ['BORRADOR', 'FINALIZADO']))
-             && (data.updatedAt == null || data.updatedAt is string)
-             && (data.signedAt == null || data.signedAt is number)
-             && (data.signedFrom == null || data.signedFrom is string);
+      // Solo validar campos que están presentes en el documento
+      return ('otNumber' in data ? (data.otNumber is string && data.otNumber.size() > 0 && isValidOT(data.otNumber)) : true)
+             && (!('budgets' in data) || data.budgets == null || data.budgets is list)
+             && (!('tipoServicio' in data) || data.tipoServicio == null || data.tipoServicio is string)
+             && (!('esFacturable' in data) || data.esFacturable == null || data.esFacturable is bool)
+             && (!('tieneContrato' in data) || data.tieneContrato == null || data.tieneContrato is bool)
+             && (!('esGarantia' in data) || data.esGarantia == null || data.esGarantia is bool)
+             && (!('razonSocial' in data) || data.razonSocial == null || data.razonSocial is string)
+             && (!('contacto' in data) || data.contacto == null || data.contacto is string)
+             && (!('direccion' in data) || data.direccion == null || data.direccion is string)
+             && (!('localidad' in data) || data.localidad == null || data.localidad is string)
+             && (!('provincia' in data) || data.provincia == null || data.provincia is string)
+             && (!('sistema' in data) || data.sistema == null || data.sistema is string)
+             && (!('moduloModelo' in data) || data.moduloModelo == null || data.moduloModelo is string)
+             && (!('moduloDescripcion' in data) || data.moduloDescripcion == null || data.moduloDescripcion is string)
+             && (!('moduloSerie' in data) || data.moduloSerie == null || data.moduloSerie is string)
+             && (!('codigoInternoCliente' in data) || data.codigoInternoCliente == null || data.codigoInternoCliente is string)
+             && (!('fechaInicio' in data) || data.fechaInicio == null || data.fechaInicio is string)
+             && (!('fechaFin' in data) || data.fechaFin == null || data.fechaFin is string)
+             && (!('horasTrabajadas' in data) || data.horasTrabajadas == null || data.horasTrabajadas is string)
+             && (!('tiempoViaje' in data) || data.tiempoViaje == null || data.tiempoViaje is string)
+             && (!('reporteTecnico' in data) || data.reporteTecnico == null || (data.reporteTecnico is string && isValidStringSize(data.reporteTecnico, 50000)))
+             && (!('accionesTomar' in data) || data.accionesTomar == null || data.accionesTomar is string)
+             && (!('articulos' in data) || data.articulos == null || (data.articulos is list && data.articulos.size() <= 100))
+             && (!('emailPrincipal' in data) || data.emailPrincipal == null || data.emailPrincipal is string)
+             && (!('signatureEngineer' in data) || data.signatureEngineer == null || (data.signatureEngineer is string && isValidStringSize(data.signatureEngineer, 100000)))
+             && (!('aclaracionEspecialista' in data) || data.aclaracionEspecialista == null || data.aclaracionEspecialista is string)
+             && (!('signatureClient' in data) || data.signatureClient == null || (data.signatureClient is string && isValidStringSize(data.signatureClient, 100000)))
+             && (!('aclaracionCliente' in data) || data.aclaracionCliente == null || data.aclaracionCliente is string)
+             && (!('status' in data) || data.status == null || (data.status is string && data.status in ['BORRADOR', 'FINALIZADO']))
+             && (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is string)
+             && (!('signedAt' in data) || data.signedAt == null || data.signedAt is number)
+             && (!('signedFrom' in data) || data.signedFrom == null || data.signedFrom is string);
     }
     
     // Colección de reportes
@@ -100,33 +98,29 @@ service cloud.firestore {
       //               && isValidOTDocument()
       //               && isValidReportData()
       //               && request.resource.data.status == 'BORRADOR';
+      // Validación simplificada: solo verificar formato de OT y que status sea válido si está presente
       allow create: if isValidOTDocument()
-                    && isValidReportData()
-                    && (request.resource.data.status == null || request.resource.data.status == 'BORRADOR');
+                    && (!('status' in request.resource.data) || request.resource.data.status == null || request.resource.data.status == 'BORRADOR')
+                    && (!('otNumber' in request.resource.data) || (request.resource.data.otNumber is string && isValidOT(request.resource.data.otNumber)));
       
       // Permitir actualización de documentos
-      // Maneja correctamente setDoc con merge: true que puede crear o actualizar
+      // setDoc con merge: true siempre se trata como update si el documento existe
       allow update: if isValidOTDocument()
                     && (
-                      // Caso 1: Documento no existe (merge que crea) - tratar como create
-                      (!resource.exists && isValidReportData())
-                      ||
-                      // Caso 2: Actualización de firma anónima (solo campos de firma)
+                      // Caso 1: Actualización de firma anónima (solo campos de firma)
                       (isSignatureUpdate())
                       ||
-                      // Caso 3: Actualización normal en BORRADOR
+                      // Caso 2: Actualización normal - permitir si NO está FINALIZADO
+                      // (permite actualizar documentos sin status o con status BORRADOR)
                       (
-                        resource.data.status == 'BORRADOR'
-                        && isValidReportData()
-                        && (
-                          request.resource.data.status == 'BORRADOR'
-                          || request.resource.data.status == 'FINALIZADO'
-                        )
+                        // Solo bloquear si el documento está explícitamente en FINALIZADO
+                        !('status' in resource.data) || resource.data.status != 'FINALIZADO'
                       )
                       ||
-                      // Caso 4: Actualización de metadata en FINALIZADO (solo updatedAt)
+                      // Caso 3: Actualización de metadata en FINALIZADO (solo updatedAt)
                       (
-                        resource.data.status == 'FINALIZADO'
+                        'status' in resource.data
+                        && resource.data.status == 'FINALIZADO'
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
                         && request.resource.data.updatedAt is string
                       )

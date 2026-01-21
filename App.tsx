@@ -267,14 +267,7 @@ const MobileSignatureView: React.FC<{
             </div>
             <h2 className="text-lg font-black text-slate-900 uppercase">¡Firma Registrada!</h2>
             <p className="text-xs text-slate-400 mt-2">Su firma ha sido sincronizada exitosamente.</p>
-            <button
-              onClick={() => shareReportPDF(ot)}
-              disabled={isSharing}
-              className="mt-6 w-full bg-purple-600 text-white font-black py-3 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSharing ? 'Preparando...' : 'Compartir / Enviar PDF'}
-            </button>
-            <p className="text-[10px] text-slate-300 mt-4 uppercase font-bold">Puede compartir el reporte ahora o continuar al reporte completo</p>
+            <p className="text-[10px] text-slate-300 mt-4 uppercase font-bold">Redirigiendo al reporte completo...</p>
           </div>
         )}
       </div>
@@ -354,6 +347,7 @@ const App: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showNewOtModal, setShowNewOtModal] = useState(false);
   const [pendingOt, setPendingOt] = useState<string>('');
+  const [generatedPdfBlob, setGeneratedPdfBlob] = useState<Blob | null>(null); // Guardar PDF generado para compartir después
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
@@ -656,15 +650,26 @@ const App: React.FC = () => {
     
     setIsSharing(true);
     try {
-      console.log("Preparando documento...");
+      console.log("Preparando documento para compartir...");
       const filename = `${otToUse}_Reporte_AGS.pdf`;
       
-      // Generar Blob del PDF
-      const pdfBlob = await generatePDFBlob();
-      console.log("PDF generado como Blob");
+      // Usar el Blob guardado si existe, sino generar uno nuevo
+      let pdfBlob: Blob;
+      if (generatedPdfBlob) {
+        console.log("Usando PDF previamente generado");
+        pdfBlob = generatedPdfBlob;
+      } else {
+        console.log("Generando PDF como Blob...");
+        pdfBlob = await generatePDFBlob();
+        // Guardar el Blob para futuros compartidos
+        setGeneratedPdfBlob(pdfBlob);
+      }
 
-      // Intentar Web Share API
-      if (navigator.share && navigator.canShare) {
+      // Detectar si es dispositivo móvil
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      // En móviles, intentar Web Share API directamente
+      if (isMobile && navigator.share && navigator.canShare) {
         const file = new File([pdfBlob], filename, { type: 'application/pdf' });
         
         if (navigator.canShare({ files: [file] })) {
@@ -679,7 +684,7 @@ const App: React.FC = () => {
             setIsSharing(false);
             return;
           } catch (shareError: any) {
-            // Si el usuario cancela, no es un error real
+            // Si el usuario cancela, solo detener sin error
             if (shareError.name === 'AbortError') {
               console.log("Usuario canceló el compartir");
               setIsSharing(false);
@@ -805,6 +810,12 @@ const App: React.FC = () => {
       setSignatureClient(clientSignature);
       setSignatureEngineer(engineerSignature);
       setStatus('FINALIZADO');
+      
+      // Activar modo preview para que el pdf-container esté disponible
+      setIsPreviewMode(true);
+      
+      // Esperar a que React renderice el componente
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // GENERACIÓN DE PDF con opciones seguras y fallback
       try {
@@ -850,11 +861,15 @@ const App: React.FC = () => {
         // Detectar si es dispositivo móvil
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        // En móviles, generar Blob y compartir con Web Share API
+        // Siempre generar Blob primero para poder compartirlo después
+        console.log("Generando PDF como Blob...");
+        const pdfBlob = await pdfWorker.outputPdf('blob');
+        // Guardar el Blob para compartir después
+        setGeneratedPdfBlob(pdfBlob);
+        
+        // En móviles, intentar compartir automáticamente con Web Share API
         if (isMobile && navigator.share && navigator.canShare) {
           try {
-            console.log("Dispositivo móvil detectado, generando PDF como Blob para compartir...");
-            const pdfBlob = await pdfWorker.outputPdf('blob');
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
             
             if (navigator.canShare({ files: [file] })) {
@@ -865,33 +880,52 @@ const App: React.FC = () => {
                 text: `Reporte OT ${otNumber}`
               });
               console.log("PDF compartido exitosamente");
-              alert("PDF compartido exitosamente.");
             } else {
               // Si no puede compartir archivos, descargar
               console.log("Web Share API no soporta archivos, descargando...");
-              await pdfWorker.save();
+              const url = URL.createObjectURL(pdfBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
             }
           } catch (shareError: any) {
-            // Si el usuario cancela el share, no es un error
+            // Si el usuario cancela el share, no es un error - solo descargar
             if (shareError.name === 'AbortError') {
-              console.log("Usuario canceló el compartir");
-              // Descargar como fallback
-              await pdfWorker.save();
+              console.log("Usuario canceló el compartir, descargando...");
             } else {
               console.error("Error al compartir, descargando como fallback:", shareError);
-              await pdfWorker.save();
             }
+            // Descargar como fallback
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
           }
         } else {
           // En desktop o si no hay Web Share API, descargar normalmente
-          await pdfWorker.save();
+          const url = URL.createObjectURL(pdfBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
         }
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         alert("No se pudo generar PDF. El reporte fue guardado en Firebase.");
+      } finally {
+        setIsSending(false);
       }
-      
-      setIsSending(false);
     } catch (e) {
       setIsSending(false);
       console.error("Error al guardar en Firestore:", e);
@@ -1196,7 +1230,71 @@ const App: React.FC = () => {
 
         console.log("Iniciando generación de PDF con opciones:", opt);
         const pdfWorker = html2pdf().set(opt).from(element);
-        await pdfWorker.save();
+        const filename = `${otNumber}_Reporte_AGS.pdf`;
+        
+        // Siempre generar Blob primero para poder compartirlo después
+        console.log("Generando PDF como Blob...");
+        const pdfBlob = await pdfWorker.outputPdf('blob');
+        // Guardar el Blob para compartir después
+        setGeneratedPdfBlob(pdfBlob);
+        
+        // Detectar si es dispositivo móvil
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // En móviles, intentar compartir automáticamente con Web Share API
+        if (isMobile && navigator.share && navigator.canShare) {
+          try {
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+            
+            if (navigator.canShare({ files: [file] })) {
+              console.log("Compartiendo PDF con Web Share API...");
+              await navigator.share({
+                files: [file],
+                title: `Reporte ${otNumber}`,
+                text: `Reporte OT ${otNumber}`
+              });
+              console.log("PDF compartido exitosamente");
+            } else {
+              // Si no puede compartir archivos, descargar
+              console.log("Web Share API no soporta archivos, descargando...");
+              const url = URL.createObjectURL(pdfBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
+            }
+          } catch (shareError: any) {
+            // Si el usuario cancela el share, solo descargar
+            if (shareError.name === 'AbortError') {
+              console.log("Usuario canceló el compartir, descargando...");
+            } else {
+              console.error("Error al compartir, descargando como fallback:", shareError);
+            }
+            // Descargar como fallback
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          }
+        } else {
+          // En desktop, descargar normalmente
+          const url = URL.createObjectURL(pdfBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+        
         console.log("PDF generado exitosamente");
         alert("Reporte finalizado y PDF generado correctamente.");
       } catch (pdfErr) {
@@ -2204,24 +2302,38 @@ const App: React.FC = () => {
           </div>
         )}
         {!isPreviewMode ? (
-          <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
-        ) : (
           <>
-            <button 
-              onClick={handleFinalSubmit} 
-              disabled={isSending || (!signatureEngineer && !engineerPadRef.current?.getSignature()) || (!signatureClient && !clientPadRef.current?.getSignature())} 
-              className={`font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 ${(!signatureEngineer && !engineerPadRef.current?.getSignature()) || (!signatureClient && !clientPadRef.current?.getSignature()) ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'}`}
-            >
-              {isSending ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
-            </button>
-            <button
-              onClick={shareReportPDF}
-              disabled={isSharing || isSending}
-              className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSharing ? 'Compartiendo...' : 'Compartir / Enviar'}
-            </button>
+            {status === 'FINALIZADO' && generatedPdfBlob ? (
+              // Si el reporte está finalizado Y hay PDF generado, mostrar botón de compartir
+              <button
+                onClick={shareReportPDF}
+                disabled={isSharing}
+                className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
+              </button>
+            ) : status === 'FINALIZADO' ? (
+              // Si está finalizado pero no hay PDF, mostrar botón que genera y descarga
+              <button 
+                onClick={handleFinalSubmit} 
+                disabled={isSending}
+                className="bg-emerald-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSending ? 'Generando PDF...' : 'Generar PDF'}
+              </button>
+            ) : (
+              // Si no está finalizado, mostrar botón de revisar
+              <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
+            )}
           </>
+        ) : (
+          <button 
+            onClick={handleFinalSubmit} 
+            disabled={isSending || (!signatureEngineer && !engineerPadRef.current?.getSignature()) || (!signatureClient && !clientPadRef.current?.getSignature())} 
+            className={`font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 ${(!signatureEngineer && !engineerPadRef.current?.getSignature()) || (!signatureClient && !clientPadRef.current?.getSignature()) ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'}`}
+          >
+            {isSending ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
+          </button>
         )}
       </div>
 
