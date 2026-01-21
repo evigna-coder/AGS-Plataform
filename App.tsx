@@ -602,13 +602,16 @@ const App: React.FC = () => {
     element.style.margin = '0 auto';
     element.style.width = '210mm';
 
-    // Usar html2pdf para generar Blob
+    // Detectar si es dispositivo móvil
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Usar html2pdf para generar Blob - ajustado para mobile y desktop
     const opt = {
-      margin: [3, 0, 3, 1],
+      margin: isMobile ? [0, 0, 0, 0] : [3, 0, 3, 1], // En mobile sin márgenes, el contenido ya tiene padding interno
       filename: `${otNumber}_Reporte_AGS.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: (window.devicePixelRatio >= 2 ? 2 : 1.5),
+        scale: isMobile ? 2 : (window.devicePixelRatio >= 2 ? 2 : 1.5),
         useCORS: true,
         logging: false,
         letterRendering: true,
@@ -627,7 +630,7 @@ const App: React.FC = () => {
         orientation: 'portrait',
         compress: true
       },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      pagebreak: { mode: isMobile ? ['css'] : ['avoid-all', 'css', 'legacy'] } // En mobile usar solo CSS para evitar páginas adicionales
     };
 
     // Generar Blob usando html2pdf
@@ -829,12 +832,16 @@ const App: React.FC = () => {
         element.style.margin = '0 auto';
         element.style.width = '210mm';
         
+        // Detectar si es dispositivo móvil
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Opciones de html2pdf - ajustadas para mobile y desktop
         const opt = {
-          margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm
+          margin: isMobile ? [0, 0, 0, 0] : [3, 0, 3, 1], // En mobile sin márgenes, el contenido ya tiene padding interno
           filename: `${otNumber}_Reporte_AGS.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
-            scale: (window.devicePixelRatio >= 2 ? 2 : 1.5), 
+            scale: isMobile ? 2 : (window.devicePixelRatio >= 2 ? 2 : 1.5), 
             useCORS: true,
             logging: false,
             letterRendering: true,
@@ -844,7 +851,8 @@ const App: React.FC = () => {
             scrollX: 0,
             scrollY: 0,
             windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
+            windowHeight: element.scrollHeight,
+            backgroundColor: '#ffffff'
           },
           jsPDF: { 
             unit: 'mm', 
@@ -852,14 +860,11 @@ const App: React.FC = () => {
             orientation: 'portrait',
             compress: true
           },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+          pagebreak: { mode: isMobile ? ['css'] : ['avoid-all', 'css', 'legacy'] } // En mobile usar solo CSS para evitar páginas adicionales
         };
         
         const pdfWorker = html2pdf().set(opt).from(element);
         const filename = `${otNumber}_Reporte_AGS.pdf`;
-        
-        // Detectar si es dispositivo móvil
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         // Siempre generar Blob primero para poder compartirlo después
         console.log("Generando PDF como Blob...");
@@ -1202,12 +1207,16 @@ const App: React.FC = () => {
         element.style.margin = '0 auto';
         element.style.width = '210mm';
 
+        // Detectar si es dispositivo móvil
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Opciones de html2pdf - ajustadas para mobile y desktop
         const opt = {
-          margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm - usar mismo formato que handleFinalSubmit
+          margin: isMobile ? [0, 0, 0, 0] : [3, 0, 3, 1], // En mobile sin márgenes, el contenido ya tiene padding interno
           filename: `${otNumber}_Reporte_AGS.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
-            scale: (window.devicePixelRatio >= 2 ? 2 : 1.5), 
+            scale: isMobile ? 2 : (window.devicePixelRatio >= 2 ? 2 : 1.5), 
             useCORS: true,
             logging: false,
             letterRendering: true,
@@ -1217,7 +1226,8 @@ const App: React.FC = () => {
             scrollX: 0,
             scrollY: 0,
             windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
+            windowHeight: element.scrollHeight,
+            backgroundColor: '#ffffff'
           },
           jsPDF: { 
             unit: 'mm', 
@@ -1225,7 +1235,7 @@ const App: React.FC = () => {
             orientation: 'portrait',
             compress: true
           },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+          pagebreak: { mode: isMobile ? ['css'] : ['avoid-all', 'css', 'legacy'] } // En mobile usar solo CSS para evitar páginas adicionales
         };
 
         console.log("Iniciando generación de PDF con opciones:", opt);
@@ -1237,9 +1247,6 @@ const App: React.FC = () => {
         const pdfBlob = await pdfWorker.outputPdf('blob');
         // Guardar el Blob para compartir después
         setGeneratedPdfBlob(pdfBlob);
-        
-        // Detectar si es dispositivo móvil
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         // En móviles, intentar compartir automáticamente con Web Share API
         if (isMobile && navigator.share && navigator.canShare) {
@@ -2090,12 +2097,16 @@ const App: React.FC = () => {
   className="bg-white shadow-2xl"
   style={{ 
     width: '210mm', 
+    height: '297mm',
     margin: '0 auto',
     pageBreakInside: 'avoid',
-    boxSizing: 'border-box'
+    pageBreakAfter: 'avoid',
+    pageBreakBefore: 'avoid',
+    boxSizing: 'border-box',
+    overflow: 'hidden'
   }}>
             
-            <div className="pt-[6mm] px-[10mm] pb-[0mm] min-h-[277mm] flex flex-col relative bg-white" style={{ boxSizing: 'border-box', height: '285mm' }}>
+            <div className="pt-[6mm] px-[10mm] pb-[0mm] flex flex-col relative bg-white" style={{ boxSizing: 'border-box', height: '297mm', maxHeight: '297mm', overflow: 'hidden' }}>
                <div className="-mb-[6mm]">
   <CompanyHeader 
     companyName="AGS ANALITICA S.A." 
