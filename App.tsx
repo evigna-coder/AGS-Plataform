@@ -1913,7 +1913,7 @@ useEffect(() => {
                       </h4>
                      
                     </div>
-                      <div className="space-y-0.1 text-[10px]">
+                      <div className="space-y-0.5 text-[10px]">
                         <p className="text-slate-800 font-black uppercase text-[12px] truncate">{sistema || "S/D"}</p>
                         <p className="text-slate-600"><span className="font-bold">Id - Código interno:</span> {codigoInternoCliente || "S/D"}</p>
                         <p className="text-slate-600"><span className="font-bold">Modelo:</span> {moduloModelo || "S/D"}</p>
