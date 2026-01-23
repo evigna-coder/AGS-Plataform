@@ -546,12 +546,13 @@ const App: React.FC = () => {
         setEmailPrincipal(data.emailPrincipal || '');
         setSignatureEngineer(data.signatureEngineer || null);
         setSignatureClient(data.signatureClient || null);
-        if (data.signatureClient) {
-          setClientConfirmed(true);
-        }
         setAclaracionCliente(data.aclaracionCliente || '');
         setAclaracionEspecialista(data.aclaracionEspecialista || '');
-        setStatus(data.status || 'BORRADOR');
+        const loadedStatus = data.status || 'BORRADOR';
+        setStatus(loadedStatus);
+        // Solo establecer clientConfirmed si el estado es FINALIZADO
+        // Si es BORRADOR, aunque tenga firma, no debe estar confirmado
+        setClientConfirmed(loadedStatus === 'FINALIZADO');
         hasUserInteracted.current = true;
         console.log("✅ OT cargada desde Firebase:", v);
       } else {

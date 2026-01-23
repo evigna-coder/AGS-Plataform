@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Colección de Leads
+    match /leads/{leadId} {
+      // Validación básica de estructura
+      function isValidLead() {
+        let data = request.resource.data;
+        return data.razonSocial is string
+               && data.contacto is string
+               && data.email is string
+               && data.telefono is string
+               && data.estado is string
+               && data.estado in ['nuevo', 'contactado', 'presupuestado', 'convertido', 'perdido'];
+      }
+      
+      // Permitir lectura y escritura (modo desarrollo sin auth)
+      // TODO: Implementar autenticación y cambiar a:
+      // allow read, write: if request.auth != null && isValidLead();
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+    
+    // Colección de Presupuestos (futuro)
+    match /quotes/{quoteId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Inventario/Stock (futuro)
+    match /inventory/{itemId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Agenda (futuro)
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Facturas (futuro)
+    match /invoices/{invoiceId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Bloquear acceso a cualquier otra colección
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

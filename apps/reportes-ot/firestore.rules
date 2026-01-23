@@ -149,7 +149,59 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    // Bloquear acceso a cualquier otra colección
+    // ========== SISTEMA MODULAR ==========
+    
+    // Colección de Clientes
+    match /clientes/{clienteId} {
+      allow read, write: if true; // Temporal para desarrollo - luego: request.auth != null
+      
+      // Subcolección: Contactos del cliente
+      match /contactos/{contactoId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+    
+    // Colección de Categorías Equipo
+    match /categorias_equipo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Sistemas (equipos)
+    match /sistemas/{sistemaId} {
+      allow read, write: if true; // Temporal para desarrollo
+      
+      // Subcolección: Módulos del sistema
+      match /modulos/{moduloId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+    
+    // Colección de Leads (Sistema Modular)
+    match /leads/{leadId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Presupuestos (Sistema Modular - futuro)
+    match /quotes/{quoteId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Inventario/Stock (Sistema Modular - futuro)
+    match /inventory/{itemId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Agenda (Sistema Modular - futuro)
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Facturas (Sistema Modular - futuro)
+    match /invoices/{invoiceId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Bloquear acceso a cualquier otra colección no definida
     match /{document=**} {
       allow read, write: if false;
     }
