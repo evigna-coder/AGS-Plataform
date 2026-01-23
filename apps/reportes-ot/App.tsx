@@ -313,8 +313,9 @@ const App: React.FC = () => {
   const [otInput, setOtInput] = useState(reportIdFromUrl || '');
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
-  // Flag global readOnly: deshabilita edición cuando el cliente firmó o el reporte está finalizado
-  const readOnly = Boolean(signatureClient && clientConfirmed) || status === 'FINALIZADO';
+  // Flag global readOnly: deshabilita edición solo cuando el reporte está finalizado
+  // No bloquear solo por tener firma - solo bloquear cuando status === 'FINALIZADO'
+  const readOnly = status === 'FINALIZADO';
 
   const baseInputClass =
   'bg-white text-slate-900 appearance-none ' +
