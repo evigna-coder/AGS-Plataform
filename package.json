@@ -1,27 +1,26 @@
 {
-  "name": "ags-platform",
-  "version": "1.0.0",
+  "name": "reporte-de-servicio",
   "private": true,
-  "description": "Plataforma AGS - Monorepo con módulos de reportes OT y sistema modular",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "dev:reportes": "pnpm --filter @ags/reportes-ot dev",
-    "dev:modular": "pnpm --filter @ags/sistema-modular dev",
-    "dev:modular:electron": "pnpm --filter @ags/sistema-modular dev:electron",
-    "dev:all": "pnpm --parallel --filter \"./apps/*\" dev",
-    "build:reportes": "pnpm --filter @ags/reportes-ot build",
-    "build:modular": "pnpm --filter @ags/sistema-modular build",
-    "build:all": "pnpm --filter \"./apps/*\" build",
-    "type-check": "pnpm --filter \"./packages/*\" type-check"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "-": "^0.0.1",
+    "@google/genai": "^1.34.0",
+    "cloudflared": "^0.7.1",
+    "firebase": "^12.7.0",
+    "git": "^0.1.5",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
-    "typescript": "~5.8.2"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }

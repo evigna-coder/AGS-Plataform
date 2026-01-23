@@ -22,9 +22,6 @@
     "paths": {
       "@/*": [
         "./*"
-      ],
-      "@shared/*": [
-        "../../packages/shared/src/*"
       ]
     },
     "allowImportingTsExtensions": true,
