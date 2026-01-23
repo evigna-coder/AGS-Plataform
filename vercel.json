@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm install && pnpm --filter @ags/reportes-ot build",
+  "outputDirectory": "apps/reportes-ot/dist",
+  "installCommand": "pnpm install",
+  "framework": null
+}
