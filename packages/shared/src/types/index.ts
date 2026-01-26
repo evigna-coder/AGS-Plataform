@@ -1,6 +1,6 @@
 // Tipos compartidos entre reportes-ot y sistema-modular
 
-// Tipos de OT (Work Order)
+// Tipos de OT (Work Order) - Versión extendida para Sistema Modular
 export interface WorkOrder {
   otNumber: string; // Formato: 5 dígitos + opcional .NN (ej: 25660.02)
   status: 'BORRADOR' | 'FINALIZADO';
@@ -32,6 +32,16 @@ export interface WorkOrder {
   signatureClient: string | null;
   aclaracionCliente: string;
   updatedAt: string;
+  // Campos adicionales para integración con Sistema Modular
+  clienteId?: string; // Referencia al cliente en sistema modular
+  sistemaId?: string; // Referencia al sistema/equipo en sistema modular
+  moduloId?: string; // Referencia al módulo específico (opcional)
+  createdAt?: string;
+  createdBy?: string;
+  fechaAsignacion?: string; // Fecha de asignación (futuro - cuando se implemente agenda)
+  fechaCierre?: string; // Fecha de cierre/finalización
+  materialesParaServicio?: string; // Materiales necesarios para el servicio (texto libre)
+  problemaFallaInicial?: string; // Problema o falla inicial declarada en la OT (comentario)
 }
 
 export interface Part {
@@ -71,6 +81,7 @@ export interface ContactoCliente {
   cargo: string;
   sector: string; // Sector del contacto (laboratorio, control de calidad, compras, etc.)
   telefono: string;
+  interno?: string; // Interno del teléfono
   email: string;
   esPrincipal: boolean;
 }
@@ -85,8 +96,6 @@ export interface Cliente {
   provincia: string;
   codigoPostal?: string;
   rubro: string;
-  telefono: string;
-  email: string;
   condicionIva?: CondicionIva;
   ingresosBrutos?: string;
   convenioMultilateral?: boolean;
@@ -107,6 +116,20 @@ export interface Cliente {
 export interface CategoriaEquipo {
   id: string;
   nombre: string; // Osmómetros, Cromatógrafos, etc.
+  modelos?: string[]; // Subcategorías / modelos de sistemas (ej: HPLC 1200, HPLC 1100)
+}
+
+// --- Modelo de módulo (dentro de categoría) ---
+export interface ModeloModulo {
+  codigo: string; // ej: G1311A
+  descripcion: string; // ej: Bomba Cuaternaria
+}
+
+// --- Categorías de módulos (catálogo) ---
+export interface CategoriaModulo {
+  id: string;
+  nombre: string; // Bombas, Detectores, Inyectores, etc.
+  modelos: ModeloModulo[]; // Lista de modelos con código y descripción
 }
 
 // --- Ubicación (sistema / módulo) ---
@@ -140,9 +163,10 @@ export interface Sistema {
   id: string;
   clienteId: string;
   categoriaId: string;
-  nombre: string; // ej. HPLC 1260
-  descripcion: string; // ej. Cromatógrafo líquido
+  nombre: string; // ej. HPLC 1260 (ahora viene de modelos de categoría)
+  descripcion?: string; // Campo eliminado - el nombre del modelo es suficiente
   codigoInternoCliente: string; // asignado por cliente o provisorio editable
+  software?: string; // Información del software del sistema
   observaciones?: string;
   activo: boolean;
   ubicaciones: Ubicacion[];
@@ -169,6 +193,15 @@ export interface Posta {
   comentario?: string;
   estadoAnterior: LeadEstado;
   estadoNuevo: LeadEstado;
+}
+
+// --- Tipos de Servicio (lista simple, sin categorías) ---
+export interface TipoServicio {
+  id: string;
+  nombre: string; // Ej: "Mantenimiento preventivo", "Calificación de operación", etc.
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // --- Lead refinado ---
@@ -201,19 +234,87 @@ export interface UsuarioPosta {
   area?: string;
 }
 
-// --- Presupuestos ---
-export interface Quote {
+// --- Estados de Presupuesto ---
+export type PresupuestoEstado = 
+  | 'borrador'
+  | 'enviado'
+  | 'en_seguimiento'
+  | 'pendiente_oc'
+  | 'aceptado'
+  | 'pendiente_certificacion'
+  | 'aguarda';
+
+// --- Item de Presupuesto ---
+export interface PresupuestoItem {
   id: string;
-  leadId?: string;
+  descripcion: string;
+  cantidad: number;
+  unidad: string; // 'unidad', 'hora', 'servicio', etc.
+  precioUnitario: number;
+  categoriaPresupuestoId?: string; // Referencia a categoría para aplicar reglas tributarias
+  subtotal: number;
+}
+
+// --- Orden de Compra (OC) ---
+export interface OrdenCompra {
+  id: string;
+  numero: string; // OC-0000
+  presupuestoIds: string[]; // Varios presupuestos pueden tener la misma OC
+  archivoUrl?: string; // URL del archivo adjunto en Firebase Storage
+  archivoNombre?: string;
+  fechaRecepcion: string;
+  notas?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Categoría de Presupuesto (reglas tributarias) ---
+export interface CategoriaPresupuesto {
+  id: string;
+  nombre: string; // Ej: "Servicios técnicos", "Reparaciones", "Calibraciones"
+  descripcion?: string;
+  incluyeIva: boolean;
+  porcentajeIva?: number; // 21, 10.5, etc.
+  incluyeGanancias: boolean;
+  porcentajeGanancias?: number;
+  incluyeIIBB: boolean;
+  porcentajeIIBB?: number;
+  ivaReduccion?: boolean; // Si aplica reducción de IVA
+  porcentajeIvaReduccion?: number;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Condición de Pago (catálogo) ---
+export interface CondicionPago {
+  id: string;
+  nombre: string; // Ej: "Contado contra entrega", "Diferido 7 días fecha de factura"
+  dias: number; // Días de plazo
+  descripcion?: string;
+  activo: boolean;
+}
+
+// --- Presupuestos ---
+export interface Presupuesto {
+  id: string;
+  numero: string; // PRE-0000 (generado automáticamente)
   clienteId: string;
   sistemaId?: string | null;
-  numero: string; // PRE-0000
-  items: QuoteItem[];
+  contactoId?: string | null;
+  estado: PresupuestoEstado;
+  items: PresupuestoItem[];
+  subtotal: number;
   total: number;
-  status: 'borrador' | 'enviado' | 'aceptado' | 'rechazado' | 'vencido';
-  validUntil: string;
+  tipoCambio?: number; // Tipo de cambio (si aplica)
+  condicionPagoId?: string; // Referencia a condición de pago
+  ordenesCompraIds: string[]; // Array de IDs de OCs vinculadas
+  notasTecnicas?: string;
+  validUntil?: string; // Fecha de validez
+  fechaEnvio?: string; // Fecha de envío del presupuesto
   createdAt: string;
-  createdBy: string;
+  updatedAt: string;
+  createdBy?: string;
 }
 
 export interface QuoteItem {

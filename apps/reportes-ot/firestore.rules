@@ -90,7 +90,8 @@ service cloud.firestore {
       // Permitir lectura (modo temporal sin auth)
       // En el futuro, cuando se implemente autenticación, descomentar:
       // allow read: if request.auth != null && isValidOTDocument();
-      allow read: if isValidOTDocument();
+      // Permitir lectura de documentos individuales y queries de la colección (para desarrollo)
+      allow read: if isValidOTDocument() || true; // Temporal: permitir queries para generar números de OT
       
       // Permitir creación de documentos
       // En el futuro, cuando se implemente autenticación, descomentar:
@@ -166,6 +167,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
     
+    // Colección de Categorías Módulo
+    match /categorias_modulo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
     // Colección de Sistemas (equipos)
     match /sistemas/{sistemaId} {
       allow read, write: if true; // Temporal para desarrollo
@@ -181,7 +187,27 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
     
-    // Colección de Presupuestos (Sistema Modular - futuro)
+    // Colección de Presupuestos
+    match /presupuestos/{presupuestoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Órdenes de Compra
+    match /ordenes_compra/{ocId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Categorías de Presupuesto
+    match /categorias_presupuesto/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Condiciones de Pago
+    match /condiciones_pago/{condicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Presupuestos (Sistema Modular - futuro - mantener por compatibilidad)
     match /quotes/{quoteId} {
       allow read, write: if true; // Temporal para desarrollo
     }
@@ -198,6 +224,11 @@ service cloud.firestore {
     
     // Colección de Facturas (Sistema Modular - futuro)
     match /invoices/{invoiceId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Tipos de Servicio (lista simple)
+    match /tipos_servicio/{tipoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
     

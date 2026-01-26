@@ -5,6 +5,7 @@ import type { Cliente, ContactoCliente, CondicionIva, CondicionPago, TipoServici
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 
 export const ClienteDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,7 @@ export const ClienteDetail = () => {
     cargo: '',
     sector: '',
     telefono: '',
+    interno: '',
     email: '',
     esPrincipal: false,
   });
@@ -51,8 +53,6 @@ export const ClienteDetail = () => {
           provincia: clienteData.provincia,
           codigoPostal: clienteData.codigoPostal || '',
           rubro: clienteData.rubro,
-          telefono: clienteData.telefono,
-          email: clienteData.email,
           condicionIva: clienteData.condicionIva || '',
           ingresosBrutos: clienteData.ingresosBrutos || '',
           convenioMultilateral: clienteData.convenioMultilateral || false,
@@ -60,6 +60,7 @@ export const ClienteDetail = () => {
           pagaEnTiempo: clienteData.pagaEnTiempo || false,
           sueleDemorarse: clienteData.sueleDemorarse || false,
           condicionPago: clienteData.condicionPago || '',
+          tipoServicio: clienteData.tipoServicio || '',
           notas: clienteData.notas || '',
           activo: clienteData.activo,
         });
@@ -81,7 +82,32 @@ export const ClienteDetail = () => {
     if (!id || !formData) return;
     try {
       setSaving(true);
-      await clientesService.update(id, formData);
+      
+      // Limpiar campos vacíos para evitar undefined en Firestore
+      const clienteData: any = {
+        razonSocial: formData.razonSocial,
+        pais: formData.pais,
+        direccion: formData.direccion,
+        localidad: formData.localidad,
+        provincia: formData.provincia,
+        rubro: formData.rubro,
+        convenioMultilateral: formData.convenioMultilateral || false,
+        pagaEnTiempo: formData.pagaEnTiempo || false,
+        sueleDemorarse: formData.sueleDemorarse || false,
+        activo: formData.activo,
+      };
+      
+      // Agregar campos opcionales solo si tienen valor
+      if (formData.cuit?.trim()) clienteData.cuit = formData.cuit.trim();
+      if (formData.codigoPostal?.trim()) clienteData.codigoPostal = formData.codigoPostal.trim();
+      if (formData.condicionIva) clienteData.condicionIva = formData.condicionIva;
+      if (formData.ingresosBrutos?.trim()) clienteData.ingresosBrutos = formData.ingresosBrutos.trim();
+      if (formData.infoPagos?.trim()) clienteData.infoPagos = formData.infoPagos.trim();
+      if (formData.condicionPago) clienteData.condicionPago = formData.condicionPago;
+      if (formData.tipoServicio) clienteData.tipoServicio = formData.tipoServicio;
+      if (formData.notas?.trim()) clienteData.notas = formData.notas.trim();
+      
+      await clientesService.update(id, clienteData);
       await loadCliente();
       setEditing(false);
       alert('Cliente actualizado exitosamente');
@@ -113,7 +139,7 @@ export const ClienteDetail = () => {
       await loadCliente();
       setShowContactoModal(false);
       setEditingContacto(null);
-      setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+      setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
     } catch (error) {
       console.error('Error guardando contacto:', error);
       alert('Error al guardar el contacto. Verifique la consola para más detalles.');
@@ -139,6 +165,7 @@ export const ClienteDetail = () => {
       cargo: contacto.cargo,
       sector: contacto.sector || '',
       telefono: contacto.telefono,
+      interno: contacto.interno || '',
       email: contacto.email,
       esPrincipal: contacto.esPrincipal,
     });
@@ -307,43 +334,6 @@ export const ClienteDetail = () => {
         )}
       </Card>
 
-      {/* Contacto Principal */}
-      <Card>
-        <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Contacto Principal</h3>
-        {editing ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono *</label>
-              <Input
-                value={formData.telefono}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email *</label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-bold mb-1">Teléfono</p>
-              <p className="text-slate-600">{cliente.telefono}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-bold mb-1">Email</p>
-              <p className="text-slate-600">{cliente.email}</p>
-            </div>
-          </div>
-        )}
-      </Card>
-
       {/* Contactos */}
       <Card className="border-2 border-purple-200 bg-purple-50/30">
         <div className="flex justify-between items-start mb-4">
@@ -354,7 +344,7 @@ export const ClienteDetail = () => {
           <Button
             onClick={() => {
               setEditingContacto(null);
-              setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+              setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
               setShowContactoModal(true);
             }}
             className="ml-4"
@@ -372,7 +362,10 @@ export const ClienteDetail = () => {
                 <div>
                   <p className="font-bold text-slate-900">{contacto.nombre}</p>
                   <p className="text-xs text-slate-600">{contacto.cargo}{contacto.sector ? ` • ${contacto.sector}` : ''}</p>
-                  <p className="text-xs text-slate-500">{contacto.email} | {contacto.telefono}</p>
+                  <p className="text-xs text-slate-500">
+                    {contacto.email} | {contacto.telefono}
+                    {contacto.interno && ` (Int: ${contacto.interno})`}
+                  </p>
                   {contacto.esPrincipal && (
                     <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-bold">
                       Principal
@@ -403,7 +396,7 @@ export const ClienteDetail = () => {
               variant="outline"
               onClick={() => {
                 setEditingContacto(null);
-                setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+                setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
                 setShowContactoModal(true);
               }}
             >
@@ -419,16 +412,16 @@ export const ClienteDetail = () => {
         {editing ? (
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condición *</label>
-            <select
+            <SearchableSelect
               value={formData.tipoServicio}
-              onChange={(e) => setFormData({ ...formData, tipoServicio: e.target.value as TipoServicioCliente | '' })}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              onChange={(value) => setFormData({ ...formData, tipoServicio: value as TipoServicioCliente | '' })}
+              options={[
+                { value: 'contrato', label: 'Contrato' },
+                { value: 'per_incident', label: 'Per Incident' },
+              ]}
+              placeholder="Seleccionar..."
               required
-            >
-              <option value="">Seleccionar...</option>
-              <option value="contrato">Contrato</option>
-              <option value="per_incident">Per Incident</option>
-            </select>
+            />
             <p className="mt-1 text-xs text-slate-500">
               <strong>Contrato:</strong> Tiempo de respuesta según contrato. OTs no requieren aceptación de presupuesto.<br />
               <strong>Per Incident:</strong> Tiempo de respuesta estándar. OTs requieren aceptación de presupuesto.
@@ -500,10 +493,10 @@ export const ClienteDetail = () => {
                 >
                   <div>
                     <p className="font-black text-slate-900 uppercase">{sistema.nombre}</p>
-                    <p className="text-xs text-slate-600">{sistema.descripcion}</p>
                     <div className="flex gap-3 mt-1 text-xs text-slate-500">
                       {categoria && <span>{categoria.nombre}</span>}
                       {sistema.codigoInternoCliente && <span>• Código: {sistema.codigoInternoCliente}</span>}
+                      {sistema.software && <span>• Software: {sistema.software}</span>}
                       <span className={sistema.activo ? 'text-green-600 font-bold' : 'text-slate-400'}>
                         {sistema.activo ? '● Activo' : '● Inactivo'}
                       </span>
@@ -559,11 +552,23 @@ export const ClienteDetail = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono *</label>
-                <Input
-                  value={contactoForm.telefono}
-                  onChange={(e) => setContactoForm({ ...contactoForm, telefono: e.target.value })}
-                  required
-                />
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <Input
+                      value={contactoForm.telefono}
+                      onChange={(e) => setContactoForm({ ...contactoForm, telefono: e.target.value })}
+                      placeholder="Teléfono"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      value={contactoForm.interno}
+                      onChange={(e) => setContactoForm({ ...contactoForm, interno: e.target.value })}
+                      placeholder="Interno"
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email *</label>

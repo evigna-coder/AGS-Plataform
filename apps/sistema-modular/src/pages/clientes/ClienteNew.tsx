@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { clientesService, contactosService } from '../../services/firebaseService';
 import type { CondicionIva, CondicionPago, TipoServicioCliente, ContactoCliente } from '@ags/shared';
 
@@ -18,8 +19,6 @@ export const ClienteNew = () => {
     provincia: '',
     codigoPostal: '',
     rubro: '',
-    telefono: '',
-    email: '',
     condicionIva: '' as CondicionIva | '',
     ingresosBrutos: '',
     convenioMultilateral: false,
@@ -40,6 +39,7 @@ export const ClienteNew = () => {
     cargo: '',
     sector: '',
     telefono: '',
+    interno: '',
     email: '',
     esPrincipal: false,
   });
@@ -62,14 +62,6 @@ export const ClienteNew = () => {
     if (!formData.rubro.trim()) {
       newErrors.rubro = 'El rubro es obligatorio';
     }
-    if (!formData.telefono.trim()) {
-      newErrors.telefono = 'El teléfono es obligatorio';
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = 'El email es obligatorio';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
-    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -84,29 +76,40 @@ export const ClienteNew = () => {
 
     try {
       setLoading(true);
-      const clienteId = await clientesService.create({
+      
+      // Helper para limpiar campos vacíos y evitar undefined en Firestore
+      const cleanValue = (value: any): any => {
+        if (value === '' || value === null || value === undefined) {
+          return null; // Firestore acepta null pero no undefined
+        }
+        return value;
+      };
+      
+      const clienteData: any = {
         razonSocial: formData.razonSocial,
-        cuit: formData.cuit || undefined,
         pais: formData.pais,
         direccion: formData.direccion,
         localidad: formData.localidad,
         provincia: formData.provincia,
-        codigoPostal: formData.codigoPostal || undefined,
         rubro: formData.rubro,
-        telefono: formData.telefono,
-        email: formData.email,
-        condicionIva: formData.condicionIva || undefined,
-        ingresosBrutos: formData.ingresosBrutos || undefined,
         convenioMultilateral: formData.convenioMultilateral,
-        infoPagos: formData.infoPagos || undefined,
         pagaEnTiempo: formData.pagaEnTiempo,
         sueleDemorarse: formData.sueleDemorarse,
-        condicionPago: formData.condicionPago || undefined,
-        tipoServicio: formData.tipoServicio || undefined,
-        notas: formData.notas || undefined,
         activo: formData.activo,
         contactos: [],
-      });
+      };
+      
+      // Agregar campos opcionales solo si tienen valor
+      if (formData.cuit?.trim()) clienteData.cuit = formData.cuit.trim();
+      if (formData.codigoPostal?.trim()) clienteData.codigoPostal = formData.codigoPostal.trim();
+      if (formData.condicionIva) clienteData.condicionIva = formData.condicionIva;
+      if (formData.ingresosBrutos?.trim()) clienteData.ingresosBrutos = formData.ingresosBrutos.trim();
+      if (formData.infoPagos?.trim()) clienteData.infoPagos = formData.infoPagos.trim();
+      if (formData.condicionPago) clienteData.condicionPago = formData.condicionPago;
+      if (formData.tipoServicio) clienteData.tipoServicio = formData.tipoServicio;
+      if (formData.notas?.trim()) clienteData.notas = formData.notas.trim();
+      
+      const clienteId = await clientesService.create(clienteData);
       
       // Guardar contactos si hay alguno
       if (contactos.length > 0) {
@@ -142,7 +145,7 @@ export const ClienteNew = () => {
       setContactos([...contactos, contactoForm]);
     }
     
-    setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+    setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
     setShowContactoModal(false);
   };
 
@@ -253,50 +256,24 @@ export const ClienteNew = () => {
           </div>
         </Card>
 
-        {/* Contacto */}
-        <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Contacto</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono *</label>
-              <Input
-                value={formData.telefono}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                error={errors.telefono}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email *</label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                error={errors.email}
-                required
-              />
-            </div>
-          </div>
-        </Card>
-
         {/* Fiscal / IVA */}
         <Card>
           <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Fiscal / IVA</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condición IVA</label>
-              <select
+              <SearchableSelect
                 value={formData.condicionIva}
-                onChange={(e) => setFormData({ ...formData, condicionIva: e.target.value as CondicionIva | '' })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar...</option>
-                <option value="monotributo">Monotributo</option>
-                <option value="responsable_inscripto">Responsable Inscripto</option>
-                <option value="exento">Exento</option>
-                <option value="consumidor_final">Consumidor Final</option>
-                <option value="otro">Otro</option>
-              </select>
+                onChange={(value) => setFormData({ ...formData, condicionIva: value as CondicionIva | '' })}
+                options={[
+                  { value: 'monotributo', label: 'Monotributo' },
+                  { value: 'responsable_inscripto', label: 'Responsable Inscripto' },
+                  { value: 'exento', label: 'Exento' },
+                  { value: 'consumidor_final', label: 'Consumidor Final' },
+                  { value: 'otro', label: 'Otro' },
+                ]}
+                placeholder="Seleccionar..."
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Ingresos Brutos</label>
@@ -325,16 +302,16 @@ export const ClienteNew = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condición *</label>
-              <select
+              <SearchableSelect
                 value={formData.tipoServicio}
-                onChange={(e) => setFormData({ ...formData, tipoServicio: e.target.value as TipoServicioCliente | '' })}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                onChange={(value) => setFormData({ ...formData, tipoServicio: value as TipoServicioCliente | '' })}
+                options={[
+                  { value: 'contrato', label: 'Contrato' },
+                  { value: 'per_incident', label: 'Per Incident' },
+                ]}
+                placeholder="Seleccionar..."
                 required
-              >
-                <option value="">Seleccionar...</option>
-                <option value="contrato">Contrato</option>
-                <option value="per_incident">Per Incident</option>
-              </select>
+              />
               <p className="mt-1 text-xs text-slate-500">
                 <strong>Contrato:</strong> Tiempo de respuesta según contrato. OTs no requieren aceptación de presupuesto.<br />
                 <strong>Per Incident:</strong> Tiempo de respuesta estándar. OTs requieren aceptación de presupuesto.
@@ -381,19 +358,19 @@ export const ClienteNew = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condición de Pago</label>
-                <select
+                <SearchableSelect
                   value={formData.condicionPago}
-                  onChange={(e) => setFormData({ ...formData, condicionPago: e.target.value as CondicionPago | '' })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="contado">Contado</option>
-                  <option value="pago_anticipado">Pago Anticipado</option>
-                  <option value="30_dias">30 Días</option>
-                  <option value="60_dias">60 Días</option>
-                  <option value="90_dias">90 Días</option>
-                  <option value="otro">Otro</option>
-                </select>
+                  onChange={(value) => setFormData({ ...formData, condicionPago: value as CondicionPago | '' })}
+                  options={[
+                    { value: 'contado', label: 'Contado' },
+                    { value: 'pago_anticipado', label: 'Pago Anticipado' },
+                    { value: '30_dias', label: '30 Días' },
+                    { value: '60_dias', label: '60 Días' },
+                    { value: '90_dias', label: '90 Días' },
+                    { value: 'otro', label: 'Otro' },
+                  ]}
+                  placeholder="Seleccionar..."
+                />
               </div>
             </div>
           </div>
@@ -410,7 +387,7 @@ export const ClienteNew = () => {
               type="button"
               onClick={() => {
                 setEditingContactoIndex(null);
-                setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+                setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
                 setShowContactoModal(true);
               }}
               className="ml-4 bg-purple-600 hover:bg-purple-700 text-white"
@@ -428,7 +405,10 @@ export const ClienteNew = () => {
                   <div>
                     <p className="font-bold text-slate-900">{contacto.nombre}</p>
                     <p className="text-xs text-slate-600">{contacto.cargo}{contacto.sector ? ` • ${contacto.sector}` : ''}</p>
-                    <p className="text-xs text-slate-500">{contacto.email} | {contacto.telefono}</p>
+                    <p className="text-xs text-slate-500">
+                    {contacto.email} | {contacto.telefono}
+                    {contacto.interno && ` (Int: ${contacto.interno})`}
+                  </p>
                     {contacto.esPrincipal && (
                       <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-bold">
                         Principal
@@ -462,7 +442,7 @@ export const ClienteNew = () => {
                 variant="outline"
                 onClick={() => {
                   setEditingContactoIndex(null);
-                  setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+                  setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
                   setShowContactoModal(true);
                 }}
               >
@@ -528,11 +508,23 @@ export const ClienteNew = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono *</label>
-                <Input
-                  value={contactoForm.telefono}
-                  onChange={(e) => setContactoForm({ ...contactoForm, telefono: e.target.value })}
-                  required
-                />
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <Input
+                      value={contactoForm.telefono}
+                      onChange={(e) => setContactoForm({ ...contactoForm, telefono: e.target.value })}
+                      placeholder="Teléfono"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      value={contactoForm.interno}
+                      onChange={(e) => setContactoForm({ ...contactoForm, interno: e.target.value })}
+                      placeholder="Interno"
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email *</label>
@@ -561,7 +553,7 @@ export const ClienteNew = () => {
                 onClick={() => {
                   setShowContactoModal(false);
                   setEditingContactoIndex(null);
-                  setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', email: '', esPrincipal: false });
+                  setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
                 }}
               >
                 Cancelar

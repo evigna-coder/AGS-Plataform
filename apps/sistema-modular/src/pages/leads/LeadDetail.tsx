@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { leadsService } from '../../services/firebaseService';
 
 interface Lead {
@@ -164,17 +165,12 @@ export const LeadDetail: React.FC = () => {
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
               Estado
             </label>
-            <select
+            <SearchableSelect
               value={formData.estado}
-              onChange={(e) => setFormData({ ...formData, estado: e.target.value as Lead['estado'] })}
-              className="w-full border rounded-lg px-4 py-2.5 text-sm bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
-            >
-              {estados.map((estado) => (
-                <option key={estado} value={estado}>
-                  {estadoLabels[estado]}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setFormData({ ...formData, estado: value as Lead['estado'] })}
+              options={estados.map(estado => ({ value: estado, label: estadoLabels[estado] }))}
+              placeholder="Seleccionar estado..."
+            />
           </div>
 
           <div className="pt-4 border-t">

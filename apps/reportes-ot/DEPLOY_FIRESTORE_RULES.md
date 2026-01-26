@@ -44,8 +44,14 @@ Después de desplegar, verifica en la consola de Firebase que las reglas se actu
 - `reportes/{ot}`
 - `clientes/{clienteId}` y `clientes/{clienteId}/contactos/{contactoId}`
 - `categorias_equipo/{categoriaId}`
+- `categorias_modulo/{categoriaId}`
 - `sistemas/{sistemaId}` y `sistemas/{sistemaId}/modulos/{moduloId}`
 - `leads/{leadId}`
+- `presupuestos/{presupuestoId}` (nuevo)
+- `ordenes_compra/{ocId}` (nuevo)
+- `categorias_presupuesto/{categoriaId}` (nuevo)
+- `condiciones_pago/{condicionId}` (nuevo)
+- `tipos_servicio/{tipoId}`
 
 ## Nota
 

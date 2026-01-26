@@ -2,6 +2,17 @@
 
 Write-Host "🚀 Iniciando AGS Sistema Modular..." -ForegroundColor Cyan
 
+# Cerrar procesos de Electron existentes
+Write-Host "`n🔴 Cerrando procesos de Electron existentes..." -ForegroundColor Yellow
+$processes = Get-Process -Name "electron" -ErrorAction SilentlyContinue
+if ($processes) {
+    foreach ($proc in $processes) {
+        Write-Host "   Cerrando proceso PID: $($proc.Id)" -ForegroundColor Gray
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+}
+
 # Verificar si Vite está corriendo
 Write-Host "`n📡 Verificando servidor Vite en puerto 3001..." -ForegroundColor Yellow
 $viteRunning = Test-NetConnection -ComputerName localhost -Port 3001 -InformationLevel Quiet -WarningAction SilentlyContinue

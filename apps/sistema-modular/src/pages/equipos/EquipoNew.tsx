@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { sistemasService, modulosService, categoriasEquipoService, clientesService } from '../../services/firebaseService';
-import type { CategoriaEquipo, Cliente, ModuloSistema } from '@ags/shared';
+import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService } from '../../services/firebaseService';
+import type { CategoriaEquipo, CategoriaModulo, Cliente, ModuloSistema } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 
 export const EquipoNew = () => {
   const navigate = useNavigate();
@@ -13,13 +14,15 @@ export const EquipoNew = () => {
   
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
+  const [categoriasModulos, setCategoriasModulos] = useState<CategoriaModulo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [formData, setFormData] = useState({
     clienteId: clienteIdFromUrl || '',
     categoriaId: '',
     nombre: '',
-    descripcion: '',
+    nombreManual: '',
     codigoInternoCliente: '',
+    software: '',
     observaciones: '',
     activo: true,
   });
@@ -28,6 +31,8 @@ export const EquipoNew = () => {
   const [showModuloModal, setShowModuloModal] = useState(false);
   const [editingModuloIndex, setEditingModuloIndex] = useState<number | null>(null);
   const [moduloForm, setModuloForm] = useState({
+    categoriaModuloId: '',
+    modeloCodigo: '',
     nombre: '',
     descripcion: '',
     serie: '',
@@ -41,11 +46,13 @@ export const EquipoNew = () => {
 
   const loadData = async () => {
     try {
-      const [categoriasData, clientesData] = await Promise.all([
+      const [categoriasData, categoriasModulosData, clientesData] = await Promise.all([
         categoriasEquipoService.getAll(),
+        categoriasModuloService.getAll(),
         clientesService.getAll(true),
       ]);
       setCategorias(categoriasData);
+      setCategoriasModulos(categoriasModulosData);
       setClientes(clientesData);
     } catch (error) {
       console.error('Error cargando datos:', error);
@@ -62,11 +69,17 @@ export const EquipoNew = () => {
     if (!formData.categoriaId) {
       newErrors.categoriaId = 'La categoría es obligatoria';
     }
-    if (!formData.nombre.trim()) {
+    const selectedCategoria = categorias.find(c => c.id === formData.categoriaId);
+    const categoriaTieneModelos = Boolean(selectedCategoria && (selectedCategoria.modelos || []).length > 0);
+    const nombreFinal = categoriaTieneModelos
+      ? (formData.nombre === '__otro__' ? formData.nombreManual : formData.nombre)
+      : formData.nombre;
+
+    if (!String(nombreFinal || '').trim()) {
       newErrors.nombre = 'El nombre es obligatorio';
     }
-    if (!formData.descripcion.trim()) {
-      newErrors.descripcion = 'La descripción es obligatoria';
+    if (!formData.software.trim()) {
+      newErrors.software = 'El software es obligatorio';
     }
     
     setErrors(newErrors);
@@ -82,12 +95,18 @@ export const EquipoNew = () => {
 
     try {
       setLoading(true);
+      const selectedCategoria = categorias.find(c => c.id === formData.categoriaId);
+      const categoriaTieneModelos = Boolean(selectedCategoria && (selectedCategoria.modelos || []).length > 0);
+      const nombreFinal = categoriaTieneModelos
+        ? (formData.nombre === '__otro__' ? formData.nombreManual : formData.nombre)
+        : formData.nombre;
+
       const sistemaId = await sistemasService.create({
         clienteId: formData.clienteId,
         categoriaId: formData.categoriaId,
-        nombre: formData.nombre,
-        descripcion: formData.descripcion,
+        nombre: String(nombreFinal || '').trim(),
         codigoInternoCliente: formData.codigoInternoCliente || 'PROV-' + Date.now().toString().slice(-6),
+        software: formData.software || undefined,
         observaciones: formData.observaciones || undefined,
         activo: formData.activo,
         ubicaciones: [],
@@ -112,23 +131,54 @@ export const EquipoNew = () => {
   };
 
   const handleAddModulo = () => {
-    if (!moduloForm.nombre.trim()) {
-      alert('Por favor ingrese el nombre del módulo');
+    // Si se seleccionó un modelo de categoría, usar esos datos
+    let nombreFinal = moduloForm.nombre;
+    let descripcionFinal = moduloForm.descripcion;
+    
+    if (moduloForm.categoriaModuloId && moduloForm.modeloCodigo) {
+      const categoria = categoriasModulos.find(c => c.id === moduloForm.categoriaModuloId);
+      const modelo = categoria?.modelos.find(m => m.codigo === moduloForm.modeloCodigo);
+      if (modelo) {
+        nombreFinal = modelo.codigo;
+        descripcionFinal = modelo.descripcion;
+      }
+    }
+    
+    if (!nombreFinal.trim()) {
+      alert('Por favor seleccione un modelo o ingrese el nombre del módulo');
       return;
     }
+    
+    // Helper para limpiar campos vacíos y evitar undefined en Firestore
+    const cleanValue = (value: any): any => {
+      if (value === '' || value === null || value === undefined) {
+        return null; // Firestore acepta null pero no undefined
+      }
+      return value;
+    };
+    
+    const moduloData = {
+      nombre: nombreFinal,
+      descripcion: cleanValue(descripcionFinal),
+      serie: cleanValue(moduloForm.serie),
+      firmware: cleanValue(moduloForm.firmware),
+      observaciones: cleanValue(moduloForm.observaciones),
+      ubicaciones: [],
+      otIds: [],
+    };
     
     if (editingModuloIndex !== null) {
       // Editar módulo existente
       const updated = [...modulos];
-      updated[editingModuloIndex] = moduloForm;
+      updated[editingModuloIndex] = moduloData;
       setModulos(updated);
       setEditingModuloIndex(null);
     } else {
       // Agregar nuevo módulo
-      setModulos([...modulos, moduloForm]);
+      setModulos([...modulos, moduloData]);
     }
     
-    setModuloForm({ nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
+    setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
     setShowModuloModal(false);
   };
 
@@ -163,43 +213,72 @@ export const EquipoNew = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
-                <select
+                <SearchableSelect
                   value={formData.clienteId}
-                  onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${errors.clienteId ? 'border-red-500' : 'border-slate-300'}`}
+                  onChange={(value) => setFormData({ ...formData, clienteId: value })}
+                  options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                  placeholder="Seleccionar cliente..."
                   required
-                >
-                  <option value="">Seleccionar cliente...</option>
-                  {clientes.map(c => (
-                    <option key={c.id} value={c.id}>{c.razonSocial}</option>
-                  ))}
-                </select>
-                {errors.clienteId && <p className="mt-1 text-xs text-red-600">{errors.clienteId}</p>}
+                  error={errors.clienteId}
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría *</label>
-                <select
+                <SearchableSelect
                   value={formData.categoriaId}
-                  onChange={(e) => setFormData({ ...formData, categoriaId: e.target.value })}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${errors.categoriaId ? 'border-red-500' : 'border-slate-300'}`}
+                  onChange={(value) => setFormData({ ...formData, categoriaId: value, nombre: '', nombreManual: '' })}
+                  options={categorias.map(cat => ({ value: cat.id, label: cat.nombre }))}
+                  placeholder="Seleccionar categoría..."
                   required
-                >
-                  <option value="">Seleccionar categoría...</option>
-                  {categorias.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-                  ))}
-                </select>
-                {errors.categoriaId && <p className="mt-1 text-xs text-red-600">{errors.categoriaId}</p>}
+                  error={errors.categoriaId}
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
-                <Input
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                  placeholder="Ej: HPLC 1260"
-                  error={errors.nombre}
-                  required
-                />
+                {(() => {
+                  const selectedCategoria = categorias.find(c => c.id === formData.categoriaId);
+                  const modelos = (selectedCategoria?.modelos || []).filter(Boolean);
+
+                  // Si la categoría tiene modelos, el "Nombre" se selecciona de esa lista
+                  if (modelos.length > 0) {
+                    return (
+                      <div className="space-y-2">
+                        <SearchableSelect
+                          value={formData.nombre}
+                          onChange={(value) => setFormData({ ...formData, nombre: value })}
+                          options={[
+                            ...modelos.map(m => ({ value: m, label: m })),
+                            { value: '__otro__', label: 'Otro (cargar manualmente)' },
+                          ]}
+                          placeholder="Seleccionar modelo..."
+                          required
+                          error={errors.nombre}
+                        />
+                        {formData.nombre === '__otro__' && (
+                          <Input
+                            value={formData.nombreManual}
+                            onChange={(e) => setFormData({ ...formData, nombreManual: e.target.value })}
+                            placeholder="Ingrese el modelo"
+                            error={errors.nombre}
+                            required
+                          />
+                        )}
+                        {errors.nombre && <p className="text-xs text-red-600">{errors.nombre}</p>}
+                      </div>
+                    );
+                  }
+
+                  // Si no hay modelos cargados, fallback a input manual
+                  return (
+                    <Input
+                      value={formData.nombre}
+                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                      placeholder="Ej: HPLC 1260"
+                      error={errors.nombre}
+                      required
+                    />
+                  );
+                })()}
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Código Interno Cliente</label>
@@ -209,16 +288,16 @@ export const EquipoNew = () => {
                   placeholder="Si no tiene, se asignará provisorio"
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción *</label>
-              <Input
-                value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                placeholder="Ej: Cromatógrafo líquido"
-                error={errors.descripcion}
-                required
-              />
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Software *</label>
+                <Input
+                  value={formData.software}
+                  onChange={(e) => setFormData({ ...formData, software: e.target.value })}
+                  placeholder="Ej: OpenLab, ChemStation, MassHunter..."
+                  error={errors.software}
+                  required
+                />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Observaciones</label>
@@ -244,7 +323,7 @@ export const EquipoNew = () => {
               type="button"
               onClick={() => {
                 setEditingModuloIndex(null);
-                setModuloForm({ nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
+                setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
                 setShowModuloModal(true);
               }}
               className="ml-4 bg-blue-600 hover:bg-blue-700 text-white"
@@ -297,7 +376,7 @@ export const EquipoNew = () => {
                 variant="outline"
                 onClick={() => {
                   setEditingModuloIndex(null);
-                  setModuloForm({ nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
+                  setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
                   setShowModuloModal(true);
                 }}
               >
@@ -326,21 +405,90 @@ export const EquipoNew = () => {
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
-                <Input
-                  value={moduloForm.nombre}
-                  onChange={(e) => setModuloForm({ ...moduloForm, nombre: e.target.value })}
-                  placeholder="Bomba, Inyector, Detector..."
-                  required
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría de Módulo</label>
+                <SearchableSelect
+                  value={moduloForm.categoriaModuloId}
+                  onChange={(value) => {
+                    setModuloForm({ ...moduloForm, categoriaModuloId: value, modeloCodigo: '', nombre: '', descripcion: '' });
+                  }}
+                  options={categoriasModulos.map(cat => ({ value: cat.id, label: cat.nombre }))}
+                  placeholder="Seleccionar categoría (opcional)..."
                 />
+                <p className="mt-1 text-xs text-slate-500">O deje vacío para escribir manualmente</p>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
-                <Input
-                  value={moduloForm.descripcion}
-                  onChange={(e) => setModuloForm({ ...moduloForm, descripcion: e.target.value })}
-                />
-              </div>
+
+              {moduloForm.categoriaModuloId ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Modelo *</label>
+                    <SearchableSelect
+                      value={moduloForm.modeloCodigo}
+                      onChange={(value) => {
+                        const categoria = categoriasModulos.find(c => c.id === moduloForm.categoriaModuloId);
+                        const modelo = categoria?.modelos.find(m => m.codigo === value);
+                        setModuloForm({
+                          ...moduloForm,
+                          modeloCodigo: value,
+                          nombre: modelo?.codigo || '',
+                          descripcion: modelo?.descripcion || '',
+                        });
+                      }}
+                      options={categoriasModulos
+                        .find(c => c.id === moduloForm.categoriaModuloId)
+                        ?.modelos.map(m => ({ value: m.codigo, label: `${m.codigo} - ${m.descripcion}` })) || []}
+                      placeholder="Seleccionar modelo..."
+                      required
+                    />
+                  </div>
+                  {moduloForm.modeloCodigo && (() => {
+                    const categoria = categoriasModulos.find(c => c.id === moduloForm.categoriaModuloId);
+                    const modelo = categoria?.modelos.find(m => m.codigo === moduloForm.modeloCodigo);
+                    if (modelo) {
+                      return (
+                        <>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Código del Modelo</label>
+                            <Input
+                              value={modelo.codigo}
+                              disabled
+                              className="bg-slate-100 text-slate-600 cursor-not-allowed"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                            <Input
+                              value={modelo.descripcion}
+                              disabled
+                              className="bg-slate-100 text-slate-600 cursor-not-allowed"
+                            />
+                          </div>
+                        </>
+                      );
+                    }
+                    return null;
+                  })()}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                    <Input
+                      value={moduloForm.nombre}
+                      onChange={(e) => setModuloForm({ ...moduloForm, nombre: e.target.value })}
+                      placeholder="Bomba, Inyector, Detector..."
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                    <Input
+                      value={moduloForm.descripcion}
+                      onChange={(e) => setModuloForm({ ...moduloForm, descripcion: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Número de Serie</label>
                 <Input
@@ -372,7 +520,7 @@ export const EquipoNew = () => {
                 onClick={() => {
                   setShowModuloModal(false);
                   setEditingModuloIndex(null);
-                  setModuloForm({ nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
+                  setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
                 }}
               >
                 Cancelar

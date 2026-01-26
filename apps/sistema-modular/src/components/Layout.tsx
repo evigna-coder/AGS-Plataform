@@ -8,6 +8,7 @@ interface LayoutProps {
 const navigation = [
   { name: 'Clientes', path: '/clientes', icon: '🏢' },
   { name: 'Equipos', path: '/equipos', icon: '⚙️' },
+  { name: 'Órdenes de Trabajo', path: '/ordenes-trabajo', icon: '📝' },
   { name: 'Leads', path: '/leads', icon: '👥' },
   { name: 'Presupuestos', path: '/presupuestos', icon: '📋' },
   { name: 'Stock', path: '/stock', icon: '📦' },

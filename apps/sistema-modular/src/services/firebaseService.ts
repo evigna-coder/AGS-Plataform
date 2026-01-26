@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
-import type { Cliente, ContactoCliente, CategoriaEquipo, Sistema, ModuloSistema } from '@ags/shared';
+import type { Cliente, ContactoCliente, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago } from '@ags/shared';
 
 // Configuración de Firebase (usar la misma que reportes-ot)
 const firebaseConfig = {
@@ -268,7 +268,10 @@ export const categoriasEquipoService = {
   // Crear categoría
   async create(categoriaData: Omit<CategoriaEquipo, 'id'>) {
     console.log('📝 Creando categoría:', categoriaData.nombre);
-    const docRef = await addDoc(collection(db, 'categorias_equipo'), categoriaData);
+    const docRef = await addDoc(collection(db, 'categorias_equipo'), {
+      ...categoriaData,
+      modelos: categoriaData.modelos || [],
+    });
     console.log('✅ Categoría creada exitosamente con ID:', docRef.id);
     return docRef.id;
   },
@@ -282,6 +285,11 @@ export const categoriasEquipoService = {
       id: doc.id,
       ...doc.data(),
     })) as CategoriaEquipo[];
+    
+    // Normalizar modelos para categorías viejas
+    for (const c of categorias) {
+      if (!Array.isArray(c.modelos)) c.modelos = [];
+    }
     
     // Ordenar en memoria mientras se construyen los índices
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -303,12 +311,75 @@ export const categoriasEquipoService = {
   // Actualizar categoría
   async update(id: string, data: Partial<Omit<CategoriaEquipo, 'id'>>) {
     const docRef = doc(db, 'categorias_equipo', id);
-    await updateDoc(docRef, data);
+    await updateDoc(docRef, {
+      ...data,
+      ...(data.modelos ? { modelos: data.modelos } : {}),
+    });
   },
 
   // Eliminar categoría
   async delete(id: string) {
     await deleteDoc(doc(db, 'categorias_equipo', id));
+  },
+};
+
+// Servicio para Categorías de Módulos
+export const categoriasModuloService = {
+  // Crear categoría de módulo
+  async create(categoriaData: Omit<CategoriaModulo, 'id'>) {
+    console.log('📝 Creando categoría de módulo:', categoriaData.nombre);
+    const docRef = await addDoc(collection(db, 'categorias_modulo'), {
+      ...categoriaData,
+      modelos: categoriaData.modelos || [],
+    });
+    console.log('✅ Categoría de módulo creada exitosamente con ID:', docRef.id);
+    return docRef.id;
+  },
+
+  // Obtener todas las categorías de módulos
+  async getAll() {
+    console.log('📥 Cargando categorías de módulos desde Firestore...');
+    const q = query(collection(db, 'categorias_modulo'));
+    const querySnapshot = await getDocs(q);
+    const categorias = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as CategoriaModulo[];
+    
+    // Normalizar modelos para categorías viejas
+    for (const c of categorias) {
+      if (!Array.isArray(c.modelos)) c.modelos = [];
+    }
+    
+    // Ordenar en memoria
+    categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    
+    console.log(`✅ ${categorias.length} categorías de módulos cargadas`);
+    return categorias;
+  },
+
+  // Obtener categoría de módulo por ID
+  async getById(id: string) {
+    const docRef = doc(db, 'categorias_modulo', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as CategoriaModulo;
+    }
+    return null;
+  },
+
+  // Actualizar categoría de módulo
+  async update(id: string, data: Partial<Omit<CategoriaModulo, 'id'>>) {
+    const docRef = doc(db, 'categorias_modulo', id);
+    await updateDoc(docRef, {
+      ...data,
+      ...(data.modelos ? { modelos: data.modelos } : {}),
+    });
+  },
+
+  // Eliminar categoría de módulo
+  async delete(id: string) {
+    await deleteDoc(doc(db, 'categorias_modulo', id));
   },
 };
 
@@ -397,6 +468,26 @@ export const sistemasService = {
   async deactivate(id: string) {
     await this.update(id, { activo: false });
   },
+
+  // Eliminar sistema (elimina también todos sus módulos)
+  async delete(id: string) {
+    console.log('🗑️ Eliminando sistema:', id);
+    
+    // Primero eliminar todos los módulos del sistema
+    try {
+      const modulosSnapshot = await getDocs(collection(db, 'sistemas', id, 'modulos'));
+      const deletePromises = modulosSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      console.log(`✅ ${modulosSnapshot.docs.length} módulos eliminados`);
+    } catch (error) {
+      console.error('Error eliminando módulos:', error);
+      // Continuar con la eliminación del sistema aunque falle la eliminación de módulos
+    }
+    
+    // Luego eliminar el sistema
+    await deleteDoc(doc(db, 'sistemas', id));
+    console.log('✅ Sistema eliminado exitosamente');
+  },
 };
 
 // Servicio para Módulos (subcolección de sistemas)
@@ -404,12 +495,26 @@ export const modulosService = {
   // Crear módulo
   async create(sistemaId: string, moduloData: Omit<ModuloSistema, 'id' | 'sistemaId'>) {
     console.log('📝 Creando módulo para sistema:', sistemaId);
-    const docRef = await addDoc(collection(db, 'sistemas', sistemaId, 'modulos'), {
+    
+    // Helper para limpiar undefined (Firestore no acepta undefined)
+    const cleanData = (data: any): any => {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          cleaned[key] = value === '' ? null : value;
+        }
+      }
+      return cleaned;
+    };
+    
+    const cleanedData = cleanData({
       ...moduloData,
       sistemaId,
       ubicaciones: moduloData.ubicaciones || [],
       otIds: moduloData.otIds || [],
     });
+    
+    const docRef = await addDoc(collection(db, 'sistemas', sistemaId, 'modulos'), cleanedData);
     console.log('✅ Módulo creado exitosamente con ID:', docRef.id);
     return docRef.id;
   },
@@ -440,12 +545,634 @@ export const modulosService = {
 
   // Actualizar módulo
   async update(sistemaId: string, moduloId: string, data: Partial<Omit<ModuloSistema, 'id' | 'sistemaId'>>) {
+    // Helper para limpiar undefined (Firestore no acepta undefined)
+    const cleanData = (data: any): any => {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          cleaned[key] = value === '' ? null : value;
+        }
+      }
+      return cleaned;
+    };
+    
     const docRef = doc(db, 'sistemas', sistemaId, 'modulos', moduloId);
-    await updateDoc(docRef, data);
+    await updateDoc(docRef, cleanData(data));
   },
 
   // Eliminar módulo
   async delete(sistemaId: string, moduloId: string) {
     await deleteDoc(doc(db, 'sistemas', sistemaId, 'modulos', moduloId));
+  },
+};
+
+// Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
+export const ordenesTrabajoService = {
+  // Generar siguiente número de OT automáticamente (correlativo desde 30000)
+  async getNextOtNumber(): Promise<string> {
+    console.log('🔢 Generando siguiente número de OT...');
+    const querySnapshot = await getDocs(collection(db, 'reportes'));
+    
+    let maxNumber = 29999; // Base: 30000 será el primero
+    
+    querySnapshot.docs.forEach(doc => {
+      const otNumber = doc.id;
+      // Extraer número base (antes del punto) - solo OTs principales, no items
+      if (!otNumber.includes('.')) {
+        const baseMatch = otNumber.match(/^(\d{5})$/);
+        if (baseMatch) {
+          const baseNum = parseInt(baseMatch[1]);
+          if (baseNum > maxNumber) {
+            maxNumber = baseNum;
+          }
+        }
+      }
+    });
+    
+    const nextNumber = maxNumber + 1;
+    const nextOt = String(nextNumber).padStart(5, '0');
+    console.log(`✅ Siguiente OT: ${nextOt}`);
+    return nextOt;
+  },
+
+  // Generar siguiente número de item para una OT padre
+  async getNextItemNumber(otPadre: string): Promise<string> {
+    console.log(`🔢 Generando siguiente item para OT ${otPadre}...`);
+    const q = query(collection(db, 'reportes'));
+    const querySnapshot = await getDocs(q);
+    
+    let maxItem = 0;
+    const prefix = otPadre + '.';
+    
+    querySnapshot.docs.forEach(doc => {
+      const otNumber = doc.id;
+      if (otNumber.startsWith(prefix)) {
+        const itemMatch = otNumber.match(/\.(\d{2})$/);
+        if (itemMatch) {
+          const itemNum = parseInt(itemMatch[1]);
+          if (itemNum > maxItem) {
+            maxItem = itemNum;
+          }
+        }
+      }
+    });
+    
+    const nextItem = maxItem + 1;
+    const nextItemNumber = `${otPadre}.${String(nextItem).padStart(2, '0')}`;
+    console.log(`✅ Siguiente item: ${nextItemNumber}`);
+    return nextItemNumber;
+  },
+
+  // Obtener todas las OTs (con filtros opcionales)
+  async getAll(filters?: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] }) {
+    console.log('📥 Cargando órdenes de trabajo desde Firestore...');
+    let q = query(collection(db, 'reportes'));
+    
+    // Aplicar filtros si existen
+    if (filters?.clienteId) {
+      q = query(q, where('clienteId', '==', filters.clienteId));
+    }
+    if (filters?.sistemaId) {
+      q = query(q, where('sistemaId', '==', filters.sistemaId));
+    }
+    if (filters?.status) {
+      q = query(q, where('status', '==', filters.status));
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const ordenes = querySnapshot.docs.map(doc => ({
+      otNumber: doc.id,
+      ...doc.data(),
+      updatedAt: doc.data().updatedAt || new Date().toISOString(),
+    })) as WorkOrder[];
+    
+    // Ordenar por número de OT (descendente - más recientes primero)
+    ordenes.sort((a, b) => {
+      const numA = parseInt(a.otNumber.split('.')[0]);
+      const numB = parseInt(b.otNumber.split('.')[0]);
+      if (numA !== numB) return numB - numA;
+      // Si mismo número base, ordenar por item
+      const itemA = a.otNumber.includes('.') ? parseInt(a.otNumber.split('.')[1]) : 0;
+      const itemB = b.otNumber.includes('.') ? parseInt(b.otNumber.split('.')[1]) : 0;
+      return itemB - itemA;
+    });
+    
+    console.log(`✅ ${ordenes.length} órdenes de trabajo cargadas`);
+    return ordenes;
+  },
+
+  // Obtener items de una OT padre
+  async getItemsByOtPadre(otPadre: string): Promise<WorkOrder[]> {
+    const q = query(collection(db, 'reportes'));
+    const querySnapshot = await getDocs(q);
+    const prefix = otPadre + '.';
+    
+    const items = querySnapshot.docs
+      .filter(doc => doc.id.startsWith(prefix))
+      .map(doc => ({
+        otNumber: doc.id,
+        ...doc.data(),
+        updatedAt: doc.data().updatedAt || new Date().toISOString(),
+      })) as WorkOrder[];
+    
+    // Ordenar por número de item
+    items.sort((a, b) => {
+      const itemA = parseInt(a.otNumber.split('.')[1]);
+      const itemB = parseInt(b.otNumber.split('.')[1]);
+      return itemA - itemB;
+    });
+    
+    return items;
+  },
+
+  // Obtener OT por número
+  async getByOtNumber(otNumber: string) {
+    const docRef = doc(db, 'reportes', otNumber);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        otNumber: docSnap.id,
+        ...docSnap.data(),
+        updatedAt: docSnap.data().updatedAt || new Date().toISOString(),
+      } as WorkOrder;
+    }
+    return null;
+  },
+
+  // Crear nueva OT (usa setDoc para controlar el ID)
+  async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
+    console.log('📝 Creando orden de trabajo:', otData.otNumber);
+    
+    // Helper para limpiar undefined (Firestore no acepta undefined)
+    const cleanData = (data: any): any => {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          cleaned[key] = value === '' ? null : value;
+        }
+      }
+      return cleaned;
+    };
+    
+    const docRef = doc(db, 'reportes', otData.otNumber);
+    const cleanedData = cleanData({
+      ...otData,
+      status: otData.status || 'BORRADOR',
+      updatedAt: Timestamp.now(),
+      createdAt: Timestamp.now(),
+    });
+    
+    await setDoc(docRef, cleanedData);
+    console.log('✅ Orden de trabajo creada exitosamente');
+    return otData.otNumber;
+  },
+
+  // Actualizar OT
+  async update(otNumber: string, data: Partial<WorkOrder>) {
+    // Helper para limpiar undefined (Firestore no acepta undefined)
+    const cleanData = (data: any): any => {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          cleaned[key] = value === '' ? null : value;
+        }
+      }
+      return cleaned;
+    };
+    
+    const docRef = doc(db, 'reportes', otNumber);
+    const cleanedData = cleanData({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    
+    await updateDoc(docRef, cleanedData);
+  },
+
+  // Eliminar OT (baja lógica - cambiar status a inactivo o eliminar físicamente)
+  async delete(otNumber: string) {
+    // Por seguridad, no eliminamos físicamente, solo marcamos como inactivo
+    // Si realmente se necesita eliminar, descomentar la línea siguiente
+    // await deleteDoc(doc(db, 'reportes', otNumber));
+    
+    // Por ahora, solo actualizamos el status
+    const docRef = doc(db, 'reportes', otNumber);
+    await updateDoc(docRef, {
+      status: 'BORRADOR', // O crear un campo 'activo: false'
+      updatedAt: Timestamp.now(),
+    });
+  },
+};
+
+// Servicio para Tipos de Servicio (lista simple)
+export const tiposServicioService = {
+  // Obtener todos los tipos de servicio
+  async getAll() {
+    console.log('📥 Cargando tipos de servicio...');
+    const querySnapshot = await getDocs(collection(db, 'tipos_servicio'));
+    const tipos = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate().toISOString(),
+      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
+    })) as TipoServicio[];
+    
+    tipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    console.log(`✅ ${tipos.length} tipos de servicio cargados`);
+    return tipos;
+  },
+
+  // Obtener tipo por ID
+  async getById(id: string) {
+    const docRef = doc(db, 'tipos_servicio', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate().toISOString(),
+        updatedAt: docSnap.data().updatedAt?.toDate().toISOString(),
+      } as TipoServicio;
+    }
+    return null;
+  },
+
+  // Crear tipo de servicio
+  async create(tipoData: Omit<TipoServicio, 'id' | 'createdAt' | 'updatedAt'>) {
+    const docRef = await addDoc(collection(db, 'tipos_servicio'), {
+      ...tipoData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    return docRef.id;
+  },
+
+  // Actualizar tipo de servicio
+  async update(id: string, data: Partial<Omit<TipoServicio, 'id' | 'createdAt' | 'updatedAt'>>) {
+    const docRef = doc(db, 'tipos_servicio', id);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  // Eliminar tipo de servicio
+  async delete(id: string) {
+    await deleteDoc(doc(db, 'tipos_servicio', id));
+  },
+};
+
+// Servicio para Presupuestos
+export const presupuestosService = {
+  // Generar siguiente número de presupuesto (PRE-0000)
+  async getNextPresupuestoNumber(): Promise<string> {
+    console.log('🔢 Generando siguiente número de presupuesto...');
+    const q = query(collection(db, 'presupuestos'), orderBy('numero', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    let maxNum = 0;
+    querySnapshot.docs.forEach(doc => {
+      const numero = doc.data().numero;
+      const match = numero.match(/PRE-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    
+    const nextNum = maxNum + 1;
+    const nextNumber = `PRE-${String(nextNum).padStart(4, '0')}`;
+    console.log(`✅ Siguiente presupuesto: ${nextNumber}`);
+    return nextNumber;
+  },
+
+  // Obtener todos los presupuestos
+  async getAll(filters?: { clienteId?: string; estado?: Presupuesto['estado'] }) {
+    console.log('📥 Cargando presupuestos desde Firestore...');
+    let q = query(collection(db, 'presupuestos'));
+    
+    // Aplicar filtros primero
+    if (filters?.clienteId) {
+      q = query(q, where('clienteId', '==', filters.clienteId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    
+    // Ordenar solo si no hay filtros que requieran índice compuesto
+    // Por ahora, ordenar en memoria para evitar problemas de índices
+    const querySnapshot = await getDocs(q);
+    const presupuestos = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate().toISOString(),
+      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
+      validUntil: doc.data().validUntil?.toDate().toISOString(),
+      fechaEnvio: doc.data().fechaEnvio?.toDate().toISOString(),
+    })) as Presupuesto[];
+    
+    // Ordenar en memoria por fecha de creación (más recientes primero)
+    presupuestos.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    
+    console.log(`✅ ${presupuestos.length} presupuestos cargados`);
+    return presupuestos;
+  },
+
+  // Obtener presupuesto por ID
+  async getById(id: string) {
+    const docRef = doc(db, 'presupuestos', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate().toISOString(),
+        updatedAt: docSnap.data().updatedAt?.toDate().toISOString(),
+        validUntil: docSnap.data().validUntil?.toDate().toISOString(),
+        fechaEnvio: docSnap.data().fechaEnvio?.toDate().toISOString(),
+      } as Presupuesto;
+    }
+    return null;
+  },
+
+  // Crear presupuesto
+  async create(presupuestoData: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
+    console.log('📝 Creando presupuesto...');
+    
+    // Generar número si no se proporciona
+    const numero = presupuestoData.numero || await this.getNextPresupuestoNumber();
+    
+    // Helper para limpiar undefined y convertir fechas
+    const cleanData = (data: any): any => {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          if (key === 'fechaEnvio' && value) {
+            cleaned[key] = Timestamp.fromDate(new Date(value as string));
+          } else if (key === 'validUntil' && value) {
+            cleaned[key] = Timestamp.fromDate(new Date(value as string));
+          } else {
+            cleaned[key] = value === '' ? null : value;
+          }
+        }
+      }
+      return cleaned;
+    };
+    
+    const docRef = await addDoc(collection(db, 'presupuestos'), cleanData({
+      ...presupuestoData,
+      numero,
+      items: presupuestoData.items || [],
+      ordenesCompraIds: presupuestoData.ordenesCompraIds || [],
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }));
+    
+    console.log('✅ Presupuesto creado exitosamente con ID:', docRef.id);
+    return docRef.id;
+  },
+
+  // Actualizar presupuesto
+  async update(id: string, data: Partial<Presupuesto>) {
+    // Helper para limpiar undefined
+    const cleanData = (data: any): any => {
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          if (key === 'fechaEnvio' && value) {
+            cleaned[key] = Timestamp.fromDate(new Date(value as string));
+          } else if (key === 'validUntil' && value) {
+            cleaned[key] = Timestamp.fromDate(new Date(value as string));
+          } else {
+            cleaned[key] = value === '' ? null : value;
+          }
+        }
+      }
+      return cleaned;
+    };
+    
+    const docRef = doc(db, 'presupuestos', id);
+    const cleanedData = cleanData({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    
+    await updateDoc(docRef, cleanedData);
+  },
+
+  // Eliminar presupuesto (baja lógica)
+  async delete(id: string) {
+    const docRef = doc(db, 'presupuestos', id);
+    await updateDoc(docRef, {
+      estado: 'borrador' as PresupuestoEstado,
+      updatedAt: Timestamp.now(),
+    });
+  },
+};
+
+// Servicio para Ordenes de Compra
+export const ordenesCompraService = {
+  // Generar siguiente número de OC (OC-0000)
+  async getNextOCNumber(): Promise<string> {
+    console.log('🔢 Generando siguiente número de OC...');
+    const q = query(collection(db, 'ordenes_compra'), orderBy('numero', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    let maxNum = 0;
+    querySnapshot.docs.forEach(doc => {
+      const numero = doc.data().numero;
+      const match = numero.match(/OC-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    
+    const nextNum = maxNum + 1;
+    const nextNumber = `OC-${String(nextNum).padStart(4, '0')}`;
+    console.log(`✅ Siguiente OC: ${nextNumber}`);
+    return nextNumber;
+  },
+
+  // Obtener todas las OCs
+  async getAll() {
+    console.log('📥 Cargando órdenes de compra desde Firestore...');
+    const q = query(collection(db, 'ordenes_compra'), orderBy('fechaRecepcion', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const ordenes = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      fechaRecepcion: doc.data().fechaRecepcion?.toDate().toISOString(),
+      createdAt: doc.data().createdAt?.toDate().toISOString(),
+      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
+    })) as OrdenCompra[];
+    
+    console.log(`✅ ${ordenes.length} órdenes de compra cargadas`);
+    return ordenes;
+  },
+
+  // Obtener OC por ID
+  async getById(id: string) {
+    const docRef = doc(db, 'ordenes_compra', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data(),
+        fechaRecepcion: docSnap.data().fechaRecepcion?.toDate().toISOString(),
+        createdAt: docSnap.data().createdAt?.toDate().toISOString(),
+        updatedAt: docSnap.data().updatedAt?.toDate().toISOString(),
+      } as OrdenCompra;
+    }
+    return null;
+  },
+
+  // Crear OC
+  async create(ocData: Omit<OrdenCompra, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
+    console.log('📝 Creando orden de compra...');
+    
+    const numero = ocData.numero || await this.getNextOCNumber();
+    
+    const docRef = await addDoc(collection(db, 'ordenes_compra'), {
+      ...ocData,
+      numero,
+      presupuestoIds: ocData.presupuestoIds || [],
+      fechaRecepcion: ocData.fechaRecepcion ? Timestamp.fromDate(new Date(ocData.fechaRecepcion)) : Timestamp.now(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    console.log('✅ Orden de compra creada exitosamente con ID:', docRef.id);
+    return docRef.id;
+  },
+
+  // Actualizar OC
+  async update(id: string, data: Partial<OrdenCompra>) {
+    const docRef = doc(db, 'ordenes_compra', id);
+    const updateData: any = {
+      ...data,
+      updatedAt: Timestamp.now(),
+    };
+    
+    if (data.fechaRecepcion) {
+      updateData.fechaRecepcion = Timestamp.fromDate(new Date(data.fechaRecepcion));
+    }
+    
+    await updateDoc(docRef, updateData);
+  },
+
+  // Eliminar OC
+  async delete(id: string) {
+    await deleteDoc(doc(db, 'ordenes_compra', id));
+  },
+};
+
+// Servicio para Categorías de Presupuesto
+export const categoriasPresupuestoService = {
+  // Obtener todas las categorías
+  async getAll() {
+    console.log('📥 Cargando categorías de presupuesto...');
+    const querySnapshot = await getDocs(collection(db, 'categorias_presupuesto'));
+    const categorias = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate().toISOString(),
+      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
+    })) as CategoriaPresupuesto[];
+    
+    categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    console.log(`✅ ${categorias.length} categorías de presupuesto cargadas`);
+    return categorias;
+  },
+
+  // Obtener categoría por ID
+  async getById(id: string) {
+    const docRef = doc(db, 'categorias_presupuesto', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate().toISOString(),
+        updatedAt: docSnap.data().updatedAt?.toDate().toISOString(),
+      } as CategoriaPresupuesto;
+    }
+    return null;
+  },
+
+  // Crear categoría
+  async create(categoriaData: Omit<CategoriaPresupuesto, 'id' | 'createdAt' | 'updatedAt'>) {
+    const docRef = await addDoc(collection(db, 'categorias_presupuesto'), {
+      ...categoriaData,
+      activo: categoriaData.activo !== undefined ? categoriaData.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    return docRef.id;
+  },
+
+  // Actualizar categoría
+  async update(id: string, data: Partial<Omit<CategoriaPresupuesto, 'id' | 'createdAt' | 'updatedAt'>>) {
+    const docRef = doc(db, 'categorias_presupuesto', id);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  // Eliminar categoría
+  async delete(id: string) {
+    await deleteDoc(doc(db, 'categorias_presupuesto', id));
+  },
+};
+
+// Servicio para Condiciones de Pago
+export const condicionesPagoService = {
+  // Obtener todas las condiciones
+  async getAll() {
+    console.log('📥 Cargando condiciones de pago...');
+    const querySnapshot = await getDocs(collection(db, 'condiciones_pago'));
+    const condiciones = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as CondicionPago[];
+    
+    condiciones.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    console.log(`✅ ${condiciones.length} condiciones de pago cargadas`);
+    return condiciones;
+  },
+
+  // Obtener condición por ID
+  async getById(id: string) {
+    const docRef = doc(db, 'condiciones_pago', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as CondicionPago;
+    }
+    return null;
+  },
+
+  // Crear condición
+  async create(condicionData: Omit<CondicionPago, 'id'>) {
+    const docRef = await addDoc(collection(db, 'condiciones_pago'), {
+      ...condicionData,
+      activo: condicionData.activo !== undefined ? condicionData.activo : true,
+    });
+    return docRef.id;
+  },
+
+  // Actualizar condición
+  async update(id: string, data: Partial<Omit<CondicionPago, 'id'>>) {
+    const docRef = doc(db, 'condiciones_pago', id);
+    await updateDoc(docRef, data);
+  },
+
+  // Eliminar condición
+  async delete(id: string) {
+    await deleteDoc(doc(db, 'condiciones_pago', id));
   },
 };

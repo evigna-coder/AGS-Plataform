@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const { join } = require('path');
 const { existsSync } = require('fs');
 
@@ -12,6 +12,8 @@ function createWindow() {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
+    x: undefined, // Dejar que el sistema posicione la ventana
+    y: undefined,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -20,9 +22,49 @@ function createWindow() {
     },
     icon: join(__dirname, '../build/icon.ico'),
     titleBarStyle: 'default',
-    show: false, // No mostrar hasta que esté listo
-    backgroundColor: '#f1f5f9' // Color de fondo mientras carga
+    show: true, // Mostrar inmediatamente
+    backgroundColor: '#f1f5f9', // Color de fondo mientras carga
+    alwaysOnTop: false, // No mantener siempre al frente
+    skipTaskbar: false // Mostrar en la barra de tareas
   });
+
+  // Configurar Content Security Policy en el header de respuesta
+  // En desarrollo, necesitamos 'unsafe-eval' para Vite HMR y React Fast Refresh
+  // Esta advertencia es normal en desarrollo y no aparecerá en producción
+  if (isDev) {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com data: blob:; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://*.firebaseio.com https://*.googleapis.com; " +
+            "style-src 'self' 'unsafe-inline' http://localhost:*; " +
+            "img-src 'self' data: blob: http://localhost:* https:; " +
+            "font-src 'self' data: http://localhost:* https:; " +
+            "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com;"
+          ]
+        }
+      });
+    });
+  } else {
+    // En producción, usar CSP más estricta sin unsafe-eval
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; " +
+            "script-src 'self'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data: blob: https:; " +
+            "font-src 'self' data:; " +
+            "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com;"
+          ]
+        }
+      });
+    });
+  }
 
   // Cargar la aplicación
   if (isDev) {
@@ -42,7 +84,7 @@ function createWindow() {
             setTimeout(() => loadApp(retries - 1), 1000);
           } else {
             // Mostrar error después de todos los intentos
-            mainWindow.webContents.executeScript(`
+            mainWindow.webContents.executeJavaScript(`
               document.body.innerHTML = \`
                 <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui; background: #f1f5f9;">
                   <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px;">
@@ -74,21 +116,38 @@ function createWindow() {
     }
   }
 
+  // Asegurar que la ventana esté visible y al frente
+  const ensureVisible = () => {
+    if (!mainWindow.isVisible()) {
+      console.log('Ventana no visible, forzando mostrar...');
+      mainWindow.show();
+    }
+    if (mainWindow.isMinimized()) {
+      console.log('Ventana minimizada, restaurando...');
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+    mainWindow.setAlwaysOnTop(true);
+    setTimeout(() => mainWindow.setAlwaysOnTop(false), 100);
+  };
+
   // Mostrar ventana cuando esté lista
   mainWindow.once('ready-to-show', () => {
     console.log('Ventana lista para mostrar');
-    mainWindow.show();
-    mainWindow.focus();
+    ensureVisible();
   });
   
   // También mostrar cuando la página termine de cargar
   mainWindow.webContents.once('did-finish-load', () => {
     console.log('Página terminó de cargar, mostrando ventana');
-    if (!mainWindow.isVisible()) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    ensureVisible();
   });
+  
+  // Forzar mostrar después de un tiempo si aún no se ha mostrado
+  setTimeout(() => {
+    console.log('Verificando visibilidad de ventana después del timeout');
+    ensureVisible();
+  }, 3000);
 
   // Manejar errores de carga
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
@@ -100,7 +159,7 @@ function createWindow() {
     
     if (isDev) {
       // Mostrar mensaje de error en la ventana
-      mainWindow.webContents.executeScript(`
+      mainWindow.webContents.executeJavaScript(`
         document.body.innerHTML = \`
           <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui; background: #f1f5f9;">
             <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -131,19 +190,88 @@ function createWindow() {
     require('electron').shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  return mainWindow;
 }
 
-// Cuando Electron esté listo
-app.whenReady().then(() => {
-  createWindow();
+// Manejar solicitud de abrir ventana de reportes-ot
+ipcMain.on('open-reportes-window', (event, url) => {
+  console.log('[IPC] Recibida solicitud para abrir ventana:', url);
+  
+  const reportesWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 700,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+    },
+    title: 'Editor de Reportes OT',
+    show: false,
+    backgroundColor: '#f1f5f9'
+  });
 
-  app.on('activate', () => {
-    // En macOS, recrear ventana cuando se hace clic en el dock
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+  console.log('[IPC] Cargando URL en nueva ventana:', url);
+  reportesWindow.loadURL(url);
+  
+  reportesWindow.once('ready-to-show', () => {
+    console.log('[IPC] Ventana lista, mostrando...');
+    reportesWindow.show();
+    reportesWindow.focus();
+  });
+
+  reportesWindow.on('closed', () => {
+    console.log('[IPC] Ventana de reportes cerrada');
+  });
+  
+  reportesWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('[IPC] Error al cargar ventana de reportes:', {
+      errorCode,
+      errorDescription,
+      url: validatedURL
+    });
   });
 });
+
+// Prevenir múltiples instancias
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  console.log('Otra instancia ya está corriendo, cerrando...');
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Si alguien intenta abrir otra instancia, enfocar la ventana existente
+    const existingWindow = BrowserWindow.getAllWindows()[0];
+    if (existingWindow) {
+      if (existingWindow.isMinimized()) existingWindow.restore();
+      existingWindow.focus();
+      existingWindow.moveTop();
+    }
+  });
+
+  // Cuando Electron esté listo
+  app.whenReady().then(() => {
+    createWindow();
+
+    app.on('activate', () => {
+      // En macOS, recrear ventana cuando se hace clic en el dock
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      } else {
+        // En Windows/Linux, enfocar la ventana existente
+        const existingWindow = BrowserWindow.getAllWindows()[0];
+        if (existingWindow) {
+          if (existingWindow.isMinimized()) existingWindow.restore();
+          existingWindow.focus();
+          existingWindow.moveTop();
+        }
+      }
+    });
+  });
+}
 
 // Cerrar cuando todas las ventanas estén cerradas (excepto en macOS)
 app.on('window-all-closed', () => {
