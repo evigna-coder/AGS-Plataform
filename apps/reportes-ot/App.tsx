@@ -603,6 +603,31 @@ const App: React.FC = () => {
     element.style.display = 'block';
     element.style.margin = '0 auto';
     element.style.width = '210mm';
+    
+    // Pre-cargar imágenes (especialmente el logo) para mejor calidad
+    const images = element.querySelectorAll('img');
+    await Promise.all(Array.from(images).map(img => {
+      return new Promise((resolve) => {
+        if (img.complete) {
+          resolve(null);
+        } else {
+          img.onload = () => resolve(null);
+          img.onerror = () => resolve(null); // Continuar aunque falle
+        }
+      });
+    }));
+    
+    // Aumentar temporalmente el tamaño del logo para mejor calidad en PDF
+    const logoImg = element.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
+    let originalLogoWidth: string | null = null;
+    if (logoImg) {
+      originalLogoWidth = logoImg.style.width || '';
+      logoImg.style.width = '150px'; // Aumentar tamaño antes de capturar
+      logoImg.style.imageRendering = 'high-quality'; // Mejorar renderizado
+    }
+    
+    // Esperar un frame para que el cambio se aplique
+    await new Promise(resolve => requestAnimationFrame(resolve));
 
     // Usar html2pdf para generar Blob
     const opt = {
@@ -610,7 +635,7 @@ const App: React.FC = () => {
       filename: `${otNumber}_Reporte_AGS.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: (window.devicePixelRatio >= 2 ? 2 : 1.5),
+        scale: Math.max(window.devicePixelRatio * 2, 3), // Aumentar escala para mejor calidad (mínimo 3x)
         useCORS: true,
         logging: false,
         letterRendering: true,
@@ -621,7 +646,15 @@ const App: React.FC = () => {
         scrollY: 0,
         windowWidth: element.scrollWidth,
         windowHeight: element.scrollHeight,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc: Document) => {
+          // Asegurar que el logo en el clone también tenga el tamaño aumentado
+          const clonedLogo = clonedDoc.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
+          if (clonedLogo) {
+            clonedLogo.style.width = '150px';
+            clonedLogo.style.imageRendering = 'high-quality';
+          }
+        }
       },
       jsPDF: {
         unit: 'mm',
@@ -634,6 +667,12 @@ const App: React.FC = () => {
 
     // Generar Blob usando html2pdf
     const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+    
+    // Restaurar tamaño original del logo
+    if (logoImg && originalLogoWidth !== null) {
+      logoImg.style.width = originalLogoWidth;
+    }
+    
     return pdfBlob;
   };
 
@@ -831,12 +870,37 @@ const App: React.FC = () => {
         element.style.margin = '0 auto';
         element.style.width = '210mm';
         
+        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
+        const images = element.querySelectorAll('img');
+        await Promise.all(Array.from(images).map(img => {
+          return new Promise((resolve) => {
+            if (img.complete) {
+              resolve(null);
+            } else {
+              img.onload = () => resolve(null);
+              img.onerror = () => resolve(null); // Continuar aunque falle
+            }
+          });
+        }));
+        
+        // Aumentar temporalmente el tamaño del logo para mejor calidad en PDF
+        const logoImg = element.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
+        let originalLogoWidth: string | null = null;
+        if (logoImg) {
+          originalLogoWidth = logoImg.style.width || '';
+          logoImg.style.width = '150px'; // Aumentar tamaño antes de capturar
+          logoImg.style.imageRendering = 'high-quality'; // Mejorar renderizado
+        }
+        
+        // Esperar un frame para que el cambio se aplique
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
         const opt = {
           margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm
           filename: `${otNumber}_Reporte_AGS.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
-            scale: (window.devicePixelRatio >= 2 ? 2 : 1.5), 
+            scale: Math.max(window.devicePixelRatio * 2, 3), // Aumentar escala para mejor calidad (mínimo 3x)
             useCORS: true,
             logging: false,
             letterRendering: true,
@@ -846,7 +910,15 @@ const App: React.FC = () => {
             scrollX: 0,
             scrollY: 0,
             windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
+            windowHeight: element.scrollHeight,
+            onclone: (clonedDoc: Document) => {
+              // Asegurar que el logo en el clone también tenga el tamaño aumentado
+              const clonedLogo = clonedDoc.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
+              if (clonedLogo) {
+                clonedLogo.style.width = '150px';
+                clonedLogo.style.imageRendering = 'high-quality';
+              }
+            }
           },
           jsPDF: { 
             unit: 'mm', 
@@ -1203,13 +1275,38 @@ const App: React.FC = () => {
         element.style.display = 'block';
         element.style.margin = '0 auto';
         element.style.width = '210mm';
+        
+        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
+        const images = element.querySelectorAll('img');
+        await Promise.all(Array.from(images).map(img => {
+          return new Promise((resolve) => {
+            if (img.complete) {
+              resolve(null);
+            } else {
+              img.onload = () => resolve(null);
+              img.onerror = () => resolve(null); // Continuar aunque falle
+            }
+          });
+        }));
+        
+        // Aumentar temporalmente el tamaño del logo para mejor calidad en PDF
+        const logoImg = element.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
+        let originalLogoWidth: string | null = null;
+        if (logoImg) {
+          originalLogoWidth = logoImg.style.width || '';
+          logoImg.style.width = '150px'; // Aumentar tamaño antes de capturar
+          logoImg.style.imageRendering = 'high-quality'; // Mejorar renderizado
+        }
+        
+        // Esperar un frame para que el cambio se aplique
+        await new Promise(resolve => requestAnimationFrame(resolve));
 
         const opt = {
           margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm - usar mismo formato que handleFinalSubmit
           filename: `${otNumber}_Reporte_AGS.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
-            scale: (window.devicePixelRatio >= 2 ? 2 : 1.5), 
+            scale: Math.max(window.devicePixelRatio * 2, 3), // Aumentar escala para mejor calidad (mínimo 3x)
             useCORS: true,
             logging: false,
             letterRendering: true,
@@ -1219,7 +1316,15 @@ const App: React.FC = () => {
             scrollX: 0,
             scrollY: 0,
             windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
+            windowHeight: element.scrollHeight,
+            onclone: (clonedDoc: Document) => {
+              // Asegurar que el logo en el clone también tenga el tamaño aumentado
+              const clonedLogo = clonedDoc.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
+              if (clonedLogo) {
+                clonedLogo.style.width = '150px';
+                clonedLogo.style.imageRendering = 'high-quality';
+              }
+            }
           },
           jsPDF: { 
             unit: 'mm', 
@@ -1298,10 +1403,22 @@ const App: React.FC = () => {
         }
         
         console.log("PDF generado exitosamente");
+        
+        // Restaurar tamaño original del logo
+        if (logoImg && originalLogoWidth !== null) {
+          logoImg.style.width = originalLogoWidth;
+        }
+        
         alert("Reporte finalizado y PDF generado correctamente.");
       } catch (pdfErr) {
         console.error("Error generando PDF:", pdfErr);
         console.error("Detalles del error:", pdfErr.message, pdfErr.stack);
+        
+        // Restaurar tamaño original del logo incluso si falla
+        if (logoImg && originalLogoWidth !== null) {
+          logoImg.style.width = originalLogoWidth;
+        }
+        
         alert("No se pudo generar el PDF, pero el reporte fue guardado correctamente.");
       } finally {
         setIsSending(false);
