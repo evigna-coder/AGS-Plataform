@@ -23,7 +23,7 @@ const CompanyLogo: React.FC = () => (
     src={LOGO_SRC}
     alt="Logo AGS"
     style={{
-      width: '80px',
+      width: '120px',
       height: 'auto',
       display: 'block',
       flexShrink: 0
@@ -49,7 +49,7 @@ interface HeaderProps {
 }
 
 const CompanyHeader: React.FC<HeaderProps> = ({ companyName, address, phone, whatsapp, email, web, logoUrl }) => (
-  <div className="flex justify-between items-start border-b pb-3 mb -1">
+  <div className="flex justify-between items-start border-b pb-3 mb-0 mt-4">
     <div className="flex items-start gap-3">
     
       {/* Logo de la empresa en PNG */}
@@ -57,7 +57,7 @@ const CompanyHeader: React.FC<HeaderProps> = ({ companyName, address, phone, wha
       <div className="-mt-5">
       <CompanyLogo />
       </div>
-      <div className="flex flex-col justify-start mt-0">
+      <div className="flex flex-col justify-start mt-4">
         <h1 className="text-[15px] text-slate-500 font-medium uppercase tracking-tight leading-none">{companyName}</h1>
         <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide">{address}</p>
         <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5 items-center">
@@ -83,7 +83,7 @@ const CompanyHeader: React.FC<HeaderProps> = ({ companyName, address, phone, wha
         </p>
       </div>
     </div>
-    <div className="text-right">
+    <div className="text-right mt-4">
       <h2 className="text-[13px] text-slate-500 font-medium uppercase tracking-tighter leading-none">Reporte de Servicio</h2>
     </div>
   </div>
@@ -616,18 +616,6 @@ const App: React.FC = () => {
         }
       });
     }));
-    
-    // Aumentar temporalmente el tamaño del logo para mejor calidad en PDF
-    const logoImg = element.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
-    let originalLogoWidth: string | null = null;
-    if (logoImg) {
-      originalLogoWidth = logoImg.style.width || '';
-      logoImg.style.width = '150px'; // Aumentar tamaño antes de capturar
-      logoImg.style.imageRendering = 'high-quality'; // Mejorar renderizado
-    }
-    
-    // Esperar un frame para que el cambio se aplique
-    await new Promise(resolve => requestAnimationFrame(resolve));
 
     // Usar html2pdf para generar Blob
     const opt = {
@@ -635,7 +623,7 @@ const App: React.FC = () => {
       filename: `${otNumber}_Reporte_AGS.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: Math.max(window.devicePixelRatio * 2, 3), // Aumentar escala para mejor calidad (mínimo 3x)
+        scale: Math.max(window.devicePixelRatio * 2, 3),
         useCORS: true,
         logging: false,
         letterRendering: true,
@@ -646,15 +634,7 @@ const App: React.FC = () => {
         scrollY: 0,
         windowWidth: element.scrollWidth,
         windowHeight: element.scrollHeight,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc: Document) => {
-          // Asegurar que el logo en el clone también tenga el tamaño aumentado
-          const clonedLogo = clonedDoc.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
-          if (clonedLogo) {
-            clonedLogo.style.width = '150px';
-            clonedLogo.style.imageRendering = 'high-quality';
-          }
-        }
+        backgroundColor: '#ffffff'
       },
       jsPDF: {
         unit: 'mm',
@@ -667,11 +647,6 @@ const App: React.FC = () => {
 
     // Generar Blob usando html2pdf
     const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-    
-    // Restaurar tamaño original del logo
-    if (logoImg && originalLogoWidth !== null) {
-      logoImg.style.width = originalLogoWidth;
-    }
     
     return pdfBlob;
   };
@@ -883,24 +858,12 @@ const App: React.FC = () => {
           });
         }));
         
-        // Aumentar temporalmente el tamaño del logo para mejor calidad en PDF
-        const logoImg = element.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
-        let originalLogoWidth: string | null = null;
-        if (logoImg) {
-          originalLogoWidth = logoImg.style.width || '';
-          logoImg.style.width = '150px'; // Aumentar tamaño antes de capturar
-          logoImg.style.imageRendering = 'high-quality'; // Mejorar renderizado
-        }
-        
-        // Esperar un frame para que el cambio se aplique
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        
         const opt = {
           margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm
           filename: `${otNumber}_Reporte_AGS.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
-            scale: Math.max(window.devicePixelRatio * 2, 3), // Aumentar escala para mejor calidad (mínimo 3x)
+            scale: Math.max(window.devicePixelRatio * 2, 3),
             useCORS: true,
             logging: false,
             letterRendering: true,
@@ -910,15 +873,7 @@ const App: React.FC = () => {
             scrollX: 0,
             scrollY: 0,
             windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-            onclone: (clonedDoc: Document) => {
-              // Asegurar que el logo en el clone también tenga el tamaño aumentado
-              const clonedLogo = clonedDoc.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
-              if (clonedLogo) {
-                clonedLogo.style.width = '150px';
-                clonedLogo.style.imageRendering = 'high-quality';
-              }
-            }
+            windowHeight: element.scrollHeight
           },
           jsPDF: { 
             unit: 'mm', 
@@ -1288,25 +1243,13 @@ const App: React.FC = () => {
             }
           });
         }));
-        
-        // Aumentar temporalmente el tamaño del logo para mejor calidad en PDF
-        const logoImg = element.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
-        let originalLogoWidth: string | null = null;
-        if (logoImg) {
-          originalLogoWidth = logoImg.style.width || '';
-          logoImg.style.width = '150px'; // Aumentar tamaño antes de capturar
-          logoImg.style.imageRendering = 'high-quality'; // Mejorar renderizado
-        }
-        
-        // Esperar un frame para que el cambio se aplique
-        await new Promise(resolve => requestAnimationFrame(resolve));
 
         const opt = {
           margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm - usar mismo formato que handleFinalSubmit
           filename: `${otNumber}_Reporte_AGS.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
-            scale: Math.max(window.devicePixelRatio * 2, 3), // Aumentar escala para mejor calidad (mínimo 3x)
+            scale: Math.max(window.devicePixelRatio * 2, 3),
             useCORS: true,
             logging: false,
             letterRendering: true,
@@ -1316,15 +1259,7 @@ const App: React.FC = () => {
             scrollX: 0,
             scrollY: 0,
             windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-            onclone: (clonedDoc: Document) => {
-              // Asegurar que el logo en el clone también tenga el tamaño aumentado
-              const clonedLogo = clonedDoc.querySelector('img[alt="Logo AGS"]') as HTMLImageElement;
-              if (clonedLogo) {
-                clonedLogo.style.width = '150px';
-                clonedLogo.style.imageRendering = 'high-quality';
-              }
-            }
+            windowHeight: element.scrollHeight
           },
           jsPDF: { 
             unit: 'mm', 
@@ -1404,20 +1339,10 @@ const App: React.FC = () => {
         
         console.log("PDF generado exitosamente");
         
-        // Restaurar tamaño original del logo
-        if (logoImg && originalLogoWidth !== null) {
-          logoImg.style.width = originalLogoWidth;
-        }
-        
         alert("Reporte finalizado y PDF generado correctamente.");
       } catch (pdfErr) {
         console.error("Error generando PDF:", pdfErr);
         console.error("Detalles del error:", pdfErr.message, pdfErr.stack);
-        
-        // Restaurar tamaño original del logo incluso si falla
-        if (logoImg && originalLogoWidth !== null) {
-          logoImg.style.width = originalLogoWidth;
-        }
         
         alert("No se pudo generar el PDF, pero el reporte fue guardado correctamente.");
       } finally {
@@ -1429,7 +1354,7 @@ const App: React.FC = () => {
   const fullDireccion = `${direccion}${localidad ? `, ${localidad}` : ''}${provincia ? `, ${provincia}` : ''}`;
 
   return (
-    <div id="report-container" className={`max-w-5xl mx-auto bg-white transition-all duration-300 pb-32 ${isPreviewMode ? 'p-0 min-h-screen shadow-none' : 'p-4 md:p-8 my-0 md:my-8 min-h-screen shadow-xl border border-slate-100'} print:p-0 print:m-0 print:shadow-none print:min-h-0 print:bg-white`}>
+    <div id="report-container" className={`max-w-5xl mx-auto bg-white transition-all duration-300 pb-32 ${isPreviewMode ? 'p-0 min-h-screen shadow-none' : 'px-4 md:px-8 pt-2 md:pt-4 pb-4 md:pb-8 my-0 md:my-8 min-h-screen shadow-xl border border-slate-100'} print:p-0 print:m-0 print:shadow-none print:min-h-0 print:bg-white`}>
       
       {!isPreviewMode && (
         <>
@@ -1441,8 +1366,7 @@ const App: React.FC = () => {
             email="info@agsanalitica.com"
             web="www.agsanalitica.com"
           />
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 no-print">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 no-print -mt-12 relative z-10">
           <div
             className="lg:col-span-8 space-y-4"
             onChange={markUserInteracted}
@@ -2316,8 +2240,8 @@ const App: React.FC = () => {
     boxSizing: 'border-box'
   }}>
             
-            <div className="pt-[6mm] px-[10mm] pb-[0mm] min-h-[277mm] flex flex-col relative bg-white" style={{ boxSizing: 'border-box', height: '285mm' }}>
-               <div className="-mb-[6mm]">
+            <div className="pt-[4mm] px-[10mm] pb-[0mm] min-h-[277mm] flex flex-col relative bg-white" style={{ boxSizing: 'border-box', height: '285mm' }}>
+               <div className="-mb-[2mm]">
   <CompanyHeader 
     companyName="AGS ANALITICA S.A." 
     address="Arenales 605 – Piso 15, B1638BRG Buenos Aires - Argentina" 
@@ -2327,8 +2251,7 @@ const App: React.FC = () => {
     web="www.agsanalitica.com"
   />
 </div>
-
-               <div className="grid grid-cols-2 gap-2 mb-2 text-[11px] bg-white p-[1px] relative z-10">
+               <div className="grid grid-cols-2 gap-2 mb-2 text-[11px] bg-white p-[1px] relative z-10 -mt-[12mm]">
                   <div className="border border-slate-200 p-2 rounded-lg bg-white">
                     <div className="-mx-2 px-2 border-b border-slate-200 mb-0.5">
                     <h4 className="text-[9px] font-black text-slate-400 uppercase mb-1">
