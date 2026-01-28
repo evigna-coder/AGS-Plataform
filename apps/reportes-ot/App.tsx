@@ -343,6 +343,23 @@ const App: React.FC = () => {
     signatureClient, aclaracionCliente
   } = formState;
 
+  // Estados locales para las fechas en formato DD/MM/AAAA (solo presentación)
+  const [fechaInicioDisplay, setFechaInicioDisplay] = useState(
+    fechaInicio ? formatDateToDDMMYYYY(fechaInicio) : ''
+  );
+  const [fechaFinDisplay, setFechaFinDisplay] = useState(
+    fechaFin ? formatDateToDDMMYYYY(fechaFin) : ''
+  );
+
+  // Sincronizar visual cuando la fecha ISO cambia desde fuera (carga OT, duplicado, nuevo reporte)
+  useEffect(() => {
+    setFechaInicioDisplay(fechaInicio ? formatDateToDDMMYYYY(fechaInicio) : '');
+  }, [fechaInicio]);
+
+  useEffect(() => {
+    setFechaFinDisplay(fechaFin ? formatDateToDDMMYYYY(fechaFin) : '');
+  }, [fechaFin]);
+
   // Desestructurar setters para facilitar el uso
   const {
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
@@ -1104,7 +1121,7 @@ const App: React.FC = () => {
                             <label className="text-[9px] font-bold text-slate-400 uppercase">Inicio</label>
                             <input
                               type="text"
-                              value={fechaInicio ? formatDateToDDMMYYYY(fechaInicio) : ''}
+                              value={fechaInicioDisplay}
                               placeholder="DD/MM/AAAA"
 
                               onChange={(e) => {
@@ -1126,8 +1143,11 @@ const App: React.FC = () => {
                                 if (value.length > 10) {
                                   value = value.slice(0, 10);
                                 }
+
+                                // Actualizar siempre el valor visible
+                                setFechaInicioDisplay(value);
                                 
-                                // Convertir a formato ISO para guardar
+                                // Convertir a formato ISO para guardar solo si es válida o vacío
                                 const isoDate = parseDDMMYYYYToISO(value);
                                 if (isoDate || value === '') {
                                   setFechaInicio(isoDate || '');
@@ -1140,8 +1160,11 @@ const App: React.FC = () => {
                                 if (value && !isValidDDMMYYYY(value)) {
                                   // Si el formato es inválido, limpiar o mantener el último válido
                                   if (fechaInicio) {
-                                    e.target.value = formatDateToDDMMYYYY(fechaInicio);
+                                    const formatted = formatDateToDDMMYYYY(fechaInicio);
+                                    setFechaInicioDisplay(formatted);
+                                    e.target.value = formatted;
                                   } else {
+                                    setFechaInicioDisplay('');
                                     e.target.value = '';
                                     setFechaInicio('');
                                   }
@@ -1162,7 +1185,7 @@ const App: React.FC = () => {
                             <label className="text-[9px] font-bold text-slate-400 uppercase">Fin</label>
                             <input
                               type="text"
-                              value={fechaFin ? formatDateToDDMMYYYY(fechaFin) : ''}
+                              value={fechaFinDisplay}
                               placeholder="DD/MM/AAAA"
 
                               onChange={(e) => {
@@ -1184,8 +1207,11 @@ const App: React.FC = () => {
                                 if (value.length > 10) {
                                   value = value.slice(0, 10);
                                 }
+
+                                // Actualizar siempre el valor visible
+                                setFechaFinDisplay(value);
                                 
-                                // Convertir a formato ISO para guardar
+                                // Convertir a formato ISO para guardar solo si es válida o vacío
                                 const isoDate = parseDDMMYYYYToISO(value);
                                 if (isoDate || value === '') {
                                   setFechaFin(isoDate || '');
@@ -1198,8 +1224,11 @@ const App: React.FC = () => {
                                 if (value && !isValidDDMMYYYY(value)) {
                                   // Si el formato es inválido, limpiar o mantener el último válido
                                   if (fechaFin) {
-                                    e.target.value = formatDateToDDMMYYYY(fechaFin);
+                                    const formatted = formatDateToDDMMYYYY(fechaFin);
+                                    setFechaFinDisplay(formatted);
+                                    e.target.value = formatted;
                                   } else {
+                                    setFechaFinDisplay('');
                                     e.target.value = '';
                                     setFechaFin('');
                                   }
