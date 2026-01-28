@@ -1041,7 +1041,7 @@ const App: React.FC = () => {
                         />
                       </div>
                     </div>
-                          <div className="grid grid-cols-4 gap-3 border-t pt-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-3">
                           <div>
                             <label className="text-[9px] font-bold text-slate-400 uppercase">Inicio</label>
                             <input
