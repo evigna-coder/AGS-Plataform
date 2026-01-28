@@ -17,10 +17,15 @@ if (-not $firebaseInstalled) {
 
 # Verificar que estás logueado
 Write-Host "Verificando login de Firebase..." -ForegroundColor Yellow
-firebase projects:list | Out-Null
+firebase projects:list 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "⚠️  No estás logueado en Firebase. Ejecutando login..." -ForegroundColor Yellow
-    firebase login
+    Write-Host "⚠️  No estás logueado en Firebase o las credenciales expiraron." -ForegroundColor Yellow
+    Write-Host "Ejecutando login con reautenticación..." -ForegroundColor Yellow
+    firebase login --reauth
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Error en el login. Por favor, ejecuta manualmente: firebase login --reauth" -ForegroundColor Red
+        exit 1
+    }
 }
 
 # Desplegar reglas

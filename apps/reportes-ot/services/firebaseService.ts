@@ -35,13 +35,55 @@ let app;
 let db;
 let storage;
 
+/**
+ * Verifica si un error es de autenticación de Firebase
+ */
+function isAuthError(error: any): boolean {
+  const errorMessage = error?.message?.toLowerCase() || '';
+  const errorCode = error?.code || '';
+  
+  return (
+    errorMessage.includes('authentication') ||
+    errorMessage.includes('credentials') ||
+    errorMessage.includes('no longer valid') ||
+    errorMessage.includes('invalid api key') ||
+    errorCode === 'auth/invalid-api-key' ||
+    errorCode === 'auth/api-key-not-valid'
+  );
+}
+
+/**
+ * Obtiene un mensaje de error amigable para errores de autenticación
+ */
+function getAuthErrorMessage(error: any): string {
+  if (isAuthError(error)) {
+    return `Error de autenticación de Firebase: Las credenciales ya no son válidas. 
+    
+Por favor, verifica:
+1. Que las credenciales en .env.local sean correctas
+2. Que el proyecto Firebase esté activo en la consola
+3. Que la API key no haya sido revocada o deshabilitada
+4. Que no haya restricciones de dominio/IP bloqueando el acceso
+
+Para obtener nuevas credenciales:
+- Ve a https://console.firebase.google.com/
+- Selecciona tu proyecto: ${firebaseConfig.projectId}
+- Ve a Configuración del proyecto > Configuración general
+- Copia las nuevas credenciales a tu archivo .env.local`;
+  }
+  return error?.message || 'Error desconocido';
+}
+
 try {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   storage = getStorage(app);
   console.log('✅ Firebase inicializado correctamente');
-} catch (error) {
+} catch (error: any) {
   console.error('❌ Error al inicializar Firebase:', error);
+  if (isAuthError(error)) {
+    console.error('🔐 ERROR DE AUTENTICACIÓN:', getAuthErrorMessage(error));
+  }
   throw error;
 }
 
@@ -122,6 +164,14 @@ export class FirebaseService {
       console.error('❌ Error al leer reporte:', error);
       console.error('Código de error:', error.code);
       console.error('Mensaje:', error.message);
+      
+      if (isAuthError(error)) {
+        const authError = new Error(getAuthErrorMessage(error));
+        (authError as any).code = error.code;
+        (authError as any).isAuthError = true;
+        throw authError;
+      }
+      
       throw error;
     }
   }
@@ -165,9 +215,24 @@ export class FirebaseService {
    * @returns URL de descarga pública
    */
   async uploadReportBlob(ot: string, blob: Blob, filename: string): Promise<string> {
-    const storageRef = ref(storage, `reports/${ot}/${filename}`);
-    await uploadBytes(storageRef, blob, { contentType: 'application/pdf' });
-    const url = await getDownloadURL(storageRef);
-    return url;
+    try {
+      const storageRef = ref(storage, `reports/${ot}/${filename}`);
+      await uploadBytes(storageRef, blob, { contentType: 'application/pdf' });
+      const url = await getDownloadURL(storageRef);
+      return url;
+    } catch (error: any) {
+      console.error('❌ Error al subir PDF a Storage:', error);
+      console.error('Código de error:', error.code);
+      console.error('Mensaje:', error.message);
+      
+      if (isAuthError(error)) {
+        const authError = new Error(getAuthErrorMessage(error));
+        (authError as any).code = error.code;
+        (authError as any).isAuthError = true;
+        throw authError;
+      }
+      
+      throw error;
+    }
   }
 }

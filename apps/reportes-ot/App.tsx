@@ -3,7 +3,14 @@ import { Part } from './types';
 import { GeminiService } from './services/geminiService';
 import { FirebaseService, saveReporte } from './services/firebaseService';
 import SignaturePad, { SignaturePadHandle } from './components/SignaturePad';
-import { safeBtoaUnicode, uid } from './services/utils';
+import { safeBtoaUnicode, uid, incrementSuffix, findNextAvailableOT } from './services/utils';
+import { useReportForm } from './hooks/useReportForm';
+import { useOTManagement } from './hooks/useOTManagement';
+import { usePDFGeneration } from './hooks/usePDFGeneration';
+import { useAutosave } from './hooks/useAutosave';
+import { useModal } from './hooks/useModal';
+import { AlertModal, ConfirmModal } from './components/Modal';
+import { MobileMenu } from './components/MobileMenu';
 
 
 // Declaración de variables globales para librerías externas
@@ -95,6 +102,7 @@ const DuplicateOTModal: React.FC<{
   onClose: () => void;
   otNumber: string;
   incrementSuffix: (ot: string) => string;
+  firebase: FirebaseService;
   onDuplicate: (options: {
     copyClientEquipment: boolean;
     copyBudgets: boolean;
@@ -102,18 +110,31 @@ const DuplicateOTModal: React.FC<{
     copyReportTecnico: boolean;
     newOtSuffix: string;
   }) => void;
-}> = ({ isOpen, onClose, otNumber, incrementSuffix, onDuplicate }) => {
+}> = ({ isOpen, onClose, otNumber, incrementSuffix, firebase, onDuplicate }) => {
   const [copyClientEquipment, setCopyClientEquipment] = React.useState(true);
   const [copyBudgets, setCopyBudgets] = React.useState(true);
   const [copyObservations, setCopyObservations] = React.useState(false);
   const [copyReportTecnico, setCopyReportTecnico] = React.useState(false);
   const [newOtSuffix, setNewOtSuffix] = React.useState('');
+  const [isFindingOT, setIsFindingOT] = React.useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
-      setNewOtSuffix(incrementSuffix(otNumber));
+      // Buscar la siguiente OT disponible (que no exista o que esté en BORRADOR)
+      setIsFindingOT(true);
+      findNextAvailableOT(otNumber, firebase)
+        .then((availableOT) => {
+          setNewOtSuffix(availableOT);
+          setIsFindingOT(false);
+        })
+        .catch((error) => {
+          console.error("Error buscando OT disponible:", error);
+          // Fallback a incrementSuffix si hay error
+          setNewOtSuffix(incrementSuffix(otNumber));
+          setIsFindingOT(false);
+        });
     }
-  }, [isOpen, otNumber, incrementSuffix]);
+  }, [isOpen, otNumber, incrementSuffix, firebase]);
 
   const handleDuplicate = () => {
     onDuplicate({
@@ -184,9 +205,13 @@ const DuplicateOTModal: React.FC<{
             type="text"
             value={newOtSuffix}
             onChange={(e) => setNewOtSuffix(e.target.value)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
-            placeholder={incrementSuffix(otNumber)}
+            disabled={isFindingOT}
+            className={`w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono ${isFindingOT ? 'bg-slate-100 text-slate-400' : ''}`}
+            placeholder={isFindingOT ? 'Buscando OT disponible...' : incrementSuffix(otNumber)}
           />
+          {isFindingOT && (
+            <p className="text-xs text-slate-500 mt-1">Verificando OT disponible...</p>
+          )}
         </div>
 
         <div className="flex gap-3">
@@ -198,9 +223,10 @@ const DuplicateOTModal: React.FC<{
           </button>
           <button
             onClick={handleDuplicate}
-            className="flex-1 bg-purple-600 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-purple-700 shadow-lg"
+            disabled={isFindingOT}
+            className={`flex-1 bg-purple-600 text-white font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-purple-700 shadow-lg ${isFindingOT ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            Crear OT
+            {isFindingOT ? 'Buscando OT...' : 'Crear OT'}
           </button>
         </div>
       </div>
@@ -214,13 +240,21 @@ const MobileSignatureView: React.FC<{
   firebase: FirebaseService;
   shareReportPDF: (ot?: string) => Promise<void>;
   isSharing: boolean;
-}> = ({ ot, razonSocial, firebase, shareReportPDF, isSharing }) => {
+  showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void;
+}> = ({ ot, razonSocial, firebase, shareReportPDF, isSharing, showAlert }) => {
   const [signed, setSigned] = useState(false);
   const padRef = useRef<SignaturePadHandle>(null);
 
   const handleConfirmFirma = async () => {
     const dataUrl = padRef.current?.getSignature();
-    if (!dataUrl) return alert("Por favor, realice la firma antes de confirmar.");
+    if (!dataUrl) {
+      showAlert({
+        title: 'Firma Requerida',
+        message: 'Por favor, realice la firma antes de confirmar.',
+        type: 'warning'
+      });
+      return;
+    }
     
     try {
       // Guardar firma en Firebase con await
@@ -235,7 +269,11 @@ const MobileSignatureView: React.FC<{
       }, 800);
     } catch (error) {
       console.error("Error al guardar firma:", error);
-      alert("Error al guardar la firma. Por favor, intente nuevamente.");
+      showAlert({
+        title: 'Error',
+        message: 'Error al guardar la firma. Por favor, intente nuevamente.',
+        type: 'error'
+      });
     }
   };
 
@@ -282,40 +320,40 @@ const App: React.FC = () => {
   const reportIdFromUrl = queryParams.get('reportId');
   const shouldShare = queryParams.get('share') === 'true';
 
-  const [otNumber, setOtNumber] = useState(reportIdFromUrl || '');
-  const [budgets, setBudgets] = useState<string[]>(['']);
-  const [tipoServicio, setTipoServicio] = useState('Visita de diagnóstico / reparación');
-  const [esFacturable, setEsFacturable] = useState(false);
-  const [tieneContrato, setTieneContrato] = useState(false);
-  const [esGarantia, setEsGarantia] = useState(false);
-  const [razonSocial, setRazonSocial] = useState('');
-  const [contacto, setContacto] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [localidad, setLocalidad] = useState('');
-  const [provincia, setProvincia] = useState('');
-  const [sistema, setSistema] = useState('');
-  const [moduloModelo, setModuloModelo] = useState('');
-  const [moduloDescripcion, setModuloDescripcion] = useState(''); 
-  const [moduloSerie, setModuloSerie] = useState('');
-  const [codigoInternoCliente, setCodigoInternoCliente] = useState('');
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
-  const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0]);
-  const [horasTrabajadas, setHorasTrabajadas] = useState('');
-  const [tiempoViaje, setTiempoViaje] = useState('');
-  const [reporteTecnico, setReporteTecnico] = useState('');
-  const [accionesTomar, setAccionesTomar] = useState('');
-  const [articulos, setArticulos] = useState<Part[]>([]);
-  const [emailPrincipal, setEmailPrincipal] = useState('');
-  const [signatureEngineer, setSignatureEngineer] = useState<string | null>(null);
-  const [aclaracionEspecialista, setAclaracionEspecialista] = useState('');
-  const [signatureClient, setSignatureClient] = useState<string | null>(null);
-  const [aclaracionCliente, setAclaracionCliente] = useState('');
-  const [otInput, setOtInput] = useState(reportIdFromUrl || '');
-  const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
-  const [clientConfirmed, setClientConfirmed] = useState(false);
-  // Flag global readOnly: deshabilita edición solo cuando el reporte está finalizado
-  // No bloquear solo por tener firma - solo bloquear cuando status === 'FINALIZADO'
-  const readOnly = status === 'FINALIZADO';
+  // Hook de formulario - centraliza todos los estados del formulario
+  const reportForm = useReportForm(reportIdFromUrl || '');
+  const {
+    formState,
+    setters,
+    readOnly,
+    reportState,
+    hasUserInteracted,
+    hasInitialized,
+    markUserInteracted
+  } = reportForm;
+
+  // Desestructurar estados para facilitar el uso
+  const {
+    otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
+    esFacturable, tieneContrato, esGarantia, razonSocial, contacto,
+    direccion, localidad, provincia, emailPrincipal, sistema,
+    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
+    fechaInicio, fechaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
+    signatureClient, aclaracionCliente
+  } = formState;
+
+  // Desestructurar setters para facilitar el uso
+  const {
+    setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
+    setTipoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
+    setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
+    setEmailPrincipal, setSistema, setModuloModelo, setModuloDescripcion,
+    setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
+    setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
+    setArticulos, setSignatureEngineer, setAclaracionEspecialista,
+    setSignatureClient, setAclaracionCliente
+  } = setters;
 
   const baseInputClass =
   'bg-white text-slate-900 appearance-none ' +
@@ -325,33 +363,38 @@ const App: React.FC = () => {
   '[&:-webkit-autofill]:shadow-[0_0_0_1000px_white_inset] ' +
   '[&:-webkit-autofill]:text-slate-900';
 
-    const markUserInteracted = () => {
-    if (!hasUserInteracted.current) {
-      hasUserInteracted.current = true;
-      console.log("👤 Usuario comenzó a editar");
-    }
-  };
-
   const clientPadRef = useRef<SignaturePadHandle>(null);
   const engineerPadRef = useRef<SignaturePadHandle>(null);
-  const hasUserInteracted = useRef(false);
   const qrRef = useRef<HTMLDivElement>(null);
-  const hasInitialized = useRef(false); // reemplaza hasLoadedFromFirebase
 
-  const [isSending, setIsSending] = useState(false);
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showNewOtModal, setShowNewOtModal] = useState(false);
-  const [pendingOt, setPendingOt] = useState<string>('');
-  const [generatedPdfBlob, setGeneratedPdfBlob] = useState<Blob | null>(null); // Guardar PDF generado para compartir después
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
+  
+  // Hook de modales para reemplazar alert() y confirm()
+  const modal = useModal();
+
+  // Hook de gestión de OTs
+  const otManagement = useOTManagement(reportForm, firebase, otInput);
+  const {
+    loadOT,
+    createNewOT,
+    newReport: newReportFromHook,
+    duplicateOT,
+    modals: { showNewOtModal, setShowNewOtModal, pendingOt, setPendingOt }
+  } = otManagement;
+  
+  // Wrapper para newReport que pasa showConfirm
+  const newReport = () => {
+    newReportFromHook(modal.showConfirm);
+  };
+
   const isLockedByClient = readOnly && status === 'BORRADOR';
 
   // Validación antes de confirmar firma o finalizar
@@ -381,71 +424,50 @@ const App: React.FC = () => {
     );
 
     if (hasEmpty) {
-      alert(
-        "No se puede confirmar la firma.\n\n" +
-        "Todos los campos del reporte y la firma del especialista son obligatorios."
-      );
+      modal.showAlert({
+        title: 'Validación Requerida',
+        message: 'No se puede confirmar la firma.\n\nTodos los campos del reporte y la firma del especialista son obligatorios.',
+        type: 'warning'
+      });
       return false;
     }
 
     return true;
   };
 
+  // Hook de generación de PDF (después de validateBeforeClientConfirm)
+  const pdfGeneration = usePDFGeneration(
+    reportForm,
+    firebase,
+    otNumber,
+    isModoFirma,
+    clientPadRef,
+    engineerPadRef,
+    validateBeforeClientConfirm,
+    modal.showAlert
+  );
+  const {
+    generatePDFBlob: generatePDFBlobFromHook,
+    handleFinalSubmit: handleFinalSubmitFromHook,
+    confirmClientAndFinalize: confirmClientAndFinalizeFromHook,
+    isGenerating,
+    isPreviewMode,
+    pdfBlob: generatedPdfBlob,
+    setIsPreviewMode,
+    setPdfBlob: setGeneratedPdfBlob
+  } = pdfGeneration;
 
-  const reportState = useMemo(() => ({
-    otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
-    razonSocial, contacto, direccion, localidad, provincia, sistema,
-    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
-    accionesTomar, articulos, emailPrincipal, signatureEngineer,
-    aclaracionEspecialista, signatureClient, aclaracionCliente
-  }), [
-    otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
-    razonSocial, contacto, direccion, localidad, provincia, sistema,
-    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
-    accionesTomar, articulos, emailPrincipal, signatureEngineer,
-    aclaracionEspecialista, signatureClient, aclaracionCliente
-  ]);
-
-
-  // Autosave consolidado con debounce 700ms
-  useEffect(() => {
-    // Validar formato de OT antes de guardar: 5 dígitos, opcional .NN
-    const otRegex = /^\d{5}(?:\.\d{2})?$/;
-    const isValidOt = otNumber && otRegex.test(otNumber);
-    
-    if (
-      !hasInitialized.current ||        // ⛔ todavía cargando desde Firebase
-      !hasUserInteracted.current ||      // ⛔ el usuario no tocó nada
-      !isValidOt ||                      // ⛔ OT no tiene formato válido (5 dígitos + opcional .NN)
-      isModoFirma ||
-      isPreviewMode
-    ) {
-      return;
-    }
-
-    const timeout = window.setTimeout(async () => {
-      const dataToSave = {
-        ...reportState,
-        status: 'BORRADOR',
-        updatedAt: new Date().toISOString()
-      };
-
-      console.log("📝 Autosave BORRADOR", otNumber);
-      try {
-        await firebase.saveReport(otNumber, dataToSave);
-      } catch (error: any) {
-        console.error("❌ Error en autosave:", error);
-        // No mostrar alert en autosave para no interrumpir al usuario
-        // Los errores se verán en la consola
-      }
-    }, 700); // debounce 700ms
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [reportState, otNumber, isModoFirma, isPreviewMode, firebase]);
+  // Hook de autosave - guarda automáticamente con debounce
+  useAutosave({
+    reportState,
+    otNumber,
+    firebase,
+    hasInitialized,
+    hasUserInteracted,
+    isModoFirma,
+    isPreviewMode,
+    debounceMs: 700
+  });
 
   useEffect(() => {
     if (showQRModal && qrRef.current) {
@@ -492,164 +514,28 @@ const App: React.FC = () => {
   };
 
   // Función para cargar/validar OT al salir del campo (onBlur)
+  // Funciones de gestión de OT ahora vienen del hook useOTManagement
   const confirmLoadOt = async () => {
-    const v = otInput.trim();
-    const regex = /^\d{5}(?:\.\d{2})?$/;
-    
-    if (!v) return;
-    
-    // Validar formato
-    if (!regex.test(v)) {
-      alert("Formato inválido. Use 5 dígitos, opcional .NN (ej: 25660 o 25660.02)");
-      return;
-    }
-
-    // Si ya es la OT actual, no hacer nada
-    if (v === otNumber) {
-      return;
-    }
-
-    console.log("📥 CARGA OT solicitada:", v);
-    hasInitialized.current = false; // Bloquear autosave mientras buscamos
-
     try {
-      const data = await firebase.getReport(v);
-      
-      if (data) {
-        // 🟢 EXISTE → rehidratar
-        setOtNumber(data.otNumber || v);
-        setBudgets(data.budgets || ['']);
-        setTipoServicio(data.tipoServicio || 'Visita de diagnóstico / reparación');
-        setEsFacturable(!!data.esFacturable);
-        setTieneContrato(!!data.tieneContrato);
-        setEsGarantia(!!data.esGarantia);
-        setRazonSocial(data.razonSocial || '');
-        setContacto(data.contacto || '');
-        setDireccion(data.direccion || '');
-        setLocalidad(data.localidad || '');
-        setProvincia(data.provincia || '');
-        setSistema(data.sistema || '');
-        setModuloModelo(data.moduloModelo || '');
-        setModuloDescripcion(data.moduloDescripcion || '');
-        setModuloSerie(data.moduloSerie || '');
-        setCodigoInternoCliente(data.codigoInternoCliente || '');
-        setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
-        setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
-        setHorasTrabajadas(data.horasTrabajadas || '');
-        setTiempoViaje(data.tiempoViaje || '');
-        setReporteTecnico(data.reporteTecnico || '');
-        setAccionesTomar(data.accionesTomar || '');
-        const articulosData = (data.articulos || []).map((p: Part) => ({
-          ...p,
-          id: p.id || uid()
-        }));
-        setArticulos(articulosData);
-        setEmailPrincipal(data.emailPrincipal || '');
-        setSignatureEngineer(data.signatureEngineer || null);
-        setSignatureClient(data.signatureClient || null);
-        setAclaracionCliente(data.aclaracionCliente || '');
-        setAclaracionEspecialista(data.aclaracionEspecialista || '');
-        const loadedStatus = data.status || 'BORRADOR';
-        setStatus(loadedStatus);
-        // Solo establecer clientConfirmed si el estado es FINALIZADO
-        // Si es BORRADOR, aunque tenga firma, no debe estar confirmado
-        setClientConfirmed(loadedStatus === 'FINALIZADO');
-        hasUserInteracted.current = true;
-        console.log("✅ OT cargada desde Firebase:", v);
-      } else {
-        // 🟡 NO EXISTE → mostrar modal de confirmación
-        console.log("⚠️ OT no encontrada, solicitando confirmación...");
-        setPendingOt(v);
-        setShowNewOtModal(true);
-        return; // No habilitar autosave todavía
-      }
-    } catch (error) {
-      console.error("❌ Error al cargar OT:", error);
-      alert("Error al cargar la OT. Intente nuevamente.");
-      return;
-    }
-
-    // 🔓 habilitamos autosave solo si se cargó correctamente
-    hasInitialized.current = true;
-  };
-
-  // Confirmar creación de nueva OT
-  const confirmCreateNewOt = () => {
-    const v = pendingOt;
-    setOtNumber(v);
-    setStatus('BORRADOR');
-    setShowNewOtModal(false);
-    setPendingOt('');
-    hasInitialized.current = true;
-    hasUserInteracted.current = true;
-    console.log("✅ Nueva OT creada:", v);
-  };
-
-  // Función para generar PDF como Blob
-  const generatePDFBlob = async (): Promise<Blob> => {
-    const element = document.getElementById('pdf-container');
-    if (!element) {
-      // Si estamos en modo móvil, redirigir primero a la vista principal
-      if (isModoFirma) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('modo');
-        window.location.href = url.toString();
-        throw new Error("Redirigiendo a la vista principal para generar el PDF...");
-      }
-      throw new Error("No se encontró el contenedor para PDF. Por favor, recargue la página.");
-    }
-
-    // Asegurar que el elemento esté visible
-    element.style.display = 'block';
-    element.style.margin = '0 auto';
-    element.style.width = '210mm';
-    
-    // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-    const images = element.querySelectorAll('img');
-    await Promise.all(Array.from(images).map(img => {
-      return new Promise((resolve) => {
-        if (img.complete) {
-          resolve(null);
-        } else {
-          img.onload = () => resolve(null);
-          img.onerror = () => resolve(null); // Continuar aunque falle
-        }
+      await loadOT(otInput);
+    } catch (error: any) {
+      modal.showAlert({
+        title: 'Error',
+        message: error.message || 'Error al cargar la OT. Intente nuevamente.',
+        type: 'error'
       });
-    }));
-
-    // Usar html2pdf para generar Blob
-    const opt = {
-      margin: [3, 0, 3, 1],
-      filename: `${otNumber}_Reporte_AGS.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: Math.max(window.devicePixelRatio * 2, 3),
-        useCORS: true,
-        logging: false,
-        letterRendering: true,
-        allowTaint: false,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        backgroundColor: '#ffffff'
-      },
-      jsPDF: {
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'portrait',
-        compress: true
-      },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-
-    // Generar Blob usando html2pdf
-    const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-    
-    return pdfBlob;
+    }
   };
+
+  const confirmCreateNewOt = () => {
+    createNewOT(pendingOt);
+  };
+
+  // Función para generar PDF como Blob (wrapper del hook)
+  const generatePDFBlob = generatePDFBlobFromHook;
+
+  // Función para finalizar y descargar PDF (wrapper del hook)
+  const handleFinalSubmit = handleFinalSubmitFromHook;
 
   // Función para compartir PDF
   const shareReportPDF = async (otParam?: string) => {
@@ -729,18 +615,26 @@ const App: React.FC = () => {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        alert("PDF descargado. No se pudo compartir ni subir a la nube.");
+        modal.showAlert({
+          title: 'Advertencia',
+          message: 'PDF descargado. No se pudo compartir ni subir a la nube.',
+          type: 'warning'
+        });
       }
     } catch (error) {
       console.error("Error al generar/compartir PDF:", error);
-      alert("Error al preparar el documento para compartir. Intente nuevamente.");
+      modal.showAlert({
+        title: 'Error',
+        message: 'Error al preparar el documento para compartir. Intente nuevamente.',
+        type: 'error'
+      });
     } finally {
       setIsSharing(false);
     }
   };
 
   if (isModoFirma) {
-    return <MobileSignatureView ot={reportIdFromUrl || otNumber} razonSocial={razonSocial} firebase={firebase} shareReportPDF={shareReportPDF} isSharing={isSharing} />;
+    return <MobileSignatureView ot={reportIdFromUrl || otNumber} razonSocial={razonSocial} firebase={firebase} shareReportPDF={shareReportPDF} isSharing={isSharing} showAlert={modal.showAlert} />;
   }
 
   const totalHs = useMemo(() => {
@@ -789,178 +683,6 @@ const App: React.FC = () => {
     setLoadingAI(false);
   };
 
-  const handleFinalSubmit = async () => {
-    if (!validateBeforeClientConfirm()) {
-      return;
-    }
-
-    const clientSignature = signatureClient || clientPadRef.current?.getSignature();
-    const engineerSignature = signatureEngineer || engineerPadRef.current?.getSignature();
-
-    if (!engineerSignature || !clientSignature) {
-      return alert("Error: Se requieren ambas firmas (Técnico y Cliente) para emitir el reporte final.");
-    }
-
-    setIsSending(true);
-    try {
-      // DATOS FINALIZADOS
-      const finalizedData = {
-        ...reportState,
-        signatureClient: clientSignature,
-        signatureEngineer: engineerSignature,
-        status: 'FINALIZADO',
-        updatedAt: new Date().toISOString()
-      };
-
-      // OBLIGATORIO: Guardar en Firestore antes de generar PDF
-      console.log("Guardando en Firestore", finalizedData);
-      console.log("Guardando reporte en Firestore...");
-      
-      await firebase.saveReport(otNumber, finalizedData);
-      
-      console.log("Guardado OK");
-      console.log("Reporte guardado correctamente");
-
-      // Marcar bloqueo de edición (igual que en confirmClientAndFinalize)
-      setClientConfirmed(true);
-      setSignatureClient(clientSignature);
-      setSignatureEngineer(engineerSignature);
-      setStatus('FINALIZADO');
-      
-      // Activar modo preview para que el pdf-container esté disponible
-      setIsPreviewMode(true);
-      
-      // Esperar a que React renderice el componente
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // GENERACIÓN DE PDF con opciones seguras y fallback
-      try {
-        window.scrollTo(0, 0);
-        await new Promise(resolve => setTimeout(resolve, 800));
-        const element = document.getElementById('pdf-container');
-        if (!element) throw new Error("No se encontró el contenedor.");
-        
-        // Asegurar que el elemento esté visible y centrado antes de capturar
-        element.style.display = 'block';
-        element.style.margin = '0 auto';
-        element.style.width = '210mm';
-        
-        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-        const images = element.querySelectorAll('img');
-        await Promise.all(Array.from(images).map(img => {
-          return new Promise((resolve) => {
-            if (img.complete) {
-              resolve(null);
-            } else {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null); // Continuar aunque falle
-            }
-          });
-        }));
-        
-        const opt = {
-          margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm
-          filename: `${otNumber}_Reporte_AGS.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: Math.max(window.devicePixelRatio * 2, 3),
-            useCORS: true,
-            logging: false,
-            letterRendering: true,
-            allowTaint: false,
-            x: 0,
-            y: 0,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
-          },
-          jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait',
-            compress: true
-          },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
-        
-        const pdfWorker = html2pdf().set(opt).from(element);
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
-        
-        // Detectar si es dispositivo móvil
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        // Siempre generar Blob primero para poder compartirlo después
-        console.log("Generando PDF como Blob...");
-        const pdfBlob = await pdfWorker.outputPdf('blob');
-        // Guardar el Blob para compartir después
-        setGeneratedPdfBlob(pdfBlob);
-        
-        // En móviles, intentar compartir automáticamente con Web Share API
-        if (isMobile && navigator.share && navigator.canShare) {
-          try {
-            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-            
-            if (navigator.canShare({ files: [file] })) {
-              console.log("Compartiendo PDF con Web Share API...");
-              await navigator.share({
-                files: [file],
-                title: `Reporte ${otNumber}`,
-                text: `Reporte OT ${otNumber}`
-              });
-              console.log("PDF compartido exitosamente");
-            } else {
-              // Si no puede compartir archivos, descargar
-              console.log("Web Share API no soporta archivos, descargando...");
-              const url = URL.createObjectURL(pdfBlob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(url);
-            }
-          } catch (shareError: any) {
-            // Si el usuario cancela el share, no es un error - solo descargar
-            if (shareError.name === 'AbortError') {
-              console.log("Usuario canceló el compartir, descargando...");
-            } else {
-              console.error("Error al compartir, descargando como fallback:", shareError);
-            }
-            // Descargar como fallback
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-          }
-        } else {
-          // En desktop o si no hay Web Share API, descargar normalmente
-          const url = URL.createObjectURL(pdfBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }
-      } catch (pdfError) {
-        console.error("Error al generar PDF:", pdfError);
-        alert("No se pudo generar PDF. El reporte fue guardado en Firebase.");
-      } finally {
-        setIsSending(false);
-      }
-    } catch (e) {
-      setIsSending(false);
-      console.error("Error al guardar en Firestore:", e);
-      alert("Error crítico: No se pudo guardar el reporte en la base de datos.");
-    }
-  };
   
   const handleReview = () => {
     if (!validateBeforeClientConfirm()) {
@@ -977,379 +699,42 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Helper para incrementar sufijo de OT
-  const incrementSuffix = (ot: string): string => {
-    const m = ot.match(/(.+\.)(\d{2,})$/);
-    if (m) {
-      const base = m[1];
-      const num = Number(m[2]);
-      const padded = String(num + 1).padStart(m[2].length, '0');
-      return `${base}${padded}`;
-    }
-    return `${ot}.02`;
-  };
-
-  // Nuevo reporte - limpia formulario
-  const newReport = () => {
-    if (hasUserInteracted.current && otNumber) {
-      const confirmar = window.confirm("Hay cambios sin guardar. ¿Desea descartar y crear nuevo reporte?");
-      if (!confirmar) return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-
-    // Dejar OT en blanco - el usuario debe ingresar un número válido (5 dígitos + opcional .NN)
-    setOtInput('');
-    setOtNumber('');
-    setBudgets(['']);
-    setTipoServicio('Visita de diagnóstico / reparación');
-    setEsFacturable(false);
-    setTieneContrato(false);
-    setEsGarantia(false);
-    setRazonSocial('');
-    setContacto('');
-    setDireccion('');
-    setLocalidad('');
-    setProvincia('');
-    setSistema('');
-    setModuloModelo('');
-    setModuloDescripcion('');
-    setModuloSerie('');
-    setCodigoInternoCliente('');
-    setFechaInicio(today);
-    setFechaFin(today);
-    setHorasTrabajadas('');
-    setTiempoViaje('');
-    setReporteTecnico('');
-    setAccionesTomar('');
-    setArticulos([]);
-    setEmailPrincipal('');
-    setSignatureEngineer(null);
-    setSignatureClient(null);
-    setAclaracionEspecialista('');
-    setAclaracionCliente('');
-    setClientConfirmed(false);
-    setStatus('BORRADOR');
-
-    hasUserInteracted.current = true;
-    hasInitialized.current = true;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Duplicar OT
-  const duplicateOt = (options: {
+  // Funciones de gestión de OT ahora vienen del hook useOTManagement
+  // Wrapper para mantener compatibilidad con el código existente
+  const duplicateOt = async (options: {
     copyClientEquipment: boolean;
     copyBudgets: boolean;
     copyObservations: boolean;
     copyReportTecnico: boolean;
     newOtSuffix: string;
   }) => {
-    const newOt = options.newOtSuffix || incrementSuffix(otNumber);
-    const today = new Date().toISOString().split('T')[0];
-
-    const newState: any = {
-      fechaInicio: today,
-      fechaFin: today,
-      horasTrabajadas: '',
-      tiempoViaje: '',
-      signatureClient: null,
-      signatureEngineer: null,
-      clientConfirmed: false,
-      status: 'BORRADOR',
-      updatedAt: new Date().toISOString()
-    };
-
-    if (options.copyClientEquipment) {
-      newState.razonSocial = razonSocial;
-      newState.contacto = contacto;
-      newState.direccion = direccion;
-      newState.localidad = localidad;
-      newState.provincia = provincia;
-      newState.sistema = sistema;
-      newState.moduloModelo = moduloModelo;
-      newState.moduloDescripcion = moduloDescripcion;
-      newState.moduloSerie = moduloSerie;
-      newState.codigoInternoCliente = codigoInternoCliente;
-      newState.emailPrincipal = emailPrincipal;
-    } else {
-      newState.razonSocial = '';
-      newState.contacto = '';
-      newState.direccion = '';
-      newState.localidad = '';
-      newState.provincia = '';
-      newState.sistema = '';
-      newState.moduloModelo = '';
-      newState.moduloDescripcion = '';
-      newState.moduloSerie = '';
-      newState.codigoInternoCliente = '';
-      newState.emailPrincipal = '';
-    }
-
-    if (options.copyBudgets) {
-      newState.budgets = [...budgets];
-    } else {
-      newState.budgets = [''];
-    }
-
-    if (options.copyObservations) {
-      newState.accionesTomar = accionesTomar;
-    } else {
-      newState.accionesTomar = '';
-    }
-
-    if (options.copyReportTecnico) {
-      newState.reporteTecnico = reporteTecnico;
-    } else {
-      newState.reporteTecnico = '';
-    }
-
-    // Artículos: copiar solo si se copian budgets
-    if (options.copyBudgets) {
-      newState.articulos = articulos.map(p => ({ ...p, id: uid() }));
-    } else {
-      newState.articulos = [];
-    }
-
-    // Aplicar estados
-    setOtInput(newOt);
-    setOtNumber(newOt);
-    setBudgets(newState.budgets);
-    setTipoServicio(tipoServicio);
-    setEsFacturable(esFacturable);
-    setTieneContrato(tieneContrato);
-    setEsGarantia(esGarantia);
-    setRazonSocial(newState.razonSocial);
-    setContacto(newState.contacto);
-    setDireccion(newState.direccion);
-    setLocalidad(newState.localidad);
-    setProvincia(newState.provincia);
-    setSistema(newState.sistema);
-    setModuloModelo(newState.moduloModelo);
-    setModuloDescripcion(newState.moduloDescripcion);
-    setModuloSerie(newState.moduloSerie);
-    setCodigoInternoCliente(newState.codigoInternoCliente);
-    setFechaInicio(newState.fechaInicio);
-    setFechaFin(newState.fechaFin);
-    setHorasTrabajadas(newState.horasTrabajadas);
-    setTiempoViaje(newState.tiempoViaje);
-    setReporteTecnico(newState.reporteTecnico);
-    setAccionesTomar(newState.accionesTomar);
-    setArticulos(newState.articulos);
-    setEmailPrincipal(newState.emailPrincipal);
-    setSignatureEngineer(null);
-    setSignatureClient(null);
-    setAclaracionEspecialista('');
-    setAclaracionCliente('');
-    setClientConfirmed(false);
-    setStatus('BORRADOR');
-
-    hasUserInteracted.current = true;
-    hasInitialized.current = true;
-
-    // Pre-crear documento en Firestore
-    firebase.saveReport(newOt, {
-      ...newState,
-      otNumber: newOt,
-      tipoServicio,
-      esFacturable,
-      tieneContrato,
-      esGarantia
-    }).catch(err => {
-      console.error("Error pre-creando OT duplicada:", err);
-    });
-
-    setShowDuplicateModal(false);
-    alert(`Nueva OT creada: ${newOt} — revise y edite`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Confirmar firma del cliente, finalizar reporte y generar PDF
-  const confirmClientAndFinalize = async () => {
-    if (!validateBeforeClientConfirm()) {
-      return;
-    }
-
-    const clientSig = signatureClient || clientPadRef.current?.getSignature();
-    const engineerSig = signatureEngineer || engineerPadRef.current?.getSignature();
-
-    if (!clientSig || !engineerSig) {
-      return alert("Error: se requieren ambas firmas (Cliente y Especialista) antes de confirmar.");
-    }
-
-    setIsSending(true);
-    
-    // Paso 1: Guardar en Firestore
-    let saveSuccess = false;
     try {
-      const finalizedData = {
-        ...reportState,
-        signatureClient: clientSig,
-        signatureEngineer: engineerSig,
-        status: 'FINALIZADO',
-        updatedAt: new Date().toISOString()
-      };
-
-      console.log("Guardando reporte FINALIZADO", finalizedData);
-      await firebase.saveReport(otNumber, finalizedData);
-      saveSuccess = true;
-      console.log("Reporte guardado exitosamente en Firestore");
-
-      // Marcar bloqueo de edición solo si el guardado fue exitoso
-      setClientConfirmed(true);
-      setSignatureClient(clientSig);
-      setSignatureEngineer(engineerSig);
-      setStatus('FINALIZADO');
-    } catch (saveError) {
-      console.error("Error guardando FINALIZADO:", saveError);
-      alert("Error guardando el reporte. Intente nuevamente.");
-      setIsSending(false);
-      return; // Salir temprano si falla el guardado
-    }
-
-    // Paso 2: Generar PDF solo si el guardado fue exitoso
-    if (saveSuccess) {
-      try {
-        // Activar modo preview para que el pdf-container esté disponible en el DOM
-        setIsPreviewMode(true);
-        
-        // Esperar a que React renderice el componente
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        window.scrollTo(0, 0);
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const element = document.getElementById('pdf-container');
-        if (!element) {
-          console.error("No se encontró el contenedor para PDF");
-          alert("No se pudo generar el PDF, pero el reporte fue guardado correctamente.");
-          setIsSending(false);
-          return;
-        }
-
-        // Asegurar que el elemento esté visible y centrado antes de capturar
-        element.style.display = 'block';
-        element.style.margin = '0 auto';
-        element.style.width = '210mm';
-        
-        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-        const images = element.querySelectorAll('img');
-        await Promise.all(Array.from(images).map(img => {
-          return new Promise((resolve) => {
-            if (img.complete) {
-              resolve(null);
-            } else {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null); // Continuar aunque falle
-            }
-          });
-        }));
-
-        const opt = {
-          margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm - usar mismo formato que handleFinalSubmit
-          filename: `${otNumber}_Reporte_AGS.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: Math.max(window.devicePixelRatio * 2, 3),
-            useCORS: true,
-            logging: false,
-            letterRendering: true,
-            allowTaint: false,
-            x: 0,
-            y: 0,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
-          },
-          jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait',
-            compress: true
-          },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
-
-        console.log("Iniciando generación de PDF con opciones:", opt);
-        const pdfWorker = html2pdf().set(opt).from(element);
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
-        
-        // Siempre generar Blob primero para poder compartirlo después
-        console.log("Generando PDF como Blob...");
-        const pdfBlob = await pdfWorker.outputPdf('blob');
-        // Guardar el Blob para compartir después
-        setGeneratedPdfBlob(pdfBlob);
-        
-        // Detectar si es dispositivo móvil
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        // En móviles, intentar compartir automáticamente con Web Share API
-        if (isMobile && navigator.share && navigator.canShare) {
-          try {
-            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-            
-            if (navigator.canShare({ files: [file] })) {
-              console.log("Compartiendo PDF con Web Share API...");
-              await navigator.share({
-                files: [file],
-                title: `Reporte ${otNumber}`,
-                text: `Reporte OT ${otNumber}`
-              });
-              console.log("PDF compartido exitosamente");
-            } else {
-              // Si no puede compartir archivos, descargar
-              console.log("Web Share API no soporta archivos, descargando...");
-              const url = URL.createObjectURL(pdfBlob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(url);
-            }
-          } catch (shareError: any) {
-            // Si el usuario cancela el share, solo descargar
-            if (shareError.name === 'AbortError') {
-              console.log("Usuario canceló el compartir, descargando...");
-            } else {
-              console.error("Error al compartir, descargando como fallback:", shareError);
-            }
-            // Descargar como fallback
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-          }
-        } else {
-          // En desktop, descargar normalmente
-          const url = URL.createObjectURL(pdfBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }
-        
-        console.log("PDF generado exitosamente");
-        
-        alert("Reporte finalizado y PDF generado correctamente.");
-      } catch (pdfErr) {
-        console.error("Error generando PDF:", pdfErr);
-        console.error("Detalles del error:", pdfErr.message, pdfErr.stack);
-        
-        alert("No se pudo generar el PDF, pero el reporte fue guardado correctamente.");
-      } finally {
-        setIsSending(false);
+      const newOt = await duplicateOT({
+        copyClientEquipment: options.copyClientEquipment,
+        copyBudgets: options.copyBudgets,
+        copyObservations: options.copyObservations,
+        copyReportTecnico: options.copyReportTecnico,
+        newOtSuffix: options.newOtSuffix
+      });
+      setShowDuplicateModal(false);
+      if (newOt) {
+        modal.showAlert({
+          title: 'OT Creada',
+          message: `Nueva OT creada: ${newOt} — revise y edite`,
+          type: 'success'
+        });
       }
+    } catch (error: any) {
+      modal.showAlert({
+        title: 'Error',
+        message: error.message || 'Error al duplicar la OT. Intente nuevamente.',
+        type: 'error'
+      });
     }
   };
+
+  // Confirmar firma del cliente, finalizar reporte y generar PDF (wrapper del hook)
+  const confirmClientAndFinalize = confirmClientAndFinalizeFromHook;
 
   const fullDireccion = `${direccion}${localidad ? `, ${localidad}` : ''}${provincia ? `, ${provincia}` : ''}`;
 
@@ -1366,7 +751,7 @@ const App: React.FC = () => {
             email="info@agsanalitica.com"
             web="www.agsanalitica.com"
           />
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 no-print -mt-12 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 no-print -mt-12 md:-mt-12 mt-4 relative z-10">
           <div
             className="lg:col-span-8 space-y-4"
             onChange={markUserInteracted}
@@ -2017,10 +1402,10 @@ const App: React.FC = () => {
   {!readOnly && signatureClient && (
   <button
     onClick={confirmClientAndFinalize}
-    disabled={isSending}
+    disabled={isGenerating}
     className="w-full bg-green-600 text-white rounded-xl py-2.5 text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
   >
-    {isSending ? 'Finalizando...' : 'Confirmar firma del cliente'}
+    {isGenerating ? 'Finalizando...' : 'Confirmar firma del cliente'}
   </button>
 )}
     <input
@@ -2428,58 +1813,19 @@ const App: React.FC = () => {
       )}
 
       {/* Botones Flotantes */}
-      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 no-print z-50">
-        {!isPreviewMode && (
-          <div className="flex flex-col gap-2">
-            <button 
-              onClick={newReport} 
-              className="bg-slate-600 text-white font-black px-6 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-slate-500/50"
-            >
-              Nuevo reporte
-            </button>
-            <button 
-              onClick={() => setShowDuplicateModal(true)} 
-              className="bg-purple-600 text-white font-black px-6 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50"
-            >
-              Duplicar OT
-            </button>
-          </div>
-        )}
-        {!isPreviewMode ? (
-          <>
-            {status === 'FINALIZADO' && generatedPdfBlob ? (
-              // Si el reporte está finalizado Y hay PDF generado, mostrar botón de compartir
-              <button
-                onClick={shareReportPDF}
-                disabled={isSharing}
-                className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
-              </button>
-            ) : status === 'FINALIZADO' ? (
-              // Si está finalizado pero no hay PDF, mostrar botón que genera y descarga
-              <button 
-                onClick={handleFinalSubmit} 
-                disabled={isSending}
-                className="bg-emerald-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSending ? 'Generando PDF...' : 'Generar PDF'}
-              </button>
-            ) : (
-              // Si no está finalizado, mostrar botón de revisar
-              <button onClick={handleReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
-            )}
-          </>
-        ) : (
-          <button 
-            onClick={handleFinalSubmit} 
-            disabled={isSending || (!signatureEngineer && !engineerPadRef.current?.getSignature()) || (!signatureClient && !clientPadRef.current?.getSignature())} 
-            className={`font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 ${(!signatureEngineer && !engineerPadRef.current?.getSignature()) || (!signatureClient && !clientPadRef.current?.getSignature()) ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'}`}
-          >
-            {isSending ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
-          </button>
-        )}
-      </div>
+      <MobileMenu
+        isPreviewMode={isPreviewMode}
+        status={status}
+        isGenerating={isGenerating}
+        isSharing={isSharing}
+        hasPdfBlob={!!generatedPdfBlob}
+        hasSignatures={!!(signatureEngineer || engineerPadRef.current?.getSignature()) && !!(signatureClient || clientPadRef.current?.getSignature())}
+        onNewReport={newReport}
+        onDuplicateOT={() => setShowDuplicateModal(true)}
+        onReview={handleReview}
+        onFinalSubmit={handleFinalSubmit}
+        onSharePDF={shareReportPDF}
+      />
 
       {/* Modal Duplicar OT */}
       <DuplicateOTModal 
@@ -2487,6 +1833,7 @@ const App: React.FC = () => {
         onClose={() => setShowDuplicateModal(false)}
         otNumber={otNumber}
         incrementSuffix={incrementSuffix}
+        firebase={firebase}
         onDuplicate={duplicateOt}
       />
 
@@ -2514,7 +1861,11 @@ const App: React.FC = () => {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(shareUrl);
-                    alert("Enlace copiado al portapapeles");
+                    modal.showAlert({
+                      title: 'Éxito',
+                      message: 'Enlace copiado al portapapeles',
+                      type: 'success'
+                    });
                   }}
                   className="bg-slate-600 text-white font-black px-4 py-2 rounded-lg uppercase tracking-widest text-[10px] transition-all hover:bg-slate-700"
                 >
@@ -2627,7 +1978,33 @@ const App: React.FC = () => {
   >
     Volver a Editar
   </button>
-)}
+      )}
+
+      {/* Modales de alerta y confirmación */}
+      <AlertModal
+        isOpen={modal.alertModal.isOpen}
+        onClose={modal.closeAlert}
+        title={modal.alertModal.options?.title}
+        message={modal.alertModal.options?.message || ''}
+        type={modal.alertModal.options?.type || 'info'}
+        onConfirm={modal.alertModal.options?.onConfirm}
+        confirmText={modal.alertModal.options?.confirmText}
+      />
+      
+      <ConfirmModal
+        isOpen={modal.confirmModal.isOpen}
+        onClose={modal.closeConfirm}
+        onConfirm={() => {
+          if (modal.confirmModal.options?.onConfirm) {
+            modal.confirmModal.options.onConfirm();
+          }
+        }}
+        title={modal.confirmModal.options?.title}
+        message={modal.confirmModal.options?.message || ''}
+        confirmText={modal.confirmModal.options?.confirmText}
+        cancelText={modal.confirmModal.options?.cancelText}
+        confirmType={modal.confirmModal.options?.confirmType}
+      />
     </div>
   );
 };

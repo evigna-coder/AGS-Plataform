@@ -99,9 +99,13 @@ service cloud.firestore {
       //               && isValidOTDocument()
       //               && isValidReportData()
       //               && request.resource.data.status == 'BORRADOR';
-      // Validación simplificada: solo verificar formato de OT y que status sea válido si está presente
+      // Validación simplificada: permitir crear con BORRADOR o FINALIZADO
+      // (FINALIZADO se permite para casos donde se finaliza directamente sin crear borrador primero)
       allow create: if isValidOTDocument()
-                    && (!('status' in request.resource.data) || request.resource.data.status == null || request.resource.data.status == 'BORRADOR')
+                    && (!('status' in request.resource.data) 
+                        || request.resource.data.status == null 
+                        || request.resource.data.status == 'BORRADOR'
+                        || request.resource.data.status == 'FINALIZADO')
                     && (!('otNumber' in request.resource.data) || (request.resource.data.otNumber is string && isValidOT(request.resource.data.otNumber)));
       
       // Permitir actualización de documentos
@@ -111,19 +115,53 @@ service cloud.firestore {
                       // Caso 1: Actualización de firma anónima (solo campos de firma)
                       (isSignatureUpdate())
                       ||
-                      // Caso 2: Actualización normal - permitir si NO está FINALIZADO
+                      // Caso 2: Cambio de status de BORRADOR a FINALIZADO (permitir)
+                      (
+                        ('status' in resource.data && resource.data.status == 'BORRADOR')
+                        && ('status' in request.resource.data && request.resource.data.status == 'FINALIZADO')
+                      )
+                      ||
+                      // Caso 2b: Cambio a FINALIZADO cuando el documento no tiene status (nuevo documento)
+                      (
+                        !('status' in resource.data)
+                        && ('status' in request.resource.data && request.resource.data.status == 'FINALIZADO')
+                      )
+                      ||
+                      // Caso 3: Actualización normal - permitir si NO está FINALIZADO
                       // (permite actualizar documentos sin status o con status BORRADOR)
                       (
                         // Solo bloquear si el documento está explícitamente en FINALIZADO
                         !('status' in resource.data) || resource.data.status != 'FINALIZADO'
                       )
                       ||
-                      // Caso 3: Actualización de metadata en FINALIZADO (solo updatedAt)
+                      // Caso 3b: Crear documento nuevo si no existe (setDoc con merge: true cuando el documento no existe)
+                      (
+                        !resource.exists()
+                        && isValidReportData()
+                        && (!('status' in request.resource.data) || request.resource.data.status == 'BORRADOR' || request.resource.data.status == 'FINALIZADO')
+                      )
+                      ||
+                      // Caso 4: Actualización de metadata en FINALIZADO (solo updatedAt)
                       (
                         'status' in resource.data
                         && resource.data.status == 'FINALIZADO'
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
                         && request.resource.data.updatedAt is string
+                      )
+                      ||
+                      // Caso 5: Permitir actualización completa cuando se finaliza (para desarrollo sin auth)
+                      // Esto permite actualizar todos los campos cuando se cambia a FINALIZADO
+                      (
+                        ('status' in request.resource.data && request.resource.data.status == 'FINALIZADO')
+                        && isValidReportData()
+                      )
+                      ||
+                      // Caso 6: Permitir crear documento nuevo cuando no existe (setDoc con merge: true)
+                      // Esto maneja el caso donde setDoc con merge: true se trata como update si el documento no existe
+                      (
+                        !resource.exists()
+                        && isValidReportData()
+                        && (!('status' in request.resource.data) || request.resource.data.status == 'BORRADOR' || request.resource.data.status == 'FINALIZADO')
                       )
                     );
       
