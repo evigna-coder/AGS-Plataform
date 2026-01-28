@@ -3,7 +3,7 @@ import { Part } from './types';
 import { GeminiService } from './services/geminiService';
 import { FirebaseService, saveReporte } from './services/firebaseService';
 import SignaturePad, { SignaturePadHandle } from './components/SignaturePad';
-import { safeBtoaUnicode, uid, incrementSuffix, findNextAvailableOT } from './services/utils';
+import { safeBtoaUnicode, uid, incrementSuffix, findNextAvailableOT, formatDateToDDMMYYYY, parseDDMMYYYYToISO, isValidDDMMYYYY } from './services/utils';
 import { useReportForm } from './hooks/useReportForm';
 import { useOTManagement } from './hooks/useOTManagement';
 import { usePDFGeneration } from './hooks/usePDFGeneration';
@@ -1045,17 +1045,54 @@ const App: React.FC = () => {
                           <div>
                             <label className="text-[9px] font-bold text-slate-400 uppercase">Inicio</label>
                             <input
-                              type="date"
-                              value={fechaInicio}
+                              type="text"
+                              value={fechaInicio ? formatDateToDDMMYYYY(fechaInicio) : ''}
+                              placeholder="DD/MM/AAAA"
 
                               onChange={(e) => {
                                 if (readOnly) return;
-                                setFechaInicio(e.target.value);
+                                let value = e.target.value;
+                                
+                                // Solo permitir números y barras
+                                value = value.replace(/[^\d/]/g, '');
+                                
+                                // Auto-formatear mientras escribe
+                                if (value.length > 2 && value[2] !== '/') {
+                                  value = value.slice(0, 2) + '/' + value.slice(2);
+                                }
+                                if (value.length > 5 && value[5] !== '/') {
+                                  value = value.slice(0, 5) + '/' + value.slice(5);
+                                }
+                                
+                                // Limitar a DD/MM/AAAA
+                                if (value.length > 10) {
+                                  value = value.slice(0, 10);
+                                }
+                                
+                                // Convertir a formato ISO para guardar
+                                const isoDate = parseDDMMYYYYToISO(value);
+                                if (isoDate || value === '') {
+                                  setFechaInicio(isoDate || '');
+                                }
+                              }}
+
+                              onBlur={(e) => {
+                                if (readOnly) return;
+                                const value = e.target.value;
+                                if (value && !isValidDDMMYYYY(value)) {
+                                  // Si el formato es inválido, limpiar o mantener el último válido
+                                  if (fechaInicio) {
+                                    e.target.value = formatDateToDDMMYYYY(fechaInicio);
+                                  } else {
+                                    e.target.value = '';
+                                    setFechaInicio('');
+                                  }
+                                }
                               }}
 
                               disabled={readOnly}
 
-                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs
+                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
                                 ${readOnly
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : 'bg-white border-slate-300'}
@@ -1066,17 +1103,54 @@ const App: React.FC = () => {
                           <div>
                             <label className="text-[9px] font-bold text-slate-400 uppercase">Fin</label>
                             <input
-                              type="date"
-                              value={fechaFin}
+                              type="text"
+                              value={fechaFin ? formatDateToDDMMYYYY(fechaFin) : ''}
+                              placeholder="DD/MM/AAAA"
 
                               onChange={(e) => {
                                 if (readOnly) return;
-                                setFechaFin(e.target.value);
+                                let value = e.target.value;
+                                
+                                // Solo permitir números y barras
+                                value = value.replace(/[^\d/]/g, '');
+                                
+                                // Auto-formatear mientras escribe
+                                if (value.length > 2 && value[2] !== '/') {
+                                  value = value.slice(0, 2) + '/' + value.slice(2);
+                                }
+                                if (value.length > 5 && value[5] !== '/') {
+                                  value = value.slice(0, 5) + '/' + value.slice(5);
+                                }
+                                
+                                // Limitar a DD/MM/AAAA
+                                if (value.length > 10) {
+                                  value = value.slice(0, 10);
+                                }
+                                
+                                // Convertir a formato ISO para guardar
+                                const isoDate = parseDDMMYYYYToISO(value);
+                                if (isoDate || value === '') {
+                                  setFechaFin(isoDate || '');
+                                }
+                              }}
+
+                              onBlur={(e) => {
+                                if (readOnly) return;
+                                const value = e.target.value;
+                                if (value && !isValidDDMMYYYY(value)) {
+                                  // Si el formato es inválido, limpiar o mantener el último válido
+                                  if (fechaFin) {
+                                    e.target.value = formatDateToDDMMYYYY(fechaFin);
+                                  } else {
+                                    e.target.value = '';
+                                    setFechaFin('');
+                                  }
+                                }
                               }}
 
                               disabled={readOnly}
 
-                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs
+                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
                                 ${readOnly
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : 'bg-white border-slate-300'}

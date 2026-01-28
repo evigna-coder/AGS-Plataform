@@ -82,3 +82,65 @@ export const findNextAvailableOT = async (
   console.warn(`Se alcanzó el máximo de intentos buscando OT disponible. Retornando: ${currentOt}`);
   return currentOt;
 };
+
+/**
+ * Convierte fecha de formato YYYY-MM-DD (ISO) a DD/MM/YYYY
+ * @param isoDate - Fecha en formato ISO (YYYY-MM-DD)
+ * @returns Fecha en formato DD/MM/YYYY
+ */
+export const formatDateToDDMMYYYY = (isoDate: string): string => {
+  if (!isoDate) return '';
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+/**
+ * Convierte fecha de formato DD/MM/YYYY a YYYY-MM-DD (ISO)
+ * @param ddmmDate - Fecha en formato DD/MM/YYYY
+ * @returns Fecha en formato ISO (YYYY-MM-DD) o string vacío si es inválida
+ */
+export const parseDDMMYYYYToISO = (ddmmDate: string): string => {
+  if (!ddmmDate) return '';
+  
+  // Remover espacios y caracteres no numéricos excepto /
+  const cleaned = ddmmDate.replace(/[^\d/]/g, '');
+  const parts = cleaned.split('/');
+  
+  if (parts.length !== 3) return '';
+  
+  const [day, month, year] = parts;
+  
+  // Validar que sean números
+  const dayNum = parseInt(day, 10);
+  const monthNum = parseInt(month, 10);
+  const yearNum = parseInt(year, 10);
+  
+  if (isNaN(dayNum) || isNaN(monthNum) || isNaN(yearNum)) return '';
+  
+  // Validar rangos
+  if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 1900 || yearNum > 2100) {
+    return '';
+  }
+  
+  // Formatear con padding
+  const formattedDay = String(dayNum).padStart(2, '0');
+  const formattedMonth = String(monthNum).padStart(2, '0');
+  const formattedYear = String(yearNum).padStart(4, '0');
+  
+  return `${formattedYear}-${formattedMonth}-${formattedDay}`;
+};
+
+/**
+ * Valida formato de fecha DD/MM/YYYY
+ * @param dateString - String a validar
+ * @returns true si el formato es válido
+ */
+export const isValidDDMMYYYY = (dateString: string): boolean => {
+  if (!dateString) return false;
+  const iso = parseDDMMYYYYToISO(dateString);
+  if (!iso) return false;
+  
+  // Validar que la fecha sea válida (ej: no 31/02/2024)
+  const date = new Date(iso);
+  return date instanceof Date && !isNaN(date.getTime());
+};
