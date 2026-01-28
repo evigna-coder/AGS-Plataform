@@ -341,6 +341,9 @@ export const useOTManagement = (
     }
 
     // Aplicar estados
+    // IMPORTANTE: Establecer status primero para que readOnly se calcule correctamente
+    setStatus('BORRADOR');
+    setClientConfirmed(false);
     setOtInput(newOt);
     setOtNumber(newOt);
     setBudgets(newState.budgets);
@@ -370,8 +373,6 @@ export const useOTManagement = (
     setSignatureClient(null);
     setAclaracionEspecialista('');
     setAclaracionCliente('');
-    setClientConfirmed(false);
-    setStatus('BORRADOR');
 
     // IMPORTANTE: Habilitar autosave DESPUÉS de que se establezcan todos los estados
     // Esto evita que el autosave intente guardar antes de que los datos estén listos

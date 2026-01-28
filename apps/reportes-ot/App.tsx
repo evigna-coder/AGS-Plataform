@@ -1567,6 +1567,10 @@ const App: React.FC = () => {
               if (readOnly) return;
               setSignatureEngineer(null);
             }}
+            onEnd={(dataUrl) => {
+              if (readOnly) return;
+              setSignatureEngineer(dataUrl);
+            }}
           />
 
           <input
