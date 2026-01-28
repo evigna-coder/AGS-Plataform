@@ -1055,7 +1055,7 @@ const App: React.FC = () => {
 
                               disabled={readOnly}
 
-                              className={`w-full border rounded-lg px-3 py-1.5 text-xs
+                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs
                                 ${readOnly
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : 'bg-white border-slate-300'}
@@ -1076,7 +1076,7 @@ const App: React.FC = () => {
 
                               disabled={readOnly}
 
-                              className={`w-full border rounded-lg px-3 py-1.5 text-xs
+                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs
                                 ${readOnly
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : 'bg-white border-slate-300'}
