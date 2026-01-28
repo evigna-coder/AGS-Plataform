@@ -344,6 +344,10 @@ export const useOTManagement = (
     // IMPORTANTE: Establecer status primero para que readOnly se calcule correctamente
     setStatus('BORRADOR');
     setClientConfirmed(false);
+    
+    console.log('🔄 Duplicando OT - Estableciendo status a BORRADOR');
+    
+    // Establecer el resto de los estados
     setOtInput(newOt);
     setOtNumber(newOt);
     setBudgets(newState.budgets);
@@ -379,16 +383,25 @@ export const useOTManagement = (
     hasUserInteracted.current = true;
     hasInitialized.current = false; // Deshabilitar temporalmente para evitar autosave inmediato
     
+    // Esperar un momento para que React actualice el estado antes de guardar
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log('✅ Estados establecidos, guardando en Firestore con status BORRADOR');
+    
     // Pre-crear documento en Firestore
     try {
-      await firebase.saveReport(newOt, {
+      const dataToSave = {
         ...newState,
         otNumber: newOt,
         tipoServicio,
         esFacturable,
         tieneContrato,
-        esGarantia
-      });
+        esGarantia,
+        status: 'BORRADOR' // Asegurar explícitamente que el status sea BORRADOR
+      };
+      console.log('📝 Guardando OT duplicada:', { ot: newOt, status: dataToSave.status });
+      await firebase.saveReport(newOt, dataToSave);
+      console.log('✅ OT duplicada guardada exitosamente');
       // Solo habilitar autosave después de que se guarde exitosamente
       hasInitialized.current = true;
     } catch (err) {

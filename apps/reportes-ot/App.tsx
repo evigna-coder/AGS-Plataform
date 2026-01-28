@@ -768,6 +768,13 @@ const App: React.FC = () => {
         newOtSuffix: options.newOtSuffix
       });
       setShowDuplicateModal(false);
+      
+      // Esperar un momento para que React actualice el estado antes de mostrar el alert
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      // Verificar el estado después de duplicar
+      console.log('🔍 Estado después de duplicar:', { status, readOnly, otNumber: newOt });
+      
       if (newOt) {
         modal.showAlert({
           title: 'OT Creada',
