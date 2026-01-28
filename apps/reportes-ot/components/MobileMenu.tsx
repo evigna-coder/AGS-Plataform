@@ -12,6 +12,7 @@ interface MobileMenuProps {
   onReview: () => void;
   onFinalSubmit: () => void;
   onSharePDF: () => void;
+  onDownloadPDF: () => void;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -25,7 +26,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onDuplicateOT,
   onReview,
   onFinalSubmit,
-  onSharePDF
+  onSharePDF,
+  onDownloadPDF
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -55,13 +57,21 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
         {!isPreviewMode ? (
           <>
             {status === 'FINALIZADO' && hasPdfBlob ? (
-              <button
-                onClick={onSharePDF}
-                disabled={isSharing}
-                className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={onSharePDF}
+                  disabled={isSharing}
+                  className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
+                </button>
+                <button
+                  onClick={onDownloadPDF}
+                  className="bg-blue-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-blue-500/50"
+                >
+                  Descargar PDF
+                </button>
+              </div>
             ) : status === 'FINALIZADO' ? (
               <button 
                 onClick={onFinalSubmit} 
@@ -146,16 +156,27 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             {!isPreviewMode ? (
               <>
                 {status === 'FINALIZADO' && hasPdfBlob ? (
-                  <button
-                    onClick={() => {
-                      setIsOpen(false);
-                      onSharePDF();
-                    }}
-                    disabled={isSharing}
-                    className="bg-purple-600 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {isSharing ? 'Compartiendo...' : 'Compartir PDF'}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        onSharePDF();
+                      }}
+                      disabled={isSharing}
+                      className="bg-purple-600 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {isSharing ? 'Compartiendo...' : 'Compartir PDF'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        onDownloadPDF();
+                      }}
+                      className="bg-blue-600 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-blue-500/50 whitespace-nowrap"
+                    >
+                      Descargar PDF
+                    </button>
+                  </>
                 ) : status === 'FINALIZADO' ? (
                   <button 
                     onClick={() => {

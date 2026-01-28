@@ -537,6 +537,57 @@ const App: React.FC = () => {
   // Función para finalizar y descargar PDF (wrapper del hook)
   const handleFinalSubmit = handleFinalSubmitFromHook;
 
+  // Función para descargar PDF directamente
+  const downloadPDF = async (otParam?: string) => {
+    try {
+      const otToUse = otParam || otNumber;
+      if (!otToUse) {
+        modal.showAlert({
+          title: 'Error',
+          message: 'No hay número de OT disponible',
+          type: 'error'
+        });
+        return;
+      }
+
+      console.log("Preparando PDF para descargar...");
+      const filename = `${otToUse}_Reporte_AGS.pdf`;
+
+      let pdfBlob: Blob;
+      if (generatedPdfBlob) {
+        console.log("Usando PDF previamente generado");
+        pdfBlob = generatedPdfBlob;
+      } else {
+        console.log("Generando PDF como Blob...");
+        pdfBlob = await generatePDFBlob();
+        setGeneratedPdfBlob(pdfBlob);
+      }
+
+      // Crear enlace de descarga
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      modal.showAlert({
+        title: 'Éxito',
+        message: 'PDF descargado correctamente',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error("Error al descargar PDF:", error);
+      modal.showAlert({
+        title: 'Error',
+        message: 'Error al descargar el PDF. Intente nuevamente.',
+        type: 'error'
+      });
+    }
+  };
+
   // Función para compartir PDF
   const shareReportPDF = async (otParam?: string) => {
     const otToUse = otParam || otNumber;
@@ -1899,6 +1950,7 @@ const App: React.FC = () => {
         onReview={handleReview}
         onFinalSubmit={handleFinalSubmit}
         onSharePDF={shareReportPDF}
+        onDownloadPDF={downloadPDF}
       />
 
       {/* Modal Duplicar OT */}
