@@ -14,18 +14,30 @@ import { getFirestore, FieldValue, type Timestamp, type QueryDocumentSnapshot } 
 import { rpName, rpID, origin, CHALLENGE_TTL_SEC } from './config.js';
 import type { AuthContext } from './middleware.js';
 
-/** Obtiene rpID y origin para WebAuthn desde el header Origin de la petición (producción) o la config. */
+/** Obtiene rpID y origin para WebAuthn desde la petición (Origin, X-WebAuthn-Origin, Referer) o la config. */
 function getRpIdAndOrigin(req: ReqWithHeaders): { rpID: string; origin: string } {
-  const originHeader = headerString(req.headers, 'origin') || headerString(req.headers, 'Origin');
-  if (originHeader) {
+  const tryOrigin = (value: string | null): { rpID: string; origin: string } | null => {
+    if (!value || !value.startsWith('http')) return null;
     try {
-      const u = new URL(originHeader);
+      const u = new URL(value);
       if (u.protocol === 'https:' || u.protocol === 'http:') {
-        return { rpID: u.hostname, origin: originHeader };
+        return { rpID: u.hostname, origin: u.origin };
       }
     } catch {
       // ignore invalid URL
     }
+    return null;
+  };
+  const originHeader = headerString(req.headers, 'origin') || headerString(req.headers, 'Origin');
+  let result = tryOrigin(originHeader);
+  if (result) return result;
+  const clientOrigin = headerString(req.headers, 'x-webauthn-origin');
+  result = tryOrigin(clientOrigin);
+  if (result) return result;
+  const referer = headerString(req.headers, 'referer') || headerString(req.headers, 'Referer');
+  if (referer) {
+    result = tryOrigin(referer);
+    if (result) return result;
   }
   return {
     rpID: rpID === 'localhost' ? 'localhost' : rpID,

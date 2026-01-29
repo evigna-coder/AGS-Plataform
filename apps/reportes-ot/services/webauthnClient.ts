@@ -9,15 +9,18 @@ function getBaseUrl(): string {
   return '/api/webauthn';
 }
 
-async function fetchWithAuth(path: string, options: RequestInit = {}): Promise<Response> {
-  const token = await getIdToken();
+async function fetchWithAuth(path: string, options: RequestInit & { forceRefresh?: boolean } = {}): Promise<Response> {
+  const { forceRefresh, ...rest } = options;
+  const token = await getIdToken(forceRefresh === true);
   const url = `${getBaseUrl()}${path}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
-    ...(options.headers as Record<string, string>),
+    // El backend usa esto para rpID/origin cuando Origin no viene (p. ej. same-origin en Android).
+    'X-WebAuthn-Origin': typeof window !== 'undefined' ? window.location.origin : '',
+    ...(rest.headers as Record<string, string>),
   };
-  return fetch(url, { ...options, headers });
+  return fetch(url, { ...rest, headers });
 }
 
 /**
@@ -67,7 +70,7 @@ export async function getRegisterOptions(deviceName?: string): Promise<
   | { options: PublicKeyCredentialCreationOptions; error?: undefined }
   | { options: null; error: string }
 > {
-  const res = await fetchWithAuth('/register-options', { method: 'POST' });
+  const res = await fetchWithAuth('/register-options', { method: 'POST', forceRefresh: true });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data.error ?? data.message ?? (res.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : res.status === 403 ? 'Dominio no permitido.' : 'Error al obtener opciones de registro.');

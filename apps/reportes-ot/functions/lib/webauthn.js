@@ -31,19 +31,35 @@ exports.handleRevokeDevice = handleRevokeDevice;
 const server_1 = require("@simplewebauthn/server");
 const firestore_1 = require("firebase-admin/firestore");
 const config_js_1 = require("./config.js");
-/** Obtiene rpID y origin para WebAuthn desde el header Origin de la petición (producción) o la config. */
+/** Obtiene rpID y origin para WebAuthn desde la petición (Origin, X-WebAuthn-Origin, Referer) o la config. */
 function getRpIdAndOrigin(req) {
-    const originHeader = headerString(req.headers, 'origin') || headerString(req.headers, 'Origin');
-    if (originHeader) {
+    const tryOrigin = (value) => {
+        if (!value || !value.startsWith('http'))
+            return null;
         try {
-            const u = new URL(originHeader);
+            const u = new URL(value);
             if (u.protocol === 'https:' || u.protocol === 'http:') {
-                return { rpID: u.hostname, origin: originHeader };
+                return { rpID: u.hostname, origin: u.origin };
             }
         }
         catch {
             // ignore invalid URL
         }
+        return null;
+    };
+    const originHeader = headerString(req.headers, 'origin') || headerString(req.headers, 'Origin');
+    let result = tryOrigin(originHeader);
+    if (result)
+        return result;
+    const clientOrigin = headerString(req.headers, 'x-webauthn-origin');
+    result = tryOrigin(clientOrigin);
+    if (result)
+        return result;
+    const referer = headerString(req.headers, 'referer') || headerString(req.headers, 'Referer');
+    if (referer) {
+        result = tryOrigin(referer);
+        if (result)
+            return result;
     }
     return {
         rpID: config_js_1.rpID === 'localhost' ? 'localhost' : config_js_1.rpID,
