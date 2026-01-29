@@ -20,6 +20,8 @@ const allowOrigin = (req) => {
         return origin;
     if (/\.web\.app$/.test(origin))
         return origin;
+    if (/\.vercel\.app$/.test(origin))
+        return origin;
     return '*';
 };
 app.use((req, res, next) => {

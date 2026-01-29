@@ -4,8 +4,15 @@
  */
 import { getIdToken } from './authService';
 
-/** Siempre usar /api/webauthn: en dev lo sirve el proxy de Vite; en producción Firebase Hosting reescribe a la Cloud Function (mismo origen, sin CORS). */
+const PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '';
+
+/** URL base: en localhost usa proxy Vite; en Firebase Hosting usa rewrite; en Vercel/otros usa la Cloud Function directa. */
 function getBaseUrl(): string {
+  if (typeof window === 'undefined') return '/api/webauthn';
+  const origin = window.location.origin;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return '/api/webauthn';
+  if (/\.web\.app$/.test(origin) || /\.firebaseapp\.com$/.test(origin)) return '/api/webauthn';
+  if (PROJECT_ID) return `https://us-central1-${PROJECT_ID}.cloudfunctions.net/webauthn`;
   return '/api/webauthn';
 }
 
