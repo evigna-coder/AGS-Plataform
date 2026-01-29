@@ -4,13 +4,22 @@
  */
 import { getIdToken } from './authService';
 
-const BASE_URL = import.meta.env.VITE_WEBAUTHN_URL ?? '';
+const PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '';
+const EXPLICIT_WEBAUTHN_URL = import.meta.env.VITE_WEBAUTHN_URL ?? '';
+const isDev = import.meta.env.DEV;
 
+/** URL base de la Cloud Function webauthn. En desarrollo usa el proxy de Vite para evitar CORS. */
 function getBaseUrl(): string {
-  if (!BASE_URL) {
-    console.warn('VITE_WEBAUTHN_URL no definida; las llamadas MFA fallarán.');
+  if (isDev) {
+    return '/api/webauthn';
   }
-  return BASE_URL.replace(/\/$/, '');
+  const base =
+    EXPLICIT_WEBAUTHN_URL ||
+    (PROJECT_ID ? `https://us-central1-${PROJECT_ID}.cloudfunctions.net/webauthn` : '');
+  if (!base) {
+    console.warn('VITE_WEBAUTHN_URL no definida y VITE_FIREBASE_PROJECT_ID ausente; las llamadas MFA fallarán.');
+  }
+  return base.replace(/\/$/, '');
 }
 
 async function fetchWithAuth(path: string, options: RequestInit = {}): Promise<Response> {

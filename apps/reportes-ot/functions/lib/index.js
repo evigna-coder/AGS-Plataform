@@ -11,6 +11,28 @@ const middleware_js_1 = require("./middleware.js");
 const webauthn_js_1 = require("./webauthn.js");
 (0, app_1.initializeApp)();
 const app = (0, express_1.default)();
+// CORS: responder preflight OPTIONS y añadir headers a todas las respuestas.
+// Cloud Functions puede no pasar OPTIONS al middleware cors(), por eso lo hacemos explícito.
+const allowOrigin = (req) => {
+    const origin = req.get('Origin') ?? '';
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
+        return origin;
+    if (/\.firebaseapp\.com$/.test(origin))
+        return origin;
+    return '*';
+};
+app.use((req, res, next) => {
+    const origin = allowOrigin(req);
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    if (req.method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+    }
+    next();
+});
 app.use(express_1.default.json({ limit: '64kb' }));
 /** Helper: responde JSON y termina. */
 function json(res, status, body) {

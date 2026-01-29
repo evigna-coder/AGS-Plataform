@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, isAllowedDomain, signOut } from '../services/authService';
 import type { User } from '../services/authService';
+import { getAuthOptions } from '../services/webauthnClient';
 import { LoginScreen } from './LoginScreen';
 import { DomainErrorScreen } from './DomainErrorScreen';
 import { WebAuthnModal } from './WebAuthnModal';
@@ -10,16 +11,33 @@ interface AuthGateProps {
   children: React.ReactNode;
 }
 
-type AuthPhase = 'loading' | 'login' | 'domain_error' | 'mfa_required' | 'authenticated';
+type AuthPhase = 'loading' | 'login' | 'domain_error' | 'mfa_check' | 'mfa_enroll' | 'mfa_required' | 'authenticated';
+
+type MfaCheckResult = 'pending' | 'no_devices' | 'has_options' | 'error';
+
+/** Segundo factor solo en móvil. En escritorio (Windows, Mac, Linux, Chromebook) se omite. */
+function shouldRequireMfa(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  // Escritorio: Chrome/Firefox/Edge en Windows, Mac, Linux o Chromebook → no pedir MFA
+  if (/Windows NT|Win64|WOW64/i.test(ua)) return false;
+  if (/Macintosh|Mac OS X/i.test(ua)) return false;
+  if (/CrOS/i.test(ua)) return false; // Chromebook
+  if (/Linux/i.test(ua) && !/Android/i.test(ua)) return false;
+  // Resto (iPhone, iPad, Android, etc.) → pedir MFA
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+}
 
 /**
- * Envuelve la app y exige: Google Sign-In → dominio @agsanalitica.com → segundo factor WebAuthn (si tiene dispositivo registrado).
+ * Envuelve la app: Google Sign-In → dominio @agsanalitica.com. Segundo factor WebAuthn solo en móvil.
+ * En escritorio se accede sin segundo factor. En móvil, si no hay dispositivos registrados se abre
+ * el registro (patrón, facial, huella, etc.).
  */
 export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [phase, setPhase] = useState<AuthPhase>('loading');
-  const [showWebAuthnModal, setShowWebAuthnModal] = useState(false);
-  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [mfaCheckResult, setMfaCheckResult] = useState<MfaCheckResult>('pending');
+  const [authOptionsForVerify, setAuthOptionsForVerify] = useState<PublicKeyCredentialRequestOptions | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,19 +57,53 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
       setPhase('domain_error');
       return;
     }
-    setPhase('mfa_required');
-    setShowWebAuthnModal(true);
+    if (!shouldRequireMfa()) {
+      setPhase('authenticated');
+      return;
+    }
+    setPhase('mfa_check');
+    setMfaCheckResult('pending');
+    setAuthOptionsForVerify(null);
   }, [user]);
 
+  // Una vez en mfa_check, consultar si hay dispositivos; si no, mostrar enrolamiento automático.
+  useEffect(() => {
+    if (phase !== 'mfa_check' || mfaCheckResult !== 'pending') return;
+    let cancelled = false;
+    getAuthOptions().then((result) => {
+      if (cancelled) return;
+      if (result.error === 'no_registered_devices') {
+        setMfaCheckResult('no_devices');
+        setPhase('mfa_enroll');
+        return;
+      }
+      if (result.options) {
+        setAuthOptionsForVerify(result.options);
+        setMfaCheckResult('has_options');
+        setPhase('mfa_required');
+        return;
+      }
+      setMfaCheckResult('error');
+      setPhase('mfa_required');
+    });
+    return () => { cancelled = true; };
+  }, [phase, mfaCheckResult]);
+
   const handleWebAuthnSuccess = () => {
-    setShowWebAuthnModal(false);
     setPhase('authenticated');
+    setAuthOptionsForVerify(null);
   };
 
   const handleWebAuthnError = (message: string) => {
-    setShowWebAuthnModal(false);
+    setPhase('mfa_check');
+    setMfaCheckResult('pending');
+    setAuthOptionsForVerify(null);
     setLoginError(message);
     signOut();
+  };
+
+  const handleEnrollSuccess = () => {
+    setPhase('authenticated');
   };
 
   const handleLoginError = (message: string) => {
@@ -83,34 +135,36 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     return <DomainErrorScreen />;
   }
 
-  if (phase === 'mfa_required' && showWebAuthnModal) {
+  // Primera vez en dispositivo: no hay dispositivos registrados → enrolamiento automático.
+  if (phase === 'mfa_enroll') {
+    return (
+      <MfaEnrollModal
+        isOpen={true}
+        onClose={() => {}}
+        onSuccess={handleEnrollSuccess}
+        isFirstTimeEnrollment
+      />
+    );
+  }
+
+  if (phase === 'mfa_check' && mfaCheckResult === 'pending') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-sm text-slate-500 animate-pulse">Preparando inicio de sesión…</p>
+      </div>
+    );
+  }
+
+  if (phase === 'mfa_required') {
     return (
       <WebAuthnModal
         isOpen={true}
+        initialOptions={authOptionsForVerify}
         onSuccess={handleWebAuthnSuccess}
         onError={handleWebAuthnError}
       />
     );
   }
 
-  return (
-    <>
-      {children}
-      <button
-        type="button"
-        onClick={() => setShowEnrollModal(true)}
-        className="fixed bottom-6 left-6 no-print z-40 text-xs font-bold text-slate-500 hover:text-slate-700 uppercase tracking-wider"
-        aria-label="Seguridad y segundo factor"
-      >
-        Seguridad
-      </button>
-      {showEnrollModal && (
-        <MfaEnrollModal
-          isOpen={true}
-          onClose={() => setShowEnrollModal(false)}
-          onSuccess={() => setShowEnrollModal(false)}
-        />
-      )}
-    </>
-  );
+  return <>{children}</>;
 };

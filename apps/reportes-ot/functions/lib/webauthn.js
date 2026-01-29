@@ -109,7 +109,7 @@ async function handleRegisterOptions(ctx, _req) {
         authenticatorSelection: {
             residentKey: 'preferred',
             userVerification: 'preferred',
-            authenticatorAttachment: 'platform',
+            // Sin authenticatorAttachment: permite plataforma (Face/huella) y cross-platform (llaves, passkeys) para escritorio.
         },
         supportedAlgorithmIDs: [-7, -257],
     });
