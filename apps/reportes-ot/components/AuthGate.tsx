@@ -205,6 +205,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
         initialOptions={authOptionsForVerify}
         onSuccess={handleWebAuthnSuccess}
         onError={handleWebAuthnError}
+        onRegisterDevice={() => {
+          setPhase('mfa_enroll');
+          setAuthOptionsForVerify(null);
+        }}
       />
     );
   }

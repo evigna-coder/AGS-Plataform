@@ -7,6 +7,8 @@ interface WebAuthnModalProps {
   initialOptions?: PublicKeyCredentialRequestOptions | null;
   onSuccess: () => void;
   onError: (message: string) => void;
+  /** Si se proporciona, se muestra opción "Registrar este dispositivo" para quien aún no lo tiene registrado. */
+  onRegisterDevice?: () => void;
 }
 
 /** Detecta si el dispositivo es móvil (segundo factor obligatorio). */
@@ -20,7 +22,7 @@ function isMobileDevice(): boolean {
  * Modal para completar el segundo factor (WebAuthn: Face/huella/patrón o llave de seguridad).
  * En móvil el segundo factor es obligatorio. En escritorio se permite "Continuar sin segundo factor" para esta sesión.
  */
-export const WebAuthnModal: React.FC<WebAuthnModalProps> = ({ isOpen, initialOptions = null, onSuccess, onError }) => {
+export const WebAuthnModal: React.FC<WebAuthnModalProps> = ({ isOpen, initialOptions = null, onSuccess, onError, onRegisterDevice }) => {
   const [status, setStatus] = useState<'idle' | 'requesting' | 'waiting' | 'verifying' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isMobile, setIsMobile] = useState(false);
@@ -126,6 +128,22 @@ export const WebAuthnModal: React.FC<WebAuthnModalProps> = ({ isOpen, initialOpt
         )}
         {status === 'error' && (
           <p className="text-sm text-red-600 mb-4">{errorMessage}</p>
+        )}
+
+        {/* Opción para registrar este dispositivo si aún no lo tiene (p. ej. primera vez en este móvil). */}
+        {onRegisterDevice && (
+          <div className="space-y-2 pt-2 border-t border-slate-200">
+            <p className="text-xs text-slate-500">
+              ¿Primera vez en este dispositivo? Regístralo para usar Face ID, huella o patrón aquí.
+            </p>
+            <button
+              type="button"
+              onClick={onRegisterDevice}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-3 rounded-xl text-sm border border-slate-200"
+            >
+              Registrar este dispositivo
+            </button>
+          </div>
         )}
 
         {/* Solo en escritorio: opción de continuar sin segundo factor. En móvil es obligatorio. */}
