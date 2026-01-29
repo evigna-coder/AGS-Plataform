@@ -11,27 +11,26 @@ interface AuthGateProps {
   children: React.ReactNode;
 }
 
-type AuthPhase = 'loading' | 'login' | 'domain_error' | 'mfa_check' | 'mfa_enroll' | 'mfa_required' | 'authenticated';
+type AuthPhase = 'loading' | 'login' | 'domain_error' | 'mfa_check' | 'mfa_enroll' | 'mfa_required' | 'mfa_error' | 'authenticated';
 
 type MfaCheckResult = 'pending' | 'no_devices' | 'has_options' | 'error';
 
-/** Segundo factor solo en móvil. En escritorio (Windows, Mac, Linux, Chromebook) se omite. */
+/** En producción (app desplegada) siempre se pide segundo factor. En localhost solo en móvil. */
 function shouldRequireMfa(): boolean {
+  if (import.meta.env.PROD) return true;
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
-  // Escritorio: Chrome/Firefox/Edge en Windows, Mac, Linux o Chromebook → no pedir MFA
+  // En desarrollo, escritorio (Windows, Mac, Linux, Chromebook) → no pedir MFA
   if (/Windows NT|Win64|WOW64/i.test(ua)) return false;
   if (/Macintosh|Mac OS X/i.test(ua)) return false;
-  if (/CrOS/i.test(ua)) return false; // Chromebook
+  if (/CrOS/i.test(ua)) return false;
   if (/Linux/i.test(ua) && !/Android/i.test(ua)) return false;
-  // Resto (iPhone, iPad, Android, etc.) → pedir MFA
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
 }
 
 /**
- * Envuelve la app: Google Sign-In → dominio @agsanalitica.com. Segundo factor WebAuthn solo en móvil.
- * En escritorio se accede sin segundo factor. En móvil, si no hay dispositivos registrados se abre
- * el registro (patrón, facial, huella, etc.).
+ * Envuelve la app: Google Sign-In → dominio @agsanalitica.com.
+ * En app desplegada: siempre segundo factor (escritorio y móvil). En localhost: solo en móvil.
  */
 export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -89,8 +88,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
       })
       .catch(() => {
         if (cancelled) return;
-        // Red, CORS o API caída: permitir entrar sin segundo factor para no dejar bloqueado (sobre todo en móvil).
-        setPhase('authenticated');
+        setMfaCheckResult('error');
+        setPhase('mfa_error');
       });
     return () => { cancelled = true; };
   }, [phase, mfaCheckResult]);
@@ -109,6 +108,15 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   };
 
   const handleEnrollSuccess = () => {
+    setPhase('authenticated');
+  };
+
+  const handleMfaErrorRetry = () => {
+    setMfaCheckResult('pending');
+    setPhase('mfa_check');
+  };
+
+  const handleMfaErrorContinue = () => {
     setPhase('authenticated');
   };
 
@@ -157,6 +165,35 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <p className="text-sm text-slate-500 animate-pulse">Preparando inicio de sesión…</p>
+      </div>
+    );
+  }
+
+  if (phase === 'mfa_error') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 max-w-sm w-full text-center">
+          <h2 className="text-lg font-bold text-slate-800 mb-2">No se pudo comprobar el segundo factor</h2>
+          <p className="text-sm text-slate-600 mb-6">
+            Comprueba la conexión o vuelve a intentar. Si el problema continúa, puedes continuar sin segundo factor en esta sesión.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={handleMfaErrorRetry}
+              className="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl uppercase tracking-wider text-sm"
+            >
+              Reintentar
+            </button>
+            <button
+              type="button"
+              onClick={handleMfaErrorContinue}
+              className="w-full bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-xl text-sm"
+            >
+              Continuar sin segundo factor
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
