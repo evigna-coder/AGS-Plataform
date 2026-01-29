@@ -15,12 +15,11 @@ initializeApp();
 const app = express();
 
 // CORS: responder preflight OPTIONS y añadir headers a todas las respuestas.
-// Cloud Functions puede no pasar OPTIONS al middleware cors(), por eso lo hacemos explícito.
 const allowOrigin = (req: Request): string => {
   const origin = req.get('Origin') ?? '';
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
   if (/\.firebaseapp\.com$/.test(origin)) return origin;
-  if (/\.web\.app$/.test(origin)) return origin; // Firebase Hosting (app desplegada)
+  if (/\.web\.app$/.test(origin)) return origin;
   return '*';
 };
 app.use((req: Request, res: Response, next) => {
@@ -42,12 +41,10 @@ function json(res: Response, status: number, body: object): void {
   res.status(status).json(body);
 }
 
-/**
- * POST /register-options (URL completa: .../webauthn/register-options)
- * Requiere Authorization: Bearer <Firebase ID token>.
- * Devuelve options para navigator.credentials.create().
- */
-app.post('/register-options', async (req: Request, res: Response) => {
+/** Router WebAuthn: montado en /api/webauthn (Hosting) y /webauthn (invocación directa). */
+const webauthnRouter = express.Router();
+
+webauthnRouter.post('/register-options', async (req: Request, res: Response) => {
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
   if (!requireAllowedDomain(ctx, res)) return;
@@ -61,11 +58,7 @@ app.post('/register-options', async (req: Request, res: Response) => {
   json(res, 200, result);
 });
 
-/**
- * POST /register-result (URL completa: .../webauthn/register-result)
- * Body: { response: RegistrationResponseJSON, deviceName?: string }
- */
-app.post('/register-result', async (req: Request, res: Response) => {
+webauthnRouter.post('/register-result', async (req: Request, res: Response) => {
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
   if (!requireAllowedDomain(ctx, res)) return;
@@ -81,12 +74,7 @@ app.post('/register-result', async (req: Request, res: Response) => {
   json(res, 200, { verified: true });
 });
 
-/**
- * POST /auth-options (URL completa: .../webauthn/auth-options)
- * Requiere Authorization: Bearer <Firebase ID token>.
- * Devuelve options para navigator.credentials.get().
- */
-app.post('/auth-options', async (req: Request, res: Response) => {
+webauthnRouter.post('/auth-options', async (req: Request, res: Response) => {
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
   if (!requireAllowedDomain(ctx, res)) return;
@@ -104,11 +92,7 @@ app.post('/auth-options', async (req: Request, res: Response) => {
   json(res, 200, result);
 });
 
-/**
- * POST /auth-result (URL completa: .../webauthn/auth-result)
- * Body: { response: AuthenticationResponseJSON }
- */
-app.post('/auth-result', async (req: Request, res: Response) => {
+webauthnRouter.post('/auth-result', async (req: Request, res: Response) => {
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
   if (!requireAllowedDomain(ctx, res)) return;
@@ -123,11 +107,7 @@ app.post('/auth-result', async (req: Request, res: Response) => {
   json(res, 200, { verified: true });
 });
 
-/**
- * POST /revoke (URL completa: .../webauthn/revoke)
- * Admin only. Body: { targetUid: string, credentialId?: string }
- */
-app.post('/revoke', async (req: Request, res: Response) => {
+webauthnRouter.post('/revoke', async (req: Request, res: Response) => {
   const ctx = await requireAuth(req, res);
   if (!ctx) return;
   if (!requireAllowedDomain(ctx, res)) return;
@@ -148,6 +128,12 @@ app.post('/revoke', async (req: Request, res: Response) => {
   }
   json(res, 200, { success: true });
 });
+
+// Hosting reescribe /api/webauthn/** → esta función; la ruta recibida es /api/webauthn/auth-options, etc.
+app.use('/api/webauthn', webauthnRouter);
+// Invocación directa: path puede ser /webauthn/auth-options o /auth-options según la plataforma
+app.use('/webauthn', webauthnRouter);
+app.use(webauthnRouter);
 
 /** Exportar una sola función HTTP que maneja todas las rutas WebAuthn. */
 export const webauthn = onRequest(

@@ -12,7 +12,6 @@ const webauthn_js_1 = require("./webauthn.js");
 (0, app_1.initializeApp)();
 const app = (0, express_1.default)();
 // CORS: responder preflight OPTIONS y añadir headers a todas las respuestas.
-// Cloud Functions puede no pasar OPTIONS al middleware cors(), por eso lo hacemos explícito.
 const allowOrigin = (req) => {
     const origin = req.get('Origin') ?? '';
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
@@ -20,7 +19,7 @@ const allowOrigin = (req) => {
     if (/\.firebaseapp\.com$/.test(origin))
         return origin;
     if (/\.web\.app$/.test(origin))
-        return origin; // Firebase Hosting (app desplegada)
+        return origin;
     return '*';
 };
 app.use((req, res, next) => {
@@ -40,12 +39,9 @@ app.use(express_1.default.json({ limit: '64kb' }));
 function json(res, status, body) {
     res.status(status).json(body);
 }
-/**
- * POST /register-options (URL completa: .../webauthn/register-options)
- * Requiere Authorization: Bearer <Firebase ID token>.
- * Devuelve options para navigator.credentials.create().
- */
-app.post('/register-options', async (req, res) => {
+/** Router WebAuthn: montado en /api/webauthn (Hosting) y /webauthn (invocación directa). */
+const webauthnRouter = express_1.default.Router();
+webauthnRouter.post('/register-options', async (req, res) => {
     const ctx = await (0, middleware_js_1.requireAuth)(req, res);
     if (!ctx)
         return;
@@ -61,11 +57,7 @@ app.post('/register-options', async (req, res) => {
     }
     json(res, 200, result);
 });
-/**
- * POST /register-result (URL completa: .../webauthn/register-result)
- * Body: { response: RegistrationResponseJSON, deviceName?: string }
- */
-app.post('/register-result', async (req, res) => {
+webauthnRouter.post('/register-result', async (req, res) => {
     const ctx = await (0, middleware_js_1.requireAuth)(req, res);
     if (!ctx)
         return;
@@ -83,12 +75,7 @@ app.post('/register-result', async (req, res) => {
     }
     json(res, 200, { verified: true });
 });
-/**
- * POST /auth-options (URL completa: .../webauthn/auth-options)
- * Requiere Authorization: Bearer <Firebase ID token>.
- * Devuelve options para navigator.credentials.get().
- */
-app.post('/auth-options', async (req, res) => {
+webauthnRouter.post('/auth-options', async (req, res) => {
     const ctx = await (0, middleware_js_1.requireAuth)(req, res);
     if (!ctx)
         return;
@@ -108,11 +95,7 @@ app.post('/auth-options', async (req, res) => {
     }
     json(res, 200, result);
 });
-/**
- * POST /auth-result (URL completa: .../webauthn/auth-result)
- * Body: { response: AuthenticationResponseJSON }
- */
-app.post('/auth-result', async (req, res) => {
+webauthnRouter.post('/auth-result', async (req, res) => {
     const ctx = await (0, middleware_js_1.requireAuth)(req, res);
     if (!ctx)
         return;
@@ -129,11 +112,7 @@ app.post('/auth-result', async (req, res) => {
     }
     json(res, 200, { verified: true });
 });
-/**
- * POST /revoke (URL completa: .../webauthn/revoke)
- * Admin only. Body: { targetUid: string, credentialId?: string }
- */
-app.post('/revoke', async (req, res) => {
+webauthnRouter.post('/revoke', async (req, res) => {
     const ctx = await (0, middleware_js_1.requireAuth)(req, res);
     if (!ctx)
         return;
@@ -158,6 +137,11 @@ app.post('/revoke', async (req, res) => {
     }
     json(res, 200, { success: true });
 });
+// Hosting reescribe /api/webauthn/** → esta función; la ruta recibida es /api/webauthn/auth-options, etc.
+app.use('/api/webauthn', webauthnRouter);
+// Invocación directa: path puede ser /webauthn/auth-options o /auth-options según la plataforma
+app.use('/webauthn', webauthnRouter);
+app.use(webauthnRouter);
 /** Exportar una sola función HTTP que maneja todas las rutas WebAuthn. */
 exports.webauthn = (0, https_1.onRequest)({
     region: 'us-central1',
