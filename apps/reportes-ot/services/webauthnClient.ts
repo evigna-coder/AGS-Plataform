@@ -70,10 +70,17 @@ export async function getRegisterOptions(deviceName?: string): Promise<
   | { options: PublicKeyCredentialCreationOptions; error?: undefined }
   | { options: null; error: string }
 > {
-  const res = await fetchWithAuth('/register-options', { method: 'POST', forceRefresh: true });
+  let res: Response;
+  try {
+    res = await fetchWithAuth('/register-options', { method: 'POST', forceRefresh: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error de red';
+    return { options: null, error: `No se pudo conectar. ${msg}` };
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg = data.error ?? data.message ?? (res.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : res.status === 403 ? 'Dominio no permitido.' : 'Error al obtener opciones de registro.');
+    const fallback = res.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : res.status === 403 ? 'Dominio no permitido.' : res.status === 404 ? 'Servicio no encontrado. ¿Desplegaste la Cloud Function?' : `Error al obtener opciones de registro (${res.status}).`;
+    const msg = data.error ?? data.message ?? fallback;
     return { options: null, error: msg };
   }
   if (!data.options) {

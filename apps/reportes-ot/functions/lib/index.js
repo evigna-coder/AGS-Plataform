@@ -50,12 +50,18 @@ webauthnRouter.post('/register-options', async (req, res) => {
     const ok = await (0, middleware_js_1.checkRateLimit)(ctx.uid, 'registerOptionsPerMinute', req, res);
     if (!ok)
         return;
-    const result = await (0, webauthn_js_1.handleRegisterOptions)(ctx, req);
-    if ('error' in result) {
-        json(res, 400, { error: result.error });
-        return;
+    try {
+        const result = await (0, webauthn_js_1.handleRegisterOptions)(ctx, req);
+        if ('error' in result) {
+            json(res, 400, { error: result.error });
+            return;
+        }
+        json(res, 200, result);
     }
-    json(res, 200, result);
+    catch (err) {
+        const message = err instanceof Error ? err.message : 'Error interno';
+        json(res, 500, { error: message });
+    }
 });
 webauthnRouter.post('/register-result', async (req, res) => {
     const ctx = await (0, middleware_js_1.requireAuth)(req, res);
