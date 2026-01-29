@@ -13,6 +13,7 @@ interface MobileMenuProps {
   onFinalSubmit: () => void;
   onSharePDF: () => void;
   onDownloadPDF: () => void;
+  onSignOut: () => void;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -27,7 +28,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onReview,
   onFinalSubmit,
   onSharePDF,
-  onDownloadPDF
+  onDownloadPDF,
+  onSignOut
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -93,6 +95,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             {isGenerating ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
           </button>
         )}
+        <button
+          onClick={onSignOut}
+          className="mt-2 bg-slate-500/80 text-white font-bold px-5 py-2.5 rounded-full shadow-lg uppercase tracking-widest text-[10px] transition-all hover:bg-slate-600 hover:scale-105 active:scale-95"
+        >
+          Cerrar sesión
+        </button>
       </div>
     );
   }
@@ -214,6 +222,15 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                 {isGenerating ? 'Generando...' : 'Finalizar PDF'}
               </button>
             )}
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                onSignOut();
+              }}
+              className="mt-2 bg-slate-500/90 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 whitespace-nowrap"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </>
       )}

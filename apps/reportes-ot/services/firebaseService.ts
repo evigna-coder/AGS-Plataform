@@ -87,6 +87,8 @@ try {
   throw error;
 }
 
+export { app };
+
 /**
  * Guarda o actualiza el documento del reporte en Firestore.
  * @param ot Número de orden de trabajo (ID del documento)

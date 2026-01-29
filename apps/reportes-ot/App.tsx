@@ -11,6 +11,7 @@ import { useAutosave } from './hooks/useAutosave';
 import { useModal } from './hooks/useModal';
 import { AlertModal, ConfirmModal } from './components/Modal';
 import { MobileMenu } from './components/MobileMenu';
+import { signOut } from './services/authService';
 
 
 // Declaración de variables globales para librerías externas
@@ -1357,20 +1358,23 @@ const App: React.FC = () => {
                   }
                 `}
               >
-                <option>Visita de diagnóstico / reparación</option>
+                <option>Calibración</option>
+                <option>Calificación de instalación</option>
+                <option>Calificación de operación</option>
+                <option>Calificación de software</option>
+                <option>Capacitación</option>
+                <option>Cortesía</option>
+                <option>Desinstalación</option>
+                <option>Instalación</option>
+                <option>Limpieza de fuente de Iones</option>
                 <option>Mantenimiento preventivo con consumibles</option>
                 <option>Mantenimiento preventivo sin consumibles</option>
                 <option>Mantenimiento preventivo sin consumibles, incluye limpieza de módulos</option>
-                <option>Limpieza de fuente de Iones</option>
-                <option>Calificación de operación</option>
-                <option>Calificación de instalación</option>
-                <option>Calibración</option>
+                <option>Otros</option>
                 <option>Recalificación post reparación</option>
                 <option>Reparación en bench</option>
-                <option>Calificación de software</option>
-                <option>Cortesía</option>
-                <option>Desinstalación</option>
                 <option>Trabajo en bench</option>
+                <option>Visita de diagnóstico / reparación</option>
               </select>
             </section>
 
@@ -1991,6 +1995,7 @@ const App: React.FC = () => {
         onFinalSubmit={handleFinalSubmit}
         onSharePDF={shareReportPDF}
         onDownloadPDF={downloadPDF}
+        onSignOut={signOut}
       />
 
       {/* Modal Duplicar OT */}

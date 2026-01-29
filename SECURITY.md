@@ -2,12 +2,12 @@
 
 ## Resumen
 
-Este documento describe las reglas de seguridad implementadas para Firebase Firestore y Storage, así como el plan de migración para cuando se implemente autenticación.
+Este documento describe las reglas de seguridad implementadas para Firebase Firestore y Storage, la política MFA (app Reportes OT) y el plan de migración para el resto de colecciones.
 
 ## Estado Actual
 
-- **Autenticación**: No implementada (modo temporal)
-- **Reglas Firestore**: Validaciones básicas de estructura y campos
+- **Autenticación (Reportes OT)**: ✅ Google Sign-In + segundo factor WebAuthn (plataforma: Face/patrón/huella). Solo dominio @agsanalitica.com.
+- **Reglas Firestore**: Validaciones básicas de estructura y campos; colección MFA accesible solo desde Cloud Functions.
 - **Reglas Storage**: Bloqueo de lectura pública, validación de tipo/tamaño para escritura
 
 ## Reglas de Firestore
@@ -170,6 +170,35 @@ firebase emulators:start
 2. Crear tests unitarios para validar reglas
 3. Probar casos edge (OTs inválidos, campos faltantes, etc.)
 
+## MFA — Reportes OT (Google + WebAuthn)
+
+La aplicación **Reportes OT** exige:
+
+1. **Factor primario**: inicio de sesión exclusivo con **Google** (Firebase Authentication).
+2. **Dominio**: solo se permite acceso con cuentas de correo **@agsanalitica.com**. Cualquier otro dominio recibe 403 y enlace a soporte.
+3. **Segundo factor**: si el usuario tiene al menos un dispositivo registrado, debe completar **WebAuthn** (autenticador de plataforma: Face ID, huella dactilar o patrón) en cada inicio de sesión. No se usan SMS, TOTP ni otros factores.
+
+### Enrolamiento (registro de dispositivo)
+
+- El usuario, ya autenticado con Google, entra en **Seguridad** (enlace en la app) y elige **Activar desbloqueo con dispositivo**.
+- Opcionalmente indica un nombre para el dispositivo y confirma en el dispositivo (Face/patrón/huella).
+- Las credenciales públicas se guardan en Firestore (`mfa/webauthn/users/<uid>/devices`) solo en el backend; el cliente nunca escribe en MFA.
+
+### Pérdida o robo de dispositivo
+
+Si un usuario pierde el dispositivo o sospecha robo, un **administrador** debe revocar las credenciales WebAuthn de ese usuario y cerrar sus sesiones. Pasos detallados en:
+
+- **Runbook**: `apps/reportes-ot/docs/RUNBOOK_MFA.md`
+
+Resumen: el admin llama al endpoint `POST .../webauthn/revoke` con su token (custom claim `role: 'admin'`) y el `targetUid` del usuario; el backend borra los dispositivos MFA y ejecuta `revokeRefreshTokens(uid)`.
+
+### Recomendaciones para Google Workspace (solo documentación)
+
+- Restringir creación de cuentas al dominio corporativo en Google Admin, si aplica.
+- No se implementan políticas de Google Admin en este proyecto; solo se documenta la recomendación.
+
+---
+
 ## Consideraciones de Seguridad
 
 ### Actual (Modo Temporal)
@@ -216,4 +245,5 @@ Para preguntas sobre seguridad o reportar vulnerabilidades, contactar al equipo 
 
 - **2024-XX-XX**: Implementación inicial de reglas de seguridad
 - **2024-XX-XX**: Bloqueo de lectura pública en Storage
-- **Futuro**: Migración a autenticación y roles
+- **2026-01-27**: MFA Reportes OT (Google Sign-In + WebAuthn plataforma), dominio @agsanalitica.com, runbook pérdida/robo dispositivo
+- **Futuro**: Migración a autenticación y roles en resto de colecciones
