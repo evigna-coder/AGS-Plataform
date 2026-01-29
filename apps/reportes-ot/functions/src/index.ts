@@ -20,6 +20,7 @@ const allowOrigin = (req: Request): string => {
   const origin = req.get('Origin') ?? '';
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
   if (/\.firebaseapp\.com$/.test(origin)) return origin;
+  if (/\.web\.app$/.test(origin)) return origin; // Firebase Hosting (app desplegada)
   return '*';
 };
 app.use((req: Request, res: Response, next) => {

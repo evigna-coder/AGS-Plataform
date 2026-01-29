@@ -19,6 +19,8 @@ const allowOrigin = (req) => {
         return origin;
     if (/\.firebaseapp\.com$/.test(origin))
         return origin;
+    if (/\.web\.app$/.test(origin))
+        return origin; // Firebase Hosting (app desplegada)
     return '*';
 };
 app.use((req, res, next) => {

@@ -70,22 +70,28 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   useEffect(() => {
     if (phase !== 'mfa_check' || mfaCheckResult !== 'pending') return;
     let cancelled = false;
-    getAuthOptions().then((result) => {
-      if (cancelled) return;
-      if (result.error === 'no_registered_devices') {
-        setMfaCheckResult('no_devices');
-        setPhase('mfa_enroll');
-        return;
-      }
-      if (result.options) {
-        setAuthOptionsForVerify(result.options);
-        setMfaCheckResult('has_options');
+    getAuthOptions()
+      .then((result) => {
+        if (cancelled) return;
+        if (result.error === 'no_registered_devices') {
+          setMfaCheckResult('no_devices');
+          setPhase('mfa_enroll');
+          return;
+        }
+        if (result.options) {
+          setAuthOptionsForVerify(result.options);
+          setMfaCheckResult('has_options');
+          setPhase('mfa_required');
+          return;
+        }
+        setMfaCheckResult('error');
         setPhase('mfa_required');
-        return;
-      }
-      setMfaCheckResult('error');
-      setPhase('mfa_required');
-    });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Red, CORS o API caída: permitir entrar sin segundo factor para no dejar bloqueado (sobre todo en móvil).
+        setPhase('authenticated');
+      });
     return () => { cancelled = true; };
   }, [phase, mfaCheckResult]);
 
