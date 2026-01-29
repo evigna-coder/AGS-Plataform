@@ -8,7 +8,7 @@ type ReqWithHeaders = {
  * Genera opciones de registro para navigator.credentials.create().
  * Requiere Firebase ID token; guarda challenge en Firestore.
  */
-export declare function handleRegisterOptions(ctx: AuthContext, _req: ReqWithHeaders): Promise<{
+export declare function handleRegisterOptions(ctx: AuthContext, req: ReqWithHeaders): Promise<{
     options: PublicKeyCredentialCreationOptionsJSON;
 } | {
     error: string;
@@ -24,7 +24,7 @@ export declare function handleRegisterResult(ctx: AuthContext, body: unknown, re
  * Genera opciones de autenticación para navigator.credentials.get().
  * Requiere Firebase ID token; guarda challenge en Firestore.
  */
-export declare function handleAuthOptions(ctx: AuthContext, _req: ReqWithHeaders): Promise<{
+export declare function handleAuthOptions(ctx: AuthContext, req: ReqWithHeaders): Promise<{
     options: PublicKeyCredentialRequestOptionsJSON;
 } | {
     error: string;

@@ -70,7 +70,8 @@ export async function getRegisterOptions(deviceName?: string): Promise<
   const res = await fetchWithAuth('/register-options', { method: 'POST' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return { options: null, error: data.error ?? data.message ?? 'Error al obtener opciones de registro' };
+    const msg = data.error ?? data.message ?? (res.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : res.status === 403 ? 'Dominio no permitido.' : 'Error al obtener opciones de registro.');
+    return { options: null, error: msg };
   }
   if (!data.options) {
     return { options: null, error: data.error ?? 'Sin opciones' };

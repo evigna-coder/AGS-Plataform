@@ -14,6 +14,25 @@ import { getFirestore, FieldValue, type Timestamp, type QueryDocumentSnapshot } 
 import { rpName, rpID, origin, CHALLENGE_TTL_SEC } from './config.js';
 import type { AuthContext } from './middleware.js';
 
+/** Obtiene rpID y origin para WebAuthn desde el header Origin de la petición (producción) o la config. */
+function getRpIdAndOrigin(req: ReqWithHeaders): { rpID: string; origin: string } {
+  const originHeader = headerString(req.headers, 'origin') || headerString(req.headers, 'Origin');
+  if (originHeader) {
+    try {
+      const u = new URL(originHeader);
+      if (u.protocol === 'https:' || u.protocol === 'http:') {
+        return { rpID: u.hostname, origin: originHeader };
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+  return {
+    rpID: rpID === 'localhost' ? 'localhost' : rpID,
+    origin: origin.startsWith('http') ? origin : `https://${origin}`,
+  };
+}
+
 function getDb() {
   return getFirestore();
 }
@@ -97,15 +116,16 @@ import type { MfaAuditDoc } from './types.js';
  */
 export async function handleRegisterOptions(
   ctx: AuthContext,
-  _req: ReqWithHeaders
+  req: ReqWithHeaders
 ): Promise<{ options: PublicKeyCredentialCreationOptionsJSON } | { error: string }> {
   const uid = ctx.uid;
   const userEmail = ctx.email ?? uid;
   const devices = await getDevices(uid);
+  const { rpID: effectiveRpId } = getRpIdAndOrigin(req);
 
   const options = await generateRegistrationOptions({
     rpName,
-    rpID: rpID === 'localhost' ? 'localhost' : rpID,
+    rpID: effectiveRpId,
     userName: userEmail,
     userID: new Uint8Array(Buffer.from(uid, 'utf8')),
     userDisplayName: userEmail,
@@ -147,13 +167,14 @@ export async function handleRegisterResult(
     return { verified: false, error: 'Invalid registration response' };
   }
 
+  const { origin: expectedOrigin, rpID: expectedRpId } = getRpIdAndOrigin(req);
   let verification;
   try {
     verification = await verifyRegistrationResponse({
       response: body as RegistrationResponseJSON,
       expectedChallenge: challengeData.challenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID === 'localhost' ? 'localhost' : rpID,
+      expectedOrigin,
+      expectedRPID: expectedRpId,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Verification failed';
@@ -174,7 +195,7 @@ export async function handleRegisterResult(
     credentialID: credential.id,
     publicKeyBase64,
     deviceName: deviceName || 'Dispositivo',
-    rpId: rpID,
+    rpId: expectedRpId,
     counter: credential.counter,
     createdAt: FieldValue.serverTimestamp(),
     lastUsedAt: null,
@@ -190,7 +211,7 @@ export async function handleRegisterResult(
  */
 export async function handleAuthOptions(
   ctx: AuthContext,
-  _req: ReqWithHeaders
+  req: ReqWithHeaders
 ): Promise<{ options: PublicKeyCredentialRequestOptionsJSON } | { error: string }> {
   const uid = ctx.uid;
   const devices = await getDevices(uid);
@@ -198,8 +219,9 @@ export async function handleAuthOptions(
     return { error: 'no_registered_devices' };
   }
 
+  const { rpID: effectiveRpId } = getRpIdAndOrigin(req);
   const options = await generateAuthenticationOptions({
-    rpID: rpID === 'localhost' ? 'localhost' : rpID,
+    rpID: effectiveRpId,
     allowCredentials: devices.map((d) => ({ id: d.id })),
     userVerification: 'preferred',
   });
@@ -241,13 +263,14 @@ export async function handleAuthResult(
 
   const publicKey = new Uint8Array(Buffer.from(device.publicKeyBase64, 'base64'));
 
+  const { origin: expectedOrigin, rpID: expectedRpId } = getRpIdAndOrigin(req);
   let verification;
   try {
     verification = await verifyAuthenticationResponse({
       response: body as AuthenticationResponseJSON,
       expectedChallenge: challengeData.challenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID === 'localhost' ? 'localhost' : rpID,
+      expectedOrigin: expectedOrigin,
+      expectedRPID: expectedRpId,
       credential: {
         id: device.id,
         publicKey,

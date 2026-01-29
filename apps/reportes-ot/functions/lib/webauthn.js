@@ -31,6 +31,25 @@ exports.handleRevokeDevice = handleRevokeDevice;
 const server_1 = require("@simplewebauthn/server");
 const firestore_1 = require("firebase-admin/firestore");
 const config_js_1 = require("./config.js");
+/** Obtiene rpID y origin para WebAuthn desde el header Origin de la petición (producción) o la config. */
+function getRpIdAndOrigin(req) {
+    const originHeader = headerString(req.headers, 'origin') || headerString(req.headers, 'Origin');
+    if (originHeader) {
+        try {
+            const u = new URL(originHeader);
+            if (u.protocol === 'https:' || u.protocol === 'http:') {
+                return { rpID: u.hostname, origin: originHeader };
+            }
+        }
+        catch {
+            // ignore invalid URL
+        }
+    }
+    return {
+        rpID: config_js_1.rpID === 'localhost' ? 'localhost' : config_js_1.rpID,
+        origin: config_js_1.origin.startsWith('http') ? config_js_1.origin : `https://${config_js_1.origin}`,
+    };
+}
 function getDb() {
     return (0, firestore_1.getFirestore)();
 }
@@ -94,13 +113,14 @@ async function writeAudit(uid, ip, userAgent, action, result, details) {
  * Genera opciones de registro para navigator.credentials.create().
  * Requiere Firebase ID token; guarda challenge en Firestore.
  */
-async function handleRegisterOptions(ctx, _req) {
+async function handleRegisterOptions(ctx, req) {
     const uid = ctx.uid;
     const userEmail = ctx.email ?? uid;
     const devices = await getDevices(uid);
+    const { rpID: effectiveRpId } = getRpIdAndOrigin(req);
     const options = await (0, server_1.generateRegistrationOptions)({
         rpName: config_js_1.rpName,
-        rpID: config_js_1.rpID === 'localhost' ? 'localhost' : config_js_1.rpID,
+        rpID: effectiveRpId,
         userName: userEmail,
         userID: new Uint8Array(Buffer.from(uid, 'utf8')),
         userDisplayName: userEmail,
@@ -132,13 +152,14 @@ async function handleRegisterResult(ctx, body, req, deviceName) {
         await writeAudit(uid, ip, userAgent, 'register_result', 'failure', 'invalid_body');
         return { verified: false, error: 'Invalid registration response' };
     }
+    const { origin: expectedOrigin, rpID: expectedRpId } = getRpIdAndOrigin(req);
     let verification;
     try {
         verification = await (0, server_1.verifyRegistrationResponse)({
             response: body,
             expectedChallenge: challengeData.challenge,
-            expectedOrigin: config_js_1.origin,
-            expectedRPID: config_js_1.rpID === 'localhost' ? 'localhost' : config_js_1.rpID,
+            expectedOrigin,
+            expectedRPID: expectedRpId,
         });
     }
     catch (e) {
@@ -157,7 +178,7 @@ async function handleRegisterResult(ctx, body, req, deviceName) {
         credentialID: credential.id,
         publicKeyBase64,
         deviceName: deviceName || 'Dispositivo',
-        rpId: config_js_1.rpID,
+        rpId: expectedRpId,
         counter: credential.counter,
         createdAt: firestore_1.FieldValue.serverTimestamp(),
         lastUsedAt: null,
@@ -169,14 +190,15 @@ async function handleRegisterResult(ctx, body, req, deviceName) {
  * Genera opciones de autenticación para navigator.credentials.get().
  * Requiere Firebase ID token; guarda challenge en Firestore.
  */
-async function handleAuthOptions(ctx, _req) {
+async function handleAuthOptions(ctx, req) {
     const uid = ctx.uid;
     const devices = await getDevices(uid);
     if (devices.length === 0) {
         return { error: 'no_registered_devices' };
     }
+    const { rpID: effectiveRpId } = getRpIdAndOrigin(req);
     const options = await (0, server_1.generateAuthenticationOptions)({
-        rpID: config_js_1.rpID === 'localhost' ? 'localhost' : config_js_1.rpID,
+        rpID: effectiveRpId,
         allowCredentials: devices.map((d) => ({ id: d.id })),
         userVerification: 'preferred',
     });
@@ -207,13 +229,14 @@ async function handleAuthResult(ctx, body, req) {
         return { verified: false, error: 'Credential not found' };
     }
     const publicKey = new Uint8Array(Buffer.from(device.publicKeyBase64, 'base64'));
+    const { origin: expectedOrigin, rpID: expectedRpId } = getRpIdAndOrigin(req);
     let verification;
     try {
         verification = await (0, server_1.verifyAuthenticationResponse)({
             response: body,
             expectedChallenge: challengeData.challenge,
-            expectedOrigin: config_js_1.origin,
-            expectedRPID: config_js_1.rpID === 'localhost' ? 'localhost' : config_js_1.rpID,
+            expectedOrigin: expectedOrigin,
+            expectedRPID: expectedRpId,
             credential: {
                 id: device.id,
                 publicKey,
