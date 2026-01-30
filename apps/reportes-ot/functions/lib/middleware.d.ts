@@ -8,6 +8,7 @@ export interface AuthContext {
 }
 /**
  * Verifica el Firebase ID token y devuelve el contexto del usuario.
+ * Acepta token en Authorization Bearer o en X-Firebase-ID-Token (cuando el proxy usa cuenta de servicio en Authorization).
  * Responde con 401 si no hay token o es inválido.
  */
 export declare function requireAuth(req: Request, res: Response): Promise<AuthContext | null>;

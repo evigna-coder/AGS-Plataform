@@ -17,6 +17,9 @@
     "build:all": "pnpm --filter \"./apps/*\" build",
     "type-check": "pnpm --filter \"./packages/*\" type-check"
   },
+  "dependencies": {
+    "google-auth-library": "^9.0.0"
+  },
   "devDependencies": {
     "typescript": "~5.8.2"
   },

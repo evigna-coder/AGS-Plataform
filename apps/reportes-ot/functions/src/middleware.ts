@@ -15,12 +15,23 @@ export interface AuthContext {
 }
 
 /**
+ * Obtiene el Firebase ID token del request: X-Firebase-ID-Token (proxy) o Authorization Bearer.
+ */
+function getFirebaseToken(req: Request): string | null {
+  const fromHeader = req.headers['x-firebase-id-token'];
+  if (typeof fromHeader === 'string' && fromHeader.length > 0) return fromHeader;
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) return authHeader.slice(7);
+  return null;
+}
+
+/**
  * Verifica el Firebase ID token y devuelve el contexto del usuario.
+ * Acepta token en Authorization Bearer o en X-Firebase-ID-Token (cuando el proxy usa cuenta de servicio en Authorization).
  * Responde con 401 si no hay token o es inválido.
  */
 export async function requireAuth(req: Request, res: Response): Promise<AuthContext | null> {
-  const authHeader = req.headers.authorization;
-  const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const token = getFirebaseToken(req);
   if (!token) {
     res.status(401).json({ error: 'Missing or invalid Authorization header' });
     return null;

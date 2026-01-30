@@ -1,7 +1,7 @@
 /**
  * Proxy de Vercel para la Cloud Function WebAuthn.
- * Reenvía Authorization y X-WebAuthn-Origin a la función externa,
- * ya que los rewrites de Vercel a URLs externas no reenvían esos headers.
+ * Cuando la org de Google Cloud no permite allUsers, el proxy se autentica con una
+ * cuenta de servicio (WEBAUTHN_PROXY_SA_KEY) y envía el token del usuario en X-Firebase-ID-Token.
  */
 const CLOUD_FUNCTION_BASE = 'https://us-central1-agssop-e7353.cloudfunctions.net/webauthn';
 
@@ -11,6 +11,33 @@ function getHeader(req, name) {
     if (k.toLowerCase() === lower && v) return typeof v === 'string' ? v : v[0];
   }
   return undefined;
+}
+
+/** Token Firebase del usuario (raw, sin "Bearer "). */
+function getUserFirebaseToken(req) {
+  const fromAuth = getHeader(req, 'authorization');
+  if (typeof fromAuth === 'string' && fromAuth.startsWith('Bearer ')) return fromAuth.slice(7);
+  const fromHeader = getHeader(req, 'x-firebase-id-token');
+  if (typeof fromHeader === 'string') return fromHeader.startsWith('Bearer ') ? fromHeader.slice(7) : fromHeader;
+  return null;
+}
+
+/** Obtiene un access token de Google para invocar la Cloud Function (cuenta de servicio). */
+async function getGoogleAccessToken() {
+  const raw = process.env.WEBAUTHN_PROXY_SA_KEY;
+  if (!raw || typeof raw !== 'string') return null;
+  let keyJson;
+  try {
+    keyJson = raw.startsWith('{') ? JSON.parse(raw) : JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+  } catch (e) {
+    console.error('webauthn proxy: invalid WEBAUTHN_PROXY_SA_KEY', e?.message);
+    return null;
+  }
+  const { GoogleAuth } = await import('google-auth-library');
+  const auth = new GoogleAuth({ credentials: keyJson });
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  return tokenResponse.token ?? null;
 }
 
 export default async function handler(req, res) {
@@ -26,19 +53,29 @@ export default async function handler(req, res) {
   const path = pathSegments.length ? pathSegments.join('/') : '';
   const targetUrl = path ? `${CLOUD_FUNCTION_BASE}/${path}` : CLOUD_FUNCTION_BASE;
 
-  let authHeader = getHeader(req, 'authorization');
-  const idTokenHeader = getHeader(req, 'x-firebase-id-token');
-  // Si Authorization fue eliminado por el proxy/CDN, usar token enviado en header alternativo
-  if (!authHeader && idTokenHeader) {
-    authHeader = idTokenHeader.startsWith('Bearer ') ? idTokenHeader : `Bearer ${idTokenHeader}`;
-  }
+  const userToken = getUserFirebaseToken(req);
   const originHeader = getHeader(req, 'x-webauthn-origin');
-  // Log solo presencia del token (no el valor) para depurar 401 en Vercel
-  console.log('webauthn proxy', path || '(root)', 'hasAuth:', !!authHeader, 'hasOrigin:', !!originHeader);
+
+  let authHeader = null;
+  let xFirebaseIdToken = null;
+  const useServiceAccount = !!process.env.WEBAUTHN_PROXY_SA_KEY;
+  if (useServiceAccount && userToken) {
+    const googleToken = await getGoogleAccessToken();
+    if (googleToken) {
+      authHeader = `Bearer ${googleToken}`;
+      xFirebaseIdToken = userToken;
+    }
+  }
+  if (!authHeader && userToken) {
+    authHeader = userToken.startsWith('Bearer ') ? userToken : `Bearer ${userToken}`;
+  }
+
+  console.log('webauthn proxy', path || '(root)', 'useSA:', useServiceAccount, 'hasAuth:', !!authHeader, 'hasOrigin:', !!originHeader);
 
   const headers = {
     'Content-Type': 'application/json',
     ...(authHeader && { Authorization: authHeader }),
+    ...(xFirebaseIdToken && { 'X-Firebase-ID-Token': xFirebaseIdToken }),
     ...(originHeader && { 'X-WebAuthn-Origin': originHeader }),
   };
 

@@ -44,6 +44,30 @@ La función exportada es `webauthn`. URL base:
 
 `https://us-central1-<PROJECT_ID>.cloudfunctions.net/webauthn`
 
+### Permitir invocación HTTP desde el proxy (Vercel)
+
+Por defecto, Cloud Functions 2nd gen exige que el **llamador** tenga permisos IAM. Las peticiones desde el proxy de Vercel (sin credenciales de Google) reciben **401 Unauthorized** (HTML) antes de llegar al código. Hay que permitir invocación pública a nivel IAM; la función sigue validando el **Firebase ID token** en el header y rechaza peticiones sin token o con token inválido.
+
+Desde la raíz de `apps/reportes-ot` (o con `--project` si usas otro proyecto):
+
+```bash
+gcloud functions add-invoker-policy-binding webauthn --member=allUsers --region=us-central1 --project=agssop-e7353
+```
+
+O con PowerShell (script incluido):
+
+```powershell
+.\allow-webauthn-public-invoke.ps1
+```
+
+Si la organización de Google Cloud **no permite** `allUsers` (error de política), usa una **cuenta de servicio** para el proxy de Vercel y concede invoker solo a esa cuenta:
+
+```powershell
+.\allow-webauthn-public-invoke.ps1 -ServiceAccount "webauthn-proxy@agssop-e7353.iam.gserviceaccount.com"
+```
+
+Luego configura en Vercel la variable `WEBAUTHN_PROXY_SA_KEY` con la clave JSON de esa cuenta. Ver **docs/WEBAUTHN_PROXY_SERVICE_ACCOUNT.md**.
+
 ## Endpoints
 
 | Método | Ruta | Auth | Descripción |
