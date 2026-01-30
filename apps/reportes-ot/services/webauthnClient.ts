@@ -16,6 +16,8 @@ async function fetchWithAuth(path: string, options: RequestInit & { forceRefresh
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
+    // Alternativa por si el proxy/CDN elimina Authorization (p. ej. en móvil)
+    'X-Firebase-ID-Token': token,
     // El backend usa esto para rpID/origin cuando Origin no viene (p. ej. same-origin en Android).
     'X-WebAuthn-Origin': typeof window !== 'undefined' ? window.location.origin : '',
     ...(rest.headers as Record<string, string>),
