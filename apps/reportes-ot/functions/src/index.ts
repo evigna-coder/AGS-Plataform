@@ -14,13 +14,16 @@ initializeApp();
 
 const app = express();
 
-// CORS: responder preflight OPTIONS y añadir headers a todas las respuestas.
+// CORS: devolver el Origin de la petición si es URL válida (permite Vercel, Firebase Hosting, etc.).
 const allowOrigin = (req: Request): string => {
-  const origin = req.get('Origin') ?? '';
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
-  if (/\.firebaseapp\.com$/.test(origin)) return origin;
-  if (/\.web\.app$/.test(origin)) return origin;
-  if (/\.vercel\.app$/.test(origin)) return origin;
+  const origin = (req.get('Origin') ?? '').trim();
+  if (!origin) return '*';
+  try {
+    const u = new URL(origin);
+    if (u.protocol === 'https:' || u.protocol === 'http:') return origin;
+  } catch {
+    // ignore invalid URL
+  }
   return '*';
 };
 app.use((req: Request, res: Response, next) => {
