@@ -65,21 +65,34 @@ export async function submitAuthResult(credential: PublicKeyCredential): Promise
 
 /**
  * Obtiene opciones para registro de dispositivo (navigator.credentials.create).
+ * Si recibe 401, reintenta una vez con token fresco (en móvil el token puede caducar).
  */
 export async function getRegisterOptions(deviceName?: string): Promise<
   | { options: PublicKeyCredentialCreationOptions; error?: undefined }
   | { options: null; error: string }
 > {
+  const doRequest = () => fetchWithAuth('/register-options', { method: 'POST', forceRefresh: true });
+
   let res: Response;
   try {
-    res = await fetchWithAuth('/register-options', { method: 'POST', forceRefresh: true });
+    res = await doRequest();
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error de red';
     return { options: null, error: `No se pudo conectar. ${msg}` };
   }
-  const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401) {
+    await new Promise((r) => setTimeout(r, 800));
+    try {
+      res = await doRequest();
+    } catch {
+      return { options: null, error: 'Sesión expirada. Cierra sesión y vuelve a iniciar sesión.' };
+    }
+  }
+
+  const data = await res.json().catch(() => ({})) as Record<string, unknown>;
   if (!res.ok) {
-    const fallback = res.status === 401 ? 'Sesión expirada. Vuelve a iniciar sesión.' : res.status === 403 ? 'Dominio no permitido.' : res.status === 404 ? 'Servicio no encontrado. ¿Desplegaste la Cloud Function?' : `Error al obtener opciones de registro (${res.status}).`;
+    const fallback = res.status === 401 ? 'Sesión expirada. Cierra sesión y vuelve a iniciar sesión.' : res.status === 403 ? 'Dominio no permitido.' : res.status === 404 ? 'Servicio no encontrado.' : `Error (${res.status}).`;
     const msg = data.error ?? data.message ?? fallback;
     return { options: null, error: msg };
   }
