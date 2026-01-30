@@ -6,38 +6,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.webauthn = void 0;
 const app_1 = require("firebase-admin/app");
 const https_1 = require("firebase-functions/v2/https");
+const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const middleware_js_1 = require("./middleware.js");
 const webauthn_js_1 = require("./webauthn.js");
 (0, app_1.initializeApp)();
 const app = (0, express_1.default)();
-// CORS: devolver el Origin de la petición si es URL válida (permite Vercel, Firebase Hosting, etc.).
-const allowOrigin = (req) => {
-    const origin = (req.get('Origin') ?? '').trim();
-    if (!origin)
-        return '*';
-    try {
-        const u = new URL(origin);
-        if (u.protocol === 'https:' || u.protocol === 'http:')
-            return origin;
-    }
-    catch {
-        // ignore invalid URL
-    }
-    return '*';
-};
-app.use((req, res, next) => {
-    const origin = allowOrigin(req);
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-WebAuthn-Origin');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    if (req.method === 'OPTIONS') {
-        res.status(204).end();
-        return;
-    }
-    next();
-});
+// CORS: usar el paquete cors para preflight OPTIONS (Cloud Functions 2nd gen a veces no pasa OPTIONS al middleware manual).
+app.use((0, cors_1.default)({
+    origin: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-WebAuthn-Origin'],
+    maxAge: 86400,
+}));
 app.use(express_1.default.json({ limit: '64kb' }));
 /** Helper: responde JSON y termina. */
 function json(res, status, body) {
@@ -155,6 +136,12 @@ app.use(webauthnRouter);
 /** Exportar una sola función HTTP que maneja todas las rutas WebAuthn. */
 exports.webauthn = (0, https_1.onRequest)({
     region: 'us-central1',
-    cors: true,
+    cors: [
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+        /\.web\.app$/,
+        /\.firebaseapp\.com$/,
+        /\.vercel\.app$/,
+        /^https:\/\/ags-plataform\.vercel\.app$/,
+    ],
     maxInstances: 10,
 }, app);

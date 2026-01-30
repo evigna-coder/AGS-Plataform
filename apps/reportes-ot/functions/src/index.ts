@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { onRequest } from 'firebase-functions/v2/https';
+import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import { requireAuth, requireAllowedDomain, requireAdmin, checkRateLimit } from './middleware.js';
 import {
@@ -14,30 +15,13 @@ initializeApp();
 
 const app = express();
 
-// CORS: devolver el Origin de la petición si es URL válida (permite Vercel, Firebase Hosting, etc.).
-const allowOrigin = (req: Request): string => {
-  const origin = (req.get('Origin') ?? '').trim();
-  if (!origin) return '*';
-  try {
-    const u = new URL(origin);
-    if (u.protocol === 'https:' || u.protocol === 'http:') return origin;
-  } catch {
-    // ignore invalid URL
-  }
-  return '*';
-};
-app.use((req: Request, res: Response, next) => {
-  const origin = allowOrigin(req);
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-WebAuthn-Origin');
-  res.setHeader('Access-Control-Max-Age', '86400');
-  if (req.method === 'OPTIONS') {
-    res.status(204).end();
-    return;
-  }
-  next();
-});
+// CORS: usar el paquete cors para preflight OPTIONS (Cloud Functions 2nd gen a veces no pasa OPTIONS al middleware manual).
+app.use(cors({
+  origin: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-WebAuthn-Origin'],
+  maxAge: 86400,
+}));
 app.use(express.json({ limit: '64kb' }));
 
 /** Helper: responde JSON y termina. */
@@ -148,7 +132,13 @@ app.use(webauthnRouter);
 export const webauthn = onRequest(
   {
     region: 'us-central1',
-    cors: true,
+    cors: [
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+      /\.web\.app$/,
+      /\.firebaseapp\.com$/,
+      /\.vercel\.app$/,
+      /^https:\/\/ags-plataform\.vercel\.app$/,
+    ],
     maxInstances: 10,
   },
   app
