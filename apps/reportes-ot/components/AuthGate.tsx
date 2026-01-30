@@ -15,12 +15,10 @@ type AuthPhase = 'loading' | 'login' | 'domain_error' | 'mfa_check' | 'mfa_enrol
 
 type MfaCheckResult = 'pending' | 'no_devices' | 'has_options' | 'error';
 
-/** En producción (app desplegada) siempre se pide segundo factor. En localhost solo en móvil. */
+/** Segundo factor solo en móvil. En escritorio (Windows, Mac, Linux, Chromebook) nunca se pide. */
 function shouldRequireMfa(): boolean {
-  if (import.meta.env.PROD) return true;
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
-  // En desarrollo, escritorio (Windows, Mac, Linux, Chromebook) → no pedir MFA
   if (/Windows NT|Win64|WOW64/i.test(ua)) return false;
   if (/Macintosh|Mac OS X/i.test(ua)) return false;
   if (/CrOS/i.test(ua)) return false;
@@ -29,8 +27,7 @@ function shouldRequireMfa(): boolean {
 }
 
 /**
- * Envuelve la app: Google Sign-In → dominio @agsanalitica.com.
- * En app desplegada: siempre segundo factor (escritorio y móvil). En localhost: solo en móvil.
+ * Envuelve la app: Google Sign-In → dominio @agsanalitica.com. Segundo factor solo en móvil.
  */
 export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

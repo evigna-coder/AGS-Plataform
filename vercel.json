@@ -2,5 +2,11 @@
   "buildCommand": "pnpm install && pnpm --filter @ags/reportes-ot build",
   "outputDirectory": "apps/reportes-ot/dist",
   "installCommand": "pnpm install",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/webauthn/:path*",
+      "destination": "https://us-central1-agssop-e7353.cloudfunctions.net/webauthn/:path*"
+    }
+  ]
 }
