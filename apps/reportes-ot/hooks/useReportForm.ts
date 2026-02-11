@@ -33,6 +33,8 @@ export interface ReportFormState {
   // Fechas y tiempos
   fechaInicio: string;
   fechaFin: string;
+  horaInicio: string;
+  horaFin: string;
   horasTrabajadas: string;
   tiempoViaje: string;
   
@@ -67,6 +69,8 @@ export interface ReportState {
   codigoInternoCliente: string;
   fechaInicio: string;
   fechaFin: string;
+  horaInicio: string;
+  horaFin: string;
   horasTrabajadas: string;
   tiempoViaje: string;
   reporteTecnico: string;
@@ -107,6 +111,8 @@ export interface UseReportFormReturn {
     setCodigoInternoCliente: (value: string) => void;
     setFechaInicio: (value: string) => void;
     setFechaFin: (value: string) => void;
+    setHoraInicio: (value: string) => void;
+    setHoraFin: (value: string) => void;
     setHorasTrabajadas: (value: string) => void;
     setTiempoViaje: (value: string) => void;
     setReporteTecnico: (value: string) => void;
@@ -150,6 +156,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [codigoInternoCliente, setCodigoInternoCliente] = useState('');
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
   const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0]);
+  const [horaInicio, setHoraInicio] = useState('');
+  const [horaFin, setHoraFin] = useState('');
   const [horasTrabajadas, setHorasTrabajadas] = useState('');
   const [tiempoViaje, setTiempoViaje] = useState('');
   const [reporteTecnico, setReporteTecnico] = useState('');
@@ -185,14 +193,14 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente
   ]);
@@ -221,6 +229,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     codigoInternoCliente,
     fechaInicio,
     fechaFin,
+    horaInicio,
+    horaFin,
     horasTrabajadas,
     tiempoViaje,
     reporteTecnico,
@@ -257,6 +267,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setCodigoInternoCliente,
       setFechaInicio,
       setFechaFin,
+      setHoraInicio,
+      setHoraFin,
       setHorasTrabajadas,
       setTiempoViaje,
       setReporteTecnico,

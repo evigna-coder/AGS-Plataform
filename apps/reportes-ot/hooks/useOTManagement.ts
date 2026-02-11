@@ -90,6 +90,8 @@ export const useOTManagement = (
     setCodigoInternoCliente,
     setFechaInicio,
     setFechaFin,
+    setHoraInicio,
+    setHoraFin,
     setHorasTrabajadas,
     setTiempoViaje,
     setReporteTecnico,
@@ -145,6 +147,8 @@ export const useOTManagement = (
         setCodigoInternoCliente(data.codigoInternoCliente || '');
         setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
         setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
+        setHoraInicio(data.horaInicio || '');
+        setHoraFin(data.horaFin || '');
         setHorasTrabajadas(data.horasTrabajadas || '');
         setTiempoViaje(data.tiempoViaje || '');
         setReporteTecnico(data.reporteTecnico || '');
@@ -231,6 +235,8 @@ export const useOTManagement = (
     setCodigoInternoCliente('');
     setFechaInicio(today);
     setFechaFin(today);
+    setHoraInicio('');
+    setHoraFin('');
     setHorasTrabajadas('');
     setTiempoViaje('');
     setReporteTecnico('');
@@ -280,6 +286,8 @@ export const useOTManagement = (
     const newState: any = {
       fechaInicio: today,
       fechaFin: today,
+      horaInicio: '',
+      horaFin: '',
       horasTrabajadas: '',
       tiempoViaje: '',
       signatureClient: null,
@@ -367,6 +375,8 @@ export const useOTManagement = (
     setCodigoInternoCliente(newState.codigoInternoCliente);
     setFechaInicio(newState.fechaInicio);
     setFechaFin(newState.fechaFin);
+    setHoraInicio(newState.horaInicio || '');
+    setHoraFin(newState.horaFin || '');
     setHorasTrabajadas(newState.horasTrabajadas);
     setTiempoViaje(newState.tiempoViaje);
     setReporteTecnico(newState.reporteTecnico);

@@ -4,6 +4,7 @@ import { GeminiService } from './services/geminiService';
 import { FirebaseService, saveReporte } from './services/firebaseService';
 import SignaturePad, { SignaturePadHandle } from './components/SignaturePad';
 import { safeBtoaUnicode, uid, incrementSuffix, findNextAvailableOT, formatDateToDDMMYYYY, parseDDMMYYYYToISO, isValidDDMMYYYY } from './services/utils';
+import { calcHours, formatDateTimeAR, isValidTimeHHMM } from './services/time';
 import { useReportForm } from './hooks/useReportForm';
 import { useOTManagement } from './hooks/useOTManagement';
 import { usePDFGeneration } from './hooks/usePDFGeneration';
@@ -339,7 +340,7 @@ const App: React.FC = () => {
     esFacturable, tieneContrato, esGarantia, razonSocial, contacto,
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente
   } = formState;
@@ -361,6 +362,17 @@ const App: React.FC = () => {
     setFechaFinDisplay(fechaFin ? formatDateToDDMMYYYY(fechaFin) : '');
   }, [fechaFin]);
 
+  const [manualHoras, setManualHoras] = useState(false);
+
+  // Auto-calcular horas trabajadas cuando manualHoras es false y las cuatro fechas/horas son válidas
+  useEffect(() => {
+    if (manualHoras) return;
+    if (!fechaInicio || !fechaFin || !horaInicio || !horaFin) return;
+    if (!isValidTimeHHMM(horaInicio) || !isValidTimeHHMM(horaFin)) return;
+    const hours = calcHours(fechaInicio, horaInicio, fechaFin, horaFin);
+    setHorasTrabajadas(String(hours));
+  }, [fechaInicio, horaInicio, fechaFin, horaFin, manualHoras]);
+
   // Desestructurar setters para facilitar el uso
   const {
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
@@ -368,7 +380,7 @@ const App: React.FC = () => {
     setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
     setEmailPrincipal, setSistema, setModuloModelo, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
-    setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
+    setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente
   } = setters;
@@ -448,6 +460,19 @@ const App: React.FC = () => {
         type: 'warning'
       });
       return false;
+    }
+
+    if (!manualHoras && fechaInicio && fechaFin && horaInicio && horaFin &&
+        isValidTimeHHMM(horaInicio) && isValidTimeHHMM(horaFin)) {
+      const hours = calcHours(fechaInicio, horaInicio, fechaFin, horaFin);
+      if (hours <= 0) {
+        modal.showAlert({
+          title: 'Horas inválidas',
+          message: 'La hora de fin debe ser posterior a la hora de inicio. Corrija las fechas/horas o marque "Editar horas manualmente" y ingrese la cantidad.',
+          type: 'warning'
+        });
+        return false;
+      }
     }
 
     return true;
@@ -1247,6 +1272,36 @@ const App: React.FC = () => {
                           </div>
 
                           <div>
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Hora inicio</label>
+                            <input
+                              type="time"
+                              value={horaInicio}
+                              onChange={(e) => {
+                                if (readOnly) return;
+                                setHoraInicio(e.target.value);
+                              }}
+                              disabled={readOnly}
+                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
+                                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">Hora fin</label>
+                            <input
+                              type="time"
+                              value={horaFin}
+                              onChange={(e) => {
+                                if (readOnly) return;
+                                setHoraFin(e.target.value);
+                              }}
+                              disabled={readOnly}
+                              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
+                                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+                            />
+                          </div>
+
+                          <div>
                             <label className="text-[9px] font-bold text-slate-400 uppercase">Hs Lab</label>
                             <input
                               type="text"
@@ -1255,6 +1310,7 @@ const App: React.FC = () => {
 
                               onChange={(e) => {
                                 if (readOnly) return;
+                                setManualHoras(true);
                                 setHorasTrabajadas(e.target.value);
                               }}
 
@@ -1290,6 +1346,27 @@ const App: React.FC = () => {
                             />
                           </div>
                         </div>
+                        {!readOnly && (
+                          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px]">
+                            <label className="inline-flex items-center gap-1.5 text-slate-500">
+                              <input
+                                type="checkbox"
+                                checked={!manualHoras}
+                                onChange={(e) => setManualHoras(!e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              Calcular automáticamente
+                            </label>
+                            {!manualHoras && (!horaInicio || !horaFin) && (
+                              <span className="text-amber-600">Complete horas para calcular automáticamente.</span>
+                            )}
+                            {!manualHoras && fechaInicio && fechaFin && horaInicio && horaFin &&
+                             isValidTimeHHMM(horaInicio) && isValidTimeHHMM(horaFin) &&
+                             calcHours(fechaInicio, horaInicio, fechaFin, horaFin) <= 0 && (
+                              <span className="text-red-600">La hora fin debe ser posterior a la hora inicio.</span>
+                            )}
+                          </div>
+                        )}
                    </div>
                   </div>
                             <div className="lg:col-span-4 no-print space-y-4">
@@ -1844,8 +1921,8 @@ const App: React.FC = () => {
                          <p className="font-bold text-blue-700 text-[12px]">Orden de trabajo N°: {otNumber}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] mt-0.5">
-                        <p className="text-slate-600"><span className="font-bold uppercase text-[8px]">Inicio:</span> {fechaInicio}</p>
-                        <p className="text-slate-600"><span className="font-bold uppercase text-[8px]">Fin:</span> {fechaFin}</p>
+                        <p className="text-slate-600"><span className="font-bold uppercase text-[8px]">Inicio:</span> {formatDateTimeAR(fechaInicio, horaInicio) || fechaInicio || '—'}</p>
+                        <p className="text-slate-600"><span className="font-bold uppercase text-[8px]">Fin:</span> {formatDateTimeAR(fechaFin, horaFin) || fechaFin || '—'}</p>
                         <p className="text-slate-600"><span className="font-bold uppercase text-[8px]">Hs. Lab:</span> {horasTrabajadas || "0.0"}</p>
                         <p className="text-slate-600"><span className="font-bold uppercase text-[8px]">Hs. Trasl:</span> {tiempoViaje || "0.0"}</p>
                       </div>
