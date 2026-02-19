@@ -362,7 +362,7 @@ const App: React.FC = () => {
     setFechaFinDisplay(fechaFin ? formatDateToDDMMYYYY(fechaFin) : '');
   }, [fechaFin]);
 
-  const [manualHoras, setManualHoras] = useState(false);
+  const [manualHoras, setManualHoras] = useState(true);
 
   // Auto-calcular horas trabajadas cuando manualHoras es false y las cuatro fechas/horas son válidas
   useEffect(() => {
