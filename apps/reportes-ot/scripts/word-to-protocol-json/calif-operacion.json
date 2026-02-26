@@ -1,0 +1,4493 @@
+{
+  "id": "QF7.0506.10_CalifOperacion_HPLC_1100-1200-1260_Inf",
+  "name": "QF7.0506.10_CalifOperacion HPLC 1100-1200-1260 Inf",
+  "serviceType": "Calificación de operación",
+  "equipmentType": "HPLC",
+  "template": {
+    "sections": [
+      {
+        "id": "sec_1",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Fecha: Modelo: Nº de Serie: Realizado por:",
+          ""
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "ID"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_2",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "TABLA DE CONTENIDOS",
+          ""
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "INFORMACIÓN DEL CLIENTE"
+              },
+              {
+                "type": "text",
+                "value": "3"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "INFORMACIÓN DE AGS ANALITICA"
+              },
+              {
+                "type": "text",
+                "value": "3"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "OBJETIVO"
+              },
+              {
+                "type": "text",
+                "value": "4"
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "INFORMACIÓN DEL EQUIPO"
+              },
+              {
+                "type": "text",
+                "value": "4"
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "CONFIGURACIÓN"
+              },
+              {
+                "type": "text",
+                "value": "5"
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "DESCRIPCIÓN DE LOS ENSAYOS"
+              },
+              {
+                "type": "text",
+                "value": "5"
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "LISTADO DE EQUIPOS Y MATERIALES UTILIZADOS"
+              },
+              {
+                "type": "text",
+                "value": "8"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "CONDICIONES INICIALES DE OPERACIÓN"
+              },
+              {
+                "type": "text",
+                "value": "8"
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "RESULTADOS"
+              },
+              {
+                "type": "text",
+                "value": "9"
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "DOCUMENTOS ADJUNTOS / CERTIFICADOS"
+              },
+              {
+                "type": "text",
+                "value": "14"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_3",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Empresa",
+          ""
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Dirección"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Localidad"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Sector"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Contacto"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_4",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Datos de la Empresa",
+          "AGS ANALITICA S.A. Arenales 605 Piso 15, Vicente López (B1638BRG) Provincia de Buenos Aires - Argentina Tel: (011) 45247 247 info@agsanalitica.com – www.agsanalitica.com"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Nombre y Apellido del Ingeniero de Soporte"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_5",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Identificación",
+          ""
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Número de Serie"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ubicación"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fecha de la última Calificación Operacional"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fecha del último Mantenimiento Preventivo"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Frecuencia sugerida de Calificación Operacional"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_6",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "HPLC HP / AGILENT 1100/1120/1200/1220/1260"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Módulo"
+              },
+              {
+                "type": "text",
+                "value": "Modelo"
+              },
+              {
+                "type": "text",
+                "value": "Número de Serie"
+              },
+              {
+                "type": "text",
+                "value": "Firmware"
+              },
+              {
+                "type": "text",
+                "value": "ID"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Desgasificador"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Bomba"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Inyector"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Termostatizador de Inyector"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Compartimiento de Columna"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Detectores"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_7",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Sistema de Adquisición",
+          "Número de Producto",
+          "Número de Licencia / Serie",
+          "Revisión / Firmware"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_8",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "INSTRUCTIVO APLICABLE 1",
+          "TEST",
+          "PARÁMETRO",
+          "ESPECIFICACIÓN 2",
+          "NUEVA ESPECIFICACIÓN 3"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0501"
+              },
+              {
+                "type": "text",
+                "value": "Preparación del Equipo y del Software para Calificación"
+              },
+              {
+                "type": "text",
+                "value": "NA"
+              },
+              {
+                "type": "text",
+                "value": "NA"
+              },
+              {
+                "type": "text",
+                "value": "NA"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0502"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud y Precisión de Flujo"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.00 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0503"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud en Temperatura"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud (compartimiento izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (compartimiento derecho)"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0504"
+              },
+              {
+                "type": "text",
+                "value": "Holmio (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de longitud de onda"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0505"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud (1er máximo)"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (2do máximo)"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (mínimo)"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_9",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "INSTRUCTIVO APLICABLE 1",
+          "TEST",
+          "PARÁMETRO",
+          "ESPECIFICACIÓN 2",
+          "NUEVA ESPECIFICACIÓN 3"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0506"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección y Carry Over (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0507"
+              },
+              {
+                "type": "text",
+                "value": "Linealidad de Detector (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Correlación"
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0508"
+              },
+              {
+                "type": "text",
+                "value": "Ruido y Estabilidad de Temperatura (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Ruido ASTM (VWD)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.040 mAU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM (MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.050 mAU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 mAU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (VWD)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 mAU/h"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.000 mAU/h"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0509"
+              },
+              {
+                "type": "text",
+                "value": "Composición de Gradiente - Canales A/B"
+              },
+              {
+                "type": "text",
+                "value": "Ripple"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas cuaternarias)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas binarias)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.700 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de %B"
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0510"
+              },
+              {
+                "type": "text",
+                "value": "Composición de Gradiente - Canales C/D"
+              },
+              {
+                "type": "text",
+                "value": "Ripple"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de %D"
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0511"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección y Carry Over (RID)"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_26",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0512"
+              },
+              {
+                "type": "text",
+                "value": "Linealidad de Detector (RID)"
+              },
+              {
+                "type": "text",
+                "value": "Correlación"
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.995000"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_27",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0513"
+              },
+              {
+                "type": "text",
+                "value": "Ruido y Estabilidad de Temperatura (RID)"
+              },
+              {
+                "type": "text",
+                "value": "Ruido ASTM"
+              },
+              {
+                "type": "text",
+                "value": "≤ 10.0 nRIU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_28",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander"
+              },
+              {
+                "type": "text",
+                "value": "≤ 80.0 nRIU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_29",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva"
+              },
+              {
+                "type": "text",
+                "value": "≤ 400.0 nRIU/h"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_30",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_31",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_10",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "INSTRUCTIVO APLICABLE (1)",
+          "TEST",
+          "PARÁMETRO",
+          "ESPECIFICACIÓN2",
+          "NUEVA ESPECIFICACIÓN3"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0514"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda de Emisión (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0515"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda de Excitación (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0516"
+              },
+              {
+                "type": "text",
+                "value": "Relación Señal/Ruido y Estabilidad de Temperatura (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Señal / Ruido"
+              },
+              {
+                "type": "text",
+                "value": "≥ 400"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0517"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud en Temperatura de Viales"
+              },
+              {
+                "type": "text",
+                "value": "Exactitud vial 1"
+              },
+              {
+                "type": "text",
+                "value": "-1.0 / +5.0ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud vial 2"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud vial 3"
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud vial 4"
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0526"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección y Carry Over (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0605"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección (ELSD)"
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas"
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0606"
+              },
+              {
+                "type": "text",
+                "value": "Ruido y Estabilidad de Temperatura (ELSD)"
+              },
+              {
+                "type": "text",
+                "value": "Ruido ASTM"
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 mV"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva"
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.000 mV/h"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_11",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Solventes"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Descripción"
+              },
+              {
+                "type": "text",
+                "value": "Marca"
+              },
+              {
+                "type": "text",
+                "value": "Número de Lote"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Agua"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Acetona"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_12",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Equipos de medición"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Descripción"
+              },
+              {
+                "type": "text",
+                "value": "Marca"
+              },
+              {
+                "type": "text",
+                "value": "Modelo"
+              },
+              {
+                "type": "text",
+                "value": "Número de Serie"
+              },
+              {
+                "type": "text",
+                "value": "Última Calibración"
+              },
+              {
+                "type": "text",
+                "value": "Vigencia"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Flujímetro"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "1 año"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Termómetro"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "1 año"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_13",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Estándares"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Descripción"
+              },
+              {
+                "type": "text",
+                "value": "Marca"
+              },
+              {
+                "type": "text",
+                "value": "Número de Lote"
+              },
+              {
+                "type": "text",
+                "value": "Vencimiento"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Cafeína"
+              },
+              {
+                "type": "text",
+                "value": "Agilent"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Glicerina"
+              },
+              {
+                "type": "text",
+                "value": "Agilent"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_14",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Fase móvil A",
+          "Agua grado HPLC"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fase móvil B"
+              },
+              {
+                "type": "text",
+                "value": "0.5% acetona en agua grado HPLC"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Canales A y C"
+              },
+              {
+                "type": "text",
+                "value": "Fase móvil A"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Canales B y D"
+              },
+              {
+                "type": "text",
+                "value": "Fase móvil B (equipos con bomba binaria o cuaternaria y detectores UV-VIS)"
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Temperatura de compartimiento de columnas"
+              },
+              {
+                "type": "text",
+                "value": "40.0 ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Temperatura de inyector termostatizado"
+              },
+              {
+                "type": "text",
+                "value": "4.0 ºC"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_15",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Se incluyen en el reporte de calificación el detalle de los métodos ejecutados en cada test:",
+          ""
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_16",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Exactitud y Precisión de Flujo Ver especificación del cliente (canal A)"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.00 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud y Precisión de Flujo Ver especificación del cliente (canal B – Bombas binarias)"
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.00 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud en la Temperatura Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado (desvío de 40.0°C)"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (Compartimiento Izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (Compartimiento Derecho)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Holmio – VWD/MWD/DAD Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda"
+              },
+              {
+                "type": "text",
+                "value": "nm"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud de Longitud de Onda Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado (Desv. De λ)"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Primer máximo (205 nm)"
+              },
+              {
+                "type": "text",
+                "value": "nm"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Segundo máximo (273 nm)"
+              },
+              {
+                "type": "text",
+                "value": "nm"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Mínimo (245 nm)"
+              },
+              {
+                "type": "text",
+                "value": "nm"
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_17",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Precisión de Inyección y Carry Over Detector con el que se realiza el test: Ver especificación del cliente VWD MWD DAD RID"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de áreas"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 %"
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %"
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %"
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Linealidad de Detector (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Ruido y Estabilidad de Temperatura (VWD/MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM (VWD)"
+              },
+              {
+                "type": "text",
+                "value": "mAU"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.040 mAU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM (MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "mAU"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.050 mAU"
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander"
+              },
+              {
+                "type": "text",
+                "value": "mAU"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 mAU"
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (VWD)"
+              },
+              {
+                "type": "text",
+                "value": "mAU/h"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 mAU/h"
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (MWD/DAD)"
+              },
+              {
+                "type": "text",
+                "value": "mAU/h"
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.000 mAU/h"
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento derecho)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Linealidad de Detector (RID)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.995000"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_18",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Ruido y Estabilidad de Temperatura (RID)",
+          "Ver especificación del cliente"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM"
+              },
+              {
+                "type": "text",
+                "value": "nRIU"
+              },
+              {
+                "type": "text",
+                "value": "≤ 10.0 nRIU"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander"
+              },
+              {
+                "type": "text",
+                "value": "nRIU"
+              },
+              {
+                "type": "text",
+                "value": "≤ 80.0 nRIU"
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva"
+              },
+              {
+                "type": "text",
+                "value": "nRIU/h"
+              },
+              {
+                "type": "text",
+                "value": "≤ 400.0 nRIU/h"
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento derecho)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Relación Señal/Ruido y Estabilidad de Temperatura (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Señal / Ruido"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "≥ 400"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo))"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud de Longitud de Onda de Emisión (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda"
+              },
+              {
+                "type": "text",
+                "value": "nm"
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud de Longitud de Onda de Excitación (FLD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda"
+              },
+              {
+                "type": "text",
+                "value": "nm"
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Composición de Gradiente Canales A/B"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ripple"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_26",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas cuaternarias)"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %"
+              }
+            ]
+          },
+          {
+            "id": "row_27",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas binarias)"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.700 %"
+              }
+            ]
+          },
+          {
+            "id": "row_28",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              }
+            ]
+          },
+          {
+            "id": "row_29",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de % B"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_19",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Composición de Gradiente Canales C/D",
+          "Ver especificación del cliente"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ripple"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %"
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %"
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de % D"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000"
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud en Temperatura de Viales Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado (Desvío de 4.0°C)"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 1"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "-1.0 / +5.0ºC"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 2"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 3"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 4"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Precisión de Inyección (ELSD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de áreas"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas"
+              },
+              {
+                "type": "text",
+                "value": "%"
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %"
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Ruido y Estabilidad de Temperatura (ELSD)"
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente"
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro"
+              },
+              {
+                "type": "text",
+                "value": "Resultado"
+              },
+              {
+                "type": "text",
+                "value": "Especificación"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones"
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "No cumple"
+              },
+              {
+                "type": "text",
+                "value": "No aplica"
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM"
+              },
+              {
+                "type": "text",
+                "value": "mV"
+              },
+              {
+                "type": "text",
+                "value": "2.000 mV"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva"
+              },
+              {
+                "type": "text",
+                "value": "mV/h"
+              },
+              {
+                "type": "text",
+                "value": "5.000 mV/h"
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.50ºC"
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)"
+              },
+              {
+                "type": "text",
+                "value": "ºC"
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.50ºC"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_20",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Calificación"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Tipo"
+              },
+              {
+                "type": "text",
+                "value": "Inicial Recalificación"
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fecha de realización"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_21",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Resultados"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Todos los test y mediciones fueron satisfactoriamente realizados y cumplen con los límites preestablecidos."
+              },
+              {
+                "type": "text",
+                "value": "Cumple con especificaciones"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Algunos test o mediciones necesitaron correcciones para su cumplimiento satisfactorio con los límites preestablecidos*"
+              },
+              {
+                "type": "text",
+                "value": "Cumple con especificaciones luego de corrección"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Algunos test o mediciones no cumplieron satisfactoriamente con los límites preestablecidos y no se realizó ninguna acción correctiva"
+              },
+              {
+                "type": "text",
+                "value": "No cumple con especificaciones"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "*Un Reporte de Desviación deberá adicionarse como un documento anexo con las acciones correctivas que fueron realizadas."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_22",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "____________________ Firma",
+          "___________________________ Cliente (Nombre y Apellido)",
+          "________________________ Fecha"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "____________________ Firma"
+              },
+              {
+                "type": "text",
+                "value": "___________________________ Ingeniero de Soporte (Nombre y Apellido)"
+              },
+              {
+                "type": "text",
+                "value": "________________________ Fecha"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_23",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Documento",
+          "Adjunto SÍ NO N/A",
+          "Cantidad de páginas"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Reporte de la calificación (emitido por la Chemstation)"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Reporte de Desviación"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificado de Calibración del Flujímetro"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificado de Calibración del Termómetro"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificados de Estándares"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificados de Capacitación del Ingeniero de Soporte"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Trazabilidades de equipos de medición"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Otros (detallar)"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "createdAt": "2026-02-11T04:08:51.815Z",
+  "updatedAt": "2026-02-11T04:08:51.821Z"
+}

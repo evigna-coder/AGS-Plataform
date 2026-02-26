@@ -33,7 +33,8 @@ export interface WorkOrder {
   aclaracionCliente: string;
   updatedAt: string;
   // Campos adicionales para integración con Sistema Modular
-  clienteId?: string; // Referencia al cliente en sistema modular
+  clienteId?: string; // Referencia al cliente (CUIT o LEGACY-xxx)
+  establecimientoId?: string; // Referencia al establecimiento donde se realiza la OT
   sistemaId?: string; // Referencia al sistema/equipo en sistema modular
   moduloId?: string; // Referencia al módulo específico (opcional)
   createdAt?: string;
@@ -60,53 +61,92 @@ export type CondicionIva =
   | 'consumidor_final'
   | 'otro';
 
-// --- Condición de pago (Clientes) ---
-export type CondicionPago =
-  | 'contado'
-  | 'pago_anticipado'
-  | '30_dias'
-  | '60_dias'
-  | '90_dias'
-  | 'otro';
-
 // --- Tipo de servicio (Clientes) ---
 export type TipoServicioCliente =
   | 'contrato'
   | 'per_incident';
 
 // --- Módulo Clientes ---
+// id del cliente = CUIT normalizado (sin guiones/espacios) o LEGACY-{uuid} si no tiene CUIT (cuit: null)
+
+/** @deprecated Contactos pasan a estar en establecimiento; ver ContactoEstablecimiento */
 export interface ContactoCliente {
   id: string;
   nombre: string;
   cargo: string;
-  sector: string; // Sector del contacto (laboratorio, control de calidad, compras, etc.)
+  sector: string;
   telefono: string;
-  interno?: string; // Interno del teléfono
+  interno?: string;
   email: string;
   esPrincipal: boolean;
 }
 
+/** Cliente: solo datos fiscales y generales. Sin contactos ni condición de pago (van en Establecimiento). */
 export interface Cliente {
+  /** ID del documento = CUIT normalizado, o LEGACY-{uuid} si no tiene CUIT (cuit es null) */
   id: string;
   razonSocial: string;
-  cuit?: string;
+  /** CUIT; redundante con id cuando existe; null para legacy */
+  cuit?: string | null;
   pais: string;
-  direccion: string;
-  localidad: string;
-  provincia: string;
+  /** Domicilio fiscal (opcional) */
+  direccionFiscal?: string;
+  localidadFiscal?: string;
+  provinciaFiscal?: string;
+  codigoPostalFiscal?: string;
+  /** Compatibilidad: si existen en datos legacy, se mapean a *Fiscal */
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
   codigoPostal?: string;
   rubro: string;
   condicionIva?: CondicionIva;
   ingresosBrutos?: string;
   convenioMultilateral?: boolean;
-  infoPagos?: string;
-  pagaEnTiempo?: boolean;
-  sueleDemorarse?: boolean;
-  condicionPago?: CondicionPago;
-  tipoServicio?: TipoServicioCliente; // 'contrato' | 'per_incident' - afecta tiempo de respuesta y si OT requiere presupuesto
-  contactos: ContactoCliente[];
   notas?: string;
   activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// --- Contacto de Establecimiento (subcolección establecimientos/{id}/contactos) ---
+export interface ContactoEstablecimiento {
+  id: string;
+  establecimientoId: string;
+  nombre: string;
+  cargo: string;
+  sector: string;
+  telefono: string;
+  interno?: string;
+  email: string;
+  esPrincipal: boolean;
+}
+
+// --- Establecimiento (sede/planta por cliente) ---
+export type TipoEstablecimiento = 'planta' | 'sucursal' | 'oficina' | 'laboratorio' | 'otro';
+
+export interface Establecimiento {
+  id: string;
+  clienteCuit: string;
+  nombre: string;
+  direccion: string;
+  localidad: string;
+  provincia: string;
+  pais?: string | null;
+  codigoPostal?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  placeId?: string | null;
+  tipo?: TipoEstablecimiento | null;
+  /** Condición comercial a nivel establecimiento */
+  condicionPagoId?: string | null;
+  tipoServicio?: TipoServicioCliente | null;
+  infoPagos?: string | null;
+  pagaEnTiempo?: boolean;
+  sueleDemorarse?: boolean;
+  activo: boolean;
+  ubicaciones?: Ubicacion[];
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
@@ -161,7 +201,10 @@ export interface ModuloSistema {
 // --- Sistema (equipo padre) ---
 export interface Sistema {
   id: string;
-  clienteId: string;
+  /** FK: establecimiento donde está el equipo. Requerido. */
+  establecimientoId: string;
+  /** @deprecated Mantener solo durante migración; objetivo final: solo establecimientoId */
+  clienteId?: string | null;
   categoriaId: string;
   nombre: string; // ej. HPLC 1260 (ahora viene de modelos de categoría)
   descripcion?: string; // Campo eliminado - el nombre del modelo es suficiente
@@ -235,7 +278,7 @@ export interface UsuarioPosta {
 }
 
 // --- Estados de Presupuesto ---
-export type PresupuestoEstado = 
+export type PresupuestoEstado =
   | 'borrador'
   | 'enviado'
   | 'en_seguimiento'
@@ -299,7 +342,8 @@ export interface CondicionPago {
 export interface Presupuesto {
   id: string;
   numero: string; // PRE-0000 (generado automáticamente)
-  clienteId: string;
+  clienteId: string; // CUIT o LEGACY-xxx
+  establecimientoId?: string | null; // Establecimiento/sede del presupuesto
   sistemaId?: string | null;
   contactoId?: string | null;
   estado: PresupuestoEstado;

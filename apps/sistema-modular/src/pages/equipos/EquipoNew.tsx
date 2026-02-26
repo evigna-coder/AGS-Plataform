@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService } from '../../services/firebaseService';
-import type { CategoriaEquipo, CategoriaModulo, Cliente, ModuloSistema } from '@ags/shared';
+import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
+import type { CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento, ModuloSistema } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -11,13 +11,16 @@ export const EquipoNew = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clienteIdFromUrl = searchParams.get('cliente');
+  const establecimientoIdFromUrl = searchParams.get('establecimiento');
   
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [categoriasModulos, setCategoriasModulos] = useState<CategoriaModulo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [formData, setFormData] = useState({
     clienteId: clienteIdFromUrl || '',
+    establecimientoId: establecimientoIdFromUrl || '',
     categoriaId: '',
     nombre: '',
     nombreManual: '',
@@ -44,6 +47,35 @@ export const EquipoNew = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (establecimientoIdFromUrl && !formData.clienteId) {
+      establecimientosService.getById(establecimientoIdFromUrl).then(est => {
+        if (est) {
+          setFormData(prev => ({ ...prev, establecimientoId: est.id, clienteId: est.clienteCuit }));
+          loadEstablecimientos(est.clienteCuit);
+        }
+      });
+    }
+  }, [establecimientoIdFromUrl]);
+
+  useEffect(() => {
+    if (formData.clienteId) loadEstablecimientos(formData.clienteId);
+    else setEstablecimientos([]);
+  }, [formData.clienteId]);
+
+  const loadEstablecimientos = async (clienteCuit: string) => {
+    try {
+      const data = await establecimientosService.getByCliente(clienteCuit);
+      setEstablecimientos(data);
+      setFormData(prev => {
+        const valid = prev.establecimientoId && data.some(e => e.id === prev.establecimientoId);
+        return valid ? prev : { ...prev, establecimientoId: data[0]?.id || '' };
+      });
+    } catch (e) {
+      setEstablecimientos([]);
+    }
+  };
+
   const loadData = async () => {
     try {
       const [categoriasData, categoriasModulosData, clientesData] = await Promise.all([
@@ -54,6 +86,7 @@ export const EquipoNew = () => {
       setCategorias(categoriasData);
       setCategoriasModulos(categoriasModulosData);
       setClientes(clientesData);
+      if (clienteIdFromUrl) loadEstablecimientos(clienteIdFromUrl);
     } catch (error) {
       console.error('Error cargando datos:', error);
       alert('Error al cargar categorías o clientes');
@@ -65,6 +98,9 @@ export const EquipoNew = () => {
     
     if (!formData.clienteId) {
       newErrors.clienteId = 'El cliente es obligatorio';
+    }
+    if (!formData.establecimientoId) {
+      newErrors.establecimientoId = 'El establecimiento es obligatorio';
     }
     if (!formData.categoriaId) {
       newErrors.categoriaId = 'La categoría es obligatoria';
@@ -102,6 +138,7 @@ export const EquipoNew = () => {
         : formData.nombre;
 
       const sistemaId = await sistemasService.create({
+        establecimientoId: formData.establecimientoId,
         clienteId: formData.clienteId,
         categoriaId: formData.categoriaId,
         nombre: String(nombreFinal || '').trim(),
@@ -215,12 +252,24 @@ export const EquipoNew = () => {
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
                 <SearchableSelect
                   value={formData.clienteId}
-                  onChange={(value) => setFormData({ ...formData, clienteId: value })}
-                  options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                  onChange={(value) => setFormData({ ...formData, clienteId: value, establecimientoId: '' })}
+                  options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
                   placeholder="Seleccionar cliente..."
                   required
                   error={errors.clienteId}
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Establecimiento *</label>
+                <SearchableSelect
+                  value={formData.establecimientoId}
+                  onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
+                  options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+                  placeholder={formData.clienteId ? 'Seleccionar establecimiento...' : 'Primero seleccione un cliente'}
+                  required
+                  error={errors.establecimientoId}
+                />
+                {errors.establecimientoId && <p className="text-xs text-red-600 mt-1">{errors.establecimientoId}</p>}
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría *</label>

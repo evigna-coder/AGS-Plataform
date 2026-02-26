@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { sistemasService, categoriasEquipoService, clientesService } from '../../services/firebaseService';
-import type { Sistema, CategoriaEquipo, Cliente } from '@ags/shared';
+import { sistemasService, categoriasEquipoService, clientesService, establecimientosService } from '../../services/firebaseService';
+import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -16,6 +16,7 @@ export const EquiposList = () => {
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Cargar preferencia de vista desde localStorage
@@ -50,14 +51,20 @@ export const EquiposList = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sistemasData, categoriasData, clientesData] = await Promise.all([
-        sistemasService.getAll(filters),
+      const [sistemasData, categoriasData, clientesData, establecimientosData] = await Promise.all([
+        sistemasService.getAll({
+          clienteCuit: filters.clienteId || undefined,
+          clienteId: filters.clienteId || undefined,
+          activosOnly: filters.activosOnly,
+        }),
         categoriasEquipoService.getAll(),
         clientesService.getAll(true),
+        establecimientosService.getAll(),
       ]);
       setSistemas(sistemasData);
       setCategorias(categoriasData);
       setClientes(clientesData);
+      setEstablecimientos(establecimientosData);
     } catch (error) {
       console.error('Error cargando datos:', error);
       alert('Error al cargar los datos');
@@ -70,6 +77,7 @@ export const EquiposList = () => {
     try {
       setLoading(true);
       const data = await sistemasService.getAll({
+        clienteCuit: filters.clienteId || undefined,
         clienteId: filters.clienteId || undefined,
         activosOnly: filters.activosOnly,
       });
@@ -216,7 +224,8 @@ export const EquiposList = () => {
         // Vista de Tarjetas
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sistemasFiltrados.map((sistema) => {
-            const cliente = clientes.find(c => c.id === sistema.clienteId);
+            const establecimiento = establecimientos.find(e => e.id === sistema.establecimientoId);
+            const cliente = clientes.find(c => c.id === (establecimiento?.clienteCuit ?? sistema.clienteId));
             const categoria = categorias.find(c => c.id === sistema.categoriaId);
             return (
               <Card key={sistema.id}>
@@ -231,6 +240,7 @@ export const EquiposList = () => {
                   </div>
                   <div className="space-y-1 text-sm text-slate-600">
                     <p><span className="font-bold">Cliente:</span> {cliente?.razonSocial || 'N/A'}</p>
+                    {establecimiento && <p><span className="font-bold">Establecimiento:</span> {establecimiento.nombre}</p>}
                     {categoria && <p><span className="font-bold">Categoría:</span> {categoria.nombre}</p>}
                     {sistema.codigoInternoCliente && (
                       <p><span className="font-bold">Código:</span> {sistema.codigoInternoCliente}</p>
@@ -265,6 +275,7 @@ export const EquiposList = () => {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Nombre</th>
                   <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Cliente</th>
+                  <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Establecimiento</th>
                   <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Categoría</th>
                   <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Código</th>
                   <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Software</th>
@@ -274,7 +285,8 @@ export const EquiposList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sistemasFiltrados.map((sistema) => {
-                  const cliente = clientes.find(c => c.id === sistema.clienteId);
+                  const establecimiento = establecimientos.find(e => e.id === sistema.establecimientoId);
+                  const cliente = clientes.find(c => c.id === (establecimiento?.clienteCuit ?? sistema.clienteId));
                   const categoria = categorias.find(c => c.id === sistema.categoriaId);
                   return (
                     <tr key={sistema.id} className="hover:bg-slate-50">
@@ -283,6 +295,9 @@ export const EquiposList = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600">
                         {cliente?.razonSocial || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        {establecimiento?.nombre || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600">
                         {categoria?.nombre || '-'}

@@ -1,0 +1,6207 @@
+{
+  "id": "QF7.0506.10_CalifOperacion_HPLC_1100-1200-1260_Inf",
+  "name": "QF7.0506.10_CalifOperacion HPLC 1100-1200-1260 Inf",
+  "serviceType": "Calificación de operación",
+  "equipmentType": "HPLC",
+  "template": {
+    "sections": [
+      {
+        "id": "sec_1",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Fecha: Modelo: Nº de Serie: Realizado por:",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "ID",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_2",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "TABLA DE CONTENIDOS",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "INFORMACIÓN DEL CLIENTE",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "3",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "INFORMACIÓN DE AGS ANALITICA",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "3",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "OBJETIVO",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "4",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "INFORMACIÓN DEL EQUIPO",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "4",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "CONFIGURACIÓN",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "5",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "DESCRIPCIÓN DE LOS ENSAYOS",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "5",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "LISTADO DE EQUIPOS Y MATERIALES UTILIZADOS",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "8",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "CONDICIONES INICIALES DE OPERACIÓN",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "8",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "RESULTADOS",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "9",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "DOCUMENTOS ADJUNTOS / CERTIFICADOS",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "14",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_3",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Empresa",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Dirección",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Localidad",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Sector",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Contacto",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_4",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Datos de la Empresa",
+          "AGS ANALITICA S.A. Arenales 605 Piso 15, Vicente López (B1638BRG) Provincia de Buenos Aires - Argentina Tel: (011) 45247 247 info@agsanalitica.com – www.agsanalitica.com"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Nombre y Apellido del Ingeniero de Soporte",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_5",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Identificación",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Número de Serie",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ubicación",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fecha de la última Calificación Operacional",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fecha del último Mantenimiento Preventivo",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Frecuencia sugerida de Calificación Operacional",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_6",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "HPLC HP / AGILENT 1100/1120/1200/1220/1260"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "20%",
+          "20%",
+          "20%",
+          "20%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Módulo",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Modelo",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Número de Serie",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Firmware",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ID",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Desgasificador",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Bomba",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Inyector",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Termostatizador de Inyector",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Compartimiento de Columna",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Detectores",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_7",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Sistema de Adquisición",
+          "Número de Producto",
+          "Número de Licencia / Serie",
+          "Revisión / Firmware"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "25%",
+          "25%",
+          "25%",
+          "25%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_8",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "INSTRUCTIVO APLICABLE 1",
+          "TEST",
+          "PARÁMETRO",
+          "ESPECIFICACIÓN 2",
+          "NUEVA ESPECIFICACIÓN 3"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "20%",
+          "20%",
+          "20%",
+          "20%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0501",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Preparación del Equipo y del Software para Calificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "NA",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "NA",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "NA",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0502",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud y Precisión de Flujo",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.00 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0503",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud en Temperatura",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud (compartimiento izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (compartimiento derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0504",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Holmio (VWD/MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de longitud de onda",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0505",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda (VWD/MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud (1er máximo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (2do máximo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (mínimo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_9",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "INSTRUCTIVO APLICABLE 1",
+          "TEST",
+          "PARÁMETRO",
+          "ESPECIFICACIÓN 2",
+          "NUEVA ESPECIFICACIÓN 3"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "20%",
+          "20%",
+          "20%",
+          "20%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0506",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección y Carry Over (VWD/MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0507",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Linealidad de Detector (VWD/MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Correlación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0508",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ruido y Estabilidad de Temperatura (VWD/MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ruido ASTM (VWD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.040 mAU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM (MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.050 mAU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 mAU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (VWD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 mAU/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.000 mAU/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0509",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Composición de Gradiente - Canales A/B",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ripple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas cuaternarias)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas binarias)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.700 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de %B",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0510",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Composición de Gradiente - Canales C/D",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ripple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de %D",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0511",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección y Carry Over (RID)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_26",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0512",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Linealidad de Detector (RID)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Correlación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.995000",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_27",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0513",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ruido y Estabilidad de Temperatura (RID)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ruido ASTM",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 10.0 nRIU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_28",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 80.0 nRIU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_29",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 400.0 nRIU/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_30",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_31",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_10",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "INSTRUCTIVO APLICABLE (1)",
+          "TEST",
+          "PARÁMETRO",
+          "ESPECIFICACIÓN2",
+          "NUEVA ESPECIFICACIÓN3"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "20%",
+          "20%",
+          "20%",
+          "20%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0514",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda de Emisión (FLD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0515",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda de Excitación (FLD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0516",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Relación Señal/Ruido y Estabilidad de Temperatura (FLD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Señal / Ruido",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≥ 400",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0517",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud en Temperatura de Viales",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Exactitud vial 1",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "-1.0 / +5.0ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud vial 2",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud vial 3",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud vial 4",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0526",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección y Carry Over (FLD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0605",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de Inyección (ELSD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Precisión de áreas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "QI7.0606",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ruido y Estabilidad de Temperatura (ELSD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ruido ASTM",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 mV",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.000 mV/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_11",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Solventes"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Descripción",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Marca",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Número de Lote",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Agua",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Acetona",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_12",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Equipos de medición"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "16%",
+          "16%",
+          "16%",
+          "16%",
+          "16%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Descripción",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Marca",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Modelo",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Número de Serie",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Última Calibración",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Vigencia",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Flujímetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "1 año",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Termómetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "text",
+                "value": "1 año"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_13",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Estándares"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "25%",
+          "25%",
+          "25%",
+          "25%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Descripción",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Marca",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Número de Lote",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Vencimiento",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Cafeína",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Agilent",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Glicerina",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Agilent"
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_14",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Fase móvil A",
+          "Agua grado HPLC"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fase móvil B",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "0.5% acetona en agua grado HPLC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Canales A y C",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Fase móvil A",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Canales B y D",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Fase móvil B (equipos con bomba binaria o cuaternaria y detectores UV-VIS)",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Temperatura de compartimiento de columnas",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "40.0 ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Temperatura de inyector termostatizado",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "4.0 ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_15",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Se incluyen en el reporte de calificación el detalle de los métodos ejecutados en cada test:",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_16",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Exactitud y Precisión de Flujo Ver especificación del cliente (canal A)"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "16%",
+          "16%",
+          "16%",
+          "16%",
+          "16%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.00 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud y Precisión de Flujo Ver especificación del cliente (canal B – Bombas binarias)",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 3,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.00 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud en la Temperatura Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado (desvío de 40.0°C)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (Compartimiento Izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 3,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (Compartimiento Derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Holmio – VWD/MWD/DAD Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud de Longitud de Onda Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado (Desv. De λ)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 3,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Primer máximo (205 nm)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Segundo máximo (273 nm)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Mínimo (245 nm)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 2.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_17",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Precisión de Inyección y Carry Over Detector con el que se realiza el test: Ver especificación del cliente VWD MWD DAD RID"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "10%",
+          "10%",
+          "10%",
+          "10%",
+          "10%",
+          "10%",
+          "10%",
+          "10%",
+          "10%",
+          "10%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de áreas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.000 %",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 2.000 %",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (áreas)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Carry over (alturas)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.400 %",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Linealidad de Detector (VWD/MWD/DAD)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 4,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 5,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Ruido y Estabilidad de Temperatura (VWD/MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 4,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM (VWD)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mAU",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.040 mAU",
+                "colSpan": 5,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM (MWD/DAD)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mAU",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.050 mAU",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mAU",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.200 mAU",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (VWD)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mAU/h",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 mAU/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva (MWD/DAD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mAU/h",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 5.000 mAU/h",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento izquierdo)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Linealidad de Detector (RID)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.995000",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_18",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Ruido y Estabilidad de Temperatura (RID)",
+          "Ver especificación del cliente"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "11%",
+          "11%",
+          "11%",
+          "11%",
+          "11%",
+          "11%",
+          "11%",
+          "11%",
+          "12%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nRIU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 10.0 nRIU",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Wander",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nRIU",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 80.0 nRIU",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nRIU/h",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 400.0 nRIU/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento izquierdo)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (compartimiento derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Relación Señal/Ruido y Estabilidad de Temperatura (FLD)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 5,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Señal / Ruido",
+                "colSpan": 4,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≥ 400",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 4,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo))",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.00ºC",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud de Longitud de Onda de Emisión (FLD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud de Longitud de Onda de Excitación (FLD)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 5,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 4,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 4,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud de Longitud de Onda",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "nm",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "± 3.0 nm",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Composición de Gradiente Canales A/B",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 5,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 4,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ripple",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 4,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_26",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas cuaternarias)",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %",
+                "colSpan": 2,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_27",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud (bombas binarias)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.700 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_28",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 5,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_29",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de % B",
+                "colSpan": 4,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000",
+                "colSpan": 3,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_19",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Test de Composición de Gradiente Canales C/D",
+          "Ver especificación del cliente"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "16%",
+          "16%",
+          "16%",
+          "16%",
+          "16%",
+          "20%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ripple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 1.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.500 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Correlación de % D",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "&gt; 0.999000",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Exactitud en Temperatura de Viales Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado (Desvío de 4.0°C)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 1",
+                "colSpan": 6,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "-1.0 / +5.0ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 3,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 2",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 3",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_13",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Exactitud en vial 4",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_14",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Precisión de Inyección (ELSD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_15",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_16",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_17",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de áreas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_18",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Precisión de alturas",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "%",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 3.000 %",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_19",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Test de Ruido y Estabilidad de Temperatura (ELSD)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Ver especificación del cliente",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_20",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Parámetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Resultado",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Especificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Conclusiones",
+                "colSpan": 3,
+                "rowSpan": 1,
+                "variant": "subheader"
+              }
+            ]
+          },
+          {
+            "id": "row_21",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 3,
+                "rowSpan": 1,
+                "variant": "subheader"
+              },
+              {
+                "type": "text",
+                "value": "No cumple",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No aplica",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_22",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Ruido ASTM",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mV",
+                "colSpan": 3,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "2.000 mV",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_23",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Deriva",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "mV/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "5.000 mV/h",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_24",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (izquierdo)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.50ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_25",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Estabilidad de Temperatura (derecho)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "≤ 0.50ºC",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_20",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Calificación"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Tipo",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Inicial Recalificación",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Fecha de realización",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_21",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Resultados"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Todos los test y mediciones fueron satisfactoriamente realizados y cumplen con los límites preestablecidos.",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Cumple con especificaciones",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Algunos test o mediciones necesitaron correcciones para su cumplimiento satisfactorio con los límites preestablecidos*",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "Cumple con especificaciones luego de corrección",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Algunos test o mediciones no cumplieron satisfactoriamente con los límites preestablecidos y no se realizó ninguna acción correctiva",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "No cumple con especificaciones",
+                "colSpan": 3,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "*Un Reporte de Desviación deberá adicionarse como un documento anexo con las acciones correctivas que fueron realizadas.",
+                "colSpan": 3,
+                "variant": "subheader"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_22",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "____________________ Firma",
+          "___________________________ Cliente (Nombre y Apellido)",
+          "________________________ Fecha"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "____________________ Firma",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "___________________________ Ingeniero de Soporte (Nombre y Apellido)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "text",
+                "value": "________________________ Fecha",
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_23",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Documento",
+          "Adjunto SÍ NO N/A",
+          "Cantidad de páginas"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Reporte de la calificación (emitido por la Chemstation)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Reporte de Desviación",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_3",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificado de Calibración del Flujímetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_4",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificado de Calibración del Termómetro",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_5",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificados de Estándares",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_6",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Certificados de Capacitación del Ingeniero de Soporte",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_7",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Trazabilidades de equipos de medición",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_8",
+            "cells": [
+              {
+                "type": "text",
+                "value": "Otros (detallar)",
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_9",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_10",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_11",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          },
+          {
+            "id": "row_12",
+            "cells": [
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 2,
+                "rowSpan": 1
+              },
+              {
+                "type": "checkbox",
+                "value": false,
+                "colSpan": 1,
+                "rowSpan": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "createdAt": "2026-02-13T19:36:31.075Z",
+  "updatedAt": "2026-02-13T19:36:31.076Z"
+}

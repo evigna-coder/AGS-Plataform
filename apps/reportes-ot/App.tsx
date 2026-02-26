@@ -11,6 +11,10 @@ import { usePDFGeneration } from './hooks/usePDFGeneration';
 import { useAutosave } from './hooks/useAutosave';
 import { useModal } from './hooks/useModal';
 import { AlertModal, ConfirmModal } from './components/Modal';
+import ProtocolView from './components/ProtocolView';
+import { califOperacionHplcTemplate } from './data/califOperacionHplcProtocol';
+import { getProtocolTemplateForServiceType, getProtocolTemplateById, isProtocolTestMode } from './utils/protocolSelector';
+import { createEmptyProtocolDataForTemplate } from './data/sampleProtocol';
 import { MobileMenu } from './components/MobileMenu';
 import { signOut } from './services/authService';
 
@@ -342,8 +346,12 @@ const App: React.FC = () => {
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
-    signatureClient, aclaracionCliente
+    signatureClient, aclaracionCliente, protocolTemplateId, protocolData
   } = formState;
+
+  /** Plantilla actual: por id guardado o por tipo de servicio (para fallback) */
+  const protocolTemplate =
+    getProtocolTemplateById(protocolTemplateId) ?? getProtocolTemplateForServiceType(tipoServicio);
 
   // Estados locales para las fechas en formato DD/MM/AAAA (solo presentación)
   const [fechaInicioDisplay, setFechaInicioDisplay] = useState(
@@ -382,7 +390,7 @@ const App: React.FC = () => {
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
-    setSignatureClient, setAclaracionCliente
+    setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData
   } = setters;
 
   const baseInputClass =
@@ -1424,7 +1432,17 @@ const App: React.FC = () => {
                 value={tipoServicio}
                 onChange={e => {
                   if (readOnly) return;
-                  setTipoServicio(e.target.value);
+                  const newServiceType = e.target.value;
+                  setTipoServicio(newServiceType);
+
+                  const template = getProtocolTemplateForServiceType(newServiceType);
+                  if (template) {
+                    setProtocolTemplateId(template.id);
+                    setProtocolData(createEmptyProtocolDataForTemplate(template));
+                  } else {
+                    setProtocolTemplateId(null);
+                    setProtocolData(null);
+                  }
                 }}
                 disabled={readOnly}
                 className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-white outline-none
@@ -1835,6 +1853,71 @@ const App: React.FC = () => {
         </>
       )}
 
+      {/* ====================== ANEXO: PROTOCOLO (UI) ====================== */}
+      {/* Siempre en DOM para que el PDF multipágina pueda capturarlo; en preview se oculta con posición fuera de pantalla */}
+      <div
+        className={
+          isPreviewMode
+            ? 'fixed -left-[9999px] top-0 w-[210mm] no-print pointer-events-none'
+            : 'max-w-5xl mx-auto mt-4 no-print'
+        }
+        aria-hidden={isPreviewMode}
+      >
+        {protocolTemplate && import.meta.env.DEV && isProtocolTestMode() && (
+          <div className="mx-auto max-w-5xl px-2 py-2 bg-amber-100 border border-amber-400 text-amber-900 text-xs font-semibold rounded no-print" role="status">
+            Modo test: plantilla de prueba cargada
+          </div>
+        )}
+        {/* Anexo edición: scroll de página (no recortar); overflow-x-auto solo para ancho */}
+        <div className="mt-6 bg-[#f1f5f9] py-6 w-full flex justify-center overflow-x-auto overflow-y-visible max-w-[calc(210mm+2rem)] mx-auto px-2">
+          <div id="pdf-container-anexo" className="shrink-0 min-h-0" style={{ width: '210mm' }}>
+            {protocolTemplate ? (
+              <ProtocolView
+                template={protocolTemplate}
+                readOnly={readOnly}
+                data={protocolData ?? undefined}
+                onChangeData={(newData) => {
+                  if (readOnly) return;
+                  setProtocolData(newData);
+                }}
+                showGuides={true}
+                mode="edit"
+              />
+            ) : (
+              <p className="text-[10px] text-slate-500 italic">
+                Este tipo de servicio no requiere protocolo.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Render root exclusivo para PDF: siempre montado con protocolo; invisible con visibility (capturable, sin opacity) */}
+      {protocolTemplate && (
+        <div
+          id="pdf-container-anexo-pdf"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '210mm',
+            transform: 'translateX(-200vw)',
+            background: 'white',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+          aria-hidden
+        >
+          <ProtocolView
+            template={protocolTemplate}
+            data={protocolData ?? undefined}
+            readOnly
+            showGuides={false}
+            mode="print"
+          />
+        </div>
+      )}
+
      {isPreviewMode && (
   <>
     {/* Header de previsualización (NO afecta A4) */}
@@ -2055,6 +2138,33 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Página 2 en preview: anexo — mismo criterio que Hoja 1: sin padding horizontal, hoja 210mm centrada; scroll horizontal en pantallas estrechas */}
+        {protocolTemplate && (
+          <div
+            className="relative bg-[#f1f5f9] mt-6 pb-[12mm] flex justify-center overflow-x-auto"
+            style={{ paddingLeft: 0, paddingRight: 0 }}
+          >
+            <div
+              id="pdf-container-anexo-preview"
+              className="bg-white shadow-md rounded-sm overflow-visible shrink-0"
+              style={{
+                width: '210mm',
+                margin: '0 auto',
+                boxSizing: 'border-box',
+              }}
+            >
+              <ProtocolView
+                template={protocolTemplate}
+                data={protocolData ?? undefined}
+                readOnly
+                showGuides={true}
+                mode="print"
+              />
+            </div>
+          </div>
+        )}
+
         </>
       )}
 

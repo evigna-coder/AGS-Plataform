@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService } from '../../services/firebaseService';
-import type { Sistema, ModuloSistema, CategoriaEquipo, CategoriaModulo, Cliente } from '@ags/shared';
+import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
+import type { Sistema, ModuloSistema, CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -11,10 +11,12 @@ export const EquipoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [sistema, setSistema] = useState<Sistema | null>(null);
+  const [establecimiento, setEstablecimiento] = useState<Establecimiento | null>(null);
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [categoriasModulos, setCategoriasModulos] = useState<CategoriaModulo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,8 +52,23 @@ export const EquipoDetail = () => {
       ]);
       if (sistemaData) {
         setSistema(sistemaData);
+        let est: Establecimiento | null = null;
+        if (sistemaData.establecimientoId) {
+          est = await establecimientosService.getById(sistemaData.establecimientoId);
+          setEstablecimiento(est);
+        } else {
+          setEstablecimiento(null);
+        }
+        const clienteCuit = est?.clienteCuit ?? sistemaData.clienteId ?? '';
+        if (clienteCuit) {
+          const list = await establecimientosService.getByCliente(clienteCuit);
+          setEstablecimientos(list);
+        } else {
+          setEstablecimientos([]);
+        }
         setFormData({
-          clienteId: sistemaData.clienteId,
+          clienteId: clienteCuit,
+          establecimientoId: sistemaData.establecimientoId || '',
           categoriaId: sistemaData.categoriaId,
           nombre: sistemaData.nombre,
           codigoInternoCliente: sistemaData.codigoInternoCliente,
@@ -79,9 +96,12 @@ export const EquipoDetail = () => {
     if (!id || !formData) return;
     try {
       setSaving(true);
-      // No enviar descripcion (campo eliminado)
       const { descripcion, ...dataToSave } = formData;
-      await sistemasService.update(id, dataToSave);
+      await sistemasService.update(id, {
+        ...dataToSave,
+        establecimientoId: formData.establecimientoId || undefined,
+        clienteId: formData.clienteId || undefined,
+      });
       await loadData();
       setEditing(false);
       alert('Sistema actualizado exitosamente');
@@ -208,7 +228,7 @@ export const EquipoDetail = () => {
     );
   }
 
-  const cliente = clientes.find(c => c.id === sistema.clienteId);
+  const cliente = clientes.find(c => c.id === (establecimiento?.clienteCuit ?? sistema.clienteId));
   const categoria = categorias.find(c => c.id === sistema.categoriaId);
 
   return (
@@ -220,7 +240,9 @@ export const EquipoDetail = () => {
             {sistema.nombre}
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            {cliente?.razonSocial} {categoria && `• ${categoria.nombre}`}
+            {cliente?.razonSocial}
+            {establecimiento && ` • ${establecimiento.nombre}`}
+            {categoria && ` • ${categoria.nombre}`}
             {sistema.activo ? (
               <span className="ml-2 text-green-600 font-bold">● Activo</span>
             ) : (
@@ -259,13 +281,25 @@ export const EquipoDetail = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente</label>
                 <SearchableSelect
                   value={formData.clienteId}
-                  onChange={(value) => setFormData({ ...formData, clienteId: value })}
-                  options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                  onChange={async (value) => {
+                    setFormData({ ...formData, clienteId: value, establecimientoId: '' });
+                    const list = value ? await establecimientosService.getByCliente(value) : [];
+                    setEstablecimientos(list);
+                  }}
+                  options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
                   placeholder="Seleccionar..."
-                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Establecimiento *</label>
+                <SearchableSelect
+                  value={formData.establecimientoId}
+                  onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
+                  options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+                  placeholder={formData.clienteId ? 'Seleccionar...' : 'Primero seleccione cliente'}
                 />
               </div>
               <div>

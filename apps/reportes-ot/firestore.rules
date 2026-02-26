@@ -210,6 +210,14 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
     
+    // Colección de Establecimientos (sedes/plantas por cliente)
+    match /establecimientos/{establecimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /contactos/{contactoId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+    
     // Colección de Sistemas (equipos)
     match /sistemas/{sistemaId} {
       allow read, write: if true; // Temporal para desarrollo

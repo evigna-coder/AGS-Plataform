@@ -7,6 +7,7 @@ interface LayoutProps {
 
 const navigation = [
   { name: 'Clientes', path: '/clientes', icon: '🏢' },
+  { name: 'Establecimientos', path: '/establecimientos', icon: '🏭' },
   { name: 'Equipos', path: '/equipos', icon: '⚙️' },
   { name: 'Órdenes de Trabajo', path: '/ordenes-trabajo', icon: '📝' },
   { name: 'Leads', path: '/leads', icon: '👥' },

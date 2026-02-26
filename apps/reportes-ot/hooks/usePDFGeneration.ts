@@ -1,10 +1,80 @@
 import { useState } from 'react';
+import { PDFDocument } from 'pdf-lib';
+import html2canvas from 'html2canvas';
 import { FirebaseService } from '../services/firebaseService';
 import { UseReportFormReturn } from './useReportForm';
 import { SignaturePadHandle } from '../components/SignaturePad';
 import { getPDFOptions } from '../utils/pdfOptions';
 
 declare const html2pdf: any;
+
+const nextFrame = (): Promise<void> => new Promise((res) => requestAnimationFrame(() => res()));
+const nextTwoFrames = async (): Promise<void> => {
+  await nextFrame();
+  await nextFrame();
+};
+
+function debugEl(el: HTMLElement): {
+  id: string;
+  rect: { w: number; h: number; x: number; y: number };
+  scrollH: number;
+  display: string;
+  visibility: string;
+  opacity: string;
+  transform: string;
+} {
+  const r = el.getBoundingClientRect();
+  const cs = getComputedStyle(el);
+  return {
+    id: el.id,
+    rect: { w: r.width, h: r.height, x: r.x, y: r.y },
+    scrollH: el.scrollHeight,
+    display: cs.display,
+    visibility: cs.visibility,
+    opacity: cs.opacity,
+    transform: cs.transform,
+  };
+}
+
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(',')[1];
+  if (!base64) throw new Error('Invalid data URL');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+const A4_POINTS = { width: 595.28, height: 841.89 };
+
+/**
+ * Genera el PDF del anexo capturando cada .protocol-page por separado (html2canvas + pdf-lib).
+ * Sin html2pdf; cada página es un contenedor A4 real.
+ */
+async function renderAnexoPdfFromPages(root: HTMLElement): Promise<Blob> {
+  const pageEls = root.querySelectorAll<HTMLElement>('.protocol-page');
+  const pdf = await PDFDocument.create();
+  for (const pageEl of pageEls) {
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+    });
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const jpgBytes = dataUrlToUint8Array(dataUrl);
+    const jpg = await pdf.embedJpg(jpgBytes);
+    const page = pdf.addPage([A4_POINTS.width, A4_POINTS.height]);
+    page.drawImage(jpg, {
+      x: 0,
+      y: 0,
+      width: A4_POINTS.width,
+      height: A4_POINTS.height,
+    });
+  }
+  const bytes = await pdf.save();
+  return new Blob([bytes], { type: 'application/pdf' });
+}
 
 export interface UsePDFGenerationReturn {
   // Funciones
@@ -44,7 +114,8 @@ export const usePDFGeneration = (
 
   const {
     signatureClient,
-    signatureEngineer
+    signatureEngineer,
+    protocolTemplateId
   } = formState;
 
   const {
@@ -54,7 +125,7 @@ export const usePDFGeneration = (
     setStatus
   } = setters;
 
-  // Función para generar PDF como Blob
+  // Función para generar PDF como Blob (Hoja 1 + anexo protocolo si existe)
   const generatePDFBlob = async (): Promise<Blob> => {
     const element = document.getElementById('pdf-container');
     if (!element) {
@@ -86,13 +157,49 @@ export const usePDFGeneration = (
       });
     }));
 
-    // Usar html2pdf para generar Blob
     const opt = getPDFOptions(otNumber, element, true); // includeBackgroundColor = true
+    console.log("Generando PDF Hoja 1…");
+    const blobHoja1 = await html2pdf().set(opt).from(element).outputPdf('blob');
 
-    // Generar Blob usando html2pdf
-    const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-    
-    return pdfBlob;
+    if (!protocolTemplateId) {
+      console.log("Sin protocolo, sólo Hoja 1");
+      return blobHoja1;
+    }
+
+    document.body.classList.add('pdf-generating');
+
+    try {
+      const anexoElement = document.getElementById('pdf-container-anexo-pdf') as HTMLElement | null;
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+      if (!anexoElement) throw new Error('No se encontró #pdf-container-anexo-pdf');
+
+      const pageEls = anexoElement.querySelectorAll('.protocol-page');
+      if (pageEls.length === 0) throw new Error('No hay páginas .protocol-page en el anexo');
+
+      const rect = anexoElement.getBoundingClientRect();
+      console.log('[PDF][ANEXO] rect=', rect.width, rect.height, 'scrollH=', anexoElement.scrollHeight, 'pages=', pageEls.length);
+
+      if (rect.width < 10 || rect.height < 10) {
+        throw new Error(`Anexo sin layout: w=${rect.width} h=${rect.height}`);
+      }
+
+      console.log("Generando anexo de protocolo (html2canvas por página)…");
+      const blobAnexo = await renderAnexoPdfFromPages(anexoElement);
+
+      const pdf1 = await PDFDocument.load(await blobHoja1.arrayBuffer());
+      const pdf2 = await PDFDocument.load(await blobAnexo.arrayBuffer());
+      const mergedPdf = await PDFDocument.create();
+      const pages1 = await mergedPdf.copyPages(pdf1, pdf1.getPageIndices());
+      pages1.forEach((p) => mergedPdf.addPage(p));
+      const pages2 = await mergedPdf.copyPages(pdf2, pdf2.getPageIndices());
+      pages2.forEach((p) => mergedPdf.addPage(p));
+      const mergedBytes = await mergedPdf.save();
+      return new Blob([mergedBytes], { type: 'application/pdf' });
+    } finally {
+      document.body.classList.remove('pdf-generating');
+    }
   };
 
   // Helper para detectar si es móvil
@@ -188,50 +295,19 @@ export const usePDFGeneration = (
       // Activar modo preview para que el pdf-container esté disponible
       setIsPreviewMode(true);
       
-      // Esperar a que React renderice el componente
+      // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // GENERACIÓN DE PDF con opciones seguras y fallback
       try {
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 800));
-        const element = document.getElementById('pdf-container');
-        if (!element) throw new Error("No se encontró el contenedor.");
-        
-        // Asegurar que el elemento esté visible y centrado antes de capturar
-        element.style.display = 'block';
-        element.style.margin = '0 auto';
-        element.style.width = '210mm';
-        
-        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-        const images = element.querySelectorAll('img');
-        await Promise.all(Array.from(images).map(img => {
-          return new Promise((resolve) => {
-            if (img.complete) {
-              resolve(null);
-            } else {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null); // Continuar aunque falle
-            }
-          });
-        }));
-        
-        const opt = getPDFOptions(otNumber, element, false); // includeBackgroundColor = false
+
         const filename = `${otNumber}_Reporte_AGS.pdf`;
-        
-        const pdfWorker = html2pdf().set(opt).from(element);
-        
-        // Siempre generar Blob primero para poder compartirlo después
-        console.log("Generando PDF como Blob...");
-        const generatedBlob = await pdfWorker.outputPdf('blob');
-        // Guardar el Blob para compartir después
+        const generatedBlob = await generatePDFBlob();
         setPdfBlob(generatedBlob);
-        
-        // En móviles, intentar compartir automáticamente con Web Share API
+
         const shared = await sharePDFMobile(generatedBlob, filename, otNumber);
-        
         if (!shared) {
-          // Si no se compartió (desktop o fallback), descargar
           downloadPDF(generatedBlob, filename);
         }
       } catch (pdfError) {
@@ -313,62 +389,22 @@ export const usePDFGeneration = (
         // Activar modo preview para que el pdf-container esté disponible en el DOM
         setIsPreviewMode(true);
         
-        // Esperar a que React renderice el componente
+        // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const element = document.getElementById('pdf-container');
-        if (!element) {
-          console.error("No se encontró el contenedor para PDF");
-          showAlert({
-            title: 'Advertencia',
-            message: 'No se pudo generar el PDF, pero el reporte fue guardado correctamente.',
-            type: 'warning'
-          });
-          setIsGenerating(false);
-          return;
-        }
 
-        // Asegurar que el elemento esté visible y centrado antes de capturar
-        element.style.display = 'block';
-        element.style.margin = '0 auto';
-        element.style.width = '210mm';
-        
-        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-        const images = element.querySelectorAll('img');
-        await Promise.all(Array.from(images).map(img => {
-          return new Promise((resolve) => {
-            if (img.complete) {
-              resolve(null);
-            } else {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null); // Continuar aunque falle
-            }
-          });
-        }));
-
-        const opt = getPDFOptions(otNumber, element, false); // includeBackgroundColor = false
         const filename = `${otNumber}_Reporte_AGS.pdf`;
-
-        console.log("Iniciando generación de PDF con opciones:", opt);
-        const pdfWorker = html2pdf().set(opt).from(element);
-        
-        // Siempre generar Blob primero para poder compartirlo después
-        console.log("Generando PDF como Blob...");
-        const generatedBlob = await pdfWorker.outputPdf('blob');
-        // Guardar el Blob para compartir después
+        console.log("Generando PDF (Hoja 1 + anexo si hay protocolo)...");
+        const generatedBlob = await generatePDFBlob();
         setPdfBlob(generatedBlob);
-        
-        // En móviles, intentar compartir automáticamente con Web Share API
+
         const shared = await sharePDFMobile(generatedBlob, filename, otNumber);
-        
         if (!shared) {
-          // Si no se compartió (desktop o fallback), descargar
           downloadPDF(generatedBlob, filename);
         }
-        
+
         console.log("PDF generado exitosamente");
         
         showAlert({

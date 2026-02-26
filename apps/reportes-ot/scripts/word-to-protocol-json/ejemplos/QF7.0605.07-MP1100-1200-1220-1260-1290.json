@@ -1,0 +1,245 @@
+{
+  "id": "QF7.0605.07_MP1100-1200-1220-1260-1290",
+  "name": "QF7.0605.07 MP1100-1200-1220-1260-1290",
+  "serviceType": "Protocolo",
+  "equipmentType": "1100-1200-1220-1260-1290",
+  "template": {
+    "sections": [
+      {
+        "id": "sec_1",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "Cliente: Marca:  Hewlett Packard  Agilent Technologies Modelo:  1100  1120  1200  1220  1260  1290 Número de serie: ___________________ ID: __________________ Mantenimiento:  Con consumibles  Sin consumibles"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "100%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_2",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple"
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "50%",
+          "50%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_3",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_4",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_5",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_6",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_7",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_8",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_9",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_10",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_11",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_12",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_13",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      },
+      {
+        "id": "sec_14",
+        "title": "Tabla",
+        "type": "table",
+        "headers": [
+          "",
+          "No cumple",
+          ""
+        ],
+        "layout": "fixed",
+        "columnWidths": [
+          "33%",
+          "33%",
+          "34%"
+        ],
+        "rows": []
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "createdAt": "2026-02-13T05:25:26.253Z",
+  "updatedAt": "2026-02-13T05:25:26.254Z"
+}

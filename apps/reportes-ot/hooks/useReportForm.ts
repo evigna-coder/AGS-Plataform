@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Part } from '../types';
+import { Part, type ProtocolData } from '../types';
 
 export interface ReportFormState {
   // OT y estado general
@@ -48,6 +48,10 @@ export interface ReportFormState {
   aclaracionEspecialista: string;
   signatureClient: string | null;
   aclaracionCliente: string;
+
+  // Protocolo (anexo)
+  protocolTemplateId: string | null;
+  protocolData: ProtocolData | null;
 }
 
 export interface ReportState {
@@ -81,6 +85,8 @@ export interface ReportState {
   aclaracionEspecialista: string;
   signatureClient: string | null;
   aclaracionCliente: string;
+  protocolTemplateId: string | null;
+  protocolData: ProtocolData | null;
 }
 
 export interface UseReportFormReturn {
@@ -122,6 +128,8 @@ export interface UseReportFormReturn {
     setAclaracionEspecialista: (value: string) => void;
     setSignatureClient: (value: string | null) => void;
     setAclaracionCliente: (value: string) => void;
+    setProtocolTemplateId: (value: string | null) => void;
+    setProtocolData: (value: ProtocolData | null) => void;
   };
   
   // Computed
@@ -168,6 +176,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [aclaracionEspecialista, setAclaracionEspecialista] = useState('');
   const [signatureClient, setSignatureClient] = useState<string | null>(null);
   const [aclaracionCliente, setAclaracionCliente] = useState('');
+  const [protocolTemplateId, setProtocolTemplateId] = useState<string | null>(null);
+  const [protocolData, setProtocolData] = useState<ProtocolData | null>(null);
   const [otInput, setOtInput] = useState(initialOtNumber);
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
@@ -195,14 +205,16 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
-    aclaracionEspecialista, signatureClient, aclaracionCliente
+    aclaracionEspecialista, signatureClient, aclaracionCliente,
+    protocolTemplateId, protocolData
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
-    aclaracionEspecialista, signatureClient, aclaracionCliente
+    aclaracionEspecialista, signatureClient, aclaracionCliente,
+    protocolTemplateId, protocolData
   ]);
 
   // Estado consolidado
@@ -239,7 +251,9 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     signatureEngineer,
     aclaracionEspecialista,
     signatureClient,
-    aclaracionCliente
+    aclaracionCliente,
+    protocolTemplateId,
+    protocolData
   };
 
   return {
@@ -277,7 +291,9 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setSignatureEngineer,
       setAclaracionEspecialista,
       setSignatureClient,
-      setAclaracionCliente
+      setAclaracionCliente,
+      setProtocolTemplateId,
+      setProtocolData
     },
     readOnly,
     reportState,

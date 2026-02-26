@@ -41,7 +41,57 @@ service cloud.firestore {
     match /invoices/{invoiceId} {
       allow read, write: if true; // Temporal para desarrollo
     }
-    
+
+    // Colección de Clientes
+    match /clientes/{clienteId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /contactos/{contactoId} {
+        allow read, write: if true; // Temporal para desarrollo (legacy; contactos nuevos en establecimientos)
+      }
+    }
+
+    // Colección de Establecimientos (sedes/plantas por cliente)
+    match /establecimientos/{establecimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /contactos/{contactoId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+
+    // Colección de Sistemas (equipos)
+    match /sistemas/{sistemaId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /modulos/{moduloId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+
+    // Catálogos y otras colecciones del sistema modular
+    match /categorias_equipo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /categorias_modulo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /presupuestos/{presupuestoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /categorias_presupuesto/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /condiciones_pago/{condicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /tipos_servicio/{tipoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /ordenes_compra/{ocId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /reportes/{document=**} {
+      allow read, write: if true; // Temporal para desarrollo (OTs)
+    }
+
     // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;

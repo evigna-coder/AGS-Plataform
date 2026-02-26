@@ -1,6 +1,27 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
-import type { Cliente, ContactoCliente, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago } from '@ags/shared';
+import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago } from '@ags/shared';
+
+// --- Utilidades para CUIT como id de cliente ---
+/** Normaliza CUIT: quita guiones y espacios (solo dígitos). */
+export function normalizeCuit(cuit: string): string {
+  return (cuit || '').replace(/\D/g, '');
+}
+
+/** Genera id para cliente sin CUIT: LEGACY-{uuid}. */
+export function generateLegacyClientId(): string {
+  return 'LEGACY-' + crypto.randomUUID();
+}
+
+/** Limpia payload asegurando que no haya undefineds, los cuales fallan en Firestore */
+export function cleanFirestoreData<T extends Record<string, any>>(obj: T): Partial<T> {
+  const out: any = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;           // Firestore NO acepta undefined
+    out[k] = v === '' ? null : v;            // opcional: strings vacías a null
+  }
+  return out;
+}
 
 // Configuración de Firebase (usar la misma que reportes-ot)
 const firebaseConfig = {
@@ -121,20 +142,28 @@ export const leadsService = {
 
 // ========== SERVICIOS FASE 1: CLIENTES Y EQUIPOS ==========
 
-// Servicio para Clientes
+// Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
 export const clientesService = {
-  // Crear cliente
+  // Crear cliente. Si data.cuit existe se usa como id (normalizado); si no, id = LEGACY-{uuid}, cuit = null.
   async create(clienteData: Omit<Cliente, 'id' | 'createdAt' | 'updatedAt'>) {
     console.log('📝 Creando cliente:', clienteData.razonSocial);
-    const docRef = await addDoc(collection(db, 'clientes'), {
+    const rawCuit = clienteData.cuit ?? '';
+    const normalized = normalizeCuit(rawCuit);
+    const id = normalized
+      ? normalized
+      : generateLegacyClientId();
+    const payload: Record<string, unknown> = {
       ...clienteData,
-      contactos: clienteData.contactos || [],
+      cuit: normalized || null,
       activo: clienteData.activo !== undefined ? clienteData.activo : true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    });
-    console.log('✅ Cliente creado exitosamente con ID:', docRef.id);
-    return docRef.id;
+    };
+    delete (payload as any).contactos;
+    const docRef = doc(db, 'clientes', id);
+    await setDoc(docRef, payload);
+    console.log('✅ Cliente creado exitosamente con ID:', id);
+    return id;
   },
 
   // Obtener todos los clientes (activos por defecto)
@@ -148,65 +177,55 @@ export const clientesService = {
       q = query(collection(db, 'clientes'));
     }
     const querySnapshot = await getDocs(q);
-    const clientes = await Promise.all(querySnapshot.docs.map(async (docSnap) => {
+    const clientes = querySnapshot.docs.map((docSnap) => {
       const data = docSnap.data();
-      // Cargar contactos desde subcolección
-      const contactosSnapshot = await getDocs(collection(db, 'clientes', docSnap.id, 'contactos'));
-      const contactos = contactosSnapshot.docs.map(contDoc => ({
-        id: contDoc.id,
-        ...contDoc.data(),
-      })) as ContactoCliente[];
-      
+      const { contactos: _, ...rest } = data;
       return {
         id: docSnap.id,
-        ...data,
-        contactos,
+        ...rest,
         createdAt: data.createdAt?.toDate().toISOString(),
         updatedAt: data.updatedAt?.toDate().toISOString(),
       } as Cliente;
-    }));
-    
+    });
+
     // Ordenar en memoria mientras se construye el índice
     clientes.sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
-    
+
     console.log(`✅ ${clientes.length} clientes cargados`);
     return clientes;
   },
 
-  // Buscar clientes (por razón social, CUIT o nombre de contacto)
+  // Buscar clientes (por razón social o CUIT)
   async search(term: string) {
     console.log('🔍 Buscando clientes con término:', term);
     const allClientes = await this.getAll(false);
     const termLower = term.toLowerCase();
-    return allClientes.filter(c => 
+    return allClientes.filter(c =>
       c.razonSocial.toLowerCase().includes(termLower) ||
-      (c.cuit && c.cuit.includes(term)) ||
-      c.contactos.some(cont => cont.nombre.toLowerCase().includes(termLower))
+      (c.cuit && c.cuit.includes(term))
     );
   },
 
-  // Obtener cliente por ID
+  // Obtener cliente por ID (CUIT normalizado o LEGACY-xxx). Sin contactos (están en establecimientos).
   async getById(id: string) {
     const docRef = doc(db, 'clientes', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // Cargar contactos
-      const contactosSnapshot = await getDocs(collection(db, 'clientes', id, 'contactos'));
-      const contactos = contactosSnapshot.docs.map(contDoc => ({
-        id: contDoc.id,
-        ...contDoc.data(),
-      })) as ContactoCliente[];
-      
+      const { contactos: __, ...rest } = data;
       return {
         id: docSnap.id,
-        ...data,
-        contactos,
+        ...rest,
         createdAt: data.createdAt?.toDate().toISOString(),
         updatedAt: data.updatedAt?.toDate().toISOString(),
       } as Cliente;
     }
     return null;
+  },
+
+  // Obtener cliente por CUIT (normaliza y llama getById)
+  async getByCuit(cuit: string) {
+    return this.getById(normalizeCuit(cuit));
   },
 
   // Actualizar cliente
@@ -263,6 +282,126 @@ export const contactosService = {
   },
 };
 
+// Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)
+export const contactosEstablecimientoService = {
+  async create(establecimientoId: string, data: Omit<ContactoEstablecimiento, 'id' | 'establecimientoId'>) {
+    const docRef = await addDoc(collection(db, 'establecimientos', establecimientoId, 'contactos'), cleanFirestoreData({
+      ...data,
+      establecimientoId,
+      esPrincipal: data.esPrincipal ?? false,
+    }));
+    return docRef.id;
+  },
+
+  async getByEstablecimiento(establecimientoId: string): Promise<ContactoEstablecimiento[]> {
+    const snapshot = await getDocs(collection(db, 'establecimientos', establecimientoId, 'contactos'));
+    return snapshot.docs.map(d => ({
+      id: d.id,
+      establecimientoId,
+      ...d.data(),
+    })) as ContactoEstablecimiento[];
+  },
+
+  async update(establecimientoId: string, contactoId: string, data: Partial<Omit<ContactoEstablecimiento, 'id' | 'establecimientoId'>>) {
+    const docRef = doc(db, 'establecimientos', establecimientoId, 'contactos', contactoId);
+    await updateDoc(docRef, cleanFirestoreData(data));
+  },
+
+  async delete(establecimientoId: string, contactoId: string) {
+    await deleteDoc(doc(db, 'establecimientos', establecimientoId, 'contactos', contactoId));
+  },
+};
+
+// Servicio para Establecimientos (colección global; clienteCuit = id del cliente)
+export const establecimientosService = {
+  async create(clienteCuit: string, data: Omit<Establecimiento, 'id' | 'clienteCuit' | 'createdAt' | 'updatedAt'>) {
+    console.log('📝 Creando establecimiento:', data.nombre, 'para cliente', clienteCuit);
+    const payload = cleanFirestoreData({
+      clienteCuit,
+      ...data,
+      ubicaciones: data.ubicaciones || [],
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    const docRef = await addDoc(collection(db, 'establecimientos'), payload);
+    console.log('✅ Establecimiento creado con ID:', docRef.id);
+    return docRef.id;
+  },
+
+  async getById(id: string): Promise<Establecimiento | null> {
+    const docRef = doc(db, 'establecimientos', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const d = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...d,
+        ubicaciones: d.ubicaciones || [],
+        createdAt: d.createdAt?.toDate().toISOString(),
+        updatedAt: d.updatedAt?.toDate().toISOString(),
+      } as Establecimiento;
+    }
+    return null;
+  },
+
+  async getByCliente(clienteCuit: string): Promise<Establecimiento[]> {
+    const q = query(
+      collection(db, 'establecimientos'),
+      where('clienteCuit', '==', clienteCuit)
+    );
+    const snapshot = await getDocs(q);
+    const list = snapshot.docs.map(docSnap => {
+      const d = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...d,
+        ubicaciones: d.ubicaciones || [],
+        createdAt: d.createdAt?.toDate().toISOString(),
+        updatedAt: d.updatedAt?.toDate().toISOString(),
+      } as Establecimiento;
+    });
+    list.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return list;
+  },
+
+  async getAll(): Promise<Establecimiento[]> {
+    const snapshot = await getDocs(collection(db, 'establecimientos'));
+    const list = snapshot.docs.map(docSnap => {
+      const d = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...d,
+        ubicaciones: d.ubicaciones || [],
+        createdAt: d.createdAt?.toDate().toISOString(),
+        updatedAt: d.updatedAt?.toDate().toISOString(),
+      } as Establecimiento;
+    });
+    list.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return list;
+  },
+
+  async update(id: string, data: Partial<Omit<Establecimiento, 'id' | 'clienteCuit' | 'createdAt' | 'updatedAt'>>) {
+    const docRef = doc(db, 'establecimientos', id);
+    await updateDoc(docRef, cleanFirestoreData({
+      ...data,
+      updatedAt: Timestamp.now(),
+    }));
+  },
+
+  async delete(id: string) {
+    await deleteDoc(doc(db, 'establecimientos', id));
+  },
+
+  async deactivate(id: string) {
+    await this.update(id, { activo: false });
+  },
+
+  async activate(id: string) {
+    await this.update(id, { activo: true });
+  },
+};
+
 // Servicio para Categorías Equipo
 export const categoriasEquipoService = {
   // Crear categoría
@@ -285,15 +424,15 @@ export const categoriasEquipoService = {
       id: doc.id,
       ...doc.data(),
     })) as CategoriaEquipo[];
-    
+
     // Normalizar modelos para categorías viejas
     for (const c of categorias) {
       if (!Array.isArray(c.modelos)) c.modelos = [];
     }
-    
+
     // Ordenar en memoria mientras se construyen los índices
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    
+
     console.log(`✅ ${categorias.length} categorías cargadas`);
     return categorias;
   },
@@ -345,15 +484,15 @@ export const categoriasModuloService = {
       id: doc.id,
       ...doc.data(),
     })) as CategoriaModulo[];
-    
+
     // Normalizar modelos para categorías viejas
     for (const c of categorias) {
       if (!Array.isArray(c.modelos)) c.modelos = [];
     }
-    
+
     // Ordenar en memoria
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    
+
     console.log(`✅ ${categorias.length} categorías de módulos cargadas`);
     return categorias;
   },
@@ -383,10 +522,13 @@ export const categoriasModuloService = {
   },
 };
 
-// Servicio para Sistemas
+// Servicio para Sistemas (establecimientoId requerido; clienteId opcional durante migración)
 export const sistemasService = {
-  // Crear sistema
+  // Crear sistema. Requiere establecimientoId.
   async create(sistemaData: Omit<Sistema, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!sistemaData.establecimientoId) {
+      throw new Error('sistemasService.create: establecimientoId es requerido');
+    }
     console.log('📝 Creando sistema:', sistemaData.nombre);
     const docRef = await addDoc(collection(db, 'sistemas'), {
       ...sistemaData,
@@ -400,39 +542,37 @@ export const sistemasService = {
     return docRef.id;
   },
 
-  // Obtener todos los sistemas (opcional: filtrar por cliente o activos)
-  async getAll(filters?: { clienteId?: string; activosOnly?: boolean }) {
+  // Obtener todos los sistemas. Filtros: establecimientoId, clienteCuit (resuelve a establecimientos del cliente), activosOnly.
+  async getAll(filters?: { establecimientoId?: string; clienteCuit?: string; clienteId?: string; activosOnly?: boolean }) {
     console.log('📥 Cargando sistemas desde Firestore...');
     let q;
-    
-    // Construir query según filtros (sin orderBy mientras se construyen los índices)
-    if (filters?.clienteId && filters?.activosOnly) {
-      // Ambos filtros: filtrar por clienteId y luego filtrar activos en memoria
-      q = query(collection(db, 'sistemas'), where('clienteId', '==', filters.clienteId));
+    if (filters?.establecimientoId) {
+      q = query(collection(db, 'sistemas'), where('establecimientoId', '==', filters.establecimientoId));
     } else if (filters?.clienteId) {
+      // Migración: seguir soportando filtro por clienteId si existe en documentos
       q = query(collection(db, 'sistemas'), where('clienteId', '==', filters.clienteId));
     } else if (filters?.activosOnly) {
       q = query(collection(db, 'sistemas'), where('activo', '==', true));
     } else {
       q = query(collection(db, 'sistemas'));
     }
-    
     const querySnapshot = await getDocs(q);
-    let sistemas = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate().toISOString(),
-      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
+    let sistemas = querySnapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate().toISOString(),
     })) as Sistema[];
-    
-    // Si se filtró por clienteId pero también se requiere activosOnly, filtrar en memoria
-    if (filters?.clienteId && filters?.activosOnly) {
+    // Si se filtró por clienteCuit, resolver establecimientos y filtrar en memoria
+    if (filters?.clienteCuit && !filters?.establecimientoId) {
+      const establecimientos = await establecimientosService.getByCliente(filters.clienteCuit);
+      const ids = new Set(establecimientos.map(e => e.id));
+      sistemas = sistemas.filter(s => s.establecimientoId && ids.has(s.establecimientoId));
+    }
+    if (filters?.activosOnly) {
       sistemas = sistemas.filter(s => s.activo === true);
     }
-    
-    // Ordenar en memoria mientras se construyen los índices
     sistemas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    
     console.log(`✅ ${sistemas.length} sistemas cargados`);
     return sistemas;
   },
@@ -472,7 +612,7 @@ export const sistemasService = {
   // Eliminar sistema (elimina también todos sus módulos)
   async delete(id: string) {
     console.log('🗑️ Eliminando sistema:', id);
-    
+
     // Primero eliminar todos los módulos del sistema
     try {
       const modulosSnapshot = await getDocs(collection(db, 'sistemas', id, 'modulos'));
@@ -483,7 +623,7 @@ export const sistemasService = {
       console.error('Error eliminando módulos:', error);
       // Continuar con la eliminación del sistema aunque falle la eliminación de módulos
     }
-    
+
     // Luego eliminar el sistema
     await deleteDoc(doc(db, 'sistemas', id));
     console.log('✅ Sistema eliminado exitosamente');
@@ -495,7 +635,7 @@ export const modulosService = {
   // Crear módulo
   async create(sistemaId: string, moduloData: Omit<ModuloSistema, 'id' | 'sistemaId'>) {
     console.log('📝 Creando módulo para sistema:', sistemaId);
-    
+
     // Helper para limpiar undefined (Firestore no acepta undefined)
     const cleanData = (data: any): any => {
       const cleaned: any = {};
@@ -506,14 +646,14 @@ export const modulosService = {
       }
       return cleaned;
     };
-    
+
     const cleanedData = cleanData({
       ...moduloData,
       sistemaId,
       ubicaciones: moduloData.ubicaciones || [],
       otIds: moduloData.otIds || [],
     });
-    
+
     const docRef = await addDoc(collection(db, 'sistemas', sistemaId, 'modulos'), cleanedData);
     console.log('✅ Módulo creado exitosamente con ID:', docRef.id);
     return docRef.id;
@@ -555,7 +695,7 @@ export const modulosService = {
       }
       return cleaned;
     };
-    
+
     const docRef = doc(db, 'sistemas', sistemaId, 'modulos', moduloId);
     await updateDoc(docRef, cleanData(data));
   },
@@ -572,9 +712,9 @@ export const ordenesTrabajoService = {
   async getNextOtNumber(): Promise<string> {
     console.log('🔢 Generando siguiente número de OT...');
     const querySnapshot = await getDocs(collection(db, 'reportes'));
-    
+
     let maxNumber = 29999; // Base: 30000 será el primero
-    
+
     querySnapshot.docs.forEach(doc => {
       const otNumber = doc.id;
       // Extraer número base (antes del punto) - solo OTs principales, no items
@@ -588,7 +728,7 @@ export const ordenesTrabajoService = {
         }
       }
     });
-    
+
     const nextNumber = maxNumber + 1;
     const nextOt = String(nextNumber).padStart(5, '0');
     console.log(`✅ Siguiente OT: ${nextOt}`);
@@ -600,10 +740,10 @@ export const ordenesTrabajoService = {
     console.log(`🔢 Generando siguiente item para OT ${otPadre}...`);
     const q = query(collection(db, 'reportes'));
     const querySnapshot = await getDocs(q);
-    
+
     let maxItem = 0;
     const prefix = otPadre + '.';
-    
+
     querySnapshot.docs.forEach(doc => {
       const otNumber = doc.id;
       if (otNumber.startsWith(prefix)) {
@@ -616,7 +756,7 @@ export const ordenesTrabajoService = {
         }
       }
     });
-    
+
     const nextItem = maxItem + 1;
     const nextItemNumber = `${otPadre}.${String(nextItem).padStart(2, '0')}`;
     console.log(`✅ Siguiente item: ${nextItemNumber}`);
@@ -627,7 +767,7 @@ export const ordenesTrabajoService = {
   async getAll(filters?: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] }) {
     console.log('📥 Cargando órdenes de trabajo desde Firestore...');
     let q = query(collection(db, 'reportes'));
-    
+
     // Aplicar filtros si existen
     if (filters?.clienteId) {
       q = query(q, where('clienteId', '==', filters.clienteId));
@@ -638,14 +778,14 @@ export const ordenesTrabajoService = {
     if (filters?.status) {
       q = query(q, where('status', '==', filters.status));
     }
-    
+
     const querySnapshot = await getDocs(q);
     const ordenes = querySnapshot.docs.map(doc => ({
       otNumber: doc.id,
       ...doc.data(),
       updatedAt: doc.data().updatedAt || new Date().toISOString(),
     })) as WorkOrder[];
-    
+
     // Ordenar por número de OT (descendente - más recientes primero)
     ordenes.sort((a, b) => {
       const numA = parseInt(a.otNumber.split('.')[0]);
@@ -656,7 +796,7 @@ export const ordenesTrabajoService = {
       const itemB = b.otNumber.includes('.') ? parseInt(b.otNumber.split('.')[1]) : 0;
       return itemB - itemA;
     });
-    
+
     console.log(`✅ ${ordenes.length} órdenes de trabajo cargadas`);
     return ordenes;
   },
@@ -666,7 +806,7 @@ export const ordenesTrabajoService = {
     const q = query(collection(db, 'reportes'));
     const querySnapshot = await getDocs(q);
     const prefix = otPadre + '.';
-    
+
     const items = querySnapshot.docs
       .filter(doc => doc.id.startsWith(prefix))
       .map(doc => ({
@@ -674,14 +814,14 @@ export const ordenesTrabajoService = {
         ...doc.data(),
         updatedAt: doc.data().updatedAt || new Date().toISOString(),
       })) as WorkOrder[];
-    
+
     // Ordenar por número de item
     items.sort((a, b) => {
       const itemA = parseInt(a.otNumber.split('.')[1]);
       const itemB = parseInt(b.otNumber.split('.')[1]);
       return itemA - itemB;
     });
-    
+
     return items;
   },
 
@@ -702,7 +842,7 @@ export const ordenesTrabajoService = {
   // Crear nueva OT (usa setDoc para controlar el ID)
   async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
     console.log('📝 Creando orden de trabajo:', otData.otNumber);
-    
+
     // Helper para limpiar undefined (Firestore no acepta undefined)
     const cleanData = (data: any): any => {
       const cleaned: any = {};
@@ -713,7 +853,7 @@ export const ordenesTrabajoService = {
       }
       return cleaned;
     };
-    
+
     const docRef = doc(db, 'reportes', otData.otNumber);
     const cleanedData = cleanData({
       ...otData,
@@ -721,7 +861,7 @@ export const ordenesTrabajoService = {
       updatedAt: Timestamp.now(),
       createdAt: Timestamp.now(),
     });
-    
+
     await setDoc(docRef, cleanedData);
     console.log('✅ Orden de trabajo creada exitosamente');
     return otData.otNumber;
@@ -739,13 +879,13 @@ export const ordenesTrabajoService = {
       }
       return cleaned;
     };
-    
+
     const docRef = doc(db, 'reportes', otNumber);
     const cleanedData = cleanData({
       ...data,
       updatedAt: Timestamp.now(),
     });
-    
+
     await updateDoc(docRef, cleanedData);
   },
 
@@ -754,7 +894,7 @@ export const ordenesTrabajoService = {
     // Por seguridad, no eliminamos físicamente, solo marcamos como inactivo
     // Si realmente se necesita eliminar, descomentar la línea siguiente
     // await deleteDoc(doc(db, 'reportes', otNumber));
-    
+
     // Por ahora, solo actualizamos el status
     const docRef = doc(db, 'reportes', otNumber);
     await updateDoc(docRef, {
@@ -776,7 +916,7 @@ export const tiposServicioService = {
       createdAt: doc.data().createdAt?.toDate().toISOString(),
       updatedAt: doc.data().updatedAt?.toDate().toISOString(),
     })) as TipoServicio[];
-    
+
     tipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
     console.log(`✅ ${tipos.length} tipos de servicio cargados`);
     return tipos;
@@ -829,7 +969,7 @@ export const presupuestosService = {
     console.log('🔢 Generando siguiente número de presupuesto...');
     const q = query(collection(db, 'presupuestos'), orderBy('numero', 'desc'));
     const querySnapshot = await getDocs(q);
-    
+
     let maxNum = 0;
     querySnapshot.docs.forEach(doc => {
       const numero = doc.data().numero;
@@ -839,7 +979,7 @@ export const presupuestosService = {
         if (num > maxNum) maxNum = num;
       }
     });
-    
+
     const nextNum = maxNum + 1;
     const nextNumber = `PRE-${String(nextNum).padStart(4, '0')}`;
     console.log(`✅ Siguiente presupuesto: ${nextNumber}`);
@@ -850,7 +990,7 @@ export const presupuestosService = {
   async getAll(filters?: { clienteId?: string; estado?: Presupuesto['estado'] }) {
     console.log('📥 Cargando presupuestos desde Firestore...');
     let q = query(collection(db, 'presupuestos'));
-    
+
     // Aplicar filtros primero
     if (filters?.clienteId) {
       q = query(q, where('clienteId', '==', filters.clienteId));
@@ -858,7 +998,7 @@ export const presupuestosService = {
     if (filters?.estado) {
       q = query(q, where('estado', '==', filters.estado));
     }
-    
+
     // Ordenar solo si no hay filtros que requieran índice compuesto
     // Por ahora, ordenar en memoria para evitar problemas de índices
     const querySnapshot = await getDocs(q);
@@ -870,14 +1010,14 @@ export const presupuestosService = {
       validUntil: doc.data().validUntil?.toDate().toISOString(),
       fechaEnvio: doc.data().fechaEnvio?.toDate().toISOString(),
     })) as Presupuesto[];
-    
+
     // Ordenar en memoria por fecha de creación (más recientes primero)
     presupuestos.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
-    
+
     console.log(`✅ ${presupuestos.length} presupuestos cargados`);
     return presupuestos;
   },
@@ -902,10 +1042,10 @@ export const presupuestosService = {
   // Crear presupuesto
   async create(presupuestoData: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
     console.log('📝 Creando presupuesto...');
-    
+
     // Generar número si no se proporciona
     const numero = presupuestoData.numero || await this.getNextPresupuestoNumber();
-    
+
     // Helper para limpiar undefined y convertir fechas
     const cleanData = (data: any): any => {
       const cleaned: any = {};
@@ -922,7 +1062,7 @@ export const presupuestosService = {
       }
       return cleaned;
     };
-    
+
     const docRef = await addDoc(collection(db, 'presupuestos'), cleanData({
       ...presupuestoData,
       numero,
@@ -931,7 +1071,7 @@ export const presupuestosService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     }));
-    
+
     console.log('✅ Presupuesto creado exitosamente con ID:', docRef.id);
     return docRef.id;
   },
@@ -954,13 +1094,13 @@ export const presupuestosService = {
       }
       return cleaned;
     };
-    
+
     const docRef = doc(db, 'presupuestos', id);
     const cleanedData = cleanData({
       ...data,
       updatedAt: Timestamp.now(),
     });
-    
+
     await updateDoc(docRef, cleanedData);
   },
 
@@ -981,7 +1121,7 @@ export const ordenesCompraService = {
     console.log('🔢 Generando siguiente número de OC...');
     const q = query(collection(db, 'ordenes_compra'), orderBy('numero', 'desc'));
     const querySnapshot = await getDocs(q);
-    
+
     let maxNum = 0;
     querySnapshot.docs.forEach(doc => {
       const numero = doc.data().numero;
@@ -991,7 +1131,7 @@ export const ordenesCompraService = {
         if (num > maxNum) maxNum = num;
       }
     });
-    
+
     const nextNum = maxNum + 1;
     const nextNumber = `OC-${String(nextNum).padStart(4, '0')}`;
     console.log(`✅ Siguiente OC: ${nextNumber}`);
@@ -1010,7 +1150,7 @@ export const ordenesCompraService = {
       createdAt: doc.data().createdAt?.toDate().toISOString(),
       updatedAt: doc.data().updatedAt?.toDate().toISOString(),
     })) as OrdenCompra[];
-    
+
     console.log(`✅ ${ordenes.length} órdenes de compra cargadas`);
     return ordenes;
   },
@@ -1034,9 +1174,9 @@ export const ordenesCompraService = {
   // Crear OC
   async create(ocData: Omit<OrdenCompra, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
     console.log('📝 Creando orden de compra...');
-    
+
     const numero = ocData.numero || await this.getNextOCNumber();
-    
+
     const docRef = await addDoc(collection(db, 'ordenes_compra'), {
       ...ocData,
       numero,
@@ -1045,7 +1185,7 @@ export const ordenesCompraService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    
+
     console.log('✅ Orden de compra creada exitosamente con ID:', docRef.id);
     return docRef.id;
   },
@@ -1057,11 +1197,11 @@ export const ordenesCompraService = {
       ...data,
       updatedAt: Timestamp.now(),
     };
-    
+
     if (data.fechaRecepcion) {
       updateData.fechaRecepcion = Timestamp.fromDate(new Date(data.fechaRecepcion));
     }
-    
+
     await updateDoc(docRef, updateData);
   },
 
@@ -1083,7 +1223,7 @@ export const categoriasPresupuestoService = {
       createdAt: doc.data().createdAt?.toDate().toISOString(),
       updatedAt: doc.data().updatedAt?.toDate().toISOString(),
     })) as CategoriaPresupuesto[];
-    
+
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
     console.log(`✅ ${categorias.length} categorías de presupuesto cargadas`);
     return categorias;
@@ -1140,7 +1280,7 @@ export const condicionesPagoService = {
       id: doc.id,
       ...doc.data(),
     })) as CondicionPago[];
-    
+
     condiciones.sort((a, b) => a.nombre.localeCompare(b.nombre));
     console.log(`✅ ${condiciones.length} condiciones de pago cargadas`);
     return condiciones;

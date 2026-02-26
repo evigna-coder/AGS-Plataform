@@ -1,33 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { clientesService, contactosService, sistemasService, categoriasEquipoService } from '../../services/firebaseService';
-import type { Cliente, ContactoCliente, CondicionIva, CondicionPago, TipoServicioCliente, Sistema, CategoriaEquipo } from '@ags/shared';
+import { clientesService, sistemasService, categoriasEquipoService, establecimientosService } from '../../services/firebaseService';
+import type { Cliente, CondicionIva, Sistema, CategoriaEquipo, Establecimiento } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { SearchableSelect } from '../../components/ui/SearchableSelect';
 
 export const ClienteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>(null);
-  const [showContactoModal, setShowContactoModal] = useState(false);
-  const [editingContacto, setEditingContacto] = useState<ContactoCliente | null>(null);
-  const [contactoForm, setContactoForm] = useState({
-    nombre: '',
-    cargo: '',
-    sector: '',
-    telefono: '',
-    interno: '',
-    email: '',
-    esPrincipal: false,
-  });
 
   useEffect(() => {
     if (id) loadCliente();
@@ -37,30 +26,27 @@ export const ClienteDetail = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [clienteData, sistemasData, categoriasData] = await Promise.all([
+      const [clienteData, sistemasData, establecimientosData, categoriasData] = await Promise.all([
         clientesService.getById(id),
-        sistemasService.getAll({ clienteId: id, activosOnly: false }),
+        sistemasService.getAll({ clienteCuit: id, activosOnly: false }),
+        establecimientosService.getByCliente(id),
         categoriasEquipoService.getAll(),
       ]);
       if (clienteData) {
         setCliente(clienteData);
+        setEstablecimientos(establecimientosData);
         setFormData({
           razonSocial: clienteData.razonSocial,
           cuit: clienteData.cuit || '',
           pais: clienteData.pais,
-          direccion: clienteData.direccion,
-          localidad: clienteData.localidad,
-          provincia: clienteData.provincia,
-          codigoPostal: clienteData.codigoPostal || '',
+          direccionFiscal: clienteData.direccionFiscal ?? clienteData.direccion ?? '',
+          localidadFiscal: clienteData.localidadFiscal ?? clienteData.localidad ?? '',
+          provinciaFiscal: clienteData.provinciaFiscal ?? clienteData.provincia ?? '',
+          codigoPostalFiscal: clienteData.codigoPostalFiscal ?? clienteData.codigoPostal ?? '',
           rubro: clienteData.rubro,
           condicionIva: clienteData.condicionIva || '',
           ingresosBrutos: clienteData.ingresosBrutos || '',
           convenioMultilateral: clienteData.convenioMultilateral || false,
-          infoPagos: clienteData.infoPagos || '',
-          pagaEnTiempo: clienteData.pagaEnTiempo || false,
-          sueleDemorarse: clienteData.sueleDemorarse || false,
-          condicionPago: clienteData.condicionPago || '',
-          tipoServicio: clienteData.tipoServicio || '',
           notas: clienteData.notas || '',
           activo: clienteData.activo,
         });
@@ -87,24 +73,17 @@ export const ClienteDetail = () => {
       const clienteData: any = {
         razonSocial: formData.razonSocial,
         pais: formData.pais,
-        direccion: formData.direccion,
-        localidad: formData.localidad,
-        provincia: formData.provincia,
         rubro: formData.rubro,
         convenioMultilateral: formData.convenioMultilateral || false,
-        pagaEnTiempo: formData.pagaEnTiempo || false,
-        sueleDemorarse: formData.sueleDemorarse || false,
         activo: formData.activo,
       };
-      
-      // Agregar campos opcionales solo si tienen valor
       if (formData.cuit?.trim()) clienteData.cuit = formData.cuit.trim();
-      if (formData.codigoPostal?.trim()) clienteData.codigoPostal = formData.codigoPostal.trim();
+      if (formData.direccionFiscal?.trim()) clienteData.direccionFiscal = formData.direccionFiscal.trim();
+      if (formData.localidadFiscal?.trim()) clienteData.localidadFiscal = formData.localidadFiscal.trim();
+      if (formData.provinciaFiscal?.trim()) clienteData.provinciaFiscal = formData.provinciaFiscal.trim();
+      if (formData.codigoPostalFiscal?.trim()) clienteData.codigoPostalFiscal = formData.codigoPostalFiscal.trim();
       if (formData.condicionIva) clienteData.condicionIva = formData.condicionIva;
       if (formData.ingresosBrutos?.trim()) clienteData.ingresosBrutos = formData.ingresosBrutos.trim();
-      if (formData.infoPagos?.trim()) clienteData.infoPagos = formData.infoPagos.trim();
-      if (formData.condicionPago) clienteData.condicionPago = formData.condicionPago;
-      if (formData.tipoServicio) clienteData.tipoServicio = formData.tipoServicio;
       if (formData.notas?.trim()) clienteData.notas = formData.notas.trim();
       
       await clientesService.update(id, clienteData);
@@ -117,59 +96,6 @@ export const ClienteDetail = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSaveContacto = async () => {
-    if (!id) return;
-    
-    // Validación básica
-    if (!contactoForm.nombre.trim() || !contactoForm.telefono.trim() || !contactoForm.email.trim()) {
-      alert('Por favor complete los campos obligatorios: Nombre, Teléfono y Email');
-      return;
-    }
-    
-    try {
-      if (editingContacto) {
-        await contactosService.update(id, editingContacto.id, contactoForm);
-        alert('Contacto actualizado exitosamente');
-      } else {
-        await contactosService.create(id, contactoForm);
-        alert('Contacto agregado exitosamente');
-      }
-      await loadCliente();
-      setShowContactoModal(false);
-      setEditingContacto(null);
-      setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
-    } catch (error) {
-      console.error('Error guardando contacto:', error);
-      alert('Error al guardar el contacto. Verifique la consola para más detalles.');
-    }
-  };
-
-  const handleDeleteContacto = async (contactoId: string) => {
-    if (!id) return;
-    if (!confirm('¿Está seguro de eliminar este contacto?')) return;
-    try {
-      await contactosService.delete(id, contactoId);
-      await loadCliente();
-    } catch (error) {
-      console.error('Error eliminando contacto:', error);
-      alert('Error al eliminar el contacto');
-    }
-  };
-
-  const handleEditContacto = (contacto: ContactoCliente) => {
-    setEditingContacto(contacto);
-    setContactoForm({
-      nombre: contacto.nombre,
-      cargo: contacto.cargo,
-      sector: contacto.sector || '',
-      telefono: contacto.telefono,
-      interno: contacto.interno || '',
-      email: contacto.email,
-      esPrincipal: contacto.esPrincipal,
-    });
-    setShowContactoModal(true);
   };
 
   if (loading) {
@@ -289,185 +215,99 @@ export const ClienteDetail = () => {
         )}
       </Card>
 
-      {/* Dirección */}
+      {/* Domicilio fiscal (opcional) */}
       <Card>
-        <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Dirección</h3>
+        <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Domicilio fiscal</h3>
         {editing ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-3">
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Dirección *</label>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Dirección</label>
               <Input
-                value={formData.direccion}
-                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                required
+                value={formData.direccionFiscal ?? ''}
+                onChange={(e) => setFormData({ ...formData, direccionFiscal: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Localidad *</label>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Localidad</label>
               <Input
-                value={formData.localidad}
-                onChange={(e) => setFormData({ ...formData, localidad: e.target.value })}
-                required
+                value={formData.localidadFiscal ?? ''}
+                onChange={(e) => setFormData({ ...formData, localidadFiscal: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Provincia *</label>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Provincia</label>
               <Input
-                value={formData.provincia}
-                onChange={(e) => setFormData({ ...formData, provincia: e.target.value })}
-                required
+                value={formData.provinciaFiscal ?? ''}
+                onChange={(e) => setFormData({ ...formData, provinciaFiscal: e.target.value })}
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Código Postal</label>
               <Input
-                value={formData.codigoPostal}
-                onChange={(e) => setFormData({ ...formData, codigoPostal: e.target.value })}
+                value={formData.codigoPostalFiscal ?? ''}
+                onChange={(e) => setFormData({ ...formData, codigoPostalFiscal: e.target.value })}
               />
             </div>
           </div>
         ) : (
           <p className="text-slate-600">
-            {cliente.direccion}, {cliente.localidad}, {cliente.provincia}
-            {cliente.codigoPostal && ` (${cliente.codigoPostal})`}
+            {(cliente as any).direccionFiscal ?? (cliente as any).direccion
+              ? `${(cliente as any).direccionFiscal ?? (cliente as any).direccion}, ${(cliente as any).localidadFiscal ?? (cliente as any).localidad ?? ''}, ${(cliente as any).provinciaFiscal ?? (cliente as any).provincia ?? ''}${(cliente as any).codigoPostalFiscal || (cliente as any).codigoPostal ? ` (${(cliente as any).codigoPostalFiscal ?? (cliente as any).codigoPostal})` : ''}`
+              : '—'}
           </p>
         )}
       </Card>
 
-      {/* Contactos */}
-      <Card className="border-2 border-purple-200 bg-purple-50/30">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-2">Contactos del Cliente</h3>
-            <p className="text-sm text-slate-600">Puedes agregar múltiples contactos. Cada contacto puede tener su propio sector.</p>
+      {/* Fiscal / IVA - Solo lectura */}
+      {(cliente as any).condicionIva && (
+        <Card>
+          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Fiscal</h3>
+          <div className="text-sm">
+            <p className="text-slate-400 text-xs uppercase font-bold mb-1">Condición IVA</p>
+            <p className="text-slate-600">{(cliente as any).condicionIva}</p>
           </div>
-          <Button
-            onClick={() => {
-              setEditingContacto(null);
-              setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
-              setShowContactoModal(true);
-            }}
-            className="ml-4"
-          >
-            + Agregar Contacto
-          </Button>
+        </Card>
+      )}
+
+      {/* Establecimientos */}
+      <Card className="border-2 border-amber-200 bg-amber-50/30">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-black text-slate-900 uppercase">Establecimientos</h3>
+          <div className="flex gap-2">
+            <Link to={`/establecimientos/nuevo?cliente=${id}`}>
+              <Button variant="outline">+ Agregar Establecimiento</Button>
+            </Link>
+            <Link to={`/establecimientos?cliente=${id}`}>
+              <Button variant="outline">Ver Todos</Button>
+            </Link>
+          </div>
         </div>
-        {cliente.contactos && cliente.contactos.length > 0 ? (
+        {establecimientos.length > 0 ? (
           <div className="space-y-2">
-            {cliente.contactos.map((contacto) => (
+            {establecimientos.map((est) => (
               <div
-                key={contacto.id}
-                className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200"
+                key={est.id}
+                className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100"
               >
                 <div>
-                  <p className="font-bold text-slate-900">{contacto.nombre}</p>
-                  <p className="text-xs text-slate-600">{contacto.cargo}{contacto.sector ? ` • ${contacto.sector}` : ''}</p>
-                  <p className="text-xs text-slate-500">
-                    {contacto.email} | {contacto.telefono}
-                    {contacto.interno && ` (Int: ${contacto.interno})`}
-                  </p>
-                  {contacto.esPrincipal && (
-                    <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-bold">
-                      Principal
-                    </span>
-                  )}
+                  <p className="font-black text-slate-900 uppercase">{est.nombre}</p>
+                  <p className="text-xs text-slate-500">{est.direccion}, {est.localidad}, {est.provincia}</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditContacto(contacto)}
-                    className="text-blue-600 hover:underline text-xs font-bold uppercase"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDeleteContacto(contacto.id)}
-                    className="text-red-600 hover:underline text-xs font-bold uppercase"
-                  >
-                    Eliminar
-                  </button>
-                </div>
+                <Link to={`/establecimientos/${est.id}`}>
+                  <Button variant="outline" size="sm">Ver</Button>
+                </Link>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-slate-300">
-            <p className="text-slate-400 text-sm mb-3">No hay contactos registrados</p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditingContacto(null);
-                setContactoForm({ nombre: '', cargo: '', sector: '', telefono: '', interno: '', email: '', esPrincipal: false });
-                setShowContactoModal(true);
-              }}
-            >
-              + Agregar Primer Contacto
-            </Button>
+          <div className="text-center py-6">
+            <p className="text-slate-400 text-sm mb-2">No hay establecimientos. Agregue uno para luego asignar sistemas/equipos.</p>
+            <Link to={`/establecimientos/nuevo?cliente=${id}`}>
+              <Button variant="outline" size="sm">+ Agregar Establecimiento</Button>
+            </Link>
           </div>
         )}
       </Card>
-
-      {/* Tipo de Servicio */}
-      <Card>
-        <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Tipo de Servicio</h3>
-        {editing ? (
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condición *</label>
-            <SearchableSelect
-              value={formData.tipoServicio}
-              onChange={(value) => setFormData({ ...formData, tipoServicio: value as TipoServicioCliente | '' })}
-              options={[
-                { value: 'contrato', label: 'Contrato' },
-                { value: 'per_incident', label: 'Per Incident' },
-              ]}
-              placeholder="Seleccionar..."
-              required
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              <strong>Contrato:</strong> Tiempo de respuesta según contrato. OTs no requieren aceptación de presupuesto.<br />
-              <strong>Per Incident:</strong> Tiempo de respuesta estándar. OTs requieren aceptación de presupuesto.
-            </p>
-          </div>
-        ) : (
-          <div className="text-sm">
-            {cliente.tipoServicio ? (
-              <>
-                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Condición</p>
-                <p className="font-bold text-slate-900 uppercase">
-                  {cliente.tipoServicio === 'contrato' ? 'Contrato' : 'Per Incident'}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {cliente.tipoServicio === 'contrato' 
-                    ? 'Tiempo de respuesta según contrato. OTs no requieren aceptación de presupuesto.'
-                    : 'Tiempo de respuesta estándar. OTs requieren aceptación de presupuesto.'}
-                </p>
-              </>
-            ) : (
-              <p className="text-slate-400 text-sm">No especificado</p>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* Fiscal / IVA y Pagos - Solo lectura por ahora */}
-      {(cliente.condicionIva || cliente.infoPagos) && (
-        <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Fiscal / Pagos</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {cliente.condicionIva && (
-              <div>
-                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Condición IVA</p>
-                <p className="text-slate-600">{cliente.condicionIva}</p>
-              </div>
-            )}
-            {cliente.condicionPago && (
-              <div>
-                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Condición de Pago</p>
-                <p className="text-slate-600">{cliente.condicionPago}</p>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
 
       {/* Sistemas del Cliente */}
       <Card>
@@ -486,6 +326,7 @@ export const ClienteDetail = () => {
           <div className="space-y-2">
             {sistemas.map((sistema) => {
               const categoria = categorias.find(c => c.id === sistema.categoriaId);
+              const establecimiento = sistema.establecimientoId ? establecimientos.find(e => e.id === sistema.establecimientoId) : null;
               return (
                 <div
                   key={sistema.id}
@@ -494,6 +335,7 @@ export const ClienteDetail = () => {
                   <div>
                     <p className="font-black text-slate-900 uppercase">{sistema.nombre}</p>
                     <div className="flex gap-3 mt-1 text-xs text-slate-500">
+                      {establecimiento && <span>• {establecimiento.nombre}</span>}
                       {categoria && <span>{categoria.nombre}</span>}
                       {sistema.codigoInternoCliente && <span>• Código: {sistema.codigoInternoCliente}</span>}
                       {sistema.software && <span>• Software: {sistema.software}</span>}
@@ -511,103 +353,14 @@ export const ClienteDetail = () => {
           </div>
         ) : (
           <div className="text-center py-6">
-            <p className="text-slate-400 text-sm mb-2">No hay sistemas registrados para este cliente</p>
+            <p className="text-slate-400 text-sm mb-2">No hay sistemas registrados. Cree un establecimiento y luego agregue sistemas.</p>
             <Link to={`/equipos/nuevo?cliente=${id}`}>
-              <Button variant="outline" size="sm">Agregar Primer Sistema</Button>
+              <Button variant="outline" size="sm">Agregar Sistema</Button>
             </Link>
           </div>
         )}
       </Card>
 
-      {/* Modal Contacto */}
-      {showContactoModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
-              {editingContacto ? 'Editar Contacto' : 'Nuevo Contacto'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
-                <Input
-                  value={contactoForm.nombre}
-                  onChange={(e) => setContactoForm({ ...contactoForm, nombre: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cargo</label>
-                <Input
-                  value={contactoForm.cargo}
-                  onChange={(e) => setContactoForm({ ...contactoForm, cargo: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Sector</label>
-                <Input
-                  value={contactoForm.sector}
-                  onChange={(e) => setContactoForm({ ...contactoForm, sector: e.target.value })}
-                  placeholder="Laboratorio, Control de Calidad, Compras..."
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <Input
-                      value={contactoForm.telefono}
-                      onChange={(e) => setContactoForm({ ...contactoForm, telefono: e.target.value })}
-                      placeholder="Teléfono"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      value={contactoForm.interno}
-                      onChange={(e) => setContactoForm({ ...contactoForm, interno: e.target.value })}
-                      placeholder="Interno"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Email *</label>
-                <Input
-                  type="email"
-                  value={contactoForm.email}
-                  onChange={(e) => setContactoForm({ ...contactoForm, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={contactoForm.esPrincipal}
-                    onChange={(e) => setContactoForm({ ...contactoForm, esPrincipal: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-xs font-bold text-slate-600 uppercase">Contacto Principal</span>
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowContactoModal(false);
-                  setEditingContacto(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveContacto}>
-                Guardar
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-    </div>
+      </div>
   );
 };

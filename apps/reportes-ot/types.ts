@@ -1,3 +1,4 @@
+export * from './types/protocol';
 
 export interface Module {
   id: string;

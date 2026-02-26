@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { clientesService } from '../../services/firebaseService';
+import { clientesService, establecimientosService } from '../../services/firebaseService';
 import type { Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 
 export const ClientesList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [establecimientosByCliente, setEstablecimientosByCliente] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -19,8 +20,16 @@ export const ClientesList = () => {
   const loadClientes = async () => {
     try {
       setLoading(true);
-      const data = await clientesService.getAll();
+      const [data, establecimientos] = await Promise.all([
+        clientesService.getAll(),
+        establecimientosService.getAll(),
+      ]);
       setClientes(data);
+      const byCliente: Record<string, number> = {};
+      establecimientos.forEach((e) => {
+        byCliente[e.clienteCuit] = (byCliente[e.clienteCuit] ?? 0) + 1;
+      });
+      setEstablecimientosByCliente(byCliente);
     } catch (error) {
       console.error('Error cargando clientes:', error);
       alert('Error al cargar clientes');
@@ -38,6 +47,12 @@ export const ClientesList = () => {
       setLoading(true);
       const results = await clientesService.search(searchTerm);
       setClientes(results);
+      const establecimientos = await establecimientosService.getAll();
+      const byCliente: Record<string, number> = {};
+      establecimientos.forEach((e) => {
+        byCliente[e.clienteCuit] = (byCliente[e.clienteCuit] ?? 0) + 1;
+      });
+      setEstablecimientosByCliente(byCliente);
     } catch (error) {
       console.error('Error buscando clientes:', error);
       alert('Error al buscar clientes');
@@ -62,7 +77,7 @@ export const ClientesList = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Clientes</h2>
-          <p className="text-sm text-slate-500 mt-1">Gestión de clientes y contactos</p>
+          <p className="text-sm text-slate-500 mt-1">Gestión de clientes y establecimientos</p>
         </div>
         <Link to="/clientes/nuevo">
           <Button>+ Nuevo Cliente</Button>
@@ -74,7 +89,7 @@ export const ClientesList = () => {
         <div className="flex gap-4 items-end">
           <div className="flex-1">
             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Buscar (Razón Social, CUIT, Contacto)
+              Buscar (Razón Social, CUIT)
             </label>
             <Input
               type="text"
@@ -128,7 +143,7 @@ export const ClientesList = () => {
                   <th className="px-4 py-3 text-left font-black text-slate-600 uppercase text-xs">Razón Social</th>
                   <th className="px-4 py-3 text-left font-black text-slate-600 uppercase text-xs">CUIT</th>
                   <th className="px-4 py-3 text-left font-black text-slate-600 uppercase text-xs">Rubro</th>
-                  <th className="px-4 py-3 text-left font-black text-slate-600 uppercase text-xs">Contactos</th>
+                  <th className="px-4 py-3 text-left font-black text-slate-600 uppercase text-xs">Establecimientos</th>
                   <th className="px-4 py-3 text-left font-black text-slate-600 uppercase text-xs">Estado</th>
                   <th className="px-4 py-3 text-right font-black text-slate-600 uppercase text-xs">Acciones</th>
                 </tr>
@@ -139,7 +154,7 @@ export const ClientesList = () => {
                     <td className="px-4 py-3 font-bold text-slate-900">{cliente.razonSocial}</td>
                     <td className="px-4 py-3 text-slate-600 font-mono">{cliente.cuit || '-'}</td>
                     <td className="px-4 py-3 text-slate-600">{cliente.rubro || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">{cliente.contactos?.length || 0} contacto(s)</td>
+                    <td className="px-4 py-3 text-slate-600">{establecimientosByCliente[cliente.id] ?? 0}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                         cliente.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
@@ -177,7 +192,7 @@ export const ClientesList = () => {
                 <div className="space-y-1 text-sm text-slate-600">
                   {cliente.cuit && <p><span className="font-bold">CUIT:</span> {cliente.cuit}</p>}
                   {cliente.rubro && <p><span className="font-bold">Rubro:</span> {cliente.rubro}</p>}
-                  <p><span className="font-bold">Contactos:</span> {cliente.contactos?.length || 0}</p>
+                  <p><span className="font-bold">Establecimientos:</span> {establecimientosByCliente[cliente.id] ?? 0}</p>
                 </div>
                 <Link to={`/clientes/${cliente.id}`}>
                   <Button className="w-full" variant="outline">Ver Detalle</Button>

@@ -3,6 +3,8 @@ import { FirebaseService } from '../services/firebaseService';
 import { Part } from '../types';
 import { uid, incrementSuffix, findNextAvailableOT } from '../services/utils';
 import { UseReportFormReturn } from './useReportForm';
+import { createEmptyProtocolDataForTemplate } from '../data/sampleProtocol';
+import { getProtocolTemplateForServiceType } from '../utils/protocolSelector';
 
 export interface DuplicateOptions {
   copyClientEquipment: boolean;
@@ -64,7 +66,9 @@ export const useOTManagement = (
     emailPrincipal,
     reporteTecnico,
     accionesTomar,
-    articulos
+    articulos,
+    protocolTemplateId,
+    protocolData
   } = formState;
 
   const {
@@ -100,7 +104,9 @@ export const useOTManagement = (
     setSignatureEngineer,
     setSignatureClient,
     setAclaracionEspecialista,
-    setAclaracionCliente
+    setAclaracionCliente,
+    setProtocolTemplateId,
+    setProtocolData
   } = setters;
 
   // Cargar OT desde Firebase
@@ -163,6 +169,21 @@ export const useOTManagement = (
         setSignatureClient(data.signatureClient || null);
         setAclaracionCliente(data.aclaracionCliente || '');
         setAclaracionEspecialista(data.aclaracionEspecialista || '');
+        // Plantilla esperada según tipo de servicio; si no hay protocolo para este tipo, limpiar
+        const expectedTemplate = getProtocolTemplateForServiceType(data.tipoServicio ?? null);
+        if (!expectedTemplate) {
+          setProtocolTemplateId(null);
+          setProtocolData(null);
+        } else if (
+          data.protocolTemplateId === expectedTemplate.id &&
+          data.protocolData != null
+        ) {
+          setProtocolTemplateId(expectedTemplate.id);
+          setProtocolData(data.protocolData);
+        } else {
+          setProtocolTemplateId(expectedTemplate.id);
+          setProtocolData(createEmptyProtocolDataForTemplate(expectedTemplate));
+        }
         const loadedStatus = data.status || 'BORRADOR';
         setStatus(loadedStatus);
         // Solo establecer clientConfirmed si el estado es FINALIZADO
@@ -192,6 +213,14 @@ export const useOTManagement = (
     const v = otValue;
     setOtNumber(v);
     setStatus('BORRADOR');
+    const template = getProtocolTemplateForServiceType(tipoServicio);
+    if (!template) {
+      setProtocolTemplateId(null);
+      setProtocolData(null);
+    } else {
+      setProtocolTemplateId(template.id);
+      setProtocolData(createEmptyProtocolDataForTemplate(template));
+    }
     setShowNewOtModal(false);
     setPendingOt('');
     hasInitialized.current = true;
@@ -247,6 +276,14 @@ export const useOTManagement = (
     setSignatureClient(null);
     setAclaracionEspecialista('');
     setAclaracionCliente('');
+    const templateNewReport = getProtocolTemplateForServiceType('Visita de diagnóstico / reparación');
+    if (!templateNewReport) {
+      setProtocolTemplateId(null);
+      setProtocolData(null);
+    } else {
+      setProtocolTemplateId(templateNewReport.id);
+      setProtocolData(createEmptyProtocolDataForTemplate(templateNewReport));
+    }
     setClientConfirmed(false);
     setStatus('BORRADOR');
 
@@ -341,6 +378,21 @@ export const useOTManagement = (
       newState.reporteTecnico = '';
     }
 
+    const expectedTemplateDup = getProtocolTemplateForServiceType(tipoServicio);
+    if (!expectedTemplateDup) {
+      newState.protocolTemplateId = null;
+      newState.protocolData = null;
+    } else if (
+      protocolTemplateId === expectedTemplateDup.id &&
+      protocolData != null
+    ) {
+      newState.protocolTemplateId = expectedTemplateDup.id;
+      newState.protocolData = protocolData;
+    } else {
+      newState.protocolTemplateId = expectedTemplateDup.id;
+      newState.protocolData = createEmptyProtocolDataForTemplate(expectedTemplateDup);
+    }
+
     // Artículos: copiar solo si se copian budgets
     if (options.copyBudgets) {
       newState.articulos = articulos.map(p => ({ ...p, id: uid() }));
@@ -387,6 +439,8 @@ export const useOTManagement = (
     setSignatureClient(null);
     setAclaracionEspecialista('');
     setAclaracionCliente('');
+    setProtocolTemplateId(newState.protocolTemplateId);
+    setProtocolData(newState.protocolData);
 
     // IMPORTANTE: Habilitar autosave DESPUÉS de que se establezcan todos los estados
     // Esto evita que el autosave intente guardar antes de que los datos estén listos

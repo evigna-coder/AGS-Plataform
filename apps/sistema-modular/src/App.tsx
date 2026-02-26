@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { LeadsList, LeadNew, LeadDetail } from './pages/leads';
 import { ClientesList, ClienteNew, ClienteDetail } from './pages/clientes';
+import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from './pages/establecimientos';
 import { EquiposList, EquipoDetail, EquipoNew, CategoriasEquipo } from './pages/equipos';
 import { OTList, OTNew, OTDetail, TiposServicio } from './pages/ordenes-trabajo';
 import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago } from './pages/presupuestos';
@@ -16,6 +17,11 @@ function App() {
           <Route path="/clientes" element={<ClientesList />} />
           <Route path="/clientes/nuevo" element={<ClienteNew />} />
           <Route path="/clientes/:id" element={<ClienteDetail />} />
+          {/* Establecimientos */}
+          <Route path="/establecimientos" element={<EstablecimientosList />} />
+          <Route path="/establecimientos/nuevo" element={<EstablecimientoNew />} />
+          <Route path="/establecimientos/:id" element={<EstablecimientoDetail />} />
+          <Route path="/establecimientos/:id/editar" element={<EstablecimientoNew />} />
           {/* Equipos */}
           <Route path="/equipos" element={<EquiposList />} />
           <Route path="/equipos/nuevo" element={<EquipoNew />} />
