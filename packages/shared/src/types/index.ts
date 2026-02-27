@@ -185,6 +185,51 @@ export interface Ubicacion {
   esActual: boolean;
 }
 
+// --- Configuración de Cromatógrafo Gaseoso (GC) ---
+// Se activa cuando el nombre del sistema contiene la palabra "gaseoso"
+
+/** Tipos de puerto de inyección (inlet) para GC */
+export type InletType =
+  | 'SSL'   // Split/Splitless
+  | 'COC'   // Cool on Column
+  | 'PTV';  // Programmed Temperature Vaporization
+
+/** Tipos de detector para GC */
+export type DetectorType =
+  | 'FID'   // Flame Ionization Detector
+  | 'NCD'   // Nitrogen/Phosphorus Detector
+  | 'FPD'   // Flame Photometric Detector
+  | 'ECD'   // Electron Capture Detector
+  | 'SCD';  // Sulfur Chemiluminescence Detector
+
+export interface ConfiguracionGC {
+  puertoInyeccionFront?: InletType | null;
+  puertoInyeccionBack?: InletType | null;
+  detectorFront?: DetectorType | null;
+  detectorBack?: DetectorType | null;
+}
+
+/** Helper: devuelve true si el nombre del sistema indica que es un GC */
+export function esGaseoso(nombreSistema: string): boolean {
+  return nombreSistema.toLowerCase().includes('gaseoso');
+}
+
+/** Etiquetas legibles para InletType */
+export const INLET_LABELS: Record<InletType, string> = {
+  SSL: 'SSL (Split/Splitless)',
+  COC: 'COC (Cool on Column)',
+  PTV: 'PTV (Programmed Temperature Vaporization)',
+};
+
+/** Etiquetas legibles para DetectorType */
+export const DETECTOR_LABELS: Record<DetectorType, string> = {
+  FID: 'FID (Flame Ionization Detector)',
+  NCD: 'NCD (Nitrogen/Phosphorus Detector)',
+  FPD: 'FPD (Flame Photometric Detector)',
+  ECD: 'ECD (Electron Capture Detector)',
+  SCD: 'SCD (Sulfur Chemiluminescence Detector)',
+};
+
 // --- Módulo de sistema ---
 export interface ModuloSistema {
   id: string;
@@ -211,6 +256,8 @@ export interface Sistema {
   codigoInternoCliente: string; // asignado por cliente o provisorio editable
   software?: string; // Información del software del sistema
   observaciones?: string;
+  /** Solo para sistemas cuyo nombre contiene "gaseoso" (cromatógrafos GC) */
+  configuracionGC?: ConfiguracionGC | null;
   activo: boolean;
   ubicaciones: Ubicacion[];
   otIds: string[];
@@ -243,6 +290,8 @@ export interface TipoServicio {
   id: string;
   nombre: string; // Ej: "Mantenimiento preventivo", "Calificación de operación", etc.
   activo: boolean;
+  /** Si true, el flujo OT muestra el selector de tablas de protocolo (Fase 3) */
+  requiresProtocol: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -372,3 +421,132 @@ export interface QuoteItem {
 
 // Alias para compatibilidad: equipo = sistema
 export type Equipo = Sistema;
+
+// --- Biblioteca de Tablas (TableCatalog) ---
+
+export type TableCatalogColumnType =
+  | 'text_input'
+  | 'number_input'
+  | 'checkbox'
+  | 'fixed_text'
+  | 'date_input'
+  | 'pass_fail';
+
+export interface TableCatalogColumn {
+  key: string;
+  label: string;
+  type: TableCatalogColumnType;
+  unit?: string | null;
+  required: boolean;
+  expectedValue?: string | null;
+  /** Admin-defined fixed value shown to techs (for type='fixed_text') */
+  fixedValue?: string | null;
+}
+
+export interface TableCatalogRow {
+  rowId: string;
+  cells: Record<string, string | number | boolean | null>;
+  /** True = full-width section title row; uses titleText instead of cells */
+  isTitle?: boolean;
+  titleText?: string | null;
+}
+
+export interface TableCatalogRule {
+  ruleId: string;
+  description: string;
+  sourceColumn: string;
+  operator: '<=' | '>=' | '<' | '>' | '==' | '!=';
+  factoryThreshold: string | number;
+  unit?: string | null;
+  targetColumn: string;
+  valueIfPass: string;
+  valueIfFail: string;
+}
+
+export interface TableCatalogEntry {
+  id: string;
+  name: string;
+  description?: string | null;
+  sysType: string;
+  isDefault: boolean;
+  tableType: 'validation' | 'informational' | 'instruments';
+  columns: TableCatalogColumn[];
+  templateRows: TableCatalogRow[];
+  validationRules: TableCatalogRule[];
+  status: 'draft' | 'published' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+// --- Selecciones de protocolo (tablas completadas por el técnico en una OT) ---
+
+/** Una tabla del catálogo completada por el técnico durante la ejecución de una OT. */
+export interface ProtocolSelection {
+  /** FK a /tableCatalog/{tableId} */
+  tableId: string;
+  /** Filas completadas con los valores medidos por el técnico */
+  completedRows: TableCatalogRow[];
+  observaciones?: string | null;
+  resultado: 'CONFORME' | 'NO_CONFORME' | 'PENDIENTE';
+  completadoAt: string;
+}
+
+// --- RenderSpec (especificación determinística para regenerar el PDF) ---
+
+/**
+ * Guarda todo lo necesario para regenerar el PDF de una OT sin PDF binario.
+ * Colección: /workorders/{otNumber}/renderSpec/current
+ */
+export interface RenderSpec {
+  otNumber: string;
+  /** Versión del template de Hoja 1 (incrementar si hay breaking change en Layout.tsx) */
+  templateVersion: string;
+  /** Versión del schema de protocolo usada al guardar */
+  protocolVersion: string;
+  /** Versión del motor PDF (ej: "html2pdf-0.10") */
+  rendererVersion: string;
+  /** Snapshot completo de WorkOrder al momento del guardado (protege contra renombres) */
+  workOrderSnapshot: WorkOrder;
+  /** Tablas completadas por el técnico. null si el tipo de servicio no requiere protocolo */
+  protocolSelections: ProtocolSelection[] | null;
+  /** IDs de documentos en /adjuntos vinculados a esta OT */
+  adjuntosIds: string[];
+  savedAt: string;
+  savedBy: string;
+  updatedAt: string;
+}
+
+// --- Adjuntos (fotos y archivos vinculados a una OT) ---
+
+/** Metadata de un adjunto. El binario vive en Firebase Storage. */
+export interface Adjunto {
+  id: string;
+  otNumber: string;
+  tipo: 'foto' | 'archivo';
+  /** Ruta en Firebase Storage: "adjuntos/{otNumber}/{fileName}" */
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  caption?: string | null;
+  /** Orden de aparición en el PDF (Hoja 3/4) */
+  orden: number;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
+// --- Usuarios AGS (roles y autenticación) ---
+
+export type RolUsuario = 'admin' | 'tecnico' | 'readonly';
+
+/** Documento en /usuarios/{uid} (uid = Firebase Auth UID). */
+export interface UsuarioAGS {
+  uid: string;
+  nombre: string;
+  email: string;
+  rol: RolUsuario;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -6,6 +6,7 @@ import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from 
 import { EquiposList, EquipoDetail, EquipoNew, CategoriasEquipo } from './pages/equipos';
 import { OTList, OTNew, OTDetail, TiposServicio } from './pages/ordenes-trabajo';
 import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago } from './pages/presupuestos';
+import { TableCatalogPage, TableCatalogEditorPage } from './pages/protocol-catalog';
 
 function App() {
   return (
@@ -44,6 +45,10 @@ function App() {
           <Route path="/presupuestos/:id" element={<PresupuestoDetail />} />
           <Route path="/presupuestos/categorias" element={<CategoriasPresupuesto />} />
           <Route path="/presupuestos/condiciones-pago" element={<CondicionesPago />} />
+          {/* Biblioteca de Tablas */}
+          <Route path="/table-catalog" element={<TableCatalogPage />} />
+          <Route path="/table-catalog/nuevo" element={<TableCatalogEditorPage />} />
+          <Route path="/table-catalog/:tableId/edit" element={<TableCatalogEditorPage />} />
           <Route path="/stock" element={<div className="text-center py-12"><p className="text-slate-400">Stock - Próximamente</p></div>} />
           <Route path="/agenda" element={<div className="text-center py-12"><p className="text-slate-400">Agenda - Próximamente</p></div>} />
           <Route path="/facturacion" element={<div className="text-center py-12"><p className="text-slate-400">Facturación - Próximamente</p></div>} />

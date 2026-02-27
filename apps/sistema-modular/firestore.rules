@@ -92,6 +92,26 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo (OTs)
     }
 
+    // Catálogo de Protocolos legacy (mantenido por compatibilidad)
+    match /protocolCatalog/{catalogId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Biblioteca de Tablas individuales (admin sistema-modular; técnicos en reportes-ot solo leen publicadas)
+    match /tableCatalog/{tableId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Usuarios AGS (roles: admin / tecnico / readonly)
+    match /usuarios/{uid} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Adjuntos (metadata; binario en Firebase Storage)
+    match /adjuntos/{adjuntoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;

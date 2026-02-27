@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
-import type { CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento, ModuloSistema } from '@ags/shared';
+import type { CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento, ModuloSistema, ConfiguracionGC } from '@ags/shared';
+import { esGaseoso } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
+import { GCPortsGrid } from '../../components/GCPortsGrid';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -30,6 +32,7 @@ export const EquipoNew = () => {
     activo: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [gcConfig, setGcConfig] = useState<ConfiguracionGC>({});
   const [modulos, setModulos] = useState<Omit<ModuloSistema, 'id' | 'sistemaId'>[]>([]);
   const [showModuloModal, setShowModuloModal] = useState(false);
   const [editingModuloIndex, setEditingModuloIndex] = useState<number | null>(null);
@@ -137,14 +140,18 @@ export const EquipoNew = () => {
         ? (formData.nombre === '__otro__' ? formData.nombreManual : formData.nombre)
         : formData.nombre;
 
+      const nombreStr = String(nombreFinal || '').trim();
+      const categoriaNombre = categorias.find(c => c.id === formData.categoriaId)?.nombre ?? '';
+      const isGC = esGaseoso(nombreStr) || esGaseoso(categoriaNombre);
       const sistemaId = await sistemasService.create({
         establecimientoId: formData.establecimientoId,
         clienteId: formData.clienteId,
         categoriaId: formData.categoriaId,
-        nombre: String(nombreFinal || '').trim(),
+        nombre: nombreStr,
         codigoInternoCliente: formData.codigoInternoCliente || 'PROV-' + Date.now().toString().slice(-6),
         software: formData.software || undefined,
         observaciones: formData.observaciones || undefined,
+        configuracionGC: isGC ? gcConfig : null,
         activo: formData.activo,
         ubicaciones: [],
         otIds: [],
@@ -358,6 +365,17 @@ export const EquipoNew = () => {
                 placeholder="Ej: sistema usa sellos de fase normal..."
               />
             </div>
+            {(() => {
+              const selectedCategoria = categorias.find(c => c.id === formData.categoriaId);
+              const categoriaTieneModelos = Boolean(selectedCategoria && (selectedCategoria.modelos || []).length > 0);
+              const nombreEfectivo = categoriaTieneModelos
+                ? (formData.nombre === '__otro__' ? formData.nombreManual : formData.nombre)
+                : formData.nombre;
+              const isGC = esGaseoso(nombreEfectivo) || esGaseoso(selectedCategoria?.nombre ?? '');
+              return isGC ? (
+                <GCPortsGrid value={gcConfig} onChange={setGcConfig} />
+              ) : null;
+            })()}
           </div>
         </Card>
 

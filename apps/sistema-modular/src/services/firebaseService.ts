@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
-import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago } from '@ags/shared';
+import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, TableCatalogEntry } from '@ags/shared';
 
 // --- Utilidades para CUIT como id de cliente ---
 /** Normaliza CUIT: quita guiones y espacios (solo dígitos). */
@@ -1314,5 +1314,80 @@ export const condicionesPagoService = {
   // Eliminar condición
   async delete(id: string) {
     await deleteDoc(doc(db, 'condiciones_pago', id));
+  },
+};
+
+// --- Biblioteca de Tablas (/tableCatalog) ---
+/** Deep-clean: elimina undefined en objetos anidados usando JSON round-trip */
+function deepCleanForFirestore(obj: any): any {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function toTableCatalogEntry(id: string, data: any): TableCatalogEntry {
+  return {
+    id,
+    ...data,
+    createdAt: data.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate().toISOString() ?? new Date().toISOString(),
+  } as TableCatalogEntry;
+}
+
+export const tableCatalogService = {
+  async getAll(filters?: { sysType?: string; status?: string }): Promise<TableCatalogEntry[]> {
+    const q = query(collection(db, 'tableCatalog'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    let entries = snap.docs.map(d => toTableCatalogEntry(d.id, d.data()));
+    if (filters?.sysType) entries = entries.filter(e => e.sysType === filters.sysType);
+    if (filters?.status) entries = entries.filter(e => e.status === filters.status);
+    return entries;
+  },
+
+  async getById(id: string): Promise<TableCatalogEntry | null> {
+    const snap = await getDoc(doc(db, 'tableCatalog', id));
+    if (!snap.exists()) return null;
+    return toTableCatalogEntry(snap.id, snap.data());
+  },
+
+  async save(entry: TableCatalogEntry): Promise<string> {
+    const { id, createdAt: _ca, updatedAt: _ua, ...rest } = entry;
+    const payload = {
+      ...deepCleanForFirestore(rest),
+      updatedAt: Timestamp.now(),
+    };
+    if (id) {
+      await setDoc(doc(db, 'tableCatalog', id), payload, { merge: true });
+      return id;
+    }
+    const newId = crypto.randomUUID();
+    await setDoc(doc(db, 'tableCatalog', newId), { ...payload, createdAt: Timestamp.now() });
+    return newId;
+  },
+
+  async publish(id: string): Promise<void> {
+    await updateDoc(doc(db, 'tableCatalog', id), { status: 'published', updatedAt: Timestamp.now() });
+  },
+
+  async archive(id: string): Promise<void> {
+    await updateDoc(doc(db, 'tableCatalog', id), { status: 'archived', updatedAt: Timestamp.now() });
+  },
+
+  async clone(id: string): Promise<string> {
+    const original = await this.getById(id);
+    if (!original) throw new Error('Tabla no encontrada');
+    const newId = crypto.randomUUID();
+    const { createdAt: _ca, updatedAt: _ua, ...rest } = original;
+    await setDoc(doc(db, 'tableCatalog', newId), {
+      ...deepCleanForFirestore(rest),
+      id: newId,
+      name: `${original.name} (copia)`,
+      status: 'draft',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    return newId;
+  },
+
+  async saveMany(entries: TableCatalogEntry[]): Promise<string[]> {
+    return Promise.all(entries.map(e => this.save(e)));
   },
 };

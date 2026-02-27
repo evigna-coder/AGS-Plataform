@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
 import type { Sistema, ModuloSistema, CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento } from '@ags/shared';
+import { esGaseoso } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
+import { GCPortsGrid } from '../../components/GCPortsGrid';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -74,6 +76,7 @@ export const EquipoDetail = () => {
           codigoInternoCliente: sistemaData.codigoInternoCliente,
           software: sistemaData.software || '',
           observaciones: sistemaData.observaciones || '',
+          configuracionGC: sistemaData.configuracionGC ?? {},
           activo: sistemaData.activo,
         });
       } else {
@@ -346,32 +349,49 @@ export const EquipoDetail = () => {
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
               />
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-bold mb-1">Cliente</p>
-              <p className="font-bold text-slate-900">{cliente?.razonSocial || '-'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-bold mb-1">Categoría</p>
-              <p className="text-slate-600">{categoria?.nombre || '-'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-bold mb-1">Código Interno</p>
-              <p className="font-mono text-slate-600">{sistema.codigoInternoCliente || '-'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-bold mb-1">Software</p>
-              <p className="text-slate-600 font-semibold">{sistema.software || '-'}</p>
-            </div>
-            {sistema.observaciones && (
-              <div className="md:col-span-2">
-                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Observaciones</p>
-                <p className="text-slate-600 italic">{sistema.observaciones}</p>
-              </div>
+            {(esGaseoso(formData.nombre ?? '') || esGaseoso(categorias.find(c => c.id === formData.categoriaId)?.nombre ?? '')) && (
+              <GCPortsGrid
+                value={formData.configuracionGC ?? {}}
+                onChange={v => setFormData({ ...formData, configuracionGC: v })}
+              />
             )}
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Cliente</p>
+                <p className="font-bold text-slate-900">{cliente?.razonSocial || '-'}</p>
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Categoría</p>
+                <p className="text-slate-600">{categoria?.nombre || '-'}</p>
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Código Interno</p>
+                <p className="font-mono text-slate-600">{sistema.codigoInternoCliente || '-'}</p>
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-bold mb-1">Software</p>
+                <p className="text-slate-600 font-semibold">{sistema.software || '-'}</p>
+              </div>
+              {sistema.observaciones && (
+                <div className="md:col-span-2">
+                  <p className="text-slate-400 text-xs uppercase font-bold mb-1">Observaciones</p>
+                  <p className="text-slate-600 italic">{sistema.observaciones}</p>
+                </div>
+              )}
+            </div>
+            {(esGaseoso(sistema.nombre) || esGaseoso(categoria?.nombre ?? '')) && (
+              <div className="mt-4">
+                <GCPortsGrid
+                  value={sistema.configuracionGC ?? {}}
+                  onChange={() => {}}
+                  readOnly
+                />
+              </div>
+            )}
+          </>
         )}
       </Card>
 
