@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import type { TableCatalogEntry } from '../types/tableCatalog';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -206,6 +207,24 @@ export class FirebaseService {
       console.error('Código de error:', error.code);
       console.error('Mensaje:', error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Obtiene todas las tablas publicadas del catálogo, opcionalmente filtradas por sysType.
+   * Lee de la colección /tableCatalog del mismo proyecto Firebase.
+   */
+  async getPublishedTables(sysType?: string): Promise<TableCatalogEntry[]> {
+    try {
+      const col = collection(db, 'tableCatalog');
+      const q = sysType
+        ? query(col, where('status', '==', 'published'), where('sysType', '==', sysType))
+        : query(col, where('status', '==', 'published'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as TableCatalogEntry));
+    } catch (error: any) {
+      console.error('❌ Error al leer tableCatalog:', error);
+      return [];
     }
   }
 

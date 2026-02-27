@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { Part, type ProtocolData } from '../types';
+import type { ProtocolSelection } from '../types/tableCatalog';
 
 export interface ReportFormState {
   // OT y estado general
@@ -7,14 +8,14 @@ export interface ReportFormState {
   otInput: string;
   status: 'BORRADOR' | 'FINALIZADO';
   clientConfirmed: boolean;
-  
+
   // Servicio
   budgets: string[];
   tipoServicio: string;
   esFacturable: boolean;
   tieneContrato: boolean;
   esGarantia: boolean;
-  
+
   // Cliente
   razonSocial: string;
   contacto: string;
@@ -22,14 +23,14 @@ export interface ReportFormState {
   localidad: string;
   provincia: string;
   emailPrincipal: string;
-  
+
   // Equipo
   sistema: string;
   moduloModelo: string;
   moduloDescripcion: string;
   moduloSerie: string;
   codigoInternoCliente: string;
-  
+
   // Fechas y tiempos
   fechaInicio: string;
   fechaFin: string;
@@ -37,21 +38,24 @@ export interface ReportFormState {
   horaFin: string;
   horasTrabajadas: string;
   tiempoViaje: string;
-  
+
   // Reporte
   reporteTecnico: string;
   accionesTomar: string;
   articulos: Part[];
-  
+
   // Firmas
   signatureEngineer: string | null;
   aclaracionEspecialista: string;
   signatureClient: string | null;
   aclaracionCliente: string;
 
-  // Protocolo (anexo)
+  // Protocolo estático (anexo HPLC legacy)
   protocolTemplateId: string | null;
   protocolData: ProtocolData | null;
+
+  // Tablas dinámicas del catálogo
+  protocolSelections: ProtocolSelection[];
 }
 
 export interface ReportState {
@@ -87,12 +91,13 @@ export interface ReportState {
   aclaracionCliente: string;
   protocolTemplateId: string | null;
   protocolData: ProtocolData | null;
+  protocolSelections: ProtocolSelection[];
 }
 
 export interface UseReportFormReturn {
   // Estados del formulario
   formState: ReportFormState;
-  
+
   // Setters individuales
   setters: {
     setOtNumber: (value: string) => void;
@@ -130,16 +135,17 @@ export interface UseReportFormReturn {
     setAclaracionCliente: (value: string) => void;
     setProtocolTemplateId: (value: string | null) => void;
     setProtocolData: (value: ProtocolData | null) => void;
+    setProtocolSelections: (value: ProtocolSelection[]) => void;
   };
-  
+
   // Computed
   readOnly: boolean;
   reportState: ReportState;
-  
+
   // Refs
   hasUserInteracted: React.MutableRefObject<boolean>;
   hasInitialized: React.MutableRefObject<boolean>;
-  
+
   // Helpers
   markUserInteracted: () => void;
 }
@@ -178,19 +184,18 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [aclaracionCliente, setAclaracionCliente] = useState('');
   const [protocolTemplateId, setProtocolTemplateId] = useState<string | null>(null);
   const [protocolData, setProtocolData] = useState<ProtocolData | null>(null);
+  const [protocolSelections, setProtocolSelections] = useState<ProtocolSelection[]>([]);
   const [otInput, setOtInput] = useState(initialOtNumber);
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
 
   // Flag global readOnly: deshabilita edición solo cuando el reporte está finalizado
-  // No bloquear solo por tener firma - solo bloquear cuando status === 'FINALIZADO'
   const readOnly = status === 'FINALIZADO';
 
   // Refs
   const hasUserInteracted = useRef(false);
-  const hasInitialized = useRef(false); // reemplaza hasLoadedFromFirebase
+  const hasInitialized = useRef(false);
 
-  // Helper function
   const markUserInteracted = () => {
     if (!hasUserInteracted.current) {
       hasUserInteracted.current = true;
@@ -198,7 +203,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     }
   };
 
-  // reportState memoizado
+  // reportState memoizado (incluye protocolSelections para autosave)
   const reportState = useMemo(() => ({
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
@@ -206,7 +211,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
-    protocolTemplateId, protocolData
+    protocolTemplateId, protocolData, protocolSelections
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
@@ -214,10 +219,9 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
-    protocolTemplateId, protocolData
+    protocolTemplateId, protocolData, protocolSelections
   ]);
 
-  // Estado consolidado
   const formState: ReportFormState = {
     otNumber,
     otInput,
@@ -253,7 +257,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     signatureClient,
     aclaracionCliente,
     protocolTemplateId,
-    protocolData
+    protocolData,
+    protocolSelections
   };
 
   return {
@@ -293,7 +298,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setSignatureClient,
       setAclaracionCliente,
       setProtocolTemplateId,
-      setProtocolData
+      setProtocolData,
+      setProtocolSelections
     },
     readOnly,
     reportState,

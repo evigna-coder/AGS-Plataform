@@ -68,7 +68,8 @@ export const useOTManagement = (
     accionesTomar,
     articulos,
     protocolTemplateId,
-    protocolData
+    protocolData,
+    protocolSelections
   } = formState;
 
   const {
@@ -106,7 +107,8 @@ export const useOTManagement = (
     setAclaracionEspecialista,
     setAclaracionCliente,
     setProtocolTemplateId,
-    setProtocolData
+    setProtocolData,
+    setProtocolSelections
   } = setters;
 
   // Cargar OT desde Firebase
@@ -169,6 +171,8 @@ export const useOTManagement = (
         setSignatureClient(data.signatureClient || null);
         setAclaracionCliente(data.aclaracionCliente || '');
         setAclaracionEspecialista(data.aclaracionEspecialista || '');
+        // Tablas dinámicas del catálogo
+        setProtocolSelections(data.protocolSelections || []);
         // Plantilla esperada según tipo de servicio; si no hay protocolo para este tipo, limpiar
         const expectedTemplate = getProtocolTemplateForServiceType(data.tipoServicio ?? null);
         if (!expectedTemplate) {
@@ -221,6 +225,7 @@ export const useOTManagement = (
       setProtocolTemplateId(template.id);
       setProtocolData(createEmptyProtocolDataForTemplate(template));
     }
+    setProtocolSelections([]);
     setShowNewOtModal(false);
     setPendingOt('');
     hasInitialized.current = true;
@@ -284,6 +289,7 @@ export const useOTManagement = (
       setProtocolTemplateId(templateNewReport.id);
       setProtocolData(createEmptyProtocolDataForTemplate(templateNewReport));
     }
+    setProtocolSelections([]);
     setClientConfirmed(false);
     setStatus('BORRADOR');
 
@@ -441,6 +447,7 @@ export const useOTManagement = (
     setAclaracionCliente('');
     setProtocolTemplateId(newState.protocolTemplateId);
     setProtocolData(newState.protocolData);
+    setProtocolSelections([]); // Nueva OT duplicada arranca sin tablas dinámicas seleccionadas
 
     // IMPORTANTE: Habilitar autosave DESPUÉS de que se establezcan todos los estados
     // Esto evita que el autosave intente guardar antes de que los datos estén listos

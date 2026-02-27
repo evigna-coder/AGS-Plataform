@@ -17,6 +17,9 @@ import { getProtocolTemplateForServiceType, getProtocolTemplateById, isProtocolT
 import { createEmptyProtocolDataForTemplate } from './data/sampleProtocol';
 import { MobileMenu } from './components/MobileMenu';
 import { signOut } from './services/authService';
+import { TableSelectorPanel } from './components/TableSelectorPanel';
+import { CatalogTableView } from './components/CatalogTableView';
+import type { ProtocolSelection } from './types/tableCatalog';
 
 
 // Declaración de variables globales para librerías externas
@@ -346,7 +349,7 @@ const App: React.FC = () => {
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
-    signatureClient, aclaracionCliente, protocolTemplateId, protocolData
+    signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections
   } = formState;
 
   /** Plantilla actual: por id guardado o por tipo de servicio (para fallback) */
@@ -390,8 +393,40 @@ const App: React.FC = () => {
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
-    setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData
+    setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
+    setProtocolSelections
   } = setters;
+
+  // Handlers para tablas dinámicas del catálogo
+  const handleCatalogCellChange = (tableId: string, rowId: string, colKey: string, value: string) => {
+    setProtocolSelections(
+      protocolSelections.map(s =>
+        s.tableId !== tableId ? s : {
+          ...s,
+          filledData: {
+            ...s.filledData,
+            [rowId]: { ...(s.filledData[rowId] ?? {}), [colKey]: value }
+          }
+        }
+      )
+    );
+  };
+
+  const handleCatalogObservaciones = (tableId: string, value: string) => {
+    setProtocolSelections(
+      protocolSelections.map(s => s.tableId !== tableId ? s : { ...s, observaciones: value })
+    );
+  };
+
+  const handleCatalogResultado = (tableId: string, resultado: ProtocolSelection['resultado']) => {
+    setProtocolSelections(
+      protocolSelections.map(s => s.tableId !== tableId ? s : { ...s, resultado })
+    );
+  };
+
+  const handleRemoveCatalogTable = (tableId: string) => {
+    setProtocolSelections(protocolSelections.filter(s => s.tableId !== tableId));
+  };
 
   const baseInputClass =
   'bg-white text-slate-900 appearance-none ' +
@@ -1868,6 +1903,39 @@ const App: React.FC = () => {
             Modo test: plantilla de prueba cargada
           </div>
         )}
+        {/* Selector de tablas dinámicas del catálogo */}
+        {!readOnly && (
+          <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2">
+            <TableSelectorPanel
+              firebase={firebase}
+              sysType={sistema || undefined}
+              existingSelections={protocolSelections}
+              onApply={(selections) => {
+                setProtocolSelections(selections);
+                reportForm.markUserInteracted();
+              }}
+            />
+          </div>
+        )}
+
+        {/* Tablas dinámicas seleccionadas (modo edición) */}
+        {protocolSelections.length > 0 && (
+          <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
+            {protocolSelections.map(sel => (
+              <CatalogTableView
+                key={sel.tableId}
+                selection={sel}
+                readOnly={readOnly}
+                isPrint={false}
+                onChangeData={handleCatalogCellChange}
+                onChangeObservaciones={handleCatalogObservaciones}
+                onChangeResultado={handleCatalogResultado}
+                onRemove={handleRemoveCatalogTable}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Anexo edición: scroll de página (no recortar); overflow-x-auto solo para ancho */}
         <div className="mt-6 bg-[#f1f5f9] py-6 w-full flex justify-center overflow-x-auto overflow-y-visible max-w-[calc(210mm+2rem)] mx-auto px-2">
           <div id="pdf-container-anexo" className="shrink-0 min-h-0" style={{ width: '210mm' }}>
@@ -1883,17 +1951,17 @@ const App: React.FC = () => {
                 showGuides={true}
                 mode="edit"
               />
-            ) : (
+            ) : protocolSelections.length === 0 ? (
               <p className="text-[10px] text-slate-500 italic">
-                Este tipo de servicio no requiere protocolo.
+                Este tipo de servicio no requiere protocolo. Podés agregar tablas del catálogo con el botón de arriba.
               </p>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
 
       {/* Render root exclusivo para PDF: siempre montado con protocolo; invisible con visibility (capturable, sin opacity) */}
-      {protocolTemplate && (
+      {(protocolTemplate || protocolSelections.length > 0) && (
         <div
           id="pdf-container-anexo-pdf"
           style={{
@@ -1908,13 +1976,24 @@ const App: React.FC = () => {
           }}
           aria-hidden
         >
-          <ProtocolView
-            template={protocolTemplate}
-            data={protocolData ?? undefined}
-            readOnly
-            showGuides={false}
-            mode="print"
-          />
+          {protocolTemplate && (
+            <ProtocolView
+              template={protocolTemplate}
+              data={protocolData ?? undefined}
+              readOnly
+              showGuides={false}
+              mode="print"
+            />
+          )}
+          {protocolSelections.map(sel => (
+            <CatalogTableView
+              key={sel.tableId}
+              selection={sel}
+              readOnly
+              isPrint
+              onChangeData={() => {}}
+            />
+          ))}
         </div>
       )}
 
