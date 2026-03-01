@@ -1,10 +1,76 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { join } = require('path');
-const { existsSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
+const os = require('os');
 
 // Configuración de la ventana
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const port = 3001;
+
+// ===== Google Drive Auth (Service Account) =====
+const AGS_DIR = join(os.homedir(), '.ags');
+const CREDENTIALS_PATH = join(AGS_DIR, 'service-account.json');
+const DRIVE_CONFIG_PATH = join(AGS_DIR, 'drive-config.json');
+
+let driveAuth = null;
+
+function initDriveAuth() {
+  if (driveAuth) return true;
+  if (!existsSync(CREDENTIALS_PATH)) return false;
+  try {
+    const { GoogleAuth } = require('google-auth-library');
+    driveAuth = new GoogleAuth({
+      keyFile: CREDENTIALS_PATH,
+      scopes: ['https://www.googleapis.com/auth/drive.file'],
+    });
+    console.log('[Drive] Auth inicializado con service account');
+    return true;
+  } catch (err) {
+    console.error('[Drive] Error inicializando auth:', err.message);
+    return false;
+  }
+}
+
+function getDriveConfig() {
+  if (existsSync(DRIVE_CONFIG_PATH)) {
+    try { return JSON.parse(readFileSync(DRIVE_CONFIG_PATH, 'utf-8')); }
+    catch { return {}; }
+  }
+  return {};
+}
+
+function saveDriveConfig(config) {
+  if (!existsSync(AGS_DIR)) mkdirSync(AGS_DIR, { recursive: true });
+  writeFileSync(DRIVE_CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+// IPC: Check if Drive is configured
+ipcMain.handle('drive:is-configured', () => {
+  return initDriveAuth();
+});
+
+// IPC: Get access token for Drive API calls
+ipcMain.handle('drive:get-token', async () => {
+  if (!initDriveAuth()) return { error: 'Google Drive no configurado. Coloque service-account.json en ~/.ags/' };
+  try {
+    const client = await driveAuth.getClient();
+    const tokenResp = await client.getAccessToken();
+    return { token: tokenResp.token };
+  } catch (err) {
+    console.error('[Drive] Error obteniendo token:', err.message);
+    return { error: err.message };
+  }
+});
+
+// IPC: Read Drive config (rootFolderId, etc.)
+ipcMain.handle('drive:get-config', () => getDriveConfig());
+
+// IPC: Save Drive config
+ipcMain.handle('drive:save-config', (_event, config) => {
+  const existing = getDriveConfig();
+  saveDriveConfig({ ...existing, ...config });
+  return true;
+});
 
 function createWindow() {
   const mainWindow = new BrowserWindow({

@@ -4,19 +4,22 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   description?: string;
   error?: string;
+  inputSize?: 'sm' | 'md';
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(({
   label,
   description,
   error,
+  inputSize = 'md',
   className = '',
   ...props
 }, ref) => {
+  const isSmall = inputSize === 'sm';
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label className={`block font-medium text-slate-700 ${isSmall ? 'text-[11px] mb-1' : 'text-sm mb-1.5'}`}>
           {label}
         </label>
       )}
@@ -25,12 +28,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
       )}
       <input
         ref={ref}
-        className={`w-full border rounded-lg px-3 py-2 text-sm bg-white text-slate-900
+        className={`w-full border rounded-lg bg-white text-slate-900
           placeholder:text-slate-400
           border-slate-300
           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
           disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed
           transition-colors
+          ${isSmall ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm'}
           ${error ? 'border-red-400 focus:ring-red-400 focus:border-red-400' : ''}
           ${className}`}
         {...props}

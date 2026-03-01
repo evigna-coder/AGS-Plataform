@@ -88,7 +88,7 @@ export const TiposServicio = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Tipos de Servicio</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Tipos de Servicio</h2>
           <p className="text-sm text-slate-500 mt-1">Gestionar tipos de servicio para OTs</p>
         </div>
         <div className="flex gap-2">
@@ -116,7 +116,7 @@ export const TiposServicio = () => {
             <Card key={tipo.id}>
               <div className="flex justify-between items-center">
                 <div className="flex-1">
-                  <h3 className="font-black text-slate-900 uppercase">{tipo.nombre}</h3>
+                  <h3 className="font-semibold text-slate-900">{tipo.nombre}</h3>
                   {!tipo.activo && (
                     <span className="text-xs text-slate-400 italic">(Inactivo)</span>
                   )}
@@ -124,13 +124,13 @@ export const TiposServicio = () => {
                 <div className="flex gap-2 ml-4">
                   <button
                     onClick={() => handleEdit(tipo)}
-                    className="text-blue-600 hover:underline text-xs font-bold uppercase"
+                    className="text-blue-600 hover:underline text-xs font-medium"
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleDelete(tipo.id)}
-                    className="text-red-600 hover:underline text-xs font-bold uppercase"
+                    className="text-red-600 hover:underline text-xs font-medium"
                   >
                     Eliminar
                   </button>
@@ -145,12 +145,12 @@ export const TiposServicio = () => {
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
               {editing ? 'Editar Tipo de Servicio' : 'Nuevo Tipo de Servicio'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Nombre del Tipo de Servicio *
                 </label>
                 <Input

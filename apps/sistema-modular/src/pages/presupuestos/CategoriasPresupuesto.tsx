@@ -135,7 +135,7 @@ export const CategoriasPresupuesto = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Categorías de Presupuesto</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Categorías de Presupuesto</h2>
           <p className="text-sm text-slate-500 mt-1">Gestión de categorías y reglas tributarias</p>
         </div>
         <div className="flex gap-3">
@@ -154,7 +154,7 @@ export const CategoriasPresupuesto = () => {
         <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black text-slate-900 uppercase">
+              <h3 className="text-sm font-semibold text-slate-900">
                 {editingId ? 'Editar Categoría' : 'Nueva Categoría'}
               </h3>
               <Button type="button" variant="outline" onClick={() => {
@@ -167,7 +167,7 @@ export const CategoriasPresupuesto = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Nombre *
                 </label>
                 <Input
@@ -179,7 +179,7 @@ export const CategoriasPresupuesto = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Descripción
                 </label>
                 <textarea
@@ -192,7 +192,7 @@ export const CategoriasPresupuesto = () => {
               </div>
 
               <div className="border-t pt-4 md:col-span-2">
-                <h4 className="text-sm font-black text-slate-700 uppercase mb-3">IVA</h4>
+                <h4 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">IVA</h4>
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -206,7 +206,7 @@ export const CategoriasPresupuesto = () => {
                   
                   {formData.incluyeIva && (
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
                         Porcentaje IVA (%)
                       </label>
                       <Input
@@ -233,7 +233,7 @@ export const CategoriasPresupuesto = () => {
                       
                       {formData.ivaReduccion && (
                         <div>
-                          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                          <label className="block text-xs font-medium text-slate-600 mb-1">
                             Porcentaje IVA Reducción (%)
                           </label>
                           <Input
@@ -251,7 +251,7 @@ export const CategoriasPresupuesto = () => {
               </div>
 
               <div className="border-t pt-4 md:col-span-2">
-                <h4 className="text-sm font-black text-slate-700 uppercase mb-3">Ganancias</h4>
+                <h4 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Ganancias</h4>
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -265,7 +265,7 @@ export const CategoriasPresupuesto = () => {
                   
                   {formData.incluyeGanancias && (
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
                         Porcentaje Ganancias (%)
                       </label>
                       <Input
@@ -281,7 +281,7 @@ export const CategoriasPresupuesto = () => {
               </div>
 
               <div className="border-t pt-4 md:col-span-2">
-                <h4 className="text-sm font-black text-slate-700 uppercase mb-3">Ingresos Brutos (IIBB)</h4>
+                <h4 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Ingresos Brutos (IIBB)</h4>
                 <div className="space-y-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -295,7 +295,7 @@ export const CategoriasPresupuesto = () => {
                   
                   {formData.incluyeIIBB && (
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
                         Porcentaje IIBB (%)
                       </label>
                       <Input
@@ -348,12 +348,12 @@ export const CategoriasPresupuesto = () => {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Nombre</th>
-                    <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">IVA</th>
-                    <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Ganancias</th>
-                    <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">IIBB</th>
-                    <th className="px-4 py-3 text-left text-xs font-black text-slate-600 uppercase">Estado</th>
-                    <th className="px-4 py-3 text-right text-xs font-black text-slate-600 uppercase">Acciones</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 tracking-wider">Nombre</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 tracking-wider">IVA</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 tracking-wider">Ganancias</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 tracking-wider">IIBB</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

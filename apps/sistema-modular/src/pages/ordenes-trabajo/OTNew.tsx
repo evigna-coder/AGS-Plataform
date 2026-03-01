@@ -222,7 +222,7 @@ export const OTNew = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nueva Orden de Trabajo</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Nueva Orden de Trabajo</h2>
           <p className="text-sm text-slate-500 mt-1">Seleccione cliente y sistema para pre-cargar datos</p>
         </div>
         <Button variant="outline" onClick={() => navigate('/ordenes-trabajo')}>
@@ -232,11 +232,11 @@ export const OTNew = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Datos Básicos</h3>
+          <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Datos Básicos</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Número de OT *
                 </label>
                 <div className="flex gap-2">
@@ -263,7 +263,7 @@ export const OTNew = () => {
                 <p className="mt-1 text-xs text-slate-500">Formato: 5 dígitos + opcional .NN</p>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Tipo de Servicio *
                 </label>
                 <SearchableSelect
@@ -283,10 +283,10 @@ export const OTNew = () => {
         </Card>
 
         <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Cliente y Equipo</h3>
+          <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Cliente y Equipo</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Cliente *</label>
               <SearchableSelect
                 value={formData.clienteId}
                 onChange={(value) => setFormData({ ...formData, clienteId: value, sistemaId: '', contactoId: '' })}
@@ -299,7 +299,7 @@ export const OTNew = () => {
             {formData.clienteId && (
               <>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Sistema / Equipo *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Sistema / Equipo *</label>
                   <SearchableSelect
                     value={formData.sistemaId}
                     onChange={(value) => setFormData({ ...formData, sistemaId: value })}
@@ -311,7 +311,7 @@ export const OTNew = () => {
                 
                 {contactos.length > 0 && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Contacto</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Contacto</label>
                     <SearchableSelect
                       value={formData.contactoId}
                       onChange={(value) => setFormData({ ...formData, contactoId: value })}

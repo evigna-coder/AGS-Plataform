@@ -22,6 +22,7 @@ export const ClienteNew = () => {
     condicionIva: '' as CondicionIva | '',
     ingresosBrutos: '',
     convenioMultilateral: false,
+    requiereTrazabilidad: false,
     notas: '',
     activo: true,
   });
@@ -58,6 +59,7 @@ export const ClienteNew = () => {
         pais: formData.pais,
         rubro: formData.rubro,
         convenioMultilateral: formData.convenioMultilateral,
+        requiereTrazabilidad: formData.requiereTrazabilidad,
         activo: formData.activo,
       };
       if (formData.cuit?.trim()) clienteData.cuit = formData.cuit.trim();
@@ -207,6 +209,18 @@ export const ClienteNew = () => {
                 />
                 <span className="text-xs font-bold text-slate-600 uppercase">Convenio Multilateral</span>
               </label>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.requiereTrazabilidad}
+                  onChange={(e) => setFormData({ ...formData, requiereTrazabilidad: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-xs font-bold text-slate-600 uppercase">Requiere Trazabilidad</span>
+              </label>
+              <p className="text-xs text-slate-500 mt-1 ml-6">Los reportes de este cliente requerirán documentación de trazabilidad</p>
             </div>
           </div>
         </Card>

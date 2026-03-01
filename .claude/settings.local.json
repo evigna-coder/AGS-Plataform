@@ -4,7 +4,10 @@
       "Bash(npx tsc --noEmit)",
       "Bash(firebase deploy --only firestore:rules)",
       "Bash(firebase deploy --only firestore:rules --project agssop-e7353)",
-      "Bash(firebase use)"
+      "Bash(firebase use)",
+      "Bash(npx tsc --noEmit -p apps/sistema-modular/tsconfig.app.json)",
+      "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig\"*)",
+      "Bash(npx vite build)"
     ]
   }
 }

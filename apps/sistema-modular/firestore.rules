@@ -112,6 +112,58 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Instrumentos y Patrones (certificados de calibración)
+    match /instrumentos/{instrumentoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Marcas (catálogo compartido)
+    match /marcas/{marcaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ── Stock Module ──
+
+    // Ingenieros (catálogo de técnicos)
+    match /ingenieros/{ingenieroId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Proveedores
+    match /proveedores/{proveedorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Posiciones de stock (ubicaciones físicas)
+    match /posicionesStock/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Artículos (catálogo de parts)
+    match /articulos/{articuloId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Unidades (instancias físicas de artículos)
+    match /unidades/{unidadId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Minikits
+    match /minikits/{minikitId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Movimientos de stock (log de auditoría)
+    match /movimientosStock/{movimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Remitos (despachos digitales)
+    match /remitos/{remitoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;

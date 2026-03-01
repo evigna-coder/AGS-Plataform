@@ -5,6 +5,8 @@ import type { Presupuesto, Cliente } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 
 const estadoLabels: Record<Presupuesto['estado'], string> = {
   borrador: 'Borrador',
@@ -12,7 +14,7 @@ const estadoLabels: Record<Presupuesto['estado'], string> = {
   en_seguimiento: 'En Seguimiento',
   pendiente_oc: 'Pendiente OC',
   aceptado: 'Aceptado',
-  pendiente_certificacion: 'Pendiente Certificación',
+  pendiente_certificacion: 'Pendiente Cert.',
   aguarda: 'Aguarda',
 };
 
@@ -33,6 +35,7 @@ export const PresupuestosList = () => {
   const [loading, setLoading] = useState(true);
   const [filtroCliente, setFiltroCliente] = useState<string>('');
   const [filtroEstado, setFiltroEstado] = useState<Presupuesto['estado'] | ''>('');
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -75,30 +78,27 @@ export const PresupuestosList = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Presupuestos</h2>
-          <p className="text-sm text-slate-500 mt-1">Gestión de presupuestos y cotizaciones</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/presupuestos/categorias')}>
-            Categorías
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/presupuestos/condiciones-pago')}>
-            Condiciones
-          </Button>
-          <Button onClick={() => navigate('/presupuestos/nuevo')}>
-            + Nuevo Presupuesto
-          </Button>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Cliente</label>
+    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+      <PageHeader
+        title="Presupuestos"
+        subtitle="Gestión de presupuestos y cotizaciones"
+        count={presupuestosFiltrados.length}
+        actions={
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/presupuestos/categorias')}>
+              Categorías
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate('/presupuestos/condiciones-pago')}>
+              Condiciones
+            </Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              + Nuevo Presupuesto
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="min-w-[180px]">
             <SearchableSelect
               value={filtroCliente}
               onChange={setFiltroCliente}
@@ -109,8 +109,7 @@ export const PresupuestosList = () => {
               placeholder="Filtrar por cliente..."
             />
           </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Estado</label>
+          <div className="min-w-[160px]">
             <SearchableSelect
               value={filtroEstado}
               onChange={(value) => setFiltroEstado(value as Presupuesto['estado'] | '')}
@@ -121,76 +120,95 @@ export const PresupuestosList = () => {
               placeholder="Filtrar por estado..."
             />
           </div>
-          <div className="flex items-end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFiltroCliente('');
-                setFiltroEstado('');
-              }}
-            >
-              Limpiar Filtros
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setFiltroCliente('');
+              setFiltroEstado('');
+            }}
+          >
+            Limpiar
+          </Button>
         </div>
-      </Card>
+      </PageHeader>
 
-      {/* Lista de Presupuestos */}
-      {presupuestosFiltrados.length === 0 ? (
-        <Card>
-          <div className="text-center py-12">
-            <p className="text-slate-400">No hay presupuestos para mostrar</p>
-            <Button className="mt-4" onClick={() => navigate('/presupuestos/nuevo')}>
-              Crear primer presupuesto
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {presupuestosFiltrados.map((presupuesto) => (
-            <Card key={presupuesto.id} className="hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Link
-                      to={`/presupuestos/${presupuesto.id}`}
-                      className="font-black text-blue-700 uppercase hover:underline text-lg"
-                    >
-                      {presupuesto.numero}
-                    </Link>
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${estadoColors[presupuesto.estado]}`}>
-                      {estadoLabels[presupuesto.estado]}
-                    </span>
-                  </div>
-                  <p className="text-sm font-bold text-slate-700">{getClienteNombre(presupuesto.clienteId)}</p>
-                  <div className="flex gap-4 mt-2 text-xs text-slate-500 flex-wrap">
-                    <span>{presupuesto.items.length} items</span>
-                    <span>Total: ${presupuesto.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                    {presupuesto.createdAt && (
-                      <span>Creado: {new Date(presupuesto.createdAt).toLocaleDateString('es-AR')}</span>
-                    )}
-                    {presupuesto.fechaEnvio && (
-                      <span className="font-bold text-blue-600">Enviado: {new Date(presupuesto.fechaEnvio).toLocaleDateString('es-AR')}</span>
-                    )}
-                    {presupuesto.validUntil && (
-                      <span>Válido hasta: {new Date(presupuesto.validUntil).toLocaleDateString('es-AR')}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/presupuestos/${presupuesto.id}`)}
-                  >
-                    Ver
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {presupuestosFiltrados.length === 0 ? (
+          <Card>
+            <div className="text-center py-12">
+              <p className="text-slate-400">No hay presupuestos para mostrar</p>
+              <Button className="mt-4" size="sm" onClick={() => setShowCreate(true)}>
+                Crear primer presupuesto
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Número</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Total</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Creado</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Enviado</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Válido hasta</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {presupuestosFiltrados.map((presupuesto) => (
+                    <tr key={presupuesto.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2">
+                        <Link
+                          to={`/presupuestos/${presupuesto.id}`}
+                          className="font-semibold text-blue-700 hover:underline text-xs"
+                        >
+                          {presupuesto.numero}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-700">{getClienteNombre(presupuesto.clienteId)}</td>
+                      <td className="px-4 py-2">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoColors[presupuesto.estado]}`}>
+                          {estadoLabels[presupuesto.estado]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-600 text-right tabular-nums">{presupuesto.items.length}</td>
+                      <td className="px-4 py-2 text-xs text-slate-900 font-medium text-right tabular-nums">
+                        ${presupuesto.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-500">
+                        {presupuesto.createdAt ? new Date(presupuesto.createdAt).toLocaleDateString('es-AR') : '-'}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-500">
+                        {presupuesto.fechaEnvio ? new Date(presupuesto.fechaEnvio).toLocaleDateString('es-AR') : '-'}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-500">
+                        {presupuesto.validUntil ? new Date(presupuesto.validUntil).toLocaleDateString('es-AR') : '-'}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/presupuestos/${presupuesto.id}`)}
+                        >
+                          Ver
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      <CreatePresupuestoModal open={showCreate} onClose={() => setShowCreate(false)} />
     </div>
   );
 };

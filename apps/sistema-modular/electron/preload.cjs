@@ -21,6 +21,14 @@ try {
       ipcRenderer.send('open-reportes-window', url);
     }
   });
+
+  // API de Google Drive (auth via service account en main process)
+  contextBridge.exposeInMainWorld('driveAPI', {
+    isConfigured: () => ipcRenderer.invoke('drive:is-configured'),
+    getToken: () => ipcRenderer.invoke('drive:get-token'),
+    getConfig: () => ipcRenderer.invoke('drive:get-config'),
+    saveConfig: (config) => ipcRenderer.invoke('drive:save-config', config),
+  });
   
   console.log('[Preload] Electron API expuesta correctamente');
 } catch (error) {

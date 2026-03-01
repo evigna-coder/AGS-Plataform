@@ -5,6 +5,8 @@ import type { Establecimiento, Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { CreateEstablecimientoModal } from '../../components/establecimientos/CreateEstablecimientoModal';
 
 export const EstablecimientosList = () => {
   const [searchParams] = useSearchParams();
@@ -14,6 +16,7 @@ export const EstablecimientosList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroCliente, setFiltroCliente] = useState(clienteCuitFromUrl || '');
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     loadClientes();
@@ -54,29 +57,20 @@ export const EstablecimientosList = () => {
     : '';
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
-            Establecimientos
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Sedes y plantas por cliente
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link to={filtroCliente ? `/establecimientos/nuevo?cliente=${filtroCliente}` : '/clientes'}>
-            <Button disabled={!filtroCliente} title={!filtroCliente ? 'Seleccione un cliente primero' : ''}>
-              + Nuevo Establecimiento
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      <Card>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente</label>
+    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+      <PageHeader
+        title="Establecimientos"
+        subtitle="Sedes y plantas por cliente"
+        count={establecimientos.length}
+        actions={
+          <Button size="sm" disabled={!filtroCliente} title={!filtroCliente ? 'Seleccione un cliente primero' : ''}
+            onClick={() => setShowCreate(true)}>
+            + Nuevo Establecimiento
+          </Button>
+        }
+      >
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="min-w-[260px]">
             <SearchableSelect
               value={filtroCliente}
               onChange={setFiltroCliente}
@@ -88,52 +82,78 @@ export const EstablecimientosList = () => {
             />
           </div>
         </div>
-      </Card>
+      </PageHeader>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <p className="text-slate-400">Cargando establecimientos...</p>
-        </div>
-      ) : !filtroCliente ? (
-        <Card>
-          <div className="text-center py-12 text-slate-500">
-            Seleccione un cliente para ver sus establecimientos.
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-slate-400">Cargando establecimientos...</p>
           </div>
-        </Card>
-      ) : establecimientos.length === 0 ? (
-        <Card>
-          <div className="text-center py-12">
-            <p className="text-slate-400">No hay establecimientos para este cliente</p>
-            <Link to={`/establecimientos/nuevo?cliente=${filtroCliente}`}>
-              <Button className="mt-4">Crear primer establecimiento</Button>
-            </Link>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {establecimientos.map((est) => (
-            <Card key={est.id}>
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-black text-lg text-slate-900 uppercase">{est.nombre}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${est.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>
-                    {est.activo ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-                <p className="text-sm text-slate-600">
-                  {est.direccion}, {est.localidad}, {est.provincia}
-                </p>
-                {clienteNombre && (
-                  <p className="text-xs text-slate-500">Cliente: {clienteNombre}</p>
-                )}
-                <Link to={`/establecimientos/${est.id}`}>
-                  <Button className="w-full" variant="outline" size="sm">Ver detalle</Button>
-                </Link>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+        ) : !filtroCliente ? (
+          <Card>
+            <div className="text-center py-12 text-slate-500">
+              Seleccione un cliente para ver sus establecimientos.
+            </div>
+          </Card>
+        ) : establecimientos.length === 0 ? (
+          <Card>
+            <div className="text-center py-12">
+              <p className="text-slate-400">No hay establecimientos para este cliente</p>
+              <Link to={`/establecimientos/nuevo?cliente=${filtroCliente}`}>
+                <Button className="mt-4">Crear primer establecimiento</Button>
+              </Link>
+            </div>
+          </Card>
+        ) : (
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nombre</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Dirección</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Localidad</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Provincia</th>
+                    {clienteNombre && (
+                      <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
+                    )}
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {establecimientos.map((est) => (
+                    <tr key={est.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-xs font-semibold text-slate-900">{est.nombre}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{est.direccion}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{est.localidad}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{est.provincia}</td>
+                      {clienteNombre && (
+                        <td className="px-4 py-2 text-xs text-slate-500">{clienteNombre}</td>
+                      )}
+                      <td className="px-4 py-2">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                          est.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {est.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <Link to={`/establecimientos/${est.id}`}>
+                          <Button variant="ghost" size="sm">Ver</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      <CreateEstablecimientoModal open={showCreate} onClose={() => setShowCreate(false)}
+        onCreated={loadEstablecimientos} preselectedClienteId={filtroCliente || undefined} />
     </div>
   );
 };

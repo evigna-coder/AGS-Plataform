@@ -22,25 +22,12 @@ export function isProtocolTestMode(): boolean {
 
 /**
  * Devuelve la plantilla de protocolo que corresponde al tipo de servicio.
- * Solo "Calificación de operación" tiene protocolo (HPLC); el resto → null.
- * En el futuro se pueden añadir más reglas (instalación, equipo, etc.).
+ * DESHABILITADO: los protocolos se gestionan ahora a través del catálogo de tablas.
+ * Se mantiene la firma para compatibilidad con llamadas existentes en App.tsx.
  */
 export function getProtocolTemplateForServiceType(
-  serviceType: string | null | undefined
+  _serviceType: string | null | undefined
 ): ProtocolTemplateDoc | null {
-  if (!serviceType) return null;
-
-  const normalized = serviceType.trim().toLowerCase();
-
-  // ÚNICO caso actual con protocolo:
-  if (normalized.includes('calificación de operación')) {
-    if (import.meta.env.DEV && isProtocolTestMode()) {
-      return getNormalized(HPLC_RESULTADOS_TEST);
-    }
-    return getNormalized(califOperacionHplcTemplate);
-  }
-
-  // Para otros tipos de servicio, por ahora NO hay protocolo
   return null;
 }
 

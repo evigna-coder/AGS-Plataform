@@ -51,6 +51,10 @@ export interface Part {
   descripcion: string;
   cantidad: number;
   origen: string;
+  /** FK opcional a artículos de stock (integración futura) */
+  stockArticuloId?: string | null;
+  /** FK opcional a unidad específica de stock */
+  stockUnidadId?: string | null;
 }
 
 // --- Condición IVA (Clientes) ---
@@ -104,6 +108,8 @@ export interface Cliente {
   ingresosBrutos?: string;
   convenioMultilateral?: boolean;
   notas?: string;
+  /** Si true, las OTs de este cliente deben incluir documentación de trazabilidad */
+  requiereTrazabilidad?: boolean;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -345,6 +351,8 @@ export interface PresupuestoItem {
   precioUnitario: number;
   categoriaPresupuestoId?: string; // Referencia a categoría para aplicar reglas tributarias
   subtotal: number;
+  /** FK opcional a artículos de stock (integración futura) */
+  stockArticuloId?: string | null;
 }
 
 // --- Orden de Compra (OC) ---
@@ -455,13 +463,59 @@ export interface TableCatalogRule {
   ruleId: string;
   description: string;
   sourceColumn: string;
-  operator: '<=' | '>=' | '<' | '>' | '==' | '!=';
+  /**
+   * '<=' | '>=' | '<' | '>' | '==' | '!=' : compare sourceColumn value against factoryThreshold
+   * 'vs_spec' : compare sourceColumn (Resultado) value against the per-row value in specColumn (Especificación)
+   */
+  operator: '<=' | '>=' | '<' | '>' | '==' | '!=' | 'vs_spec';
+  /** Fixed numeric/string threshold. For 'vs_spec', stores the specColumn key as a human-readable reference. */
   factoryThreshold: string | number;
+  /** For 'vs_spec': key of the column that holds the expected spec value per row. */
+  specColumn?: string | null;
   unit?: string | null;
   targetColumn: string;
   valueIfPass: string;
   valueIfFail: string;
 }
+
+// --- Checklist types (para tableType: 'checklist') ---
+
+/**
+ * Tipo de interacción de cada ítem de checklist:
+ * - 'checkbox'    : tarea simple para tildar
+ * - 'value_input' : campo con etiqueta y unidad opcional (ej. "Nro. de serie: ___")
+ * - 'pass_fail'   : resultado con opciones CUMPLE / NO_CUMPLE / NA
+ */
+export type ChecklistItemType = 'checkbox' | 'value_input' | 'pass_fail';
+
+export interface ChecklistItem {
+  /** ID estable dentro del checklist (ej. "item_001") */
+  itemId: string;
+  /** Texto descriptivo del ítem */
+  label: string;
+  /** Tipo de interacción */
+  itemType: ChecklistItemType;
+  /** Unidad sufijo para value_input (ej. "bar", "hs.") */
+  unit?: string | null;
+  /**
+   * Nivel de indentación visual:
+   * 0 = cabecera de sección (divider bold, no interactivo)
+   * 1 = sección numerada principal (ej. "1. Sistema general")
+   * 2 = sub-sección (ej. "3.1 Bomba")
+   * 3 = sub-sub-sección (ej. "3.2.a Inyector manual")
+   */
+  depth: 0 | 1 | 2 | 3;
+  /** Si true, el técnico puede marcar esta sección como "No Aplica" */
+  canBeNA?: boolean;
+  /** Prefijo numérico visible (ej. "3.2.a") */
+  numberPrefix?: string | null;
+}
+
+/** Respuesta del técnico para un ítem de checklist */
+export type ChecklistItemAnswer =
+  | { itemType: 'checkbox'; checked: boolean }
+  | { itemType: 'value_input'; value: string }
+  | { itemType: 'pass_fail'; result: 'CUMPLE' | 'NO_CUMPLE' | 'NA' | '' };
 
 export interface TableCatalogEntry {
   id: string;
@@ -469,10 +523,25 @@ export interface TableCatalogEntry {
   description?: string | null;
   sysType: string;
   isDefault: boolean;
-  tableType: 'validation' | 'informational' | 'instruments';
+  tableType: 'validation' | 'informational' | 'instruments' | 'checklist';
   columns: TableCatalogColumn[];
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
+  /**
+   * Cuando es `true`, el ingeniero puede activar "Ver especificación del cliente":
+   * el valor de fábrica (templateRows) se muestra como referencia y el ingeniero
+   * escribe su propia especificación, que es la que se usa para calcular Conclusión.
+   */
+  allowClientSpec?: boolean;
+  /**
+   * Tipos de servicio con los que se asocia esta tabla (ej. "Calificación de operación").
+   * Si está vacío o ausente, la tabla no se filtra por servicio y aparece siempre.
+   */
+  tipoServicio?: string[];
+  /**
+   * Ítems del checklist (solo cuando tableType === 'checklist').
+   */
+  checklistItems?: ChecklistItem[];
   status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;
@@ -490,6 +559,10 @@ export interface ProtocolSelection {
   observaciones?: string | null;
   resultado: 'CONFORME' | 'NO_CONFORME' | 'PENDIENTE';
   completadoAt: string;
+  /** Respuestas del técnico para checklists (tableType === 'checklist') */
+  checklistData?: Record<string, ChecklistItemAnswer>;
+  /** itemIds de secciones marcadas "No Aplica" por el técnico */
+  collapsedSections?: string[];
 }
 
 // --- RenderSpec (especificación determinística para regenerar el PDF) ---
@@ -549,4 +622,599 @@ export interface UsuarioAGS {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// --- Marcas (catálogo compartido) ---
+
+export interface Marca {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Instrumentos y Patrones (Fase 5) ---
+
+/** Categoría funcional del instrumento */
+export type CategoriaInstrumento =
+  | 'termometro'
+  | 'manometro'
+  | 'flujimetro_gases'
+  | 'flujimetro_liquidos';
+
+export const CATEGORIA_INSTRUMENTO_LABELS: Record<CategoriaInstrumento, string> = {
+  termometro: 'Termómetro',
+  manometro: 'Manómetro',
+  flujimetro_gases: 'Flujímetro de gases',
+  flujimetro_liquidos: 'Flujímetro de líquidos',
+};
+
+/** Categoría funcional del patrón (tipo de equipo al que aplica) */
+export type CategoriaPatron =
+  | 'gc'
+  | 'hplc'
+  | 'uv'
+  | 'osmometro'
+  | 'polarimetro';
+
+export const CATEGORIA_PATRON_LABELS: Record<CategoriaPatron, string> = {
+  gc: 'GC',
+  hplc: 'HPLC',
+  uv: 'UV',
+  osmometro: 'Osmómetro',
+  polarimetro: 'Polarímetro',
+};
+
+/** Estado del certificado (calculado en runtime, no se persiste) */
+export type EstadoCertificado = 'vigente' | 'por_vencer' | 'vencido' | 'sin_certificado';
+
+/** Calcula el estado del certificado según la fecha de vencimiento */
+export function calcularEstadoCertificado(
+  vencimiento: string | null | undefined,
+  diasAlerta: number = 30
+): EstadoCertificado {
+  if (!vencimiento) return 'sin_certificado';
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const venc = new Date(vencimiento);
+  venc.setHours(0, 0, 0, 0);
+  if (venc < hoy) return 'vencido';
+  const diffDias = Math.ceil((venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDias <= diasAlerta) return 'por_vencer';
+  return 'vigente';
+}
+
+/** Instrumento o Patrón de referencia con certificado vinculado */
+export interface InstrumentoPatron {
+  id: string;
+  nombre: string;
+  marca: string;
+  modelo: string;
+  serie: string;
+  tipo: 'instrumento' | 'patron';
+  categorias: (CategoriaInstrumento | CategoriaPatron)[];
+  /** URL pública del certificado PDF en Firebase Storage */
+  certificadoUrl?: string | null;
+  certificadoNombre?: string | null;
+  /** Ruta en Storage: certificados/{instrumentoId}/{fileName} */
+  certificadoStoragePath?: string | null;
+  certificadoEmisor?: string | null;
+  certificadoFechaEmision?: string | null;
+  /** Fecha de vencimiento (ISO string, null = sin vencimiento) */
+  certificadoVencimiento?: string | null;
+  /** URL del documento de trazabilidad PDF */
+  trazabilidadUrl?: string | null;
+  trazabilidadNombre?: string | null;
+  trazabilidadStoragePath?: string | null;
+  /** Código de lote (para patrones/estándares) */
+  lote?: string | null;
+  /** ID del instrumento al que reemplaza */
+  reemplazaA?: string | null;
+  /** ID del instrumento que lo reemplazó */
+  reemplazadoPor?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// =============================================
+// --- Módulo Stock ---
+// =============================================
+
+// --- Ingenieros (catálogo de técnicos/ingenieros de campo) ---
+
+export type AreaIngeniero = 'campo' | 'taller' | 'electronica' | 'mecanica' | 'ventas' | 'admin';
+
+export interface Ingeniero {
+  id: string;
+  nombre: string;
+  email?: string | null;
+  telefono?: string | null;
+  area?: AreaIngeniero | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Proveedores ---
+
+export interface Proveedor {
+  id: string;
+  nombre: string;
+  contacto?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  pais?: string | null;
+  cuit?: string | null;
+  notas?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Posiciones de Stock (ubicaciones físicas) ---
+
+export type TipoPosicionStock = 'cajonera' | 'estante' | 'deposito' | 'vitrina' | 'otro';
+
+export interface PosicionStock {
+  id: string;
+  codigo: string;
+  nombre: string;
+  descripcion?: string | null;
+  tipo: TipoPosicionStock;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Artículos (catálogo de partes — un registro por part number) ---
+
+export type TipoArticulo = 'repuesto' | 'consumible' | 'equipo' | 'columna' | 'accesorio' | 'muestra' | 'otro';
+
+export type CategoriaEquipoStock = 'HPLC' | 'GC' | 'MSD' | 'UV' | 'OSMOMETRO' | 'GENERAL';
+
+export interface TratamientoArancelario {
+  derechoImportacion?: number | null;
+  estadistica?: number | null;
+  iva?: number | null;
+  ivaAdicional?: number | null;
+  ganancias?: number | null;
+  ingresosBrutos?: number | null;
+}
+
+export interface Articulo {
+  id: string;
+  /** Part number único */
+  codigo: string;
+  descripcion: string;
+  categoriaEquipo: CategoriaEquipoStock;
+  /** FK → marcas */
+  marcaId: string;
+  /** FK[] → proveedores */
+  proveedorIds: string[];
+  tipo: TipoArticulo;
+  unidadMedida: string;
+  /** Alerta cuando stock disponible < este valor */
+  stockMinimo: number;
+  posicionArancelaria?: string | null;
+  tratamientoArancelario?: TratamientoArancelario | null;
+  /** Precio de lista/referencia */
+  precioReferencia?: number | null;
+  monedaPrecio?: 'ARS' | 'USD' | null;
+  notas?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// --- Unidades (instancia física de un artículo) ---
+
+export type CondicionUnidad = 'nuevo' | 'bien_de_uso' | 'reacondicionado' | 'vendible' | 'scrap';
+
+export type EstadoUnidad =
+  | 'disponible'
+  | 'reservado'
+  | 'asignado'
+  | 'en_transito'
+  | 'consumido'
+  | 'vendido'
+  | 'baja';
+
+export type TipoUbicacionStock = 'posicion' | 'minikit' | 'ingeniero' | 'cliente' | 'proveedor' | 'transito';
+
+export interface UbicacionStock {
+  tipo: TipoUbicacionStock;
+  referenciaId: string;
+  referenciaNombre: string;
+}
+
+export interface UnidadStock {
+  id: string;
+  /** FK → articulos */
+  articuloId: string;
+  /** Desnormalizado para queries rápidas */
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  nroSerie?: string | null;
+  nroLote?: string | null;
+  condicion: CondicionUnidad;
+  estado: EstadoUnidad;
+  ubicacion: UbicacionStock;
+  costoUnitario?: number | null;
+  monedaCosto?: 'ARS' | 'USD' | null;
+  observaciones?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// --- Minikits ---
+
+export type EstadoMinikit = 'en_base' | 'en_campo' | 'en_transito' | 'en_revision';
+
+export interface AsignacionMinikit {
+  tipo: 'ingeniero' | 'ot';
+  /** ingenieroId o otNumber */
+  id: string;
+  /** Desnormalizado para display */
+  nombre: string;
+  /** ISO */
+  desde: string;
+}
+
+export interface Minikit {
+  id: string;
+  /** Código identificador (ej: "MKGC1") */
+  codigo: string;
+  nombre: string;
+  descripcion?: string | null;
+  estado: EstadoMinikit;
+  asignadoA?: AsignacionMinikit | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// --- Movimientos de Stock (log inmutable de auditoría) ---
+
+export type TipoMovimiento = 'ingreso' | 'egreso' | 'transferencia' | 'consumo' | 'devolucion' | 'ajuste';
+
+export type TipoOrigenDestino =
+  | 'posicion'
+  | 'minikit'
+  | 'ingeniero'
+  | 'proveedor'
+  | 'cliente'
+  | 'consumo_ot'
+  | 'baja'
+  | 'ajuste';
+
+export interface MovimientoStock {
+  id: string;
+  tipo: TipoMovimiento;
+  /** FK → unidades */
+  unidadId: string;
+  /** FK → articulos (desnormalizado) */
+  articuloId: string;
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  cantidad: number;
+  origenTipo: TipoOrigenDestino;
+  origenId: string;
+  origenNombre: string;
+  destinoTipo: TipoOrigenDestino;
+  destinoId: string;
+  destinoNombre: string;
+  /** FK → remitos */
+  remitoId?: string | null;
+  /** FK → reportes (para consumos en OT) */
+  otNumber?: string | null;
+  motivo?: string | null;
+  creadoPor: string;
+  createdAt: string;
+}
+
+// --- Remitos (despachos digitales) ---
+
+export type TipoRemito =
+  | 'salida_campo'
+  | 'entrega_cliente'
+  | 'devolucion'
+  | 'interno'
+  | 'derivacion_proveedor'
+  | 'loaner_salida';
+
+export type EstadoRemito =
+  | 'borrador'
+  | 'confirmado'
+  | 'en_transito'
+  | 'completado'
+  | 'completado_parcial'
+  | 'cancelado';
+
+export type TipoRemitoItem = 'sale_y_vuelve' | 'entrega';
+
+export interface RemitoItem {
+  id: string;
+  unidadId: string;
+  articuloId: string;
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  cantidad: number;
+  tipoItem: TipoRemitoItem;
+  devuelto: boolean;
+  fechaDevolucion?: string | null;
+}
+
+export interface Remito {
+  id: string;
+  /** Número correlativo (REM-0001) */
+  numero: string;
+  tipo: TipoRemito;
+  estado: EstadoRemito;
+  /** FK → ingenieros */
+  ingenieroId: string;
+  /** Desnormalizado para display */
+  ingenieroNombre: string;
+  /** OTs asociadas */
+  otNumbers?: string[];
+  /** FK → clientes (para entregas) */
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  items: RemitoItem[];
+  observaciones?: string | null;
+  fechaSalida?: string | null;
+  fechaDevolucion?: string | null;
+  /** FK → fichasPropiedad (para derivaciones o loaners) */
+  fichaId?: string | null;
+  fichaNumero?: string | null;
+  /** FK → loaners (para salidas de loaner) */
+  loanerId?: string | null;
+  loanerCodigo?: string | null;
+  /** FK → proveedores (para derivaciones a proveedor) */
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// =============================================
+// --- Ficha Propiedad del Cliente ---
+// =============================================
+
+export type EstadoFicha =
+  | 'recibido'
+  | 'en_diagnostico'
+  | 'en_reparacion'
+  | 'derivado_proveedor'
+  | 'esperando_repuesto'
+  | 'listo_para_entrega'
+  | 'entregado';
+
+export const ESTADO_FICHA_LABELS: Record<EstadoFicha, string> = {
+  recibido: 'Recibido',
+  en_diagnostico: 'En diagnóstico',
+  en_reparacion: 'En reparación',
+  derivado_proveedor: 'Derivado a proveedor',
+  esperando_repuesto: 'Esperando repuesto',
+  listo_para_entrega: 'Listo para entrega',
+  entregado: 'Entregado',
+};
+
+export const ESTADO_FICHA_COLORS: Record<EstadoFicha, string> = {
+  recibido: 'bg-blue-100 text-blue-800',
+  en_diagnostico: 'bg-yellow-100 text-yellow-800',
+  en_reparacion: 'bg-orange-100 text-orange-800',
+  derivado_proveedor: 'bg-purple-100 text-purple-800',
+  esperando_repuesto: 'bg-amber-100 text-amber-800',
+  listo_para_entrega: 'bg-green-100 text-green-800',
+  entregado: 'bg-slate-100 text-slate-600',
+};
+
+export type ViaIngreso = 'ingeniero' | 'envio' | 'cliente_directo';
+
+export const VIA_INGRESO_LABELS: Record<ViaIngreso, string> = {
+  ingeniero: 'Ingeniero de campo',
+  envio: 'Envío / Transporte',
+  cliente_directo: 'Cliente directo',
+};
+
+export interface AccesorioFicha {
+  id: string;
+  descripcion: string;
+  cantidad: number;
+}
+
+export interface HistorialFicha {
+  id: string;
+  fecha: string;
+  estadoAnterior: EstadoFicha;
+  estadoNuevo: EstadoFicha;
+  nota: string;
+  otNumber?: string | null;
+  reporteTecnico?: string | null;
+  creadoPor: string;
+}
+
+export interface DerivacionProveedor {
+  id: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  remitoSalidaId?: string | null;
+  remitoRetornoId?: string | null;
+  fechaEnvio?: string | null;
+  fechaRetorno?: string | null;
+  descripcion: string;
+  estado: 'pendiente' | 'enviado' | 'recibido';
+}
+
+export interface RepuestoPendiente {
+  id: string;
+  leadId?: string | null;
+  leadDescripcion?: string | null;
+  ordenCompraId?: string | null;
+  ordenCompraNumero?: string | null;
+  descripcion: string;
+  estado: 'pendiente' | 'en_proceso' | 'recibido';
+}
+
+export interface FotoFicha {
+  id: string;
+  driveFileId: string;
+  nombre: string;
+  /** URL directa para mostrar la imagen */
+  url: string;
+  /** URL de vista en Google Drive */
+  viewUrl: string;
+  fecha: string;
+  subidoPor?: string;
+}
+
+export interface FichaPropiedad {
+  id: string;
+  /** Número correlativo (FPC-0001) */
+  numero: string;
+  // --- Qué ingresó ---
+  /** FK → sistemas (si el módulo es conocido) */
+  sistemaId?: string | null;
+  sistemaNombre?: string | null;
+  /** FK → modulos del sistema */
+  moduloId?: string | null;
+  moduloNombre?: string | null;
+  /** Descripción libre si no está en el sistema */
+  descripcionLibre?: string | null;
+  /** Part number / código de artículo */
+  codigoArticulo?: string | null;
+  serie?: string | null;
+  accesorios: AccesorioFicha[];
+  condicionFisica?: string | null;
+  // --- Quién / Cómo llegó ---
+  clienteId: string;
+  clienteNombre: string;
+  establecimientoId?: string | null;
+  establecimientoNombre?: string | null;
+  viaIngreso: ViaIngreso;
+  /** Nombre del ingeniero o empresa de transporte */
+  traidoPor: string;
+  fechaIngreso: string;
+  /** OT que originó la ficha */
+  otReferencia?: string | null;
+  // --- Problema ---
+  descripcionProblema: string;
+  sintomasReportados?: string | null;
+  // --- Ciclo de vida ---
+  estado: EstadoFicha;
+  historial: HistorialFicha[];
+  derivaciones: DerivacionProveedor[];
+  repuestosPendientes: RepuestoPendiente[];
+  // --- Devolución ---
+  remitoDevolucionId?: string | null;
+  fechaEntrega?: string | null;
+  // --- Loaner vinculado ---
+  loanerId?: string | null;
+  loanerCodigo?: string | null;
+  // --- Fotos (metadata, archivos en Google Drive) ---
+  fotos?: FotoFicha[];
+  // --- OTs vinculadas ---
+  otIds: string[];
+  // --- Audit ---
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+// =============================================
+// --- Loaner (Equipos en préstamo) ---
+// =============================================
+
+export type EstadoLoaner = 'en_base' | 'en_cliente' | 'en_transito' | 'vendido' | 'baja';
+
+export const ESTADO_LOANER_LABELS: Record<EstadoLoaner, string> = {
+  en_base: 'En base',
+  en_cliente: 'En cliente',
+  en_transito: 'En tránsito',
+  vendido: 'Vendido',
+  baja: 'Baja',
+};
+
+export const ESTADO_LOANER_COLORS: Record<EstadoLoaner, string> = {
+  en_base: 'bg-green-100 text-green-800',
+  en_cliente: 'bg-blue-100 text-blue-800',
+  en_transito: 'bg-yellow-100 text-yellow-800',
+  vendido: 'bg-slate-100 text-slate-600',
+  baja: 'bg-red-100 text-red-800',
+};
+
+export interface PrestamoLoaner {
+  id: string;
+  clienteId: string;
+  clienteNombre: string;
+  establecimientoId?: string | null;
+  establecimientoNombre?: string | null;
+  motivo: string;
+  /** FK → fichasPropiedad (si el préstamo es por reparación) */
+  fichaId?: string | null;
+  fichaNumero?: string | null;
+  fechaSalida: string;
+  fechaRetornoPrevista?: string | null;
+  fechaRetornoReal?: string | null;
+  condicionRetorno?: string | null;
+  /** Remito de salida */
+  remitoSalidaId?: string | null;
+  remitoSalidaNumero?: string | null;
+  /** Remito de devolución */
+  remitoRetornoId?: string | null;
+  remitoRetornoNumero?: string | null;
+  estado: 'activo' | 'devuelto' | 'cancelado';
+}
+
+export interface ExtraccionLoaner {
+  id: string;
+  fecha: string;
+  descripcion: string;
+  codigoArticulo?: string | null;
+  /** Destino libre: "OT 25660", "Stock", etc. */
+  destino: string;
+  otNumber?: string | null;
+  extraidoPor: string;
+}
+
+export interface VentaLoaner {
+  fecha: string;
+  clienteId: string;
+  clienteNombre: string;
+  precio?: number | null;
+  moneda?: 'ARS' | 'USD' | null;
+  presupuestoId?: string | null;
+  presupuestoNumero?: string | null;
+  notas?: string | null;
+}
+
+export interface Loaner {
+  id: string;
+  /** Código correlativo (LNR-0001) */
+  codigo: string;
+  descripcion: string;
+  /** FK → articulos (si está en stock) */
+  articuloId?: string | null;
+  articuloCodigo?: string | null;
+  articuloDescripcion?: string | null;
+  serie?: string | null;
+  categoriaEquipo?: string | null;
+  condicion: string;
+  estado: EstadoLoaner;
+  prestamos: PrestamoLoaner[];
+  extracciones: ExtraccionLoaner[];
+  venta?: VentaLoaner | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
 }

@@ -7,6 +7,11 @@ interface Props {
   sysType?: string;
   existingSelections: ProtocolSelection[];
   onApply: (newSelections: ProtocolSelection[]) => void;
+  /**
+   * Tablas pre-cargadas sugeridas según el tipoServicio.
+   * Cuando se proveen, el panel arranca abierto con estas tablas pre-tildadas.
+   */
+  suggestedTables?: TableCatalogEntry[];
 }
 
 export const TableSelectorPanel: React.FC<Props> = ({
@@ -14,13 +19,37 @@ export const TableSelectorPanel: React.FC<Props> = ({
   sysType,
   existingSelections,
   onApply,
+  suggestedTables,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [availableTables, setAvailableTables] = useState<TableCatalogEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const hasSuggestions = (suggestedTables?.length ?? 0) > 0;
 
-  // Abrir panel: cargar tablas del catálogo
+  const [open, setOpen] = useState(hasSuggestions);
+  const [availableTables, setAvailableTables] = useState<TableCatalogEntry[]>(suggestedTables ?? []);
+  const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(() => new Set([
+    ...existingSelections.map(s => s.tableId),
+    ...(suggestedTables ?? []).map(t => t.id),
+  ]));
+
+  // Cuando llegan nuevas sugerencias desde el padre (cambio de tipoServicio):
+  // abrir panel, cargar tablas y pre-tildar las sugeridas.
+  useEffect(() => {
+    if (!suggestedTables || suggestedTables.length === 0) return;
+    setOpen(true);
+    setAvailableTables(suggestedTables);
+    setChecked(prev => {
+      const next = new Set(prev);
+      suggestedTables.forEach(t => next.add(t.id));
+      return next;
+    });
+  }, [suggestedTables]);
+
+  // Sincronizar checked cuando cambian existingSelections desde afuera
+  useEffect(() => {
+    setChecked(new Set(existingSelections.map(s => s.tableId)));
+  }, [existingSelections]);
+
+  // Abrir panel: cargar tablas del catálogo (solo si no hay sugeridas ya cargadas)
   const handleOpen = async () => {
     setOpen(true);
     if (availableTables.length > 0) return;
@@ -28,7 +57,6 @@ export const TableSelectorPanel: React.FC<Props> = ({
     try {
       const tables = await firebase.getPublishedTables(sysType || undefined);
       setAvailableTables(tables);
-      // Pre-seleccionar las tablas que ya están en existingSelections
       const already = new Set(existingSelections.map(s => s.tableId));
       setChecked(already);
     } catch (err) {
@@ -37,11 +65,6 @@ export const TableSelectorPanel: React.FC<Props> = ({
       setLoading(false);
     }
   };
-
-  // Sincronizar checked cuando cambian existingSelections desde afuera
-  useEffect(() => {
-    setChecked(new Set(existingSelections.map(s => s.tableId)));
-  }, [existingSelections]);
 
   const toggle = (tableId: string) => {
     setChecked(prev => {
@@ -58,11 +81,37 @@ export const TableSelectorPanel: React.FC<Props> = ({
     const newSelections: ProtocolSelection[] = selectedTables.map(table => {
       const existing = existingSelections.find(s => s.tableId === table.id);
       if (existing) return existing; // preservar datos ya completados
+
+      // Para checklists: inicializar con checklistData vacío
+      if (table.tableType === 'checklist') {
+        return {
+          tableId: table.id,
+          tableName: table.name,
+          tableSnapshot: table,
+          filledData: {},
+          checklistData: {},
+          collapsedSections: [],
+          observaciones: null,
+          resultado: 'PENDIENTE' as const,
+          seleccionadoAt: new Date().toISOString(),
+        };
+      }
+
+      // Para tablas: pre-poblar filledData desde templateRows
+      const filledData: Record<string, Record<string, string>> = {};
+      for (const row of table.templateRows) {
+        if (row.isTitle) continue;
+        filledData[row.rowId] = {};
+        for (const col of table.columns) {
+          const v = row.cells?.[col.key];
+          filledData[row.rowId][col.key] = v != null ? String(v) : '';
+        }
+      }
       return {
         tableId: table.id,
         tableName: table.name,
         tableSnapshot: table,
-        filledData: {},
+        filledData,
         observaciones: null,
         resultado: 'PENDIENTE' as const,
         seleccionadoAt: new Date().toISOString(),
@@ -98,11 +147,15 @@ export const TableSelectorPanel: React.FC<Props> = ({
       <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border-b border-blue-200">
         <div>
           <p className="text-sm font-semibold text-blue-900">Selección de tablas del catálogo</p>
-          {sysType && (
+          {hasSuggestions ? (
+            <p className="text-xs text-blue-600 mt-0.5">
+              Tablas sugeridas para este tipo de servicio — confirmá o modificá la selección.
+            </p>
+          ) : sysType ? (
             <p className="text-xs text-blue-600 mt-0.5">
               Mostrando tablas para: <strong>{sysType}</strong>
             </p>
-          )}
+          ) : null}
         </div>
         <button
           onClick={() => setOpen(false)}
@@ -191,7 +244,7 @@ export const TableSelectorPanel: React.FC<Props> = ({
             disabled={availableTables.length === 0}
             className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Aplicar selección
+            Confirmar selección
           </button>
         </div>
       </div>

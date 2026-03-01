@@ -161,22 +161,29 @@ export const usePDFGeneration = (
     console.log("Generando PDF Hoja 1…");
     const blobHoja1 = await html2pdf().set(opt).from(element).outputPdf('blob');
 
-    if (!protocolTemplateId) {
-      console.log("Sin protocolo, sólo Hoja 1");
+    // Verificar si hay anexo (protocolo, tablas catálogo, instrumentos o fotos)
+    const anexoElement = document.getElementById('pdf-container-anexo-pdf') as HTMLElement | null;
+    if (!anexoElement || anexoElement.querySelectorAll('.protocol-page').length === 0) {
+      console.log("Sin páginas de anexo, sólo Hoja 1");
       return blobHoja1;
     }
 
     document.body.classList.add('pdf-generating');
 
     try {
-      const anexoElement = document.getElementById('pdf-container-anexo-pdf') as HTMLElement | null;
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-      if (!anexoElement) throw new Error('No se encontró #pdf-container-anexo-pdf');
+      // Pre-cargar imágenes del anexo (adjuntos fotográficos)
+      const anexoImages = anexoElement.querySelectorAll('img');
+      await Promise.all(Array.from(anexoImages).map(img =>
+        new Promise(resolve => {
+          if (img.complete) resolve(null);
+          else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
+        })
+      ));
 
       const pageEls = anexoElement.querySelectorAll('.protocol-page');
-      if (pageEls.length === 0) throw new Error('No hay páginas .protocol-page en el anexo');
 
       const rect = anexoElement.getBoundingClientRect();
       console.log('[PDF][ANEXO] rect=', rect.width, rect.height, 'scrollH=', anexoElement.scrollHeight, 'pages=', pageEls.length);

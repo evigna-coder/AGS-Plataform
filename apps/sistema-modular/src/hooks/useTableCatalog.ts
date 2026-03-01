@@ -85,6 +85,15 @@ export function useTableCatalog() {
     }
   }, []);
 
+  const deleteTable = useCallback(async (id: string) => {
+    try {
+      await tableCatalogService.delete(id);
+    } catch (err) {
+      console.error('Error eliminando tabla:', err);
+      throw err;
+    }
+  }, []);
+
   return {
     tables,
     loading,
@@ -96,5 +105,6 @@ export function useTableCatalog() {
     archiveTable,
     cloneTable,
     importTables,
+    deleteTable,
   };
 }

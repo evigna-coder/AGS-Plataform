@@ -108,7 +108,8 @@ export const useOTManagement = (
     setAclaracionCliente,
     setProtocolTemplateId,
     setProtocolData,
-    setProtocolSelections
+    setProtocolSelections,
+    setInstrumentosSeleccionados
   } = setters;
 
   // Cargar OT desde Firebase
@@ -173,6 +174,8 @@ export const useOTManagement = (
         setAclaracionEspecialista(data.aclaracionEspecialista || '');
         // Tablas dinámicas del catálogo
         setProtocolSelections(data.protocolSelections || []);
+        // Instrumentos/patrones seleccionados
+        setInstrumentosSeleccionados(data.instrumentosSeleccionados || []);
         // Plantilla esperada según tipo de servicio; si no hay protocolo para este tipo, limpiar
         const expectedTemplate = getProtocolTemplateForServiceType(data.tipoServicio ?? null);
         if (!expectedTemplate) {
@@ -226,6 +229,7 @@ export const useOTManagement = (
       setProtocolData(createEmptyProtocolDataForTemplate(template));
     }
     setProtocolSelections([]);
+    setInstrumentosSeleccionados([]);
     setShowNewOtModal(false);
     setPendingOt('');
     hasInitialized.current = true;
@@ -290,6 +294,7 @@ export const useOTManagement = (
       setProtocolData(createEmptyProtocolDataForTemplate(templateNewReport));
     }
     setProtocolSelections([]);
+    setInstrumentosSeleccionados([]);
     setClientConfirmed(false);
     setStatus('BORRADOR');
 
@@ -448,6 +453,7 @@ export const useOTManagement = (
     setProtocolTemplateId(newState.protocolTemplateId);
     setProtocolData(newState.protocolData);
     setProtocolSelections([]); // Nueva OT duplicada arranca sin tablas dinámicas seleccionadas
+    setInstrumentosSeleccionados([]); // Instrumentos arrancan vacíos en duplicado
 
     // IMPORTANTE: Habilitar autosave DESPUÉS de que se establezcan todos los estados
     // Esto evita que el autosave intente guardar antes de que los datos estén listos

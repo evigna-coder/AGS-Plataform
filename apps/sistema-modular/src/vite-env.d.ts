@@ -8,10 +8,21 @@ interface ElectronAPI {
     chrome: string;
     electron: string;
   };
+  openExternal?: (url: string) => void;
+  openWindow?: (url: string) => void;
+}
+
+// API de Google Drive expuesta desde preload
+interface DriveAPI {
+  isConfigured: () => Promise<boolean>;
+  getToken: () => Promise<{ token?: string; error?: string }>;
+  getConfig: () => Promise<Record<string, string>>;
+  saveConfig: (config: Record<string, string>) => Promise<boolean>;
 }
 
 interface Window {
   electronAPI?: ElectronAPI;
+  driveAPI?: DriveAPI;
 }
 
 // Variables de entorno de Firebase

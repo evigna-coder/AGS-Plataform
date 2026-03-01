@@ -9,6 +9,16 @@ service firebase.storage {
       // allow read, write: if request.auth != null;
     }
     
+    // Certificados e instrumentos (calibración y trazabilidad)
+    match /certificados/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
+    // Adjuntos de reportes OT (fotos y archivos)
+    match /adjuntos/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
     // Bloquear acceso a otras rutas
     match /{allPaths=**} {
       allow read, write: if false;

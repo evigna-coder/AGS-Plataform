@@ -19,8 +19,31 @@ import { MobileMenu } from './components/MobileMenu';
 import { signOut } from './services/authService';
 import { TableSelectorPanel } from './components/TableSelectorPanel';
 import { CatalogTableView } from './components/CatalogTableView';
-import type { ProtocolSelection } from './types/tableCatalog';
+import { CatalogChecklistView } from './components/CatalogChecklistView';
+import { InstrumentoSelectorPanel } from './components/InstrumentoSelectorPanel';
+import { AdjuntosSection } from './components/AdjuntosSection';
+import { InstrumentosPDFSection } from './components/InstrumentosPDFSection';
+import { AdjuntosPDFSection } from './components/AdjuntosPDFSection';
+import type { InstrumentoPatronOption, AdjuntoMeta } from './types/instrumentos';
+import { SmartSelect } from './components/ui/SmartSelect';
+import { useEntitySelectors } from './hooks/useEntitySelectors';
+import type { ProtocolSelection, TableCatalogEntry, ChecklistItemAnswer } from './types/tableCatalog';
 
+/**
+ * Tipos de servicio que habilitan el catálogo de tablas.
+ * Excluye: visita de diagnóstico, reparación, trabajo en bench, capacitación, cortesía, etc.
+ */
+const CATALOG_SERVICE_TYPES = new Set([
+  'Calibración',
+  'Calificación de instalación',
+  'Calificación de operación',
+  'Calificación de software',
+  'Limpieza de fuente de Iones',
+  'Mantenimiento preventivo con consumibles',
+  'Mantenimiento preventivo sin consumibles',
+  'Mantenimiento preventivo sin consumibles, incluye limpieza de módulos',
+  'Recalificación post reparación',
+]);
 
 // Declaración de variables globales para librerías externas
 const ISO_LOGO_SRC: string =
@@ -349,7 +372,8 @@ const App: React.FC = () => {
     moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
-    signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections
+    signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
+    instrumentosSeleccionados
   } = formState;
 
   /** Plantilla actual: por id guardado o por tipo de servicio (para fallback) */
@@ -384,6 +408,43 @@ const App: React.FC = () => {
     setHorasTrabajadas(String(hours));
   }, [fechaInicio, horaInicio, fechaFin, horaFin, manualHoras]);
 
+  // Tablas sugeridas automáticamente según el tipo de servicio (pre-tildadas en el selector)
+  const [suggestedTables, setSuggestedTables] = useState<TableCatalogEntry[]>([]);
+
+  useEffect(() => {
+    if (!CATALOG_SERVICE_TYPES.has(tipoServicio) || readOnly) {
+      setSuggestedTables([]);
+      return;
+    }
+    let cancelled = false;
+    const loadTables = async () => {
+      try {
+        const allTables = await firebase.getPublishedTables(sistema || undefined);
+        if (cancelled) return;
+        // Tablas sin tipoServicio asignado aparecen siempre; las demás solo si coinciden
+        const matchingTables = allTables.filter(t =>
+          !t.tipoServicio || t.tipoServicio.length === 0 || t.tipoServicio.includes(tipoServicio)
+        );
+        setSuggestedTables(matchingTables);
+      } catch (err) {
+        console.error('Error auto-cargando tablas del catálogo:', err);
+      }
+    };
+    loadTables();
+    return () => { cancelled = true; };
+  }, [tipoServicio, sistema]);
+
+  // Adjuntos: viven en colección separada /adjuntos (no en reportState)
+  const [adjuntos, setAdjuntos] = useState<AdjuntoMeta[]>([]);
+  useEffect(() => {
+    if (!otNumber) { setAdjuntos([]); return; }
+    let cancelled = false;
+    firebase.getAdjuntosByOT(otNumber).then(data => {
+      if (!cancelled) setAdjuntos(data);
+    }).catch(err => console.error('Error cargando adjuntos:', err));
+    return () => { cancelled = true; };
+  }, [otNumber]);
+
   // Desestructurar setters para facilitar el uso
   const {
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
@@ -394,13 +455,13 @@ const App: React.FC = () => {
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
-    setProtocolSelections
+    setProtocolSelections, setInstrumentosSeleccionados
   } = setters;
 
   // Handlers para tablas dinámicas del catálogo
   const handleCatalogCellChange = (tableId: string, rowId: string, colKey: string, value: string) => {
-    setProtocolSelections(
-      protocolSelections.map(s =>
+    setProtocolSelections(prev =>
+      prev.map(s =>
         s.tableId !== tableId ? s : {
           ...s,
           filledData: {
@@ -424,8 +485,40 @@ const App: React.FC = () => {
     );
   };
 
+  const handleCatalogToggleClientSpec = (tableId: string, enabled: boolean) => {
+    setProtocolSelections(
+      protocolSelections.map(s => s.tableId !== tableId ? s : { ...s, clientSpecEnabled: enabled })
+    );
+  };
+
   const handleRemoveCatalogTable = (tableId: string) => {
     setProtocolSelections(protocolSelections.filter(s => s.tableId !== tableId));
+  };
+
+  const handleChecklistAnswer = (tableId: string, itemId: string, answer: ChecklistItemAnswer) => {
+    setProtocolSelections(prev =>
+      prev.map(s =>
+        s.tableId !== tableId ? s : {
+          ...s,
+          checklistData: { ...(s.checklistData ?? {}), [itemId]: answer },
+        }
+      )
+    );
+  };
+
+  const handleToggleChecklistSection = (tableId: string, itemId: string, isNA: boolean) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const current = s.collapsedSections ?? [];
+        return {
+          ...s,
+          collapsedSections: isNA
+            ? [...current.filter(id => id !== itemId), itemId]
+            : current.filter(id => id !== itemId),
+        };
+      })
+    );
   };
 
   const baseInputClass =
@@ -449,7 +542,8 @@ const App: React.FC = () => {
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
-  
+  const entitySelectors = useEntitySelectors(firebase, setters);
+
   // Hook de modales para reemplazar alert() y confirm()
   const modal = useModal();
 
@@ -467,6 +561,20 @@ const App: React.FC = () => {
   const newReport = () => {
     newReportFromHook(modal.showConfirm);
   };
+
+  // Intentar vincular con DB al cargar una OT existente
+  const prevOtRef = useRef<string>('');
+  useEffect(() => {
+    if (otNumber && otNumber !== prevOtRef.current && hasInitialized.current && razonSocial) {
+      entitySelectors.tryMatchExistingData(razonSocial).catch(() => {});
+    }
+    prevOtRef.current = otNumber;
+  }, [otNumber]);
+
+  // Reset selecciones al crear nuevo reporte
+  useEffect(() => {
+    if (!otNumber) entitySelectors.reset();
+  }, [otNumber]);
 
   const isLockedByClient = readOnly && status === 'BORRADOR';
 
@@ -962,64 +1070,92 @@ const App: React.FC = () => {
                   <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">
                     Razón Social
                   </label>
-
-                  <input
-                    type="text"
-                    value={razonSocial}
-
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      setRazonSocial(e.target.value);
-                    }}
-
-                    disabled={readOnly}
-
-                    placeholder=""
-                    className={`w-full border rounded-lg px-3 py-1.5 text-sm font-bold
-                      ${readOnly
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'bg-white border-slate-300'}
-                    `}
-                  />
+                  {entitySelectors.manualMode.cliente ? (
+                    <>
+                      <input
+                        type="text"
+                        value={razonSocial}
+                        onChange={(e) => { if (readOnly) return; setRazonSocial(e.target.value); }}
+                        disabled={readOnly}
+                        placeholder=""
+                        className={`w-full border rounded-lg px-3 py-1.5 text-sm font-bold
+                          ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+                      />
+                      {!readOnly && (
+                        <button type="button" onClick={() => entitySelectors.toggleManualMode('cliente')}
+                          className="text-[9px] text-blue-600 mt-0.5 hover:underline">
+                          Buscar en base de datos
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <SmartSelect
+                        value={entitySelectors.clienteId || ''}
+                        onChange={entitySelectors.selectCliente}
+                        options={entitySelectors.clienteOptions}
+                        placeholder="Seleccionar cliente..."
+                        disabled={readOnly}
+                        loading={entitySelectors.loadingClientes}
+                      />
+                      {!readOnly && (
+                        <button type="button" onClick={() => entitySelectors.toggleManualMode('cliente')}
+                          className="text-[9px] text-slate-400 mt-0.5 hover:underline">
+                          Escribir manualmente
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
                     </div>
+
+                    {/* Establecimiento (visible solo si hay cliente seleccionado desde DB) */}
+                    {entitySelectors.clienteId && !entitySelectors.manualMode.cliente && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Establecimiento</label>
+                          <SmartSelect
+                            value={entitySelectors.establecimientoId || ''}
+                            onChange={(id) => entitySelectors.selectEstablecimiento(id)}
+                            options={entitySelectors.establecimientoOptions}
+                            placeholder="Seleccionar establecimiento..."
+                            disabled={readOnly}
+                            loading={entitySelectors.loadingEstablecimientos}
+                          />
+                        </div>
+                        {entitySelectors.establecimientoId && entitySelectors.contactoOptions.length > 0 && (
+                          <div>
+                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Contacto</label>
+                            <SmartSelect
+                              value=""
+                              onChange={entitySelectors.selectContacto}
+                              options={entitySelectors.contactoOptions}
+                              placeholder="Seleccionar contacto..."
+                              disabled={readOnly}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
                       type="text"
                       value={contacto}
                       placeholder="Persona de contacto"
-
-                      onChange={(e) => {
-                        if (readOnly) return;
-                        setContacto(e.target.value);
-                      }}
-
+                      onChange={(e) => { if (readOnly) return; setContacto(e.target.value); }}
                       disabled={readOnly}
-
                       className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                        ${readOnly
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300'}
-                      `}
+                        ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                     />
-
                     <input
                       type="email"
                       value={emailPrincipal}
                       placeholder="correo@ejemplo.com"
-
-                      onChange={(e) => {
-                        if (readOnly) return;
-                        setEmailPrincipal(e.target.value);
-                      }}
-
+                      onChange={(e) => { if (readOnly) return; setEmailPrincipal(e.target.value); }}
                       disabled={readOnly}
-
                       className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                        ${readOnly
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300'}
-                      `}
+                        ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                     />
                   </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1027,57 +1163,28 @@ const App: React.FC = () => {
                       type="text"
                       value={direccion}
                       placeholder="Calle y número"
-
-                      onChange={(e) => {
-                        if (readOnly) return;
-                        setDireccion(e.target.value);
-                      }}
-
+                      onChange={(e) => { if (readOnly) return; setDireccion(e.target.value); }}
                       disabled={readOnly}
-
                       className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                        ${readOnly
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300'}
-                      `}
+                        ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                     />
-
                     <input
                       type="text"
                       value={localidad}
                       placeholder="Localidad"
-
-                      onChange={(e) => {
-                        if (readOnly) return;
-                        setLocalidad(e.target.value);
-                      }}
-
+                      onChange={(e) => { if (readOnly) return; setLocalidad(e.target.value); }}
                       disabled={readOnly}
-
                       className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                        ${readOnly
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300'}
-                      `}
+                        ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                     />
-
                     <input
                       type="text"
                       value={provincia}
                       placeholder="Provincia"
-
-                      onChange={(e) => {
-                        if (readOnly) return;
-                        setProvincia(e.target.value);
-                      }}
-
+                      onChange={(e) => { if (readOnly) return; setProvincia(e.target.value); }}
                       disabled={readOnly}
-
                       className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                        ${readOnly
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300'}
-                      `}
+                        ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                     />
                   </div>
 
@@ -1087,101 +1194,98 @@ const App: React.FC = () => {
                       </h3>
 
                       <div className="grid grid-cols-2 gap-3 mb-3">
-                        <input
-                          type="text"
-                          value={sistema}
-                          placeholder="Nombre del sistema intervenido"
-
-                          onChange={(e) => {
-                            if (readOnly) return;
-                            setSistema(e.target.value);
-                          }}
-
-                          disabled={readOnly}
-
-                          className={`w-full border rounded-lg px-3 py-1.5 text-sm font-bold
-                            ${readOnly
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-white border-slate-300'}
-                          `}
-                        />
+                        <div>
+                          {entitySelectors.manualMode.sistema || entitySelectors.manualMode.cliente ? (
+                            <>
+                              <input
+                                type="text"
+                                value={sistema}
+                                placeholder="Nombre del sistema intervenido"
+                                onChange={(e) => { if (readOnly) return; setSistema(e.target.value); }}
+                                disabled={readOnly}
+                                className={`w-full border rounded-lg px-3 py-1.5 text-sm font-bold
+                                  ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+                              />
+                              {!readOnly && !entitySelectors.manualMode.cliente && (
+                                <button type="button" onClick={() => entitySelectors.toggleManualMode('sistema')}
+                                  className="text-[9px] text-blue-600 mt-0.5 hover:underline">
+                                  Buscar en base de datos
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <SmartSelect
+                                value={entitySelectors.sistemaId || ''}
+                                onChange={(id) => entitySelectors.selectSistema(id)}
+                                options={entitySelectors.sistemaOptions}
+                                placeholder={entitySelectors.establecimientoId ? 'Seleccionar sistema...' : 'Primero seleccionar establecimiento'}
+                                disabled={readOnly || !entitySelectors.establecimientoId}
+                                loading={entitySelectors.loadingSistemas}
+                              />
+                              {!readOnly && (
+                                <button type="button" onClick={() => entitySelectors.toggleManualMode('sistema')}
+                                  className="text-[9px] text-slate-400 mt-0.5 hover:underline">
+                                  Escribir manualmente
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
 
                         <input
                           type="text"
                           value={codigoInternoCliente}
                           placeholder="Id - Código interno del cliente"
-
-                          onChange={(e) => {
-                            if (readOnly) return;
-                            setCodigoInternoCliente(e.target.value);
-                          }}
-
+                          onChange={(e) => { if (readOnly) return; setCodigoInternoCliente(e.target.value); }}
                           disabled={readOnly}
-
                           className={`w-full border rounded-lg px-3 py-1.5 text-sm font-bold
-                            ${readOnly
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-white border-slate-300'}
-                          `}
+                            ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                         />
                       </div>
+
+                      {/* Selector de módulo (visible si hay sistema seleccionado desde DB) */}
+                      {entitySelectors.sistemaId && !entitySelectors.manualMode.sistema && entitySelectors.moduloOptions.length > 0 && (
+                        <div className="mb-3">
+                          <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Módulo</label>
+                          <SmartSelect
+                            value={entitySelectors.moduloId || ''}
+                            onChange={(id) => entitySelectors.selectModulo(id)}
+                            options={entitySelectors.moduloOptions}
+                            placeholder="Seleccionar módulo..."
+                            disabled={readOnly}
+                            loading={entitySelectors.loadingModulos}
+                          />
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-3 gap-3">
                         <input
                           type="text"
                           value={moduloModelo}
                           placeholder="Modelo"
-
-                          onChange={(e) => {
-                            if (readOnly) return;
-                            setModuloModelo(e.target.value);
-                          }}
-
+                          onChange={(e) => { if (readOnly) return; setModuloModelo(e.target.value); }}
                           disabled={readOnly}
-
                           className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                            ${readOnly
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-white border-slate-300'}
-                          `}
+                            ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                         />
-
                         <input
                           type="text"
                           value={moduloDescripcion}
                           placeholder="Descripción"
-
-                          onChange={(e) => {
-                            if (readOnly) return;
-                            setModuloDescripcion(e.target.value);
-                          }}
-
+                          onChange={(e) => { if (readOnly) return; setModuloDescripcion(e.target.value); }}
                           disabled={readOnly}
-
                           className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                            ${readOnly
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-white border-slate-300'}
-                          `}
+                            ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                         />
-
                         <input
                           type="text"
                           value={moduloSerie}
                           placeholder="S/N o Serie"
-
-                          onChange={(e) => {
-                            if (readOnly) return;
-                            setModuloSerie(e.target.value);
-                          }}
-
+                          onChange={(e) => { if (readOnly) return; setModuloSerie(e.target.value); }}
                           disabled={readOnly}
-
                           className={`w-full border rounded-lg px-3 py-1.5 text-sm font-mono
-                            ${readOnly
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'bg-white border-slate-300'}
-                          `}
+                            ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
                         />
                       </div>
                     </div>
@@ -1888,6 +1992,23 @@ const App: React.FC = () => {
         </>
       )}
 
+      {/* ================= FOTOS Y ADJUNTOS ================= */}
+      <section className="no-print max-w-5xl mx-auto px-2 mb-6 mt-4">
+        <div className="flex items-center gap-2 mb-3">
+          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-sm font-medium text-slate-700">Fotos y adjuntos</span>
+        </div>
+        <AdjuntosSection
+          firebase={firebase}
+          otNumber={otNumber}
+          adjuntos={adjuntos}
+          setAdjuntos={setAdjuntos}
+          readOnly={readOnly}
+        />
+      </section>
+
       {/* ====================== ANEXO: PROTOCOLO (UI) ====================== */}
       {/* Siempre en DOM para que el PDF multipágina pueda capturarlo; en preview se oculta con posición fuera de pantalla */}
       <div
@@ -1903,36 +2024,89 @@ const App: React.FC = () => {
             Modo test: plantilla de prueba cargada
           </div>
         )}
-        {/* Selector de tablas dinámicas del catálogo */}
-        {!readOnly && (
+        {/* Selector de tablas dinámicas del catálogo — se auto-abre con sugerencias pre-tildadas */}
+        {!readOnly && CATALOG_SERVICE_TYPES.has(tipoServicio) && (
           <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2">
             <TableSelectorPanel
               firebase={firebase}
               sysType={sistema || undefined}
               existingSelections={protocolSelections}
+              suggestedTables={suggestedTables}
               onApply={(selections) => {
                 setProtocolSelections(selections);
+                setSuggestedTables([]);
                 reportForm.markUserInteracted();
               }}
             />
           </div>
         )}
 
-        {/* Tablas dinámicas seleccionadas (modo edición) */}
+        {/* Tablas y checklists seleccionados (modo edición) */}
         {protocolSelections.length > 0 && (
           <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
-            {protocolSelections.map(sel => (
-              <CatalogTableView
-                key={sel.tableId}
-                selection={sel}
-                readOnly={readOnly}
-                isPrint={false}
-                onChangeData={handleCatalogCellChange}
-                onChangeObservaciones={handleCatalogObservaciones}
-                onChangeResultado={handleCatalogResultado}
-                onRemove={handleRemoveCatalogTable}
-              />
-            ))}
+            {protocolSelections.map(sel =>
+              sel.tableSnapshot.tableType === 'checklist' ? (
+                <CatalogChecklistView
+                  key={sel.tableId}
+                  selection={sel}
+                  readOnly={readOnly}
+                  isPrint={false}
+                  onChangeData={handleChecklistAnswer}
+                  onChangeObservaciones={handleCatalogObservaciones}
+                  onChangeResultado={handleCatalogResultado}
+                  onToggleSection={handleToggleChecklistSection}
+                  onRemove={handleRemoveCatalogTable}
+                />
+              ) : (
+                <CatalogTableView
+                  key={sel.tableId}
+                  selection={sel}
+                  readOnly={readOnly}
+                  isPrint={false}
+                  onChangeData={handleCatalogCellChange}
+                  onChangeObservaciones={handleCatalogObservaciones}
+                  onChangeResultado={handleCatalogResultado}
+                  onToggleClientSpec={handleCatalogToggleClientSpec}
+                  onRemove={handleRemoveCatalogTable}
+                />
+              )
+            )}
+          </div>
+        )}
+
+        {/* Instrumentos/patrones: solo visible cuando hay tablas seleccionadas */}
+        {protocolSelections.length > 0 && (
+          <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-medium text-slate-700">Instrumentos / Patrones utilizados</span>
+            </div>
+            <InstrumentoSelectorPanel
+              firebase={firebase}
+              selected={instrumentosSeleccionados}
+              onApply={(sel) => {
+                setInstrumentosSeleccionados(sel);
+                reportForm.markUserInteracted();
+              }}
+              readOnly={readOnly}
+            />
+            {instrumentosSeleccionados.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {instrumentosSeleccionados.map(inst => (
+                  <span key={inst.id} className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
+                    {inst.nombre}
+                    {!readOnly && (
+                      <button onClick={() => {
+                        setInstrumentosSeleccionados(instrumentosSeleccionados.filter(i => i.id !== inst.id));
+                        reportForm.markUserInteracted();
+                      }} className="text-indigo-400 hover:text-indigo-600 ml-0.5">×</button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1961,7 +2135,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Render root exclusivo para PDF: siempre montado con protocolo; invisible con visibility (capturable, sin opacity) */}
-      {(protocolTemplate || protocolSelections.length > 0) && (
+      {(protocolTemplate || protocolSelections.length > 0 || instrumentosSeleccionados.length > 0 || adjuntos.some(a => a.mimeType.startsWith('image/'))) && (
         <div
           id="pdf-container-anexo-pdf"
           style={{
@@ -1985,15 +2159,27 @@ const App: React.FC = () => {
               mode="print"
             />
           )}
-          {protocolSelections.map(sel => (
-            <CatalogTableView
-              key={sel.tableId}
-              selection={sel}
-              readOnly
-              isPrint
-              onChangeData={() => {}}
-            />
-          ))}
+          {protocolSelections.map(sel =>
+            sel.tableSnapshot.tableType === 'checklist' ? (
+              <CatalogChecklistView
+                key={sel.tableId}
+                selection={sel}
+                readOnly
+                isPrint
+                onChangeData={() => {}}
+              />
+            ) : (
+              <CatalogTableView
+                key={sel.tableId}
+                selection={sel}
+                readOnly
+                isPrint
+                onChangeData={() => {}}
+              />
+            )
+          )}
+          <InstrumentosPDFSection instrumentos={instrumentosSeleccionados} />
+          <AdjuntosPDFSection adjuntos={adjuntos} />
         </div>
       )}
 

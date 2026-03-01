@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
-import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, TableCatalogEntry } from '@ags/shared';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoItem, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca, Ingeniero, Proveedor, PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, FichaPropiedad, HistorialFicha, DerivacionProveedor, Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner } from '@ags/shared';
 
 // --- Utilidades para CUIT como id de cliente ---
 /** Normaliza CUIT: quita guiones y espacios (solo dígitos). */
@@ -55,10 +56,12 @@ if (missingVars.length > 0) {
 
 let app;
 let db;
+let storage;
 
 try {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
+  storage = getStorage(app);
   console.log('%c✅ Firebase inicializado correctamente', 'color: green; font-weight: bold');
   console.log('%c🔥 Sistema Modular conectado a Firestore', 'color: orange; font-weight: bold');
 } catch (error) {
@@ -1318,9 +1321,21 @@ export const condicionesPagoService = {
 };
 
 // --- Biblioteca de Tablas (/tableCatalog) ---
-/** Deep-clean: elimina undefined en objetos anidados usando JSON round-trip */
+/**
+ * Deep-clean para Firestore:
+ * 1. Elimina valores undefined (JSON round-trip)
+ * 2. Elimina keys vacíos "" de objetos — Firestore no acepta field names vacíos
+ */
 function deepCleanForFirestore(obj: any): any {
-  return JSON.parse(JSON.stringify(obj));
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(deepCleanForFirestore);
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '') continue;              // skip empty-string keys
+    if (value === undefined) continue;    // skip undefined values
+    cleaned[key] = deepCleanForFirestore(value);
+  }
+  return cleaned;
 }
 
 function toTableCatalogEntry(id: string, data: any): TableCatalogEntry {
@@ -1389,5 +1404,947 @@ export const tableCatalogService = {
 
   async saveMany(entries: TableCatalogEntry[]): Promise<string[]> {
     return Promise.all(entries.map(e => this.save(e)));
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'tableCatalog', id));
+  },
+};
+
+// ========== INSTRUMENTOS Y CERTIFICADOS ==========
+
+function toInstrumento(id: string, data: any): InstrumentoPatron {
+  return {
+    id,
+    ...data,
+    createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate?.().toISOString() ?? data.updatedAt ?? new Date().toISOString(),
+  } as InstrumentoPatron;
+}
+
+export const instrumentosService = {
+  async getAll(filters?: {
+    tipo?: 'instrumento' | 'patron';
+    categoria?: CategoriaInstrumento;
+    activoOnly?: boolean;
+  }): Promise<InstrumentoPatron[]> {
+    let q = query(collection(db, 'instrumentos'));
+    if (filters?.activoOnly) {
+      q = query(q, where('activo', '==', true));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    const snap = await getDocs(q);
+    let items = snap.docs.map(d => toInstrumento(d.id, d.data()));
+    if (filters?.categoria) {
+      items = items.filter(i => i.categorias.includes(filters.categoria!));
+    }
+    items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return items;
+  },
+
+  async getById(id: string): Promise<InstrumentoPatron | null> {
+    const snap = await getDoc(doc(db, 'instrumentos', id));
+    if (!snap.exists()) return null;
+    return toInstrumento(snap.id, snap.data());
+  },
+
+  async create(data: Omit<InstrumentoPatron, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'instrumentos', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<InstrumentoPatron, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'instrumentos', id), payload);
+  },
+
+  async deactivate(id: string): Promise<void> {
+    await this.update(id, { activo: false });
+  },
+
+  async activate(id: string): Promise<void> {
+    await this.update(id, { activo: true });
+  },
+
+  async delete(id: string): Promise<void> {
+    // Intentar borrar archivos de Storage antes de eliminar el documento
+    const instrumento = await this.getById(id);
+    if (instrumento?.certificadoStoragePath) {
+      try { await deleteObject(storageRef(storage, instrumento.certificadoStoragePath)); } catch { /* ignore */ }
+    }
+    if (instrumento?.trazabilidadStoragePath) {
+      try { await deleteObject(storageRef(storage, instrumento.trazabilidadStoragePath)); } catch { /* ignore */ }
+    }
+    await deleteDoc(doc(db, 'instrumentos', id));
+  },
+
+  async reemplazar(idViejo: string, idNuevo: string): Promise<void> {
+    await this.update(idViejo, { reemplazadoPor: idNuevo, activo: false });
+    await this.update(idNuevo, { reemplazaA: idViejo });
+  },
+
+  // ── Storage: certificados y trazabilidad ──
+
+  async uploadCertificado(instrumentoId: string, file: File): Promise<{ url: string; path: string }> {
+    const path = `certificados/${instrumentoId}/${file.name}`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, file, { contentType: file.type || 'application/pdf' });
+    const url = await getDownloadURL(fileRef);
+    await this.update(instrumentoId, {
+      certificadoUrl: url,
+      certificadoNombre: file.name,
+      certificadoStoragePath: path,
+    });
+    return { url, path };
+  },
+
+  async uploadTrazabilidad(instrumentoId: string, file: File): Promise<{ url: string; path: string }> {
+    const path = `certificados/${instrumentoId}/trazabilidad/${file.name}`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, file, { contentType: file.type || 'application/pdf' });
+    const url = await getDownloadURL(fileRef);
+    await this.update(instrumentoId, {
+      trazabilidadUrl: url,
+      trazabilidadNombre: file.name,
+      trazabilidadStoragePath: path,
+    });
+    return { url, path };
+  },
+
+  async deleteStorageFile(storagePath: string): Promise<void> {
+    await deleteObject(storageRef(storage, storagePath));
+  },
+};
+
+// ========== MARCAS (catálogo compartido) ==========
+
+export const marcasService = {
+  async getAll(activoOnly: boolean = true): Promise<Marca[]> {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'marcas'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'marcas'));
+    }
+    const snap = await getDocs(q);
+    const marcas = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as Marca[];
+    marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return marcas;
+  },
+
+  async create(nombre: string): Promise<string> {
+    const docRef = await addDoc(collection(db, 'marcas'), {
+      nombre: nombre.trim(),
+      activo: true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    return docRef.id;
+  },
+
+  async update(id: string, data: Partial<Omit<Marca, 'id' | 'createdAt'>>): Promise<void> {
+    await updateDoc(doc(db, 'marcas', id), {
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'marcas', id));
+  },
+};
+
+// ========== INGENIEROS ==========
+
+export const ingenierosService = {
+  async getAll(activoOnly: boolean = true): Promise<Ingeniero[]> {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'ingenieros'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'ingenieros'));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as Ingeniero[];
+    items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return items;
+  },
+
+  async getById(id: string): Promise<Ingeniero | null> {
+    const snap = await getDoc(doc(db, 'ingenieros', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as Ingeniero;
+  },
+
+  async create(data: Omit<Ingeniero, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = cleanFirestoreData({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'ingenieros', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<Ingeniero, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = cleanFirestoreData({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'ingenieros', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'ingenieros', id));
+  },
+};
+
+// ========== PROVEEDORES ==========
+
+export const proveedoresService = {
+  async getAll(activoOnly: boolean = true): Promise<Proveedor[]> {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'proveedores'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'proveedores'));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as Proveedor[];
+    items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return items;
+  },
+
+  async getById(id: string): Promise<Proveedor | null> {
+    const snap = await getDoc(doc(db, 'proveedores', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as Proveedor;
+  },
+
+  async create(data: Omit<Proveedor, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = cleanFirestoreData({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'proveedores', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<Proveedor, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = cleanFirestoreData({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'proveedores', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'proveedores', id));
+  },
+};
+
+// ========== POSICIONES DE STOCK ==========
+
+export const posicionesStockService = {
+  async getAll(activoOnly: boolean = true): Promise<PosicionStock[]> {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'posicionesStock'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'posicionesStock'));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as PosicionStock[];
+    items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    return items;
+  },
+
+  async getById(id: string): Promise<PosicionStock | null> {
+    const snap = await getDoc(doc(db, 'posicionesStock', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as PosicionStock;
+  },
+
+  async create(data: Omit<PosicionStock, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = cleanFirestoreData({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'posicionesStock', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<PosicionStock, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = cleanFirestoreData({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'posicionesStock', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'posicionesStock', id));
+  },
+};
+
+// ========== ARTICULOS (catálogo de partes) ==========
+
+export const articulosService = {
+  async getAll(filters?: {
+    categoriaEquipo?: string;
+    marcaId?: string;
+    tipo?: string;
+    activoOnly?: boolean;
+  }): Promise<Articulo[]> {
+    let q = query(collection(db, 'articulos'));
+    if (filters?.activoOnly !== false) {
+      q = query(q, where('activo', '==', true));
+    }
+    if (filters?.categoriaEquipo) {
+      q = query(q, where('categoriaEquipo', '==', filters.categoriaEquipo));
+    }
+    if (filters?.marcaId) {
+      q = query(q, where('marcaId', '==', filters.marcaId));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as Articulo[];
+    items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    return items;
+  },
+
+  async getById(id: string): Promise<Articulo | null> {
+    const snap = await getDoc(doc(db, 'articulos', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as Articulo;
+  },
+
+  async getByCodigo(codigo: string): Promise<Articulo | null> {
+    const q = query(collection(db, 'articulos'), where('codigo', '==', codigo));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return {
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as Articulo;
+  },
+
+  async create(data: Omit<Articulo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'articulos', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<Articulo, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'articulos', id), payload);
+  },
+
+  async deactivate(id: string): Promise<void> {
+    await this.update(id, { activo: false });
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'articulos', id));
+  },
+};
+
+// ========== UNIDADES DE STOCK ==========
+
+export const unidadesService = {
+  async getAll(filters?: {
+    articuloId?: string;
+    estado?: string;
+    condicion?: string;
+    activoOnly?: boolean;
+  }): Promise<UnidadStock[]> {
+    let q = query(collection(db, 'unidades'));
+    if (filters?.activoOnly !== false) {
+      q = query(q, where('activo', '==', true));
+    }
+    if (filters?.articuloId) {
+      q = query(q, where('articuloId', '==', filters.articuloId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    if (filters?.condicion) {
+      q = query(q, where('condicion', '==', filters.condicion));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as UnidadStock[];
+    items.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    return items;
+  },
+
+  async getByArticulo(articuloId: string): Promise<UnidadStock[]> {
+    return this.getAll({ articuloId, activoOnly: true });
+  },
+
+  async getById(id: string): Promise<UnidadStock | null> {
+    const snap = await getDoc(doc(db, 'unidades', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as UnidadStock;
+  },
+
+  async create(data: Omit<UnidadStock, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'unidades', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<UnidadStock, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'unidades', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'unidades', id));
+  },
+};
+
+// ========== MINIKITS ==========
+
+export const minikitsService = {
+  async getAll(activoOnly: boolean = true): Promise<Minikit[]> {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'minikits'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'minikits'));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as Minikit[];
+    items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    return items;
+  },
+
+  async getById(id: string): Promise<Minikit | null> {
+    const snap = await getDoc(doc(db, 'minikits', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as Minikit;
+  },
+
+  async create(data: Omit<Minikit, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'minikits', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<Minikit, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'minikits', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'minikits', id));
+  },
+};
+
+// ========== MOVIMIENTOS DE STOCK (log inmutable) ==========
+
+export const movimientosService = {
+  async getAll(filters?: {
+    articuloId?: string;
+    unidadId?: string;
+    tipo?: string;
+    remitoId?: string;
+    otNumber?: string;
+    limitCount?: number;
+  }): Promise<MovimientoStock[]> {
+    let q = query(collection(db, 'movimientosStock'));
+    if (filters?.articuloId) {
+      q = query(q, where('articuloId', '==', filters.articuloId));
+    }
+    if (filters?.unidadId) {
+      q = query(q, where('unidadId', '==', filters.unidadId));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    if (filters?.remitoId) {
+      q = query(q, where('remitoId', '==', filters.remitoId));
+    }
+    if (filters?.otNumber) {
+      q = query(q, where('otNumber', '==', filters.otNumber));
+    }
+    const snap = await getDocs(q);
+    let items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as MovimientoStock[];
+    items.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    if (filters?.limitCount && filters.limitCount > 0) {
+      items = items.slice(0, filters.limitCount);
+    }
+    return items;
+  },
+
+  async getByUnidad(unidadId: string): Promise<MovimientoStock[]> {
+    return this.getAll({ unidadId });
+  },
+
+  async create(data: Omit<MovimientoStock, 'id' | 'createdAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      createdAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'movimientosStock', id), payload);
+    return id;
+  },
+};
+
+// ========== REMITOS ==========
+
+export const remitosService = {
+  async getNextRemitoNumber(): Promise<string> {
+    const q = query(collection(db, 'remitos'), orderBy('numero', 'desc'));
+    const snap = await getDocs(q);
+
+    let maxNum = 0;
+    snap.docs.forEach(d => {
+      const numero = d.data().numero;
+      const match = numero?.match(/REM-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+
+    const nextNum = maxNum + 1;
+    return `REM-${String(nextNum).padStart(4, '0')}`;
+  },
+
+  async getAll(filters?: {
+    ingenieroId?: string;
+    estado?: string;
+    tipo?: string;
+  }): Promise<Remito[]> {
+    let q = query(collection(db, 'remitos'));
+    if (filters?.ingenieroId) {
+      q = query(q, where('ingenieroId', '==', filters.ingenieroId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      fechaSalida: d.data().fechaSalida?.toDate?.().toISOString() ?? d.data().fechaSalida ?? null,
+      fechaDevolucion: d.data().fechaDevolucion?.toDate?.().toISOString() ?? d.data().fechaDevolucion ?? null,
+    })) as Remito[];
+    items.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    return items;
+  },
+
+  async getById(id: string): Promise<Remito | null> {
+    const snap = await getDoc(doc(db, 'remitos', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      fechaSalida: snap.data().fechaSalida?.toDate?.().toISOString() ?? snap.data().fechaSalida ?? null,
+      fechaDevolucion: snap.data().fechaDevolucion?.toDate?.().toISOString() ?? snap.data().fechaDevolucion ?? null,
+    } as Remito;
+  },
+
+  async create(data: Omit<Remito, 'id' | 'numero' | 'createdAt' | 'updatedAt'> & { numero?: string }): Promise<string> {
+    const id = crypto.randomUUID();
+    const numero = data.numero || await this.getNextRemitoNumber();
+    const { numero: _num, ...rest } = data;
+    const payload = deepCleanForFirestore({
+      ...rest,
+      numero,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'remitos', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<Remito, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'remitos', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'remitos', id));
+  },
+};
+
+// --- Fichas Propiedad del Cliente ---
+
+export const fichasService = {
+  async getNextFichaNumber(): Promise<string> {
+    const q = query(collection(db, 'fichasPropiedad'), orderBy('numero', 'desc'));
+    const snap = await getDocs(q);
+    let maxNum = 0;
+    snap.docs.forEach(d => {
+      const numero = d.data().numero;
+      const match = numero?.match(/FPC-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    return `FPC-${String(maxNum + 1).padStart(4, '0')}`;
+  },
+
+  async getAll(filters?: {
+    clienteId?: string;
+    estado?: string;
+    activasOnly?: boolean;
+  }): Promise<FichaPropiedad[]> {
+    let q = query(collection(db, 'fichasPropiedad'));
+    if (filters?.clienteId) {
+      q = query(q, where('clienteId', '==', filters.clienteId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    const snap = await getDocs(q);
+    let items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as FichaPropiedad[];
+    if (filters?.activasOnly) {
+      items = items.filter(f => f.estado !== 'entregado');
+    }
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return items;
+  },
+
+  async getById(id: string): Promise<FichaPropiedad | null> {
+    const snap = await getDoc(doc(db, 'fichasPropiedad', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as FichaPropiedad;
+  },
+
+  async create(data: Omit<FichaPropiedad, 'id' | 'numero' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const numero = await this.getNextFichaNumber();
+    const payload = deepCleanForFirestore({
+      ...data,
+      numero,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'fichasPropiedad', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<FichaPropiedad, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'fichasPropiedad', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'fichasPropiedad', id));
+  },
+
+  async addHistorial(id: string, entry: Omit<HistorialFicha, 'id'>): Promise<void> {
+    const ficha = await this.getById(id);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    const newEntry: HistorialFicha = { ...entry, id: crypto.randomUUID() };
+    await this.update(id, {
+      estado: entry.estadoNuevo,
+      historial: [...ficha.historial, newEntry],
+    });
+  },
+
+  async addDerivacion(id: string, derivacion: Omit<DerivacionProveedor, 'id'>): Promise<void> {
+    const ficha = await this.getById(id);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    const newDeriv: DerivacionProveedor = { ...derivacion, id: crypto.randomUUID() };
+    await this.update(id, {
+      estado: 'derivado_proveedor',
+      derivaciones: [...ficha.derivaciones, newDeriv],
+    });
+  },
+
+  async getByOtNumber(otNumber: string): Promise<FichaPropiedad[]> {
+    const q = query(
+      collection(db, 'fichasPropiedad'),
+      where('otIds', 'array-contains', otNumber)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as FichaPropiedad[];
+  },
+};
+
+// --- Loaners (Equipos en préstamo) ---
+
+export const loanersService = {
+  async getNextLoanerCodigo(): Promise<string> {
+    const q = query(collection(db, 'loaners'), orderBy('codigo', 'desc'));
+    const snap = await getDocs(q);
+    let maxNum = 0;
+    snap.docs.forEach(d => {
+      const codigo = d.data().codigo;
+      const match = codigo?.match(/LNR-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+    return `LNR-${String(maxNum + 1).padStart(4, '0')}`;
+  },
+
+  async getAll(filters?: {
+    estado?: string;
+    activoOnly?: boolean;
+  }): Promise<Loaner[]> {
+    let q = query(collection(db, 'loaners'));
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    const snap = await getDocs(q);
+    let items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as Loaner[];
+    if (filters?.activoOnly) {
+      items = items.filter(l => l.activo);
+    }
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return items;
+  },
+
+  async getById(id: string): Promise<Loaner | null> {
+    const snap = await getDoc(doc(db, 'loaners', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as Loaner;
+  },
+
+  async create(data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const codigo = await this.getNextLoanerCodigo();
+    const payload = deepCleanForFirestore({
+      ...data,
+      codigo,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'loaners', id), payload);
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<Loaner, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'loaners', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'loaners', id));
+  },
+
+  async getDisponibles(): Promise<Loaner[]> {
+    return this.getAll({ estado: 'en_base', activoOnly: true });
+  },
+
+  async registrarPrestamo(id: string, prestamo: Omit<PrestamoLoaner, 'id'>): Promise<void> {
+    const loaner = await this.getById(id);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const newPrestamo: PrestamoLoaner = { ...prestamo, id: crypto.randomUUID() };
+    await this.update(id, {
+      estado: 'en_cliente',
+      prestamos: [...loaner.prestamos, newPrestamo],
+    });
+  },
+
+  async registrarDevolucion(loanerId: string, prestamoId: string, data: {
+    fechaRetornoReal: string;
+    condicionRetorno: string;
+    remitoRetornoId?: string;
+    remitoRetornoNumero?: string;
+  }): Promise<void> {
+    const loaner = await this.getById(loanerId);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const prestamos = loaner.prestamos.map(p =>
+      p.id === prestamoId
+        ? { ...p, ...data, estado: 'devuelto' as const }
+        : p
+    );
+    await this.update(loanerId, { estado: 'en_base', prestamos, condicion: data.condicionRetorno });
+  },
+
+  async registrarExtraccion(id: string, extraccion: Omit<ExtraccionLoaner, 'id'>): Promise<void> {
+    const loaner = await this.getById(id);
+    if (!loaner) throw new Error('Loaner no encontrado');
+    const newExtraccion: ExtraccionLoaner = { ...extraccion, id: crypto.randomUUID() };
+    await this.update(id, {
+      extracciones: [...loaner.extracciones, newExtraccion],
+    });
+  },
+
+  async registrarVenta(id: string, venta: VentaLoaner): Promise<void> {
+    await this.update(id, { estado: 'vendido', venta, activo: false });
   },
 };

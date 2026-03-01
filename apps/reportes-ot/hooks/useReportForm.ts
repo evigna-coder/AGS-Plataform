@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { Part, type ProtocolData } from '../types';
 import type { ProtocolSelection } from '../types/tableCatalog';
+import type { InstrumentoPatronOption } from '../types/instrumentos';
 
 export interface ReportFormState {
   // OT y estado general
@@ -56,6 +57,9 @@ export interface ReportFormState {
 
   // Tablas dinámicas del catálogo
   protocolSelections: ProtocolSelection[];
+
+  // Instrumentos/patrones utilizados
+  instrumentosSeleccionados: InstrumentoPatronOption[];
 }
 
 export interface ReportState {
@@ -92,6 +96,7 @@ export interface ReportState {
   protocolTemplateId: string | null;
   protocolData: ProtocolData | null;
   protocolSelections: ProtocolSelection[];
+  instrumentosSeleccionados: InstrumentoPatronOption[];
 }
 
 export interface UseReportFormReturn {
@@ -136,6 +141,7 @@ export interface UseReportFormReturn {
     setProtocolTemplateId: (value: string | null) => void;
     setProtocolData: (value: ProtocolData | null) => void;
     setProtocolSelections: (value: ProtocolSelection[]) => void;
+    setInstrumentosSeleccionados: (value: InstrumentoPatronOption[]) => void;
   };
 
   // Computed
@@ -185,6 +191,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [protocolTemplateId, setProtocolTemplateId] = useState<string | null>(null);
   const [protocolData, setProtocolData] = useState<ProtocolData | null>(null);
   const [protocolSelections, setProtocolSelections] = useState<ProtocolSelection[]>([]);
+  const [instrumentosSeleccionados, setInstrumentosSeleccionados] = useState<InstrumentoPatronOption[]>([]);
   const [otInput, setOtInput] = useState(initialOtNumber);
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
@@ -211,7 +218,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
-    protocolTemplateId, protocolData, protocolSelections
+    protocolTemplateId, protocolData, protocolSelections,
+    instrumentosSeleccionados
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
@@ -219,7 +227,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
-    protocolTemplateId, protocolData, protocolSelections
+    protocolTemplateId, protocolData, protocolSelections,
+    instrumentosSeleccionados
   ]);
 
   const formState: ReportFormState = {
@@ -258,7 +267,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     aclaracionCliente,
     protocolTemplateId,
     protocolData,
-    protocolSelections
+    protocolSelections,
+    instrumentosSeleccionados
   };
 
   return {
@@ -299,7 +309,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setAclaracionCliente,
       setProtocolTemplateId,
       setProtocolData,
-      setProtocolSelections
+      setProtocolSelections,
+      setInstrumentosSeleccionados
     },
     readOnly,
     reportState,

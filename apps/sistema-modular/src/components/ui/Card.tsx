@@ -6,6 +6,7 @@ interface CardProps {
   title?: string;
   description?: string;
   actions?: ReactNode;
+  compact?: boolean;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -13,7 +14,8 @@ export const Card: React.FC<CardProps> = ({
   className = '',
   title,
   description,
-  actions
+  actions,
+  compact = false,
 }) => {
   const hasCustomStyles = className.includes('bg-') || className.includes('border-');
   const defaultClasses = hasCustomStyles ? '' : 'bg-white border border-slate-200 shadow-sm';
@@ -21,7 +23,7 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div className={`rounded-xl ${defaultClasses} ${className}`}>
       {(title || actions) && (
-        <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100">
+        <div className={`flex items-start justify-between ${compact ? 'px-4 py-3' : 'px-6 py-4'} border-b border-slate-100`}>
           <div>
             {title && (
               <h3 className="text-sm font-semibold text-slate-900 tracking-tight">
@@ -35,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
           {actions && <div className="ml-4 shrink-0">{actions}</div>}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div className={compact ? 'p-4' : 'p-6'}>{children}</div>
     </div>
   );
 };

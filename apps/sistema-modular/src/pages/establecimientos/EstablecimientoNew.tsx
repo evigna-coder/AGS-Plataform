@@ -149,7 +149,7 @@ export const EstablecimientoNew = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+        <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
           {isEditMode ? 'Editar Establecimiento' : 'Nuevo Establecimiento'}
         </h2>
         <p className="text-sm text-slate-500 mt-1">Sede o planta del cliente</p>
@@ -158,7 +158,7 @@ export const EstablecimientoNew = () => {
       <Card>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Cliente *</label>
             <SearchableSelect
               value={clienteCuit}
               onChange={setClienteCuit}
@@ -173,7 +173,7 @@ export const EstablecimientoNew = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
             <Input
               value={formData.nombre}
               onChange={e => setFormData({ ...formData, nombre: e.target.value })}
@@ -206,7 +206,7 @@ export const EstablecimientoNew = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Localidad *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Localidad *</label>
               <Input
                 value={formData.localidad}
                 onChange={e => setFormData({ ...formData, localidad: e.target.value })}
@@ -214,7 +214,7 @@ export const EstablecimientoNew = () => {
               {errors.localidad && <p className="text-red-600 text-xs mt-1">{errors.localidad}</p>}
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Provincia *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Provincia *</label>
               <Input
                 value={formData.provincia}
                 onChange={e => setFormData({ ...formData, provincia: e.target.value })}
@@ -225,14 +225,14 @@ export const EstablecimientoNew = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">País</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">País</label>
               <Input
                 value={formData.pais}
                 onChange={e => setFormData({ ...formData, pais: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Código postal</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Código postal</label>
               <Input
                 value={formData.codigoPostal}
                 onChange={e => setFormData({ ...formData, codigoPostal: e.target.value })}
@@ -241,7 +241,7 @@ export const EstablecimientoNew = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
             <SearchableSelect
               value={formData.tipo ?? ''}
               onChange={v => setFormData({ ...formData, tipo: (v as Establecimiento['tipo']) || '' })}
@@ -251,7 +251,7 @@ export const EstablecimientoNew = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Condición de pago</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Condición de pago</label>
             <SearchableSelect
               value={formData.condicionPagoId ?? ''}
               onChange={v => setFormData({ ...formData, condicionPagoId: (v || null) as string | null })}
@@ -264,7 +264,7 @@ export const EstablecimientoNew = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo de servicio</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de servicio</label>
             <SearchableSelect
               value={formData.tipoServicio ?? ''}
               onChange={v => setFormData({ ...formData, tipoServicio: v as TipoServicioCliente | '' })}
@@ -274,7 +274,7 @@ export const EstablecimientoNew = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Info pagos (notas)</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Info pagos (notas)</label>
             <Input
               value={formData.infoPagos}
               onChange={e => setFormData({ ...formData, infoPagos: e.target.value })}
@@ -290,7 +290,7 @@ export const EstablecimientoNew = () => {
                 onChange={e => setFormData({ ...formData, pagaEnTiempo: e.target.checked })}
                 className="w-4 h-4"
               />
-              <span className="text-sm font-bold text-slate-600">Paga en tiempo</span>
+              <span className="text-sm font-medium text-slate-600">Paga en tiempo</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -299,7 +299,7 @@ export const EstablecimientoNew = () => {
                 onChange={e => setFormData({ ...formData, sueleDemorarse: e.target.checked })}
                 className="w-4 h-4"
               />
-              <span className="text-sm font-bold text-slate-600">Suele demorarse</span>
+              <span className="text-sm font-medium text-slate-600">Suele demorarse</span>
             </label>
           </div>
 
@@ -311,7 +311,7 @@ export const EstablecimientoNew = () => {
               onChange={e => setFormData({ ...formData, activo: e.target.checked })}
               className="w-4 h-4"
             />
-            <label htmlFor="activo" className="text-sm font-bold text-slate-600">Activo</label>
+            <label htmlFor="activo" className="text-sm font-medium text-slate-600">Activo</label>
           </div>
 
           <div className="flex gap-3 pt-4">

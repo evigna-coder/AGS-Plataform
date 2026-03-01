@@ -187,7 +187,7 @@ export const CategoriasEquipo = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Categorías</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Categorías</h2>
           <p className="text-sm text-slate-500 mt-1">Gestionar categorías de sistemas y módulos</p>
         </div>
         <Button variant="outline" onClick={() => navigate('/equipos')}>
@@ -199,7 +199,7 @@ export const CategoriasEquipo = () => {
       <div className="flex gap-2 border-b border-slate-200">
         <button
           onClick={() => setActiveTab('sistemas')}
-          className={`px-4 py-2 font-black text-sm uppercase transition-colors ${
+          className={`px-4 py-2 font-medium text-xs transition-colors ${
             activeTab === 'sistemas'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-slate-400 hover:text-slate-600'
@@ -209,7 +209,7 @@ export const CategoriasEquipo = () => {
         </button>
         <button
           onClick={() => setActiveTab('modulos')}
-          className={`px-4 py-2 font-black text-sm uppercase transition-colors ${
+          className={`px-4 py-2 font-medium text-xs transition-colors ${
             activeTab === 'modulos'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-slate-400 hover:text-slate-600'
@@ -223,7 +223,7 @@ export const CategoriasEquipo = () => {
       {activeTab === 'sistemas' && (
         <Card>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-black text-slate-900 uppercase">Categorías de Sistemas</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Categorías de Sistemas</h3>
             <Button onClick={() => { setEditingSistema(null); setFormDataSistemas({ nombre: '', modelosText: '' }); setShowModalSistemas(true); }}>
               + Nueva Categoría
             </Button>
@@ -240,7 +240,7 @@ export const CategoriasEquipo = () => {
                   className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200"
                 >
                   <div>
-                    <p className="font-black text-slate-900 uppercase">{categoria.nombre}</p>
+                    <p className="font-semibold text-slate-900">{categoria.nombre}</p>
                     <p className="text-xs text-slate-500 mt-1">
                       Modelos: {(categoria.modelos || []).length}
                     </p>
@@ -248,13 +248,13 @@ export const CategoriasEquipo = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEditSistema(categoria)}
-                      className="text-blue-600 hover:underline text-xs font-bold uppercase"
+                      className="text-blue-600 hover:underline text-xs font-medium"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDeleteSistema(categoria.id)}
-                      className="text-red-600 hover:underline text-xs font-bold uppercase"
+                      className="text-red-600 hover:underline text-xs font-medium"
                     >
                       Eliminar
                     </button>
@@ -270,7 +270,7 @@ export const CategoriasEquipo = () => {
       {activeTab === 'modulos' && (
         <Card>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-black text-slate-900 uppercase">Categorías de Módulos</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Categorías de Módulos</h3>
             <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '' }); setShowModalModulos(true); }}>
               + Nueva Categoría
             </Button>
@@ -287,7 +287,7 @@ export const CategoriasEquipo = () => {
                   className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200"
                 >
                   <div>
-                    <p className="font-black text-slate-900 uppercase">{categoria.nombre}</p>
+                    <p className="font-semibold text-slate-900">{categoria.nombre}</p>
                     <p className="text-xs text-slate-500 mt-1">
                       Modelos: {categoria.modelos.length}
                     </p>
@@ -295,13 +295,13 @@ export const CategoriasEquipo = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEditModulo(categoria)}
-                      className="text-blue-600 hover:underline text-xs font-bold uppercase"
+                      className="text-blue-600 hover:underline text-xs font-medium"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDeleteModulo(categoria.id)}
-                      className="text-red-600 hover:underline text-xs font-bold uppercase"
+                      className="text-red-600 hover:underline text-xs font-medium"
                     >
                       Eliminar
                     </button>
@@ -317,12 +317,12 @@ export const CategoriasEquipo = () => {
       {showModalSistemas && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
               {editingSistema ? 'Editar Categoría de Sistema' : 'Nueva Categoría de Sistema'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
                 <Input
                   value={formDataSistemas.nombre}
                   onChange={(e) => setFormDataSistemas({ ...formDataSistemas, nombre: e.target.value })}
@@ -331,7 +331,7 @@ export const CategoriasEquipo = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Modelos (1 por línea)
                 </label>
                 <textarea
@@ -368,12 +368,12 @@ export const CategoriasEquipo = () => {
       {showModalModulos && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
               {editingModulo ? 'Editar Categoría de Módulo' : 'Nueva Categoría de Módulo'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
                 <Input
                   value={formDataModulos.nombre}
                   onChange={(e) => setFormDataModulos({ ...formDataModulos, nombre: e.target.value })}
@@ -383,7 +383,7 @@ export const CategoriasEquipo = () => {
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                <label className="block text-xs font-medium text-slate-600 mb-2">
                   Modelos ({formDataModulos.modelos.length})
                 </label>
                 
@@ -415,7 +415,7 @@ export const CategoriasEquipo = () => {
                 
                 {/* Formulario para agregar nuevo modelo */}
                 <div className="border border-slate-300 rounded-lg p-3 bg-white">
-                  <p className="text-xs font-bold text-slate-600 uppercase mb-2">Agregar Nuevo Modelo</p>
+                  <p className="text-xs font-medium text-slate-600 mb-2">Agregar Nuevo Modelo</p>
                   <div className="grid grid-cols-2 gap-2 mb-2">
                     <div>
                       <Input
