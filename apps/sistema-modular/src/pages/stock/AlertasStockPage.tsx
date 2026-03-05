@@ -49,14 +49,14 @@ export const AlertasStockPage = () => {
   }, []);
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Alertas de Stock"
         subtitle="Articulos con stock por debajo del minimo configurado"
         count={items.length}
       />
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <p className="text-slate-500">Calculando niveles de stock...</p>
@@ -69,48 +69,47 @@ export const AlertasStockPage = () => {
             </div>
           </Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="text-left border-b border-slate-200">
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Stock actual</th>
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Minimo</th>
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Deficit</th>
-                    <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Stock actual</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Minimo</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Deficit</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map(art => (
                     <tr key={art.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <Link to={`/stock/articulos/${art.id}`} className="font-mono text-xs text-indigo-600 hover:underline font-medium">
                           {art.codigo}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-slate-700 max-w-[250px] truncate">
+                      <td className="px-4 py-2 text-slate-700 max-w-[250px] truncate">
                         {art.descripcion}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
                           {art.categoriaEquipo}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold text-red-600">
+                      <td className="px-4 py-2 text-right tabular-nums font-semibold text-red-600">
                         {art.stockActual}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                      <td className="px-4 py-2 text-right tabular-nums text-slate-600">
                         {art.stockMinimo}
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-4 py-2 text-right">
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">
                           -{art.deficit}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <Link
                           to={`/stock/articulos/${art.id}`}
                           className="text-[10px] font-medium text-indigo-600 hover:underline"
@@ -122,8 +121,7 @@ export const AlertasStockPage = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>

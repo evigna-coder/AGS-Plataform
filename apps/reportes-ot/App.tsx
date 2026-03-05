@@ -20,6 +20,7 @@ import { signOut } from './services/authService';
 import { TableSelectorPanel } from './components/TableSelectorPanel';
 import { CatalogTableView } from './components/CatalogTableView';
 import { CatalogChecklistView } from './components/CatalogChecklistView';
+import { CatalogTextView } from './components/CatalogTextView';
 import { InstrumentoSelectorPanel } from './components/InstrumentoSelectorPanel';
 import { AdjuntosSection } from './components/AdjuntosSection';
 import { InstrumentosPDFSection } from './components/InstrumentosPDFSection';
@@ -422,10 +423,12 @@ const App: React.FC = () => {
         const allTables = await firebase.getPublishedTables(sistema || undefined);
         if (cancelled) return;
         // Tablas sin tipoServicio asignado aparecen siempre; las demás solo si coinciden
+        // Tablas sin modelos asignados aparecen siempre; las demás solo si el modelo coincide
         const matchingTables = allTables.filter(t =>
-          !t.tipoServicio || t.tipoServicio.length === 0 || t.tipoServicio.includes(tipoServicio)
+          (!t.tipoServicio || t.tipoServicio.length === 0 || t.tipoServicio.includes(tipoServicio))
+          && (!t.modelos || t.modelos.length === 0 || t.modelos.includes(sistema))
         );
-        setSuggestedTables(matchingTables);
+        setSuggestedTables(matchingTables.sort((a, b) => (a.orden || 999) - (b.orden || 999)));
       } catch (err) {
         console.error('Error auto-cargando tablas del catálogo:', err);
       }
@@ -2030,6 +2033,7 @@ const App: React.FC = () => {
             <TableSelectorPanel
               firebase={firebase}
               sysType={sistema || undefined}
+              modeloEquipo={sistema || undefined}
               existingSelections={protocolSelections}
               suggestedTables={suggestedTables}
               onApply={(selections) => {
@@ -2044,8 +2048,16 @@ const App: React.FC = () => {
         {/* Tablas y checklists seleccionados (modo edición) */}
         {protocolSelections.length > 0 && (
           <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
-            {protocolSelections.map(sel =>
-              sel.tableSnapshot.tableType === 'checklist' ? (
+            {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel =>
+              sel.tableSnapshot.tableType === 'text' ? (
+                <CatalogTextView
+                  key={sel.tableId}
+                  selection={sel}
+                  readOnly={readOnly}
+                  isPrint={false}
+                  onRemove={handleRemoveCatalogTable}
+                />
+              ) : sel.tableSnapshot.tableType === 'checklist' ? (
                 <CatalogChecklistView
                   key={sel.tableId}
                   selection={sel}
@@ -2134,10 +2146,93 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Render root exclusivo para PDF: siempre montado con protocolo; invisible con visibility (capturable, sin opacity) */}
-      {(protocolTemplate || protocolSelections.length > 0 || instrumentosSeleccionados.length > 0 || adjuntos.some(a => a.mimeType.startsWith('image/'))) && (
+      {/* ── Contenedor oculto PDF: Tablas + Instrumentos (mismo estilo que preview) ── */}
+      {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0) && (
         <div
-          id="pdf-container-anexo-pdf"
+          id="pdf-container-tablas-pdf"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '210mm',
+            padding: '10mm',
+            boxSizing: 'border-box',
+            transform: 'translateX(-200vw)',
+            background: 'white',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+          aria-hidden
+        >
+          {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel => (
+            <div key={sel.tableId} style={{ breakInside: 'avoid' }}>
+              {sel.tableSnapshot.tableType === 'text' ? (
+                <CatalogTextView selection={sel} readOnly />
+              ) : sel.tableSnapshot.tableType === 'checklist' ? (
+                <CatalogChecklistView
+                  selection={sel}
+                  readOnly
+                  onChangeData={() => {}}
+                />
+              ) : (
+                <CatalogTableView
+                  selection={sel}
+                  readOnly
+                  onChangeData={() => {}}
+                />
+              )}
+            </div>
+          ))}
+          {instrumentosSeleccionados.length > 0 && (
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white" style={{ breakInside: 'avoid' }}>
+              <div className="flex items-center px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-t-xl">
+                <p className="font-semibold text-sm text-slate-900">Instrumentos y Patrones Utilizados</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200">
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Identificación</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Tipo</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Marca</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Modelo</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Nº Serie</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Certificado</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap">Vencimiento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {instrumentosSeleccionados.map((inst, idx) => (
+                      <tr key={inst.id} className={`${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`}>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.nombre}</td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${inst.tipo === 'patron' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {inst.tipo === 'patron' ? 'Patrón' : 'Instrumento'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.marca || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.modelo || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{inst.serie || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs">
+                          {inst.certificadoVencimiento
+                            ? new Date(inst.certificadoVencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Contenedor oculto PDF: Fotos (páginas A4 fijas, 2 por hoja) ── */}
+      {adjuntos.some(a => a.mimeType.startsWith('image/')) && (
+        <div
+          id="pdf-container-fotos-pdf"
           style={{
             position: 'fixed',
             top: 0,
@@ -2150,35 +2245,6 @@ const App: React.FC = () => {
           }}
           aria-hidden
         >
-          {protocolTemplate && (
-            <ProtocolView
-              template={protocolTemplate}
-              data={protocolData ?? undefined}
-              readOnly
-              showGuides={false}
-              mode="print"
-            />
-          )}
-          {protocolSelections.map(sel =>
-            sel.tableSnapshot.tableType === 'checklist' ? (
-              <CatalogChecklistView
-                key={sel.tableId}
-                selection={sel}
-                readOnly
-                isPrint
-                onChangeData={() => {}}
-              />
-            ) : (
-              <CatalogTableView
-                key={sel.tableId}
-                selection={sel}
-                readOnly
-                isPrint
-                onChangeData={() => {}}
-              />
-            )
-          )}
-          <InstrumentosPDFSection instrumentos={instrumentosSeleccionados} />
           <AdjuntosPDFSection adjuntos={adjuntos} />
         </div>
       )}
@@ -2404,28 +2470,86 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Página 2 en preview: anexo — mismo criterio que Hoja 1: sin padding horizontal, hoja 210mm centrada; scroll horizontal en pantallas estrechas */}
-        {protocolTemplate && (
+        {/* ── Preview: Tablas + Instrumentos (flujo continuo, mismo look del formulario) ── */}
+        {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0) && (
           <div
             className="relative bg-[#f1f5f9] mt-6 pb-[12mm] flex justify-center overflow-x-auto"
             style={{ paddingLeft: 0, paddingRight: 0 }}
           >
             <div
-              id="pdf-container-anexo-preview"
+              id="pdf-preview-tablas"
               className="bg-white shadow-md rounded-sm overflow-visible shrink-0"
-              style={{
-                width: '210mm',
-                margin: '0 auto',
-                boxSizing: 'border-box',
-              }}
+              style={{ width: '210mm', margin: '0 auto', boxSizing: 'border-box', padding: '10mm' }}
             >
-              <ProtocolView
-                template={protocolTemplate}
-                data={protocolData ?? undefined}
-                readOnly
-                showGuides={true}
-                mode="print"
-              />
+              {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel => (
+                <div key={sel.tableId}>
+                  {sel.tableSnapshot.tableType === 'text' ? (
+                    <CatalogTextView selection={sel} readOnly />
+                  ) : sel.tableSnapshot.tableType === 'checklist' ? (
+                    <CatalogChecklistView selection={sel} readOnly onChangeData={() => {}} />
+                  ) : (
+                    <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
+                  )}
+                </div>
+              ))}
+              {instrumentosSeleccionados.length > 0 && (
+                <div className="mb-6 rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white">
+                  <div className="flex items-center px-3 py-2 bg-slate-50 border-b border-slate-200">
+                    <p className="font-semibold text-sm text-slate-900">Instrumentos y Patrones Utilizados</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 border-b border-slate-200">
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Identificación</th>
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Tipo</th>
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Marca</th>
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Modelo</th>
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Nº Serie</th>
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Certificado</th>
+                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap">Vencimiento</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {instrumentosSeleccionados.map((inst, idx) => (
+                          <tr key={inst.id} className={`${idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
+                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.nombre}</td>
+                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${inst.tipo === 'patron' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {inst.tipo === 'patron' ? 'Patrón' : 'Instrumento'}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.marca || '—'}</td>
+                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.modelo || '—'}</td>
+                            <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{inst.serie || '—'}</td>
+                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
+                            <td className="px-2 py-1.5 text-xs">
+                              {inst.certificadoVencimiento
+                                ? new Date(inst.certificadoVencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Preview: Fotos (registro fotográfico) ── */}
+        {adjuntos.some(a => a.mimeType.startsWith('image/')) && (
+          <div
+            className="relative bg-[#f1f5f9] mt-6 pb-[12mm] flex justify-center overflow-x-auto"
+            style={{ paddingLeft: 0, paddingRight: 0 }}
+          >
+            <div
+              className="bg-white shadow-md rounded-sm overflow-visible shrink-0"
+              style={{ width: '210mm', margin: '0 auto', boxSizing: 'border-box' }}
+            >
+              <AdjuntosPDFSection adjuntos={adjuntos} />
             </div>
           </div>
         )}

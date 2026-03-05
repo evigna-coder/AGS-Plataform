@@ -7,7 +7,9 @@ import { Input } from '../../components/ui/Input';
 import { TableEditor } from '../../components/protocol-catalog/TableEditor';
 import { TablePreview } from '../../components/protocol-catalog/TablePreview';
 import { ChecklistEditor } from '../../components/protocol-catalog/ChecklistEditor';
-import type { TableCatalogEntry } from '@ags/shared';
+import { RichTextEditor } from '../../components/ui/RichTextEditor';
+import { categoriasEquipoService } from '../../services/firebaseService';
+import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
 
 const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
 
@@ -35,7 +37,10 @@ function emptyEntry(): TableCatalogEntry {
     templateRows: [],
     validationRules: [],
     checklistItems: [],
+    textContent: null,
     tipoServicio: [],
+    modelos: [],
+    orden: 0,
     status: 'draft',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -47,7 +52,9 @@ function validateForPublish(entry: TableCatalogEntry): string[] {
   const errors: string[] = [];
   if (!entry.name.trim()) errors.push('Nombre vacío');
   if (!entry.sysType) errors.push('SysType no asignado');
-  if (entry.tableType === 'checklist') {
+  if (entry.tableType === 'text') {
+    if (!entry.textContent?.trim()) errors.push('El contenido de texto está vacío');
+  } else if (entry.tableType === 'checklist') {
     if (!entry.checklistItems || entry.checklistItems.length === 0)
       errors.push('El checklist no tiene ítems');
     entry.checklistItems?.forEach((item, i) => {
@@ -70,6 +77,7 @@ export const TableCatalogEditorPage = () => {
   const { getTable, saveDraft, publishTable, loading } = useTableCatalog();
 
   const [entry, setEntry] = useState<TableCatalogEntry>(emptyEntry());
+  const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(true);
 
@@ -77,6 +85,7 @@ export const TableCatalogEditorPage = () => {
     if (tableId) {
       getTable(tableId).then(data => { if (data) setEntry(data); });
     }
+    categoriasEquipoService.getAll().then(setCategorias);
   }, [tableId]);
 
   const setMeta = (key: keyof TableCatalogEntry, value: any) =>
@@ -114,7 +123,7 @@ export const TableCatalogEditorPage = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* ─── Header sticky ───────────────────────────────────────────────── */}
       <div className="shrink-0 px-5 pt-4 pb-3 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
         <div className="flex justify-between items-center flex-wrap gap-3">
@@ -141,7 +150,7 @@ export const TableCatalogEditorPage = () => {
       </div>
 
       {/* ─── Contenido scrollable ────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
       {/* Validation warnings */}
       {validationErrors.length > 0 && (
         <Card className="border-yellow-300 bg-yellow-50">
@@ -183,13 +192,27 @@ export const TableCatalogEditorPage = () => {
                 <option value="validation">Validación</option>
                 <option value="instruments">Instrumentos</option>
                 <option value="checklist">Checklist</option>
+                <option value="text">Texto</option>
               </select>
             </div>
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
-              <input type="checkbox" checked={entry.isDefault}
-                onChange={e => setMeta('isDefault', e.target.checked)} />
-              Tabla por defecto para este sysType
-            </label>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer flex-1">
+                <input type="checkbox" checked={entry.isDefault}
+                  onChange={e => setMeta('isDefault', e.target.checked)} />
+                Tabla por defecto para este sysType
+              </label>
+              <div className="w-20">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Orden</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={entry.orden ?? 0}
+                  onChange={e => setMeta('orden', parseInt(e.target.value) || 0)}
+                  className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center"
+                  title="Posición en el protocolo (menor = primero)"
+                />
+              </div>
+            </div>
 
             {/* Tipos de servicio */}
             <div>
@@ -227,21 +250,85 @@ export const TableCatalogEditorPage = () => {
                 </p>
               )}
             </div>
+
+            {/* Modelos de equipo */}
+            {entry.sysType && (() => {
+              const modelosPorCategoria = categorias
+                .filter(c => (c.modelos ?? []).length > 0)
+                .map(c => ({
+                  categoria: c.nombre,
+                  modelos: (c.modelos ?? []).filter((v, i, a) => a.indexOf(v) === i).sort(),
+                }));
+              const hayModelos = modelosPorCategoria.some(g => g.modelos.length > 0);
+              if (!hayModelos) return null;
+              return (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-2">
+                    Modelos de equipo
+                    <span className="ml-1 font-normal text-slate-400 normal-case">(uno o más)</span>
+                  </label>
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                    {modelosPorCategoria.map(g => (
+                      <div key={g.categoria}>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{g.categoria}</p>
+                        <div className="space-y-1.5 pl-1">
+                          {g.modelos.map(modelo => {
+                            const selected = (entry.modelos ?? []).includes(modelo);
+                            return (
+                              <label key={modelo} className="flex items-start gap-2 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => {
+                                    const current = entry.modelos ?? [];
+                                    setMeta('modelos', selected ? current.filter(m => m !== modelo) : [...current, modelo]);
+                                  }}
+                                  className="mt-0.5 accent-blue-600 shrink-0"
+                                />
+                                <span className="text-xs text-slate-700 group-hover:text-slate-900 leading-tight">{modelo}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {(entry.modelos ?? []).length === 0 && (
+                    <p className="text-[10px] text-slate-400 mt-1 italic">
+                      Sin asignar — aparecerá para todos los modelos de este tipo de sistema.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </Card>
         </div>{/* /sticky */}
 
-        {/* Editor panel — tabla o checklist según tipo */}
+        {/* Editor panel — tabla, checklist o texto según tipo */}
         <div className="col-span-2">
-          {entry.tableType === 'checklist'
+          {entry.tableType === 'text' ? (
+            <Card>
+              <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Contenido de texto</h3>
+              <p className="text-xs text-slate-400 mb-3">
+                Escribí el texto que aparecerá en el protocolo (objetivos, alcance, procedimientos, etc.)
+              </p>
+              <RichTextEditor
+                value={entry.textContent ?? ''}
+                onChange={html => setMeta('textContent', html || null)}
+                placeholder="Ej: La calificación operacional tiene como propósito verificar que el equipo opera dentro de los parámetros establecidos por el fabricante..."
+                minHeight={200}
+              />
+            </Card>
+          ) : entry.tableType === 'checklist'
             ? <ChecklistEditor entry={entry} onChange={setEntry} />
             : <TableEditor table={entry} onChange={setEntry} />
           }
         </div>
       </div>
 
-      {/* Vista previa (solo para tipos tabla; no aplica a checklist) */}
-      {entry.tableType !== 'checklist' && <div className="border border-slate-200 rounded-xl overflow-hidden">
+      {/* Vista previa (solo para tipos tabla; no aplica a checklist ni texto) */}
+      {!['checklist', 'text'].includes(entry.tableType) && <div className="border border-slate-200 rounded-xl overflow-hidden">
         <button
           onClick={() => setShowPreview(v => !v)}
           className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"

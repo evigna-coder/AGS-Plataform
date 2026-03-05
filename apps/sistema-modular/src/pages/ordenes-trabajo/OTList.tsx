@@ -31,8 +31,8 @@ const thClass = 'px-4 py-2 text-left text-[11px] font-medium text-slate-400 trac
 const StatusBadge = ({ status }: { status: string }) => (
   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
     status === 'FINALIZADO'
-      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-      : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+      ? 'bg-emerald-100 text-emerald-700'
+      : 'bg-amber-100 text-amber-700'
   }`}>
     {status === 'FINALIZADO' ? 'Finalizado' : 'Borrador'}
   </span>
@@ -123,7 +123,7 @@ export const OTList = () => {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Órdenes de Trabajo"
         subtitle="Gestión de reportes de servicio"
@@ -196,7 +196,7 @@ export const OTList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4">
         {ordenes.length === 0 ? (
           <Card>
             <div className="text-center py-12">
@@ -208,7 +208,7 @@ export const OTList = () => {
             </div>
           </Card>
         ) : viewMode === 'cards' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {ordenes.map((ot) => {
               const sistema = sistemas.find(s => s.id === ot.sistemaId);
               return (

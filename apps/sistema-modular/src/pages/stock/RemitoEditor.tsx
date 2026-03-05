@@ -121,7 +121,7 @@ export const RemitoEditor = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <div className="shrink-0 px-6 pt-6 pb-4 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
         <div className="flex justify-between items-center">
           <div>
@@ -135,7 +135,7 @@ export const RemitoEditor = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <Card>
           <h3 className="text-sm font-semibold text-slate-900 mb-4">Datos generales</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

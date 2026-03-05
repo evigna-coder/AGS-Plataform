@@ -57,7 +57,7 @@ export const EstablecimientosList = () => {
     : '';
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Establecimientos"
         subtitle="Sedes y plantas por cliente"
@@ -84,7 +84,7 @@ export const EstablecimientosList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <p className="text-slate-400">Cargando establecimientos...</p>
@@ -105,8 +105,7 @@ export const EstablecimientosList = () => {
             </div>
           </Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -147,8 +146,7 @@ export const EstablecimientosList = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
 

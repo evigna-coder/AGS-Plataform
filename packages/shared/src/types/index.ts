@@ -43,6 +43,8 @@ export interface WorkOrder {
   fechaCierre?: string; // Fecha de cierre/finalización
   materialesParaServicio?: string; // Materiales necesarios para el servicio (texto libre)
   problemaFallaInicial?: string; // Problema o falla inicial declarada en la OT (comentario)
+  ingenieroAsignadoId?: string | null; // FK a ingeniero asignado via agenda
+  ingenieroAsignadoNombre?: string | null;
 }
 
 export interface Part {
@@ -113,7 +115,10 @@ export interface Cliente {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Contacto de Establecimiento (subcolección establecimientos/{id}/contactos) ---
@@ -155,7 +160,10 @@ export interface Establecimiento {
   ubicaciones?: Ubicacion[];
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Categorías equipo (catálogo) ---
@@ -215,9 +223,10 @@ export interface ConfiguracionGC {
   detectorBack?: DetectorType | null;
 }
 
-/** Helper: devuelve true si el nombre del sistema indica que es un GC */
+/** Helper: devuelve true si el nombre del sistema o categoría indica que es un GC */
 export function esGaseoso(nombreSistema: string): boolean {
-  return nombreSistema.toLowerCase().includes('gaseoso');
+  const lower = nombreSistema.toLowerCase();
+  return lower.includes('gaseoso') || lower.includes('gaseosa') || /\bgc\b/.test(lower);
 }
 
 /** Etiquetas legibles para InletType */
@@ -269,7 +278,10 @@ export interface Sistema {
   otIds: string[];
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Motivo del llamado (Leads) ---
@@ -289,6 +301,92 @@ export interface Posta {
   comentario?: string;
   estadoAnterior: LeadEstado;
   estadoNuevo: LeadEstado;
+}
+
+// --- Postas Workflow (derivaciones entre usuarios) ---
+
+export type PostaCategoria = 'administracion' | 'soporte_tecnico';
+
+export const POSTA_CATEGORIA_LABELS: Record<PostaCategoria, string> = {
+  administracion: 'Administración',
+  soporte_tecnico: 'Soporte Técnico',
+};
+
+export const POSTA_CATEGORIA_COLORS: Record<PostaCategoria, string> = {
+  administracion: 'bg-violet-100 text-violet-700',
+  soporte_tecnico: 'bg-cyan-100 text-cyan-700',
+};
+
+export type PostaTipoEntidad = 'orden_compra' | 'importacion' | 'presupuesto' | 'requerimiento' | 'agenda';
+
+export const POSTA_TIPO_ENTIDAD_LABELS: Record<PostaTipoEntidad, string> = {
+  orden_compra: 'Orden de Compra',
+  importacion: 'Importación',
+  presupuesto: 'Presupuesto',
+  requerimiento: 'Requerimiento',
+  agenda: 'Agenda',
+};
+
+export type PostaEstado = 'pendiente' | 'en_proceso' | 'completada' | 'cancelada';
+
+export const POSTA_ESTADO_LABELS: Record<PostaEstado, string> = {
+  pendiente: 'Pendiente',
+  en_proceso: 'En proceso',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+};
+
+export const POSTA_ESTADO_COLORS: Record<PostaEstado, string> = {
+  pendiente: 'bg-amber-100 text-amber-800',
+  en_proceso: 'bg-blue-100 text-blue-800',
+  completada: 'bg-emerald-100 text-emerald-800',
+  cancelada: 'bg-red-100 text-red-600',
+};
+
+export type PostaPrioridad = 'baja' | 'normal' | 'alta' | 'urgente';
+
+export const POSTA_PRIORIDAD_LABELS: Record<PostaPrioridad, string> = {
+  baja: 'Baja', normal: 'Normal', alta: 'Alta', urgente: 'Urgente',
+};
+
+export const POSTA_PRIORIDAD_COLORS: Record<PostaPrioridad, string> = {
+  baja: 'bg-slate-100 text-slate-600',
+  normal: 'bg-blue-50 text-blue-600',
+  alta: 'bg-orange-100 text-orange-700',
+  urgente: 'bg-red-100 text-red-700',
+};
+
+export interface PostaHandoff {
+  fecha: string;
+  deUsuarioId: string;
+  deUsuarioNombre: string;
+  aUsuarioId: string;
+  aUsuarioNombre: string;
+  accion: string;
+  comentario: string | null;
+}
+
+export interface PostaWorkflow {
+  id: string;
+  tipoEntidad: PostaTipoEntidad;
+  entidadId: string;
+  entidadNumero: string;
+  entidadDescripcion: string;
+  categoria: PostaCategoria;
+  responsableId: string;
+  responsableNombre: string;
+  creadoPorId: string;
+  creadoPorNombre: string;
+  estado: PostaEstado;
+  prioridad: PostaPrioridad;
+  accionRequerida: string;
+  historial: PostaHandoff[];
+  comentario: string | null;
+  fechaCreacion: string;
+  fechaVencimiento: string | null;
+  fechaCompletada: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // --- Tipos de Servicio (lista simple, sin categorías) ---
@@ -332,6 +430,46 @@ export interface UsuarioPosta {
   area?: string;
 }
 
+// --- Presupuesto: Tipos auxiliares ---
+export type TipoPresupuesto = 'servicio' | 'partes' | 'ventas' | 'contrato' | 'mixto';
+export type MonedaPresupuesto = 'USD' | 'ARS' | 'EUR';
+export type OrigenPresupuesto = 'lead' | 'ot' | 'requerimiento_compra' | 'directo';
+
+export const TIPO_PRESUPUESTO_LABELS: Record<TipoPresupuesto, string> = {
+  servicio: 'Servicio',
+  partes: 'Partes',
+  ventas: 'Ventas',
+  contrato: 'Contrato',
+  mixto: 'Mixto',
+};
+
+export const TIPO_PRESUPUESTO_COLORS: Record<TipoPresupuesto, string> = {
+  servicio: 'bg-blue-100 text-blue-800',
+  partes: 'bg-amber-100 text-amber-800',
+  ventas: 'bg-green-100 text-green-800',
+  contrato: 'bg-purple-100 text-purple-800',
+  mixto: 'bg-slate-100 text-slate-700',
+};
+
+export const MONEDA_PRESUPUESTO_LABELS: Record<MonedaPresupuesto, string> = {
+  USD: 'Dólares (USD)',
+  ARS: 'Pesos (ARS)',
+  EUR: 'Euros (EUR)',
+};
+
+export const MONEDA_SIMBOLO: Record<MonedaPresupuesto, string> = {
+  USD: 'U$S',
+  ARS: '$',
+  EUR: '€',
+};
+
+export const ORIGEN_PRESUPUESTO_LABELS: Record<OrigenPresupuesto, string> = {
+  lead: 'Lead',
+  ot: 'Orden de trabajo',
+  requerimiento_compra: 'Requerimiento de compra',
+  directo: 'Directo',
+};
+
 // --- Estados de Presupuesto ---
 export type PresupuestoEstado =
   | 'borrador'
@@ -339,12 +477,42 @@ export type PresupuestoEstado =
   | 'en_seguimiento'
   | 'pendiente_oc'
   | 'aceptado'
+  | 'autorizado'
   | 'pendiente_certificacion'
+  | 'rechazado'
+  | 'vencido'
   | 'aguarda';
+
+export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
+  borrador: 'Borrador',
+  enviado: 'Enviado',
+  en_seguimiento: 'En seguimiento',
+  pendiente_oc: 'Pendiente OC',
+  aceptado: 'Aceptado',
+  autorizado: 'Autorizado',
+  pendiente_certificacion: 'Pend. certificación',
+  rechazado: 'Rechazado',
+  vencido: 'Vencido',
+  aguarda: 'Aguarda',
+};
+
+export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
+  borrador: 'bg-slate-100 text-slate-700',
+  enviado: 'bg-blue-100 text-blue-700',
+  en_seguimiento: 'bg-yellow-100 text-yellow-700',
+  pendiente_oc: 'bg-orange-100 text-orange-700',
+  aceptado: 'bg-emerald-100 text-emerald-700',
+  autorizado: 'bg-green-100 text-green-700',
+  pendiente_certificacion: 'bg-purple-100 text-purple-700',
+  rechazado: 'bg-red-100 text-red-700',
+  vencido: 'bg-rose-100 text-rose-600',
+  aguarda: 'bg-red-100 text-red-700',
+};
 
 // --- Item de Presupuesto ---
 export interface PresupuestoItem {
   id: string;
+  codigoProducto?: string | null; // Part number (ej: G1312-60067)
   descripcion: string;
   cantidad: number;
   unidad: string; // 'unidad', 'hora', 'servicio', etc.
@@ -353,19 +521,111 @@ export interface PresupuestoItem {
   subtotal: number;
   /** FK opcional a artículos de stock (integración futura) */
   stockArticuloId?: string | null;
+  /** FK opcional al catálogo de conceptos de servicio */
+  conceptoServicioId?: string | null;
+}
+
+// --- Adjunto de Presupuesto ---
+export type TipoAdjuntoPresupuesto = 'orden_compra' | 'autorizacion_mail' | 'otro';
+
+export const TIPO_ADJUNTO_LABELS: Record<TipoAdjuntoPresupuesto, string> = {
+  orden_compra: 'Orden de compra',
+  autorizacion_mail: 'Autorización mail',
+  otro: 'Otro',
+};
+
+export interface AdjuntoPresupuesto {
+  id: string;
+  tipo: TipoAdjuntoPresupuesto;
+  nombre: string;
+  url: string;
+  fechaCarga: string;
+  notas?: string | null;
 }
 
 // --- Orden de Compra (OC) ---
+export type EstadoOC = 'borrador' | 'pendiente_aprobacion' | 'aprobada' | 'enviada_proveedor'
+  | 'confirmada' | 'en_transito' | 'recibida_parcial' | 'recibida' | 'cancelada';
+export type TipoOC = 'nacional' | 'importacion';
+
+export const ESTADO_OC_LABELS: Record<EstadoOC, string> = {
+  borrador: 'Borrador',
+  pendiente_aprobacion: 'Pend. aprobación',
+  aprobada: 'Aprobada',
+  enviada_proveedor: 'Enviada',
+  confirmada: 'Confirmada',
+  en_transito: 'En tránsito',
+  recibida_parcial: 'Recibida parcial',
+  recibida: 'Recibida',
+  cancelada: 'Cancelada',
+};
+
+export const ESTADO_OC_COLORS: Record<EstadoOC, string> = {
+  borrador: 'bg-slate-100 text-slate-600',
+  pendiente_aprobacion: 'bg-yellow-100 text-yellow-700',
+  aprobada: 'bg-blue-100 text-blue-700',
+  enviada_proveedor: 'bg-indigo-100 text-indigo-700',
+  confirmada: 'bg-cyan-100 text-cyan-700',
+  en_transito: 'bg-amber-100 text-amber-700',
+  recibida_parcial: 'bg-purple-100 text-purple-700',
+  recibida: 'bg-green-100 text-green-700',
+  cancelada: 'bg-red-100 text-red-700',
+};
+
+export interface ItemOC {
+  id: string;
+  articuloId?: string | null;
+  articuloCodigo?: string | null;
+  descripcion: string;
+  cantidad: number;
+  cantidadRecibida: number;
+  unidadMedida: string;
+  precioUnitario?: number | null;
+  moneda?: 'ARS' | 'USD' | 'EUR' | null;
+  requerimientoId?: string | null;
+  notas?: string | null;
+}
+
 export interface OrdenCompra {
   id: string;
-  numero: string; // OC-0000
-  presupuestoIds: string[]; // Varios presupuestos pueden tener la misma OC
-  archivoUrl?: string; // URL del archivo adjunto en Firebase Storage
-  archivoNombre?: string;
-  fechaRecepcion: string;
-  notas?: string;
+  numero: string; // OC-0001
+  tipo: TipoOC;
+  estado: EstadoOC;
+  // Proveedor
+  proveedorId: string;
+  proveedorNombre: string;
+  // Proforma origen
+  proformaNumero?: string | null;
+  proformaUrl?: string | null;
+  proformaNombre?: string | null;
+  fechaProforma?: string | null;
+  // Items
+  items: ItemOC[];
+  // Valores
+  subtotal?: number | null;
+  impuestos?: number | null;
+  total?: number | null;
+  moneda: 'ARS' | 'USD' | 'EUR';
+  // Condiciones
+  condicionesPago?: string | null;
+  fechaEntregaEstimada?: string | null;
+  // Vinculaciones legacy (mantener compatibilidad)
+  presupuestoIds?: string[];
+  // Recepcion
+  fechaRecepcion?: string | null;
+  // Importacion (link, no embed)
+  importacionId?: string | null;
+  // Archivos
+  archivoUrl?: string | null;
+  archivoNombre?: string | null;
+  // Audit
+  notas?: string | null;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Categoría de Presupuesto (reglas tributarias) ---
@@ -395,27 +655,56 @@ export interface CondicionPago {
   activo: boolean;
 }
 
+// --- Concepto de Servicio (catálogo de precios) ---
+export interface ConceptoServicio {
+  id: string;
+  descripcion: string; // "Servicio de calibración GC MSD rango 30 km"
+  valorBase: number; // Valor base en la moneda indicada
+  moneda: MonedaPresupuesto; // USD por defecto
+  factorActualizacion: number; // Multiplicador (default 1.0)
+  categoriaPresupuestoId?: string | null; // FK para reglas impositivas
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+// Precio efectivo = valorBase * factorActualizacion
+
 // --- Presupuestos ---
 export interface Presupuesto {
   id: string;
   numero: string; // PRE-0000 (generado automáticamente)
+  tipo: TipoPresupuesto;
+  moneda: MonedaPresupuesto;
   clienteId: string; // CUIT o LEGACY-xxx
-  establecimientoId?: string | null; // Establecimiento/sede del presupuesto
+  establecimientoId?: string | null;
   sistemaId?: string | null;
   contactoId?: string | null;
+  // --- Origen ---
+  origenTipo?: OrigenPresupuesto | null;
+  origenId?: string | null;
+  origenRef?: string | null; // Referencia visible (ej: "SC-74001", "OT-25660")
+  // --- Estado y workflow ---
   estado: PresupuestoEstado;
   items: PresupuestoItem[];
   subtotal: number;
   total: number;
-  tipoCambio?: number; // Tipo de cambio (si aplica)
-  condicionPagoId?: string; // Referencia a condición de pago
-  ordenesCompraIds: string[]; // Array de IDs de OCs vinculadas
+  tipoCambio?: number;
+  condicionPagoId?: string;
+  ordenesCompraIds: string[];
+  adjuntos: AdjuntoPresupuesto[];
+  // --- Textos ---
   notasTecnicas?: string;
-  validUntil?: string; // Fecha de validez
-  fechaEnvio?: string; // Fecha de envío del presupuesto
+  condicionesComerciales?: string | null;
+  // --- Fechas y validez ---
+  validezDias: number; // Días de validez (default 15)
+  validUntil?: string;
+  fechaEnvio?: string;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 export interface QuoteItem {
@@ -523,7 +812,7 @@ export interface TableCatalogEntry {
   description?: string | null;
   sysType: string;
   isDefault: boolean;
-  tableType: 'validation' | 'informational' | 'instruments' | 'checklist';
+  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text';
   columns: TableCatalogColumn[];
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
@@ -539,9 +828,24 @@ export interface TableCatalogEntry {
    */
   tipoServicio?: string[];
   /**
+   * Modelos de equipo aplicables (ej. "HPLC 1260", "1290 Inf. II").
+   * Si está vacío o ausente, la tabla aplica a todos los modelos de su sysType.
+   */
+  modelos?: string[];
+  /**
+   * Posición de la tabla en el protocolo. Menor = aparece primero.
+   * Si no se asigna (0 o undefined), la tabla se ordena al final.
+   */
+  orden?: number;
+  /**
    * Ítems del checklist (solo cuando tableType === 'checklist').
    */
   checklistItems?: ChecklistItem[];
+  /**
+   * Contenido de texto libre (solo cuando tableType === 'text').
+   * Se usa para declarar objetivos, alcances, procedimientos, etc.
+   */
+  textContent?: string | null;
   status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;
@@ -607,21 +911,6 @@ export interface Adjunto {
   orden: number;
   uploadedAt: string;
   uploadedBy: string;
-}
-
-// --- Usuarios AGS (roles y autenticación) ---
-
-export type RolUsuario = 'admin' | 'tecnico' | 'readonly';
-
-/** Documento en /usuarios/{uid} (uid = Firebase Auth UID). */
-export interface UsuarioAGS {
-  uid: string;
-  nombre: string;
-  email: string;
-  rol: RolUsuario;
-  activo: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // --- Marcas (catálogo compartido) ---
@@ -716,7 +1005,10 @@ export interface InstrumentoPatron {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // =============================================
@@ -740,15 +1032,28 @@ export interface Ingeniero {
 
 // --- Proveedores ---
 
+export type TipoProveedor = 'nacional' | 'internacional';
+
 export interface Proveedor {
   id: string;
   nombre: string;
+  tipo: TipoProveedor;
   contacto?: string | null;
   email?: string | null;
   telefono?: string | null;
   direccion?: string | null;
   pais?: string | null;
   cuit?: string | null;
+  condicionesPago?: string | null;
+  moneda?: 'ARS' | 'USD' | 'EUR' | null;
+  // Datos bancarios (internacionales)
+  banco?: string | null;
+  cuentaBancaria?: string | null;
+  swift?: string | null;
+  iban?: string | null;
+  bancoIntermediario?: string | null;
+  swiftIntermediario?: string | null;
+  abaIntermediario?: string | null;
   notas?: string | null;
   activo: boolean;
   createdAt: string;
@@ -808,7 +1113,10 @@ export interface Articulo {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Unidades (instancia física de un artículo) ---
@@ -850,7 +1158,10 @@ export interface UnidadStock {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Minikits ---
@@ -878,7 +1189,10 @@ export interface Minikit {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // --- Movimientos de Stock (log inmutable de auditoría) ---
@@ -982,7 +1296,10 @@ export interface Remito {
   proveedorNombre?: string | null;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // =============================================
@@ -1127,7 +1444,10 @@ export interface FichaPropiedad {
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
 
 // =============================================
@@ -1216,5 +1536,284 @@ export interface Loaner {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  createdBy?: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
+
+// =============================================
+// --- Posiciones Arancelarias (catálogo) ---
+// =============================================
+
+export interface PosicionArancelaria {
+  id: string;
+  codigo: string; // formato SIM: "9027.90.99.999A"
+  descripcion: string;
+  tratamiento: TratamientoArancelario;
+  notas?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// =============================================
+// --- Requerimientos de Compra ---
+// =============================================
+
+export type EstadoRequerimiento = 'pendiente' | 'aprobado' | 'en_compra' | 'comprado' | 'cancelado';
+export type OrigenRequerimiento = 'manual' | 'presupuesto' | 'stock_minimo' | 'ingeniero';
+
+export const ESTADO_REQUERIMIENTO_LABELS: Record<EstadoRequerimiento, string> = {
+  pendiente: 'Pendiente',
+  aprobado: 'Aprobado',
+  en_compra: 'En compra',
+  comprado: 'Comprado',
+  cancelado: 'Cancelado',
+};
+
+export const ESTADO_REQUERIMIENTO_COLORS: Record<EstadoRequerimiento, string> = {
+  pendiente: 'bg-yellow-100 text-yellow-700',
+  aprobado: 'bg-blue-100 text-blue-700',
+  en_compra: 'bg-indigo-100 text-indigo-700',
+  comprado: 'bg-green-100 text-green-700',
+  cancelado: 'bg-red-100 text-red-700',
+};
+
+export const ORIGEN_REQUERIMIENTO_LABELS: Record<OrigenRequerimiento, string> = {
+  manual: 'Manual',
+  presupuesto: 'Presupuesto',
+  stock_minimo: 'Stock mínimo',
+  ingeniero: 'Ingeniero',
+};
+
+export interface RequerimientoCompra {
+  id: string;
+  numero: string; // REQ-0001
+  articuloId?: string | null;
+  articuloCodigo?: string | null;
+  articuloDescripcion: string;
+  cantidad: number;
+  unidadMedida: string;
+  motivo: string;
+  origen: OrigenRequerimiento;
+  origenRef?: string | null;
+  estado: EstadoRequerimiento;
+  proveedorSugeridoId?: string | null;
+  proveedorSugeridoNombre?: string | null;
+  ordenCompraId?: string | null;
+  ordenCompraNumero?: string | null;
+  solicitadoPor: string;
+  fechaSolicitud: string;
+  fechaAprobacion?: string | null;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+// =============================================
+// --- Importaciones (Comercio Exterior) ---
+// =============================================
+
+export type EstadoImportacion = 'preparacion' | 'embarcado' | 'en_transito' | 'en_aduana'
+  | 'despachado' | 'recibido' | 'cancelado';
+
+export const ESTADO_IMPORTACION_LABELS: Record<EstadoImportacion, string> = {
+  preparacion: 'Preparación',
+  embarcado: 'Embarcado',
+  en_transito: 'En tránsito',
+  en_aduana: 'En aduana',
+  despachado: 'Despachado',
+  recibido: 'Recibido',
+  cancelado: 'Cancelado',
+};
+
+export const ESTADO_IMPORTACION_COLORS: Record<EstadoImportacion, string> = {
+  preparacion: 'bg-slate-100 text-slate-600',
+  embarcado: 'bg-blue-100 text-blue-700',
+  en_transito: 'bg-amber-100 text-amber-700',
+  en_aduana: 'bg-purple-100 text-purple-700',
+  despachado: 'bg-cyan-100 text-cyan-700',
+  recibido: 'bg-green-100 text-green-700',
+  cancelado: 'bg-red-100 text-red-700',
+};
+
+export interface DocumentoImportacion {
+  id: string;
+  tipo: string; // 'invoice' | 'packing_list' | 'bl' | 'certificado_origen' | 'otro'
+  nombre: string;
+  url?: string | null;
+  fecha?: string | null;
+  notas?: string | null;
+}
+
+export interface GastoImportacion {
+  id: string;
+  concepto: string; // 'flete_internacional' | 'seguro' | 'despachante' | 'flete_interno' | 'vep' | 'otro'
+  descripcion?: string | null;
+  monto: number;
+  moneda: 'ARS' | 'USD' | 'EUR';
+  fecha?: string | null;
+  comprobante?: string | null;
+}
+
+export interface Importacion {
+  id: string;
+  numero: string; // IMP-0001
+  estado: EstadoImportacion;
+  // OC vinculada
+  ordenCompraId: string;
+  ordenCompraNumero: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  // Embarque
+  puertoOrigen?: string | null;
+  puertoDestino?: string | null;
+  naviera?: string | null;
+  booking?: string | null;
+  contenedor?: string | null;
+  fechaEmbarque?: string | null;
+  fechaEstimadaArribo?: string | null;
+  fechaArriboReal?: string | null;
+  incoterm?: string | null;
+  // Aduana
+  despachante?: string | null;
+  despachoNumero?: string | null;
+  fechaDespacho?: string | null;
+  // VEP
+  vepNumero?: string | null;
+  vepMonto?: number | null;
+  vepMoneda?: 'ARS' | 'USD' | null;
+  vepFechaPago?: string | null;
+  // Costeo
+  gastos: GastoImportacion[];
+  costoTotalARS?: number | null;
+  // Documentos
+  documentos: DocumentoImportacion[];
+  // Audit
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+// =============================================
+// --- Autenticacion y Roles ---
+// =============================================
+
+export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'administracion';
+export type UserStatus = 'pendiente' | 'activo' | 'deshabilitado';
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrador',
+  ingeniero_soporte: 'Ingeniero de Soporte',
+  admin_soporte: 'Admin de Soporte',
+  administracion: 'Administracion',
+};
+
+export const USER_STATUS_LABELS: Record<UserStatus, string> = {
+  pendiente: 'Pendiente',
+  activo: 'Activo',
+  deshabilitado: 'Deshabilitado',
+};
+
+export const USER_STATUS_COLORS: Record<UserStatus, string> = {
+  pendiente: 'bg-yellow-100 text-yellow-700',
+  activo: 'bg-green-100 text-green-700',
+  deshabilitado: 'bg-red-100 text-red-700',
+};
+
+export interface UsuarioAGS {
+  id: string;
+  email: string;
+  displayName: string;
+  photoURL: string | null;
+  role: UserRole | null;
+  status: UserStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string;
+}
+
+// --- Audit Log ---
+
+export type AuditAction = 'create' | 'update' | 'delete';
+
+export interface AuditLogEntry {
+  id: string;
+  action: AuditAction;
+  collection: string;
+  documentId: string;
+  userId: string;
+  userName: string;
+  timestamp: string;
+  changes?: { before?: Record<string, unknown>; after?: Record<string, unknown> } | null;
+}
+
+// --- Agenda ---
+
+export type EstadoAgenda = 'pendiente' | 'tentativo' | 'confirmado' | 'en_progreso' | 'completado' | 'cancelado';
+
+export const ESTADO_AGENDA_LABELS: Record<EstadoAgenda, string> = {
+  pendiente: 'Pendiente',
+  tentativo: 'Tentativo',
+  confirmado: 'Confirmado',
+  en_progreso: 'En progreso',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+};
+
+export const ESTADO_AGENDA_COLORS: Record<EstadoAgenda, string> = {
+  pendiente: 'bg-slate-200 text-slate-700',
+  tentativo: 'bg-amber-200 text-amber-800',
+  confirmado: 'bg-blue-200 text-blue-800',
+  en_progreso: 'bg-indigo-200 text-indigo-800',
+  completado: 'bg-emerald-200 text-emerald-800',
+  cancelado: 'bg-red-100 text-red-600',
+};
+
+export interface AgendaEntry {
+  id: string;
+  fechaInicio: string;           // 'YYYY-MM-DD'
+  fechaFin: string;              // 'YYYY-MM-DD' (same as fechaInicio for single-day)
+  quarterStart: 1 | 2 | 3 | 4;
+  quarterEnd: 1 | 2 | 3 | 4;
+  ingenieroId: string;
+  ingenieroNombre: string;
+  otNumber: string;
+  clienteNombre: string;
+  tipoServicio: string;
+  sistemaNombre: string | null;
+  establecimientoNombre: string | null;
+  estadoAgenda: EstadoAgenda;
+  notas: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+export interface AgendaNota {
+  id: string;
+  fecha: string;           // 'YYYY-MM-DD'
+  ingenieroId: string;
+  ingenieroNombre: string;
+  texto: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+export type ZoomLevel = 'week' | '2weeks' | 'month' | '2months' | 'year';

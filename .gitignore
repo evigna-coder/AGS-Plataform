@@ -44,6 +44,7 @@ lerna-debug.log*
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+scripts/serviceAccountKey.json
 
 # OS
 Thumbs.db

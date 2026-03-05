@@ -60,7 +60,7 @@ export const UnidadesList = () => {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Unidades de stock"
         subtitle="Inventario de unidades individuales"
@@ -106,7 +106,7 @@ export const UnidadesList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
@@ -114,42 +114,41 @@ export const UnidadesList = () => {
             </div>
           </Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map(u => (
                     <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-indigo-600 hover:underline">
                           {u.articuloCodigo}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-900">{u.articuloDescripcion}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600 font-mono">{u.nroSerie ?? '-'}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{u.nroLote ?? '-'}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2 text-xs text-slate-900">{u.articuloDescripcion}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600 font-mono">{u.nroSerie ?? '-'}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{u.nroLote ?? '-'}</td>
+                      <td className="px-4 py-2">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CONDICION_COLORS[u.condicion]}`}>
                           {CONDICION_LABELS[u.condicion]}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>
                           {ESTADO_LABELS[u.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-600">
+                      <td className="px-4 py-2 text-xs text-slate-600">
                         {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
                         {u.ubicacion.referenciaNombre && (
                           <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>
@@ -159,8 +158,7 @@ export const UnidadesList = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>

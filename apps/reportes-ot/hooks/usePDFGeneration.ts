@@ -14,28 +14,6 @@ const nextTwoFrames = async (): Promise<void> => {
   await nextFrame();
 };
 
-function debugEl(el: HTMLElement): {
-  id: string;
-  rect: { w: number; h: number; x: number; y: number };
-  scrollH: number;
-  display: string;
-  visibility: string;
-  opacity: string;
-  transform: string;
-} {
-  const r = el.getBoundingClientRect();
-  const cs = getComputedStyle(el);
-  return {
-    id: el.id,
-    rect: { w: r.width, h: r.height, x: r.x, y: r.y },
-    scrollH: el.scrollHeight,
-    display: cs.display,
-    visibility: cs.visibility,
-    opacity: cs.opacity,
-    transform: cs.transform,
-  };
-}
-
 function dataUrlToUint8Array(dataUrl: string): Uint8Array {
   const base64 = dataUrl.split(',')[1];
   if (!base64) throw new Error('Invalid data URL');
@@ -47,34 +25,6 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 
 const A4_POINTS = { width: 595.28, height: 841.89 };
 
-/**
- * Genera el PDF del anexo capturando cada .protocol-page por separado (html2canvas + pdf-lib).
- * Sin html2pdf; cada página es un contenedor A4 real.
- */
-async function renderAnexoPdfFromPages(root: HTMLElement): Promise<Blob> {
-  const pageEls = root.querySelectorAll<HTMLElement>('.protocol-page');
-  const pdf = await PDFDocument.create();
-  for (const pageEl of pageEls) {
-    const canvas = await html2canvas(pageEl, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false,
-    });
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    const jpgBytes = dataUrlToUint8Array(dataUrl);
-    const jpg = await pdf.embedJpg(jpgBytes);
-    const page = pdf.addPage([A4_POINTS.width, A4_POINTS.height]);
-    page.drawImage(jpg, {
-      x: 0,
-      y: 0,
-      width: A4_POINTS.width,
-      height: A4_POINTS.height,
-    });
-  }
-  const bytes = await pdf.save();
-  return new Blob([bytes], { type: 'application/pdf' });
-}
 
 export interface UsePDFGenerationReturn {
   // Funciones
@@ -161,9 +111,27 @@ export const usePDFGeneration = (
     console.log("Generando PDF Hoja 1…");
     const blobHoja1 = await html2pdf().set(opt).from(element).outputPdf('blob');
 
-    // Verificar si hay anexo (protocolo, tablas catálogo, instrumentos o fotos)
-    const anexoElement = document.getElementById('pdf-container-anexo-pdf') as HTMLElement | null;
-    if (!anexoElement || anexoElement.querySelectorAll('.protocol-page').length === 0) {
+    // ── Anexos: tablas/protocolos + fotos ──
+    const tablasPdf = document.getElementById('pdf-container-tablas-pdf');
+    const fotosPdf = document.getElementById('pdf-container-fotos-pdf');
+
+    // Precargar imágenes de los contenedores ocultos
+    const preloadFromContainer = (container: HTMLElement | null) => {
+      if (!container) return Promise.resolve();
+      return Promise.all(Array.from(container.querySelectorAll('img')).map(img =>
+        new Promise(resolve => {
+          if (img.complete) resolve(null);
+          else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
+        })
+      ));
+    };
+
+    const hasTablas = tablasPdf && tablasPdf.children.length > 0;
+    const fotoPages = fotosPdf
+      ? Array.from(fotosPdf.querySelectorAll<HTMLElement>('.protocol-page'))
+      : [];
+
+    if (!hasTablas && fotoPages.length === 0) {
       console.log("Sin páginas de anexo, sólo Hoja 1");
       return blobHoja1;
     }
@@ -171,39 +139,104 @@ export const usePDFGeneration = (
     document.body.classList.add('pdf-generating');
 
     try {
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      await nextTwoFrames();
+      await Promise.all([preloadFromContainer(tablasPdf), preloadFromContainer(fotosPdf)]);
 
-      // Pre-cargar imágenes del anexo (adjuntos fotográficos)
-      const anexoImages = anexoElement.querySelectorAll('img');
-      await Promise.all(Array.from(anexoImages).map(img =>
-        new Promise(resolve => {
-          if (img.complete) resolve(null);
-          else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
-        })
-      ));
+      const pdfParts: Blob[] = [blobHoja1];
 
-      const pageEls = anexoElement.querySelectorAll('.protocol-page');
+      // ── Tablas/Protocolos: capturar el preview visible (layout idéntico) ──
+      if (hasTablas) {
+        console.log("[PDF][TABLAS] Generando PDF de protocolos…");
 
-      const rect = anexoElement.getBoundingClientRect();
-      console.log('[PDF][ANEXO] rect=', rect.width, rect.height, 'scrollH=', anexoElement.scrollHeight, 'pages=', pageEls.length);
+        // Preferir el preview visible (layout idéntico a lo que ve el usuario)
+        const previewEl = document.getElementById('pdf-preview-tablas');
+        const tablasTarget = previewEl || tablasPdf!;
 
-      if (rect.width < 10 || rect.height < 10) {
-        throw new Error(`Anexo sin layout: w=${rect.width} h=${rect.height}`);
+        // Si usamos el contenedor oculto, hacerlo visible
+        let savedStyleTablas = '';
+        if (!previewEl && tablasPdf) {
+          savedStyleTablas = tablasPdf.getAttribute('style') || '';
+          Object.assign(tablasPdf.style, {
+            position: 'absolute', top: '0', left: '0',
+            width: '210mm', transform: 'none', zIndex: '99999',
+            opacity: '1', pointerEvents: 'none', background: 'white',
+          });
+        }
+
+        // Limpiar decoraciones para captura limpia
+        const origShadow = tablasTarget.style.boxShadow;
+        const origRadius = tablasTarget.style.borderRadius;
+        tablasTarget.style.boxShadow = 'none';
+        tablasTarget.style.borderRadius = '0';
+
+        await nextTwoFrames();
+        await preloadFromContainer(tablasTarget);
+
+        try {
+          // Usar html2pdf (misma pipeline que Hoja 1 que funciona perfecto)
+          const optTablas = getPDFOptions(otNumber, tablasTarget, true, true);
+          const blobTablas: Blob = await html2pdf().set(optTablas).from(tablasTarget).outputPdf('blob');
+          pdfParts.push(blobTablas);
+          console.log("[PDF][TABLAS] PDF de protocolos generado OK");
+        } finally {
+          tablasTarget.style.boxShadow = origShadow;
+          tablasTarget.style.borderRadius = origRadius;
+          if (!previewEl && tablasPdf) {
+            tablasPdf.setAttribute('style', savedStyleTablas);
+          }
+        }
       }
 
-      console.log("Generando anexo de protocolo (html2canvas por página)…");
-      const blobAnexo = await renderAnexoPdfFromPages(anexoElement);
+      // ── Fotos: html2canvas directo sobre el contenedor original ──
+      if (fotoPages.length > 0 && fotosPdf) {
+        console.log(`[PDF][FOTOS] ${fotoPages.length} página(s) de fotos`);
 
-      const pdf1 = await PDFDocument.load(await blobHoja1.arrayBuffer());
-      const pdf2 = await PDFDocument.load(await blobAnexo.arrayBuffer());
+        const savedStyleFotos = fotosPdf.getAttribute('style') || '';
+        Object.assign(fotosPdf.style, {
+          position: 'absolute',
+          top: '0',
+          left: '0',
+          width: '210mm',
+          transform: 'none',
+          zIndex: '99999',
+          opacity: '1',
+          pointerEvents: 'none',
+          background: 'white',
+        });
+
+        await nextTwoFrames();
+        await preloadFromContainer(fotosPdf);
+
+        try {
+          const fotosPdfDoc = await PDFDocument.create();
+          for (const pageEl of fotoPages) {
+            const canvas = await html2canvas(pageEl, {
+              scale: 2,
+              backgroundColor: '#ffffff',
+              useCORS: true,
+              logging: false,
+            });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const jpgBytes = dataUrlToUint8Array(dataUrl);
+            const jpg = await fotosPdfDoc.embedJpg(jpgBytes);
+            const page = fotosPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+            page.drawImage(jpg, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
+          }
+          pdfParts.push(new Blob([await fotosPdfDoc.save()], { type: 'application/pdf' }));
+          console.log("[PDF][FOTOS] PDF de fotos generado OK");
+        } finally {
+          fotosPdf.setAttribute('style', savedStyleFotos);
+        }
+      }
+
+      // ── Merge: Hoja 1 + Tablas + Fotos ──
       const mergedPdf = await PDFDocument.create();
-      const pages1 = await mergedPdf.copyPages(pdf1, pdf1.getPageIndices());
-      pages1.forEach((p) => mergedPdf.addPage(p));
-      const pages2 = await mergedPdf.copyPages(pdf2, pdf2.getPageIndices());
-      pages2.forEach((p) => mergedPdf.addPage(p));
-      const mergedBytes = await mergedPdf.save();
-      return new Blob([mergedBytes], { type: 'application/pdf' });
+      for (const partBlob of pdfParts) {
+        const partDoc = await PDFDocument.load(await partBlob.arrayBuffer());
+        const pages = await mergedPdf.copyPages(partDoc, partDoc.getPageIndices());
+        pages.forEach(p => mergedPdf.addPage(p));
+      }
+      return new Blob([await mergedPdf.save()], { type: 'application/pdf' });
     } finally {
       document.body.classList.remove('pdf-generating');
     }
@@ -313,10 +346,7 @@ export const usePDFGeneration = (
         const generatedBlob = await generatePDFBlob();
         setPdfBlob(generatedBlob);
 
-        const shared = await sharePDFMobile(generatedBlob, filename, otNumber);
-        if (!shared) {
-          downloadPDF(generatedBlob, filename);
-        }
+        downloadPDF(generatedBlob, filename);
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         showAlert({
@@ -407,10 +437,7 @@ export const usePDFGeneration = (
         const generatedBlob = await generatePDFBlob();
         setPdfBlob(generatedBlob);
 
-        const shared = await sharePDFMobile(generatedBlob, filename, otNumber);
-        if (!shared) {
-          downloadPDF(generatedBlob, filename);
-        }
+        downloadPDF(generatedBlob, filename);
 
         console.log("PDF generado exitosamente");
         

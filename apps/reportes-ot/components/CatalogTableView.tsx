@@ -82,18 +82,6 @@ interface Props {
   onRemove?: (tableId: string) => void;
 }
 
-const RESULTADO_LABELS: Record<ProtocolSelection['resultado'], string> = {
-  CONFORME: 'Conforme',
-  NO_CONFORME: 'No conforme',
-  PENDIENTE: 'Pendiente',
-};
-
-const RESULTADO_COLORS: Record<ProtocolSelection['resultado'], string> = {
-  CONFORME: 'text-green-700 bg-green-50 border-green-300',
-  NO_CONFORME: 'text-red-700 bg-red-50 border-red-300',
-  PENDIENTE: 'text-amber-700 bg-amber-50 border-amber-300',
-};
-
 const PASS_LABELS: Record<string, string> = {
   PASS: 'Cumple',
   FAIL: 'No cumple',
@@ -238,7 +226,6 @@ export const CatalogTableView: React.FC<Props> = ({
   isPrint = false,
   onChangeData,
   onChangeObservaciones,
-  onChangeResultado,
   onToggleClientSpec,
   onRemove,
 }) => {
@@ -262,19 +249,21 @@ export const CatalogTableView: React.FC<Props> = ({
   /** Valor de fábrica del campo especificación para una fila (del template) */
   const getFactorySpec = (rowId: string): string => getFactoryValue(rowId, specColKey ?? '');
 
-  // Detectar unidad de la columna Resultado a partir de los valores de Especificación
-  // Ej: "≤ 0.500 %" → "%", "≤ 1.500 mL" → "mL"
-  const resultadoDisplayUnit: string | null = (() => {
+  /** Extrae la unidad de un string de especificación (ej. "≤ 0.500 %" → "%", "5.000 mV/h" → "mV/h", "0.50ºC" → "ºC") */
+  const extractUnitFromSpec = (specVal: string): string | null => {
+    const s = specVal.trim();
+    if (!s) return null;
+    // Unidad separada por espacio ("2.000 mV") O pegada al número ("0.50ºC")
+    const m = s.match(/[\d\s]([A-Za-z%°ºª][A-Za-z0-9.%°ºª/]{0,10})\s*$/);
+    return m ? m[1].trim() : null;
+  };
+
+  /** Unidad de la columna Resultado para una fila específica, extraída de su especificación */
+  const getRowResultUnit = (rowId: string): string | null => {
     if (!specColKey || !resultadoColKey) return null;
-    for (const row of table.templateRows) {
-      if (row.isTitle) continue;
-      const specVal = String(row.cells?.[specColKey] ?? '').trim();
-      if (!specVal) continue;
-      const m = specVal.match(/\s([A-Za-z%°][A-Za-z0-9.%°/]{0,8})\s*$/);
-      if (m) return m[1].trim();
-    }
-    return null;
-  })();
+    const specVal = getFactorySpec(rowId);
+    return extractUnitFromSpec(specVal);
+  };
 
   /** Especificación activa: del cliente si está habilitada, de fábrica si no */
   const getActiveSpec = (rowId: string): string => {
@@ -353,7 +342,7 @@ export const CatalogTableView: React.FC<Props> = ({
             )}
           </div>
           {factoryVal && (
-            <div className="text-[9px] text-slate-400 truncate" title={`Fábrica: ${factoryVal}`}>
+            <div className="text-[9px] font-semibold text-blue-600 bg-blue-50 rounded px-1 py-0.5 mt-0.5 truncate" title={`Especificación de fábrica: ${factoryVal}`}>
               Ref. fábrica: {factoryVal}
             </div>
           )}
@@ -400,11 +389,9 @@ export const CatalogTableView: React.FC<Props> = ({
     }
 
     // ── Resto de columnas (Resultado y otras editables) ─────────────────────
-    // Para la columna Resultado, inyectar la unidad detectada de las especificaciones
-    const colForRender =
-      col.key === resultadoColKey && !col.unit && resultadoDisplayUnit
-        ? { ...col, unit: resultadoDisplayUnit }
-        : col;
+    // Para la columna Resultado, inyectar la unidad detectada de la especificación de esta fila
+    const rowUnit = col.key === resultadoColKey && !col.unit ? getRowResultUnit(rowId) : null;
+    const colForRender = rowUnit ? { ...col, unit: rowUnit } : col;
     return renderDefaultCell(colForRender, rowId, selection.filledData, readOnly, isPrint, handleCellChange);
   };
 
@@ -434,7 +421,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 className="w-3.5 h-3.5 accent-blue-600 cursor-pointer disabled:cursor-default"
               />
               <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
-                Ver especificación del cliente
+                Especificaciones ampliadas por el cliente
               </span>
             </label>
           )}
@@ -467,12 +454,12 @@ export const CatalogTableView: React.FC<Props> = ({
                   {col.label}
                   {col.unit && <span className="font-normal text-slate-400 ml-1">({col.unit})</span>}
                   {col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
-                  {/* Indicador visual de columna calculada */}
-                  {col.key === conclusionColKey && !isPrint && (
+                  {/* Indicador visual de columna calculada (solo en modo edición) */}
+                  {col.key === conclusionColKey && !isPrint && !readOnly && (
                     <span className="ml-1 text-blue-400 font-normal text-[9px]">auto</span>
                   )}
-                  {/* Indicador de especificación bloqueada / cliente */}
-                  {col.key === specColKey && !isPrint && (
+                  {/* Indicador de especificación bloqueada / cliente (solo en modo edición) */}
+                  {col.key === specColKey && !isPrint && !readOnly && (
                     <span className="ml-1 text-slate-400 font-normal text-[9px]">
                       {clientSpecEnabled ? '✎' : '🔒'}
                     </span>
@@ -518,52 +505,26 @@ export const CatalogTableView: React.FC<Props> = ({
         </table>
       </div>
 
-      {/* Footer edit: resultado + observaciones */}
-      {!isPrint && (
-        <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium">Resultado:</span>
-            <div className="flex gap-1">
-              {(['CONFORME', 'NO_CONFORME', 'PENDIENTE'] as const).map(r => (
-                <button
-                  key={r}
-                  disabled={readOnly}
-                  onClick={() => onChangeResultado?.(selection.tableId, r)}
-                  className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors disabled:cursor-not-allowed ${
-                    selection.resultado === r
-                      ? RESULTADO_COLORS[r]
-                      : 'border-slate-200 text-slate-400 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  {RESULTADO_LABELS[r]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <input
-              type="text"
-              placeholder="Observaciones..."
-              value={selection.observaciones ?? ''}
-              disabled={readOnly}
-              onChange={(e) => onChangeObservaciones?.(selection.tableId, e.target.value)}
-              className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300"
-            />
-          </div>
+      {/* Footer edit: observaciones (oculto en readOnly si no hay contenido) */}
+      {!isPrint && (!readOnly || selection.observaciones) && (
+        <div className="px-3 py-2 bg-slate-50 border-t border-slate-200">
+          <input
+            type="text"
+            placeholder="Observaciones..."
+            value={selection.observaciones ?? ''}
+            disabled={readOnly}
+            onChange={(e) => onChangeObservaciones?.(selection.tableId, e.target.value)}
+            className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300"
+          />
         </div>
       )}
 
-      {/* Footer print: resultado + observaciones */}
-      {isPrint && (selection.resultado !== 'PENDIENTE' || selection.observaciones) && (
-        <div className="px-2 py-1 border-t border-slate-200 flex gap-4">
+      {/* Footer print: observaciones */}
+      {isPrint && selection.observaciones && (
+        <div className="px-2 py-1 border-t border-slate-200">
           <span className="text-[9px] text-slate-600">
-            <strong>Resultado:</strong> {RESULTADO_LABELS[selection.resultado]}
+            <strong>Obs.:</strong> {selection.observaciones}
           </span>
-          {selection.observaciones && (
-            <span className="text-[9px] text-slate-600">
-              <strong>Obs.:</strong> {selection.observaciones}
-            </span>
-          )}
         </div>
       )}
     </div>

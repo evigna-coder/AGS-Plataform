@@ -87,7 +87,7 @@ export const PosicionesPage = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Posiciones de stock"
         subtitle="Ubicaciones fisicas: cajoneras, estantes, depositos"
@@ -121,7 +121,7 @@ export const PosicionesPage = () => {
         )}
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
@@ -134,7 +134,7 @@ export const PosicionesPage = () => {
         ) : items.length === 0 ? (
           <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay posiciones registradas.</p></div></Card>
         ) : (
-          <Card>
+          <div className="bg-white">
             <div className="divide-y divide-slate-50">
               {items.map(pos => (
                 <div key={pos.id} className={`flex items-center justify-between py-2 px-2 ${!pos.activo ? 'opacity-50' : ''}`}>
@@ -168,7 +168,7 @@ export const PosicionesPage = () => {
                         {pos.descripcion && <p className="text-[11px] text-slate-400 mt-0.5">{pos.descripcion}</p>}
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <button onClick={() => startEdit(pos)} className="text-blue-600 hover:underline font-medium text-[11px]">Editar</button>
+                        <button onClick={() => startEdit(pos)} className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
                         <button onClick={() => handleToggle(pos)}
                           className={`font-medium text-[11px] ${pos.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
                           {pos.activo ? 'Desactivar' : 'Activar'}
@@ -180,7 +180,7 @@ export const PosicionesPage = () => {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>

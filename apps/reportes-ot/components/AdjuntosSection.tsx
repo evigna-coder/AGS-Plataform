@@ -12,40 +12,49 @@ interface Props {
 
 export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos, setAdjuntos, readOnly }) => {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = async (file: File) => {
-    if (!otNumber) return;
+  const handleFiles = async (files: File[]) => {
+    if (!otNumber || files.length === 0) return;
     setUploading(true);
     try {
-      const { url, path } = await firebase.uploadAdjuntoFile(otNumber, file);
-      const tipo: 'foto' | 'archivo' = file.type.startsWith('image/') ? 'foto' : 'archivo';
-      const newOrden = adjuntos.length > 0 ? Math.max(...adjuntos.map(a => a.orden)) + 1 : 0;
-      const id = await firebase.createAdjunto({
-        otNumber,
-        tipo,
-        storagePath: path,
-        url,
-        fileName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        caption: null,
-        orden: newOrden,
-        uploadedAt: new Date().toISOString(),
-      });
-      setAdjuntos([...adjuntos, { id, otNumber, tipo, storagePath: path, url, fileName: file.name, mimeType: file.type, sizeBytes: file.size, caption: null, orden: newOrden, uploadedAt: new Date().toISOString() }]);
+      let currentOrden = adjuntos.length > 0 ? Math.max(...adjuntos.map(a => a.orden)) + 1 : 0;
+      const newAdjuntos: AdjuntoMeta[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (files.length > 1) setUploadProgress(`${i + 1}/${files.length}`);
+        const { url, path } = await firebase.uploadAdjuntoFile(otNumber, file);
+        const tipo: 'foto' | 'archivo' = file.type.startsWith('image/') ? 'foto' : 'archivo';
+        const id = await firebase.createAdjunto({
+          otNumber,
+          tipo,
+          storagePath: path,
+          url,
+          fileName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          caption: null,
+          orden: currentOrden,
+          uploadedAt: new Date().toISOString(),
+        });
+        newAdjuntos.push({ id, otNumber, tipo, storagePath: path, url, fileName: file.name, mimeType: file.type, sizeBytes: file.size, caption: null, orden: currentOrden, uploadedAt: new Date().toISOString() });
+        currentOrden++;
+      }
+      setAdjuntos([...adjuntos, ...newAdjuntos]);
     } catch (err) {
       console.error('Error subiendo adjunto:', err);
       alert('Error al subir el archivo');
     } finally {
       setUploading(false);
+      setUploadProgress('');
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) handleFile(f);
+    const fileList = e.target.files;
+    if (fileList && fileList.length > 0) handleFiles(Array.from(fileList));
     e.target.value = '';
   };
 
@@ -103,7 +112,7 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            {uploading ? 'Subiendo...' : 'Tomar foto'}
+            {uploading ? `Subiendo${uploadProgress ? ` ${uploadProgress}` : ''}...` : 'Tomar foto'}
           </button>
           <button
             onClick={() => fileRef.current?.click()}
@@ -113,10 +122,10 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Subir archivo
+            {uploading && uploadProgress ? `Subiendo ${uploadProgress}...` : 'Subir archivos'}
           </button>
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleInputChange} />
-          <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleInputChange} />
+          <input ref={fileRef} type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple className="hidden" onChange={handleInputChange} />
         </div>
       )}
 
@@ -140,7 +149,10 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
                     <svg className="w-8 h-8 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
-                    <p className="text-[10px] text-slate-500 mt-1 truncate">{adj.fileName}</p>
+                    <span className="block text-[11px] font-bold text-slate-500 uppercase mt-1">
+                      {adj.fileName.split('.').pop()?.toUpperCase() || 'FILE'}
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px] mx-auto">{adj.fileName}</p>
                   </div>
                 )}
               </div>

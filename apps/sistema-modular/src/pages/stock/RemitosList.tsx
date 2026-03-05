@@ -58,7 +58,7 @@ export const RemitosList = () => {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Remitos"
         subtitle="Gestionar remitos de stock"
@@ -90,48 +90,47 @@ export const RemitosList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {remitos.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron remitos</p></div></Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ingeniero</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha salida</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">OTs</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ingeniero</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha salida</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">OTs</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {remitos.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className="font-mono text-xs font-semibold text-indigo-600">{r.numero}</span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[r.tipo]}`}>
                           {TIPO_LABELS[r.tipo]}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[r.estado]}`}>
                           {ESTADO_LABELS[r.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-900">{r.ingenieroNombre}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{r.items?.length ?? 0}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{formatDate(r.fechaSalida)}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">
+                      <td className="px-4 py-2 text-xs text-slate-900">{r.ingenieroNombre}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{r.items?.length ?? 0}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{formatDate(r.fechaSalida)}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">
                         {r.otNumbers?.length ? r.otNumbers.join(', ') : '-'}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <Link to={`/stock/remitos/${r.id}`} className="text-xs text-indigo-600 hover:underline font-medium">Ver</Link>
                           {r.estado === 'borrador' && (
@@ -143,8 +142,7 @@ export const RemitosList = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
 

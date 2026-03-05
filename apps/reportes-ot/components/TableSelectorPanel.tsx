@@ -5,6 +5,8 @@ import { FirebaseService } from '../services/firebaseService';
 interface Props {
   firebase: FirebaseService;
   sysType?: string;
+  /** Nombre del modelo/equipo seleccionado (ej. "HPLC 1260") para filtrar tablas por modelo. */
+  modeloEquipo?: string;
   existingSelections: ProtocolSelection[];
   onApply: (newSelections: ProtocolSelection[]) => void;
   /**
@@ -17,6 +19,7 @@ interface Props {
 export const TableSelectorPanel: React.FC<Props> = ({
   firebase,
   sysType,
+  modeloEquipo,
   existingSelections,
   onApply,
   suggestedTables,
@@ -56,7 +59,10 @@ export const TableSelectorPanel: React.FC<Props> = ({
     setLoading(true);
     try {
       const tables = await firebase.getPublishedTables(sysType || undefined);
-      setAvailableTables(tables);
+      const filtered = modeloEquipo
+        ? tables.filter(t => !t.modelos || t.modelos.length === 0 || t.modelos.includes(modeloEquipo))
+        : tables;
+      setAvailableTables(filtered.sort((a, b) => (a.orden || 999) - (b.orden || 999)));
       const already = new Set(existingSelections.map(s => s.tableId));
       setChecked(already);
     } catch (err) {
@@ -81,6 +87,19 @@ export const TableSelectorPanel: React.FC<Props> = ({
     const newSelections: ProtocolSelection[] = selectedTables.map(table => {
       const existing = existingSelections.find(s => s.tableId === table.id);
       if (existing) return existing; // preservar datos ya completados
+
+      // Para texto: solo snapshot, sin datos editables
+      if (table.tableType === 'text') {
+        return {
+          tableId: table.id,
+          tableName: table.name,
+          tableSnapshot: table,
+          filledData: {},
+          observaciones: null,
+          resultado: 'CONFORME' as const,
+          seleccionadoAt: new Date().toISOString(),
+        };
+      }
 
       // Para checklists: inicializar con checklistData vacío
       if (table.tableType === 'checklist') {
@@ -207,9 +226,11 @@ export const TableSelectorPanel: React.FC<Props> = ({
                       <span className="text-[10px] text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 uppercase tracking-wide">
                         {table.tableType}
                       </span>
-                      <span className="text-[10px] text-slate-400">
-                        {table.columns.length} col · {table.templateRows.filter(r => !r.isTitle).length} filas
-                      </span>
+                      {table.tableType !== 'text' && (
+                        <span className="text-[10px] text-slate-400">
+                          {table.columns.length} col · {table.templateRows.filter(r => !r.isTitle).length} filas
+                        </span>
+                      )}
                       {wasAlready && (
                         <span className="text-[10px] text-emerald-600 font-medium">datos guardados</span>
                       )}

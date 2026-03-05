@@ -44,7 +44,7 @@ export function FichasList() {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Fichas Propiedad del Cliente"
         subtitle="Módulos y equipos ingresados para reparación"
@@ -88,13 +88,15 @@ export function FichasList() {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4">
         {loading ? (
           <p className="text-center text-slate-400 py-12">Cargando...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-center text-slate-400 py-12">No hay fichas registradas</p>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <p className="text-center text-slate-400 text-xs py-12">No hay fichas registradas</p>
+          </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -110,25 +112,25 @@ export function FichasList() {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(f => (
                   <tr key={f.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/fichas/${f.id}`)}>
-                    <td className="px-4 py-2.5 text-sm font-medium text-indigo-600">{f.numero}</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-700">{f.clienteNombre}</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-600 max-w-[200px] truncate">
+                    <td className="px-4 py-2 text-xs font-medium text-indigo-600">{f.numero}</td>
+                    <td className="px-4 py-2 text-xs text-slate-700">{f.clienteNombre}</td>
+                    <td className="px-4 py-2 text-xs text-slate-600 max-w-[200px] truncate">
                       {f.moduloNombre || f.descripcionLibre || '-'}
                     </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${ESTADO_FICHA_COLORS[f.estado]}`}>
+                    <td className="px-4 py-2">
+                      <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_FICHA_COLORS[f.estado]}`}>
                         {ESTADO_FICHA_LABELS[f.estado]}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">{formatDate(f.fechaIngreso)}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">
+                    <td className="px-4 py-2 text-xs text-slate-500">{formatDate(f.fechaIngreso)}</td>
+                    <td className="px-4 py-2 text-xs text-slate-500">
                       {f.otReferencia ? (
                         <Link to={`/ordenes-trabajo/${f.otReferencia}`} className="text-indigo-600 hover:underline" onClick={e => e.stopPropagation()}>
                           {f.otReferencia}
                         </Link>
                       ) : '-'}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-4 py-2 text-right">
                       {f.estado === 'recibido' && (
                         <button
                           className="text-xs text-red-500 hover:text-red-700"

@@ -93,7 +93,7 @@ export function LoanerEditor() {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 tracking-tight">

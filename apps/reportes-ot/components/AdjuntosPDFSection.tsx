@@ -52,7 +52,6 @@ export const AdjuntosPDFSection: React.FC<Props> = ({ adjuntos }) => {
                   <img
                     src={adj.url}
                     alt={adj.caption || adj.fileName}
-                    crossOrigin="anonymous"
                     style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                   />
                 </div>

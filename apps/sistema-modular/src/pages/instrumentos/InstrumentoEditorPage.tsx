@@ -179,21 +179,21 @@ export const InstrumentoEditorPage = () => {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
-      <div className="shrink-0 px-6 pt-6 pb-4 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
+      <div className="shrink-0 px-5 pt-4 pb-3 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
               {isNew ? 'Nuevo instrumento' : `Editar: ${nombre}`}
             </h2>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-400">
               {isNew ? 'Complete los datos y guarde' : `ID: ${id}`}
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => navigate('/instrumentos')}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button variant="outline" size="sm" onClick={() => navigate('/instrumentos')}>Cancelar</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
@@ -201,9 +201,9 @@ export const InstrumentoEditorPage = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {/* Datos generales */}
-        <Card>
+        <Card compact>
           <h3 className="text-sm font-semibold text-slate-900 mb-4">Datos generales</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Identificación" value={nombre} onChange={e => setNombre(e.target.value)} required />
@@ -233,7 +233,7 @@ export const InstrumentoEditorPage = () => {
         </Card>
 
         {/* Categorías */}
-        <Card>
+        <Card compact>
           <h3 className="text-sm font-semibold text-slate-900 mb-4">
             {tipo === 'patron' ? 'Equipo aplicable' : 'Categorías'}
           </h3>
@@ -254,10 +254,10 @@ export const InstrumentoEditorPage = () => {
         </Card>
 
         {/* Certificado */}
-        <Card>
+        <Card compact>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Certificado de calibración</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.cls}`}>{badge.label}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${badge.cls}`}>{badge.label}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Emisor" value={certificadoEmisor}
@@ -271,7 +271,7 @@ export const InstrumentoEditorPage = () => {
               {certificadoUrl ? (
                 <div className="flex items-center gap-2">
                   <a href={certificadoUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm font-medium truncate max-w-xs">
+                    className="text-indigo-600 hover:underline text-sm font-medium truncate max-w-xs">
                     {certificadoNombre || 'Ver PDF'}
                   </a>
                   <button onClick={() => certFileRef.current?.click()}
@@ -290,7 +290,7 @@ export const InstrumentoEditorPage = () => {
         </Card>
 
         {/* Trazabilidad */}
-        <Card>
+        <Card compact>
           <h3 className="text-sm font-semibold text-slate-900 mb-4">Trazabilidad</h3>
           <p className="text-xs text-slate-500 mb-3">
             Documento de trazabilidad metrológica asociado al certificado de calibración.
@@ -299,7 +299,7 @@ export const InstrumentoEditorPage = () => {
             {trazabilidadUrl ? (
               <div className="flex items-center gap-2">
                 <a href={trazabilidadUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm font-medium truncate max-w-xs">
+                  className="text-indigo-600 hover:underline text-sm font-medium truncate max-w-xs">
                   {trazabilidadNombre || 'Ver PDF'}
                 </a>
                 <button onClick={() => trazFileRef.current?.click()}
@@ -318,7 +318,7 @@ export const InstrumentoEditorPage = () => {
 
         {/* Reemplazo (solo edición) */}
         {!isNew && (reemplazaA || reemplazadoPor) && (
-          <Card>
+          <Card compact>
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Cadena de reemplazo</h3>
             <div className="text-sm text-slate-600 space-y-1">
               {reemplazaA && <p>Reemplaza a: <span className="font-mono text-xs">{reemplazaA}</span></p>}

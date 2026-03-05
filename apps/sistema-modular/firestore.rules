@@ -164,6 +164,58 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Conceptos de servicio (catálogo de precios para presupuestos)
+    match /conceptos_servicio/{conceptoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Fichas propiedad del cliente
+    match /fichasPropiedad/{fichaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Loaners (equipos de préstamo)
+    match /loaners/{loanerId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Posiciones Arancelarias (catálogo de tratamientos)
+    match /posiciones_arancelarias/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Requerimientos de Compra
+    match /requerimientos_compra/{requerimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Importaciones (comercio exterior)
+    match /importaciones/{importacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Agenda Entries (asignaciones de servicio)
+    match /agendaEntries/{entryId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Agenda Notas (notas por dia por ingeniero)
+    match /agendaNotas/{notaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Postas (derivaciones workflow entre usuarios)
+    match /postas/{postaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Audit Log (trazabilidad de acciones)
+    match /audit_log/{logId} {
+      allow create: if true;           // Cualquier usuario autenticado puede escribir
+      allow read: if true;             // Temporal para desarrollo
+      allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
+    }
+
     // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;

@@ -54,7 +54,7 @@ export const MovimientosPage = () => {
     : items;
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Movimientos de Stock"
         subtitle="Historial de movimientos de inventario"
@@ -83,7 +83,7 @@ export const MovimientosPage = () => {
       </PageHeader>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <p className="text-slate-500">Cargando movimientos...</p>
@@ -95,39 +95,39 @@ export const MovimientosPage = () => {
             </div>
           </Card>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="text-left border-b border-slate-200">
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Cant.</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Destino</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Usuario</th>
-                  <th className="px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Ref.</th>
+                <tr className="text-left border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Cant.</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Destino</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Usuario</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Ref.</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(m => (
                   <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-600">{formatDate(m.createdAt)}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-2 whitespace-nowrap text-slate-600">{formatDate(m.createdAt)}</td>
+                    <td className="px-4 py-2">
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[m.tipo]}`}>
                         {TIPO_LABELS[m.tipo]}
                       </span>
                     </td>
-                    <td className="px-3 py-2 font-mono text-slate-700">{m.articuloCodigo}</td>
-                    <td className="px-3 py-2 text-slate-700 max-w-[200px] truncate">{m.articuloDescripcion}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-medium">{m.cantidad}</td>
-                    <td className="px-3 py-2 text-slate-600">{m.origenTipo} — {m.origenNombre}</td>
-                    <td className="px-3 py-2 text-slate-600">{m.destinoTipo} — {m.destinoNombre}</td>
-                    <td className="px-3 py-2 text-slate-500 max-w-[150px] truncate">{m.motivo ?? '—'}</td>
-                    <td className="px-3 py-2 text-slate-500">{m.creadoPor}</td>
-                    <td className="px-3 py-2 space-x-2">
+                    <td className="px-4 py-2 font-mono text-slate-700">{m.articuloCodigo}</td>
+                    <td className="px-4 py-2 text-slate-700 max-w-[200px] truncate">{m.articuloDescripcion}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-medium">{m.cantidad}</td>
+                    <td className="px-4 py-2 text-slate-600">{m.origenTipo} — {m.origenNombre}</td>
+                    <td className="px-4 py-2 text-slate-600">{m.destinoTipo} — {m.destinoNombre}</td>
+                    <td className="px-4 py-2 text-slate-500 max-w-[150px] truncate">{m.motivo ?? '—'}</td>
+                    <td className="px-4 py-2 text-slate-500">{m.creadoPor}</td>
+                    <td className="px-4 py-2 space-x-2">
                       {m.remitoId && (
                         <Link to={`/stock/remitos/${m.remitoId}`} className="text-indigo-600 hover:underline text-[10px] font-medium">
                           Remito

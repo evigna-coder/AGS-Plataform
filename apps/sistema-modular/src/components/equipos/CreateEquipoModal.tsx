@@ -4,8 +4,10 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { GCPortsGrid } from '../GCPortsGrid';
 import { sistemasService, clientesService, establecimientosService, categoriasEquipoService } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, CategoriaEquipo } from '@ags/shared';
+import type { Cliente, Establecimiento, CategoriaEquipo, ConfiguracionGC } from '@ags/shared';
+import { esGaseoso } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -25,6 +27,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
     clienteId: '', establecimientoId: '', categoriaId: '',
     nombre: '', nombreManual: '', software: '', codigoInternoCliente: '',
   });
+  const [gcConfig, setGcConfig] = useState<ConfiguracionGC>({});
 
   useEffect(() => {
     if (!open) return;
@@ -47,10 +50,15 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
 
   const selectedCategoria = categorias.find(c => c.id === form.categoriaId);
   const hasModelos = selectedCategoria && Array.isArray(selectedCategoria.modelos) && selectedCategoria.modelos.length > 0;
+  const nombreEfectivo = hasModelos
+    ? (form.nombre === '__otro__' ? form.nombreManual : form.nombre)
+    : form.nombre;
+  const showGC = esGaseoso(nombreEfectivo) || esGaseoso(selectedCategoria?.nombre ?? '');
 
   const handleClose = () => {
     onClose();
     setForm({ clienteId: '', establecimientoId: '', categoriaId: '', nombre: '', nombreManual: '', software: '', codigoInternoCliente: '' });
+    setGcConfig({});
   };
 
   const handleSave = async () => {
@@ -61,6 +69,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
 
     setSaving(true);
     try {
+      const isGC = esGaseoso(finalNombre) || esGaseoso(selectedCategoria?.nombre ?? '');
       const sistemaId = await sistemasService.create({
         establecimientoId: form.establecimientoId,
         clienteId: form.clienteId || null,
@@ -68,6 +77,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
         nombre: finalNombre,
         software: form.software.trim() || null,
         codigoInternoCliente: form.codigoInternoCliente.trim() || `PROV-${Date.now().toString(36).toUpperCase()}`,
+        configuracionGC: isGC ? gcConfig : null,
         activo: true,
         ubicaciones: [],
         otIds: [],
@@ -143,6 +153,10 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
                 onChange={e => set('nombre', e.target.value)} placeholder="Nombre del sistema..." />
             )}
           </>
+        )}
+
+        {showGC && (
+          <GCPortsGrid value={gcConfig} onChange={setGcConfig} />
         )}
 
         <div className="grid grid-cols-2 gap-3">

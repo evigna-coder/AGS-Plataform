@@ -41,7 +41,7 @@ export function LoanersList() {
   const getPrestamoActivo = (l: Loaner) => l.prestamos.find(p => p.estado === 'activo');
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Loaners"
         subtitle="Equipos de la empresa para prestamo y venta"
@@ -75,13 +75,15 @@ export function LoanersList() {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4">
         {loading ? (
           <p className="text-center text-slate-400 py-12">Cargando...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-center text-slate-400 py-12">No hay loaners registrados</p>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <p className="text-center text-slate-400 text-xs py-12">No hay loaners registrados</p>
+          </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -102,12 +104,12 @@ export function LoanersList() {
 
                   return (
                     <tr key={l.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/loaners/${l.id}`)}>
-                      <td className="px-4 py-2.5 text-sm font-medium text-indigo-600">{l.codigo}</td>
-                      <td className="px-4 py-2.5 text-sm text-slate-700 max-w-[200px] truncate">{l.descripcion}</td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500">{l.categoriaEquipo || '-'}</td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500">{l.serie || '-'}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${ESTADO_LOANER_COLORS[l.estado]}`}>
+                      <td className="px-4 py-2 text-xs font-medium text-indigo-600">{l.codigo}</td>
+                      <td className="px-4 py-2 text-xs text-slate-700 max-w-[200px] truncate">{l.descripcion}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500">{l.categoriaEquipo || '-'}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500">{l.serie || '-'}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_LOANER_COLORS[l.estado]}`}>
                           {ESTADO_LOANER_LABELS[l.estado]}
                         </span>
                         {alerta && (
@@ -116,10 +118,10 @@ export function LoanersList() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500">
+                      <td className="px-4 py-2 text-xs text-slate-500">
                         {prestamo ? prestamo.clienteNombre : l.estado === 'en_base' ? 'AGS Base' : '-'}
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-4 py-2 text-right">
                         {l.estado === 'en_base' && (
                           <button
                             className="text-xs text-red-500 hover:text-red-700"

@@ -8,21 +8,21 @@ interface GCPortsGridProps {
 }
 
 const INLET_OPTIONS: Array<{ value: InletType; label: string }> = [
-  { value: 'SSL', label: 'SSL — Split/Splitless' },
-  { value: 'COC', label: 'COC — Cool on Column' },
-  { value: 'PTV', label: 'PTV — Programmed Temperature Vaporization' },
+  { value: 'SSL', label: 'SSL' },
+  { value: 'COC', label: 'COC' },
+  { value: 'PTV', label: 'PTV' },
 ];
 
 const DETECTOR_OPTIONS: Array<{ value: DetectorType; label: string }> = [
-  { value: 'FID', label: 'FID — Flame Ionization Detector' },
-  { value: 'NCD', label: 'NCD — Nitrogen/Phosphorus Detector' },
-  { value: 'FPD', label: 'FPD — Flame Photometric Detector' },
-  { value: 'ECD', label: 'ECD — Electron Capture Detector' },
-  { value: 'SCD', label: 'SCD — Sulfur Chemiluminescence Detector' },
+  { value: 'FID', label: 'FID' },
+  { value: 'NCD', label: 'NCD' },
+  { value: 'FPD', label: 'FPD' },
+  { value: 'ECD', label: 'ECD' },
+  { value: 'SCD', label: 'SCD' },
 ];
 
 const selectClass =
-  'w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400';
+  'w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400';
 
 export const GCPortsGrid: React.FC<GCPortsGridProps> = ({ value, onChange, readOnly = false }) => {
   const handleChange = (field: keyof ConfiguracionGC, val: string) => {
@@ -37,27 +37,27 @@ export const GCPortsGrid: React.FC<GCPortsGridProps> = ({ value, onChange, readO
       !value.detectorBack;
 
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <p className="text-xs font-black uppercase text-amber-700 mb-3">Configuración de Puertos (GC)</p>
+      <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase text-amber-600 tracking-wider mb-1.5">Puertos GC</p>
         {noData ? (
-          <p className="text-xs text-slate-400 italic">Sin configuración de puertos cargada</p>
+          <p className="text-[11px] text-slate-400 italic">Sin configuración cargada</p>
         ) : (
-          <div className="grid grid-cols-3 gap-2 text-sm items-center">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 items-center">
             <div />
-            <p className="text-xs font-bold text-slate-500 text-center uppercase">Front</p>
-            <p className="text-xs font-bold text-slate-500 text-center uppercase">Back</p>
-            <p className="text-xs font-bold text-slate-700">Inyección</p>
-            <p className="text-center font-mono font-bold text-slate-800">
+            <p className="text-[10px] font-medium text-slate-400 text-center uppercase">Front</p>
+            <p className="text-[10px] font-medium text-slate-400 text-center uppercase">Back</p>
+            <p className="text-[11px] font-medium text-slate-600">Inyección</p>
+            <p className="text-center font-mono text-xs font-semibold text-slate-800">
               {value.puertoInyeccionFront ?? '—'}
             </p>
-            <p className="text-center font-mono font-bold text-slate-800">
+            <p className="text-center font-mono text-xs font-semibold text-slate-800">
               {value.puertoInyeccionBack ?? '—'}
             </p>
-            <p className="text-xs font-bold text-slate-700">Detector</p>
-            <p className="text-center font-mono font-bold text-slate-800">
+            <p className="text-[11px] font-medium text-slate-600">Detector</p>
+            <p className="text-center font-mono text-xs font-semibold text-slate-800">
               {value.detectorFront ?? '—'}
             </p>
-            <p className="text-center font-mono font-bold text-slate-800">
+            <p className="text-center font-mono text-xs font-semibold text-slate-800">
               {value.detectorBack ?? '—'}
             </p>
           </div>
@@ -67,16 +67,16 @@ export const GCPortsGrid: React.FC<GCPortsGridProps> = ({ value, onChange, readO
   }
 
   return (
-    <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
-      <p className="text-xs font-black uppercase text-amber-700 mb-3">Puertos (Cromatógrafo Gaseoso)</p>
-      <div className="grid grid-cols-3 gap-3 items-center">
+    <div className="rounded-lg border border-amber-300 bg-amber-50/60 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase text-amber-600 tracking-wider mb-1.5">Puertos GC</p>
+      <div className="grid grid-cols-3 gap-x-2 gap-y-1.5 items-center">
         {/* Header */}
         <div />
-        <p className="text-xs font-black text-center text-slate-600 uppercase">Front</p>
-        <p className="text-xs font-black text-center text-slate-600 uppercase">Back</p>
+        <p className="text-[10px] font-medium text-center text-slate-500 uppercase">Front</p>
+        <p className="text-[10px] font-medium text-center text-slate-500 uppercase">Back</p>
 
         {/* Puertos de inyección */}
-        <p className="text-xs font-bold text-slate-700">Puertos de inyección</p>
+        <p className="text-[11px] font-medium text-slate-700">Inyección</p>
         <select
           value={value.puertoInyeccionFront ?? ''}
           onChange={e => handleChange('puertoInyeccionFront', e.target.value)}
@@ -99,7 +99,7 @@ export const GCPortsGrid: React.FC<GCPortsGridProps> = ({ value, onChange, readO
         </select>
 
         {/* Detectores */}
-        <p className="text-xs font-bold text-slate-700">Detectores</p>
+        <p className="text-[11px] font-medium text-slate-700">Detector</p>
         <select
           value={value.detectorFront ?? ''}
           onChange={e => handleChange('detectorFront', e.target.value)}

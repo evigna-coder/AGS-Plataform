@@ -103,12 +103,12 @@ function createWindow() {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com data: blob:; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://*.firebaseio.com https://*.googleapis.com; " +
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com data: blob:; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com; " +
             "style-src 'self' 'unsafe-inline' http://localhost:*; " +
             "img-src 'self' data: blob: http://localhost:* https:; " +
             "font-src 'self' data: http://localhost:* https:; " +
-            "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com;"
+            "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com;"
           ]
         }
       });
@@ -121,11 +121,11 @@ function createWindow() {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self'; " +
-            "script-src 'self'; " +
+            "script-src 'self' https://*.googleapis.com https://*.google.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: blob: https:; " +
             "font-src 'self' data:; " +
-            "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com;"
+            "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com;"
           ]
         }
       });
@@ -250,9 +250,26 @@ function createWindow() {
     console.log(`[Renderer ${level}]:`, message);
   });
 
-  // Prevenir navegación externa
+  // Manejar ventanas emergentes (popups)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // Permitir abrir en navegador externo
+    // Permitir popup de Firebase/Google Auth como ventana hija de Electron
+    if (url.includes('accounts.google.com') ||
+        url.includes('firebaseapp.com/__/auth') ||
+        url.includes('googleapis.com/identitytoolkit')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 500,
+          height: 700,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      };
+    }
+    // Todo lo demas se abre en el navegador externo
     require('electron').shell.openExternal(url);
     return { action: 'deny' };
   });

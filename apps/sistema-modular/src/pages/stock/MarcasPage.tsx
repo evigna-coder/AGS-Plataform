@@ -85,7 +85,7 @@ export const MarcasPage = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Marcas"
         subtitle="Catálogo de marcas compartido entre instrumentos, equipos y stock"
@@ -118,7 +118,7 @@ export const MarcasPage = () => {
       </PageHeader>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
@@ -136,7 +136,7 @@ export const MarcasPage = () => {
             </div>
           </Card>
         ) : (
-          <Card>
+          <div className="bg-white">
             <div className="divide-y divide-slate-50">
               {marcas.map(m => (
                 <div key={m.id} className={`flex items-center justify-between py-2 px-2 ${!m.activo ? 'opacity-50' : ''}`}>
@@ -161,7 +161,7 @@ export const MarcasPage = () => {
                   {editingId !== m.id && (
                     <div className="flex gap-2">
                       <button onClick={() => startEdit(m)}
-                        className="text-blue-600 hover:underline font-medium text-[11px]">Editar</button>
+                        className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
                       <button onClick={() => handleToggleActivo(m)}
                         className={`font-medium text-[11px] ${m.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
                         {m.activo ? 'Desactivar' : 'Activar'}
@@ -173,7 +173,7 @@ export const MarcasPage = () => {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>

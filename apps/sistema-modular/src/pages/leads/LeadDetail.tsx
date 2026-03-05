@@ -99,7 +99,7 @@ export const LeadDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center py-12">
         <p className="text-slate-500">Cargando lead...</p>
       </div>
     );
@@ -108,7 +108,7 @@ export const LeadDetail: React.FC = () => {
   if (!lead) return null;
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Compact header */}
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
@@ -122,7 +122,7 @@ export const LeadDetail: React.FC = () => {
               </svg>
             </button>
             <div>
-              <h2 className="text-base font-semibold text-slate-900 tracking-tight">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
                 {lead.razonSocial}
               </h2>
               <p className="text-xs text-slate-400">

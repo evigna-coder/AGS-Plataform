@@ -11,7 +11,7 @@ const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En tránsito', en_revision: 'En revisión',
 };
 const ESTADO_COLORS: Record<EstadoMinikit, string> = {
-  en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-blue-700',
+  en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-indigo-600',
   en_transito: 'bg-amber-100 text-amber-700', en_revision: 'bg-purple-100 text-purple-700',
 };
 
@@ -81,7 +81,7 @@ export const MinikitsList = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Minikits"
         subtitle="Kits portables asignables a ingenieros con unidades de stock"
@@ -91,10 +91,8 @@ export const MinikitsList = () => {
             {showCreate ? 'Cancelar' : '+ Nuevo minikit'}
           </Button>
         }
-      />
-
-      {showCreate && (
-        <div className="shrink-0 px-5 py-3 bg-white border-b border-slate-100">
+      >
+        {showCreate && (
           <Card>
             <div className="grid grid-cols-3 gap-3 items-end">
               <Input
@@ -127,11 +125,11 @@ export const MinikitsList = () => {
               </Button>
             </div>
           </Card>
-        </div>
-      )}
+        )}
+      </PageHeader>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-between items-center">
           <p className="text-xs text-slate-400">{minikits.length} minikit(s)</p>
           <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
@@ -150,7 +148,7 @@ export const MinikitsList = () => {
             </div>
           </Card>
         ) : (
-          <Card>
+          <div className="bg-white">
             <div className="divide-y divide-slate-100">
               {minikits.map(mk => (
                 <div key={mk.id} className={`flex items-center justify-between py-2 px-2 ${!mk.activo ? 'opacity-50' : ''}`}>
@@ -170,7 +168,7 @@ export const MinikitsList = () => {
                   </div>
                   <div className="flex gap-3 shrink-0 ml-4">
                     <Link to={`/stock/minikits/${mk.id}`}
-                      className="text-blue-600 hover:underline font-medium text-[10px]">Ver</Link>
+                      className="text-indigo-600 hover:underline font-medium text-[10px]">Ver</Link>
                     <button onClick={() => handleToggleActivo(mk)}
                       className={`font-medium text-[10px] ${mk.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
                       {mk.activo ? 'Desactivar' : 'Activar'}
@@ -181,7 +179,7 @@ export const MinikitsList = () => {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>

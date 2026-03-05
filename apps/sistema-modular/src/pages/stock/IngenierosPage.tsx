@@ -108,7 +108,7 @@ export const IngenierosPage = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Ingenieros"
         subtitle="Catálogo de técnicos e ingenieros de campo"
@@ -143,7 +143,7 @@ export const IngenierosPage = () => {
         )}
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
@@ -156,7 +156,7 @@ export const IngenierosPage = () => {
         ) : items.length === 0 ? (
           <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay ingenieros registrados.</p></div></Card>
         ) : (
-          <Card>
+          <div className="bg-white">
             <div className="divide-y divide-slate-50">
               {items.map(ing => (
                 <div key={ing.id} className={`flex items-center justify-between py-2 px-2 ${!ing.activo ? 'opacity-50' : ''}`}>
@@ -192,7 +192,7 @@ export const IngenierosPage = () => {
                   )}
                   {editingId !== ing.id && (
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => startEdit(ing)} className="text-blue-600 hover:underline font-medium text-[11px]">Editar</button>
+                      <button onClick={() => startEdit(ing)} className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
                       <button onClick={() => handleToggle(ing)}
                         className={`font-medium text-[11px] ${ing.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
                         {ing.activo ? 'Desactivar' : 'Activar'}
@@ -203,7 +203,7 @@ export const IngenierosPage = () => {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>

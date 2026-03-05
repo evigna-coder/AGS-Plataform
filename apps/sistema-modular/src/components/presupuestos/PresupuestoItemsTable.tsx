@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { PresupuestoItem, CategoriaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
+import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -17,12 +18,16 @@ interface PresupuestoTotals {
 interface PresupuestoItemsTableProps {
   items: PresupuestoItem[];
   categoriasPresupuesto: CategoriaPresupuesto[];
+  conceptosServicio: ConceptoServicio[];
+  moneda: MonedaPresupuesto;
   totals: PresupuestoTotals;
   notasTecnicas: string;
+  condicionesComerciales: string;
   onAddItem: (item: PresupuestoItem) => void;
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
   onRemoveItem: (itemId: string) => void;
   onNotasTecnicasChange: (v: string) => void;
+  onCondicionesChange: (v: string) => void;
   calculateItemTaxes: (item: PresupuestoItem) => { iva: number; ganancias: number; iibb: number; totalImpuestos: number };
 }
 
@@ -32,24 +37,18 @@ const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
 ];
 
 export const PresupuestoItemsTable = ({
-  items,
-  categoriasPresupuesto,
-  totals,
-  notasTecnicas,
-  onAddItem,
-  onUpdateItem,
-  onRemoveItem,
-  onNotasTecnicasChange,
-  calculateItemTaxes,
+  items, categoriasPresupuesto, conceptosServicio, moneda,
+  totals, notasTecnicas, condicionesComerciales,
+  onAddItem, onUpdateItem, onRemoveItem,
+  onNotasTecnicasChange, onCondicionesChange, calculateItemTaxes,
 }: PresupuestoItemsTableProps) => {
   const [showModal, setShowModal] = useState(false);
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({
-    descripcion: '',
-    cantidad: 1,
-    unidad: 'unidad',
-    precioUnitario: 0,
-    categoriaPresupuestoId: undefined,
+    descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
+    categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
   });
+  const sym = MONEDA_SIMBOLO[moneda] || '$';
+  const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
 
   const handleAdd = () => {
     if (!newItem.descripcion || !newItem.cantidad || !newItem.precioUnitario) {
@@ -64,13 +63,16 @@ export const PresupuestoItemsTable = ({
       unidad: newItem.unidad || 'unidad',
       precioUnitario: newItem.precioUnitario || 0,
       categoriaPresupuestoId: newItem.categoriaPresupuestoId,
+      codigoProducto: newItem.codigoProducto || null,
+      conceptoServicioId: newItem.conceptoServicioId || null,
       subtotal,
     });
     setShowModal(false);
   };
 
   const openModal = () => {
-    setNewItem({ descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, categoriaPresupuestoId: undefined });
+    setNewItem({ descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
+      categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null });
     setShowModal(true);
   };
 
@@ -93,6 +95,7 @@ export const PresupuestoItemsTable = ({
               <thead>
                 <tr className="bg-slate-50">
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-left">Descripcion</th>
+                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Producto</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Cant.</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-20">Unidad</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">P. Unit.</th>
@@ -111,6 +114,10 @@ export const PresupuestoItemsTable = ({
                           className="w-full outline-none bg-transparent text-xs" placeholder="Descripcion..." />
                       </td>
                       <td className="px-2 py-2">
+                        <input value={item.codigoProducto || ''} onChange={e => onUpdateItem(item.id, 'codigoProducto', e.target.value || null)}
+                          className="w-full outline-none bg-transparent text-xs text-slate-500" placeholder="Part #" />
+                      </td>
+                      <td className="px-2 py-2">
                         <input type="number" min="0" step="0.01" value={item.cantidad}
                           onChange={e => onUpdateItem(item.id, 'cantidad', Number(e.target.value) || 0)}
                           className="w-full outline-none text-center bg-transparent text-xs" />
@@ -125,7 +132,7 @@ export const PresupuestoItemsTable = ({
                           className="w-full outline-none text-right bg-transparent text-xs" />
                       </td>
                       <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">
-                        ${item.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        {fmtMoney(item.subtotal)}
                       </td>
                       <td className="px-2 py-2">
                         <SearchableSelect value={item.categoriaPresupuestoId || ''}
@@ -133,7 +140,7 @@ export const PresupuestoItemsTable = ({
                           options={categoriaOptions(categoriasPresupuesto)} placeholder="Categoria..." />
                         {taxes.totalImpuestos > 0 && (
                           <span className="text-[10px] text-slate-400 mt-0.5 block">
-                            Imp: ${taxes.totalImpuestos.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                            Imp: {fmtMoney(taxes.totalImpuestos)}
                           </span>
                         )}
                       </td>
@@ -146,44 +153,34 @@ export const PresupuestoItemsTable = ({
               </tbody>
               <tfoot className="bg-slate-50 border-t border-slate-200">
                 <tr>
-                  <td colSpan={4} className="px-3 py-2 text-right text-[11px] font-medium text-slate-400">Subtotal</td>
-                  <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">
-                    ${totals.subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </td>
+                  <td colSpan={5} className="px-3 py-2 text-right text-[11px] font-medium text-slate-400">Subtotal</td>
+                  <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">{fmtMoney(totals.subtotal)}</td>
                   <td colSpan={2}></td>
                 </tr>
                 {totals.iva > 0 && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IVA</td>
-                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">
-                      ${totals.iva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </td>
+                    <td colSpan={5} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IVA</td>
+                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iva)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 )}
                 {totals.ganancias > 0 && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Ganancias</td>
-                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">
-                      ${totals.ganancias.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </td>
+                    <td colSpan={5} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Ganancias</td>
+                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.ganancias)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 )}
                 {totals.iibb > 0 && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IIBB</td>
-                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">
-                      ${totals.iibb.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </td>
+                    <td colSpan={5} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IIBB</td>
+                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iibb)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 )}
                 <tr className="bg-indigo-50">
-                  <td colSpan={4} className="px-3 py-2 text-right text-xs font-semibold text-indigo-900">Total</td>
-                  <td className="px-2 py-2 text-right text-sm font-semibold text-indigo-700">
-                    ${totals.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </td>
+                  <td colSpan={5} className="px-3 py-2 text-right text-xs font-semibold text-indigo-900">Total</td>
+                  <td className="px-2 py-2 text-right text-sm font-semibold text-indigo-700">{fmtMoney(totals.total)}</td>
                   <td colSpan={2}></td>
                 </tr>
               </tfoot>
@@ -195,13 +192,17 @@ export const PresupuestoItemsTable = ({
       {/* Notas tecnicas */}
       <Card compact>
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Notas tecnicas</h3>
-        <textarea
-          value={notasTecnicas}
-          onChange={(e) => onNotasTecnicasChange(e.target.value)}
-          rows={3}
-          placeholder="Notas tecnicas, observaciones..."
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500"
-        />
+        <textarea value={notasTecnicas} onChange={(e) => onNotasTecnicasChange(e.target.value)}
+          rows={3} placeholder="Notas tecnicas, observaciones..."
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500" />
+      </Card>
+
+      {/* Condiciones comerciales */}
+      <Card compact>
+        <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Condiciones comerciales</h3>
+        <textarea value={condicionesComerciales} onChange={(e) => onCondicionesChange(e.target.value)}
+          rows={3} placeholder="Condiciones comerciales, forma de pago, etc..."
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500" />
       </Card>
 
       {showModal && (
@@ -209,6 +210,8 @@ export const PresupuestoItemsTable = ({
           newItem={newItem}
           setNewItem={setNewItem}
           categoriasPresupuesto={categoriasPresupuesto}
+          conceptosServicio={conceptosServicio}
+          moneda={moneda}
           onAdd={handleAdd}
           onClose={() => setShowModal(false)}
         />

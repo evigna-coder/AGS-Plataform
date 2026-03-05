@@ -91,11 +91,13 @@ export function LoanerDetail() {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
-      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+      <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/loaners')} className="text-slate-400 hover:text-slate-600">&larr;</button>
+          <button onClick={() => navigate('/loaners')} className="text-slate-400 hover:text-slate-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          </button>
           <div>
             <h1 className="text-lg font-semibold text-slate-900 tracking-tight">{loaner.codigo}</h1>
             <p className="text-xs text-slate-500">{loaner.descripcion}</p>
@@ -123,7 +125,7 @@ export function LoanerDetail() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto bg-slate-50">
-        <div className="flex gap-6 px-6 py-6">
+        <div className="flex gap-5 px-5 py-4">
           <div className="w-72 shrink-0">
             <LoanerInfoSidebar loaner={loaner} />
           </div>

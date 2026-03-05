@@ -70,14 +70,18 @@ export interface TableCatalogEntry {
   description?: string | null;
   sysType: string;
   isDefault: boolean;
-  tableType: 'validation' | 'informational' | 'instruments' | 'checklist';
+  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text';
   columns: TableCatalogColumn[];
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
   allowClientSpec?: boolean;
   tipoServicio?: string[];
+  modelos?: string[];
+  orden?: number;
   /** Ítems del checklist (solo cuando tableType === 'checklist') */
   checklistItems?: ChecklistItem[];
+  /** Contenido de texto libre (solo cuando tableType === 'text') */
+  textContent?: string | null;
   status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;

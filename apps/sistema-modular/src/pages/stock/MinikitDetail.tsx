@@ -90,16 +90,16 @@ export const MinikitDetail = () => {
     finally { setSaving(false); }
   };
 
-  if (loading) return <div className="-m-6 h-[calc(100%+3rem)] flex items-center justify-center bg-slate-50"><p className="text-slate-400">Cargando...</p></div>;
+  if (loading) return <div className="h-full flex items-center justify-center bg-slate-50"><p className="text-slate-400">Cargando...</p></div>;
   if (!minikit) return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col items-center justify-center bg-slate-50 gap-4">
+    <div className="h-full flex flex-col items-center justify-center bg-slate-50 gap-4">
       <p className="text-slate-500">Minikit no encontrado</p>
       <Link to="/stock/minikits" className="text-indigo-600 hover:underline text-sm font-medium">Volver a minikits</Link>
     </div>
   );
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

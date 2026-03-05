@@ -151,7 +151,7 @@ export const EstablecimientoDetail = () => {
   const tipoLabel = est.tipo ? String(est.tipo).charAt(0).toUpperCase() + String(est.tipo).slice(1) : '';
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Compact header */}
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
@@ -162,7 +162,7 @@ export const EstablecimientoDetail = () => {
               </svg>
             </button>
             <div>
-              <h2 className="text-base font-semibold text-slate-900 tracking-tight">{est.nombre}</h2>
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">{est.nombre}</h2>
               <p className="text-xs text-slate-400">
                 {est.localidad}, {est.provincia}{tipoLabel ? ` · ${tipoLabel}` : ''}{' · '}
                 <span className={est.activo ? 'text-green-600' : 'text-slate-400'}>{est.activo ? 'Activo' : 'Inactivo'}</span>

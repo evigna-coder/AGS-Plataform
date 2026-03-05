@@ -75,7 +75,7 @@ export const ClientesList = () => {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Clientes"
         subtitle="Gestión de clientes y establecimientos"
@@ -98,40 +98,45 @@ export const ClientesList = () => {
           <Button size="sm" variant="outline" onClick={() => { setSearchTerm(''); loadClientes(); }}>
             Limpiar
           </Button>
-          <div className="flex gap-1 border border-slate-200 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode('table')}
-              className={`px-2.5 py-1 text-[10px] font-medium rounded ${
-                viewMode === 'table' ? 'bg-slate-900 text-white' : 'text-slate-500'
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
+              title="Vista de tabla"
             >
-              Tabla
+              <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-2.5 py-1 text-[10px] font-medium rounded ${
-                viewMode === 'cards' ? 'bg-slate-900 text-white' : 'text-slate-500'
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
+              title="Vista de tarjetas"
             >
-              Tarjetas
+              <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
             </button>
           </div>
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {filteredClientes.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron clientes</p>
-              <button onClick={() => setShowCreate(true)} className="text-blue-600 hover:underline mt-2 inline-block text-sm">
+              <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-sm">
                 Crear primer cliente
               </button>
             </div>
           </Card>
         ) : viewMode === 'table' ? (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -160,7 +165,7 @@ export const ClientesList = () => {
                       <td className="px-4 py-2 text-right">
                         <Link
                           to={`/clientes/${cliente.id}`}
-                          className="text-blue-600 hover:underline font-medium text-xs"
+                          className="text-indigo-600 hover:underline font-medium text-xs"
                         >
                           Ver
                         </Link>
@@ -169,8 +174,7 @@ export const ClientesList = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredClientes.map((cliente) => (

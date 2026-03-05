@@ -117,7 +117,7 @@ export const EquiposList = () => {
   };
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Equipos / Sistemas"
         subtitle="Gestión de sistemas y módulos"
@@ -193,18 +193,18 @@ export const EquiposList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {sistemasFiltrados.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron sistemas</p>
-              <button onClick={() => setShowCreate(true)} className="text-blue-600 hover:underline mt-2 inline-block text-xs">
+              <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
                 Crear primer sistema
               </button>
             </div>
           </Card>
         ) : viewMode === 'cards' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sistemasFiltrados.map((sistema) => {
               const establecimiento = establecimientos.find(e => e.id === sistema.establecimientoId);
               const cliente = clientes.find(c => c.id === (establecimiento?.clienteCuit ?? sistema.clienteId));
@@ -246,8 +246,7 @@ export const EquiposList = () => {
             })}
           </div>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -300,8 +299,7 @@ export const EquiposList = () => {
                   })}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
 

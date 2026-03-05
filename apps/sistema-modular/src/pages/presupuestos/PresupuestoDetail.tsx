@@ -1,30 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService } from '../../services/firebaseService';
-import type { Presupuesto, Cliente, Sistema, PresupuestoItem, CategoriaPresupuesto, CondicionPago } from '@ags/shared';
+import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../../services/firebaseService';
+import type { Presupuesto, Cliente, Sistema, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto } from '@ags/shared';
+import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
+import { CrearPostaModal } from '../../components/postas/CrearPostaModal';
 import { PresupuestoSidebar } from '../../components/presupuestos/PresupuestoSidebar';
 import { PresupuestoItemsTable } from '../../components/presupuestos/PresupuestoItemsTable';
-
-const estadoLabels: Record<Presupuesto['estado'], string> = {
-  borrador: 'Borrador',
-  enviado: 'Enviado',
-  en_seguimiento: 'En Seguimiento',
-  pendiente_oc: 'Pendiente OC',
-  aceptado: 'Aceptado',
-  pendiente_certificacion: 'Pendiente Cert.',
-  aguarda: 'Aguarda',
-};
-
-const estadoColors: Record<Presupuesto['estado'], string> = {
-  borrador: 'bg-slate-100 text-slate-700',
-  enviado: 'bg-blue-100 text-blue-700',
-  en_seguimiento: 'bg-yellow-100 text-yellow-700',
-  pendiente_oc: 'bg-orange-100 text-orange-700',
-  aceptado: 'bg-green-100 text-green-700',
-  pendiente_certificacion: 'bg-purple-100 text-purple-700',
-  aguarda: 'bg-red-100 text-red-700',
-};
+import { PresupuestoAdjuntosSection } from '../../components/presupuestos/PresupuestoAdjuntosSection';
 
 export const PresupuestoDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,16 +20,26 @@ export const PresupuestoDetail = () => {
   const [sistema, setSistema] = useState<Sistema | null>(null);
   const [categoriasPresupuesto, setCategoriasPresupuesto] = useState<CategoriaPresupuesto[]>([]);
   const [condicionesPago, setCondicionesPago] = useState<CondicionPago[]>([]);
+  const [conceptosServicio, setConceptosServicio] = useState<ConceptoServicio[]>([]);
 
   // Editable state
   const [numero, setNumero] = useState('');
   const [estado, setEstado] = useState<Presupuesto['estado']>('borrador');
+  const [tipo, setTipo] = useState<TipoPresupuesto>('servicio');
+  const [moneda, setMoneda] = useState<MonedaPresupuesto>('USD');
+  const [origenTipo, setOrigenTipo] = useState<string | null>(null);
+  const [origenId, setOrigenId] = useState<string | null>(null);
+  const [origenRef, setOrigenRef] = useState<string | null>(null);
   const [items, setItems] = useState<PresupuestoItem[]>([]);
   const [tipoCambio, setTipoCambio] = useState<number | undefined>();
   const [condicionPagoId, setCondicionPagoId] = useState<string | undefined>();
   const [notasTecnicas, setNotasTecnicas] = useState('');
+  const [condicionesComerciales, setCondicionesComerciales] = useState('');
+  const [validezDias, setValidezDias] = useState(15);
   const [validUntil, setValidUntil] = useState('');
   const [fechaEnvio, setFechaEnvio] = useState('');
+  const [adjuntos, setAdjuntos] = useState<AdjuntoPresupuesto[]>([]);
+  const [showCrearPosta, setShowCrearPosta] = useState(false);
 
   // Autosave
   const hasUserInteracted = useRef(false);
@@ -58,10 +51,11 @@ export const PresupuestoDetail = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [presupuestoData, categoriasData, condicionesData] = await Promise.all([
+      const [presupuestoData, categoriasData, condicionesData, conceptosData] = await Promise.all([
         presupuestosService.getById(id),
         categoriasPresupuestoService.getAll(),
         condicionesPagoService.getAll(),
+        conceptosServicioService.getAll(),
       ]);
       if (!presupuestoData) {
         alert('Presupuesto no encontrado');
@@ -70,12 +64,20 @@ export const PresupuestoDetail = () => {
       }
       setNumero(presupuestoData.numero);
       setEstado(presupuestoData.estado);
+      setTipo(presupuestoData.tipo || 'servicio');
+      setMoneda(presupuestoData.moneda || 'USD');
+      setOrigenTipo(presupuestoData.origenTipo || null);
+      setOrigenId(presupuestoData.origenId || null);
+      setOrigenRef(presupuestoData.origenRef || null);
       setItems(presupuestoData.items || []);
       setTipoCambio(presupuestoData.tipoCambio);
       setCondicionPagoId(presupuestoData.condicionPagoId);
       setNotasTecnicas(presupuestoData.notasTecnicas || '');
+      setCondicionesComerciales(presupuestoData.condicionesComerciales || '');
+      setValidezDias(presupuestoData.validezDias ?? 15);
       setValidUntil(presupuestoData.validUntil ? presupuestoData.validUntil.split('T')[0] : '');
       setFechaEnvio(presupuestoData.fechaEnvio ? presupuestoData.fechaEnvio.split('T')[0] : '');
+      setAdjuntos(presupuestoData.adjuntos || []);
 
       if (presupuestoData.clienteId) {
         const clienteData = await clientesService.getById(presupuestoData.clienteId);
@@ -87,6 +89,7 @@ export const PresupuestoDetail = () => {
       }
       setCategoriasPresupuesto(categoriasData);
       setCondicionesPago(condicionesData);
+      setConceptosServicio(conceptosData);
       hasUserInteracted.current = false;
     } catch (error) {
       console.error('Error cargando presupuesto:', error);
@@ -102,7 +105,7 @@ export const PresupuestoDetail = () => {
     if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
     autosaveTimeoutRef.current = setTimeout(() => handleSave(), 1000);
     return () => { if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current); };
-  }, [estado, items, tipoCambio, condicionPagoId, notasTecnicas, validUntil, fechaEnvio, id, loading]);
+  }, [estado, tipo, moneda, items, tipoCambio, condicionPagoId, notasTecnicas, condicionesComerciales, validezDias, validUntil, fechaEnvio, adjuntos, id, loading]);
 
   const calculateItemTaxes = (item: PresupuestoItem) => {
     const cat = categoriasPresupuesto.find(c => c.id === item.categoriaPresupuestoId);
@@ -138,10 +141,16 @@ export const PresupuestoDetail = () => {
         setFechaEnvio(fechaEnvioToSave);
       }
       await presupuestosService.update(id, {
-        estado, items, subtotal: totals.subtotal, total: totals.total,
-        tipoCambio: tipoCambio || undefined, condicionPagoId: condicionPagoId || undefined,
-        notasTecnicas: notasTecnicas || undefined, validUntil: validUntil || undefined,
-        fechaEnvio: fechaEnvioToSave || undefined,
+        estado, tipo, moneda, items,
+        subtotal: totals.subtotal, total: totals.total,
+        tipoCambio: tipoCambio || null,
+        condicionPagoId: condicionPagoId || null,
+        notasTecnicas: notasTecnicas || null,
+        condicionesComerciales: condicionesComerciales || null,
+        validezDias,
+        validUntil: validUntil || null,
+        fechaEnvio: fechaEnvioToSave || null,
+        adjuntos,
       });
       console.log('Presupuesto guardado');
     } catch (error) {
@@ -173,6 +182,23 @@ export const PresupuestoDetail = () => {
   const addItem = (item: PresupuestoItem) => { setItems(prev => [...prev, item]); markUserInteracted(); };
   const removeItem = (itemId: string) => { setItems(prev => prev.filter(i => i.id !== itemId)); markUserInteracted(); };
 
+  const handleAddAdjunto = (adjunto: AdjuntoPresupuesto) => {
+    setAdjuntos(prev => [...prev, adjunto]);
+    markUserInteracted();
+  };
+
+  const handleRemoveAdjunto = (adjId: string) => {
+    setAdjuntos(prev => prev.filter(a => a.id !== adjId));
+    markUserInteracted();
+  };
+
+  const handleSuggestAutorizado = () => {
+    if (estado !== 'autorizado' && confirm('Se adjunto una orden de compra. Cambiar estado a "Autorizado"?')) {
+      setEstado('autorizado');
+      markUserInteracted();
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando presupuesto...</p></div>;
   }
@@ -180,7 +206,7 @@ export const PresupuestoDetail = () => {
   const totals = calculateTotals();
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
@@ -192,9 +218,9 @@ export const PresupuestoDetail = () => {
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-slate-900 tracking-tight">{numero || 'Presupuesto'}</h2>
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoColors[estado]}`}>
-                  {estadoLabels[estado]}
+                <h2 className="text-lg font-semibold text-slate-900 tracking-tight">{numero || 'Presupuesto'}</h2>
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[estado]}`}>
+                  {ESTADO_PRESUPUESTO_LABELS[estado]}
                 </span>
               </div>
               <p className="text-xs text-slate-400">{cliente?.razonSocial || ''}{sistema ? ` · ${sistema.nombre}` : ''}</p>
@@ -202,6 +228,10 @@ export const PresupuestoDetail = () => {
           </div>
           <div className="flex gap-2 items-center">
             {saving && <span className="text-[11px] text-slate-400">Guardando...</span>}
+            <Button variant="outline" size="sm" onClick={() => setShowCrearPosta(true)}>Crear posta</Button>
+            {estado === 'autorizado' && (
+              <Button variant="outline" size="sm" onClick={() => navigate(`/ordenes-trabajo/nuevo?presupuestoId=${id}`)}>Crear OT</Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => navigate('/presupuestos')}>Volver</Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
@@ -213,33 +243,67 @@ export const PresupuestoDetail = () => {
         <div className="flex gap-5">
           <PresupuestoSidebar
             estado={estado}
+            tipo={tipo}
+            moneda={moneda}
             cliente={cliente}
             sistema={sistema}
+            origenTipo={origenTipo}
+            origenId={origenId}
+            origenRef={origenRef}
             totals={totals}
             tipoCambio={tipoCambio}
             condicionPagoId={condicionPagoId}
             condicionesPago={condicionesPago}
+            validezDias={validezDias}
             validUntil={validUntil}
             fechaEnvio={fechaEnvio}
             onEstadoChange={handleEstadoChange}
+            onTipoChange={(v) => { setTipo(v); markUserInteracted(); }}
+            onMonedaChange={(v) => { setMoneda(v); markUserInteracted(); }}
             onTipoCambioChange={(v) => { setTipoCambio(v); markUserInteracted(); }}
             onCondicionPagoIdChange={(v) => { setCondicionPagoId(v); markUserInteracted(); }}
+            onValidezDiasChange={(v) => { setValidezDias(v); markUserInteracted(); }}
             onValidUntilChange={(v) => { setValidUntil(v); markUserInteracted(); }}
             onFechaEnvioChange={(v) => { setFechaEnvio(v); markUserInteracted(); }}
           />
-          <PresupuestoItemsTable
-            items={items}
-            categoriasPresupuesto={categoriasPresupuesto}
-            totals={totals}
-            notasTecnicas={notasTecnicas}
-            onAddItem={addItem}
-            onUpdateItem={updateItem}
-            onRemoveItem={removeItem}
-            onNotasTecnicasChange={(v) => { setNotasTecnicas(v); markUserInteracted(); }}
-            calculateItemTaxes={calculateItemTaxes}
-          />
+          <div className="flex-1 min-w-0 space-y-4">
+            <PresupuestoItemsTable
+              items={items}
+              categoriasPresupuesto={categoriasPresupuesto}
+              conceptosServicio={conceptosServicio}
+              moneda={moneda}
+              totals={totals}
+              notasTecnicas={notasTecnicas}
+              condicionesComerciales={condicionesComerciales}
+              onAddItem={addItem}
+              onUpdateItem={updateItem}
+              onRemoveItem={removeItem}
+              onNotasTecnicasChange={(v) => { setNotasTecnicas(v); markUserInteracted(); }}
+              onCondicionesChange={(v) => { setCondicionesComerciales(v); markUserInteracted(); }}
+              calculateItemTaxes={calculateItemTaxes}
+            />
+            {id && (
+              <PresupuestoAdjuntosSection
+                presupuestoId={id}
+                adjuntos={adjuntos}
+                onAdd={handleAddAdjunto}
+                onRemove={handleRemoveAdjunto}
+                onSuggestAutorizado={handleSuggestAutorizado}
+              />
+            )}
+          </div>
         </div>
       </div>
+      {showCrearPosta && id && (
+        <CrearPostaModal
+          tipoEntidad="presupuesto"
+          entidadId={id}
+          entidadNumero={numero}
+          entidadDescripcion={`${cliente?.razonSocial || 'Presupuesto'}${sistema ? ` · ${sistema.nombre}` : ''}`}
+          categoriaDefault="administracion"
+          onClose={() => setShowCrearPosta(false)}
+        />
+      )}
     </div>
   );
 };

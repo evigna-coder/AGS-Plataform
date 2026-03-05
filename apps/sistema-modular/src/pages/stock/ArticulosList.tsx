@@ -93,7 +93,7 @@ export const ArticulosList = () => {
   }
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Articulos"
         subtitle="Catalogo de articulos de stock"
@@ -152,7 +152,7 @@ export const ArticulosList = () => {
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
@@ -163,46 +163,45 @@ export const ArticulosList = () => {
             </div>
           </Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Marca</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Stock min.</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Precio ref.</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Marca</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Stock min.</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Precio ref.</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map(art => (
                     <tr key={art.id} className={`hover:bg-slate-50 ${!art.activo ? 'opacity-50' : ''}`}>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className="font-mono text-xs font-semibold text-indigo-600">{art.codigo}</span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-900">{art.descripcion}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{getMarcaNombre(art.marcaId)}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2 text-xs text-slate-900">{art.descripcion}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{getMarcaNombre(art.marcaId)}</td>
+                      <td className="px-4 py-2">
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">
                           {CATEGORIA_LABELS[art.categoriaEquipo] ?? art.categoriaEquipo}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700">
                           {TIPO_LABELS[art.tipo] ?? art.tipo}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-600 text-right">{art.stockMinimo}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600 text-right">
+                      <td className="px-4 py-2 text-xs text-slate-600 text-right">{art.stockMinimo}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600 text-right">
                         {art.precioReferencia != null
                           ? `${art.monedaPrecio === 'USD' ? 'US$' : '$'} ${art.precioReferencia.toLocaleString('es-AR')}`
                           : '-'}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2">
                         <div className="flex justify-end gap-1">
                           <Link to={`/stock/articulos/${art.id}`}>
                             <Button variant="ghost" size="sm">Ver</Button>
@@ -227,8 +226,7 @@ export const ArticulosList = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
 

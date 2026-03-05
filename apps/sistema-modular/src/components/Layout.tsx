@@ -1,5 +1,8 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import type { UserRole } from '@ags/shared';
+import { useAuth } from '../contexts/AuthContext';
+import { signOut } from '../services/authService';
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,6 +12,7 @@ interface NavItem {
   name: string;
   path: string;
   icon: string;
+  allowedRoles?: UserRole[];
   children?: { name: string; path: string; separator?: boolean }[];
 }
 
@@ -16,7 +20,7 @@ const navigation: NavItem[] = [
   { name: 'Clientes', path: '/clientes', icon: '🏢' },
   { name: 'Establecimientos', path: '/establecimientos', icon: '🏭' },
   { name: 'Equipos', path: '/equipos', icon: '⚙️' },
-  { name: 'Órdenes de Trabajo', path: '/ordenes-trabajo', icon: '📝' },
+  { name: 'Ordenes de Trabajo', path: '/ordenes-trabajo', icon: '📝' },
   { name: 'Leads', path: '/leads', icon: '👥' },
   { name: 'Presupuestos', path: '/presupuestos', icon: '📋' },
   { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐' },
@@ -26,24 +30,31 @@ const navigation: NavItem[] = [
   {
     name: 'Stock', path: '/stock', icon: '📦',
     children: [
-      { name: 'Artículos', path: '/stock/articulos' },
+      { name: 'Articulos', path: '/stock/articulos' },
       { name: 'Unidades', path: '/stock/unidades' },
       { name: 'Minikits', path: '/stock/minikits' },
       { name: 'Remitos', path: '/stock/remitos' },
       { name: 'Movimientos', path: '/stock/movimientos' },
       { name: 'Alertas', path: '/stock/alertas' },
+      { name: 'Requerimientos', path: '/stock/requerimientos', separator: true },
+      { name: 'Ordenes de Compra', path: '/stock/ordenes-compra' },
+      { name: 'Importaciones', path: '/stock/importaciones' },
       { name: 'Ingenieros', path: '/stock/ingenieros', separator: true },
       { name: 'Proveedores', path: '/stock/proveedores' },
       { name: 'Posiciones', path: '/stock/posiciones' },
+      { name: 'Pos. Arancelarias', path: '/stock/posiciones-arancelarias' },
       { name: 'Marcas', path: '/stock/marcas' },
     ],
   },
+  { name: 'Usuarios', path: '/usuarios', icon: '👤', allowedRoles: ['admin'] },
   { name: 'Agenda', path: '/agenda', icon: '📅' },
-  { name: 'Facturación', path: '/facturacion', icon: '💰' },
+  { name: 'Postas', path: '/postas', icon: '🔀' },
+  { name: 'Facturacion', path: '/facturacion', icon: '💰', allowedRoles: ['admin', 'administracion'] },
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
+  const { usuario, hasRole } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     location.pathname.startsWith('/stock') ? { '/stock': true } : {}
   );
@@ -54,9 +65,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const isStockExpanded = expandedGroups['/stock'] || location.pathname.startsWith('/stock');
 
+  const visibleNav = navigation.filter(item =>
+    !item.allowedRoles || hasRole(...item.allowedRoles)
+  );
+
   return (
     <div className="h-screen flex flex-col">
-      {/* Header — blanco limpio */}
       <header className="shrink-0 h-14 bg-white border-b border-slate-200 flex items-center px-6 justify-between z-30">
         <div className="flex items-center gap-2.5">
           <span className="text-indigo-600 font-bold text-base tracking-tight">AGS</span>
@@ -68,19 +82,25 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           )}
         </div>
-        <span className="text-xs text-slate-400 font-medium">v0.1.0</span>
+        <div className="flex items-center gap-3">
+          {usuario?.photoURL && (
+            <img src={usuario.photoURL} alt="" className="w-7 h-7 rounded-full" referrerPolicy="no-referrer" />
+          )}
+          <span className="text-xs text-slate-600 font-medium max-w-[120px] truncate">{usuario?.displayName}</span>
+          <button onClick={() => signOut()} className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors">
+            Salir
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar — oscuro con indicador de borde izquierdo */}
         <aside className="w-56 shrink-0 bg-slate-900 overflow-y-auto flex flex-col">
           <nav className="flex-1 px-3 py-4 space-y-0.5">
-            {navigation.map((item) => {
+            {visibleNav.map((item) => {
               const isActive =
                 location.pathname === item.path ||
                 location.pathname.startsWith(item.path + '/');
 
-              // Expandable group (Stock)
               if (item.children) {
                 const isExpanded = item.path === '/stock' ? isStockExpanded : !!expandedGroups[item.path];
                 return (
@@ -126,7 +146,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 );
               }
 
-              // Regular nav item
               return (
                 <Link
                   key={item.path}
@@ -145,8 +164,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </nav>
         </aside>
 
-        {/* Main — fondo neutro claro, scroll independiente */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
+        <main className="flex-1 min-h-0 bg-slate-50">
           {children}
         </main>
       </div>

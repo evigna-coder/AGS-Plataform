@@ -80,53 +80,51 @@ export const LeadsList: React.FC = () => {
   if (error) return <Card><div className="text-center py-8"><p className="text-red-600 mb-4">{error}</p><Button onClick={loadLeads}>Reintentar</Button></div></Card>;
 
   return (
-    <div className="-m-6 h-[calc(100%+3rem)] flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Leads / Consultas" count={leads.length}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>} />
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {leads.length === 0 ? (
           <Card><div className="text-center py-8">
             <p className="text-slate-400 mb-4">No hay leads registrados</p>
             <Button size="sm" onClick={() => setShowCreate(true)}>Crear primer lead</Button>
           </div></Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
+          <div className="bg-white overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Razón Social</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Email</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Teléfono</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Creado</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Razón Social</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Email</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Teléfono</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Creado</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {leads.map(lead => (
                     <tr key={lead.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 text-xs font-semibold text-slate-900">{lead.razonSocial}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{lead.contacto}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{lead.email}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{lead.telefono}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2 text-xs font-semibold text-slate-900">{lead.razonSocial}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{lead.contacto}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{lead.email}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{lead.telefono}</td>
+                      <td className="px-4 py-2">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoColors[lead.estado]}`}>
                           {estadoLabels[lead.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString('es-AR')}</td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-4 py-2 text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString('es-AR')}</td>
+                      <td className="px-4 py-2 text-right">
                         <Link to={`/leads/${lead.id}`}><Button variant="ghost" size="sm">Ver</Button></Link>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
+          </div>
         )}
       </div>
 
