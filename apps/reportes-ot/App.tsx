@@ -504,6 +504,7 @@ const App: React.FC = () => {
   useAutosave({
     reportState,
     otNumber,
+    status,
     firebase,
     hasInitialized,
     hasUserInteracted,

@@ -221,19 +221,17 @@ export const usePDFGeneration = (
         
         const pdfWorker = html2pdf().set(opt).from(element);
         
-        // Siempre generar Blob primero para poder compartirlo después
         console.log("Generando PDF como Blob...");
         const generatedBlob = await pdfWorker.outputPdf('blob');
-        // Guardar el Blob para compartir después
         setPdfBlob(generatedBlob);
-        
-        // En móviles, intentar compartir automáticamente con Web Share API
-        const shared = await sharePDFMobile(generatedBlob, filename, otNumber);
-        
-        if (!shared) {
-          // Si no se compartió (desktop o fallback), descargar
-          downloadPDF(generatedBlob, filename);
-        }
+        downloadPDF(generatedBlob, filename);
+
+        console.log("PDF generado exitosamente");
+        showAlert({
+          title: 'Éxito',
+          message: 'Reporte finalizado y PDF generado correctamente.',
+          type: 'success'
+        });
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         showAlert({
@@ -355,22 +353,13 @@ export const usePDFGeneration = (
         console.log("Iniciando generación de PDF con opciones:", opt);
         const pdfWorker = html2pdf().set(opt).from(element);
         
-        // Siempre generar Blob primero para poder compartirlo después
         console.log("Generando PDF como Blob...");
         const generatedBlob = await pdfWorker.outputPdf('blob');
-        // Guardar el Blob para compartir después
         setPdfBlob(generatedBlob);
-        
-        // En móviles, intentar compartir automáticamente con Web Share API
-        const shared = await sharePDFMobile(generatedBlob, filename, otNumber);
-        
-        if (!shared) {
-          // Si no se compartió (desktop o fallback), descargar
-          downloadPDF(generatedBlob, filename);
-        }
-        
+        downloadPDF(generatedBlob, filename);
+
         console.log("PDF generado exitosamente");
-        
+
         showAlert({
           title: 'Éxito',
           message: 'Reporte finalizado y PDF generado correctamente.',
