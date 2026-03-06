@@ -15,7 +15,42 @@ export const CatalogTextView: React.FC<Props> = ({
 }) => {
   const table = selection.tableSnapshot;
   const textContent = table.textContent ?? '';
+  const isInline = (table.textDisplayMode ?? 'card') === 'inline';
 
+  // ─── Modo inline: texto suelto sin recuadro ───────────────────────────
+  if (isInline) {
+    return (
+      <div className={`mb-4 ${isPrint ? '' : 'relative group'}`}>
+        {/* Botón quitar (solo en modo edición) */}
+        {!isPrint && !readOnly && onRemove && (
+          <button
+            onClick={() => onRemove(selection.tableId)}
+            className="absolute -right-2 -top-2 text-slate-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100 z-10"
+            title="Quitar sección"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+
+        {/* Título como heading simple */}
+        {table.name && (
+          <p className={`font-semibold mb-1 ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
+            {table.name}
+          </p>
+        )}
+
+        {/* Contenido HTML suelto */}
+        <div
+          className={`catalog-text-content ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
+          dangerouslySetInnerHTML={{ __html: textContent }}
+        />
+      </div>
+    );
+  }
+
+  // ─── Modo card: con encabezado y borde (default) ──────────────────────
   return (
     <div className={`mb-6 ${isPrint ? 'border border-slate-300' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden'} bg-white`}>
       {/* Encabezado */}

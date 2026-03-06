@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, onSnapshot, arrayUnion } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca, Ingeniero, Proveedor, PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, FichaPropiedad, HistorialFicha, DerivacionProveedor, Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, PosicionArancelaria, RequerimientoCompra, Importacion, UsuarioAGS, UserRole, UserStatus, AgendaEntry, AgendaNota, PostaWorkflow, PostaHandoff } from '@ags/shared';
+import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca, Ingeniero, Proveedor, PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, FichaPropiedad, HistorialFicha, DerivacionProveedor, Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, PosicionArancelaria, RequerimientoCompra, Importacion, UsuarioAGS, UserRole, UserStatus, AgendaEntry, AgendaNota, PostaWorkflow, PostaHandoff, Lead, Posta, LeadEstado, MotivoLlamado } from '@ags/shared';
 import type { AuditAction } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
 
@@ -97,78 +97,126 @@ export function logAudit(params: {
 }
 
 // Servicio para Leads
+
+function migrateLeadEstado(raw: string): LeadEstado {
+  const migration: Record<string, LeadEstado> = {
+    contactado: 'en_revision',
+    presupuestado: 'en_proceso',
+    convertido: 'finalizado',
+  };
+  return migration[raw] || (raw as LeadEstado) || 'nuevo';
+}
+
+function parseLeadDoc(d: { id: string; data: () => any }): Lead {
+  const data = d.data();
+  return {
+    id: d.id,
+    clienteId: data.clienteId ?? null,
+    contactoId: data.contactoId ?? null,
+    razonSocial: data.razonSocial ?? '',
+    contacto: data.contacto ?? '',
+    email: data.email ?? '',
+    telefono: data.telefono ?? '',
+    motivoLlamado: data.motivoLlamado ?? 'otros',
+    motivoContacto: data.motivoContacto ?? '',
+    descripcion: data.descripcion ?? null,
+    sistemaId: data.sistemaId ?? null,
+    estado: migrateLeadEstado(data.estado ?? 'nuevo'),
+    postas: data.postas ?? [],
+    asignadoA: data.asignadoA ?? null,
+    derivadoPor: data.derivadoPor ?? null,
+    presupuestosIds: data.presupuestosIds ?? [],
+    otIds: data.otIds ?? [],
+    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? '',
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? '',
+    createdBy: data.createdBy ?? null,
+    finalizadoAt: data.finalizadoAt?.toDate?.()?.toISOString() ?? null,
+  };
+}
+
 export const leadsService = {
-  // Crear lead
-  async create(leadData: {
-    razonSocial: string;
-    contacto: string;
-    email: string;
-    telefono: string;
-    estado?: 'nuevo' | 'contactado' | 'presupuestado' | 'convertido' | 'perdido';
-  }) {
-    console.log('📝 Creando lead:', leadData.razonSocial);
-    const payload = {
-      ...leadData,
+  async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) {
+    const payload = deepCleanForFirestore({
+      ...data,
       ...getCreateTrace(),
-      estado: leadData.estado || 'nuevo',
+      estado: data.estado || 'nuevo',
+      postas: data.postas || [],
+      presupuestosIds: data.presupuestosIds || [],
+      otIds: data.otIds || [],
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    };
+    });
     const docRef = await addDoc(collection(db, 'leads'), payload);
     logAudit({ action: 'create', collection: 'leads', documentId: docRef.id, after: payload as any });
-    console.log('✅ Lead creado exitosamente con ID:', docRef.id);
     return docRef.id;
   },
 
-  // Obtener todos los leads
-  async getAll() {
-    console.log('📥 Cargando leads desde Firestore...');
-    const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    const leads = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate().toISOString(),
-      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
-    }));
-    console.log(`✅ ${leads.length} leads cargados`);
-    return leads;
+  async getAll(filters?: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado }) {
+    const constraints: any[] = [];
+    if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
+    if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
+    if (filters?.motivoLlamado) constraints.push(where('motivoLlamado', '==', filters.motivoLlamado));
+    constraints.push(orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'leads'), ...constraints);
+    const snap = await getDocs(q);
+    return snap.docs.map(d => parseLeadDoc(d));
   },
 
-  // Obtener lead por ID
-  async getById(id: string) {
-    const docRef = doc(db, 'leads', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: docSnap.data().createdAt?.toDate().toISOString(),
-        updatedAt: docSnap.data().updatedAt?.toDate().toISOString(),
-      };
-    }
-    return null;
+  async getById(id: string): Promise<Lead | null> {
+    const snap = await getDoc(doc(db, 'leads', id));
+    if (!snap.exists()) return null;
+    return parseLeadDoc(snap);
   },
 
-  // Actualizar lead
-  async update(id: string, data: Partial<{
-    razonSocial: string;
-    contacto: string;
-    email: string;
-    telefono: string;
-    estado: 'nuevo' | 'contactado' | 'presupuestado' | 'convertido' | 'perdido';
-  }>) {
-    const docRef = doc(db, 'leads', id);
-    const payload = {
+  async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) {
+    const payload = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    };
-    await updateDoc(docRef, payload);
+    });
+    await updateDoc(doc(db, 'leads', id), payload);
     logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload as any });
   },
 
-  // Eliminar lead
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string) {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(deepCleanForFirestore(posta)),
+      asignadoA: nuevoAsignadoA,
+      derivadoPor: posta.deUsuarioId,
+      estado: posta.estadoNuevo,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } as any });
+  },
+
+  async finalizar(id: string, posta: Posta) {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(deepCleanForFirestore(posta)),
+      estado: posta.estadoNuevo,
+      finalizadoAt: Timestamp.now(),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } as any });
+  },
+
+  async linkPresupuesto(id: string, presupuestoId: string) {
+    await updateDoc(doc(db, 'leads', id), {
+      presupuestosIds: arrayUnion(presupuestoId),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async linkOT(id: string, otId: string) {
+    await updateDoc(doc(db, 'leads', id), {
+      otIds: arrayUnion(otId),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
   async delete(id: string) {
     logAudit({ action: 'delete', collection: 'leads', documentId: id });
     await deleteDoc(doc(db, 'leads', id));

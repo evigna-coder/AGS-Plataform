@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useImportaciones } from '../../hooks/useImportaciones';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import type { EstadoImportacion } from '@ags/shared';
@@ -14,6 +15,15 @@ export const ImportacionesList = () => {
   const navigate = useNavigate();
   const { importaciones, loading, loadImportaciones } = useImportaciones();
   const [estadoFilter, setEstadoFilter] = useState<string>('');
+  const [sortField, setSortField] = useState('fechaEstimadaArribo');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+
+  const sorted = useMemo(() => sortByField(importaciones, sortField, sortDir), [importaciones, sortField, sortDir]);
 
   useEffect(() => {
     loadImportaciones(estadoFilter ? { estado: estadoFilter } : undefined);
@@ -29,7 +39,7 @@ export const ImportacionesList = () => {
       <PageHeader
         title="Importaciones"
         subtitle="Operaciones de comercio exterior"
-        count={importaciones.length}
+        count={sorted.length}
         actions={
           <Button size="sm" onClick={() => navigate('/stock/importaciones/nuevo')}>
             + Nueva importacion
@@ -54,7 +64,7 @@ export const ImportacionesList = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           {loading ? (
             <div className="text-center py-12 text-xs text-slate-400">Cargando...</div>
-          ) : importaciones.length === 0 ? (
+          ) : sorted.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-xs text-slate-400">No hay importaciones registradas</p>
             </div>
@@ -67,12 +77,12 @@ export const ImportacionesList = () => {
                   <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Proveedor</th>
                   <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Estado</th>
                   <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Puerto destino</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">ETA</th>
+                  <SortableHeader label="ETA" field="fechaEstimadaArribo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4" />
                   <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {importaciones.map(imp => (
+                {sorted.map(imp => (
                   <tr key={imp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="text-xs py-2 px-4">
                       <Link to={`/stock/importaciones/${imp.id}`} className="text-indigo-600 font-medium hover:underline">

@@ -80,7 +80,7 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
     : CATEGORIA_PATRON_LABELS;
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo instrumento / patron"
+    <Modal open={open} onClose={handleClose} maxWidth="lg" title="Nuevo instrumento / patron"
       subtitle="Complete los datos basicos. Certificados se cargan despues."
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>

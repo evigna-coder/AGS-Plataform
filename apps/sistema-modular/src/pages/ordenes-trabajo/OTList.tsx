@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService } from '../../services/firebaseService';
 import type { WorkOrder, Cliente, Sistema } from '@ags/shared';
@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
 type ViewMode = 'cards' | 'list';
 type StatusFilter = 'all' | 'BORRADOR' | 'FINALIZADO';
@@ -60,6 +61,16 @@ export const OTList = () => {
     sistemaId: sistemaIdFilter || '',
     status: 'all' as StatusFilter,
   });
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field);
+    setSortDir(s.dir);
+  };
+
+  const sorted = useMemo(() => sortByField(ordenes, sortField, sortDir), [ordenes, sortField, sortDir]);
 
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
@@ -127,7 +138,7 @@ export const OTList = () => {
       <PageHeader
         title="Órdenes de Trabajo"
         subtitle="Gestión de reportes de servicio"
-        count={ordenes.length}
+        count={sorted.length}
         actions={
           <div className="flex gap-2 items-center">
             <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
@@ -197,7 +208,7 @@ export const OTList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4">
-        {ordenes.length === 0 ? (
+        {sorted.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron órdenes de trabajo</p>
@@ -209,7 +220,7 @@ export const OTList = () => {
           </Card>
         ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ordenes.map((ot) => {
+            {sorted.map((ot) => {
               const sistema = sistemas.find(s => s.id === ot.sistemaId);
               return (
                 <Card key={ot.otNumber}>
@@ -257,14 +268,14 @@ export const OTList = () => {
                   <th className={thClass}>Módulo</th>
                   <th className={thClass}>Tipo Servicio</th>
                   <th className={thClass}>Problema</th>
-                  <th className={thClass}>Creada</th>
-                  <th className={thClass}>Fecha</th>
+                  <SortableHeader label="Creada" field="createdAt" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Fecha" field="fechaInicio" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>Estado</th>
                   <th className={thClass}></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ordenes.map((ot) => {
+                {sorted.map((ot) => {
                   const sistema = sistemas.find(s => s.id === ot.sistemaId);
                   return (
                     <tr key={ot.otNumber} className="hover:bg-slate-50 transition-colors">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   POSTA_CATEGORIA_LABELS, POSTA_CATEGORIA_COLORS,
@@ -14,6 +14,7 @@ import type { UsuarioAGS } from '@ags/shared';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
 const ENTIDAD_ROUTES: Record<string, string> = {
   orden_compra: '/stock/ordenes-compra',
@@ -42,6 +43,15 @@ export const PostasVisor = () => {
     ...(filtroResponsable && !soloMias ? { responsableId: filtroResponsable } : {}),
   };
   const { postas, loading } = usePostas(filters);
+  const [sortField, setSortField] = useState('fechaCreacion');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+
+  const sorted = useMemo(() => sortByField(postas, sortField, sortDir), [postas, sortField, sortDir]);
 
   const limpiar = () => {
     setFiltroCategoria(''); setFiltroTipo(''); setFiltroEstado('');
@@ -54,7 +64,7 @@ export const PostasVisor = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Visor de Postas" subtitle="Derivaciones y seguimiento de procesos" count={postas.length}>
+      <PageHeader title="Visor de Postas" subtitle="Derivaciones y seguimiento de procesos" count={sorted.length}>
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value as PostaCategoria | '')}
             className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -87,7 +97,7 @@ export const PostasVisor = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4">
-        {postas.length === 0 ? (
+        {sorted.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron postas</p></div></Card>
         ) : (
           <Card>
@@ -102,12 +112,12 @@ export const PostasVisor = () => {
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Responsable</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Prioridad</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
+                    <SortableHeader label="Fecha" field="fechaCreacion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {postas.map(p => <PostaRow key={p.id} posta={p} />)}
+                  {sorted.map(p => <PostaRow key={p.id} posta={p} />)}
                 </tbody>
               </table>
             </div>

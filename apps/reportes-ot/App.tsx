@@ -498,6 +498,55 @@ const App: React.FC = () => {
     setProtocolSelections(protocolSelections.filter(s => s.tableId !== tableId));
   };
 
+  const handleAddRow = (tableId: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const newRowId = `extra_${Date.now()}`;
+        const emptyRow: Record<string, string> = {};
+        for (const col of s.tableSnapshot.columns) {
+          emptyRow[col.key] = '';
+        }
+        return {
+          ...s,
+          tableSnapshot: {
+            ...s.tableSnapshot,
+            templateRows: [...s.tableSnapshot.templateRows, { rowId: newRowId, cells: {} }],
+          },
+          filledData: { ...s.filledData, [newRowId]: emptyRow },
+        };
+      })
+    );
+  };
+
+  const handleRemoveRow = (tableId: string, rowId: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const { [rowId]: _, ...restFilled } = s.filledData;
+        return {
+          ...s,
+          tableSnapshot: {
+            ...s.tableSnapshot,
+            templateRows: s.tableSnapshot.templateRows.filter(r => r.rowId !== rowId),
+          },
+          filledData: restFilled,
+        };
+      })
+    );
+  };
+
+  const handleHeaderDataChange = (tableId: string, fieldId: string, value: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s =>
+        s.tableId !== tableId ? s : {
+          ...s,
+          headerData: { ...(s.headerData ?? {}), [fieldId]: value },
+        }
+      )
+    );
+  };
+
   const handleChecklistAnswer = (tableId: string, itemId: string, answer: ChecklistItemAnswer) => {
     setProtocolSelections(prev =>
       prev.map(s =>
@@ -658,6 +707,7 @@ const App: React.FC = () => {
   useAutosave({
     reportState,
     otNumber,
+    status,
     firebase,
     hasInitialized,
     hasUserInteracted,
@@ -1577,6 +1627,9 @@ const App: React.FC = () => {
                   const newServiceType = e.target.value;
                   setTipoServicio(newServiceType);
 
+                  // Limpiar tablas del catálogo al cambiar tipo de servicio
+                  setProtocolSelections([]);
+
                   const template = getProtocolTemplateForServiceType(newServiceType);
                   if (template) {
                     setProtocolTemplateId(template.id);
@@ -2080,6 +2133,9 @@ const App: React.FC = () => {
                   onChangeResultado={handleCatalogResultado}
                   onToggleClientSpec={handleCatalogToggleClientSpec}
                   onRemove={handleRemoveCatalogTable}
+                  onAddRow={handleAddRow}
+                  onRemoveRow={handleRemoveRow}
+                  onChangeHeaderData={handleHeaderDataChange}
                 />
               )
             )}

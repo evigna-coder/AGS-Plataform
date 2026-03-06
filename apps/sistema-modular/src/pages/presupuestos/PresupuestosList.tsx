@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { presupuestosService, clientesService } from '../../services/firebaseService';
 import type { Presupuesto, Cliente, TipoPresupuesto } from '@ags/shared';
@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
 export const PresupuestosList = () => {
   const navigate = useNavigate();
@@ -18,6 +19,13 @@ export const PresupuestosList = () => {
   const [filtroEstado, setFiltroEstado] = useState<Presupuesto['estado'] | ''>('');
   const [filtroTipo, setFiltroTipo] = useState<TipoPresupuesto | ''>('');
   const [showCreate, setShowCreate] = useState(false);
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
 
   useEffect(() => { loadData(); }, []);
 
@@ -38,12 +46,15 @@ export const PresupuestosList = () => {
     }
   };
 
-  const presupuestosFiltrados = presupuestos.filter(p => {
-    if (filtroCliente && p.clienteId !== filtroCliente) return false;
-    if (filtroEstado && p.estado !== filtroEstado) return false;
-    if (filtroTipo && p.tipo !== filtroTipo) return false;
-    return true;
-  });
+  const presupuestosFiltrados = useMemo(() => {
+    let result = presupuestos.filter(p => {
+      if (filtroCliente && p.clienteId !== filtroCliente) return false;
+      if (filtroEstado && p.estado !== filtroEstado) return false;
+      if (filtroTipo && p.tipo !== filtroTipo) return false;
+      return true;
+    });
+    return sortByField(result, sortField, sortDir);
+  }, [presupuestos, filtroCliente, filtroEstado, filtroTipo, sortField, sortDir]);
 
   const getClienteNombre = (clienteId: string) => {
     return clientes.find(c => c.id === clienteId)?.razonSocial || 'Cliente no encontrado';
@@ -110,8 +121,8 @@ export const PresupuestosList = () => {
                     <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Moneda</th>
                     <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
                     <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Total</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Creado</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Enviado</th>
+                    <SortableHeader label="Creado" field="createdAt" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Enviado" field="fechaEnvio" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                     <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>

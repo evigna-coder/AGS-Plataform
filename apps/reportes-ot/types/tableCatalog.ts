@@ -17,6 +17,8 @@ export interface TableCatalogColumn {
   required: boolean;
   expectedValue?: string | null;
   fixedValue?: string | null;
+  /** Ancho de la columna en mm. Si no se define, se distribuye automáticamente. */
+  width?: number | null;
 }
 
 export interface TableCatalogRow {
@@ -64,6 +66,13 @@ export type ChecklistItemAnswer =
   | { itemType: 'value_input'; value: string }
   | { itemType: 'pass_fail'; result: 'CUMPLE' | 'NO_CUMPLE' | 'NA' | '' };
 
+/** Campo de encabezado (selector de opciones) que se muestra arriba de la tabla. */
+export interface TableHeaderField {
+  fieldId: string;
+  label: string;
+  options: string[];
+}
+
 export interface TableCatalogEntry {
   id: string;
   name: string;
@@ -75,6 +84,7 @@ export interface TableCatalogEntry {
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
   allowClientSpec?: boolean;
+  allowExtraRows?: boolean;
   tipoServicio?: string[];
   modelos?: string[];
   orden?: number;
@@ -82,6 +92,10 @@ export interface TableCatalogEntry {
   checklistItems?: ChecklistItem[];
   /** Contenido de texto libre (solo cuando tableType === 'text') */
   textContent?: string | null;
+  /** Modo de visualización: 'card' (con recuadro) o 'inline' (texto suelto). Default: 'card'. */
+  textDisplayMode?: 'card' | 'inline';
+  /** Campos de encabezado (selectores) que se muestran arriba de la tabla */
+  headerFields?: TableHeaderField[];
   status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;
@@ -104,4 +118,6 @@ export interface ProtocolSelection {
   checklistData?: Record<string, ChecklistItemAnswer>;
   /** itemIds de secciones marcadas "No Aplica" por el técnico */
   collapsedSections?: string[];
+  /** Valores seleccionados en los campos de encabezado (fieldId → valor) */
+  headerData?: Record<string, string>;
 }

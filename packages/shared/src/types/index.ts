@@ -287,8 +287,42 @@ export interface Sistema {
 // --- Motivo del llamado (Leads) ---
 export type MotivoLlamado = 'ventas' | 'soporte' | 'insumos' | 'administracion' | 'otros';
 
+export const MOTIVO_LLAMADO_LABELS: Record<MotivoLlamado, string> = {
+  ventas: 'Ventas',
+  soporte: 'Soporte',
+  insumos: 'Insumos',
+  administracion: 'Administración',
+  otros: 'Otros',
+};
+
+export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
+  ventas: 'bg-green-100 text-green-700',
+  soporte: 'bg-blue-100 text-blue-700',
+  insumos: 'bg-orange-100 text-orange-700',
+  administracion: 'bg-violet-100 text-violet-700',
+  otros: 'bg-slate-100 text-slate-600',
+};
+
 // --- Estados del Lead (postas / grilla) ---
 export type LeadEstado = 'nuevo' | 'en_revision' | 'derivado' | 'en_proceso' | 'finalizado' | 'perdido';
+
+export const LEAD_ESTADO_LABELS: Record<LeadEstado, string> = {
+  nuevo: 'Nuevo',
+  en_revision: 'En revisión',
+  derivado: 'Derivado',
+  en_proceso: 'En proceso',
+  finalizado: 'Finalizado',
+  perdido: 'Perdido',
+};
+
+export const LEAD_ESTADO_COLORS: Record<LeadEstado, string> = {
+  nuevo: 'bg-blue-100 text-blue-800',
+  en_revision: 'bg-amber-100 text-amber-800',
+  derivado: 'bg-purple-100 text-purple-800',
+  en_proceso: 'bg-cyan-100 text-cyan-800',
+  finalizado: 'bg-emerald-100 text-emerald-800',
+  perdido: 'bg-red-100 text-red-600',
+};
 
 // --- Posta (derivación) ---
 export interface Posta {
@@ -412,6 +446,7 @@ export interface Lead {
   motivoLlamado: MotivoLlamado;
   motivoContacto: string;
   sistemaId: string | null; // FK sistemas (equipo involucrado si aplica)
+  moduloId?: string | null; // FK módulo dentro del sistema
   estado: LeadEstado;
   postas: Posta[];
   asignadoA: string | null;
@@ -420,6 +455,9 @@ export interface Lead {
   updatedAt: string;
   createdBy?: string;
   finalizadoAt?: string | null;
+  descripcion?: string | null;
+  presupuestosIds?: string[];
+  otIds?: string[];
 }
 
 // --- Usuario (catálogo postas) ---
@@ -738,6 +776,8 @@ export interface TableCatalogColumn {
   expectedValue?: string | null;
   /** Admin-defined fixed value shown to techs (for type='fixed_text') */
   fixedValue?: string | null;
+  /** Ancho de la columna en mm. Si no se define, se distribuye automáticamente. */
+  width?: number | null;
 }
 
 export interface TableCatalogRow {
@@ -806,6 +846,13 @@ export type ChecklistItemAnswer =
   | { itemType: 'value_input'; value: string }
   | { itemType: 'pass_fail'; result: 'CUMPLE' | 'NO_CUMPLE' | 'NA' | '' };
 
+/** Campo de encabezado que se muestra arriba de la tabla para que el técnico seleccione una opción. */
+export interface TableHeaderField {
+  fieldId: string;
+  label: string;
+  options: string[];
+}
+
 export interface TableCatalogEntry {
   id: string;
   name: string;
@@ -822,6 +869,8 @@ export interface TableCatalogEntry {
    * escribe su propia especificación, que es la que se usa para calcular Conclusión.
    */
   allowClientSpec?: boolean;
+  /** Si `true`, el ingeniero puede agregar filas vacías extra durante la ejecución del protocolo. */
+  allowExtraRows?: boolean;
   /**
    * Tipos de servicio con los que se asocia esta tabla (ej. "Calificación de operación").
    * Si está vacío o ausente, la tabla no se filtra por servicio y aparece siempre.
@@ -846,6 +895,16 @@ export interface TableCatalogEntry {
    * Se usa para declarar objetivos, alcances, procedimientos, etc.
    */
   textContent?: string | null;
+  /**
+   * Modo de visualización del texto en el protocolo (solo tableType === 'text').
+   * 'card' = con encabezado y borde (default); 'inline' = texto suelto sin recuadro.
+   */
+  textDisplayMode?: 'card' | 'inline';
+  /**
+   * Campos de encabezado que se muestran arriba de la tabla (ej. selector de inyector).
+   * El técnico elige una opción por campo antes de completar la tabla.
+   */
+  headerFields?: TableHeaderField[];
   status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;
@@ -865,6 +924,8 @@ export interface ProtocolSelection {
   completadoAt: string;
   /** Respuestas del técnico para checklists (tableType === 'checklist') */
   checklistData?: Record<string, ChecklistItemAnswer>;
+  /** Valores seleccionados en los campos de encabezado (fieldId → valor) */
+  headerData?: Record<string, string>;
   /** itemIds de secciones marcadas "No Aplica" por el técnico */
   collapsedSections?: string[];
 }

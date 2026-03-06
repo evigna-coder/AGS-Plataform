@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fichasService, clientesService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreateFichaModal } from '../../components/fichas/CreateFichaModal';
 import type { FichaPropiedad, EstadoFicha, Cliente } from '@ags/shared';
 import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS } from '@ags/shared';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
 export function FichasList() {
   const navigate = useNavigate();
@@ -16,6 +18,13 @@ export function FichasList() {
   const [filterCliente, setFilterCliente] = useState('');
   const [showEntregadas, setShowEntregadas] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [sortField, setSortField] = useState('fechaIngreso');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
 
   useEffect(() => {
     Promise.all([
@@ -27,11 +36,14 @@ export function FichasList() {
     }).finally(() => setLoading(false));
   }, [showEntregadas]);
 
-  const filtered = fichas.filter(f => {
-    if (filterEstado && f.estado !== filterEstado) return false;
-    if (filterCliente && f.clienteId !== filterCliente) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    let result = fichas.filter(f => {
+      if (filterEstado && f.estado !== filterEstado) return false;
+      if (filterCliente && f.clienteId !== filterCliente) return false;
+      return true;
+    });
+    return sortByField(result, sortField, sortDir);
+  }, [fichas, filterEstado, filterCliente, sortField, sortDir]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar esta ficha?')) return;
@@ -66,16 +78,11 @@ export function FichasList() {
               <option key={e} value={e}>{ESTADO_FICHA_LABELS[e]}</option>
             ))}
           </select>
-          <select
-            className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white"
-            value={filterCliente}
-            onChange={e => setFilterCliente(e.target.value)}
-          >
-            <option value="">Todos los clientes</option>
-            {clientes.map(c => (
-              <option key={c.id} value={c.id}>{c.razonSocial}</option>
-            ))}
-          </select>
+          <div className="min-w-[180px]">
+            <SearchableSelect value={filterCliente} onChange={setFilterCliente}
+              options={[{ value: '', label: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              placeholder="Cliente..." />
+          </div>
           <label className="flex items-center gap-1.5 text-xs text-slate-500">
             <input
               type="checkbox"
@@ -104,7 +111,7 @@ export function FichasList() {
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ingreso</th>
+                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">OT Ref</th>
                   <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>

@@ -80,6 +80,9 @@ interface Props {
   onChangeResultado?: (tableId: string, value: ProtocolSelection['resultado']) => void;
   onToggleClientSpec?: (tableId: string, enabled: boolean) => void;
   onRemove?: (tableId: string) => void;
+  onAddRow?: (tableId: string) => void;
+  onRemoveRow?: (tableId: string, rowId: string) => void;
+  onChangeHeaderData?: (tableId: string, fieldId: string, value: string) => void;
 }
 
 const PASS_LABELS: Record<string, string> = {
@@ -228,6 +231,9 @@ export const CatalogTableView: React.FC<Props> = ({
   onChangeObservaciones,
   onToggleClientSpec,
   onRemove,
+  onAddRow,
+  onRemoveRow,
+  onChangeHeaderData,
 }) => {
   const table = selection.tableSnapshot;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
@@ -441,6 +447,38 @@ export const CatalogTableView: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Campos de encabezado (selectores pre-tabla) */}
+      {(table.headerFields ?? []).length > 0 && (
+        <div className={`flex flex-wrap gap-4 px-3 py-2 ${isPrint ? 'border-b border-slate-300' : 'border-b border-slate-200 bg-white'}`}>
+          {(table.headerFields ?? []).map(hf => {
+            const value = selection.headerData?.[hf.fieldId] ?? '';
+            return (
+              <div key={hf.fieldId} className="flex items-center gap-2">
+                <span className={`font-semibold ${isPrint ? 'text-[9px]' : 'text-xs text-slate-700'}`}>
+                  {hf.label}:
+                </span>
+                {isPrint ? (
+                  <span className="text-[9px]">{value || '—'}</span>
+                ) : readOnly ? (
+                  <span className="text-xs text-slate-600">{value || '—'}</span>
+                ) : (
+                  <select
+                    value={value}
+                    onChange={e => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value)}
+                    className="border border-slate-300 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">Seleccionar...</option>
+                    {hf.options.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Tabla */}
       <div className={isPrint ? '' : 'overflow-x-auto'}>
         <table className="w-full text-left border-collapse">
@@ -450,6 +488,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 <th
                   key={col.key}
                   className={`px-2 py-1.5 font-semibold text-slate-600 whitespace-nowrap ${isPrint ? 'text-[8.5px] border border-slate-300' : 'text-xs border-r border-slate-200'}`}
+                  style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}
                 >
                   {col.label}
                   {col.unit && <span className="font-normal text-slate-400 ml-1">({col.unit})</span>}
@@ -482,6 +521,7 @@ export const CatalogTableView: React.FC<Props> = ({
                   </tr>
                 );
               }
+              const isExtra = row.rowId.startsWith('extra_');
               return (
                 <tr
                   key={row.rowId}
@@ -498,12 +538,38 @@ export const CatalogTableView: React.FC<Props> = ({
                       {renderTableCell(col, row.rowId)}
                     </td>
                   ))}
+                  {/* Botón eliminar fila extra */}
+                  {isExtra && !readOnly && !isPrint && onRemoveRow && (
+                    <td className="px-1 py-1 align-middle w-6">
+                      <button
+                        onClick={() => onRemoveRow(selection.tableId, row.rowId)}
+                        className="text-slate-300 hover:text-red-500 transition-colors"
+                        title="Quitar fila"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {/* Botón agregar fila (solo si la tabla lo permite) */}
+      {!readOnly && !isPrint && onAddRow && table.allowExtraRows && (
+        <div className="px-3 py-1.5 border-t border-slate-100">
+          <button
+            onClick={() => onAddRow(selection.tableId)}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            + Agregar fila
+          </button>
+        </div>
+      )}
 
       {/* Footer edit: observaciones (oculto en readOnly si no hay contenido) */}
       {!isPrint && (!readOnly || selection.observaciones) && (

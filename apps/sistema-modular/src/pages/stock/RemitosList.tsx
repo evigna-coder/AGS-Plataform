@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { remitosService } from '../../services/firebaseService';
+import { remitosService, clientesService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRemitoModal } from '../../components/stock/CreateRemitoModal';
-import type { Remito, TipoRemito, EstadoRemito } from '@ags/shared';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import type { Remito, TipoRemito, EstadoRemito, Cliente } from '@ags/shared';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolución', interno: 'Interno', derivacion_proveedor: 'Derivación proveedor', loaner_salida: 'Loaner salida' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
@@ -14,10 +16,19 @@ const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text
 
 export const RemitosList = () => {
   const [remitos, setRemitos] = useState<Remito[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ estado: '', tipo: '', showAll: false });
+  const [filters, setFilters] = useState({ estado: '', tipo: '', showAll: false, clienteId: '' });
   const [showCreate, setShowCreate] = useState(false);
+  const [sortField, setSortField] = useState('fechaSalida');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+
+  useEffect(() => { clientesService.getAll(true).then(setClientes); }, []);
   useEffect(() => { loadData(); }, [filters.estado, filters.tipo, filters.showAll]);
 
   const loadData = async () => {
@@ -48,6 +59,12 @@ export const RemitosList = () => {
     }
   };
 
+  const sorted = useMemo(() => {
+    let result = remitos;
+    if (filters.clienteId) result = result.filter(r => r.clienteId === filters.clienteId);
+    return sortByField(result, sortField, sortDir);
+  }, [remitos, filters.clienteId, sortField, sortDir]);
+
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
     return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -62,7 +79,7 @@ export const RemitosList = () => {
       <PageHeader
         title="Remitos"
         subtitle="Gestionar remitos de stock"
-        count={remitos.length}
+        count={sorted.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo remito</Button>
         }
@@ -82,6 +99,11 @@ export const RemitosList = () => {
               <option key={k} value={k}>{TIPO_LABELS[k]}</option>
             ))}
           </select>
+          <div className="min-w-[180px]">
+            <SearchableSelect value={filters.clienteId} onChange={v => setFilters({ ...filters, clienteId: v })}
+              options={[{ value: '', label: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              placeholder="Cliente..." />
+          </div>
           <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
             <input type="checkbox" checked={filters.showAll} onChange={e => setFilters({ ...filters, showAll: e.target.checked })}
               className="w-3.5 h-3.5 rounded border-slate-300" />
@@ -91,7 +113,7 @@ export const RemitosList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {remitos.length === 0 ? (
+        {sorted.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron remitos</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">
@@ -103,13 +125,13 @@ export const RemitosList = () => {
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ingeniero</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha salida</th>
+                    <SortableHeader label="Fecha salida" field="fechaSalida" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">OTs</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {remitos.map(r => (
+                  {sorted.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2">
                         <span className="font-mono text-xs font-semibold text-indigo-600">{r.numero}</span>

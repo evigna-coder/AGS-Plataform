@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService } from '../../services/firebaseService';
+import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService } from '../../services/firebaseService';
 import type { Cliente, Sistema, ContactoCliente, TipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +12,8 @@ export const OTNew = () => {
   const [searchParams] = useSearchParams();
   const clienteIdFromUrl = searchParams.get('cliente');
   const sistemaIdFromUrl = searchParams.get('sistema');
+  const moduloIdFromUrl = searchParams.get('modulo');
+  const leadIdFromUrl = searchParams.get('leadId');
   
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -148,6 +150,21 @@ export const OTNew = () => {
         return;
       }
       
+      // Cargar módulo si viene desde un lead
+      let moduloModelo = '';
+      let moduloDescripcion = '';
+      let moduloSerie = '';
+      let moduloId: string | undefined;
+      if (moduloIdFromUrl && formData.sistemaId) {
+        const mod = await modulosService.getById(formData.sistemaId, moduloIdFromUrl);
+        if (mod) {
+          moduloModelo = mod.nombre;
+          moduloDescripcion = mod.descripcion || '';
+          moduloSerie = mod.serie || '';
+          moduloId = mod.id;
+        }
+      }
+
       // Crear OT básica - los datos completos se editarán en reportes-ot
       const otData = {
         otNumber: formData.otNumber,
@@ -163,9 +180,10 @@ export const OTNew = () => {
         localidad: cliente.localidad,
         provincia: cliente.provincia,
         sistema: sistema.nombre,
-        moduloModelo: '',
-        moduloDescripcion: '',
-        moduloSerie: '',
+        moduloModelo,
+        moduloDescripcion,
+        moduloSerie,
+        ...(moduloId ? { moduloId } : {}),
         codigoInternoCliente: sistema.codigoInternoCliente,
         fechaInicio: new Date().toISOString().split('T')[0],
         fechaFin: new Date().toISOString().split('T')[0],
@@ -185,7 +203,12 @@ export const OTNew = () => {
       };
       
       await ordenesTrabajoService.create(otData);
-      
+
+      // Vincular OT al lead de origen
+      if (leadIdFromUrl) {
+        await leadsService.linkOT(leadIdFromUrl, formData.otNumber);
+      }
+
       // Redirigir al módulo de reportes-ot para edición completa
       // Si reportes-ot está en otro puerto (3000), usar URL completa
       // En producción, ajustar según la configuración del servidor

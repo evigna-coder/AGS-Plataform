@@ -111,7 +111,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nueva orden de trabajo"
+    <Modal open={open} onClose={handleClose} maxWidth="lg" title="Nueva orden de trabajo"
       subtitle={nextOtNumber ? `OT #${nextOtNumber}` : 'Generando numero...'}
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>

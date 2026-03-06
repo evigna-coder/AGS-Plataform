@@ -78,7 +78,7 @@ export const CreateRemitoModal: React.FC<Props> = ({ open, onClose, onCreated })
   const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo remito"
+    <Modal open={open} onClose={handleClose} maxWidth="lg" title="Nuevo remito"
       subtitle="Complete los datos del remito. Los items se agregan despues."
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>

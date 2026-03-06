@@ -7,8 +7,8 @@ import { LeadsList, LeadDetail } from './pages/leads';
 import { ClientesList, ClienteDetail } from './pages/clientes';
 import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from './pages/establecimientos';
 import { EquiposList, EquipoDetail, CategoriasEquipo } from './pages/equipos';
-import { OTList, OTDetail, TiposServicio } from './pages/ordenes-trabajo';
-import { PresupuestosList, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio } from './pages/presupuestos';
+import { OTList, OTNew, OTDetail, TiposServicio } from './pages/ordenes-trabajo';
+import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio } from './pages/presupuestos';
 import { TableCatalogPage, TableCatalogEditorPage } from './pages/protocol-catalog';
 import { InstrumentosListPage, InstrumentoEditorPage } from './pages/instrumentos';
 import { FichasList, FichaEditor, FichaDetail } from './pages/fichas';
@@ -83,17 +83,16 @@ function AuthGate() {
         <Route path="/categorias-equipo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><CategoriasEquipo /></ProtectedRoute>} />
         {/* Ordenes de Trabajo — admin, ingeniero_soporte, admin_soporte */}
         <Route path="/ordenes-trabajo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><OTList /></ProtectedRoute>} />
-        <Route path="/ordenes-trabajo/nuevo" element={<Navigate to="/ordenes-trabajo" replace />} />
+        <Route path="/ordenes-trabajo/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><OTNew /></ProtectedRoute>} />
         <Route path="/ordenes-trabajo/:otNumber" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><OTDetail /></ProtectedRoute>} />
         <Route path="/categorias-tipo-servicio" element={<Navigate to="/tipos-servicio" replace />} />
         <Route path="/tipos-servicio" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TiposServicio /></ProtectedRoute>} />
         {/* Leads — admin, admin_soporte, administracion */}
         <Route path="/leads" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><LeadsList /></ProtectedRoute>} />
-        <Route path="/leads/nuevo" element={<Navigate to="/leads" replace />} />
         <Route path="/leads/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><LeadDetail /></ProtectedRoute>} />
         {/* Presupuestos — admin, admin_soporte, administracion */}
         <Route path="/presupuestos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestosList /></ProtectedRoute>} />
-        <Route path="/presupuestos/nuevo" element={<Navigate to="/presupuestos" replace />} />
+        <Route path="/presupuestos/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestoNew /></ProtectedRoute>} />
         <Route path="/presupuestos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestoDetail /></ProtectedRoute>} />
         <Route path="/presupuestos/categorias" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><CategoriasPresupuesto /></ProtectedRoute>} />
         <Route path="/presupuestos/condiciones-pago" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><CondicionesPago /></ProtectedRoute>} />

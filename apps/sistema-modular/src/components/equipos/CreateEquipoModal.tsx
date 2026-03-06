@@ -92,7 +92,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo sistema / equipo"
+    <Modal open={open} onClose={handleClose} maxWidth="lg" title="Nuevo sistema / equipo"
       subtitle="Seleccione cliente, establecimiento y categoria"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface SearchableSelectOption {
   value: string;
@@ -51,10 +52,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   }, [isOpen]);
 
-  // Cerrar al hacer click fuera
+  // Cerrar al hacer click fuera (incluye portal dropdown)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target) &&
+          listRef.current && !listRef.current.contains(target)) {
         setIsOpen(false);
       }
     };
@@ -71,6 +74,26 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Calcular posición del dropdown (portal)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const updateDropdownPos = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPos();
+    window.addEventListener('scroll', updateDropdownPos, true);
+    window.addEventListener('resize', updateDropdownPos);
+    return () => {
+      window.removeEventListener('scroll', updateDropdownPos, true);
+      window.removeEventListener('resize', updateDropdownPos);
+    };
+  }, [isOpen, updateDropdownPos]);
 
   // Scroll al elemento destacado
   useEffect(() => {
@@ -172,11 +195,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         </span>
       </div>
 
-      {/* Dropdown con opciones filtradas */}
-      {isOpen && !disabled && (
+      {/* Dropdown con opciones filtradas — portal para evitar clip por overflow */}
+      {isOpen && !disabled && createPortal(
         <ul
           ref={listRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto"
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto"
           role="listbox"
         >
           {filteredOptions.length === 0 ? (
@@ -201,7 +225,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               </li>
             ))
           )}
-        </ul>
+        </ul>,
+        document.body
       )}
 
       {/* Mensaje de error */}

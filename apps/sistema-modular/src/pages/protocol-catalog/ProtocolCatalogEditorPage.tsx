@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTableCatalog } from '../../hooks/useTableCatalog';
 import { Button } from '../../components/ui/Button';
@@ -80,27 +80,52 @@ export const TableCatalogEditorPage = () => {
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const dataLoaded = useRef(false);
 
   useEffect(() => {
+    if (dataLoaded.current) return;
+    let cancelled = false;
     if (tableId) {
-      getTable(tableId).then(data => { if (data) setEntry(data); });
+      getTable(tableId).then(data => {
+        if (!cancelled && data) {
+          setEntry(data);
+          dataLoaded.current = true;
+        }
+      });
+    } else {
+      dataLoaded.current = true;
     }
-    categoriasEquipoService.getAll().then(setCategorias);
+    categoriasEquipoService.getAll().then(cats => { if (!cancelled) setCategorias(cats); });
+    return () => { cancelled = true; };
   }, [tableId]);
+
+  // Auto-dismiss status messages
+  useEffect(() => {
+    if (!statusMsg) return;
+    const t = setTimeout(() => setStatusMsg(null), 3500);
+    return () => clearTimeout(t);
+  }, [statusMsg]);
 
   const setMeta = (key: keyof TableCatalogEntry, value: any) =>
     setEntry(prev => ({ ...prev, [key]: value }));
 
   const handleSaveDraft = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const id = await saveDraft(entry);
       if (!entry.id && id) {
         setEntry(prev => ({ ...prev, id }));
-        navigate(`/table-catalog/${id}/edit`, { replace: true });
+        // Actualizar URL sin remontar el componente (evita refetch y pérdida de foco)
+        window.history.replaceState(null, '', `/table-catalog/${id}/edit`);
       }
-      alert('Borrador guardado correctamente');
+      setStatusMsg({ type: 'success', text: 'Borrador guardado' });
     } catch {
-      alert('Error al guardar el borrador');
+      setStatusMsg({ type: 'error', text: 'Error al guardar' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -110,15 +135,19 @@ export const TableCatalogEditorPage = () => {
       setValidationErrors(errors);
       if (!confirm(`Hay ${errors.length} advertencia(s).\n\n${errors.join('\n')}\n\n¿Publicar de todas formas?`)) return;
     }
+    if (saving) return;
+    setSaving(true);
     try {
       const id = await saveDraft(entry);
       const targetId = entry.id || id;
       if (targetId) await publishTable(targetId);
       setEntry(prev => ({ ...prev, id: targetId, status: 'published' }));
       setValidationErrors([]);
-      alert('Tabla publicada correctamente');
+      setStatusMsg({ type: 'success', text: 'Tabla publicada' });
     } catch {
-      alert('Error al publicar la tabla');
+      setStatusMsg({ type: 'error', text: 'Error al publicar' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -137,12 +166,19 @@ export const TableCatalogEditorPage = () => {
                entry.status === 'published' ? '✅ Publicado' : 'Archivado'}
             </span>
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {statusMsg && (
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-opacity ${
+                statusMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              }`}>
+                {statusMsg.text}
+              </span>
+            )}
             <Button variant="outline" onClick={() => navigate('/table-catalog')}>← Volver</Button>
-            <Button variant="secondary" onClick={handleSaveDraft} disabled={loading}>
-              {loading ? 'Guardando...' : 'Guardar borrador'}
+            <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || loading}>
+              {saving ? 'Guardando...' : 'Guardar borrador'}
             </Button>
-            <Button onClick={handlePublish} disabled={loading || entry.status === 'published'}>
+            <Button onClick={handlePublish} disabled={saving || loading || entry.status === 'published'}>
               Publicar
             </Button>
           </div>
@@ -164,7 +200,7 @@ export const TableCatalogEditorPage = () => {
       {/* Two-panel layout */}
       <div className="grid grid-cols-3 gap-6 items-start">
         {/* Metadata panel — sticky dentro del scroll container */}
-        <div className="sticky top-0">
+        <div>
         <Card>
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Metadatos</h3>
           <div className="space-y-3">
@@ -195,7 +231,8 @@ export const TableCatalogEditorPage = () => {
                 <option value="text">Texto</option>
               </select>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer flex-1">
                 <input type="checkbox" checked={entry.isDefault}
                   onChange={e => setMeta('isDefault', e.target.checked)} />
@@ -212,6 +249,14 @@ export const TableCatalogEditorPage = () => {
                   title="Posición en el protocolo (menor = primero)"
                 />
               </div>
+              </div>
+              {!['checklist', 'text'].includes(entry.tableType) && (
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={entry.allowExtraRows ?? false}
+                    onChange={e => setMeta('allowExtraRows', e.target.checked)} />
+                  Permitir agregar filas extra en protocolo
+                </label>
+              )}
             </div>
 
             {/* Tipos de servicio */}
@@ -310,9 +355,19 @@ export const TableCatalogEditorPage = () => {
           {entry.tableType === 'text' ? (
             <Card>
               <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Contenido de texto</h3>
-              <p className="text-xs text-slate-400 mb-3">
-                Escribí el texto que aparecerá en el protocolo (objetivos, alcance, procedimientos, etc.)
-              </p>
+              <div className="flex items-center gap-4 mb-3">
+                <p className="text-xs text-slate-400">
+                  Escribí el texto que aparecerá en el protocolo (objetivos, alcance, procedimientos, etc.)
+                </p>
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer whitespace-nowrap shrink-0">
+                  <input type="checkbox"
+                    checked={(entry.textDisplayMode ?? 'card') === 'inline'}
+                    onChange={e => setMeta('textDisplayMode', e.target.checked ? 'inline' : 'card')}
+                    className="accent-blue-600"
+                  />
+                  Texto suelto (sin recuadro)
+                </label>
+              </div>
               <RichTextEditor
                 value={entry.textContent ?? ''}
                 onChange={html => setMeta('textContent', html || null)}

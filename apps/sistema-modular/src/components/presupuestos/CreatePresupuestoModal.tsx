@@ -114,7 +114,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
 
   return (
     <Modal open={open} onClose={handleClose} title="Nuevo presupuesto" subtitle="Complete todos los datos del presupuesto" maxWidth="xl">
-      <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-5">
+      <div className="space-y-5">
         {/* Tipo, moneda, cliente, origen */}
         <div className="grid grid-cols-2 gap-5">
           <div className="space-y-4">

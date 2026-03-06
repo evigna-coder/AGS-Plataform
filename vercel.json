@@ -2,5 +2,16 @@
   "buildCommand": "pnpm install && pnpm --filter @ags/reportes-ot build",
   "outputDirectory": "apps/reportes-ot/dist",
   "installCommand": "pnpm install",
-  "framework": null
+  "framework": null,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
 }

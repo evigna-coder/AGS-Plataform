@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrdenesCompra } from '../../hooks/useOrdenesCompra';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { EstadoOC, TipoOC } from '@ags/shared';
 import { ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
@@ -16,15 +17,25 @@ export const OCList = () => {
   const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
   const [filtroTipo, setFiltroTipo] = useState<TipoOC | ''>('');
   const [showCanceladas, setShowCanceladas] = useState(false);
+  const [sortField, setSortField] = useState('fechaEntregaEstimada');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
 
   useEffect(() => { loadOrdenes(); }, []);
 
-  const filtered = ordenes.filter(o => {
-    if (filtroEstado && o.estado !== filtroEstado) return false;
-    if (filtroTipo && o.tipo !== filtroTipo) return false;
-    if (!showCanceladas && o.estado === 'cancelada') return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    let result = ordenes.filter(o => {
+      if (filtroEstado && o.estado !== filtroEstado) return false;
+      if (filtroTipo && o.tipo !== filtroTipo) return false;
+      if (!showCanceladas && o.estado === 'cancelada') return false;
+      return true;
+    });
+    return sortByField(result, sortField, sortDir);
+  }, [ordenes, filtroEstado, filtroTipo, showCanceladas, sortField, sortDir]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar esta orden de compra?')) return;
@@ -98,7 +109,7 @@ export const OCList = () => {
                   <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
                   <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Total</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Moneda</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Entrega est.</th>
+                  <SortableHeader label="Entrega est." field="fechaEntregaEstimada" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                   <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>

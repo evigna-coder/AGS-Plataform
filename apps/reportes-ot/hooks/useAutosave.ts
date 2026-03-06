@@ -5,6 +5,7 @@ import { ReportState } from './useReportForm';
 export interface UseAutosaveOptions {
   reportState: ReportState;
   otNumber: string;
+  status: 'BORRADOR' | 'FINALIZADO';
   firebase: FirebaseService;
   hasInitialized: RefObject<boolean>;
   hasUserInteracted: RefObject<boolean>;
@@ -23,6 +24,7 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
   const {
     reportState,
     otNumber,
+    status,
     firebase,
     hasInitialized,
     hasUserInteracted,
@@ -41,7 +43,8 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
       !hasUserInteracted.current ||      // ⛔ el usuario no tocó nada
       !isValidOt ||                      // ⛔ OT no tiene formato válido (5 dígitos + opcional .NN)
       isModoFirma ||
-      isPreviewMode
+      isPreviewMode ||
+      status === 'FINALIZADO'           // ⛔ reporte ya finalizado, no sobrescribir
     ) {
       return;
     }
@@ -66,5 +69,5 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
     return () => {
       clearTimeout(timeout);
     };
-  }, [reportState, otNumber, isModoFirma, isPreviewMode, firebase, hasInitialized, hasUserInteracted, debounceMs]);
+  }, [reportState, otNumber, status, isModoFirma, isPreviewMode, firebase, hasInitialized, hasUserInteracted, debounceMs]);
 };

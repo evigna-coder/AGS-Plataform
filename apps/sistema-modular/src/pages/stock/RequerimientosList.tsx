@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { requerimientosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRequerimientoModal } from '../../components/stock/CreateRequerimientoModal';
@@ -23,6 +24,15 @@ export const RequerimientosList = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ estado: '', origen: '' });
   const [showCreate, setShowCreate] = useState(false);
+  const [sortField, setSortField] = useState('fechaSolicitud');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+
+  const sorted = useMemo(() => sortByField(requerimientos, sortField, sortDir), [requerimientos, sortField, sortDir]);
 
   useEffect(() => { loadData(); }, [filters.estado, filters.origen]);
 
@@ -83,7 +93,7 @@ export const RequerimientosList = () => {
       <PageHeader
         title="Requerimientos de Compra"
         subtitle="Requisiciones de compra"
-        count={requerimientos.length}
+        count={sorted.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo requerimiento</Button>
         }
@@ -107,7 +117,7 @@ export const RequerimientosList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {requerimientos.length === 0 ? (
+        {sorted.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron requerimientos</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">
@@ -120,12 +130,12 @@ export const RequerimientosList = () => {
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Solicitado por</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
+                  <SortableHeader label="Fecha" field="fechaSolicitud" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {requerimientos.map(r => (
+                {sorted.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2">
                       <span className="font-mono text-xs font-semibold text-indigo-600">{r.numero}</span>

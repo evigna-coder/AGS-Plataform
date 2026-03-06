@@ -23,10 +23,12 @@ export const TablePreview = ({ table }: Props) => {
             <thead>
               <tr className="bg-slate-50">
                 {table.columns.map((col: TableCatalogEntry['columns'][number]) => (
-                  <th key={col.key} className="px-3 py-2 text-left font-bold text-slate-700 border border-slate-200">
+                  <th key={col.key} className="px-3 py-2 text-left font-bold text-slate-700 border border-slate-200"
+                    style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
                     {col.label}
                     {col.unit ? ` (${col.unit})` : ''}
                     {col.required ? ' *' : ''}
+                    {col.width ? <span className="text-slate-400 font-normal ml-1">({col.width}mm)</span> : ''}
                   </th>
                 ))}
               </tr>
