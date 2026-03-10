@@ -213,8 +213,31 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         const itemHeight = heights[i] || 200;
 
         if (item.glueWithPrev && currentPageItems.length > 0) {
-          currentPageItems.push({ ...item, measuredHeight: itemHeight });
-          currentHeight += itemHeight;
+          if (currentHeight + itemHeight <= CONTENT_HEIGHT_PX) {
+            // Fits on current page — keep glued
+            currentPageItems.push({ ...item, measuredHeight: itemHeight });
+            currentHeight += itemHeight;
+          } else {
+            // Doesn't fit: pull prev item to new page to keep the pair together
+            const prevItem = currentPageItems.pop()!;
+            const prevHeight = prevItem.measuredHeight || 0;
+            currentHeight -= prevHeight;
+
+            if (currentPageItems.length > 0) {
+              pagesResult.push({ items: [...currentPageItems] });
+            }
+
+            if (prevHeight + itemHeight <= CONTENT_HEIGHT_PX) {
+              // Pair fits on a fresh page
+              currentPageItems = [prevItem, { ...item, measuredHeight: itemHeight }];
+              currentHeight = prevHeight + itemHeight;
+            } else {
+              // Pair too tall even for a fresh page: break glue
+              pagesResult.push({ items: [prevItem] });
+              currentPageItems = [{ ...item, measuredHeight: itemHeight, glueWithPrev: false }];
+              currentHeight = itemHeight;
+            }
+          }
         } else if (itemHeight > CONTENT_HEIGHT_PX) {
           if (currentPageItems.length > 0) {
             pagesResult.push({ items: [...currentPageItems] });

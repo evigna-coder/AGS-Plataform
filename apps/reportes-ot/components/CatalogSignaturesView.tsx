@@ -68,34 +68,35 @@ export const CatalogSignaturesView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Content area */}
-      <div className="px-4 py-3">
+      {/* Content area: text left + signature right */}
+      <div className="px-4 py-3 flex gap-6 items-start">
 
-        {/* Text content with dates interpolated */}
-        {textContent && (
-          <div
-            className="catalog-text-content text-[11px] leading-relaxed text-slate-700 mb-3"
-            dangerouslySetInnerHTML={{ __html: textContent }}
-          />
-        )}
+        {/* Left: text content */}
+        <div className="flex-1 min-w-0">
+          {textContent && (
+            <div
+              className="catalog-text-content text-[11px] leading-relaxed text-slate-700"
+              dangerouslySetInnerHTML={{ __html: textContent }}
+            />
+          )}
 
-        {/* Date blocks (if not already in text) */}
-        {dateBlocks.length > 0 && !textContent && (
-          <div className="flex gap-6 mb-3">
-            {dateBlocks.map((d, i) => (
-              <div key={i} className="text-[11px]">
-                <span className="font-semibold text-slate-600">{d.label}:</span>{' '}
-                <span className="text-slate-800">{d.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
+          {dateBlocks.length > 0 && !textContent && (
+            <div className="flex flex-col gap-1">
+              {dateBlocks.map((d, i) => (
+                <div key={i} className="text-[11px]">
+                  <span className="font-semibold text-slate-600">{d.label}:</span>{' '}
+                  <span className="text-slate-800">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Signatures */}
-        <div className={`flex ${showClient && showEngineer ? 'gap-8' : ''} mt-2`}>
+        {/* Right: signatures */}
+        <div className="shrink-0 flex flex-col gap-4" style={{ width: '40%' }}>
           {showClient && (
-            <div className={`flex flex-col items-center ${showEngineer ? 'flex-1' : 'w-1/2'}`}>
-              <div className="h-14 w-full border-b border-slate-900 flex items-end justify-center pb-1">
+            <div className="flex flex-col items-center">
+              <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                 {signatureClient && (
                   <img src={signatureClient} className="max-h-full max-w-full object-contain" alt="Firma Cliente" />
                 )}
@@ -110,8 +111,8 @@ export const CatalogSignaturesView: React.FC<Props> = ({
           )}
 
           {showEngineer && (
-            <div className={`flex flex-col items-center ${showClient ? 'flex-1' : 'w-1/2'}`}>
-              <div className="h-14 w-full border-b border-slate-900 flex items-end justify-center pb-1">
+            <div className="flex flex-col items-center">
+              <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                 {signatureEngineer && (
                   <img src={signatureEngineer} className="max-h-full max-w-full object-contain" alt="Firma Técnico" />
                 )}

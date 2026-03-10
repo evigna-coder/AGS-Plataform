@@ -692,7 +692,9 @@ const App: React.FC = () => {
     clientPadRef,
     engineerPadRef,
     validateBeforeClientConfirm,
-    modal.showAlert
+    modal.showAlert,
+    instrumentosSeleccionados,
+    adjuntos,
   );
   const {
     generatePDFBlob: generatePDFBlobFromHook,

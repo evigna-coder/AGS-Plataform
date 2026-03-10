@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import html2canvas from 'html2canvas';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { FirebaseService } from '../services/firebaseService';
 import { UseReportFormReturn } from './useReportForm';
 import { SignaturePadHandle } from '../components/SignaturePad';
 import { getPDFOptions } from '../utils/pdfOptions';
+import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 declare const html2pdf: any;
 
@@ -50,7 +55,9 @@ export const usePDFGeneration = (
   clientPadRef: React.RefObject<SignaturePadHandle>,
   engineerPadRef: React.RefObject<SignaturePadHandle>,
   validateBeforeClientConfirm: () => boolean,
-  showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void
+  showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void,
+  instrumentosSeleccionados: InstrumentoPatronOption[] = [],
+  adjuntos: AdjuntoMeta[] = [],
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -186,7 +193,7 @@ export const usePDFGeneration = (
 
             try {
               const canvas = await html2canvas(clone, {
-                scale: Math.max(window.devicePixelRatio * 2, 3),
+                scale: Math.max(window.devicePixelRatio * 2, 5),
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 logging: false,
@@ -228,6 +235,87 @@ export const usePDFGeneration = (
             pdfParts.push(blobTablas);
           } finally {
             tablasTarget.setAttribute('style', savedStyleTablas);
+          }
+        }
+      }
+
+      // ── Helper: renderizar un PDF externo (posiblemente encriptado) a páginas A4 JPEG ──
+      // Usa pdfjs-dist (motor de Firefox) que maneja cualquier PDF incluyendo encriptados.
+      // Renderiza cada página a canvas, la comprime como JPEG y la embebe en A4 via pdf-lib.
+      const renderExternalPdfToPages = async (pdfBytes: ArrayBuffer, label: string): Promise<void> => {
+        try {
+          const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          const externalDoc = await PDFDocument.create();
+
+          for (let i = 1; i <= pdfDoc.numPages; i++) {
+            const pdfPage = await pdfDoc.getPage(i);
+            const viewport = pdfPage.getViewport({ scale: 2 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d')!;
+            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+
+            const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const jpgBytes = dataUrlToUint8Array(jpgDataUrl);
+            const jpg = await externalDoc.embedJpg(jpgBytes);
+
+            // Forzar A4 y escalar la imagen para que quepa manteniendo proporción
+            const page = externalDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+            const imgAspect = canvas.width / canvas.height;
+            const pageAspect = A4_POINTS.width / A4_POINTS.height;
+            let drawW: number, drawH: number, drawX: number, drawY: number;
+            if (imgAspect > pageAspect) {
+              // Imagen más ancha que A4 → ajustar por ancho
+              drawW = A4_POINTS.width;
+              drawH = A4_POINTS.width / imgAspect;
+              drawX = 0;
+              drawY = A4_POINTS.height - drawH; // Alinear arriba
+            } else {
+              // Imagen más alta que A4 → ajustar por alto
+              drawH = A4_POINTS.height;
+              drawW = A4_POINTS.height * imgAspect;
+              drawX = (A4_POINTS.width - drawW) / 2; // Centrar horizontalmente
+              drawY = 0;
+            }
+            page.drawImage(jpg, { x: drawX, y: drawY, width: drawW, height: drawH });
+          }
+
+          pdfDoc.destroy();
+          pdfParts.push(new Blob([await externalDoc.save()], { type: 'application/pdf' }));
+          console.log(`[PDF][${label}] ${pdfDoc.numPages} página(s) renderizadas OK`);
+        } catch (err) {
+          console.warn(`[PDF][${label}] Error renderizando PDF:`, err);
+        }
+      };
+
+      // ── Certificados: descargar y renderizar PDFs de instrumentos ──
+      const certUrls = instrumentosSeleccionados
+        .map(i => i.certificadoUrl)
+        .filter((url): url is string => !!url);
+
+      if (certUrls.length > 0) {
+        console.log(`[PDF][CERTS] Descargando ${certUrls.length} certificado(s)…`);
+        for (const url of certUrls) {
+          try {
+            const blob = await firebase.downloadStorageBlob(url);
+            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERTS');
+          } catch (err) {
+            console.warn('[PDF][CERTS] Error descargando certificado:', err);
+          }
+        }
+      }
+
+      // ── Adjuntos PDF: descargar y renderizar archivos adjuntos PDF ──
+      const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
+      if (pdfAdjuntos.length > 0) {
+        console.log(`[PDF][ADJUNTOS] Descargando ${pdfAdjuntos.length} adjunto(s) PDF…`);
+        for (const adj of pdfAdjuntos) {
+          try {
+            const blob = await firebase.downloadStorageBlob(adj.url);
+            await renderExternalPdfToPages(await blob.arrayBuffer(), 'ADJUNTOS');
+          } catch (err) {
+            console.warn(`[PDF][ADJUNTOS] Error descargando ${adj.fileName}:`, err);
           }
         }
       }
@@ -274,12 +362,16 @@ export const usePDFGeneration = (
         }
       }
 
-      // ── Merge: Hoja 1 + Tablas + Fotos ──
+      // ── Merge: Hoja 1 + Protocolos + Certificados + Adjuntos PDF + Fotos ──
       const mergedPdf = await PDFDocument.create();
       for (const partBlob of pdfParts) {
-        const partDoc = await PDFDocument.load(await partBlob.arrayBuffer());
-        const pages = await mergedPdf.copyPages(partDoc, partDoc.getPageIndices());
-        pages.forEach(p => mergedPdf.addPage(p));
+        try {
+          const partDoc = await PDFDocument.load(await partBlob.arrayBuffer());
+          const pages = await mergedPdf.copyPages(partDoc, partDoc.getPageIndices());
+          pages.forEach(p => mergedPdf.addPage(p));
+        } catch (err) {
+          console.warn('[PDF][MERGE] Error cargando parte del PDF, omitiendo:', err);
+        }
       }
       return new Blob([await mergedPdf.save()], { type: 'application/pdf' });
     } finally {

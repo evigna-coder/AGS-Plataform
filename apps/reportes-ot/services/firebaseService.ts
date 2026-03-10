@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
 import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
@@ -369,5 +369,15 @@ export class FirebaseService {
       console.warn('No se pudo borrar archivo de Storage:', e);
     }
     await deleteDoc(doc(db, 'adjuntos', adjuntoId));
+  }
+
+  /** Descarga un archivo de Storage como Blob usando el SDK (sin CORS issues). */
+  async downloadStorageBlob(url: string): Promise<Blob> {
+    // Extraer el path del archivo de la URL de Firebase Storage
+    const match = url.match(/\/o\/(.+?)(\?|$)/);
+    if (!match) throw new Error('URL de Storage inválida');
+    const filePath = decodeURIComponent(match[1]);
+    const storageRef = ref(storage, filePath);
+    return await getBlob(storageRef);
   }
 }
