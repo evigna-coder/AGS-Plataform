@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateEquipoModal } from '../../components/equipos/CreateEquipoModal';
+import QREquipoModal from '../../components/equipos/QREquipoModal';
 
 type ViewMode = 'cards' | 'list';
 
@@ -20,6 +21,7 @@ export const EquiposList = () => {
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [qrSistema, setQrSistema] = useState<Sistema | null>(null);
 
   const getInitialViewMode = (): ViewMode => {
     const saved = localStorage.getItem('equipos-view-mode');
@@ -232,6 +234,17 @@ export const EquiposList = () => {
                       <Link to={`/equipos/${sistema.id}`} className="flex-1">
                         <Button className="w-full" variant="outline" size="sm">Ver</Button>
                       </Link>
+                      {sistema.agsVisibleId && (
+                        <button
+                          onClick={() => setQrSistema(sistema)}
+                          className="px-2 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                          title={`Ver QR — ${sistema.agsVisibleId}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 3.5a.5.5 0 11-1 0 .5.5 0 011 0zm-7-7a.5.5 0 11-1 0 .5.5 0 011 0zm-7 7a.5.5 0 11-1 0 .5.5 0 011 0z" />
+                          </svg>
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeleteSistema(sistema.id, sistema.nombre)}
                         className="px-2 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-[10px] font-medium"
@@ -285,6 +298,17 @@ export const EquiposList = () => {
                             <Link to={`/equipos/${sistema.id}`}>
                               <Button variant="outline" size="sm">Ver</Button>
                             </Link>
+                            {sistema.agsVisibleId && (
+                              <button
+                                onClick={() => setQrSistema(sistema)}
+                                className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                                title={`Ver QR — ${sistema.agsVisibleId}`}
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 3.5a.5.5 0 11-1 0 .5.5 0 011 0zm-7-7a.5.5 0 11-1 0 .5.5 0 011 0zm-7 7a.5.5 0 11-1 0 .5.5 0 011 0z" />
+                                </svg>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDeleteSistema(sistema.id, sistema.nombre)}
                               className="px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-[10px] font-medium"
@@ -304,6 +328,14 @@ export const EquiposList = () => {
       </div>
 
       <CreateEquipoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+
+      {qrSistema?.agsVisibleId && (
+        <QREquipoModal
+          agsVisibleId={qrSistema.agsVisibleId}
+          equipoNombre={qrSistema.nombre}
+          onClose={() => setQrSistema(null)}
+        />
+      )}
     </div>
   );
 };

@@ -282,6 +282,8 @@ export interface Sistema {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+  /** ID visible legible para uso humano (ej: AGS-EQ-1043, CC-015). Asignado manualmente o auto-generado. */
+  agsVisibleId?: string | null;
 }
 
 // --- Motivo del llamado (Leads) ---
@@ -458,6 +460,10 @@ export interface Lead {
   descripcion?: string | null;
   presupuestosIds?: string[];
   otIds?: string[];
+  /** Origen del lead: qr = sticker QR, portal = portal cliente, manual = creado manualmente */
+  source?: 'qr' | 'portal' | 'manual' | null;
+  /** ID AGS visible del sistema cuando el lead viene de un QR */
+  sistemaAgsVisibleId?: string | null;
 }
 
 // --- Usuario (catálogo postas) ---
@@ -859,7 +865,7 @@ export interface TableCatalogEntry {
   description?: string | null;
   sysType: string;
   isDefault: boolean;
-  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text';
+  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text' | 'signatures';
   columns: TableCatalogColumn[];
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
@@ -905,7 +911,38 @@ export interface TableCatalogEntry {
    * El técnico elige una opción por campo antes de completar la tabla.
    */
   headerFields?: TableHeaderField[];
+  /**
+   * Qué firmas mostrar en el bloque (solo tableType === 'signatures').
+   * 'both' = ambas (default); 'client' = solo cliente; 'engineer' = solo ingeniero.
+   */
+  signatureMode?: 'both' | 'client' | 'engineer';
+  /**
+   * Qué fecha de hoja 1 mostrar en el bloque (solo tableType === 'signatures').
+   * 'none' = sin fecha (default); 'inicio' = fecha inicio; 'fin' = fecha fin; 'both' = ambas.
+   */
+  showDate?: 'none' | 'inicio' | 'fin' | 'both';
+  /** Texto personalizado que acompaña la fecha (ej. "Fecha de calibración"). */
+  dateLabel?: string | null;
+  /** Si false, oculta la barra de título (nombre + badges) en la vista del protocolo. Default true. */
+  showTitle?: boolean;
+  /** Si true, este bloque se fusiona visualmente con la tabla anterior (misma unidad de paginación). */
+  attachToPrevious?: boolean;
+  /** Si true, este bloque se mantiene en la misma página que la tabla siguiente. */
+  attachToNext?: boolean;
+  /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
+  projectId?: string | null;
   status: 'draft' | 'published' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+/** Proyecto que agrupa tablas del catálogo (ej. "Calificación OQ HPLC"). */
+export interface TableProject {
+  id: string;
+  name: string;
+  description?: string | null;
+  sysType?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;

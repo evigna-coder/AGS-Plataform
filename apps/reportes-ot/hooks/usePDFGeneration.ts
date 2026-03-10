@@ -144,45 +144,90 @@ export const usePDFGeneration = (
 
       const pdfParts: Blob[] = [blobHoja1];
 
-      // ── Tablas/Protocolos: capturar el preview visible (layout idéntico) ──
+      // ── Tablas/Protocolos: captura per-page de ProtocolPaginatedPreview ──
       if (hasTablas) {
         console.log("[PDF][TABLAS] Generando PDF de protocolos…");
 
-        // Preferir el preview visible (layout idéntico a lo que ve el usuario)
-        const previewEl = document.getElementById('pdf-preview-tablas');
-        const tablasTarget = previewEl || tablasPdf!;
+        // Buscar páginas A4 individuales renderizadas por ProtocolPaginatedPreview
+        const protocolPages = document.querySelectorAll<HTMLElement>('[data-protocol-page]');
 
-        // Si usamos el contenedor oculto, hacerlo visible
-        let savedStyleTablas = '';
-        if (!previewEl && tablasPdf) {
-          savedStyleTablas = tablasPdf.getAttribute('style') || '';
-          Object.assign(tablasPdf.style, {
+        if (protocolPages.length > 0) {
+          // Ocultar divs de medición para que no interfieran con la captura
+          const measureDivs = document.querySelectorAll<HTMLElement>('[data-measurement-div]');
+          measureDivs.forEach(div => { div.style.display = 'none'; });
+
+          window.scrollTo(0, 0);
+          await nextTwoFrames();
+          await preloadFromContainer(document.getElementById('pdf-preview-tablas'));
+
+          const protocolPdfDoc = await PDFDocument.create();
+
+          for (const pageEl of Array.from(protocolPages)) {
+            // Clone page into body at (0,0) for accurate html2canvas capture.
+            // This avoids scroll offset, parent flex gap, and overflow clipping
+            // bugs that occur when capturing elements deep in the DOM tree.
+            const clone = pageEl.cloneNode(true) as HTMLElement;
+            clone.style.position = 'fixed';
+            clone.style.top = '0';
+            clone.style.left = '0';
+            clone.style.zIndex = '99999';
+            clone.style.margin = '0';
+
+            // Fix html2canvas clipping: remove overflow:hidden from card
+            // containers and truncated text. html2canvas mis-renders the
+            // clip region when overflow:hidden + border-radius are combined,
+            // cutting ~2 px off the top of title bars.
+            clone.querySelectorAll('.overflow-hidden, .truncate').forEach(el => {
+              (el as HTMLElement).style.setProperty('overflow', 'visible', 'important');
+            });
+
+            document.body.appendChild(clone);
+            await nextFrame();
+
+            try {
+              const canvas = await html2canvas(clone, {
+                scale: Math.max(window.devicePixelRatio * 2, 3),
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+              });
+
+              const pngData = canvas.toDataURL('image/png');
+              const pngBytes = dataUrlToUint8Array(pngData);
+              const png = await protocolPdfDoc.embedPng(pngBytes);
+              const page = protocolPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+              page.drawImage(png, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
+            } finally {
+              clone.remove();
+            }
+          }
+
+          // Restaurar measurement divs
+          measureDivs.forEach(div => { div.style.display = ''; });
+
+          pdfParts.push(new Blob([await protocolPdfDoc.save()], { type: 'application/pdf' }));
+          console.log(`[PDF][TABLAS] ${protocolPages.length} página(s) de protocolo generadas OK`);
+
+        } else {
+          // Fallback: html2pdf sobre contenedor oculto (sin ProtocolPaginatedPreview)
+          console.warn("[PDF][TABLAS] No se encontraron [data-protocol-page], usando fallback html2pdf");
+          const tablasTarget = tablasPdf!;
+          const savedStyleTablas = tablasTarget.getAttribute('style') || '';
+          Object.assign(tablasTarget.style, {
             position: 'absolute', top: '0', left: '0',
             width: '210mm', transform: 'none', zIndex: '99999',
             opacity: '1', pointerEvents: 'none', background: 'white',
           });
-        }
 
-        // Limpiar decoraciones para captura limpia
-        const origShadow = tablasTarget.style.boxShadow;
-        const origRadius = tablasTarget.style.borderRadius;
-        tablasTarget.style.boxShadow = 'none';
-        tablasTarget.style.borderRadius = '0';
+          await nextTwoFrames();
+          await preloadFromContainer(tablasTarget);
 
-        await nextTwoFrames();
-        await preloadFromContainer(tablasTarget);
-
-        try {
-          // Usar html2pdf (misma pipeline que Hoja 1 que funciona perfecto)
-          const optTablas = getPDFOptions(otNumber, tablasTarget, true, true);
-          const blobTablas: Blob = await html2pdf().set(optTablas).from(tablasTarget).outputPdf('blob');
-          pdfParts.push(blobTablas);
-          console.log("[PDF][TABLAS] PDF de protocolos generado OK");
-        } finally {
-          tablasTarget.style.boxShadow = origShadow;
-          tablasTarget.style.borderRadius = origRadius;
-          if (!previewEl && tablasPdf) {
-            tablasPdf.setAttribute('style', savedStyleTablas);
+          try {
+            const optTablas = getPDFOptions(otNumber, tablasTarget, true, true);
+            const blobTablas: Blob = await html2pdf().set(optTablas).from(tablasTarget).outputPdf('blob');
+            pdfParts.push(blobTablas);
+          } finally {
+            tablasTarget.setAttribute('style', savedStyleTablas);
           }
         }
       }
@@ -332,9 +377,13 @@ export const usePDFGeneration = (
       setSignatureEngineer(engineerSignature);
       setStatus('FINALIZADO');
       
-      // Activar modo preview para que el pdf-container esté disponible
+      // Forzar ciclo off→on para que React re-monte con datos frescos
+      // (evita servir un PDF cacheado si ya estaba en preview mode)
+      setPdfBlob(null);
+      setIsPreviewMode(false);
+      await new Promise(resolve => setTimeout(resolve, 50));
       setIsPreviewMode(true);
-      
+
       // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
       await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -423,9 +472,12 @@ export const usePDFGeneration = (
     // Paso 2: Generar PDF solo si el guardado fue exitoso
     if (saveSuccess) {
       try {
-        // Activar modo preview para que el pdf-container esté disponible en el DOM
+        // Forzar ciclo off→on para que React re-monte con datos frescos
+        setPdfBlob(null);
+        setIsPreviewMode(false);
+        await new Promise(resolve => setTimeout(resolve, 50));
         setIsPreviewMode(true);
-        
+
         // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
         await new Promise(resolve => setTimeout(resolve, 100));
 

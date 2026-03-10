@@ -58,6 +58,7 @@ const ItemForm = ({ item, onSave, onCancel }: ItemFormProps) => {
           placeholder="Texto del ítem"
           value={d.label}
           onChange={e => setD({ ...d, label: e.target.value })}
+          autoFocus
         />
         <Input
           placeholder="Prefijo (ej: 3.2.a)"
@@ -114,25 +115,57 @@ const ItemForm = ({ item, onSave, onCancel }: ItemFormProps) => {
   );
 };
 
+// ─── Botón "+" entre ítems (visible al hover) ────────────────────────────────
+const InsertButton = ({ onClick }: { onClick: () => void }) => (
+  <div
+    className="group relative h-2 flex items-center justify-center -my-0.5 cursor-pointer"
+    onClick={onClick}
+  >
+    <div className="absolute inset-x-0 h-px bg-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+    <button className="relative z-10 w-5 h-5 rounded-full bg-indigo-500 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm">
+      +
+    </button>
+  </div>
+);
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export const ChecklistEditor = ({ entry, onChange }: Props) => {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [insertAtIdx, setInsertAtIdx] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
 
   const items = entry.checklistItems ?? [];
   const upd = (newItems: ChecklistItem[]) => onChange({ ...entry, checklistItems: newItems });
+  const isEditing = editingIdx !== null || adding || insertAtIdx !== null;
+
+  const startInsert = (idx: number) => {
+    setEditingIdx(null);
+    setAdding(false);
+    setInsertAtIdx(idx);
+  };
 
   const saveItem = (item: ChecklistItem) => {
     if (editingIdx !== null) {
       const next = [...items]; next[editingIdx] = item;
       upd(next); setEditingIdx(null);
+    } else if (insertAtIdx !== null) {
+      const next = [...items];
+      next.splice(insertAtIdx + 1, 0, item);
+      upd(next); setInsertAtIdx(null);
     } else {
       upd([...items, item]); setAdding(false);
     }
   };
 
   const deleteItem = (idx: number) => upd(items.filter((_, i) => i !== idx));
+
+  const duplicateItem = (idx: number) => {
+    const next = [...items];
+    const clone = { ...items[idx], itemId: crypto.randomUUID() };
+    next.splice(idx + 1, 0, clone);
+    upd(next);
+  };
 
   const moveItem = (idx: number, dir: -1 | 1) => {
     const next = [...items];
@@ -151,14 +184,22 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
           <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
             Importar desde PDF
           </Button>
-          {!adding && editingIdx === null && (
-            <Button size="sm" onClick={() => setAdding(true)}>+ Agregar ítem</Button>
+          {!isEditing && (
+            <Button size="sm" onClick={() => { setEditingIdx(null); setInsertAtIdx(null); setAdding(true); }}>
+              + Agregar ítem
+            </Button>
           )}
         </div>
       </div>
 
       {/* Lista de ítems */}
       <div className="space-y-1">
+        {/* Insertar antes del primer ítem */}
+        {items.length > 0 && !isEditing && <InsertButton onClick={() => startInsert(-1)} />}
+        {insertAtIdx === -1 && (
+          <ItemForm item={newItem()} onSave={saveItem} onCancel={() => setInsertAtIdx(null)} />
+        )}
+
         {items.map((item, i) => (
           <div key={item.itemId}>
             {editingIdx === i ? (
@@ -185,18 +226,26 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                     className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1">▲</button>
                   <button onClick={() => moveItem(i, 1)} disabled={i === items.length - 1}
                     className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1">▼</button>
-                  <button onClick={() => { setAdding(false); setEditingIdx(i); }}
+                  <button onClick={() => duplicateItem(i)}
+                    className="text-slate-500 hover:text-slate-700 text-xs font-bold px-1">Dup</button>
+                  <button onClick={() => { setAdding(false); setInsertAtIdx(null); setEditingIdx(i); }}
                     className="text-blue-600 text-xs font-bold px-1">Editar</button>
                   <button onClick={() => deleteItem(i)}
                     className="text-red-600 text-xs font-bold px-1">×</button>
                 </div>
               </div>
             )}
+
+            {/* Insertar después de este ítem */}
+            {!isEditing && <InsertButton onClick={() => startInsert(i)} />}
+            {insertAtIdx === i && (
+              <ItemForm item={newItem()} onSave={saveItem} onCancel={() => setInsertAtIdx(null)} />
+            )}
           </div>
         ))}
       </div>
 
-      {/* Formulario de nuevo ítem */}
+      {/* Formulario de nuevo ítem (al final) */}
       {adding && (
         <ItemForm item={newItem()} onSave={saveItem} onCancel={() => setAdding(false)} />
       )}

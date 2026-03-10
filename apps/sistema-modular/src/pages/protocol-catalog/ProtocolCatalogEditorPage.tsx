@@ -9,6 +9,7 @@ import { TablePreview } from '../../components/protocol-catalog/TablePreview';
 import { ChecklistEditor } from '../../components/protocol-catalog/ChecklistEditor';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { categoriasEquipoService } from '../../services/firebaseService';
+import { useTableProjects } from '../../hooks/useTableProjects';
 import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
 
 const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
@@ -75,6 +76,7 @@ export const TableCatalogEditorPage = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const navigate = useNavigate();
   const { getTable, saveDraft, publishTable, loading } = useTableCatalog();
+  const { projects } = useTableProjects();
 
   const [entry, setEntry] = useState<TableCatalogEntry>(emptyEntry());
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
@@ -213,6 +215,14 @@ export const TableCatalogEditorPage = () => {
               <Input value={entry.description ?? ''} onChange={e => setMeta('description', e.target.value || null)} />
             </div>
             <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
+              <select value={entry.projectId ?? ''} onChange={e => setMeta('projectId', e.target.value || null)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">Sin proyecto</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema *</label>
               <select value={entry.sysType} onChange={e => setMeta('sysType', e.target.value)}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
@@ -229,6 +239,7 @@ export const TableCatalogEditorPage = () => {
                 <option value="instruments">Instrumentos</option>
                 <option value="checklist">Checklist</option>
                 <option value="text">Texto</option>
+                <option value="signatures">Firmas</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -250,7 +261,24 @@ export const TableCatalogEditorPage = () => {
                 />
               </div>
               </div>
-              {!['checklist', 'text'].includes(entry.tableType) && (
+              <div className="space-y-1.5 pt-1">
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={entry.showTitle !== false}
+                    onChange={e => setMeta('showTitle', e.target.checked)} />
+                  Mostrar título en protocolo
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={entry.attachToPrevious ?? false}
+                    onChange={e => setMeta('attachToPrevious', e.target.checked)} />
+                  Vincular con tabla anterior
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={entry.attachToNext ?? false}
+                    onChange={e => setMeta('attachToNext', e.target.checked)} />
+                  Vincular con tabla siguiente
+                </label>
+              </div>
+              {!['checklist', 'text', 'signatures'].includes(entry.tableType) && (
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
                   <input type="checkbox" checked={entry.allowExtraRows ?? false}
                     onChange={e => setMeta('allowExtraRows', e.target.checked)} />
@@ -375,6 +403,66 @@ export const TableCatalogEditorPage = () => {
                 minHeight={200}
               />
             </Card>
+          ) : entry.tableType === 'signatures' ? (
+            <Card>
+              <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Bloque de firmas</h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Este bloque muestra automáticamente las firmas capturadas en la hoja 1 del reporte.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-2">Firmas a mostrar</label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'both', label: 'Ambas (cliente e ingeniero)' },
+                    { value: 'client', label: 'Solo firma del cliente' },
+                    { value: 'engineer', label: 'Solo firma del ingeniero' },
+                  ] as const).map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer group">
+                      <input type="radio" name="signatureMode"
+                        checked={(entry.signatureMode ?? 'both') === opt.value}
+                        onChange={() => setMeta('signatureMode', opt.value)}
+                        className="accent-blue-600" />
+                      <span className="text-xs text-slate-700 group-hover:text-slate-900">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-5">
+                <label className="block text-xs font-medium text-slate-600 mb-2">Fecha a mostrar</label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'none', label: 'Sin fecha' },
+                    { value: 'inicio', label: 'Fecha de inicio' },
+                    { value: 'fin', label: 'Fecha de finalización' },
+                    { value: 'both', label: 'Ambas fechas' },
+                  ] as const).map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer group">
+                      <input type="radio" name="showDate"
+                        checked={(entry.showDate ?? 'none') === opt.value}
+                        onChange={() => setMeta('showDate', opt.value)}
+                        className="accent-blue-600" />
+                      <span className="text-xs text-slate-700 group-hover:text-slate-900">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {(entry.showDate ?? 'none') !== 'none' && (
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Texto con fecha</label>
+                  <textarea
+                    value={entry.dateLabel ?? ''}
+                    onChange={e => setMeta('dateLabel', e.target.value || null)}
+                    placeholder="Ej: Confirmo que con fecha {fechaInicio} estoy de acuerdo con los límites establecidos..."
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs resize-none"
+                    rows={3}
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Usá <code className="bg-slate-100 px-1 rounded">{'{fechaInicio}'}</code> y <code className="bg-slate-100 px-1 rounded">{'{fechaFin}'}</code> donde quieras insertar la fecha.
+                    Si no incluís placeholders, la fecha se muestra al final del texto.
+                  </p>
+                </div>
+              )}
+            </Card>
           ) : entry.tableType === 'checklist'
             ? <ChecklistEditor entry={entry} onChange={setEntry} />
             : <TableEditor table={entry} onChange={setEntry} />
@@ -383,7 +471,7 @@ export const TableCatalogEditorPage = () => {
       </div>
 
       {/* Vista previa (solo para tipos tabla; no aplica a checklist ni texto) */}
-      {!['checklist', 'text'].includes(entry.tableType) && <div className="border border-slate-200 rounded-xl overflow-hidden">
+      {!['checklist', 'text', 'signatures'].includes(entry.tableType) && <div className="border border-slate-200 rounded-xl overflow-hidden">
         <button
           onClick={() => setShowPreview(v => !v)}
           className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"

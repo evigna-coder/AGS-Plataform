@@ -79,7 +79,7 @@ export interface TableCatalogEntry {
   description?: string | null;
   sysType: string;
   isDefault: boolean;
-  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text';
+  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text' | 'signatures';
   columns: TableCatalogColumn[];
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
@@ -96,6 +96,18 @@ export interface TableCatalogEntry {
   textDisplayMode?: 'card' | 'inline';
   /** Campos de encabezado (selectores) que se muestran arriba de la tabla */
   headerFields?: TableHeaderField[];
+  /** Firmas a mostrar (solo tableType === 'signatures'). 'both' | 'client' | 'engineer'. Default: 'both'. */
+  signatureMode?: 'both' | 'client' | 'engineer';
+  /** Fecha a mostrar (solo tableType === 'signatures'). Default: 'none'. */
+  showDate?: 'none' | 'inicio' | 'fin' | 'both';
+  /** Texto personalizado junto a la fecha. */
+  dateLabel?: string | null;
+  /** Si false, oculta la barra de título. Default true. */
+  showTitle?: boolean;
+  /** Si true, se fusiona con la tabla anterior (misma unidad de paginación). */
+  attachToPrevious?: boolean;
+  /** Si true, se mantiene en la misma página que la tabla siguiente. */
+  attachToNext?: boolean;
   status: 'draft' | 'published' | 'archived';
   createdAt: string;
   updatedAt: string;

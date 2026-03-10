@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { esGaseoso } from '@ags/shared';
@@ -5,6 +6,9 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { GCPortsGrid } from '../GCPortsGrid';
+import { Button } from '../ui/Button';
+import { sistemasService } from '@/services/firebaseService';
+import QREquipoModal from './QREquipoModal';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5';
 const val = 'text-xs text-slate-700';
@@ -38,13 +42,14 @@ export const EquipoInfoSidebar: React.FC<EquipoInfoSidebarProps> = ({
   categorias,
   loadEstablecimientos,
 }) => {
+  const [showQR, setShowQR] = useState(false);
+
   const showGC = editing
     ? esGaseoso(formData.nombre ?? '') || esGaseoso(categorias.find(c => c.id === formData.categoriaId)?.nombre ?? '')
     : esGaseoso(sistema.nombre) || esGaseoso(categoria?.nombre ?? '');
 
   return (
     <div className="w-72 shrink-0 space-y-4">
-      {/* System info */}
       <Card compact>
         <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">
           Datos del Sistema
@@ -65,11 +70,11 @@ export const EquipoInfoSidebar: React.FC<EquipoInfoSidebarProps> = ({
             cliente={cliente}
             establecimiento={establecimiento}
             categoria={categoria}
+            onShowQR={() => setShowQR(true)}
           />
         )}
       </Card>
 
-      {/* GC Ports */}
       {showGC && (
         <Card compact>
           {editing ? (
@@ -86,6 +91,14 @@ export const EquipoInfoSidebar: React.FC<EquipoInfoSidebarProps> = ({
           )}
         </Card>
       )}
+
+      {showQR && sistema.agsVisibleId && (
+        <QREquipoModal
+          agsVisibleId={sistema.agsVisibleId}
+          equipoNombre={sistema.nombre}
+          onClose={() => setShowQR(false)}
+        />
+      )}
     </div>
   );
 };
@@ -96,9 +109,10 @@ interface ViewFieldsProps {
   cliente: Cliente | undefined;
   establecimiento: Establecimiento | null;
   categoria: CategoriaEquipo | undefined;
+  onShowQR: () => void;
 }
 
-const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimiento, categoria }) => (
+const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimiento, categoria, onShowQR }) => (
   <div className="space-y-3">
     <div>
       <p className={lbl}>Cliente</p>
@@ -128,6 +142,22 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
       <p className={lbl}>Software</p>
       <p className={`${val} font-semibold`}>{sistema.software || '-'}</p>
     </div>
+    {/* AGS ID + QR */}
+    <div>
+      <p className={lbl}>ID AGS</p>
+      <div className="flex items-center gap-2">
+        <p className={`${val} font-mono`}>{sistema.agsVisibleId || '-'}</p>
+        {sistema.agsVisibleId && (
+          <button
+            type="button"
+            onClick={onShowQR}
+            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium underline"
+          >
+            Ver QR
+          </button>
+        )}
+      </div>
+    </div>
     {sistema.observaciones && (
       <div>
         <p className={lbl}>Observaciones</p>
@@ -156,75 +186,111 @@ const EditForm: React.FC<EditFormProps> = ({
   setEstablecimientos,
   categorias,
   loadEstablecimientos,
-}) => (
-  <div className="space-y-3">
-    <div>
-      <label className={lbl}>Cliente</label>
-      <SearchableSelect
-        value={formData.clienteId}
-        onChange={async (value) => {
-          setFormData({ ...formData, clienteId: value, establecimientoId: '' });
-          const list = value ? await loadEstablecimientos(value) : [];
-          setEstablecimientos(list);
-        }}
-        options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
-        placeholder="Seleccionar..."
-      />
+}) => {
+  const [generating, setGenerating] = useState(false);
+
+  async function handleGenerateId() {
+    setGenerating(true);
+    try {
+      const nextId = await sistemasService.generateNextAgsVisibleId();
+      setFormData({ ...formData, agsVisibleId: nextId });
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className={lbl}>Cliente</label>
+        <SearchableSelect
+          value={formData.clienteId}
+          onChange={async (value) => {
+            setFormData({ ...formData, clienteId: value, establecimientoId: '' });
+            const list = value ? await loadEstablecimientos(value) : [];
+            setEstablecimientos(list);
+          }}
+          options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
+          placeholder="Seleccionar..."
+        />
+      </div>
+      <div>
+        <label className={lbl}>Establecimiento *</label>
+        <SearchableSelect
+          value={formData.establecimientoId}
+          onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
+          options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+          placeholder={formData.clienteId ? 'Seleccionar...' : 'Primero seleccione cliente'}
+        />
+      </div>
+      <div>
+        <label className={lbl}>Categoria *</label>
+        <SearchableSelect
+          value={formData.categoriaId}
+          onChange={(value) => setFormData({ ...formData, categoriaId: value })}
+          options={categorias.map(cat => ({ value: cat.id, label: cat.nombre }))}
+          placeholder="Seleccionar..."
+          required
+        />
+      </div>
+      <div>
+        <label className={lbl}>Nombre *</label>
+        <Input
+          inputSize="sm"
+          value={formData.nombre}
+          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+          required
+        />
+      </div>
+      <div>
+        <label className={lbl}>Codigo Interno Cliente</label>
+        <Input
+          inputSize="sm"
+          value={formData.codigoInternoCliente}
+          onChange={(e) => setFormData({ ...formData, codigoInternoCliente: e.target.value })}
+        />
+      </div>
+      <div>
+        <label className={lbl}>Software *</label>
+        <Input
+          inputSize="sm"
+          value={formData.software}
+          onChange={(e) => setFormData({ ...formData, software: e.target.value })}
+          placeholder="Ej: OpenLab, ChemStation, MassHunter..."
+          required
+        />
+      </div>
+      {/* AGS ID */}
+      <div>
+        <label className={lbl}>ID AGS</label>
+        <div className="flex gap-1.5">
+          <Input
+            inputSize="sm"
+            value={formData.agsVisibleId ?? ''}
+            onChange={(e) => setFormData({ ...formData, agsVisibleId: e.target.value || null })}
+            placeholder="AGS-EQ-0001"
+            className="font-mono flex-1"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateId}
+            disabled={generating}
+            type="button"
+          >
+            {generating ? '...' : 'Auto'}
+          </Button>
+        </div>
+      </div>
+      <div>
+        <label className={lbl}>Observaciones</label>
+        <textarea
+          value={formData.observaciones}
+          onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+          rows={2}
+          className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"
+        />
+      </div>
     </div>
-    <div>
-      <label className={lbl}>Establecimiento *</label>
-      <SearchableSelect
-        value={formData.establecimientoId}
-        onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
-        options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
-        placeholder={formData.clienteId ? 'Seleccionar...' : 'Primero seleccione cliente'}
-      />
-    </div>
-    <div>
-      <label className={lbl}>Categoria *</label>
-      <SearchableSelect
-        value={formData.categoriaId}
-        onChange={(value) => setFormData({ ...formData, categoriaId: value })}
-        options={categorias.map(cat => ({ value: cat.id, label: cat.nombre }))}
-        placeholder="Seleccionar..."
-        required
-      />
-    </div>
-    <div>
-      <label className={lbl}>Nombre *</label>
-      <Input
-        inputSize="sm"
-        value={formData.nombre}
-        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-        required
-      />
-    </div>
-    <div>
-      <label className={lbl}>Codigo Interno Cliente</label>
-      <Input
-        inputSize="sm"
-        value={formData.codigoInternoCliente}
-        onChange={(e) => setFormData({ ...formData, codigoInternoCliente: e.target.value })}
-      />
-    </div>
-    <div>
-      <label className={lbl}>Software *</label>
-      <Input
-        inputSize="sm"
-        value={formData.software}
-        onChange={(e) => setFormData({ ...formData, software: e.target.value })}
-        placeholder="Ej: OpenLab, ChemStation, MassHunter..."
-        required
-      />
-    </div>
-    <div>
-      <label className={lbl}>Observaciones</label>
-      <textarea
-        value={formData.observaciones}
-        onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-        rows={2}
-        className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"
-      />
-    </div>
-  </div>
-);
+  );
+};

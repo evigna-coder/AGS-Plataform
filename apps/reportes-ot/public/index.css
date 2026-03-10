@@ -320,3 +320,16 @@ body.pdf-generating .protocol-screen-wrapper {
 .catalog-text-content li {
   margin: 0.1em 0;
 }
+
+/*
+ * Neutralizar <font size="X"> generados por document.execCommand('fontSize')
+ * del RichTextEditor. Estos tags imponen font-sizes del browser (16–32 px)
+ * que desbordan el tamaño deseado (text-xs = 12 px) del wrapper.
+ * También neutralizar inline styles de font-size en spans/p.
+ */
+.catalog-text-content font[size] {
+  font-size: inherit !important;
+}
+.catalog-text-content [style*="font-size"] {
+  font-size: inherit !important;
+}

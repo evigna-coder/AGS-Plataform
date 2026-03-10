@@ -21,6 +21,8 @@ import { TableSelectorPanel } from './components/TableSelectorPanel';
 import { CatalogTableView } from './components/CatalogTableView';
 import { CatalogChecklistView } from './components/CatalogChecklistView';
 import { CatalogTextView } from './components/CatalogTextView';
+import { ProtocolPaginatedPreview } from './components/ProtocolPaginatedPreview';
+import { CatalogSignaturesView } from './components/CatalogSignaturesView';
 import { InstrumentoSelectorPanel } from './components/InstrumentoSelectorPanel';
 import { AdjuntosSection } from './components/AdjuntosSection';
 import { InstrumentosPDFSection } from './components/InstrumentosPDFSection';
@@ -2102,7 +2104,19 @@ const App: React.FC = () => {
         {protocolSelections.length > 0 && (
           <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
             {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel =>
-              sel.tableSnapshot.tableType === 'text' ? (
+              sel.tableSnapshot.tableType === 'signatures' ? (
+                <CatalogSignaturesView
+                  key={sel.tableId}
+                  selection={sel}
+                  readOnly={readOnly}
+                  signatureClient={signatureClient}
+                  signatureEngineer={signatureEngineer}
+                  aclaracionCliente={aclaracionCliente}
+                  aclaracionEspecialista={aclaracionEspecialista}
+                  fechaInicio={fechaInicio}
+                  fechaFin={fechaFin}
+                />
+              ) : sel.tableSnapshot.tableType === 'text' ? (
                 <CatalogTextView
                   key={sel.tableId}
                   selection={sel}
@@ -2222,7 +2236,14 @@ const App: React.FC = () => {
         >
           {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel => (
             <div key={sel.tableId} style={{ breakInside: 'avoid' }}>
-              {sel.tableSnapshot.tableType === 'text' ? (
+              {sel.tableSnapshot.tableType === 'signatures' ? (
+                <CatalogSignaturesView
+                  selection={sel} readOnly
+                  signatureClient={signatureClient} signatureEngineer={signatureEngineer}
+                  aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
+                  fechaInicio={fechaInicio} fechaFin={fechaFin}
+                />
+              ) : sel.tableSnapshot.tableType === 'text' ? (
                 <CatalogTextView selection={sel} readOnly />
               ) : sel.tableSnapshot.tableType === 'checklist' ? (
                 <CatalogChecklistView
@@ -2526,72 +2547,29 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Preview: Tablas + Instrumentos (flujo continuo, mismo look del formulario) ── */}
+        {/* ── Preview: Tablas + Instrumentos (paginado A4 con headers/footers) ── */}
         {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0) && (
-          <div
-            className="relative bg-[#f1f5f9] mt-6 pb-[12mm] flex justify-center overflow-x-auto"
-            style={{ paddingLeft: 0, paddingRight: 0 }}
-          >
-            <div
-              id="pdf-preview-tablas"
-              className="bg-white shadow-md rounded-sm overflow-visible shrink-0"
-              style={{ width: '210mm', margin: '0 auto', boxSizing: 'border-box', padding: '10mm' }}
-            >
-              {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel => (
-                <div key={sel.tableId}>
-                  {sel.tableSnapshot.tableType === 'text' ? (
-                    <CatalogTextView selection={sel} readOnly />
-                  ) : sel.tableSnapshot.tableType === 'checklist' ? (
-                    <CatalogChecklistView selection={sel} readOnly onChangeData={() => {}} />
-                  ) : (
-                    <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
-                  )}
-                </div>
-              ))}
-              {instrumentosSeleccionados.length > 0 && (
-                <div className="mb-6 rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white">
-                  <div className="flex items-center px-3 py-2 bg-slate-50 border-b border-slate-200">
-                    <p className="font-semibold text-sm text-slate-900">Instrumentos y Patrones Utilizados</p>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100 border-b border-slate-200">
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Identificación</th>
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Tipo</th>
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Marca</th>
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Modelo</th>
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Nº Serie</th>
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Certificado</th>
-                          <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap">Vencimiento</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {instrumentosSeleccionados.map((inst, idx) => (
-                          <tr key={inst.id} className={`${idx % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
-                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.nombre}</td>
-                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">
-                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${inst.tipo === 'patron' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                {inst.tipo === 'patron' ? 'Patrón' : 'Instrumento'}
-                              </span>
-                            </td>
-                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.marca || '—'}</td>
-                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.modelo || '—'}</td>
-                            <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{inst.serie || '—'}</td>
-                            <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
-                            <td className="px-2 py-1.5 text-xs">
-                              {inst.certificadoVencimiento
-                                ? new Date(inst.certificadoVencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                                : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div id="pdf-preview-tablas" className="relative bg-[#f1f5f9] mt-6 pb-6 flex flex-col items-center gap-6 overflow-x-auto">
+            <ProtocolPaginatedPreview
+              protocolSelections={protocolSelections}
+              instrumentosSeleccionados={instrumentosSeleccionados}
+              meta={{
+                otNumber,
+                razonSocial,
+                sistema,
+                moduloSerie,
+                fechaInicio,
+                tipoServicio,
+                logoSrc: LOGO_SRC,
+                isoLogoSrc: ISO_LOGO_SRC,
+              }}
+              signatureClient={signatureClient}
+              signatureEngineer={signatureEngineer}
+              aclaracionCliente={aclaracionCliente}
+              aclaracionEspecialista={aclaracionEspecialista}
+              fechaInicio={fechaInicio}
+              fechaFin={fechaFin}
+            />
           </div>
         )}
 

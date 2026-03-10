@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Lead, LeadEstado, UsuarioAGS } from '@ags/shared';
 import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS } from '@ags/shared';
 import { leadsService, usuariosService, presupuestosService, ordenesTrabajoService, modulosService } from '../../services/firebaseService';
+import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { LeadSidebar } from '../../components/leads/LeadSidebar';
@@ -13,11 +14,14 @@ import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
 export const LeadDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [showDerivar, setShowDerivar] = useState(false);
   const [showFinalizar, setShowFinalizar] = useState(false);
+  const [comentario, setComentario] = useState('');
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
 
   const [moduloNombre, setModuloNombre] = useState<string | null>(null);
 
@@ -103,6 +107,30 @@ export const LeadDetail = () => {
     navigate(`/ordenes-trabajo/nuevo?${params.toString()}`);
   };
 
+  const handleAgregarComentario = async () => {
+    if (!lead || !usuario || !comentario.trim()) return;
+    setEnviandoComentario(true);
+    try {
+      await leadsService.agregarComentario(lead.id, {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: usuario.id,
+        deUsuarioNombre: usuario.displayName,
+        aUsuarioId: lead.asignadoA || usuario.id,
+        aUsuarioNombre: usuarios.find(u => u.id === (lead.asignadoA || usuario.id))?.displayName || usuario.displayName,
+        comentario: comentario.trim(),
+        estadoAnterior: lead.estado,
+        estadoNuevo: lead.estado,
+      });
+      setComentario('');
+      await load();
+    } catch {
+      alert('Error al agregar observación');
+    } finally {
+      setEnviandoComentario(false);
+    }
+  };
+
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando lead...</p></div>;
   if (!lead) return null;
 
@@ -149,10 +177,28 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
+            {/* Agregar observación */}
+            {isActive && (
+              <Card>
+                <div className="p-4">
+                  <h3 className="text-[11px] font-medium text-slate-400 mb-2">Agregar observación</h3>
+                  <div className="flex gap-2">
+                    <textarea value={comentario} onChange={e => setComentario(e.target.value)}
+                      rows={1} placeholder="Ej: Se envió mail al cliente, a la espera de respuesta..."
+                      className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAgregarComentario(); } }} />
+                    <Button size="sm" onClick={handleAgregarComentario} disabled={!comentario.trim() || enviandoComentario}>
+                      {enviandoComentario ? '...' : 'Agregar'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Timeline */}
             <Card>
               <div className="p-4">
-                <h3 className="text-[11px] font-medium text-slate-400 mb-3">Historial de derivaciones</h3>
+                <h3 className="text-[11px] font-medium text-slate-400 mb-3">Historial</h3>
                 <LeadTimeline postas={lead.postas} />
               </div>
             </Card>

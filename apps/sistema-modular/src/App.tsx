@@ -18,6 +18,12 @@ import { UsuariosList } from './pages/usuarios';
 import { AgendaPage } from './pages/agenda';
 import { PostasVisor, PostaDetail } from './pages/postas';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
+
+function QRNotificationListener() {
+  useQRLeadNotifications();
+  return null;
+}
 
 function AuthGate() {
   const { loading, authError, firebaseUser, isAuthenticated, isPending, isDisabled } = useAuth();
@@ -64,7 +70,9 @@ function AuthGate() {
   if (isPending || !isAuthenticated) return <PendingApprovalPage />;
 
   return (
-    <Layout>
+    <>
+      <QRNotificationListener />
+      <Layout>
       <Routes>
         <Route path="/" element={<Navigate to="/clientes" replace />} />
         {/* Clientes — admin, ingeniero_soporte, admin_soporte */}
@@ -152,6 +160,7 @@ function AuthGate() {
         <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'administracion']}><div className="text-center py-12"><p className="text-slate-400">Facturacion - Proximamente</p></div></ProtectedRoute>} />
       </Routes>
     </Layout>
+    </>
   );
 }
 

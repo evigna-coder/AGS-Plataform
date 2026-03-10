@@ -64,6 +64,7 @@ export const EquipoDetail = () => {
         observaciones: sistemaData.observaciones || '',
         configuracionGC: sistemaData.configuracionGC ?? {},
         activo: sistemaData.activo,
+        agsVisibleId: sistemaData.agsVisibleId ?? null,
       });
 
       setModulos(modulosData);

@@ -5,6 +5,7 @@ import type { TableCatalogEntry } from '@ags/shared';
 interface TableFilters {
   sysType?: string;
   status?: string;
+  projectId?: string | null;
 }
 
 export function useTableCatalog() {
@@ -94,6 +95,15 @@ export function useTableCatalog() {
     }
   }, []);
 
+  const assignProject = useCallback(async (tableIds: string[], projectId: string | null) => {
+    try {
+      await tableCatalogService.assignProject(tableIds, projectId);
+    } catch (err) {
+      console.error('Error asignando proyecto:', err);
+      throw err;
+    }
+  }, []);
+
   return {
     tables,
     loading,
@@ -106,5 +116,6 @@ export function useTableCatalog() {
     cloneTable,
     importTables,
     deleteTable,
+    assignProject,
   };
 }

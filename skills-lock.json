@@ -16,6 +16,11 @@
       "sourceType": "github",
       "computedHash": "37226d4220d844377e6b2a386c51a011df4cd130855ff0b80bcc22f9c28abd57"
     },
+    "react-pdf": {
+      "source": "molefrog/react-pdf-skill",
+      "sourceType": "github",
+      "computedHash": "cdaa874c3fa3a76b0c82534dfee9e4cabb44f9d7ba48a699527d3e4c0b2d48af"
+    },
     "security-auditor": {
       "source": "erichowens/some_claude_skills",
       "sourceType": "github",

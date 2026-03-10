@@ -102,6 +102,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Proyectos de Tablas (agrupan tablas del catálogo)
+    match /tableProjects/{projectId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Usuarios AGS (roles: admin / tecnico / readonly)
     match /usuarios/{uid} {
       allow read, write: if true; // Temporal para desarrollo
@@ -206,6 +211,11 @@ service cloud.firestore {
 
     // Postas (derivaciones workflow entre usuarios)
     match /postas/{postaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Órdenes de Trabajo
+    match /ordenes_trabajo/{otId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 

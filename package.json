@@ -15,6 +15,8 @@
     "build:reportes": "pnpm --filter @ags/reportes-ot build",
     "build:modular": "pnpm --filter @ags/sistema-modular build",
     "build:all": "pnpm --filter \"./apps/*\" build",
+    "dev:portal": "pnpm --filter @ags/portal-ingeniero dev",
+    "build:portal": "pnpm --filter @ags/portal-ingeniero build",
     "type-check": "pnpm --filter \"./packages/*\" type-check"
   },
   "dependencies": {

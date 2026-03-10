@@ -201,6 +201,15 @@ export const leadsService = {
     logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } as any });
   },
 
+  async agregarComentario(id: string, posta: Posta) {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(deepCleanForFirestore(posta)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'comentario', posta } as any });
+  },
+
   async linkPresupuesto(id: string, presupuestoId: string) {
     await updateDoc(doc(db, 'leads', id), {
       presupuestosIds: arrayUnion(presupuestoId),
@@ -721,6 +730,19 @@ export const sistemasService = {
   // Baja lógica
   async deactivate(id: string) {
     await this.update(id, { activo: false });
+  },
+
+  // Genera el próximo ID visible legible (AGS-EQ-XXXX)
+  async generateNextAgsVisibleId(): Promise<string> {
+    const q = query(collection(db, 'sistemas'), where('agsVisibleId', '!=', null));
+    const snap = await getDocs(q);
+    let max = 0;
+    snap.docs.forEach(d => {
+      const vid: string = d.data().agsVisibleId || '';
+      const match = vid.match(/^AGS-EQ-(\d+)$/);
+      if (match) max = Math.max(max, parseInt(match[1], 10));
+    });
+    return `AGS-EQ-${String(max + 1).padStart(4, '0')}`;
   },
 
   // Eliminar sistema (elimina también todos sus módulos)
@@ -1534,12 +1556,17 @@ function toTableCatalogEntry(id: string, data: any): TableCatalogEntry {
 }
 
 export const tableCatalogService = {
-  async getAll(filters?: { sysType?: string; status?: string }): Promise<TableCatalogEntry[]> {
+  async getAll(filters?: { sysType?: string; status?: string; projectId?: string | null }): Promise<TableCatalogEntry[]> {
     const q = query(collection(db, 'tableCatalog'), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
     let entries = snap.docs.map(d => toTableCatalogEntry(d.id, d.data()));
     if (filters?.sysType) entries = entries.filter(e => e.sysType === filters.sysType);
     if (filters?.status) entries = entries.filter(e => e.status === filters.status);
+    if (filters?.projectId !== undefined) {
+      entries = filters.projectId === null
+        ? entries.filter(e => !e.projectId)
+        : entries.filter(e => e.projectId === filters.projectId);
+    }
     return entries;
   },
 
@@ -1599,6 +1626,64 @@ export const tableCatalogService = {
   async delete(id: string): Promise<void> {
     logAudit({ action: 'delete', collection: 'tableCatalog', documentId: id });
     await deleteDoc(doc(db, 'tableCatalog', id));
+  },
+
+  async assignProject(tableIds: string[], projectId: string | null): Promise<void> {
+    await Promise.all(tableIds.map(id =>
+      updateDoc(doc(db, 'tableCatalog', id), { projectId: projectId ?? null, updatedAt: Timestamp.now() })
+    ));
+  },
+};
+
+// ========== PROYECTOS DE TABLAS ==========
+
+function toTableProject(id: string, data: any): import('@ags/shared').TableProject {
+  return {
+    id,
+    name: data.name ?? '',
+    description: data.description ?? null,
+    sysType: data.sysType ?? null,
+    createdAt: data.createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    createdBy: data.createdBy ?? 'admin',
+  };
+}
+
+export const tableProjectsService = {
+  async getAll(): Promise<import('@ags/shared').TableProject[]> {
+    const q = query(collection(db, 'tableProjects'), orderBy('name', 'asc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => toTableProject(d.id, d.data()));
+  },
+
+  async create(data: { name: string; description?: string | null; sysType?: string | null }): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      ...getCreateTrace(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'tableProjects', id), payload);
+    logAudit({ action: 'create', collection: 'tableProjects', documentId: id, after: payload as any });
+    return id;
+  },
+
+  async update(id: string, data: Partial<{ name: string; description: string | null }>): Promise<void> {
+    const payload = deepCleanForFirestore({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
+    await updateDoc(doc(db, 'tableProjects', id), payload);
+  },
+
+  async delete(id: string): Promise<void> {
+    // Desasignar tablas del proyecto antes de eliminarlo
+    const q = query(collection(db, 'tableCatalog'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    const tablesInProject = snap.docs.filter(d => d.data().projectId === id);
+    await Promise.all(tablesInProject.map(d =>
+      updateDoc(doc(db, 'tableCatalog', d.id), { projectId: null, updatedAt: Timestamp.now() })
+    ));
+    logAudit({ action: 'delete', collection: 'tableProjects', documentId: id });
+    await deleteDoc(doc(db, 'tableProjects', id));
   },
 };
 
