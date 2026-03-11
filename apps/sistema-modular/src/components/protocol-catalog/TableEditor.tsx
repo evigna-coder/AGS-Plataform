@@ -16,6 +16,13 @@ interface ColFormProps {
 
 const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
   const [d, setD] = useState<TableCatalogColumn>(col);
+  const [optionsText, setOptionsText] = useState((col.options ?? []).join(', '));
+  const handleSave = () => {
+    const withOptions = d.type === 'select_input'
+      ? { ...d, options: optionsText.split(',').map(o => o.trim()).filter(Boolean), key: d.key || crypto.randomUUID().slice(0, 8) }
+      : { ...d, key: d.key || crypto.randomUUID().slice(0, 8) };
+    onSave(withOptions);
+  };
   return (
     <div className="border border-slate-900 rounded-lg p-3 space-y-2 bg-slate-50 mt-2">
       <div className="grid grid-cols-2 gap-2">
@@ -33,12 +40,16 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
           <option value="fixed_text">Texto fijo</option>
           <option value="date_input">Fecha</option>
           <option value="pass_fail">Pasa/Falla</option>
+          <option value="select_input">Selección múltiple</option>
         </select>
         <Input placeholder="Unidad (ej: mL/min)" value={d.unit ?? ''}
           onChange={e => setD({ ...d, unit: e.target.value || null })} />
         {d.type === 'fixed_text' ? (
           <Input placeholder="Valor fijo (admin)" value={d.fixedValue ?? ''}
             onChange={e => setD({ ...d, fixedValue: e.target.value || null })} />
+        ) : d.type === 'select_input' ? (
+          <Input placeholder="Opciones separadas por coma (ej: Sí, No, N/A)" value={optionsText}
+            onChange={e => setOptionsText(e.target.value)} />
         ) : (
           <Input placeholder="Valor esperado" value={d.expectedValue ?? ''}
             onChange={e => setD({ ...d, expectedValue: e.target.value || null })} />
@@ -65,7 +76,7 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button size="sm" onClick={() => onSave({ ...d, key: d.key || crypto.randomUUID().slice(0, 8) })}
+          <Button size="sm" onClick={handleSave}
             disabled={!d.label}>Guardar</Button>
         </div>
       </div>
@@ -262,6 +273,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
                     <span className="text-slate-500 ml-2 text-xs">
                       {col.type}{col.unit ? ` (${col.unit})` : ''}{col.required ? ' *' : ''}
                       {col.type === 'fixed_text' && col.fixedValue ? ` = "${col.fixedValue}"` : ''}
+                      {col.type === 'select_input' && col.options?.length ? ` [${col.options.join(', ')}]` : ''}
                       {col.width ? ` · ${col.width}mm` : ''}
                     </span>
                   </span>

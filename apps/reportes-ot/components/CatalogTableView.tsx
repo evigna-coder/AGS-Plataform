@@ -144,6 +144,23 @@ function renderDefaultCell(
     );
   }
 
+  if (col.type === 'select_input') {
+    if (isPrint) return <span className="text-[10px]">{rawValue || '—'}</span>;
+    return (
+      <select
+        value={rawValue}
+        disabled={readOnly}
+        onChange={(e) => onChange(rowId, col.key, e.target.value)}
+        className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+      >
+        <option value="">Seleccionar...</option>
+        {(col.options ?? []).map(opt => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    );
+  }
+
   // text_input / number_input
   //
   // "effectiveUnit": unidad real del campo.

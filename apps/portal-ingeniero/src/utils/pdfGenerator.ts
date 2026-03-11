@@ -1,11 +1,12 @@
 import type { WorkOrder } from '@ags/shared';
 
-declare const html2pdf: {
-  (): {
-    set(opts: Record<string, unknown>): unknown;
-    from(el: HTMLElement): { save(): Promise<void> };
-  };
-};
+interface Html2PdfInstance {
+  set(opts: Record<string, unknown>): Html2PdfInstance;
+  from(el: HTMLElement): Html2PdfInstance;
+  save(): Promise<void>;
+}
+
+declare const html2pdf: () => Html2PdfInstance;
 
 function fmt(d?: string) {
   if (!d) return '—';
@@ -111,7 +112,7 @@ export async function generateOTPdf(
   document.body.appendChild(container);
 
   try {
-    await (html2pdf() as ReturnType<typeof html2pdf>)
+    await html2pdf()
       .set({
         margin: [8, 8, 8, 8],
         filename: `OT-${ot.otNumber}.pdf`,

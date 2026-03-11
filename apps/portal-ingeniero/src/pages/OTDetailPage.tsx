@@ -7,6 +7,7 @@ import { SignaturePad, type SignaturePadHandle } from '../components/ordenes-tra
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { generateOTPdf } from '../utils/pdfGenerator';
+import { REPORTES_OT_URL } from '../utils/constants';
 import type { WorkOrder } from '@ags/shared';
 
 type Tab = 'info' | 'reporte' | 'partes' | 'firmas';
@@ -53,6 +54,8 @@ export default function OTDetailPage() {
     finally { setFinalizing(false); }
   }
 
+  const reportesUrl = `${REPORTES_OT_URL}?reportId=${encodeURIComponent(otNumber || '')}`;
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -71,6 +74,17 @@ export default function OTDetailPage() {
           {!form.readOnly && (
             <Button size="sm" onClick={() => form.save()}>Guardar</Button>
           )}
+          <a
+            href={reportesUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium px-2 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            Reporte
+          </a>
         </div>
       </div>
 

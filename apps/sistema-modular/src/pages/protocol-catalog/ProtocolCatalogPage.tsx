@@ -4,6 +4,8 @@ import { useTableCatalog } from '../../hooks/useTableCatalog';
 import { useTableProjects } from '../../hooks/useTableProjects';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
 import { ImportJsonDialog } from '../../components/protocol-catalog/ImportJsonDialog';
 import { ProjectSelector } from '../../components/protocol-catalog/ProjectSelector';
 import type { TableCatalogEntry } from '@ags/shared';
@@ -41,6 +43,10 @@ export const TableCatalogPage = () => {
   const [showImport, setShowImport] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [cloneTarget, setCloneTarget] = useState<TableCatalogEntry | null>(null);
+  const [cloneName, setCloneName] = useState('');
+  const [cloneSysType, setCloneSysType] = useState('');
+  const [cloneProjectId, setCloneProjectId] = useState<string | null>(null);
 
   const selectProject = useCallback((pid: string | null | undefined) => {
     setActiveProjectId(pid);
@@ -78,9 +84,19 @@ export const TableCatalogPage = () => {
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(tables.map(t => t.id)));
 
   // --- Acciones individuales ---
-  const handleClone = async (entry: TableCatalogEntry) => {
-    if (!confirm(`¿Clonar la tabla "${entry.name}"?`)) return;
-    try { navigate(`/table-catalog/${await cloneTable(entry.id)}/edit`); } catch { alert('Error al clonar'); }
+  const handleClone = (entry: TableCatalogEntry) => {
+    setCloneTarget(entry);
+    setCloneName(`${entry.name} (copia)`);
+    setCloneSysType(entry.sysType);
+    setCloneProjectId(entry.projectId ?? activeProjectId ?? null);
+  };
+  const confirmClone = async () => {
+    if (!cloneTarget) return;
+    try {
+      const newId = await cloneTable(cloneTarget.id, { name: cloneName, sysType: cloneSysType, projectId: cloneProjectId });
+      setCloneTarget(null);
+      navigate(`/table-catalog/${newId}/edit`);
+    } catch { alert('Error al clonar'); }
   };
   const handleArchive = async (entry: TableCatalogEntry) => {
     if (!confirm(`¿Archivar "${entry.name}"?`)) return;
@@ -249,6 +265,44 @@ export const TableCatalogPage = () => {
         )}
 
         {showImport && <ImportJsonDialog onClose={() => setShowImport(false)} onImport={handleImport} />}
+
+        <Modal
+          open={!!cloneTarget}
+          onClose={() => setCloneTarget(null)}
+          title="Duplicar tabla"
+          subtitle={cloneTarget?.name}
+          maxWidth="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setCloneTarget(null)}>Cancelar</Button>
+              <Button onClick={confirmClone}>Duplicar</Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
+              <Input value={cloneName} onChange={e => setCloneName(e.target.value)} inputSize="sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de sistema</label>
+              <select value={cloneSysType} onChange={e => setCloneSysType(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+                {SYS_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            {projects.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
+                <select value={cloneProjectId ?? ''} onChange={e => setCloneProjectId(e.target.value || null)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+                  <option value="">Sin proyecto</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        </Modal>
       </div>
     </div>
   );

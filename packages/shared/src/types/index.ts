@@ -771,7 +771,8 @@ export type TableCatalogColumnType =
   | 'checkbox'
   | 'fixed_text'
   | 'date_input'
-  | 'pass_fail';
+  | 'pass_fail'
+  | 'select_input';
 
 export interface TableCatalogColumn {
   key: string;
@@ -782,6 +783,8 @@ export interface TableCatalogColumn {
   expectedValue?: string | null;
   /** Admin-defined fixed value shown to techs (for type='fixed_text') */
   fixedValue?: string | null;
+  /** Opciones para columnas tipo 'select_input' (menú desplegable). */
+  options?: string[];
   /** Ancho de la columna en mm. Si no se define, se distribuye automáticamente. */
   width?: number | null;
 }
@@ -950,21 +953,27 @@ export interface TableProject {
 
 // --- Selecciones de protocolo (tablas completadas por el técnico en una OT) ---
 
-/** Una tabla del catálogo completada por el técnico durante la ejecución de una OT. */
+/** Una tabla/checklist del catálogo completada por el técnico durante la ejecución de una OT. */
 export interface ProtocolSelection {
   /** FK a /tableCatalog/{tableId} */
   tableId: string;
-  /** Filas completadas con los valores medidos por el técnico */
-  completedRows: TableCatalogRow[];
+  /** Nombre de la tabla al momento de seleccionar */
+  tableName: string;
+  /** Snapshot de la definición al momento de seleccionar (para renderizar sin Firestore) */
+  tableSnapshot: TableCatalogEntry;
+  /** Filas completadas. key = rowId, value = Record<colKey, value> (solo para tableType != 'checklist') */
+  filledData: Record<string, Record<string, string>>;
   observaciones?: string | null;
   resultado: 'CONFORME' | 'NO_CONFORME' | 'PENDIENTE';
-  completadoAt: string;
+  seleccionadoAt: string;
+  /** Si el cliente provee especificaciones propias (modo vs_spec con spec editable) */
+  clientSpecEnabled?: boolean;
   /** Respuestas del técnico para checklists (tableType === 'checklist') */
   checklistData?: Record<string, ChecklistItemAnswer>;
-  /** Valores seleccionados en los campos de encabezado (fieldId → valor) */
-  headerData?: Record<string, string>;
   /** itemIds de secciones marcadas "No Aplica" por el técnico */
   collapsedSections?: string[];
+  /** Valores seleccionados en los campos de encabezado (fieldId → valor) */
+  headerData?: Record<string, string>;
 }
 
 // --- RenderSpec (especificación determinística para regenerar el PDF) ---

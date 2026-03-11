@@ -7,7 +7,8 @@ export type TableCatalogColumnType =
   | 'checkbox'
   | 'fixed_text'
   | 'date_input'
-  | 'pass_fail';
+  | 'pass_fail'
+  | 'select_input';
 
 export interface TableCatalogColumn {
   key: string;
@@ -17,6 +18,8 @@ export interface TableCatalogColumn {
   required: boolean;
   expectedValue?: string | null;
   fixedValue?: string | null;
+  /** Opciones para columnas tipo 'select_input' (menú desplegable). */
+  options?: string[];
   /** Ancho de la columna en mm. Si no se define, se distribuye automáticamente. */
   width?: number | null;
 }

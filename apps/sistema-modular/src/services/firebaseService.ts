@@ -1603,7 +1603,7 @@ export const tableCatalogService = {
     await updateDoc(doc(db, 'tableCatalog', id), { status: 'archived', updatedAt: Timestamp.now() });
   },
 
-  async clone(id: string): Promise<string> {
+  async clone(id: string, overrides?: { name?: string; sysType?: string; projectId?: string | null }): Promise<string> {
     const original = await this.getById(id);
     if (!original) throw new Error('Tabla no encontrada');
     const newId = crypto.randomUUID();
@@ -1611,7 +1611,9 @@ export const tableCatalogService = {
     await setDoc(doc(db, 'tableCatalog', newId), {
       ...deepCleanForFirestore(rest),
       id: newId,
-      name: `${original.name} (copia)`,
+      name: overrides?.name || `${original.name} (copia)`,
+      ...(overrides?.sysType ? { sysType: overrides.sysType } : {}),
+      ...(overrides?.projectId !== undefined ? { projectId: overrides.projectId } : {}),
       status: 'draft',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),

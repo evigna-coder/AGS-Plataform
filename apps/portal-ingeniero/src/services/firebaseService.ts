@@ -15,7 +15,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 import { app } from './firebase';
-import type { UsuarioAGS, Sistema, Lead, UserRole, WorkOrder } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Lead, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
 import { getCreateTrace } from './currentUser';
 
 export const db = getFirestore(app);
@@ -159,5 +159,40 @@ export const otService = {
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
+  },
+};
+
+// =============================================
+// --- Catálogo de Tablas (protocolo) ---
+// =============================================
+export const tableCatalogService = {
+  async getPublished(sysType?: string): Promise<TableCatalogEntry[]> {
+    const col = collection(db, 'tableCatalog');
+    const q = sysType
+      ? query(col, where('status', '==', 'published'), where('sysType', '==', sysType))
+      : query(col, where('status', '==', 'published'));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as TableCatalogEntry))
+      .sort((a, b) => (a.orden ?? 999) - (b.orden ?? 999));
+  },
+};
+
+// =============================================
+// --- Reportes (protocolo completado por OT) ---
+// =============================================
+export const reportService = {
+  async getByOtNumber(otNumber: string): Promise<{ protocolSelections: ProtocolSelection[] } | null> {
+    const snap = await getDoc(doc(db, 'reportes', otNumber));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return { protocolSelections: (data['protocolSelections'] as ProtocolSelection[]) ?? [] };
+  },
+
+  async saveProtocolSelections(otNumber: string, selections: ProtocolSelection[]): Promise<void> {
+    await setDoc(doc(db, 'reportes', otNumber), {
+      protocolSelections: selections,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
   },
 };

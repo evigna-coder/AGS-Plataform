@@ -360,12 +360,16 @@ const App: React.FC = () => {
   const {
     formState,
     setters,
-    readOnly,
+    readOnly: readOnlyByStatus,
     reportState,
     hasUserInteracted,
     hasInitialized,
     markUserInteracted
   } = reportForm;
+
+  // Extender readOnly: bloquear formulario si no hay OT activa (usuario canceló creación o no ingresó número)
+  // El campo OT queda habilitado aparte (usa readOnlyByStatus) para poder ingresar un nuevo número
+  const readOnly = readOnlyByStatus || !formState.otNumber;
 
   // Desestructurar estados para facilitar el uso
   const {
@@ -1079,8 +1083,8 @@ const App: React.FC = () => {
                 value={otInput}
 
                 onChange={(e) => {
-  if (readOnly) return;
-  
+  if (readOnlyByStatus) return;
+
   // Detener propagación para evitar que markUserInteracted se dispare
   e.stopPropagation();
 
@@ -1104,7 +1108,7 @@ const App: React.FC = () => {
 }}
 
                   onBlur={(e) => {
-                    if (readOnly) return;
+                    if (readOnlyByStatus) return;
                     const v = (e.target as HTMLInputElement).value.trim();
                     if (!v) return;
                     setOtInput(v);
@@ -1113,11 +1117,11 @@ const App: React.FC = () => {
                   }}
 
                 maxLength={10}
-                disabled={readOnly}
+                disabled={readOnlyByStatus}
 
                 className={`w-full border rounded-lg px-3 py-1.5 text-sm font-mono font-bold
                 ${baseInputClass}
-                  ${readOnly
+                  ${readOnlyByStatus
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     : 'bg-white border-slate-300 text-blue-700'}
                 `}
@@ -2724,6 +2728,7 @@ const App: React.FC = () => {
         onClick={() => {
           setShowNewOtModal(false);
           setPendingOt('');
+          setOtInput('');
         }}
       >
         <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -2739,6 +2744,7 @@ const App: React.FC = () => {
               onClick={() => {
                 setShowNewOtModal(false);
                 setPendingOt('');
+                setOtInput('');
               }}
               className="flex-1 bg-slate-200 text-slate-700 font-black px-6 py-3 rounded-xl uppercase tracking-widest text-xs transition-all hover:bg-slate-300"
             >

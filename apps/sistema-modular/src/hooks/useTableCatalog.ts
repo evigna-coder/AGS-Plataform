@@ -68,9 +68,9 @@ export function useTableCatalog() {
     }
   }, []);
 
-  const cloneTable = useCallback(async (id: string) => {
+  const cloneTable = useCallback(async (id: string, overrides?: { name?: string; sysType?: string; projectId?: string | null }) => {
     try {
-      return await tableCatalogService.clone(id);
+      return await tableCatalogService.clone(id, overrides);
     } catch (err) {
       console.error('Error clonando tabla:', err);
       throw err;

@@ -176,7 +176,7 @@ export const usePDFGeneration = (
             const clone = pageEl.cloneNode(true) as HTMLElement;
             clone.style.position = 'fixed';
             clone.style.top = '0';
-            clone.style.left = '0';
+            clone.style.left = '-9999px';
             clone.style.zIndex = '99999';
             clone.style.margin = '0';
 
