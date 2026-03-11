@@ -26,6 +26,11 @@
       "sourceType": "github",
       "computedHash": "a0794a3fda517edb065c3ed48f67ae14d0bd4612b8fb204d01bab5442675023a"
     },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "57f470f512f45bdac598e302bc72fd62bf2b649fc7fad032efe97720149cde4d"
+    },
     "systematic-debugging": {
       "source": "obra/superpowers",
       "sourceType": "github",
