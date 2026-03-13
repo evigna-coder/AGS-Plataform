@@ -4,6 +4,18 @@ import { OTInfoSidebar } from '../../components/ordenes-trabajo/OTInfoSidebar';
 import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSection';
 import { OTItemsSection } from '../../components/ordenes-trabajo/OTItemsSection';
 import { useOTDetail } from '../../hooks/useOTDetail';
+import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
+import type { OTEstadoAdmin } from '@ags/shared';
+
+const ESTADO_COLORS: Record<string, string> = {
+  CREADA: 'bg-slate-100 text-slate-600',
+  ASIGNADA: 'bg-blue-100 text-blue-700',
+  COORDINADA: 'bg-violet-100 text-violet-700',
+  EN_CURSO: 'bg-amber-100 text-amber-700',
+  CIERRE_TECNICO: 'bg-orange-100 text-orange-700',
+  CIERRE_ADMINISTRATIVO: 'bg-cyan-100 text-cyan-700',
+  FINALIZADO: 'bg-emerald-100 text-emerald-700',
+};
 
 export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
@@ -30,21 +42,18 @@ export const OTDetail = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <h1 className="text-lg font-semibold tracking-tight text-slate-900">OT-{otNumber}</h1>
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-              ot.status === 'FINALIZADO'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-amber-100 text-amber-700'
-            }`}>
-              {ot.status === 'FINALIZADO' ? 'Finalizado' : 'Borrador'}
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_COLORS[ot.estadoAdmin] ?? 'bg-slate-100 text-slate-600'}`}>
+              {OT_ESTADO_LABELS[ot.estadoAdmin] ?? ot.estadoAdmin}
             </span>
             {!ot.readOnly && (
               <select
-                value={ot.status}
-                onChange={e => ot.handleStatusChange(e.target.value)}
+                value={ot.estadoAdmin}
+                onChange={e => ot.handleEstadoAdminChange(e.target.value as OTEstadoAdmin)}
                 className="border rounded-lg px-2 py-0.5 text-xs text-slate-600 border-slate-300"
               >
-                <option value="BORRADOR">BORRADOR</option>
-                <option value="FINALIZADO">FINALIZADO</option>
+                {OT_ESTADO_ORDER.map(e => (
+                  <option key={e} value={e}>{OT_ESTADO_LABELS[e]}</option>
+                ))}
               </select>
             )}
           </div>
@@ -120,6 +129,15 @@ export const OTDetail = () => {
             onAddBudget={ot.addBudget}
             onUpdateBudget={ot.updateBudget}
             onRemoveBudget={ot.removeBudget}
+            ordenCompra={ot.ordenCompra}
+            fechaServicioAprox={ot.fechaServicioAprox}
+            ingenieroAsignadoId={ot.ingenieroAsignadoId}
+            ingenieroAsignadoNombre={ot.ingenieroAsignadoNombre}
+            ingenieros={ot.ingenieros}
+            onIngenieroChange={ot.handleIngenieroChange}
+            estadoAdmin={ot.estadoAdmin}
+            estadoAdminFecha={ot.estadoAdminFecha}
+            estadoHistorial={ot.estadoHistorial}
           />
 
           {/* Main content */}

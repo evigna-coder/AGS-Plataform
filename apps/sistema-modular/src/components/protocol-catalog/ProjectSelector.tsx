@@ -12,10 +12,11 @@ interface Props {
   onCreate: (name: string) => Promise<void>;
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onUpdateSettings?: (id: string, data: { headerTitle: string | null; footerQF: string | null }) => Promise<void>;
 }
 
 export const ProjectSelector: React.FC<Props> = memo(({
-  projects, activeProjectId, onSelect, onCreate, onRename, onDelete,
+  projects, activeProjectId, onSelect, onCreate, onRename, onDelete, onUpdateSettings,
 }) => {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
@@ -23,6 +24,10 @@ export const ProjectSelector: React.FC<Props> = memo(({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [settingsProject, setSettingsProject] = useState<TableProject | null>(null);
+  const [settingsHeaderTitle, setSettingsHeaderTitle] = useState('');
+  const [settingsFooterQF, setSettingsFooterQF] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Cerrar menú al hacer clic fuera
@@ -58,6 +63,27 @@ export const ProjectSelector: React.FC<Props> = memo(({
     setMenuId(null);
     await onDelete(id);
     if (activeProjectId === id) onSelect(undefined);
+  };
+
+  const openSettings = (p: TableProject) => {
+    setSettingsProject(p);
+    setSettingsHeaderTitle(p.headerTitle || '');
+    setSettingsFooterQF(p.footerQF || '');
+    setMenuId(null);
+  };
+
+  const handleSaveSettings = async () => {
+    if (!settingsProject || !onUpdateSettings) return;
+    setSavingSettings(true);
+    try {
+      await onUpdateSettings(settingsProject.id, {
+        headerTitle: settingsHeaderTitle.trim() || null,
+        footerQF: settingsFooterQF.trim() || null,
+      });
+      setSettingsProject(null);
+    } finally {
+      setSavingSettings(false);
+    }
   };
 
   const pillBase = 'text-xs font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer whitespace-nowrap';
@@ -108,6 +134,12 @@ export const ProjectSelector: React.FC<Props> = memo(({
                 className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
                 Renombrar
               </button>
+              {onUpdateSettings && (
+                <button onClick={() => openSettings(p)}
+                  className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                  Encabezado / Pie
+                </button>
+              )}
               <button onClick={() => handleDelete(p.id)}
                 className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50">
                 Eliminar
@@ -138,6 +170,32 @@ export const ProjectSelector: React.FC<Props> = memo(({
               placeholder="Ej: Calificación OQ HPLC"
               autoFocus
               onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }} />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal configurar encabezado/pie del proyecto */}
+      <Modal open={!!settingsProject} onClose={() => setSettingsProject(null)}
+        title="Encabezado / Pie de página" subtitle={settingsProject?.name} maxWidth="sm"
+        footer={<>
+          <Button variant="outline" onClick={() => setSettingsProject(null)}>Cancelar</Button>
+          <Button onClick={handleSaveSettings} disabled={savingSettings}>
+            {savingSettings ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </>}>
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Estos valores se aplican a todas las tablas del proyecto que no tengan su propio encabezado/pie definido.
+          </p>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Título del protocolo (header)</label>
+            <Input value={settingsHeaderTitle} onChange={e => setSettingsHeaderTitle(e.target.value)}
+              placeholder="Ej: Protocolo de verificación GC-MS" inputSize="sm" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Número QF (footer)</label>
+            <Input value={settingsFooterQF} onChange={e => setSettingsFooterQF(e.target.value)}
+              placeholder="Ej: QF-AGS-012 Rev.01" inputSize="sm" />
           </div>
         </div>
       </Modal>

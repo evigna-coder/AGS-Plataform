@@ -7,6 +7,7 @@ import { Modal } from '../../components/ui/Modal';
 import type { UsuarioAGS, UserRole } from '@ags/shared';
 import { USER_ROLE_LABELS, USER_STATUS_LABELS, USER_STATUS_COLORS } from '@ags/shared';
 
+const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ROLES: UserRole[] = ['admin', 'ingeniero_soporte', 'admin_soporte', 'administracion'];
 
 export const UsuariosList = () => {
@@ -45,37 +46,48 @@ export const UsuariosList = () => {
   };
 
   const formatDate = (d?: string | null) => {
-    if (!d) return '-';
+    if (!d) return '—';
     return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
+
+  if (loading && users.length === 0) {
+    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando usuarios...</p></div>;
+  }
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Usuarios" subtitle="Gestion de usuarios y roles del sistema" count={users.length} />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
-        {loading ? (
-          <div className="flex justify-center py-12"><p className="text-xs text-slate-400">Cargando...</p></div>
-        ) : users.length === 0 ? (
-          <Card><div className="text-center py-8"><p className="text-xs text-slate-400">No hay usuarios registrados.</p></div></Card>
+      <div className="flex-1 min-h-0 px-5 pb-4">
+        {users.length === 0 ? (
+          <Card><div className="text-center py-12"><p className="text-slate-400">No hay usuarios registrados.</p></div></Card>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4 w-10"></th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Nombre</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Email</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Rol</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Estado</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Ultimo login</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Acciones</th>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col style={{ width: 44 }} />
+                <col style={{ width: '15%' }} />
+                <col />
+                <col style={{ width: 140 }} />
+                <col style={{ width: 85 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 100 }} />
+              </colgroup>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className={thClass}></th>
+                  <th className={thClass}>Nombre</th>
+                  <th className={thClass}>Email</th>
+                  <th className={thClass}>Rol</th>
+                  <th className={thClass}>Estado</th>
+                  <th className={thClass}>Ultimo login</th>
+                  <th className={`${thClass} text-right`}>Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-100">
                 {users.map(u => (
-                  <tr key={u.id} className={`hover:bg-slate-50/50 ${u.status === 'deshabilitado' ? 'opacity-50' : ''}`}>
-                    <td className="py-2 px-4">
+                  <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.status === 'deshabilitado' ? 'opacity-50' : ''}`}>
+                    <td className="px-3 py-2 whitespace-nowrap">
                       {u.photoURL ? (
                         <img src={u.photoURL} alt="" className="w-7 h-7 rounded-full" referrerPolicy="no-referrer" />
                       ) : (
@@ -84,9 +96,9 @@ export const UsuariosList = () => {
                         </div>
                       )}
                     </td>
-                    <td className="text-xs py-2 px-4 font-medium text-slate-900">{u.displayName}</td>
-                    <td className="text-xs py-2 px-4 text-slate-500">{u.email}</td>
-                    <td className="text-xs py-2 px-4">
+                    <td className="px-3 py-2 text-xs font-medium text-slate-900 truncate">{u.displayName}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500 truncate" title={u.email}>{u.email}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">
                       {u.status === 'activo' && u.role ? (
                         <select
                           value={u.role}
@@ -99,18 +111,18 @@ export const UsuariosList = () => {
                         <span className="text-slate-400 text-[11px]">Sin asignar</span>
                       )}
                     </td>
-                    <td className="text-xs py-2 px-4">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${USER_STATUS_COLORS[u.status]}`}>
                         {USER_STATUS_LABELS[u.status]}
                       </span>
                     </td>
-                    <td className="text-xs py-2 px-4 text-slate-500">{formatDate(u.lastLoginAt)}</td>
-                    <td className="text-xs py-2 px-4 text-right">
-                      <div className="flex justify-end gap-2">
+                    <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(u.lastLoginAt)}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-0.5">
                         {u.status === 'pendiente' && (
                           <button
                             onClick={() => { setShowApprove(u); setSelectedRole('ingeniero_soporte'); }}
-                            className="text-[11px] text-green-600 hover:underline font-medium"
+                            className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50"
                           >
                             Aprobar
                           </button>
@@ -118,7 +130,11 @@ export const UsuariosList = () => {
                         {u.status !== 'pendiente' && (
                           <button
                             onClick={() => handleToggleStatus(u)}
-                            className={`text-[11px] font-medium hover:underline ${u.status === 'activo' ? 'text-amber-600' : 'text-green-600'}`}
+                            className={`text-[10px] font-medium px-1 py-0.5 rounded ${
+                              u.status === 'activo'
+                                ? 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
+                                : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
+                            }`}
                           >
                             {u.status === 'activo' ? 'Deshabilitar' : 'Habilitar'}
                           </button>

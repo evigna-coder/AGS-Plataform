@@ -487,6 +487,15 @@ export const usePDFGeneration = (
         const generatedBlob = await generatePDFBlob();
         setPdfBlob(generatedBlob);
 
+        // Subir PDF a Firebase Storage (no bloquea el flujo)
+        try {
+          const pdfUrl = await firebase.uploadReportBlob(otNumber, generatedBlob, filename);
+          await firebase.saveReport(otNumber, { pdfUrl, pdfGeneratedAt: new Date().toISOString() });
+          console.log('✅ PDF subido a Storage:', pdfUrl);
+        } catch (uploadErr) {
+          console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
+        }
+
         downloadPDF(generatedBlob, filename);
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
@@ -580,6 +589,15 @@ export const usePDFGeneration = (
         console.log("Generando PDF (Hoja 1 + anexo si hay protocolo)...");
         const generatedBlob = await generatePDFBlob();
         setPdfBlob(generatedBlob);
+
+        // Subir PDF a Firebase Storage (no bloquea el flujo)
+        try {
+          const pdfUrl = await firebase.uploadReportBlob(otNumber, generatedBlob, filename);
+          await firebase.saveReport(otNumber, { pdfUrl, pdfGeneratedAt: new Date().toISOString() });
+          console.log('✅ PDF subido a Storage:', pdfUrl);
+        } catch (uploadErr) {
+          console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
+        }
 
         downloadPDF(generatedBlob, filename);
 

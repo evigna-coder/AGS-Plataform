@@ -1,9 +1,43 @@
 // Tipos compartidos entre reportes-ot y sistema-modular
 
 // Tipos de OT (Work Order) - Versión extendida para Sistema Modular
+
+/** Estados del workflow administrativo de la OT */
+export type OTEstadoAdmin =
+  | 'CREADA'
+  | 'ASIGNADA'
+  | 'COORDINADA'
+  | 'EN_CURSO'
+  | 'CIERRE_TECNICO'
+  | 'CIERRE_ADMINISTRATIVO'
+  | 'FINALIZADO';
+
+/** Entrada del historial de estados */
+export interface OTEstadoHistorial {
+  estado: OTEstadoAdmin;
+  fecha: string;       // ISO date del cambio
+  usuario?: string;    // quién cambió el estado
+  nota?: string;       // comentario opcional
+}
+
+export const OT_ESTADO_LABELS: Record<OTEstadoAdmin, string> = {
+  CREADA: 'Creada',
+  ASIGNADA: 'Asignada',
+  COORDINADA: 'Coordinada',
+  EN_CURSO: 'En curso',
+  CIERRE_TECNICO: 'Cierre técnico',
+  CIERRE_ADMINISTRATIVO: 'Cierre administrativo',
+  FINALIZADO: 'Finalizado',
+};
+
+export const OT_ESTADO_ORDER: OTEstadoAdmin[] = [
+  'CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO',
+  'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
+];
+
 export interface WorkOrder {
   otNumber: string; // Formato: 5 dígitos + opcional .NN (ej: 25660.02)
-  status: 'BORRADOR' | 'FINALIZADO';
+  status: 'BORRADOR' | 'FINALIZADO'; // status técnico (reportes-ot lo usa)
   budgets: string[];
   tipoServicio: string;
   esFacturable: boolean;
@@ -32,18 +66,24 @@ export interface WorkOrder {
   signatureClient: string | null;
   aclaracionCliente: string;
   updatedAt: string;
-  // Campos adicionales para integración con Sistema Modular
-  clienteId?: string; // Referencia al cliente (CUIT o LEGACY-xxx)
-  establecimientoId?: string; // Referencia al establecimiento donde se realiza la OT
-  sistemaId?: string; // Referencia al sistema/equipo en sistema modular
-  moduloId?: string; // Referencia al módulo específico (opcional)
+  // --- Campos administrativos (sistema-modular) ---
+  estadoAdmin?: OTEstadoAdmin;              // Estado del workflow administrativo
+  estadoAdminFecha?: string;                // Fecha del último cambio de estado
+  estadoHistorial?: OTEstadoHistorial[];    // Historial completo de cambios de estado
+  ordenCompra?: string;                     // Número de orden de compra del cliente
+  fechaServicioAprox?: string;              // Fecha aproximada del servicio (coordinación)
+  // --- Referencias a entidades ---
+  clienteId?: string;
+  establecimientoId?: string;
+  sistemaId?: string;
+  moduloId?: string;
   createdAt?: string;
   createdBy?: string;
-  fechaAsignacion?: string; // Fecha de asignación (futuro - cuando se implemente agenda)
-  fechaCierre?: string; // Fecha de cierre/finalización
-  materialesParaServicio?: string; // Materiales necesarios para el servicio (texto libre)
-  problemaFallaInicial?: string; // Problema o falla inicial declarada en la OT (comentario)
-  ingenieroAsignadoId?: string | null; // FK a ingeniero asignado via agenda
+  fechaAsignacion?: string;
+  fechaCierre?: string;
+  materialesParaServicio?: string;
+  problemaFallaInicial?: string;
+  ingenieroAsignadoId?: string | null;
   ingenieroAsignadoNombre?: string | null;
 }
 
@@ -932,6 +972,10 @@ export interface TableCatalogEntry {
   attachToPrevious?: boolean;
   /** Si true, este bloque se mantiene en la misma página que la tabla siguiente. */
   attachToNext?: boolean;
+  /** Título que aparece en el header de cada página del protocolo (ej. "Protocolo de verificación GC-MS"). */
+  headerTitle?: string | null;
+  /** Número de formulario de calidad para el footer (ej. "QF-AGS-012 Rev.01"). */
+  footerQF?: string | null;
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';
@@ -946,6 +990,10 @@ export interface TableProject {
   name: string;
   description?: string | null;
   sysType?: string | null;
+  /** Título del protocolo aplicable a todas las tablas del proyecto (ej. "Protocolo de verificación GC-MS"). */
+  headerTitle?: string | null;
+  /** Número QF aplicable a todas las tablas del proyecto (ej. "QF-AGS-012 Rev.01"). */
+  footerQF?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -1133,6 +1181,8 @@ export interface Ingeniero {
   telefono?: string | null;
   area?: AreaIngeniero | null;
   activo: boolean;
+  /** Firebase UID — vincula este ingeniero con su cuenta de Google (UsuarioAGS) */
+  usuarioId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

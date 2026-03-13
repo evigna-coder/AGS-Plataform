@@ -19,6 +19,10 @@ try {
     // API para abrir una nueva ventana de Electron con una URL
     openWindow: (url) => {
       ipcRenderer.send('open-reportes-window', url);
+    },
+    // Abrir un módulo de sistema-modular en nueva ventana Electron (con preload)
+    openModuleWindow: (route) => {
+      ipcRenderer.send('open-module-window', route);
     }
   });
 

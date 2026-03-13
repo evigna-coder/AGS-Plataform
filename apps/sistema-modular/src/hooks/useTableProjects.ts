@@ -25,7 +25,7 @@ export function useTableProjects() {
     return id;
   }, [loadProjects]);
 
-  const updateProject = useCallback(async (id: string, data: Partial<{ name: string; description: string | null }>) => {
+  const updateProject = useCallback(async (id: string, data: Partial<{ name: string; description: string | null; headerTitle: string | null; footerQF: string | null }>) => {
     await tableProjectsService.update(id, data);
     await loadProjects();
   }, [loadProjects]);

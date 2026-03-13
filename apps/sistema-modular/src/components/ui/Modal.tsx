@@ -9,6 +9,8 @@ interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
   children: ReactNode;
   footer?: ReactNode;
+  /** Si true, un click en el fondo oscuro cierra el modal. Default: false */
+  closeOnBackdropClick?: boolean;
 }
 
 const widthMap = {
@@ -26,6 +28,7 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = 'md',
   children,
   footer,
+  closeOnBackdropClick = false,
 }) => {
   useEffect(() => {
     if (!open) return;
@@ -46,7 +49,7 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onClick={closeOnBackdropClick ? onClose : undefined}
     >
       <div
         className={`w-full ${widthMap[maxWidth]} bg-white rounded-xl shadow-xl flex flex-col max-h-[90vh]`}

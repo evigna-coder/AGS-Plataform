@@ -12,11 +12,13 @@ import {
   addDoc,
   orderBy,
   limit,
+  onSnapshot,
+  arrayUnion,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { app } from './firebase';
-import type { UsuarioAGS, Sistema, Lead, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
-import { getCreateTrace } from './currentUser';
+import type { UsuarioAGS, Sistema, Lead, LeadEstado, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
+import { getCreateTrace, getUpdateTrace } from './currentUser';
 
 export const db = getFirestore(app);
 
@@ -34,6 +36,15 @@ export function cleanFirestoreData<T extends Record<string, unknown>>(obj: T): P
 // --- Usuarios ---
 // =============================================
 export const usuariosService = {
+  async getIngenieros(): Promise<{ id: string; displayName: string }[]> {
+    const q = query(collection(db, 'usuarios'), where('status', '==', 'activo'));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, displayName: (d.data().displayName as string) ?? '' }))
+      .filter(u => u.displayName)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  },
+
   async upsertOnLogin(user: { uid: string; email: string; displayName: string; photoURL: string | null }): Promise<UsuarioAGS> {
     const docRef = doc(db, 'usuarios', user.uid);
     const existing = await getDoc(docRef);
@@ -94,16 +105,100 @@ export const sistemasService = {
 // =============================================
 // --- Leads ---
 // =============================================
+
+function parseLead(id: string, data: Record<string, unknown>): Lead {
+  return {
+    id,
+    clienteId: (data.clienteId as string) ?? null,
+    contactoId: (data.contactoId as string) ?? null,
+    razonSocial: (data.razonSocial as string) ?? '',
+    contacto: (data.contacto as string) ?? '',
+    email: (data.email as string) ?? '',
+    telefono: (data.telefono as string) ?? '',
+    motivoLlamado: (data.motivoLlamado as MotivoLlamado) ?? 'otros',
+    motivoContacto: (data.motivoContacto as string) ?? '',
+    descripcion: (data.descripcion as string) ?? null,
+    sistemaId: (data.sistemaId as string) ?? null,
+    estado: (data.estado as LeadEstado) ?? 'nuevo',
+    postas: (data.postas as Posta[]) ?? [],
+    asignadoA: (data.asignadoA as string) ?? null,
+    derivadoPor: (data.derivadoPor as string) ?? null,
+    presupuestosIds: (data.presupuestosIds as string[]) ?? [],
+    otIds: (data.otIds as string[]) ?? [],
+    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
+    updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
+    createdBy: (data.createdBy as string) ?? null,
+    finalizadoAt: (data.finalizadoAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? null,
+  };
+}
+
 export const leadsService = {
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = {
       ...cleanFirestoreData(data as Record<string, unknown>),
       ...getCreateTrace(),
+      estado: data.estado || 'nuevo',
+      postas: data.postas || [],
+      presupuestosIds: data.presupuestosIds || [],
+      otIds: data.otIds || [],
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
     const ref = await addDoc(collection(db, 'leads'), payload);
     return ref.id;
+  },
+
+  async getAll(filters?: { estado?: LeadEstado; asignadoA?: string }): Promise<Lead[]> {
+    const constraints: QueryConstraint[] = [];
+    if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
+    if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
+    constraints.push(orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'leads'), ...constraints);
+    const snap = await getDocs(q);
+    return snap.docs.map(d => parseLead(d.id, d.data() as Record<string, unknown>));
+  },
+
+  async getById(id: string): Promise<Lead | null> {
+    const snap = await getDoc(doc(db, 'leads', id));
+    if (!snap.exists()) return null;
+    return parseLead(snap.id, snap.data() as Record<string, unknown>);
+  },
+
+  async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<void> {
+    await updateDoc(doc(db, 'leads', id), {
+      ...cleanFirestoreData(data as Record<string, unknown>),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string): Promise<void> {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
+      asignadoA: nuevoAsignadoA,
+      derivadoPor: posta.deUsuarioId,
+      estado: posta.estadoNuevo,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async finalizar(id: string, posta: Posta): Promise<void> {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
+      estado: posta.estadoNuevo,
+      finalizadoAt: Timestamp.now(),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async agregarComentario(id: string, posta: Posta): Promise<void> {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
   },
 };
 
@@ -194,5 +289,53 @@ export const reportService = {
       protocolSelections: selections,
       updatedAt: Timestamp.now(),
     }, { merge: true });
+  },
+};
+
+// =============================================
+// --- Agenda (read-only) ---
+// =============================================
+
+function parseAgendaEntry(id: string, data: Record<string, unknown>): AgendaEntry {
+  return {
+    id,
+    fechaInicio: (data.fechaInicio as string) ?? '',
+    fechaFin: (data.fechaFin as string) ?? '',
+    quarterStart: (data.quarterStart as 1 | 2 | 3 | 4) ?? 1,
+    quarterEnd: (data.quarterEnd as 1 | 2 | 3 | 4) ?? 4,
+    ingenieroId: (data.ingenieroId as string) ?? '',
+    ingenieroNombre: (data.ingenieroNombre as string) ?? '',
+    otNumber: (data.otNumber as string) ?? '',
+    clienteNombre: (data.clienteNombre as string) ?? '',
+    tipoServicio: (data.tipoServicio as string) ?? '',
+    sistemaNombre: (data.sistemaNombre as string) ?? null,
+    establecimientoNombre: (data.establecimientoNombre as string) ?? null,
+    estadoAgenda: (data.estadoAgenda as AgendaEntry['estadoAgenda']) ?? 'pendiente',
+    notas: (data.notas as string) ?? null,
+    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
+    updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
+  };
+}
+
+export const agendaService = {
+  /** Real-time subscription for entries in a date range for a specific engineer. Returns unsubscribe fn. */
+  subscribeToRange(
+    rangeStart: string,
+    rangeEnd: string,
+    ingenieroId: string,
+    callback: (entries: AgendaEntry[]) => void,
+  ): () => void {
+    const q = query(
+      collection(db, 'agendaEntries'),
+      where('ingenieroId', '==', ingenieroId),
+      where('fechaInicio', '<=', rangeEnd),
+      orderBy('fechaInicio', 'asc'),
+    );
+    return onSnapshot(q, (snap) => {
+      const entries = snap.docs
+        .map(d => parseAgendaEntry(d.id, d.data() as Record<string, unknown>))
+        .filter(e => e.fechaFin >= rangeStart);
+      callback(entries);
+    });
   },
 };

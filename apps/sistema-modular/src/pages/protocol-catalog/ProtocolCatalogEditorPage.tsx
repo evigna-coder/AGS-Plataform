@@ -287,6 +287,31 @@ export const TableCatalogEditorPage = () => {
               )}
             </div>
 
+            {/* Header / Footer del protocolo */}
+            <div className="border-t border-slate-100 pt-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Encabezado / Pie de página</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Título del protocolo</label>
+                  <Input
+                    value={entry.headerTitle ?? ''}
+                    onChange={e => setMeta('headerTitle', e.target.value || null)}
+                    placeholder="Ej: Protocolo de verificación GC-MS"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Aparece en el header de cada página del reporte.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">N° formulario (QF)</label>
+                  <Input
+                    value={entry.footerQF ?? ''}
+                    onChange={e => setMeta('footerQF', e.target.value || null)}
+                    placeholder="Ej: QF-AGS-012 Rev.01"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Aparece en el footer de cada página del reporte.</p>
+                </div>
+              </div>
+            </div>
+
             {/* Tipos de servicio */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-2">

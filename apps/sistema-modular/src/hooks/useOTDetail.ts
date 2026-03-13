@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService } from '../services/firebaseService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente } from '@ags/shared';
+import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService } from '../services/firebaseService';
+import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, OTEstadoHistorial, UsuarioAGS } from '@ags/shared';
 
 export function useOTDetail(otNumber?: string) {
   const navigate = useNavigate();
@@ -54,6 +54,16 @@ export function useOTDetail(otNumber?: string) {
   const [materialesParaServicio, setMaterialesParaServicio] = useState('');
   const [problemaFallaInicial, setProblemaFallaInicial] = useState('');
 
+  // Admin workflow
+  const [estadoAdmin, setEstadoAdmin] = useState<OTEstadoAdmin>('CREADA');
+  const [estadoAdminFecha, setEstadoAdminFecha] = useState('');
+  const [estadoHistorial, setEstadoHistorial] = useState<OTEstadoHistorial[]>([]);
+  const [ordenCompra, setOrdenCompra] = useState('');
+  const [fechaServicioAprox, setFechaServicioAprox] = useState('');
+  const [ingenieroAsignadoId, setIngenieroAsignadoId] = useState<string | null>(null);
+  const [ingenieroAsignadoNombre, setIngenieroAsignadoNombre] = useState<string | null>(null);
+  const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
+
   // IDs
   const [clienteId, setClienteId] = useState<string | undefined>();
   const [sistemaId, setSistemaId] = useState<string | undefined>();
@@ -96,6 +106,7 @@ export function useOTDetail(otNumber?: string) {
     tipoServicio, fechaInicio, fechaFin, horasTrabajadas, tiempoViaje,
     reporteTecnico, accionesTomar, articulos, budgets, esFacturable, tieneContrato, esGarantia,
     aclaracionCliente, aclaracionEspecialista, materialesParaServicio, problemaFallaInicial,
+    estadoAdmin, ordenCompra, fechaServicioAprox, ingenieroAsignadoId,
     clienteId || '', sistemaId || '', moduloId || '',
   ]);
 
@@ -122,6 +133,13 @@ export function useOTDetail(otNumber?: string) {
       setAclaracionEspecialista(ot.aclaracionEspecialista || '');
       setMaterialesParaServicio(ot.materialesParaServicio || '');
       setProblemaFallaInicial(ot.problemaFallaInicial || '');
+      setEstadoAdmin(ot.estadoAdmin || (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'CREADA'));
+      setEstadoAdminFecha(ot.estadoAdminFecha || '');
+      setEstadoHistorial(ot.estadoHistorial || []);
+      setOrdenCompra(ot.ordenCompra || '');
+      setFechaServicioAprox(ot.fechaServicioAprox || '');
+      setIngenieroAsignadoId(ot.ingenieroAsignadoId ?? null);
+      setIngenieroAsignadoNombre(ot.ingenieroAsignadoNombre ?? null);
       setClienteId(ot.clienteId); setSistemaId(ot.sistemaId); setModuloId(ot.moduloId);
 
       if (ot.clienteId) { const c = await clientesService.getById(ot.clienteId); setCliente(c); }
@@ -131,8 +149,9 @@ export function useOTDetail(otNumber?: string) {
       }
       if (otNumber && !otNumber.includes('.')) { setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber)); }
       setTiposServicio(await tiposServicioService.getAll());
-      const [cd, sd] = await Promise.all([clientesService.getAll(true), sistemasService.getAll()]);
+      const [cd, sd, ud] = await Promise.all([clientesService.getAll(true), sistemasService.getAll(), usuariosService.getAll()]);
       setClientes(cd); setSistemas(sd);
+      setIngenieros(ud.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
       if (ot.clienteId) {
         setSistemasFiltrados(sd.filter(s => s.clienteId === ot.clienteId));
         try { setContactos(await contactosService.getByCliente(ot.clienteId)); } catch {}
@@ -166,6 +185,9 @@ export function useOTDetail(otNumber?: string) {
         aclaracionEspecialista: cleanValue(aclaracionEspecialista),
         materialesParaServicio: cleanValue(materialesParaServicio),
         problemaFallaInicial: cleanValue(problemaFallaInicial),
+        estadoAdmin, estadoAdminFecha: cleanValue(estadoAdminFecha), estadoHistorial,
+        ordenCompra: cleanValue(ordenCompra), fechaServicioAprox: cleanValue(fechaServicioAprox),
+        ingenieroAsignadoId, ingenieroAsignadoNombre,
         clienteId: cleanValue(clienteId), sistemaId: cleanValue(sistemaId), moduloId: cleanValue(moduloId),
       } as Partial<WorkOrder>);
     } catch { alert('Error al guardar los cambios'); } finally { setSaving(false); }
@@ -242,8 +264,25 @@ export function useOTDetail(otNumber?: string) {
       horasTrabajadas: setHorasTrabajadas, tiempoViaje: setTiempoViaje,
       problemaFallaInicial: setProblemaFallaInicial, reporteTecnico: setReporteTecnico,
       materialesParaServicio: setMaterialesParaServicio, accionesTomar: setAccionesTomar,
+      ordenCompra: setOrdenCompra, fechaServicioAprox: setFechaServicioAprox,
     };
     setters[field]?.(value);
+  };
+
+  const handleEstadoAdminChange = (nuevoEstado: OTEstadoAdmin) => {
+    const ahora = new Date().toISOString();
+    setEstadoAdmin(nuevoEstado);
+    setEstadoAdminFecha(ahora);
+    setEstadoHistorial(prev => [...prev, { estado: nuevoEstado, fecha: ahora }]);
+    if (nuevoEstado === 'FINALIZADO') setStatus('FINALIZADO');
+    markInteracted();
+  };
+
+  const handleIngenieroChange = (uid: string) => {
+    const u = ingenieros.find(i => i.id === uid);
+    setIngenieroAsignadoId(u?.id ?? null);
+    setIngenieroAsignadoNombre(u?.displayName ?? null);
+    markInteracted();
   };
 
   const handleCheckboxChange = (field: string, checked: boolean) => {
@@ -308,11 +347,14 @@ export function useOTDetail(otNumber?: string) {
   };
 
   return {
-    loading, saving, status, readOnly: status === 'FINALIZADO',
+    loading, saving, status, readOnly: estadoAdmin === 'FINALIZADO' || status === 'FINALIZADO',
     // Handlers
     handleSave, handleDelete, openInReportesOT, handleFieldChange, handleCheckboxChange,
     handleClienteChange, handleContactoChange, handleSistemaChange, handleModuloChange,
-    handleStatusChange,
+    handleStatusChange, handleEstadoAdminChange, handleIngenieroChange,
+    // Admin workflow
+    estadoAdmin, estadoAdminFecha, estadoHistorial, ordenCompra, fechaServicioAprox,
+    ingenieroAsignadoId, ingenieroAsignadoNombre, ingenieros,
     // Sidebar props
     clienteId, clientes, cliente, contacto, contactos,
     emailPrincipal, direccion, localidad, provincia,

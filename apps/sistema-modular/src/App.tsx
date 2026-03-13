@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { TabsProvider } from './contexts/TabsContext';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
@@ -72,6 +73,7 @@ function AuthGate() {
   return (
     <>
       <QRNotificationListener />
+      <TabsProvider>
       <Layout>
       <Routes>
         <Route path="/" element={<Navigate to="/clientes" replace />} />
@@ -160,6 +162,7 @@ function AuthGate() {
         <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'administracion']}><div className="text-center py-12"><p className="text-slate-400">Facturacion - Proximamente</p></div></ProtectedRoute>} />
       </Routes>
     </Layout>
+    </TabsProvider>
     </>
   );
 }

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useInstrumentos } from '../../hooks/useInstrumentos';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateInstrumentoModal } from '../../components/instrumentos/CreateInstrumentoModal';
 import {
   CATEGORIA_INSTRUMENTO_LABELS,
@@ -14,6 +16,8 @@ import {
   type EstadoCertificado,
   type InstrumentoPatron,
 } from '@ags/shared';
+
+const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 const ESTADO_BADGE: Record<EstadoCertificado, { label: string; cls: string }> = {
   vigente: { label: 'Vigente', cls: 'bg-green-100 text-green-800' },
@@ -26,27 +30,58 @@ const ALL_CAT_LABELS: Record<string, string> = { ...CATEGORIA_INSTRUMENTO_LABELS
 const CATS_INSTRUMENTO = Object.entries(CATEGORIA_INSTRUMENTO_LABELS) as [CategoriaInstrumento, string][];
 const CATS_PATRON = Object.entries(CATEGORIA_PATRON_LABELS) as [CategoriaPatron, string][];
 
+const TIPO_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'instrumento', label: 'Instrumento' },
+  { value: 'patron', label: 'Patrón' },
+];
+
+const ESTADO_CERT_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'vigente', label: 'Vigente' },
+  { value: 'por_vencer', label: 'Por vencer' },
+  { value: 'vencido', label: 'Vencido' },
+  { value: 'sin_certificado', label: 'Sin certificado' },
+];
+
 export const InstrumentosListPage = () => {
   const { instrumentos, loading, error, listInstrumentos, deactivateInstrumento } = useInstrumentos();
-  const [filterTipo, setFilterTipo] = useState('');
-  const [filterCategoria, setFilterCategoria] = useState('');
-  const [filterEstado, setFilterEstado] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+
+  const [filters, setFilters] = useState({
+    tipo: '',
+    categoria: '',
+    estadoCert: '',
+    showInactive: false,
+  });
+  const [sortField, setSortField] = useState('nombre');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
 
   const reload = () => {
     listInstrumentos({
-      tipo: (filterTipo as 'instrumento' | 'patron') || undefined,
-      categoria: (filterCategoria as CategoriaInstrumento | CategoriaPatron) || undefined,
-      activoOnly: !showInactive,
+      tipo: (filters.tipo as 'instrumento' | 'patron') || undefined,
+      categoria: (filters.categoria as CategoriaInstrumento | CategoriaPatron) || undefined,
+      activoOnly: !filters.showInactive,
     });
   };
 
-  useEffect(() => { reload(); }, [filterTipo, filterCategoria, showInactive]);
+  useEffect(() => { reload(); }, [filters.tipo, filters.categoria, filters.showInactive]);
 
-  const filtered = filterEstado
-    ? instrumentos.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === filterEstado)
-    : instrumentos;
+  const catOptions = useMemo(() => {
+    const cats = filters.tipo === 'patron' ? CATS_PATRON : filters.tipo === 'instrumento' ? CATS_INSTRUMENTO : [...CATS_INSTRUMENTO, ...CATS_PATRON];
+    return [{ value: '', label: 'Todas' }, ...cats.map(([k, v]) => ({ value: k, label: v }))];
+  }, [filters.tipo]);
+
+  const filtered = useMemo(() => {
+    let result = instrumentos;
+    if (filters.estadoCert) result = result.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === filters.estadoCert);
+    return sortByField(result, sortField, sortDir);
+  }, [instrumentos, filters.estadoCert, sortField, sortDir]);
 
   const vencidos = instrumentos.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === 'vencido');
   const porVencer = instrumentos.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === 'por_vencer');
@@ -61,11 +96,15 @@ export const InstrumentosListPage = () => {
     }
   };
 
+  if (loading && instrumentos.length === 0) {
+    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando instrumentos...</p></div>;
+  }
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Instrumentos y Patrones"
-        subtitle="Gestionar instrumentos, patrones y sus certificados de calibración"
+        subtitle="Gestionar instrumentos, patrones y certificados de calibración"
         count={filtered.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo instrumento</Button>
@@ -76,125 +115,136 @@ export const InstrumentosListPage = () => {
             <div className="flex gap-2 flex-wrap">
               {vencidos.length > 0 && (
                 <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
-                  <span className="text-red-700 text-[11px] font-medium">
-                    {vencidos.length} cert. vencido(s)
-                  </span>
+                  <span className="text-red-700 text-[11px] font-medium">{vencidos.length} cert. vencido(s)</span>
                 </div>
               )}
               {porVencer.length > 0 && (
                 <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                  <span className="text-amber-700 text-[11px] font-medium">
-                    {porVencer.length} cert. por vencer (30d)
-                  </span>
+                  <span className="text-amber-700 text-[11px] font-medium">{porVencer.length} cert. por vencer (30d)</span>
                 </div>
               )}
             </div>
           )}
           <div className="flex items-center gap-3 flex-wrap">
-            <select value={filterTipo} onChange={e => { setFilterTipo(e.target.value); setFilterCategoria(''); }}
-              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700">
-              <option value="">Tipo: Todos</option>
-              <option value="instrumento">Instrumento</option>
-              <option value="patron">Patrón</option>
-            </select>
-            <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)}
-              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700">
-              <option value="">Categoría: Todas</option>
-              {(filterTipo === 'patron' ? CATS_PATRON : filterTipo === 'instrumento' ? CATS_INSTRUMENTO : [...CATS_INSTRUMENTO, ...CATS_PATRON]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <select value={filterEstado} onChange={e => setFilterEstado(e.target.value)}
-              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700">
-              <option value="">Estado cert.: Todos</option>
-              <option value="vigente">Vigente</option>
-              <option value="por_vencer">Por vencer</option>
-              <option value="vencido">Vencido</option>
-              <option value="sin_certificado">Sin certificado</option>
-            </select>
+            <div className="min-w-[130px]">
+              <SearchableSelect value={filters.tipo}
+                onChange={(v) => setFilters({ ...filters, tipo: v, categoria: '' })}
+                options={TIPO_OPTIONS} placeholder="Tipo" />
+            </div>
+            <div className="min-w-[160px]">
+              <SearchableSelect value={filters.categoria}
+                onChange={(v) => setFilters({ ...filters, categoria: v })}
+                options={catOptions} placeholder="Categoría" />
+            </div>
+            <div className="min-w-[150px]">
+              <SearchableSelect value={filters.estadoCert}
+                onChange={(v) => setFilters({ ...filters, estadoCert: v })}
+                options={ESTADO_CERT_OPTIONS} placeholder="Estado cert." />
+            </div>
             <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-              <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
-                className="w-3.5 h-3.5 accent-indigo-600" />
+              <input type="checkbox" checked={filters.showInactive}
+                onChange={e => setFilters({ ...filters, showInactive: e.target.checked })}
+                className="rounded border-slate-300" />
               Inactivos
             </label>
             <Button variant="ghost" size="sm"
-              onClick={() => { setFilterTipo(''); setFilterCategoria(''); setFilterEstado(''); setShowInactive(false); }}>
+              onClick={() => setFilters({ tipo: '', categoria: '', estadoCert: '', showInactive: false })}>
               Limpiar
             </Button>
           </div>
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
-        ) : error ? (
+      <div className="flex-1 min-h-0 px-5 pb-4">
+        {error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
         ) : filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
-              <p className="text-slate-400">No hay instrumentos que coincidan con los filtros.</p>
+              <p className="text-slate-400">No hay instrumentos que coincidan con los filtros</p>
             </div>
           </Card>
         ) : (
-          <div className="bg-white overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    {['Identificación', 'Tipo', 'Marca / Modelo', 'Serie', 'Categorías', 'Certificado', 'Vencimiento', 'Estado', 'Acciones'].map(h => (
-                      <th key={h} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filtered.map(inst => {
-                    const estado = calcularEstadoCertificado(inst.certificadoVencimiento);
-                    const badge = ESTADO_BADGE[estado];
-                    return (
-                      <tr key={inst.id} className={`hover:bg-slate-50 ${!inst.activo ? 'opacity-50' : ''}`}>
-                        <td className="px-4 py-2 text-xs font-medium text-slate-900">{inst.nombre}</td>
-                        <td className="px-4 py-2 text-xs text-slate-600 capitalize">{inst.tipo}</td>
-                        <td className="px-4 py-2 text-xs text-slate-600">
-                          {[inst.marca, inst.modelo].filter(Boolean).join(' / ') || '—'}
-                        </td>
-                        <td className="px-4 py-2 text-xs text-slate-600 font-mono">{inst.serie || '—'}</td>
-                        <td className="px-4 py-2">
-                          <div className="flex gap-1 flex-wrap">
-                            {inst.categorias.map(c => (
-                              <span key={c} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium">
-                                {ALL_CAT_LABELS[c] || c}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2 text-xs">
-                          {inst.certificadoUrl ? (
-                            <a href={inst.certificadoUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-indigo-600 hover:underline font-medium">
-                              {inst.certificadoNombre || 'Ver PDF'}
-                            </a>
-                          ) : '—'}
-                        </td>
-                        <td className="px-4 py-2 text-xs text-slate-600">{inst.certificadoVencimiento || '—'}</td>
-                        <td className="px-4 py-2">
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>
-                            {badge.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="flex gap-3">
-                            <Link to={`/instrumentos/${inst.id}/editar`}>
-                              <button className="text-indigo-600 hover:underline font-medium text-xs">Editar</button>
-                            </Link>
-                            {inst.activo && (
-                              <button onClick={() => handleDeactivate(inst)}
-                                className="text-red-600 hover:underline font-medium text-xs">Desactivar</button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col />
+                <col style={{ width: 80 }} />
+                <col style={{ width: '14%' }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: 78 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 120 }} />
+              </colgroup>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <SortableHeader label="Identificación" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Marca / Modelo" field="marca" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <th className={thClass}>Serie</th>
+                  <th className={thClass}>Categorías</th>
+                  <th className={thClass}>Certificado</th>
+                  <SortableHeader label="Vencim." field="certificadoVencimiento" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <th className={thClass}>Estado</th>
+                  <th className={`${thClass} text-right`}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map(inst => {
+                  const estado = calcularEstadoCertificado(inst.certificadoVencimiento);
+                  const badge = ESTADO_BADGE[estado];
+                  return (
+                    <tr key={inst.id} className={`hover:bg-slate-50 transition-colors ${!inst.activo ? 'opacity-50' : ''}`}>
+                      <td className="px-3 py-2 text-xs font-semibold text-indigo-600 truncate" title={inst.nombre}>{inst.nombre}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600 capitalize whitespace-nowrap">{inst.tipo}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600 truncate" title={[inst.marca, inst.modelo].filter(Boolean).join(' / ')}>
+                        {[inst.marca, inst.modelo].filter(Boolean).join(' / ') || <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap">{inst.serie || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex gap-1 flex-wrap">
+                          {inst.categorias.map(c => (
+                            <span key={c} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium">
+                              {ALL_CAT_LABELS[c] || c}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap">
+                        {inst.certificadoUrl ? (
+                          <a href={inst.certificadoUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-indigo-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>
+                            {inst.certificadoNombre || 'Ver PDF'}
+                          </a>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">{inst.certificadoVencimiento || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Link to={`/instrumentos/${inst.id}/editar`}
+                            className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100">
+                            Editar
+                          </Link>
+                          {inst.activo && (
+                            <button onClick={() => handleDeactivate(inst)}
+                              className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50">
+                              Desactivar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

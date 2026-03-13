@@ -1030,19 +1030,9 @@ export const ordenesTrabajoService = {
     logAudit({ action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData as any });
   },
 
-  // Eliminar OT (baja lógica - cambiar status a inactivo o eliminar físicamente)
   async delete(otNumber: string) {
     logAudit({ action: 'delete', collection: 'ordenes_trabajo', documentId: otNumber });
-    // Por seguridad, no eliminamos físicamente, solo marcamos como inactivo
-    // Si realmente se necesita eliminar, descomentar la línea siguiente
-    // await deleteDoc(doc(db, 'reportes', otNumber));
-
-    // Por ahora, solo actualizamos el status
-    const docRef = doc(db, 'reportes', otNumber);
-    await updateDoc(docRef, {
-      status: 'BORRADOR', // O crear un campo 'activo: false'
-      updatedAt: Timestamp.now(),
-    });
+    await deleteDoc(doc(db, 'reportes', otNumber));
   },
 };
 
@@ -1671,7 +1661,7 @@ export const tableProjectsService = {
     return id;
   },
 
-  async update(id: string, data: Partial<{ name: string; description: string | null }>): Promise<void> {
+  async update(id: string, data: Partial<{ name: string; description: string | null; headerTitle: string | null; footerQF: string | null }>): Promise<void> {
     const payload = deepCleanForFirestore({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
     await updateDoc(doc(db, 'tableProjects', id), payload);
   },

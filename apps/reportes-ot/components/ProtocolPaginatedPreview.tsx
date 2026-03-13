@@ -43,6 +43,10 @@ interface ContentItem {
   glueWithPrev?: boolean;
   measuredHeight?: number;
   sliceOffset?: number;
+  /** Título del protocolo (viene del tableSnapshot.headerTitle) */
+  headerTitle?: string | null;
+  /** Número QF del protocolo (viene del tableSnapshot.footerQF) */
+  footerQF?: string | null;
 }
 
 interface PageDef {
@@ -59,26 +63,45 @@ interface Props {
   aclaracionEspecialista: string;
   fechaInicio: string;
   fechaFin: string;
+  /** Tablas vivas del catálogo para buscar headerTitle/footerQF actualizados (fallback si el snapshot no los tiene) */
+  catalogTables?: { id: string; projectId?: string | null; headerTitle?: string | null; footerQF?: string | null }[];
+  /** Proyectos del catálogo para resolver headerTitle/footerQF a nivel proyecto */
+  catalogProjects?: { id: string; headerTitle?: string | null; footerQF?: string | null }[];
 }
 
+/** Obtiene headerTitle de la primera selection de la página */
+const getPageHeaderTitle = (page: PageDef, fallback: string): string => {
+  for (const item of page.items) {
+    if (item.headerTitle) return item.headerTitle;
+  }
+  return fallback;
+};
+
+/** Obtiene footerQF de la primera selection de la página */
+const getPageFooterQF = (page: PageDef): string => {
+  for (const item of page.items) {
+    if (item.footerQF) return item.footerQF;
+  }
+  return '';
+};
+
 /* ━━━━━━━━━━━━━━━━━━━━ PAGE HEADER ━━━━━━━━━━━━━━━━━━━━ */
-const PageHeader: React.FC<{ meta: ProtocolMeta }> = ({ meta }) => {
-  const otLabel = meta.otNumber.startsWith('OT-') ? meta.otNumber : `OT-${meta.otNumber}`;
+const PageHeader: React.FC<{ meta: ProtocolMeta; protocolTitle?: string }> = ({ meta, protocolTitle }) => {
+  const otNum = meta.otNumber.startsWith('OT-') ? meta.otNumber.substring(3) : meta.otNumber;
   const serviceLabel = SERVICE_LABELS[meta.tipoServicio] || 'Protocolo de Servicio';
+  const title = protocolTitle || serviceLabel;
 
   return (
     <div style={{ height: `${HEADER_HEIGHT_MM}mm`, flexShrink: 0 }}>
       <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <img src={meta.logoSrc} alt="AGS Analítica" style={{ width: '100px', height: 'auto', display: 'block', flexShrink: 0 }} />
-          <div className="flex flex-col justify-start">
-            <h1 className="text-[15px] text-slate-500 font-medium uppercase tracking-tight leading-none">AGS Analitica S.A.</h1>
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide mt-0.5">{serviceLabel}</p>
-          </div>
+        <img src={meta.logoSrc} alt="AGS Analítica" style={{ width: '100px', height: 'auto', display: 'block', flexShrink: 0 }} />
+        <div className="flex-1 flex justify-center items-center px-4" style={{ minHeight: '32px' }}>
+          <p className="text-[10px] text-slate-700 font-semibold tracking-tight leading-snug text-center" style={{ maxWidth: '340px' }}>{title}</p>
         </div>
-        <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-300 px-3 py-1 rounded">
-          {otLabel}
-        </span>
+        <div className="text-right shrink-0">
+          <p className="text-[9px] text-slate-400 font-medium leading-none">Reporte de servicio</p>
+          <p className="text-[13px] font-bold text-indigo-700 leading-tight">N° {otNum}</p>
+        </div>
       </div>
       <div className="h-[2px] bg-indigo-600 mt-2" />
     </div>
@@ -86,8 +109,8 @@ const PageHeader: React.FC<{ meta: ProtocolMeta }> = ({ meta }) => {
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━ PAGE FOOTER ━━━━━━━━━━━━━━━━━━━━ */
-const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: number }> = ({ meta, pageNum, totalPages }) => {
-  const otLabel = meta.otNumber.startsWith('OT-') ? meta.otNumber : `OT-${meta.otNumber}`;
+const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: number; qfNumber?: string }> = ({ meta, pageNum, totalPages, qfNumber }) => {
+  const otNum = meta.otNumber.startsWith('OT-') ? meta.otNumber.substring(3) : meta.otNumber;
   return (
     <div style={{ height: `${FOOTER_HEIGHT_MM}mm`, flexShrink: 0 }}>
       <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ paddingTop: '1mm' }}>
@@ -96,10 +119,10 @@ const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: nu
             <img src={meta.isoLogoSrc} alt="Certificación ISO 9001" className="h-[12mm] w-auto" style={{ maxHeight: '12mm' }} />
           </div>
           <div className="absolute left-1/2 -translate-x-1/2 flex items-end">
-            <span className="whitespace-nowrap">QF-PRO-001 Rev.01</span>
+            <span className="whitespace-nowrap">{qfNumber || 'QF-PRO-001 Rev.01'}</span>
           </div>
           <div className="flex items-end whitespace-nowrap">
-            Página {pageNum} de {totalPages} | {otLabel}
+            Página {pageNum} de {totalPages} | Reporte N° {otNum}
           </div>
         </div>
       </div>
@@ -150,7 +173,7 @@ const InstrumentosTable: React.FC<{ instrumentos: any[] }> = ({ instrumentos }) 
 export const ProtocolPaginatedPreview: React.FC<Props> = ({
   protocolSelections, instrumentosSeleccionados, meta,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
-  fechaInicio, fechaFin,
+  fechaInicio, fechaFin, catalogTables, catalogProjects,
 }) => {
   const measureRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<PageDef[]>([]);
@@ -180,7 +203,20 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
       );
 
-      items.push({ key: sel.tableId, node, glueWithPrev: glue && items.length > 0 });
+      // Buscar headerTitle/footerQF: snapshot → catálogo vivo → proyecto
+      const live = catalogTables?.find(t => t.id === sel.tableId);
+      const projectId = sel.tableSnapshot.projectId || live?.projectId;
+      const project = projectId ? catalogProjects?.find(p => p.id === projectId) : null;
+      const headerTitle = sel.tableSnapshot.headerTitle || live?.headerTitle || project?.headerTitle || null;
+      const footerQF = sel.tableSnapshot.footerQF || live?.footerQF || project?.footerQF || null;
+
+      items.push({
+        key: sel.tableId,
+        node,
+        glueWithPrev: glue && items.length > 0,
+        headerTitle,
+        footerQF,
+      });
     }
 
     if (instrumentosSeleccionados.length > 0) {
@@ -301,6 +337,12 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
     return () => clearTimeout(timer);
   }, [contentItems.length, protocolSelections, instrumentosSeleccionados]);
 
+  const serviceLabel = SERVICE_LABELS[meta.tipoServicio] || 'Protocolo de Servicio';
+
+  // Protocol-wide fallback: si alguna tabla del protocolo tiene headerTitle/footerQF, se aplica a todas las páginas
+  const protocolWideTitle = contentItems.find(i => i.headerTitle)?.headerTitle || serviceLabel;
+  const protocolWideQF = contentItems.find(i => i.footerQF)?.footerQF || '';
+
   return (
     <>
       {/* Hidden measurement container */}
@@ -325,54 +367,59 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       </div>
 
       {/* Paginated A4 pages */}
-      {pages.length > 0 && pages.map((page, pageIdx) => (
-        <div
-          key={pageIdx}
-          data-protocol-page
-          className="bg-white shadow-lg shrink-0 flex flex-col"
-          style={{
-            width: `${A4_WIDTH_MM}mm`,
-            height: `${A4_HEIGHT_MM}mm`,
-            padding: `${PAGE_PADDING.top}mm ${PAGE_PADDING.right}mm ${PAGE_PADDING.bottom}mm ${PAGE_PADDING.left}mm`,
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-            pageBreakAfter: 'always',
-            breakAfter: 'page',
-          }}
-        >
-          <PageHeader meta={meta} />
-          <div style={{ height: `${HEADER_CONTENT_GAP_MM}mm`, flexShrink: 0 }} />
+      {pages.length > 0 && pages.map((page, pageIdx) => {
+        const pageTitle = getPageHeaderTitle(page, protocolWideTitle);
+        const pageQF = getPageFooterQF(page) || protocolWideQF;
 
-          <div className="flex-1">
-            {page.items.map((item) => {
-              const isSlice = item.sliceOffset !== undefined;
-              const offset = item.sliceOffset ?? 0;
-              return (
-                <div
-                  key={item.key}
-                  className={isSlice ? 'protocol-slice-container' : undefined}
-                  data-slice-offset={isSlice ? item.sliceOffset : undefined}
-                  style={isSlice ? {
-                    height: `${CONTENT_HEIGHT_PX}px`,
-                    overflow: 'hidden',
-                  } : {
-                    marginBottom: item.glueWithPrev ? '0px' : '12px',
-                    marginTop: item.glueWithPrev ? '-4px' : undefined,
-                  }}
-                >
-                  {isSlice && offset > 0 ? (
-                    <div style={{ transform: `translateY(-${offset}px)` }}>
-                      {item.node}
-                    </div>
-                  ) : item.node}
-                </div>
-              );
-            })}
+        return (
+          <div
+            key={pageIdx}
+            data-protocol-page
+            className="bg-white shadow-lg shrink-0 flex flex-col"
+            style={{
+              width: `${A4_WIDTH_MM}mm`,
+              height: `${A4_HEIGHT_MM}mm`,
+              padding: `${PAGE_PADDING.top}mm ${PAGE_PADDING.right}mm ${PAGE_PADDING.bottom}mm ${PAGE_PADDING.left}mm`,
+              boxSizing: 'border-box',
+              overflow: 'hidden',
+              pageBreakAfter: 'always',
+              breakAfter: 'page',
+            }}
+          >
+            <PageHeader meta={meta} protocolTitle={pageTitle} />
+            <div style={{ height: `${HEADER_CONTENT_GAP_MM}mm`, flexShrink: 0 }} />
+
+            <div className="flex-1">
+              {page.items.map((item) => {
+                const isSlice = item.sliceOffset !== undefined;
+                const offset = item.sliceOffset ?? 0;
+                return (
+                  <div
+                    key={item.key}
+                    className={isSlice ? 'protocol-slice-container' : undefined}
+                    data-slice-offset={isSlice ? item.sliceOffset : undefined}
+                    style={isSlice ? {
+                      height: `${CONTENT_HEIGHT_PX}px`,
+                      overflow: 'hidden',
+                    } : {
+                      marginBottom: item.glueWithPrev ? '0px' : '12px',
+                      marginTop: item.glueWithPrev ? '-4px' : undefined,
+                    }}
+                  >
+                    {isSlice && offset > 0 ? (
+                      <div style={{ transform: `translateY(-${offset}px)` }}>
+                        {item.node}
+                      </div>
+                    ) : item.node}
+                  </div>
+                );
+              })}
+            </div>
+
+            <PageFooter meta={meta} pageNum={pageIdx + 1} totalPages={pages.length} qfNumber={pageQF} />
           </div>
-
-          <PageFooter meta={meta} pageNum={pageIdx + 1} totalPages={pages.length} />
-        </div>
-      ))}
+        );
+      })}
 
       {/* Loading state while measuring */}
       {pages.length === 0 && contentItems.length > 0 && (

@@ -269,6 +269,26 @@ function createWindow() {
         },
       };
     }
+    // URLs de la misma app (localhost en dev) → abrir como ventana Electron con preload
+    const appOrigin = isDev ? `http://localhost:${port}` : 'file://';
+    if (url.startsWith(appOrigin)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 1400,
+          height: 900,
+          minWidth: 1200,
+          minHeight: 700,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: false,
+            preload: join(__dirname, 'preload.cjs'),
+          },
+          backgroundColor: '#f1f5f9',
+        },
+      };
+    }
     // Todo lo demas se abre en el navegador externo
     require('electron').shell.openExternal(url);
     return { action: 'deny' };
@@ -276,6 +296,43 @@ function createWindow() {
 
   return mainWindow;
 }
+
+// Abrir módulo en nueva ventana (misma app, con preload completo)
+ipcMain.on('open-module-window', (event, route) => {
+  console.log('[IPC] Abriendo módulo en nueva ventana:', route);
+  const mainWin = BrowserWindow.getAllWindows()[0];
+  const bounds = mainWin ? mainWin.getBounds() : {};
+
+  const moduleWindow = new BrowserWindow({
+    width: bounds.width || 1400,
+    height: bounds.height || 900,
+    minWidth: 1200,
+    minHeight: 700,
+    x: (bounds.x || 100) + 30,
+    y: (bounds.y || 100) + 30,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      preload: join(__dirname, 'preload.cjs'),
+    },
+    title: `AGS — ${route}`,
+    show: false,
+    backgroundColor: '#f1f5f9',
+  });
+
+  if (isDev) {
+    moduleWindow.loadURL(`http://localhost:${port}${route}`);
+  } else {
+    const indexPath = join(__dirname, '../dist/index.html');
+    moduleWindow.loadFile(indexPath, { hash: route });
+  }
+
+  moduleWindow.once('ready-to-show', () => {
+    moduleWindow.show();
+    moduleWindow.focus();
+  });
+});
 
 // Manejar solicitud de abrir ventana de reportes-ot
 ipcMain.on('open-reportes-window', (event, url) => {

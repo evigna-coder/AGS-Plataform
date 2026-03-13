@@ -1,8 +1,6 @@
 import { NavLink } from 'react-router-dom';
 
 const MORE_ITEMS = [
-  { to: '/leads', label: 'Leads' },
-  { to: '/clientes', label: 'Clientes' },
   { to: '/perfil', label: 'Perfil' },
 ];
 

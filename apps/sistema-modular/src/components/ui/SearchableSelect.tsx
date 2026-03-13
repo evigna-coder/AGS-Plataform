@@ -143,7 +143,24 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         }
         break;
       case 'Tab':
-        setIsOpen(false);
+        e.preventDefault();
+        if (!isOpen) {
+          setIsOpen(true);
+        } else if (e.shiftKey) {
+          setHighlightedIndex(prev => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
+        } else {
+          setHighlightedIndex(prev =>
+            prev < filteredOptions.length - 1 ? prev + 1 : 0
+          );
+        }
+        break;
+      case ' ':
+        // Solo confirmar con Space si NO estamos escribiendo en el input de búsqueda
+        if (isOpen && highlightedIndex >= 0 && filteredOptions[highlightedIndex] &&
+            e.target === containerRef.current) {
+          e.preventDefault();
+          handleSelect(filteredOptions[highlightedIndex].value);
+        }
         break;
     }
   };

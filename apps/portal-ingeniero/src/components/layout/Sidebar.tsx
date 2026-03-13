@@ -5,10 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 const NAV_ITEMS = [
   { to: '/reportes', label: 'Reportes' },
   { to: '/ordenes-trabajo', label: 'Órdenes de Trabajo' },
-  { to: '/equipos', label: 'Equipos' },
   { to: '/agenda', label: 'Agenda' },
   { to: '/leads', label: 'Leads' },
-  { to: '/clientes', label: 'Clientes' },
   { to: '/perfil', label: 'Perfil' },
 ];
 

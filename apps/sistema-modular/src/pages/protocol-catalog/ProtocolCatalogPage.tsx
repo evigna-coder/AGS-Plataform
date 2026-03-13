@@ -155,6 +155,7 @@ export const TableCatalogPage = () => {
           onCreate={handleCreateProject}
           onRename={handleRenameProject}
           onDelete={handleDeleteProject}
+          onUpdateSettings={async (id, data) => { await updateProject(id, data); }}
         />
 
         {/* Filtros */}

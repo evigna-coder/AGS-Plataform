@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente } from '@ags/shared';
+import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, UsuarioAGS, OTEstadoHistorial } from '@ags/shared';
+import { OT_ESTADO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
@@ -30,6 +31,15 @@ export interface OTInfoSidebarProps {
   onAddBudget: () => void;
   onUpdateBudget: (idx: number, val: string) => void;
   onRemoveBudget: (idx: number) => void;
+  ordenCompra: string;
+  fechaServicioAprox: string;
+  ingenieroAsignadoId: string | null;
+  ingenieroAsignadoNombre: string | null;
+  ingenieros: UsuarioAGS[];
+  onIngenieroChange: (uid: string) => void;
+  estadoAdmin: string;
+  estadoAdminFecha: string;
+  estadoHistorial: OTEstadoHistorial[];
 }
 
 export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
@@ -42,6 +52,8 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   tipoServicio, tiposServicio, fechaInicio, fechaFin,
   horasTrabajadas, tiempoViaje, esFacturable, tieneContrato, esGarantia,
   onCheckboxChange, budgets, onAddBudget, onUpdateBudget, onRemoveBudget,
+  ordenCompra, fechaServicioAprox, ingenieroAsignadoId, ingenieroAsignadoNombre,
+  ingenieros, onIngenieroChange, estadoAdmin, estadoAdminFecha, estadoHistorial,
 }) => {
   const totalHs = (Number(horasTrabajadas) || 0) + (Number(tiempoViaje) || 0);
   const F = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => onFieldChange(field, e.target.value);
@@ -136,6 +148,42 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
               </label>
             ))}
           </div>
+        </div>
+      </Card>
+
+      {/* Asignación y coordinación */}
+      <Card compact>
+        <p className={sec}>Asignación</p>
+        <div className="space-y-2">
+          <div>
+            <span className={lbl}>Ingeniero</span>
+            <select value={ingenieroAsignadoId || ''} onChange={e => onIngenieroChange(e.target.value)}
+              disabled={readOnly} className={inp}>
+              <option value="">Sin asignar</option>
+              {ingenieros.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            </select>
+          </div>
+          <div>
+            <span className={lbl}>Fecha aprox. servicio</span>
+            <input type="date" value={fechaServicioAprox} onChange={F('fechaServicioAprox')} disabled={readOnly} className={inp} />
+          </div>
+          <div>
+            <span className={lbl}>Orden de compra</span>
+            <input type="text" value={ordenCompra} onChange={F('ordenCompra')} disabled={readOnly} placeholder="OC del cliente" className={inp} />
+          </div>
+          {estadoHistorial.length > 0 && (
+            <div>
+              <span className={lbl}>Historial de estados</span>
+              <div className="space-y-0.5 mt-1">
+                {estadoHistorial.map((h, i) => (
+                  <div key={i} className="flex justify-between text-[10px]">
+                    <span className="text-slate-600 font-medium">{OT_ESTADO_LABELS[h.estado] ?? h.estado}</span>
+                    <span className="text-slate-400">{h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR') : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

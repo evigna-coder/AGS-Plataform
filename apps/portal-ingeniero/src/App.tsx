@@ -6,10 +6,9 @@ import LoginPage from './pages/LoginPage';
 import ReportesPage from './pages/ReportesPage';
 import OTListPage from './pages/OTListPage';
 import OTDetailPage from './pages/OTDetailPage';
-import EquiposPage from './pages/EquiposPage';
 import AgendaPage from './pages/AgendaPage';
 import LeadsPage from './pages/LeadsPage';
-import ClientesPage from './pages/ClientesPage';
+import LeadDetailPage from './pages/LeadDetailPage';
 import PerfilPage from './pages/PerfilPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 
@@ -67,10 +66,9 @@ function PrivateApp() {
         <Route path="reportes" element={<ReportesPage />} />
         <Route path="ordenes-trabajo" element={<OTListPage />} />
         <Route path="ordenes-trabajo/:otNumber" element={<OTDetailPage />} />
-        <Route path="equipos" element={<EquiposPage />} />
         <Route path="agenda" element={<AgendaPage />} />
         <Route path="leads" element={<LeadsPage />} />
-        <Route path="clientes" element={<ClientesPage />} />
+        <Route path="leads/:leadId" element={<LeadDetailPage />} />
         <Route path="perfil" element={<PerfilPage />} />
         <Route path="*" element={<Navigate to="/reportes" replace />} />
       </Route>

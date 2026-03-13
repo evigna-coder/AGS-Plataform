@@ -10,6 +10,7 @@ interface ElectronAPI {
   };
   openExternal?: (url: string) => void;
   openWindow?: (url: string) => void;
+  openModuleWindow?: (route: string) => void;
 }
 
 // API de Google Drive expuesta desde preload

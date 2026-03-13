@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ingenierosService } from '../../services/firebaseService';
+import { ingenierosService, usuariosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
-import type { Ingeniero, AreaIngeniero } from '@ags/shared';
+import type { Ingeniero, AreaIngeniero, UsuarioAGS } from '@ags/shared';
 
 const AREA_LABELS: Record<AreaIngeniero, string> = {
   campo: 'Campo',
@@ -22,9 +22,10 @@ interface FormState {
   email: string;
   telefono: string;
   area: AreaIngeniero | '';
+  usuarioId: string;
 }
 
-const emptyForm: FormState = { nombre: '', email: '', telefono: '', area: '' };
+const emptyForm: FormState = { nombre: '', email: '', telefono: '', area: '', usuarioId: '' };
 
 export const IngenierosPage = () => {
   const [items, setItems] = useState<Ingeniero[]>([]);
@@ -35,6 +36,7 @@ export const IngenierosPage = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
+  const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
 
   const reload = async () => {
     setLoading(true);
@@ -49,6 +51,9 @@ export const IngenierosPage = () => {
   };
 
   useEffect(() => { reload(); }, [showInactive]);
+  useEffect(() => {
+    usuariosService.getAll().then(u => setUsuarios(u.filter(x => x.status === 'activo'))).catch(() => {});
+  }, []);
 
   const handleCreate = async () => {
     if (!form.nombre.trim()) return;
@@ -60,6 +65,7 @@ export const IngenierosPage = () => {
         telefono: form.telefono.trim() || null,
         area: form.area || null,
         activo: true,
+        usuarioId: form.usuarioId || null,
       });
       setForm(emptyForm);
       setShowCreate(false);
@@ -75,6 +81,7 @@ export const IngenierosPage = () => {
       email: ing.email || '',
       telefono: ing.telefono || '',
       area: (ing.area as AreaIngeniero) || '',
+      usuarioId: ing.usuarioId || '',
     });
   };
 
@@ -86,6 +93,7 @@ export const IngenierosPage = () => {
         email: editForm.email.trim() || null,
         telefono: editForm.telefono.trim() || null,
         area: editForm.area || null,
+        usuarioId: editForm.usuarioId || null,
       });
       setEditingId(null);
       reload();
@@ -122,6 +130,22 @@ export const IngenierosPage = () => {
         {showCreate && (
           <Card>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Cuenta Google (Workspace)</label>
+                <select value={form.usuarioId} onChange={e => {
+                  const uid = e.target.value;
+                  const usr = usuarios.find(u => u.id === uid);
+                  setForm(f => ({
+                    ...f,
+                    usuarioId: uid,
+                    nombre: usr?.displayName || f.nombre,
+                    email: usr?.email || f.email,
+                  }));
+                }} className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white">
+                  <option value="">Sin vincular</option>
+                  {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.email})</option>)}
+                </select>
+              </div>
               <Input label="Nombre *" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre completo" autoFocus />
               <Input label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="email@ejemplo.com" />
               <Input label="Teléfono" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} placeholder="+54 11 ..." />
@@ -163,6 +187,19 @@ export const IngenierosPage = () => {
                   {editingId === ing.id ? (
                     <div className="flex-1 mr-4 space-y-1.5">
                       <div className="grid grid-cols-2 gap-2">
+                        <select value={editForm.usuarioId} onChange={e => {
+                          const uid = e.target.value;
+                          const usr = usuarios.find(u => u.id === uid);
+                          setEditForm(f => ({
+                            ...f,
+                            usuarioId: uid,
+                            nombre: usr?.displayName || f.nombre,
+                            email: usr?.email || f.email,
+                          }));
+                        }} className="border border-slate-300 rounded px-2 py-1 text-xs bg-white col-span-2">
+                          <option value="">Sin vincular a cuenta Google</option>
+                          {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.email})</option>)}
+                        </select>
                         <input type="text" value={editForm.nombre} onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))}
                           className="border border-slate-300 rounded px-2 py-1 text-xs" placeholder="Nombre" autoFocus />
                         <input type="text" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
@@ -183,8 +220,9 @@ export const IngenierosPage = () => {
                   ) : (
                     <div className="flex-1">
                       <span className="font-medium text-slate-900 text-xs">{ing.nombre}</span>
-                      <div className="flex gap-2 mt-0.5 text-[11px] text-slate-400">
+                      <div className="flex flex-wrap gap-2 mt-0.5 text-[11px] text-slate-400">
                         {ing.area && <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{AREA_LABELS[ing.area]}</span>}
+                        {ing.usuarioId && <span className="text-[10px] font-medium bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">Vinculado</span>}
                         {ing.email && <span>{ing.email}</span>}
                         {ing.telefono && <span>{ing.telefono}</span>}
                       </div>

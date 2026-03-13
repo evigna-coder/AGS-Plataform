@@ -1,24 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
 import type { Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateClienteModal } from '../../components/clientes/CreateClienteModal';
+
+const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 export const ClientesList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientosByCliente, setEstablecimientosByCliente] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [showCreate, setShowCreate] = useState(false);
 
-  useEffect(() => {
-    loadClientes();
-  }, []);
+  const [filters, setFilters] = useState({
+    search: '',
+  });
+  const [sortField, setSortField] = useState('razonSocial');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+
+  useEffect(() => { loadClientes(); }, []);
 
   const loadClientes = async () => {
     try {
@@ -41,37 +50,20 @@ export const ClientesList = () => {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
-      loadClientes();
-      return;
+  const filtered = useMemo(() => {
+    let result = clientes.filter(c => c.activo !== false);
+    if (filters.search.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      result = result.filter(c =>
+        c.razonSocial.toLowerCase().includes(q) ||
+        (c.cuit || '').toLowerCase().includes(q)
+      );
     }
-    try {
-      setLoading(true);
-      const results = await clientesService.search(searchTerm);
-      setClientes(results);
-      const establecimientos = await establecimientosService.getAll();
-      const byCliente: Record<string, number> = {};
-      establecimientos.forEach((e) => {
-        byCliente[e.clienteCuit] = (byCliente[e.clienteCuit] ?? 0) + 1;
-      });
-      setEstablecimientosByCliente(byCliente);
-    } catch (error) {
-      console.error('Error buscando clientes:', error);
-      alert('Error al buscar clientes');
-    } finally {
-      setLoading(false);
-    }
-  };
+    return sortByField(result, sortField, sortDir);
+  }, [clientes, filters.search, sortField, sortDir]);
 
-  const filteredClientes = clientes.filter(c => c.activo !== false);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando clientes...</p>
-      </div>
-    );
+  if (loading && clientes.length === 0) {
+    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando clientes...</p></div>;
   }
 
   return (
@@ -79,126 +71,85 @@ export const ClientesList = () => {
       <PageHeader
         title="Clientes"
         subtitle="Gestión de clientes y establecimientos"
-        count={filteredClientes.length}
+        count={filtered.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Cliente</Button>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <Input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Buscar por razón social o CUIT..."
-            />
-          </div>
-          <Button size="sm" onClick={handleSearch}>Buscar</Button>
-          <Button size="sm" variant="outline" onClick={() => { setSearchTerm(''); loadClientes(); }}>
+          <input
+            type="text"
+            value={filters.search}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            placeholder="Buscar por razón social o CUIT..."
+            className="w-64 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+          />
+          <Button size="sm" variant="ghost" onClick={() => setFilters({ search: '' })}>
             Limpiar
           </Button>
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-              title="Vista de tabla"
-            >
-              <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                viewMode === 'cards' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-              title="Vista de tarjetas"
-            >
-              <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-          </div>
         </div>
       </PageHeader>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {filteredClientes.length === 0 ? (
+      <div className="flex-1 min-h-0 px-5 pb-4">
+        {filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron clientes</p>
-              <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-sm">
+              <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
                 Crear primer cliente
               </button>
             </div>
           </Card>
-        ) : viewMode === 'table' ? (
-          <div className="bg-white overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Razón Social</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">CUIT</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Rubro</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Establecimientos</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredClientes.map((cliente) => (
-                    <tr key={cliente.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-2 text-xs font-semibold text-slate-900">{cliente.razonSocial}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600 font-mono">{cliente.cuit || '-'}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600">{cliente.rubro || '-'}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600">{establecimientosByCliente[cliente.id] ?? 0}</td>
-                      <td className="px-4 py-2">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                          cliente.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {cliente.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <Link
-                          to={`/clientes/${cliente.id}`}
-                          className="text-indigo-600 hover:underline font-medium text-xs"
-                        >
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col />
+                <col style={{ width: 110 }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 80 }} />
+              </colgroup>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <SortableHeader label="Razón Social" field="razonSocial" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <th className={thClass}>CUIT</th>
+                  <SortableHeader label="Rubro" field="rubro" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <th className={`${thClass} text-center`}>Establec.</th>
+                  <th className={thClass}>Estado</th>
+                  <th className={`${thClass} text-right`}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((cliente) => (
+                  <tr key={cliente.id} className="hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => window.location.href = `/clientes/${cliente.id}`}>
+                    <td className="px-3 py-2 text-xs font-semibold text-indigo-600 truncate" title={cliente.razonSocial}>
+                      {cliente.razonSocial}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap">{cliente.cuit || <span className="text-slate-300">—</span>}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600 truncate">{cliente.rubro || <span className="text-slate-300">—</span>}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600 text-center tabular-nums whitespace-nowrap">{establecimientosByCliente[cliente.id] ?? 0}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                        cliente.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {cliente.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Link to={`/clientes/${cliente.id}`}
+                          className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">
                           Ver
                         </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredClientes.map((cliente) => (
-              <Card key={cliente.id}>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-semibold text-sm text-slate-900">{cliente.razonSocial}</h3>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                      cliente.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {cliente.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-                  <div className="space-y-0.5 text-xs text-slate-600">
-                    {cliente.cuit && <p><span className="font-medium">CUIT:</span> {cliente.cuit}</p>}
-                    {cliente.rubro && <p><span className="font-medium">Rubro:</span> {cliente.rubro}</p>}
-                    <p><span className="font-medium">Establecimientos:</span> {establecimientosByCliente[cliente.id] ?? 0}</p>
-                  </div>
-                  <Link to={`/clientes/${cliente.id}`}>
-                    <Button className="w-full" variant="outline" size="sm">Ver Detalle</Button>
-                  </Link>
-                </div>
-              </Card>
-            ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
