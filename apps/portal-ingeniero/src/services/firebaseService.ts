@@ -133,6 +133,12 @@ export const sistemasService = {
 // --- Leads ---
 // =============================================
 
+function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlamado {
+  if (!raw) return 'soporte';
+  if (raw === 'otros') return 'soporte';
+  return raw as MotivoLlamado;
+}
+
 function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
   if (!raw) return null;
   const migration: Record<string, LeadArea> = {
@@ -152,7 +158,7 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
     contacto: (data.contacto as string) ?? '',
     email: (data.email as string) ?? '',
     telefono: (data.telefono as string) ?? '',
-    motivoLlamado: (data.motivoLlamado as MotivoLlamado) ?? 'soporte',
+    motivoLlamado: migrateMotivoLlamado(data.motivoLlamado as string),
     motivoContacto: (data.motivoContacto as string) ?? '',
     descripcion: (data.descripcion as string) ?? null,
     sistemaId: (data.sistemaId as string) ?? null,

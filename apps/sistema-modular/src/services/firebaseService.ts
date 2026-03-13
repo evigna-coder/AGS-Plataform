@@ -110,6 +110,12 @@ function migrateLeadEstado(raw: string): LeadEstado {
   return migration[raw] || (raw as LeadEstado) || 'nuevo';
 }
 
+function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlamado {
+  if (!raw) return 'soporte';
+  if (raw === 'otros') return 'soporte';
+  return raw as MotivoLlamado;
+}
+
 function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
   if (!raw) return null;
   const migration: Record<string, LeadArea> = {
@@ -130,7 +136,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     contacto: data.contacto ?? '',
     email: data.email ?? '',
     telefono: data.telefono ?? '',
-    motivoLlamado: data.motivoLlamado ?? 'soporte',
+    motivoLlamado: migrateMotivoLlamado(data.motivoLlamado),
     motivoContacto: data.motivoContacto ?? '',
     descripcion: data.descripcion ?? null,
     sistemaId: data.sistemaId ?? null,
