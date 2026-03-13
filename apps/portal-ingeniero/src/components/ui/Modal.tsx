@@ -22,10 +22,9 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div
         className="w-full sm:max-w-lg bg-white sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col max-h-[90vh]"
-        onClick={e => e.stopPropagation()}
       >
         <div className="shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
           <h3 className="text-base font-semibold text-slate-900 tracking-tight">{title}</h3>
