@@ -17,7 +17,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 import { app } from './firebase';
-import type { UsuarioAGS, Sistema, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
 
 export const db = getFirestore(app);
@@ -81,6 +81,20 @@ export const usuariosService = {
       updatedAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     } as UsuarioAGS;
+  },
+};
+
+// =============================================
+// --- Clientes — solo lectura ---
+// =============================================
+export const clientesService = {
+  async getAll(): Promise<Pick<Cliente, 'id' | 'razonSocial'>[]> {
+    const snap = await getDocs(query(collection(db, 'clientes'), orderBy('razonSocial', 'asc')));
+    return snap.docs.map(d => ({ id: d.id, razonSocial: d.data().razonSocial ?? '' }));
+  },
+  async getContactos(clienteId: string): Promise<ContactoCliente[]> {
+    const snap = await getDocs(collection(db, 'clientes', clienteId, 'contactos'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactoCliente));
   },
 };
 

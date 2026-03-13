@@ -1,12 +1,19 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
-import LeadCard from '../components/leads/LeadCard';
 import CrearLeadModal from '../components/leads/CrearLeadModal';
+import DerivarLeadModal from '../components/leads/DerivarLeadModal';
+import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 import { useLeadList } from '../hooks/useLeadList';
-import type { LeadEstado } from '@ags/shared';
+import type { Lead, LeadEstado } from '@ags/shared';
+import {
+  LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
+  LEAD_AREA_LABELS, LEAD_AREA_COLORS,
+  MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
+} from '@ags/shared';
 
 const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -18,8 +25,16 @@ const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
 ];
 
 export default function LeadsPage() {
+  const navigate = useNavigate();
   const { leads, loading, search, setSearch, estadoFilter, setEstadoFilter, misLeads, setMisLeads, refresh } = useLeadList();
   const [showCrear, setShowCrear] = useState(false);
+  const [derivarLead, setDerivarLead] = useState<Lead | null>(null);
+  const [finalizarLead, setFinalizarLead] = useState<Lead | null>(null);
+
+  const formatDate = (d?: string) => {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }); } catch { return d; }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -34,7 +49,7 @@ export default function LeadsPage() {
           placeholder="Buscar por razón social, contacto..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <div className="flex items-center gap-2 overflow-x-auto">
           {ESTADO_TABS.map(tab => (
@@ -62,15 +77,91 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* List */}
+      {/* Table */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner size="lg" /></div>
         ) : leads.length === 0 ? (
           <EmptyState message="No se encontraron leads" />
         ) : (
-          <div className="space-y-2">
-            {leads.map(lead => <LeadCard key={lead.id} lead={lead} />)}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Razón Social</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Área</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
+                  <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {leads.map(lead => {
+                  const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
+                  return (
+                    <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => navigate(`/leads/${lead.id}`)}
+                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 text-left truncate max-w-[180px] block"
+                          title={lead.razonSocial}
+                        >
+                          {lead.razonSocial}
+                        </button>
+                        <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{lead.contacto}</p>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
+                          {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        {lead.areaActual ? (
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
+                            {LEAD_AREA_LABELS[lead.areaActual]}
+                          </span>
+                        ) : <span className="text-[10px] text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
+                          {LEAD_ESTADO_LABELS[lead.estado]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">
+                        {formatDate(lead.createdAt)}
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {!isClosed && (
+                            <>
+                              <button
+                                onClick={() => setDerivarLead(lead)}
+                                className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50"
+                              >
+                                Derivar
+                              </button>
+                              <button
+                                onClick={() => setFinalizarLead(lead)}
+                                className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50"
+                              >
+                                Finalizar
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => navigate(`/leads/${lead.id}`)}
+                            className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50"
+                          >
+                            Ver
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -80,6 +171,22 @@ export default function LeadsPage() {
         onClose={() => setShowCrear(false)}
         onCreated={refresh}
       />
+
+      {derivarLead && (
+        <DerivarLeadModal
+          lead={derivarLead}
+          onClose={() => setDerivarLead(null)}
+          onSuccess={() => { setDerivarLead(null); refresh(); }}
+        />
+      )}
+
+      {finalizarLead && (
+        <FinalizarLeadModal
+          lead={finalizarLead}
+          onClose={() => setFinalizarLead(null)}
+          onSuccess={() => { setFinalizarLead(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
