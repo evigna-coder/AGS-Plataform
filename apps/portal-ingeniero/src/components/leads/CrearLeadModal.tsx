@@ -34,7 +34,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
   const [asignadoId, setAsignadoId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>('pendiente_info');
-  const [motivoContacto, setMotivoContacto] = useState('');
   const [descripcion, setDescripcion] = useState('');
 
   useEffect(() => {
@@ -121,7 +120,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         email: email.trim(),
         telefono: telefono.trim(),
         motivoLlamado,
-        motivoContacto: motivoContacto.trim(),
+        motivoContacto: '',
         descripcion: descripcion.trim() || null,
         clienteId: clienteId || null,
         contactoId: null,
@@ -153,7 +152,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setAreaActual('');
     setAsignadoId('');
     setNuevoEstado('pendiente_info');
-    setMotivoContacto('');
     setDescripcion('');
     setClienteSearch('');
     setContactos([]);
@@ -300,7 +298,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
           </div>
         )}
 
-        <Input label="Motivo de contacto" value={motivoContacto} onChange={e => setMotivoContacto(e.target.value)} />
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Descripción</label>
           <textarea
