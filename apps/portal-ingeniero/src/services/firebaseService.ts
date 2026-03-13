@@ -45,6 +45,26 @@ export const usuariosService = {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   },
 
+  /** Guarda la firma digital y nombre/aclaración del usuario */
+  async saveFirma(uid: string, firmaBase64: string, nombreAclaracion: string): Promise<void> {
+    await updateDoc(doc(db, 'usuarios', uid), {
+      firmaBase64,
+      nombreAclaracion,
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  /** Lee la firma guardada del usuario */
+  async getFirma(uid: string): Promise<{ firmaBase64: string | null; nombreAclaracion: string | null }> {
+    const snap = await getDoc(doc(db, 'usuarios', uid));
+    if (!snap.exists()) return { firmaBase64: null, nombreAclaracion: null };
+    const data = snap.data();
+    return {
+      firmaBase64: (data.firmaBase64 as string) ?? null,
+      nombreAclaracion: (data.nombreAclaracion as string) ?? null,
+    };
+  },
+
   async upsertOnLogin(user: { uid: string; email: string; displayName: string; photoURL: string | null }): Promise<UsuarioAGS> {
     const docRef = doc(db, 'usuarios', user.uid);
     const existing = await getDoc(docRef);

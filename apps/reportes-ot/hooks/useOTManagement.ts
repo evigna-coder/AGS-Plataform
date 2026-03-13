@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { auth } from '../services/authService';
 import { FirebaseService } from '../services/firebaseService';
 import { Part } from '../types';
 import { uid, incrementSuffix, findNextAvailableOT } from '../services/utils';
@@ -112,6 +113,21 @@ export const useOTManagement = (
     setInstrumentosSeleccionados
   } = setters;
 
+  /** Pre-carga la firma del usuario autenticado si el reporte no tiene firma */
+  const prefillFirma = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser?.uid) return;
+      const firma = await firebase.getUserFirma(currentUser.uid);
+      if (firma) {
+        setSignatureEngineer(firma.firmaBase64);
+        setAclaracionEspecialista(firma.nombreAclaracion);
+      }
+    } catch (e) {
+      console.warn('No se pudo pre-cargar firma del ingeniero:', e);
+    }
+  };
+
   // Cargar OT desde Firebase
   const loadOT = async (otValue: string) => {
     const v = otValue.trim();
@@ -198,6 +214,11 @@ export const useOTManagement = (
         setClientConfirmed(loadedStatus === 'FINALIZADO');
         hasUserInteracted.current = true;
         console.log("✅ OT cargada desde Firebase:", v);
+
+        // Pre-cargar firma del ingeniero si el reporte es BORRADOR y no tiene firma
+        if (loadedStatus === 'BORRADOR' && !data.signatureEngineer) {
+          prefillFirma();
+        }
       } else {
         // 🟡 NO EXISTE → mostrar modal de confirmación
         console.log("⚠️ OT no encontrada, solicitando confirmación...");
@@ -235,6 +256,9 @@ export const useOTManagement = (
     hasInitialized.current = true;
     hasUserInteracted.current = true;
     console.log("✅ Nueva OT creada:", v);
+
+    // Pre-cargar firma del ingeniero en nueva OT
+    prefillFirma();
   };
 
   // Nuevo reporte - limpia formulario
@@ -486,6 +510,9 @@ export const useOTManagement = (
       // Aún así habilitar autosave para que intente guardar después
       hasInitialized.current = true;
     }
+
+    // Pre-cargar firma del ingeniero en OT duplicada
+    prefillFirma();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return newOt; // Retornar la OT creada para mostrar el mensaje

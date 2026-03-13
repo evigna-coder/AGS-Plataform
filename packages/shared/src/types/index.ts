@@ -1993,6 +1993,10 @@ export interface UsuarioAGS {
   photoURL: string | null;
   role: UserRole | null;
   status: UserStatus;
+  /** Firma digital del usuario (base64 PNG dataUrl) */
+  firmaBase64?: string | null;
+  /** Nombre/aclaración que aparece debajo de la firma en reportes */
+  nombreAclaracion?: string | null;
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string;

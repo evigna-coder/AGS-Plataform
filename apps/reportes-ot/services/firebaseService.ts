@@ -388,6 +388,26 @@ export class FirebaseService {
     await deleteDoc(doc(db, 'adjuntos', adjuntoId));
   }
 
+  /**
+   * Obtiene la firma guardada del usuario autenticado desde /usuarios/{uid}.
+   * Devuelve { firmaBase64, nombreAclaracion } o null si no tiene firma.
+   */
+  async getUserFirma(uid: string): Promise<{ firmaBase64: string; nombreAclaracion: string } | null> {
+    if (!uid) return null;
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', uid));
+      if (!snap.exists()) return null;
+      const data = snap.data();
+      const firma = data.firmaBase64 as string | undefined;
+      const nombre = data.nombreAclaracion as string | undefined;
+      if (!firma) return null;
+      return { firmaBase64: firma, nombreAclaracion: nombre || data.displayName || '' };
+    } catch (e) {
+      console.warn('No se pudo obtener firma del usuario:', e);
+      return null;
+    }
+  }
+
   /** Descarga un archivo de Storage como Blob usando el SDK (sin CORS issues). */
   async downloadStorageBlob(url: string): Promise<Blob> {
     // Extraer el path del archivo de la URL de Firebase Storage
