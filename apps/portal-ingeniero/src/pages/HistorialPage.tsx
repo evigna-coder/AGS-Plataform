@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
 import { OTStatusBadge } from '../components/ordenes-trabajo/OTStatusBadge';
-import { otService } from '../services/firebaseService';
+import { otService, type WorkOrderWithPdf } from '../services/firebaseService';
 import { REPORTES_OT_URL } from '../utils/constants';
-import type { WorkOrder } from '@ags/shared';
 
 type StatusFilter = 'all' | 'BORRADOR' | 'FINALIZADO';
 
@@ -20,8 +19,13 @@ function fmt(dateStr?: string) {
   catch { return dateStr; }
 }
 
-const openPDF = (otNum: string) => {
-  window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(otNum)}&share=true`, '_blank');
+/** Abre el PDF directamente si hay URL en Storage, sino abre reportes-ot */
+const openPDF = (ot: WorkOrderWithPdf) => {
+  if (ot.pdfUrl) {
+    window.open(ot.pdfUrl, '_blank');
+  } else {
+    window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(ot.otNumber)}`, '_blank');
+  }
 };
 
 const openReport = (otNum: string) => {
@@ -29,7 +33,7 @@ const openReport = (otNum: string) => {
 };
 
 export default function HistorialPage() {
-  const [ots, setOts] = useState<WorkOrder[]>([]);
+  const [ots, setOts] = useState<WorkOrderWithPdf[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -146,7 +150,7 @@ export default function HistorialPage() {
                         <div className="flex items-center justify-end gap-1">
                           {ot.status === 'FINALIZADO' ? (
                             <button
-                              onClick={() => openPDF(ot.otNumber)}
+                              onClick={() => openPDF(ot)}
                               className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50"
                             >
                               Ver PDF
@@ -180,7 +184,7 @@ export default function HistorialPage() {
   );
 }
 
-function MobileOTCard({ ot }: { ot: WorkOrder }) {
+function MobileOTCard({ ot }: { ot: WorkOrderWithPdf }) {
   const isFinalizado = ot.status === 'FINALIZADO';
 
   return (
@@ -221,7 +225,7 @@ function MobileOTCard({ ot }: { ot: WorkOrder }) {
       <div className="mt-2">
         {isFinalizado ? (
           <button
-            onClick={() => openPDF(ot.otNumber)}
+            onClick={() => openPDF(ot)}
             className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

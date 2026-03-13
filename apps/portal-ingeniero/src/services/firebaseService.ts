@@ -202,21 +202,25 @@ export const leadsService = {
   },
 };
 
-function toOT(id: string, data: Record<string, unknown>): WorkOrder {
+function toOT(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
   const raw = {
     ...data,
     id,
+    pdfUrl: (data['pdfUrl'] as string) ?? null,
     updatedAt: (data['updatedAt'] as { toDate?: () => Date } | null)?.toDate?.()?.toISOString?.() ?? (data['updatedAt'] as string) ?? '',
     createdAt: (data['createdAt'] as { toDate?: () => Date } | null)?.toDate?.()?.toISOString?.() ?? (data['createdAt'] as string) ?? '',
   };
-  return raw as unknown as WorkOrder;
+  return raw as unknown as WorkOrderWithPdf;
 }
 
 // =============================================
 // --- OTs ---
 // =============================================
 
-function reporteToWorkOrder(id: string, data: Record<string, unknown>): WorkOrder {
+/** WorkOrder extendido con pdfUrl de reportes finalizados */
+export type WorkOrderWithPdf = WorkOrder & { pdfUrl?: string | null };
+
+function reporteToWorkOrder(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
   return {
     id,
     otNumber: (data.otNumber as string) ?? id,
@@ -237,13 +241,14 @@ function reporteToWorkOrder(id: string, data: Record<string, unknown>): WorkOrde
     budgets: (data.budgets as string[]) ?? [],
     ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
     ingenieroAsignadoId: (data.ingenieroAsignadoId as string) ?? null,
+    pdfUrl: (data.pdfUrl as string) ?? null,
     updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.updatedAt as string) ?? '',
     createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.createdAt as string) ?? '',
-  } as unknown as WorkOrder;
+  } as unknown as WorkOrderWithPdf;
 }
 
 /** Lee de colección 'reportes' (creados desde reportes-ot) y los mapea a WorkOrder */
-async function getReportesAsOTs(statusFilter?: string): Promise<WorkOrder[]> {
+async function getReportesAsOTs(statusFilter?: string): Promise<WorkOrderWithPdf[]> {
   try {
     const constraints: QueryConstraint[] = [];
     if (statusFilter) constraints.push(where('status', '==', statusFilter));
@@ -258,9 +263,9 @@ async function getReportesAsOTs(statusFilter?: string): Promise<WorkOrder[]> {
 
 export const otService = {
   /** Trae OTs de ambas colecciones: ordenes_trabajo (sistema-modular) + reportes (reportes-ot), deduplicadas por otNumber */
-  async getAll(filters?: { ingenieroId?: string; status?: string }): Promise<WorkOrder[]> {
+  async getAll(filters?: { ingenieroId?: string; status?: string }): Promise<WorkOrderWithPdf[]> {
     // 1. OTs de ordenes_trabajo (sistema-modular)
-    let fromOT: WorkOrder[] = [];
+    let fromOT: WorkOrderWithPdf[] = [];
     try {
       const constraints: QueryConstraint[] = [];
       if (filters?.ingenieroId) constraints.push(where('ingenieroAsignadoId', '==', filters.ingenieroId));
