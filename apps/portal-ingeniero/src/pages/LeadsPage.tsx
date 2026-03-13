@@ -8,11 +8,13 @@ import CrearLeadModal from '../components/leads/CrearLeadModal';
 import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 import { useLeadList } from '../hooks/useLeadList';
+import { useAuth } from '../contexts/AuthContext';
 import type { Lead, LeadEstado } from '@ags/shared';
 import {
   LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
   LEAD_AREA_LABELS, LEAD_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
+  canUserModifyLead,
 } from '@ags/shared';
 
 const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
@@ -26,6 +28,7 @@ const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
 
 export default function LeadsPage() {
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const { leads, loading, search, setSearch, estadoFilter, setEstadoFilter, misLeads, setMisLeads, refresh } = useLeadList();
   const [showCrear, setShowCrear] = useState(false);
   const [derivarLead, setDerivarLead] = useState<Lead | null>(null);
@@ -88,10 +91,10 @@ export default function LeadsPage() {
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Razón Social</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripción</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripción</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Área</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Asignado</th>
@@ -102,6 +105,7 @@ export default function LeadsPage() {
               <tbody className="divide-y divide-slate-100">
                 {leads.map(lead => {
                   const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
+                  const canModify = usuario ? canUserModifyLead(lead, usuario) : false;
                   return (
                     <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-3 py-2">
@@ -116,14 +120,14 @@ export default function LeadsPage() {
                       <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[120px]" title={lead.contacto}>
                         {lead.contacto}
                       </td>
-                      <td className="px-3 py-2 text-[10px] text-slate-400 truncate max-w-[160px] italic" title={lead.descripcion || lead.motivoContacto || ''}>
-                        {(lead.descripcion || lead.motivoContacto)?.slice(0, 50) || '—'}
-                        {(lead.descripcion || lead.motivoContacto || '').length > 50 ? '...' : ''}
-                      </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                           {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                         </span>
+                      </td>
+                      <td className="px-3 py-2 text-[10px] text-slate-400 truncate max-w-[160px] italic" title={lead.descripcion || lead.motivoContacto || ''}>
+                        {(lead.descripcion || lead.motivoContacto)?.slice(0, 50) || '—'}
+                        {(lead.descripcion || lead.motivoContacto || '').length > 50 ? '...' : ''}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         {lead.areaActual ? (
@@ -145,7 +149,7 @@ export default function LeadsPage() {
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          {!isClosed && (
+                          {!isClosed && canModify && (
                             <>
                               <button
                                 onClick={() => setDerivarLead(lead)}

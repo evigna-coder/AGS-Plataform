@@ -9,7 +9,7 @@ import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 import { useLeadDetail } from '../hooks/useLeadDetail';
 import { useAuth } from '../contexts/AuthContext';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, canUserModifyLead } from '@ags/shared';
 import type { Posta } from '@ags/shared';
 import { leadsService } from '../services/firebaseService';
 
@@ -41,6 +41,7 @@ export default function LeadDetailPage() {
   const estadoColor = LEAD_ESTADO_COLORS[lead.estado] ?? 'bg-slate-100 text-slate-600';
   const motivoColor = MOTIVO_LLAMADO_COLORS[lead.motivoLlamado] ?? 'bg-slate-100 text-slate-600';
   const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
+  const canModify = usuario ? canUserModifyLead(lead, usuario) : false;
 
   const handleCompletarAccion = async () => {
     if (!lead.accionPendiente || !usuario) return;
@@ -100,7 +101,7 @@ export default function LeadDetailPage() {
         </Card>
 
         {/* Acción pendiente */}
-        {lead.accionPendiente && !isClosed && (
+        {lead.accionPendiente && !isClosed && canModify && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
             <p className="text-[11px] font-medium text-amber-600 mb-0.5">Acción pendiente</p>
             <p className="text-xs text-amber-800 font-medium">{lead.accionPendiente}</p>
@@ -109,7 +110,7 @@ export default function LeadDetailPage() {
         )}
 
         {/* Actions */}
-        {!isClosed && (
+        {!isClosed && canModify && (
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowDerivar(true)}>
               Derivar

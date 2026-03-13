@@ -378,6 +378,39 @@ export const LEAD_AREA_GROUPS: { label: string; areas: LeadArea[] }[] = [
   { label: 'Administración', areas: ['facturacion', 'pago_proveedores'] },
 ];
 
+/** Mapeo de UserRole → áreas de lead que ese rol puede gestionar */
+export const ROLE_LEAD_AREAS: Record<UserRole, LeadArea[]> = {
+  admin: [], // admin tiene acceso total, no necesita mapeo
+  admin_soporte: ['presupuesto_ventas', 'agenda_coordinacion', 'materiales_comex', 'ingeniero_soporte'],
+  ingeniero_soporte: ['ingeniero_soporte'],
+  administracion: ['facturacion', 'pago_proveedores'],
+};
+
+/**
+ * Determina si un usuario puede modificar/derivar un lead.
+ * Reglas:
+ * 1. Admin siempre puede.
+ * 2. Si el lead está asignado a un usuario específico, solo ese usuario puede.
+ * 3. Si el lead tiene área pero no usuario asignado, cualquier usuario del sector puede.
+ * 4. Si el lead no tiene ni usuario ni área, cualquiera puede (lead nuevo sin asignar).
+ */
+export function canUserModifyLead(
+  lead: { asignadoA: string | null; areaActual?: LeadArea | null },
+  user: { id: string; role: UserRole | null },
+): boolean {
+  // Admin siempre puede
+  if (user.role === 'admin') return true;
+  // Si está asignado a un usuario específico, solo ese usuario
+  if (lead.asignadoA) return lead.asignadoA === user.id;
+  // Si tiene área pero no usuario, verificar si el rol del usuario cubre esa área
+  if (lead.areaActual && user.role) {
+    const areasDelRol = ROLE_LEAD_AREAS[user.role] ?? [];
+    return areasDelRol.includes(lead.areaActual);
+  }
+  // Sin asignar a nadie — cualquiera puede
+  return true;
+}
+
 // --- Estados del Lead ---
 export type LeadEstado =
   | 'nuevo'
