@@ -3,12 +3,12 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Spinner } from './components/ui/Spinner';
 import AppShell from './components/layout/AppShell';
 import LoginPage from './pages/LoginPage';
-import ReportesPage from './pages/ReportesPage';
 import OTListPage from './pages/OTListPage';
 import OTDetailPage from './pages/OTDetailPage';
 import AgendaPage from './pages/AgendaPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
+import HistorialPage from './pages/HistorialPage';
 import PerfilPage from './pages/PerfilPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 
@@ -62,15 +62,15 @@ function PrivateApp() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/reportes" replace />} />
-        <Route path="reportes" element={<ReportesPage />} />
+        <Route index element={<Navigate to="/ordenes-trabajo" replace />} />
         <Route path="ordenes-trabajo" element={<OTListPage />} />
         <Route path="ordenes-trabajo/:otNumber" element={<OTDetailPage />} />
+        <Route path="historial" element={<HistorialPage />} />
         <Route path="agenda" element={<AgendaPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="leads/:leadId" element={<LeadDetailPage />} />
         <Route path="perfil" element={<PerfilPage />} />
-        <Route path="*" element={<Navigate to="/reportes" replace />} />
+        <Route path="*" element={<Navigate to="/ordenes-trabajo" replace />} />
       </Route>
     </Routes>
   );

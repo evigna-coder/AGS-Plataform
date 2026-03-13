@@ -3,8 +3,8 @@ import { signOut } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
 
 const NAV_ITEMS = [
-  { to: '/reportes', label: 'Reportes' },
-  { to: '/ordenes-trabajo', label: 'Órdenes de Trabajo' },
+  { to: '/ordenes-trabajo', label: 'Mis OTs' },
+  { to: '/historial', label: 'Historial' },
   { to: '/agenda', label: 'Agenda' },
   { to: '/leads', label: 'Leads' },
   { to: '/perfil', label: 'Perfil' },
