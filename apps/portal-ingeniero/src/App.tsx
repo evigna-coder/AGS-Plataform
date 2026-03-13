@@ -9,6 +9,7 @@ import AgendaPage from './pages/AgendaPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import HistorialPage from './pages/HistorialPage';
+import ReportesPage from './pages/ReportesPage';
 import PerfilPage from './pages/PerfilPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 
@@ -69,6 +70,7 @@ function PrivateApp() {
         <Route path="agenda" element={<AgendaPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="leads/:leadId" element={<LeadDetailPage />} />
+        <Route path="reportes" element={<ReportesPage />} />
         <Route path="perfil" element={<PerfilPage />} />
         <Route path="*" element={<Navigate to="/ordenes-trabajo" replace />} />
       </Route>

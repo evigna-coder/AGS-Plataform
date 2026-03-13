@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { WorkOrder } from '@ags/shared';
-import { otService } from '../services/firebaseService';
+import { otService, type WorkOrderWithPdf } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
 export type OTStatusFilter = 'all' | 'BORRADOR' | 'FINALIZADO';
 
 export function useOTList() {
   const { usuario } = useAuth();
-  const [ots, setOts] = useState<WorkOrder[]>([]);
+  const [ots, setOts] = useState<WorkOrderWithPdf[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<OTStatusFilter>('all');
   const [search, setSearch] = useState('');

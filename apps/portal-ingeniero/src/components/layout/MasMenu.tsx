@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 
 const MORE_ITEMS = [
+  { to: '/reportes', label: 'Reportes' },
   { to: '/perfil', label: 'Perfil' },
 ];
 

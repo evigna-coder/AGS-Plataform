@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/historial', label: 'Historial' },
   { to: '/agenda', label: 'Agenda' },
   { to: '/leads', label: 'Leads' },
+  { to: '/reportes', label: 'Reportes' },
   { to: '/perfil', label: 'Perfil' },
 ];
 
