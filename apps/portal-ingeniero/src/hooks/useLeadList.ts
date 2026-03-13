@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { leadsService } from '../services/firebaseService';
+import { leadsService, usuariosService } from '../services/firebaseService';
 import type { Lead, LeadEstado } from '@ags/shared';
 
 export function useLeadList() {
@@ -18,6 +18,19 @@ export function useLeadList() {
       if (estadoFilter) filters.estado = estadoFilter;
       if (misLeads && usuario?.id) filters.asignadoA = usuario.id;
       const data = await leadsService.getAll(filters);
+
+      // Resolve asignadoNombre for leads that only have asignadoA (legacy data)
+      const needsResolve = data.some(l => l.asignadoA && !l.asignadoNombre);
+      if (needsResolve) {
+        const allUsers = await usuariosService.getIngenieros();
+        const userMap = new Map(allUsers.map(u => [u.id, u.displayName]));
+        for (const l of data) {
+          if (l.asignadoA && !l.asignadoNombre) {
+            l.asignadoNombre = userMap.get(l.asignadoA) || null;
+          }
+        }
+      }
+
       setLeads(data);
     } finally {
       setLoading(false);
