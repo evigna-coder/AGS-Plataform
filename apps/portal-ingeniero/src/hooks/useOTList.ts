@@ -11,7 +11,7 @@ export function useOTList() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<OTStatusFilter>('all');
   const [search, setSearch] = useState('');
-  const [misOTs, setMisOTs] = useState(false);
+  const [misOTs, setMisOTs] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
