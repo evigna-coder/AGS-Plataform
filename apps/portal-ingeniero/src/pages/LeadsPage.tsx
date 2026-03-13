@@ -85,10 +85,12 @@ export default function LeadsPage() {
           <EmptyState message="No se encontraron leads" />
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Razón Social</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripción</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Área</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
@@ -104,17 +106,18 @@ export default function LeadsPage() {
                       <td className="px-3 py-2">
                         <button
                           onClick={() => navigate(`/leads/${lead.id}`)}
-                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 text-left truncate max-w-[180px] block"
+                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 text-left truncate max-w-[160px] block"
                           title={lead.razonSocial}
                         >
                           {lead.razonSocial}
                         </button>
-                        <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{lead.contacto}</p>
-                        {(lead.descripcion || lead.motivoContacto) && (
-                          <p className="text-[10px] text-slate-400 truncate max-w-[180px] italic">
-                            {(lead.descripcion || lead.motivoContacto)!.slice(0, 60)}{(lead.descripcion || lead.motivoContacto)!.length > 60 ? '...' : ''}
-                          </p>
-                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[120px]" title={lead.contacto}>
+                        {lead.contacto}
+                      </td>
+                      <td className="px-3 py-2 text-[10px] text-slate-400 truncate max-w-[160px] italic" title={lead.descripcion || lead.motivoContacto || ''}>
+                        {(lead.descripcion || lead.motivoContacto)?.slice(0, 50) || '—'}
+                        {(lead.descripcion || lead.motivoContacto || '').length > 50 ? '...' : ''}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
