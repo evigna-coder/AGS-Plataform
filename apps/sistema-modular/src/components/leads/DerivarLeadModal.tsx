@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { Lead, LeadEstado, LeadArea, UsuarioAGS, Posta } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
 import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_ESTADO_ORDER } from '@ags/shared';
-import { leadsService, usuariosService } from '../../services/firebaseService';
+import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -15,6 +15,7 @@ interface DerivarLeadModalProps {
 export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalProps) => {
   const { usuario } = useAuth();
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
+  const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>(lead.estado);
   const [areaDestino, setAreaDestino] = useState<LeadArea | ''>(lead.areaActual || '');
@@ -22,12 +23,28 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const [comentario, setComentario] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { usuariosService.getAll().then(u => setUsuarios(u.filter(x => x.status === 'activo'))); }, []);
+  useEffect(() => {
+    usuariosService.getAll().then(u => setUsuarios(u.filter(x => x.status === 'activo')));
+    ingenierosService.getAll().then(setIngenieros);
+  }, []);
 
-  const destinatario = usuarios.find(u => u.id === destinatarioId);
+  // Reset destinatario when area changes
+  useEffect(() => { setDestinatarioId(''); }, [areaDestino]);
+
+  const isIngeniero = areaDestino === 'ingeniero_soporte';
+  const personList = isIngeniero
+    ? ingenieros.map(i => ({ id: i.id, label: i.nombre }))
+    : usuarios.map(u => ({ id: u.id, label: `${u.displayName} (${u.role})` }));
+
+  const getDestinatarioNombre = () => {
+    if (!destinatarioId) return '';
+    if (isIngeniero) return ingenieros.find(i => i.id === destinatarioId)?.nombre ?? '';
+    return usuarios.find(u => u.id === destinatarioId)?.displayName ?? '';
+  };
 
   const handleSubmit = async () => {
     if (!usuario) return;
+    const destNombre = getDestinatarioNombre();
     setSaving(true);
     try {
       const posta: Posta = {
@@ -36,14 +53,14 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         deUsuarioId: usuario.id,
         deUsuarioNombre: usuario.displayName,
         aUsuarioId: destinatarioId || '',
-        aUsuarioNombre: destinatario?.displayName || '',
+        aUsuarioNombre: destNombre,
         aArea: areaDestino || undefined,
         comentario: comentario.trim() || undefined,
         estadoAnterior: lead.estado,
         estadoNuevo: nuevoEstado,
         accionRequerida: accionRequerida.trim() || undefined,
       };
-      await leadsService.derivar(lead.id, posta, destinatarioId, areaDestino || null, accionRequerida.trim() || null);
+      await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null);
       onDerived();
     } catch {
       alert('Error al derivar el lead');
@@ -75,11 +92,13 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         </div>
 
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Derivar a (usuario)</label>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">
+            Derivar a ({isIngeniero ? 'ingeniero' : 'usuario'})
+          </label>
           <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">Sin asignar usuario específico</option>
-            {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.role})</option>)}
+            <option value="">Sin asignar {isIngeniero ? 'ingeniero' : 'usuario'} específico</option>
+            {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </div>
 

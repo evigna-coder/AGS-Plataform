@@ -89,6 +89,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         estado: 'nuevo',
         postas: [],
         asignadoA: usuario?.id ?? null,
+        asignadoNombre: usuario?.displayName ?? null,
         derivadoPor: null,
         areaActual: areaActual || null,
         accionPendiente: null,

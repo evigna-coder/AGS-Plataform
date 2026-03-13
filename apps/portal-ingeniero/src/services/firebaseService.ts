@@ -99,6 +99,19 @@ export const clientesService = {
 };
 
 // =============================================
+// --- Ingenieros — solo lectura ---
+// =============================================
+export const ingenierosService = {
+  async getAll(): Promise<{ id: string; nombre: string }[]> {
+    const q = query(collection(db, 'ingenieros'), where('activo', '==', true));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => ({ id: d.id, nombre: (d.data().nombre as string) ?? '' }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  },
+};
+
+// =============================================
 // --- Sistemas (equipos) — solo lectura ---
 // =============================================
 export const sistemasService = {
@@ -120,6 +133,16 @@ export const sistemasService = {
 // --- Leads ---
 // =============================================
 
+function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
+  if (!raw) return null;
+  const migration: Record<string, LeadArea> = {
+    presupuesto: 'presupuesto_ventas',
+    contrato: 'presupuesto_ventas',
+    venta_insumos: 'presupuesto_ventas',
+  };
+  return migration[raw] || (raw as LeadArea);
+}
+
 function parseLead(id: string, data: Record<string, unknown>): Lead {
   return {
     id,
@@ -136,8 +159,9 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
     estado: (data.estado as LeadEstado) ?? 'nuevo',
     postas: (data.postas as Posta[]) ?? [],
     asignadoA: (data.asignadoA as string) ?? null,
+    asignadoNombre: (data.asignadoNombre as string) ?? null,
     derivadoPor: (data.derivadoPor as string) ?? null,
-    areaActual: (data.areaActual as LeadArea) ?? null,
+    areaActual: migrateLeadArea(data.areaActual as string),
     accionPendiente: (data.accionPendiente as string) ?? null,
     presupuestosIds: (data.presupuestosIds as string[]) ?? [],
     otIds: (data.otIds as string[]) ?? [],
@@ -188,10 +212,11 @@ export const leadsService = {
     });
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, area?: LeadArea | null, accionRequerida?: string | null): Promise<void> {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null): Promise<void> {
     const update: Record<string, any> = {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
       asignadoA: nuevoAsignadoA || null,
+      asignadoNombre: nuevoAsignadoNombre || null,
       derivadoPor: posta.deUsuarioId,
       estado: posta.estadoNuevo,
       ...getUpdateTrace(),

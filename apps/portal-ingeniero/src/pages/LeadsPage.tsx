@@ -94,6 +94,7 @@ export default function LeadsPage() {
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Área</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Asignado</th>
                   <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
                   <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
@@ -135,6 +136,9 @@ export default function LeadsPage() {
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
                           {LEAD_ESTADO_LABELS[lead.estado]}
                         </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[100px] whitespace-nowrap" title={lead.asignadoNombre || ''}>
+                        {lead.asignadoNombre || <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">
                         {formatDate(lead.createdAt)}

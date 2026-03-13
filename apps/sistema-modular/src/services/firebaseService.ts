@@ -110,6 +110,16 @@ function migrateLeadEstado(raw: string): LeadEstado {
   return migration[raw] || (raw as LeadEstado) || 'nuevo';
 }
 
+function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
+  if (!raw) return null;
+  const migration: Record<string, LeadArea> = {
+    presupuesto: 'presupuesto_ventas',
+    contrato: 'presupuesto_ventas',
+    venta_insumos: 'presupuesto_ventas',
+  };
+  return migration[raw] || (raw as LeadArea);
+}
+
 function parseLeadDoc(d: { id: string; data: () => any }): Lead {
   const data = d.data();
   return {
@@ -127,8 +137,9 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     estado: migrateLeadEstado(data.estado ?? 'nuevo'),
     postas: data.postas ?? [],
     asignadoA: data.asignadoA ?? null,
+    asignadoNombre: data.asignadoNombre ?? null,
     derivadoPor: data.derivadoPor ?? null,
-    areaActual: data.areaActual ?? null,
+    areaActual: migrateLeadArea(data.areaActual),
     accionPendiente: data.accionPendiente ?? null,
     presupuestosIds: data.presupuestosIds ?? [],
     otIds: data.otIds ?? [],
@@ -184,10 +195,11 @@ export const leadsService = {
     logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload as any });
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, area?: LeadArea | null, accionRequerida?: string | null) {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null) {
     const update: Record<string, any> = {
       postas: arrayUnion(deepCleanForFirestore(posta)),
       asignadoA: nuevoAsignadoA || null,
+      asignadoNombre: nuevoAsignadoNombre || null,
       derivadoPor: posta.deUsuarioId,
       estado: posta.estadoNuevo,
       ...getUpdateTrace(),

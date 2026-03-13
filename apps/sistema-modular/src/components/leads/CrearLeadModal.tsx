@@ -110,6 +110,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         estado: 'nuevo',
         postas: initialPosta ? [initialPosta] : [],
         asignadoA: asignadoA || null,
+        asignadoNombre: usuarios.find(u => u.id === asignadoA)?.displayName || null,
         derivadoPor: null,
         areaActual: areaActual || null,
         accionPendiente: accionPendiente.trim() || null,

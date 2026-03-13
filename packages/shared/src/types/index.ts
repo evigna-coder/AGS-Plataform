@@ -347,39 +347,34 @@ export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
 
 // --- Áreas destino (Leads) ---
 export type LeadArea =
-  | 'presupuesto'
-  | 'contrato'
-  | 'venta_insumos'
+  | 'presupuesto_ventas'
   | 'agenda_coordinacion'
   | 'materiales_comex'
+  | 'ingeniero_soporte'
   | 'facturacion'
   | 'pago_proveedores';
 
 export const LEAD_AREA_LABELS: Record<LeadArea, string> = {
-  presupuesto: 'Presupuesto',
-  contrato: 'Contrato',
-  venta_insumos: 'Venta de insumos',
+  presupuesto_ventas: 'Presupuestos y ventas',
   agenda_coordinacion: 'Agenda y coordinación',
   materiales_comex: 'Materiales y comercio exterior',
+  ingeniero_soporte: 'Ingeniero de soporte',
   facturacion: 'Facturación',
   pago_proveedores: 'Pago a proveedores',
 };
 
 export const LEAD_AREA_COLORS: Record<LeadArea, string> = {
-  presupuesto: 'bg-indigo-100 text-indigo-700',
-  contrato: 'bg-violet-100 text-violet-700',
-  venta_insumos: 'bg-orange-100 text-orange-700',
+  presupuesto_ventas: 'bg-indigo-100 text-indigo-700',
   agenda_coordinacion: 'bg-cyan-100 text-cyan-700',
   materiales_comex: 'bg-amber-100 text-amber-700',
+  ingeniero_soporte: 'bg-teal-100 text-teal-700',
   facturacion: 'bg-emerald-100 text-emerald-700',
   pago_proveedores: 'bg-rose-100 text-rose-700',
 };
 
 /** Agrupación visual de áreas para selectores */
 export const LEAD_AREA_GROUPS: { label: string; areas: LeadArea[] }[] = [
-  { label: 'Soporte', areas: ['presupuesto', 'contrato', 'venta_insumos'] },
-  { label: 'Agenda', areas: ['agenda_coordinacion'] },
-  { label: 'Materiales', areas: ['materiales_comex'] },
+  { label: 'Soporte', areas: ['presupuesto_ventas', 'agenda_coordinacion', 'materiales_comex', 'ingeniero_soporte'] },
   { label: 'Administración', areas: ['facturacion', 'pago_proveedores'] },
 ];
 
@@ -560,6 +555,7 @@ export interface Lead {
   estado: LeadEstado;
   postas: Posta[];
   asignadoA: string | null;
+  asignadoNombre?: string | null;
   derivadoPor: string | null;
   areaActual?: LeadArea | null;        // área donde está el lead actualmente
   accionPendiente?: string | null;     // qué falta hacer (derivado de última posta)

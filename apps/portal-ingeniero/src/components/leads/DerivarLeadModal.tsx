@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
-import { leadsService, usuariosService } from '../../services/firebaseService';
+import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import type { Lead, Posta, LeadEstado, LeadArea } from '@ags/shared';
 import { LEAD_ESTADO_LABELS, LEAD_ESTADO_ORDER, LEAD_AREA_LABELS, LEAD_AREA_GROUPS } from '@ags/shared';
 
@@ -15,6 +15,7 @@ interface Props {
 export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
   const { usuario } = useAuth();
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
+  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>(lead.estado);
   const [areaDestino, setAreaDestino] = useState<LeadArea | ''>(lead.areaActual || '');
@@ -24,10 +25,25 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
 
   useEffect(() => {
     usuariosService.getIngenieros().then(setUsuarios);
+    ingenierosService.getAll().then(setIngenieros);
   }, []);
 
+  // Reset destinatario when area changes
+  useEffect(() => { setDestinatarioId(''); }, [areaDestino]);
+
+  const isIngeniero = areaDestino === 'ingeniero_soporte';
+  const personList = isIngeniero
+    ? ingenieros.map(i => ({ id: i.id, label: i.nombre }))
+    : usuarios.map(u => ({ id: u.id, label: u.displayName }));
+
+  const getDestinatarioNombre = () => {
+    if (!destinatarioId) return '';
+    if (isIngeniero) return ingenieros.find(i => i.id === destinatarioId)?.nombre ?? '';
+    return usuarios.find(u => u.id === destinatarioId)?.displayName ?? '';
+  };
+
   const handleSubmit = async () => {
-    const destUser = usuarios.find(u => u.id === destinatarioId);
+    const destNombre = getDestinatarioNombre();
     setSaving(true);
     try {
       const posta: Posta = {
@@ -36,14 +52,14 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
         deUsuarioId: usuario?.id ?? '',
         deUsuarioNombre: usuario?.displayName ?? '',
         aUsuarioId: destinatarioId || '',
-        aUsuarioNombre: destUser?.displayName ?? '',
+        aUsuarioNombre: destNombre,
         aArea: areaDestino || undefined,
         comentario: comentario.trim() || undefined,
         estadoAnterior: lead.estado,
         estadoNuevo: nuevoEstado,
         accionRequerida: accionRequerida.trim() || undefined,
       };
-      await leadsService.derivar(lead.id, posta, destinatarioId, areaDestino || null, accionRequerida.trim() || null);
+      await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null);
       onSuccess();
       onClose();
     } finally {
@@ -70,14 +86,16 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
           </select>
         </div>
         <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Derivar a (usuario)</label>
+          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">
+            Derivar a ({isIngeniero ? 'ingeniero' : 'usuario'})
+          </label>
           <select
             value={destinatarioId}
             onChange={e => setDestinatarioId(e.target.value)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">Sin asignar usuario</option>
-            {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            <option value="">Sin asignar {isIngeniero ? 'ingeniero' : 'usuario'}</option>
+            {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </div>
         <div>
