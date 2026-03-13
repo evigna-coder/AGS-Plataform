@@ -215,22 +215,92 @@ function toOT(id: string, data: Record<string, unknown>): WorkOrder {
 // =============================================
 // --- OTs ---
 // =============================================
+
+/** Lee de colección 'reportes' (creados desde reportes-ot) y los mapea a WorkOrder */
+async function getReportesAsOTs(statusFilter?: string): Promise<WorkOrder[]> {
+  const constraints: QueryConstraint[] = [];
+  if (statusFilter) constraints.push(where('status', '==', statusFilter));
+  const q = query(collection(db, 'reportes'), ...constraints);
+  const snap = await getDocs(q);
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      otNumber: (data.otNumber as string) ?? d.id,
+      status: (data.status as string) ?? 'BORRADOR',
+      razonSocial: (data.razonSocial as string) ?? '',
+      contacto: (data.contacto as string) ?? '',
+      direccion: (data.direccion as string) ?? '',
+      localidad: (data.localidad as string) ?? '',
+      provincia: (data.provincia as string) ?? '',
+      sistema: (data.sistema as string) ?? '',
+      moduloModelo: (data.moduloModelo as string) ?? '',
+      moduloDescripcion: (data.moduloDescripcion as string) ?? '',
+      moduloSerie: (data.moduloSerie as string) ?? '',
+      codigoInternoCliente: (data.codigoInternoCliente as string) ?? '',
+      tipoServicio: (data.tipoServicio as string) ?? '',
+      fechaInicio: (data.fechaInicio as string) ?? '',
+      fechaFin: (data.fechaFin as string) ?? '',
+      budgets: (data.budgets as string[]) ?? [],
+      ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
+      ingenieroAsignadoId: (data.ingenieroAsignadoId as string) ?? null,
+      updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.updatedAt as string) ?? '',
+      createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.createdAt as string) ?? '',
+    } as unknown as WorkOrder;
+  });
+}
+
 export const otService = {
+  /** Trae OTs de ambas colecciones: ordenes_trabajo (sistema-modular) + reportes (reportes-ot), deduplicadas por otNumber */
   async getAll(filters?: { ingenieroId?: string; status?: string }): Promise<WorkOrder[]> {
+    // 1. OTs de ordenes_trabajo (sistema-modular)
     const constraints: QueryConstraint[] = [];
     if (filters?.ingenieroId) constraints.push(where('ingenieroAsignadoId', '==', filters.ingenieroId));
     if (filters?.status) constraints.push(where('status', '==', filters.status));
     const q = query(collection(db, 'ordenes_trabajo'), ...constraints);
     const snap = await getDocs(q);
-    return snap.docs
-      .map(d => toOT(d.id, d.data() as Record<string, unknown>))
-      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    const fromOT = snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
+
+    // 2. Reportes de reportes-ot (sin filtro de ingeniero, ya que no lo tienen)
+    const fromReportes = filters?.ingenieroId ? [] : await getReportesAsOTs(filters?.status);
+
+    // 3. Merge: ordenes_trabajo tiene prioridad si hay duplicados por otNumber
+    const seen = new Set(fromOT.map(ot => ot.otNumber));
+    const merged = [...fromOT, ...fromReportes.filter(r => !seen.has(r.otNumber))];
+
+    return merged.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   },
 
   async getByOtNumber(otNumber: string): Promise<WorkOrder | null> {
-    const snap = await getDoc(doc(db, 'ordenes_trabajo', otNumber));
-    if (!snap.exists()) return null;
-    return toOT(snap.id, snap.data() as Record<string, unknown>);
+    // Buscar primero en ordenes_trabajo, luego en reportes
+    const otSnap = await getDoc(doc(db, 'ordenes_trabajo', otNumber));
+    if (otSnap.exists()) return toOT(otSnap.id, otSnap.data() as Record<string, unknown>);
+    const repSnap = await getDoc(doc(db, 'reportes', otNumber));
+    if (!repSnap.exists()) return null;
+    const data = repSnap.data();
+    return {
+      id: repSnap.id,
+      otNumber: (data.otNumber as string) ?? repSnap.id,
+      status: (data.status as string) ?? 'BORRADOR',
+      razonSocial: (data.razonSocial as string) ?? '',
+      contacto: (data.contacto as string) ?? '',
+      direccion: (data.direccion as string) ?? '',
+      localidad: (data.localidad as string) ?? '',
+      provincia: (data.provincia as string) ?? '',
+      sistema: (data.sistema as string) ?? '',
+      moduloModelo: (data.moduloModelo as string) ?? '',
+      moduloDescripcion: (data.moduloDescripcion as string) ?? '',
+      moduloSerie: (data.moduloSerie as string) ?? '',
+      codigoInternoCliente: (data.codigoInternoCliente as string) ?? '',
+      tipoServicio: (data.tipoServicio as string) ?? '',
+      fechaInicio: (data.fechaInicio as string) ?? '',
+      fechaFin: (data.fechaFin as string) ?? '',
+      budgets: (data.budgets as string[]) ?? [],
+      ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
+      ingenieroAsignadoId: (data.ingenieroAsignadoId as string) ?? null,
+      updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.updatedAt as string) ?? '',
+      createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.createdAt as string) ?? '',
+    } as unknown as WorkOrder;
   },
 
   async update(otNumber: string, data: Partial<WorkOrder>): Promise<void> {
