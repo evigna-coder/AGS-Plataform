@@ -110,6 +110,11 @@ export default function LeadsPage() {
                           {lead.razonSocial}
                         </button>
                         <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{lead.contacto}</p>
+                        {(lead.descripcion || lead.motivoContacto) && (
+                          <p className="text-[10px] text-slate-400 truncate max-w-[180px] italic">
+                            {(lead.descripcion || lead.motivoContacto)!.slice(0, 60)}{(lead.descripcion || lead.motivoContacto)!.length > 60 ? '...' : ''}
+                          </p>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
