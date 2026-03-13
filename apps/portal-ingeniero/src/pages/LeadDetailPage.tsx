@@ -8,11 +8,15 @@ import LeadTimeline from '../components/leads/LeadTimeline';
 import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 import { useLeadDetail } from '../hooks/useLeadDetail';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import { useAuth } from '../contexts/AuthContext';
+import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import type { Posta } from '@ags/shared';
+import { leadsService } from '../services/firebaseService';
 
 export default function LeadDetailPage() {
   const { leadId } = useParams<{ leadId: string }>();
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const { lead, loading, refresh } = useLeadDetail(leadId!);
   const [showDerivar, setShowDerivar] = useState(false);
   const [showFinalizar, setShowFinalizar] = useState(false);
@@ -36,7 +40,24 @@ export default function LeadDetailPage() {
 
   const estadoColor = LEAD_ESTADO_COLORS[lead.estado] ?? 'bg-slate-100 text-slate-600';
   const motivoColor = MOTIVO_LLAMADO_COLORS[lead.motivoLlamado] ?? 'bg-slate-100 text-slate-600';
-  const isClosed = lead.estado === 'finalizado' || lead.estado === 'perdido';
+  const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
+
+  const handleCompletarAccion = async () => {
+    if (!lead.accionPendiente || !usuario) return;
+    const posta: Posta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      deUsuarioId: usuario.id,
+      deUsuarioNombre: usuario.displayName,
+      aUsuarioId: usuario.id,
+      aUsuarioNombre: usuario.displayName,
+      comentario: `Acción completada: ${lead.accionPendiente}`,
+      estadoAnterior: lead.estado,
+      estadoNuevo: lead.estado,
+    };
+    await leadsService.completarAccion(lead.id, posta);
+    refresh();
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -55,6 +76,11 @@ export default function LeadDetailPage() {
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${motivoColor}`}>
             {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado] ?? lead.motivoLlamado}
           </span>
+          {lead.areaActual && (
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
+              {LEAD_AREA_LABELS[lead.areaActual]}
+            </span>
+          )}
           {lead.createdAt && (
             <span className="text-[10px] text-slate-400 ml-auto">
               {new Date(lead.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -72,6 +98,15 @@ export default function LeadDetailPage() {
             {lead.descripcion && <InfoRow label="Descripción" value={lead.descripcion} />}
           </div>
         </Card>
+
+        {/* Acción pendiente */}
+        {lead.accionPendiente && !isClosed && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <p className="text-[11px] font-medium text-amber-600 mb-0.5">Acción pendiente</p>
+            <p className="text-xs text-amber-800 font-medium">{lead.accionPendiente}</p>
+            <Button size="sm" className="mt-2" onClick={handleCompletarAccion}>Completar acción</Button>
+          </div>
+        )}
 
         {/* Actions */}
         {!isClosed && (

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Lead, LeadEstado, UsuarioAGS } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
 import { Card } from '../ui/Card';
 
 interface LeadSidebarProps {
@@ -32,6 +32,13 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, moduloNombre }: Le
           <InfoRow label="Responsable">
             <span className="text-xs font-medium text-slate-700">{responsable?.displayName || 'Sin asignar'}</span>
           </InfoRow>
+          {lead.areaActual && (
+            <InfoRow label="Área">
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
+                {LEAD_AREA_LABELS[lead.areaActual]}
+              </span>
+            </InfoRow>
+          )}
           <InfoRow label="Creado">
             <span className="text-xs text-slate-600">{new Date(lead.createdAt).toLocaleDateString('es-AR')}</span>
           </InfoRow>

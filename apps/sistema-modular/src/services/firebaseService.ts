@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, onSnapshot, arrayUnion } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca, Ingeniero, Proveedor, PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, FichaPropiedad, HistorialFicha, DerivacionProveedor, Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, PosicionArancelaria, RequerimientoCompra, Importacion, UsuarioAGS, UserRole, UserStatus, AgendaEntry, AgendaNota, PostaWorkflow, PostaHandoff, Lead, Posta, LeadEstado, MotivoLlamado } from '@ags/shared';
+import type { Cliente, ContactoCliente, ContactoEstablecimiento, CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema, Establecimiento, WorkOrder, TipoServicio, Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca, Ingeniero, Proveedor, PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, FichaPropiedad, HistorialFicha, DerivacionProveedor, Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner, PosicionArancelaria, RequerimientoCompra, Importacion, UsuarioAGS, UserRole, UserStatus, AgendaEntry, AgendaNota, PostaWorkflow, PostaHandoff, Lead, Posta, LeadEstado, LeadArea, MotivoLlamado } from '@ags/shared';
 import type { AuditAction } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
 
@@ -100,9 +100,12 @@ export function logAudit(params: {
 
 function migrateLeadEstado(raw: string): LeadEstado {
   const migration: Record<string, LeadEstado> = {
-    contactado: 'en_revision',
-    presupuestado: 'en_proceso',
+    contactado: 'pendiente_info',
+    en_revision: 'pendiente_info',
+    derivado: 'pendiente_info',
+    presupuestado: 'en_presupuesto',
     convertido: 'finalizado',
+    perdido: 'no_concretado',
   };
   return migration[raw] || (raw as LeadEstado) || 'nuevo';
 }
@@ -117,7 +120,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     contacto: data.contacto ?? '',
     email: data.email ?? '',
     telefono: data.telefono ?? '',
-    motivoLlamado: data.motivoLlamado ?? 'otros',
+    motivoLlamado: data.motivoLlamado ?? 'soporte',
     motivoContacto: data.motivoContacto ?? '',
     descripcion: data.descripcion ?? null,
     sistemaId: data.sistemaId ?? null,
@@ -125,6 +128,8 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     postas: data.postas ?? [],
     asignadoA: data.asignadoA ?? null,
     derivadoPor: data.derivadoPor ?? null,
+    areaActual: data.areaActual ?? null,
+    accionPendiente: data.accionPendiente ?? null,
     presupuestosIds: data.presupuestosIds ?? [],
     otIds: data.otIds ?? [],
     createdAt: data.createdAt?.toDate?.()?.toISOString() ?? '',
@@ -151,11 +156,12 @@ export const leadsService = {
     return docRef.id;
   },
 
-  async getAll(filters?: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado }) {
+  async getAll(filters?: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: LeadArea }) {
     const constraints: any[] = [];
     if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
     if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
     if (filters?.motivoLlamado) constraints.push(where('motivoLlamado', '==', filters.motivoLlamado));
+    if (filters?.areaActual) constraints.push(where('areaActual', '==', filters.areaActual));
     constraints.push(orderBy('createdAt', 'desc'));
     const q = query(collection(db, 'leads'), ...constraints);
     const snap = await getDocs(q);
@@ -178,16 +184,30 @@ export const leadsService = {
     logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload as any });
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string) {
-    await updateDoc(doc(db, 'leads', id), {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, area?: LeadArea | null, accionRequerida?: string | null) {
+    const update: Record<string, any> = {
       postas: arrayUnion(deepCleanForFirestore(posta)),
-      asignadoA: nuevoAsignadoA,
+      asignadoA: nuevoAsignadoA || null,
       derivadoPor: posta.deUsuarioId,
       estado: posta.estadoNuevo,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+    };
+    if (area !== undefined) update.areaActual = area || null;
+    if (accionRequerida !== undefined) update.accionPendiente = accionRequerida || null;
+    await updateDoc(doc(db, 'leads', id), update);
     logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } as any });
+  },
+
+  async completarAccion(id: string, posta: Posta) {
+    await updateDoc(doc(db, 'leads', id), {
+      postas: arrayUnion(deepCleanForFirestore(posta)),
+      accionPendiente: null,
+      estado: posta.estadoNuevo,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'completarAccion', posta } as any });
   },
 
   async finalizar(id: string, posta: Posta) {

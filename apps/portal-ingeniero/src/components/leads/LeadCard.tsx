@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Lead } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
 
 interface Props {
   lead: Lead;
@@ -23,6 +23,11 @@ export default function LeadCard({ lead }: Props) {
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoColor}`}>
           {LEAD_ESTADO_LABELS[lead.estado] ?? lead.estado}
         </span>
+        {lead.areaActual && (
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
+            {LEAD_AREA_LABELS[lead.areaActual]}
+          </span>
+        )}
         <span className="text-[10px] text-slate-400 ml-auto">{fecha}</span>
       </div>
       <p className="text-xs font-semibold text-slate-800 truncate">{lead.razonSocial}</p>

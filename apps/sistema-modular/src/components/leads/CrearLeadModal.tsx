@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { UsuarioAGS, MotivoLlamado, Cliente, Sistema, ModuloSistema } from '@ags/shared';
-import { MOTIVO_LLAMADO_LABELS } from '@ags/shared';
+import type { UsuarioAGS, MotivoLlamado, LeadArea, Cliente, Sistema, ModuloSistema } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -31,6 +31,8 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
   const [moduloId, setModuloId] = useState('');
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [asignadoA, setAsignadoA] = useState('');
+  const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
+  const [accionPendiente, setAccionPendiente] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -109,6 +111,8 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         postas: initialPosta ? [initialPosta] : [],
         asignadoA: asignadoA || null,
         derivadoPor: null,
+        areaActual: areaActual || null,
+        accionPendiente: accionPendiente.trim() || null,
         createdBy: usuario?.id,
         finalizadoAt: null,
         presupuestosIds: [],
@@ -181,12 +185,32 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         )}
 
         <div>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Área destino (opcional)</label>
+          <select value={areaActual} onChange={e => setAreaActual(e.target.value as LeadArea | '')}
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Sin área específica</option>
+            {LEAD_AREA_GROUPS.map(g => (
+              <optgroup key={g.label} label={g.label}>
+                {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Asignar a (opcional)</label>
           <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="">Sin asignar</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.role})</option>)}
           </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Acción pendiente (opcional)</label>
+          <input type="text" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Ej: Averiguar N° de parte, Confirmar disponibilidad..." />
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

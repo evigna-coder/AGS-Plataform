@@ -76,7 +76,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
 
   useEffect(() => {
     if (form.origenTipo === 'lead' && leadOptions.length === 0)
-      leadsService.getAll().then(leads => setLeadOptions(leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'perdido').map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` }))));
+      leadsService.getAll().then(leads => setLeadOptions(leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado').map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` }))));
     if (form.origenTipo === 'ot' && otOptions.length === 0)
       ordenesTrabajoService.getAll().then(ots => setOtOptions(ots.slice(0, 50).map(ot => ({ value: ot.id || ot.otNumber, label: `OT-${ot.otNumber} — ${ot.clienteNombre || ''}` }))));
   }, [form.origenTipo]);

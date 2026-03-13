@@ -1,5 +1,5 @@
 import type { Posta } from '@ags/shared';
-import { LEAD_ESTADO_LABELS } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS } from '@ags/shared';
 
 interface LeadTimelineProps {
   postas: Posta[];
@@ -34,11 +34,21 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
                 )}
               </div>
               {!isComentario && (
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
                     {LEAD_ESTADO_LABELS[p.estadoAnterior]} → {LEAD_ESTADO_LABELS[p.estadoNuevo]}
                   </span>
+                  {p.aArea && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                      → {LEAD_AREA_LABELS[p.aArea]}
+                    </span>
+                  )}
                 </div>
+              )}
+              {p.accionRequerida && (
+                <p className="text-[11px] mt-0.5 text-amber-700 font-medium">
+                  Acción: {p.accionRequerida}
+                </p>
               )}
               {p.comentario && (
                 <p className={`text-[11px] mt-1 ${isComentario ? 'text-slate-700' : 'text-slate-500'}`}>

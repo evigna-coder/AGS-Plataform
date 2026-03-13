@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import type { Lead, LeadEstado, MotivoLlamado, UsuarioAGS, Cliente } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, MotivoLlamado, UsuarioAGS, Cliente } from '@ags/shared';
 import {
   LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
+  LEAD_AREA_LABELS, LEAD_AREA_COLORS, LEAD_AREA_GROUPS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
 } from '@ags/shared';
 import { leadsService, usuariosService, clientesService } from '../../services/firebaseService';
@@ -27,6 +28,7 @@ export const LeadsList = () => {
   const [filters, setFilters] = useState({
     estado: '' as LeadEstado | '',
     motivo: '' as MotivoLlamado | '',
+    area: '' as LeadArea | '',
     responsable: '',
     cliente: '',
     soloMios: false,
@@ -47,7 +49,7 @@ export const LeadsList = () => {
     });
   }, []);
 
-  useEffect(() => { loadLeads(); }, [filters.estado, filters.motivo, filters.responsable, filters.soloMios]);
+  useEffect(() => { loadLeads(); }, [filters.estado, filters.motivo, filters.area, filters.responsable, filters.soloMios]);
 
   const loadLeads = async () => {
     try {
@@ -56,6 +58,7 @@ export const LeadsList = () => {
       const data = await leadsService.getAll({
         ...(filters.estado ? { estado: filters.estado } : {}),
         ...(filters.motivo ? { motivoLlamado: filters.motivo } : {}),
+        ...(filters.area ? { areaActual: filters.area } : {}),
         ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
       });
       setLeads(data);
@@ -82,6 +85,10 @@ export const LeadsList = () => {
     try { return new Date(dateString).toLocaleDateString('es-AR'); } catch { return dateString; }
   };
 
+  const areaOptions = LEAD_AREA_GROUPS.flatMap(g =>
+    g.areas.map(a => ({ value: a, label: `${g.label} → ${LEAD_AREA_LABELS[a]}` }))
+  );
+
   if (loading && leads.length === 0) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>;
   }
@@ -103,6 +110,12 @@ export const LeadsList = () => {
               options={[{ value: '', label: 'Todos' }, ...Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
               placeholder="Motivo" />
           </div>
+          <div className="min-w-[160px]">
+            <SearchableSelect value={filters.area}
+              onChange={(v) => setFilters({ ...filters, area: v as LeadArea | '' })}
+              options={[{ value: '', label: 'Todas' }, ...areaOptions]}
+              placeholder="Área" />
+          </div>
           {!filters.soloMios && (
             <div className="min-w-[160px]">
               <SearchableSelect value={filters.responsable}
@@ -120,7 +133,7 @@ export const LeadsList = () => {
             <input type="checkbox" checked={filters.soloMios} onChange={e => setFilters({ ...filters, soloMios: e.target.checked })} className="rounded border-slate-300" />
             Mis leads
           </label>
-          <Button size="sm" variant="ghost" onClick={() => setFilters({ estado: '', motivo: '', responsable: '', cliente: '', soloMios: false })}>
+          <Button size="sm" variant="ghost" onClick={() => setFilters({ estado: '', motivo: '', area: '', responsable: '', cliente: '', soloMios: false })}>
             Limpiar
           </Button>
         </div>
@@ -139,13 +152,14 @@ export const LeadsList = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table className="w-full table-fixed">
               <colgroup>
-                <col style={{ width: '20%' }} />
+                <col style={{ width: '18%' }} />
                 <col />
+                <col style={{ width: '10%' }} />
                 <col style={{ width: '11%' }} />
-                <col style={{ width: '13%' }} />
+                <col style={{ width: '12%' }} />
                 <col style={{ width: 80 }} />
                 <col style={{ width: 78 }} />
-                <col style={{ width: 80 }} />
+                <col style={{ width: 55 }} />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
@@ -153,6 +167,7 @@ export const LeadsList = () => {
                   <th className={thClass}>Contacto</th>
                   <SortableHeader label="Motivo" field="motivoLlamado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>Responsable</th>
+                  <th className={thClass}>Área</th>
                   <SortableHeader label="Estado" field="estado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Creado" field="createdAt" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <th className={`${thClass} text-right`}>Acciones</th>
@@ -172,6 +187,13 @@ export const LeadsList = () => {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-600 truncate">{getResponsableNombre(lead.asignadoA)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {lead.areaActual ? (
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
+                          {LEAD_AREA_LABELS[lead.areaActual]}
+                        </span>
+                      ) : <span className="text-[10px] text-slate-300">—</span>}
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
                         {LEAD_ESTADO_LABELS[lead.estado]}

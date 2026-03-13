@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { Lead, LeadEstado, UsuarioAGS, Posta } from '@ags/shared';
-import { LEAD_ESTADO_LABELS } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, UsuarioAGS, Posta } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_ESTADO_ORDER } from '@ags/shared';
 import { leadsService, usuariosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -12,13 +12,13 @@ interface DerivarLeadModalProps {
   onDerived: () => void;
 }
 
-const DERIVAR_ESTADOS: LeadEstado[] = ['en_revision', 'derivado', 'en_proceso'];
-
 export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalProps) => {
   const { usuario } = useAuth();
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
-  const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>('derivado');
+  const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>(lead.estado);
+  const [areaDestino, setAreaDestino] = useState<LeadArea | ''>(lead.areaActual || '');
+  const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -27,7 +27,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const destinatario = usuarios.find(u => u.id === destinatarioId);
 
   const handleSubmit = async () => {
-    if (!destinatarioId || !usuario || !destinatario) return;
+    if (!usuario) return;
     setSaving(true);
     try {
       const posta: Posta = {
@@ -35,13 +35,15 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         fecha: new Date().toISOString(),
         deUsuarioId: usuario.id,
         deUsuarioNombre: usuario.displayName,
-        aUsuarioId: destinatarioId,
-        aUsuarioNombre: destinatario.displayName,
+        aUsuarioId: destinatarioId || '',
+        aUsuarioNombre: destinatario?.displayName || '',
+        aArea: areaDestino || undefined,
         comentario: comentario.trim() || undefined,
         estadoAnterior: lead.estado,
         estadoNuevo: nuevoEstado,
+        accionRequerida: accionRequerida.trim() || undefined,
       };
-      await leadsService.derivar(lead.id, posta, destinatarioId);
+      await leadsService.derivar(lead.id, posta, destinatarioId, areaDestino || null, accionRequerida.trim() || null);
       onDerived();
     } catch {
       alert('Error al derivar el lead');
@@ -60,10 +62,23 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         </div>
 
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Derivar a *</label>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Área destino *</label>
+          <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as LeadArea | '')}
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Sin área específica</option>
+            {LEAD_AREA_GROUPS.map(g => (
+              <optgroup key={g.label} label={g.label}>
+                {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Derivar a (usuario)</label>
           <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">Seleccionar usuario...</option>
+            <option value="">Sin asignar usuario específico</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.role})</option>)}
           </select>
         </div>
@@ -72,8 +87,17 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Nuevo estado</label>
           <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as LeadEstado)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            {DERIVAR_ESTADOS.map(e => <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>)}
+            {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
+              <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
+            ))}
           </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Acción requerida (opcional)</label>
+          <input type="text" value={accionRequerida} onChange={e => setAccionRequerida(e.target.value)}
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Ej: Averiguar N° de parte, Enviar cotización..." />
         </div>
 
         <div>
@@ -85,7 +109,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
 
         <div className="flex justify-end gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!destinatarioId || saving}>
+          <Button size="sm" onClick={handleSubmit} disabled={saving}>
             {saving ? 'Derivando...' : 'Derivar'}
           </Button>
         </div>

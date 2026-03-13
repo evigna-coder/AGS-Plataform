@@ -13,7 +13,7 @@ interface Props {
 
 const RESULTADOS: { value: LeadEstado; label: string }[] = [
   { value: 'finalizado', label: 'Finalizado (resuelto)' },
-  { value: 'perdido', label: 'Perdido' },
+  { value: 'no_concretado', label: 'No concretado' },
 ];
 
 export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) {
@@ -69,8 +69,8 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" variant={resultado === 'perdido' ? 'danger' : 'primary'} onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Finalizando...' : resultado === 'perdido' ? 'Marcar perdido' : 'Finalizar'}
+          <Button size="sm" variant={resultado === 'no_concretado' ? 'danger' : 'primary'} onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Finalizando...' : resultado === 'no_concretado' ? 'Marcar no concretado' : 'Finalizar'}
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Lead, LeadEstado, UsuarioAGS } from '@ags/shared';
+import type { Lead, LeadEstado, UsuarioAGS, Posta } from '@ags/shared';
 import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS } from '@ags/shared';
 import { leadsService, usuariosService, presupuestosService, ordenesTrabajoService, modulosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -107,6 +107,23 @@ export const LeadDetail = () => {
     navigate(`/ordenes-trabajo/nuevo?${params.toString()}`);
   };
 
+  const handleCompletarAccion = async () => {
+    if (!lead || !usuario || !lead.accionPendiente) return;
+    const posta: Posta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      deUsuarioId: usuario.id,
+      deUsuarioNombre: usuario.displayName,
+      aUsuarioId: lead.asignadoA || usuario.id,
+      aUsuarioNombre: usuarios.find(u => u.id === (lead.asignadoA || usuario.id))?.displayName || usuario.displayName,
+      comentario: `Acción completada: ${lead.accionPendiente}`,
+      estadoAnterior: lead.estado,
+      estadoNuevo: lead.estado,
+    };
+    await leadsService.completarAccion(lead.id, posta);
+    await load();
+  };
+
   const handleAgregarComentario = async () => {
     if (!lead || !usuario || !comentario.trim()) return;
     setEnviandoComentario(true);
@@ -134,7 +151,7 @@ export const LeadDetail = () => {
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando lead...</p></div>;
   if (!lead) return null;
 
-  const isActive = lead.estado !== 'finalizado' && lead.estado !== 'perdido';
+  const isActive = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -177,6 +194,17 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
+            {/* Acción pendiente banner */}
+            {lead.accionPendiente && isActive && (
+              <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-amber-600 mb-0.5">Acción pendiente</p>
+                  <p className="text-xs text-amber-800 font-medium">{lead.accionPendiente}</p>
+                </div>
+                <Button size="sm" onClick={handleCompletarAccion}>Completar</Button>
+              </div>
+            )}
+
             {/* Agregar observación */}
             {isActive && (
               <Card>

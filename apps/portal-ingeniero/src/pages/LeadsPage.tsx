@@ -11,8 +11,9 @@ import type { LeadEstado } from '@ags/shared';
 const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'nuevo', label: 'Nuevo' },
-  { value: 'en_revision', label: 'En revisión' },
-  { value: 'derivado', label: 'Derivado' },
+  { value: 'pendiente_info', label: 'Pend. info' },
+  { value: 'en_presupuesto', label: 'Presupuesto' },
+  { value: 'en_coordinacion', label: 'Coordinación' },
   { value: 'en_proceso', label: 'En proceso' },
 ];
 

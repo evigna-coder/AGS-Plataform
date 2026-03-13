@@ -327,14 +327,14 @@ export interface Sistema {
 }
 
 // --- Motivo del llamado (Leads) ---
-export type MotivoLlamado = 'ventas' | 'soporte' | 'insumos' | 'administracion' | 'otros';
+export type MotivoLlamado = 'ventas' | 'soporte' | 'insumos' | 'administracion' | 'capacitacion';
 
 export const MOTIVO_LLAMADO_LABELS: Record<MotivoLlamado, string> = {
   ventas: 'Ventas',
   soporte: 'Soporte',
   insumos: 'Insumos',
   administracion: 'Administración',
-  otros: 'Otros',
+  capacitacion: 'Capacitación',
 };
 
 export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
@@ -342,29 +342,95 @@ export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
   soporte: 'bg-blue-100 text-blue-700',
   insumos: 'bg-orange-100 text-orange-700',
   administracion: 'bg-violet-100 text-violet-700',
-  otros: 'bg-slate-100 text-slate-600',
+  capacitacion: 'bg-teal-100 text-teal-700',
 };
 
-// --- Estados del Lead (postas / grilla) ---
-export type LeadEstado = 'nuevo' | 'en_revision' | 'derivado' | 'en_proceso' | 'finalizado' | 'perdido';
+// --- Áreas destino (Leads) ---
+export type LeadArea =
+  | 'presupuesto'
+  | 'contrato'
+  | 'venta_insumos'
+  | 'agenda_coordinacion'
+  | 'materiales_comex'
+  | 'facturacion'
+  | 'pago_proveedores';
+
+export const LEAD_AREA_LABELS: Record<LeadArea, string> = {
+  presupuesto: 'Presupuesto',
+  contrato: 'Contrato',
+  venta_insumos: 'Venta de insumos',
+  agenda_coordinacion: 'Agenda y coordinación',
+  materiales_comex: 'Materiales y comercio exterior',
+  facturacion: 'Facturación',
+  pago_proveedores: 'Pago a proveedores',
+};
+
+export const LEAD_AREA_COLORS: Record<LeadArea, string> = {
+  presupuesto: 'bg-indigo-100 text-indigo-700',
+  contrato: 'bg-violet-100 text-violet-700',
+  venta_insumos: 'bg-orange-100 text-orange-700',
+  agenda_coordinacion: 'bg-cyan-100 text-cyan-700',
+  materiales_comex: 'bg-amber-100 text-amber-700',
+  facturacion: 'bg-emerald-100 text-emerald-700',
+  pago_proveedores: 'bg-rose-100 text-rose-700',
+};
+
+/** Agrupación visual de áreas para selectores */
+export const LEAD_AREA_GROUPS: { label: string; areas: LeadArea[] }[] = [
+  { label: 'Soporte', areas: ['presupuesto', 'contrato', 'venta_insumos'] },
+  { label: 'Agenda', areas: ['agenda_coordinacion'] },
+  { label: 'Materiales', areas: ['materiales_comex'] },
+  { label: 'Administración', areas: ['facturacion', 'pago_proveedores'] },
+];
+
+// --- Estados del Lead ---
+export type LeadEstado =
+  | 'nuevo'
+  | 'pendiente_info'
+  | 'en_presupuesto'
+  | 'presupuesto_enviado'
+  | 'esperando_oc'
+  | 'espera_importacion'
+  | 'pendiente_entrega'
+  | 'en_coordinacion'
+  | 'en_proceso'
+  | 'finalizado'
+  | 'no_concretado';
 
 export const LEAD_ESTADO_LABELS: Record<LeadEstado, string> = {
   nuevo: 'Nuevo',
-  en_revision: 'En revisión',
-  derivado: 'Derivado',
+  pendiente_info: 'Pendiente info',
+  en_presupuesto: 'En presupuesto',
+  presupuesto_enviado: 'Presupuesto enviado',
+  esperando_oc: 'Esperando OC',
+  espera_importacion: 'Espera importación',
+  pendiente_entrega: 'Pendiente entrega',
+  en_coordinacion: 'En coordinación',
   en_proceso: 'En proceso',
   finalizado: 'Finalizado',
-  perdido: 'Perdido',
+  no_concretado: 'No concretado',
 };
 
 export const LEAD_ESTADO_COLORS: Record<LeadEstado, string> = {
   nuevo: 'bg-blue-100 text-blue-800',
-  en_revision: 'bg-amber-100 text-amber-800',
-  derivado: 'bg-purple-100 text-purple-800',
-  en_proceso: 'bg-cyan-100 text-cyan-800',
+  pendiente_info: 'bg-amber-100 text-amber-800',
+  en_presupuesto: 'bg-indigo-100 text-indigo-800',
+  presupuesto_enviado: 'bg-violet-100 text-violet-800',
+  esperando_oc: 'bg-orange-100 text-orange-800',
+  espera_importacion: 'bg-yellow-100 text-yellow-800',
+  pendiente_entrega: 'bg-lime-100 text-lime-800',
+  en_coordinacion: 'bg-cyan-100 text-cyan-800',
+  en_proceso: 'bg-sky-100 text-sky-800',
   finalizado: 'bg-emerald-100 text-emerald-800',
-  perdido: 'bg-red-100 text-red-600',
+  no_concretado: 'bg-red-100 text-red-600',
 };
+
+/** Orden para tabs y filtros */
+export const LEAD_ESTADO_ORDER: LeadEstado[] = [
+  'nuevo', 'pendiente_info', 'en_presupuesto', 'presupuesto_enviado',
+  'esperando_oc', 'espera_importacion', 'pendiente_entrega',
+  'en_coordinacion', 'en_proceso', 'finalizado', 'no_concretado',
+];
 
 // --- Posta (derivación) ---
 export interface Posta {
@@ -372,11 +438,13 @@ export interface Posta {
   fecha: string; // ISO
   deUsuarioId: string;
   deUsuarioNombre: string;
-  aUsuarioId: string;
-  aUsuarioNombre: string;
+  aUsuarioId: string;       // '' si se asigna solo a área
+  aUsuarioNombre: string;   // '' si se asigna solo a área
+  aArea?: LeadArea;         // área destino
   comentario?: string;
   estadoAnterior: LeadEstado;
   estadoNuevo: LeadEstado;
+  accionRequerida?: string; // ej: "Averiguar N° parte", "Enviar presupuesto"
 }
 
 // --- Postas Workflow (derivaciones entre usuarios) ---
@@ -493,6 +561,8 @@ export interface Lead {
   postas: Posta[];
   asignadoA: string | null;
   derivadoPor: string | null;
+  areaActual?: LeadArea | null;        // área donde está el lead actualmente
+  accionPendiente?: string | null;     // qué falta hacer (derivado de última posta)
   createdAt: string;
   updatedAt: string;
   createdBy?: string;

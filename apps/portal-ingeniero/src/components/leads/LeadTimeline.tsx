@@ -1,5 +1,5 @@
 import type { Posta } from '@ags/shared';
-import { LEAD_ESTADO_LABELS } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS } from '@ags/shared';
 
 interface Props {
   postas: Posta[];
@@ -22,12 +22,10 @@ export default function LeadTimeline({ postas }: Props) {
 
         return (
           <div key={p.id || i} className="flex gap-3 pb-4 last:pb-0">
-            {/* Timeline line + dot */}
             <div className="flex flex-col items-center">
               <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${isComment ? 'bg-amber-400' : 'bg-indigo-500'}`} />
               {i < sorted.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
             </div>
-            {/* Content */}
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-slate-400">{fecha}</p>
               {isComment ? (
@@ -37,12 +35,26 @@ export default function LeadTimeline({ postas }: Props) {
               ) : (
                 <p className="text-[11px] text-slate-600 mt-0.5">
                   <span className="font-medium">{p.deUsuarioNombre}</span>
-                  {' → '}
-                  <span className="font-medium">{p.aUsuarioNombre}</span>
+                  {p.aUsuarioNombre && (
+                    <>
+                      {' → '}
+                      <span className="font-medium">{p.aUsuarioNombre}</span>
+                    </>
+                  )}
                   {' · '}
                   <span className="text-slate-400">
                     {LEAD_ESTADO_LABELS[p.estadoAnterior] ?? p.estadoAnterior} → {LEAD_ESTADO_LABELS[p.estadoNuevo] ?? p.estadoNuevo}
                   </span>
+                  {p.aArea && (
+                    <span className="text-[10px] font-medium text-indigo-500 ml-1">
+                      → {LEAD_AREA_LABELS[p.aArea]}
+                    </span>
+                  )}
+                </p>
+              )}
+              {p.accionRequerida && (
+                <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+                  Acción: {p.accionRequerida}
                 </p>
               )}
               {p.comentario && (

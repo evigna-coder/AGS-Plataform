@@ -17,7 +17,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 import { app } from './firebase';
-import type { UsuarioAGS, Sistema, Lead, LeadEstado, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
 
 export const db = getFirestore(app);
@@ -115,7 +115,7 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
     contacto: (data.contacto as string) ?? '',
     email: (data.email as string) ?? '',
     telefono: (data.telefono as string) ?? '',
-    motivoLlamado: (data.motivoLlamado as MotivoLlamado) ?? 'otros',
+    motivoLlamado: (data.motivoLlamado as MotivoLlamado) ?? 'soporte',
     motivoContacto: (data.motivoContacto as string) ?? '',
     descripcion: (data.descripcion as string) ?? null,
     sistemaId: (data.sistemaId as string) ?? null,
@@ -123,6 +123,8 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
     postas: (data.postas as Posta[]) ?? [],
     asignadoA: (data.asignadoA as string) ?? null,
     derivadoPor: (data.derivadoPor as string) ?? null,
+    areaActual: (data.areaActual as LeadArea) ?? null,
+    accionPendiente: (data.accionPendiente as string) ?? null,
     presupuestosIds: (data.presupuestosIds as string[]) ?? [],
     otIds: (data.otIds as string[]) ?? [],
     createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
@@ -172,11 +174,24 @@ export const leadsService = {
     });
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string): Promise<void> {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, area?: LeadArea | null, accionRequerida?: string | null): Promise<void> {
+    const update: Record<string, any> = {
+      postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
+      asignadoA: nuevoAsignadoA || null,
+      derivadoPor: posta.deUsuarioId,
+      estado: posta.estadoNuevo,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    };
+    if (area !== undefined) update.areaActual = area || null;
+    if (accionRequerida !== undefined) update.accionPendiente = accionRequerida || null;
+    await updateDoc(doc(db, 'leads', id), update);
+  },
+
+  async completarAccion(id: string, posta: Posta): Promise<void> {
     await updateDoc(doc(db, 'leads', id), {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
-      asignadoA: nuevoAsignadoA,
-      derivadoPor: posta.deUsuarioId,
+      accionPendiente: null,
       estado: posta.estadoNuevo,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
