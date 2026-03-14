@@ -1,6 +1,8 @@
 {
+  "installCommand": "cd ../.. && pnpm install",
+  "buildCommand": "cd ../.. && pnpm --filter @ags/portal-ingeniero build",
   "outputDirectory": "dist",
-  "framework": "vite",
+  "framework": null,
   "headers": [
     {
       "source": "/(.*)",
