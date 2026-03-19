@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { ExtraccionLoaner } from '@ags/shared';
 
@@ -7,6 +7,8 @@ interface Props {
 }
 
 export function LoanerExtraccionesSection({ extracciones }: Props) {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const formatDate = (iso: string) => {
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '-'; }
   };
@@ -34,7 +36,7 @@ export function LoanerExtraccionesSection({ extracciones }: Props) {
             <div className="flex gap-3 mt-1 text-xs text-slate-400">
               <span>Destino: {e.destino}</span>
               {e.otNumber && (
-                <Link to={`/ordenes-trabajo/${e.otNumber}`} className="text-indigo-600 hover:underline">OT {e.otNumber}</Link>
+                <Link to={`/ordenes-trabajo/${e.otNumber}`} state={fromState} className="text-indigo-600 hover:underline">OT {e.otNumber}</Link>
               )}
               <span>Por: {e.extraidoPor}</span>
             </div>

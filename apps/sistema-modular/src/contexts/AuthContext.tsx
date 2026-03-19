@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
-import type { UsuarioAGS, UserRole } from '@ags/shared';
+import type { UsuarioAGS, UserRole, ModuloId } from '@ags/shared';
+import { canAccessModulo as _canAccessModulo } from '@ags/shared';
 import { onAuthStateChanged, isAllowedDomain, signOut } from '../services/authService';
 import { usuariosService } from '../services/firebaseService';
 import { setCurrentUser } from '../services/currentUser';
@@ -14,6 +15,8 @@ interface AuthContextValue {
   isPending: boolean;
   isDisabled: boolean;
   hasRole: (...roles: UserRole[]) => boolean;
+  /** Verifica si el usuario puede acceder a un módulo */
+  canAccess: (modulo: ModuloId) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -25,6 +28,7 @@ const AuthContext = createContext<AuthContextValue>({
   isPending: false,
   isDisabled: false,
   hasRole: () => false,
+  canAccess: () => false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -93,8 +97,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return roles.includes(usuario.role);
   };
 
+  const canAccess = (modulo: ModuloId): boolean => {
+    if (!isAuthenticated || !usuario) return false;
+    return _canAccessModulo(usuario, modulo);
+  };
+
   return (
-    <AuthContext.Provider value={{ firebaseUser, usuario, loading, authError, isAuthenticated, isPending, isDisabled, hasRole }}>
+    <AuthContext.Provider value={{ firebaseUser, usuario, loading, authError, isAuthenticated, isPending, isDisabled, hasRole, canAccess }}>
       {children}
     </AuthContext.Provider>
   );

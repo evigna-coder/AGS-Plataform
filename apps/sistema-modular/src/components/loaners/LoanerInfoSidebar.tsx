@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { Loaner } from '@ags/shared';
 import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS } from '@ags/shared';
@@ -7,19 +7,21 @@ interface Props {
   loaner: Loaner;
 }
 
-function LV({ label, value, link }: { label: string; value?: string | null; link?: string }) {
+function LV({ label, value, link, navState }: { label: string; value?: string | null; link?: string; navState?: any }) {
   if (!value) return null;
   return (
     <div>
       <dt className="text-[11px] font-medium text-slate-400 tracking-wider">{label}</dt>
       <dd className="text-sm text-slate-700 mt-0.5">
-        {link ? <Link to={link} className="text-indigo-600 hover:underline">{value}</Link> : value}
+        {link ? <Link to={link} state={navState} className="text-indigo-600 hover:underline">{value}</Link> : value}
       </dd>
     </div>
   );
 }
 
 export function LoanerInfoSidebar({ loaner }: Props) {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const formatDate = (iso: string) => {
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '-'; }
   };
@@ -52,7 +54,7 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       {loaner.articuloId && (
         <Card title="Vinculacion a stock" compact>
           <dl className="space-y-2">
-            <LV label="Articulo" value={`${loaner.articuloCodigo} — ${loaner.articuloDescripcion}`} link={`/stock/articulos/${loaner.articuloId}`} />
+            <LV label="Articulo" value={`${loaner.articuloCodigo} — ${loaner.articuloDescripcion}`} link={`/stock/articulos/${loaner.articuloId}`} navState={fromState} />
           </dl>
         </Card>
       )}
@@ -61,12 +63,12 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       {prestamoActivo && (
         <Card title="Prestamo activo" compact>
           <dl className="space-y-2">
-            <LV label="Cliente" value={prestamoActivo.clienteNombre} link={`/clientes/${prestamoActivo.clienteId}`} />
+            <LV label="Cliente" value={prestamoActivo.clienteNombre} link={`/clientes/${prestamoActivo.clienteId}`} navState={fromState} />
             <LV label="Establecimiento" value={prestamoActivo.establecimientoNombre} />
             <LV label="Desde" value={formatDate(prestamoActivo.fechaSalida)} />
             {prestamoActivo.fechaRetornoPrevista && <LV label="Retorno previsto" value={formatDate(prestamoActivo.fechaRetornoPrevista)} />}
-            {prestamoActivo.fichaNumero && <LV label="Ficha vinculada" value={prestamoActivo.fichaNumero} link={`/fichas/${prestamoActivo.fichaId}`} />}
-            {prestamoActivo.remitoSalidaId && <LV label="Remito" value={prestamoActivo.remitoSalidaNumero || 'Ver remito'} link={`/stock/remitos/${prestamoActivo.remitoSalidaId}`} />}
+            {prestamoActivo.fichaNumero && <LV label="Ficha vinculada" value={prestamoActivo.fichaNumero} link={`/fichas/${prestamoActivo.fichaId}`} navState={fromState} />}
+            {prestamoActivo.remitoSalidaId && <LV label="Remito" value={prestamoActivo.remitoSalidaNumero || 'Ver remito'} link={`/stock/remitos/${prestamoActivo.remitoSalidaId}`} navState={fromState} />}
           </dl>
         </Card>
       )}
@@ -75,7 +77,7 @@ export function LoanerInfoSidebar({ loaner }: Props) {
       {loaner.venta && (
         <Card title="Vendido" compact>
           <dl className="space-y-2">
-            <LV label="Cliente" value={loaner.venta.clienteNombre} link={`/clientes/${loaner.venta.clienteId}`} />
+            <LV label="Cliente" value={loaner.venta.clienteNombre} link={`/clientes/${loaner.venta.clienteId}`} navState={fromState} />
             <LV label="Fecha" value={formatDate(loaner.venta.fecha)} />
             {loaner.venta.precio != null && <LV label="Precio" value={`${loaner.venta.moneda || 'ARS'} ${loaner.venta.precio.toLocaleString()}`} />}
           </dl>

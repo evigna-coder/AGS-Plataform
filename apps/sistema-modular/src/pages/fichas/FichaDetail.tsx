@@ -11,10 +11,12 @@ import { FichaStatusTransition } from '../../components/fichas/FichaStatusTransi
 import { FichaLoanerLink } from '../../components/fichas/FichaLoanerLink';
 import { FichaFotosSection } from '../../components/fichas/FichaFotosSection';
 import type { FichaPropiedad, EstadoFicha, Loaner } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export function FichaDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [ficha, setFicha] = useState<FichaPropiedad | null>(null);
   const [loading, setLoading] = useState(true);
   const [loanerModalOpen, setLoanerModalOpen] = useState(false);
@@ -118,7 +120,7 @@ export function FichaDetail() {
       {/* Header */}
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/fichas')} className="text-slate-400 hover:text-slate-600">
+          <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
           </button>
           <div>

@@ -3,9 +3,11 @@ import { Button } from '../../components/ui/Button';
 import { OTInfoSidebar } from '../../components/ordenes-trabajo/OTInfoSidebar';
 import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSection';
 import { OTItemsSection } from '../../components/ordenes-trabajo/OTItemsSection';
+import { OTCierreAdminSection } from '../../components/ordenes-trabajo/OTCierreAdminSection';
 import { useOTDetail } from '../../hooks/useOTDetail';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTEstadoAdmin } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const ESTADO_COLORS: Record<string, string> = {
   CREADA: 'bg-slate-100 text-slate-600',
@@ -20,6 +22,7 @@ const ESTADO_COLORS: Record<string, string> = {
 export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const ot = useOTDetail(otNumber);
 
   if (ot.loading) {
@@ -38,7 +41,7 @@ export const OTDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/ordenes-trabajo')} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <h1 className="text-lg font-semibold tracking-tight text-slate-900">OT-{otNumber}</h1>
@@ -55,6 +58,11 @@ export const OTDetail = () => {
                   <option key={e} value={e}>{OT_ESTADO_LABELS[e]}</option>
                 ))}
               </select>
+            )}
+            {ot.enCierreAdmin && (
+              <span className="text-[10px] bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full border border-cyan-200">
+                Horas e insumos editables
+              </span>
             )}
           </div>
           <div className="flex gap-2 items-center">
@@ -91,6 +99,8 @@ export const OTDetail = () => {
           {/* Sidebar */}
           <OTInfoSidebar
             readOnly={ot.readOnly}
+            readOnlyTecnico={ot.readOnlyTecnico}
+            enCierreAdmin={ot.enCierreAdmin}
             clienteId={ot.clienteId}
             clientes={ot.clientes}
             cliente={ot.cliente}
@@ -143,7 +153,7 @@ export const OTDetail = () => {
           {/* Main content */}
           <div className="flex-1 min-w-0 space-y-4">
             <OTProtocolSection
-              readOnly={ot.readOnly}
+              readOnly={ot.readOnlyTecnico}
               problemaFallaInicial={ot.problemaFallaInicial}
               reporteTecnico={ot.reporteTecnico}
               materialesParaServicio={ot.materialesParaServicio}
@@ -151,7 +161,7 @@ export const OTDetail = () => {
               onFieldChange={ot.handleFieldChange}
             />
             <OTItemsSection
-              readOnly={ot.readOnly}
+              readOnly={ot.readOnly && !ot.enCierreAdmin}
               otNumber={otNumber}
               articulos={ot.articulos}
               onAddPart={ot.addPart}
@@ -166,6 +176,18 @@ export const OTDetail = () => {
               cliente={ot.cliente}
               onCreateNewItem={ot.handleCreateNewItem}
             />
+            {(ot.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || ot.estadoAdmin === 'FINALIZADO') && (
+              <OTCierreAdminSection
+                cierreAdmin={ot.cierreAdmin}
+                onChange={ot.handleCierreChange}
+                onConfirmarCierre={ot.handleConfirmarCierre}
+                horasTrabajadas={ot.horasTrabajadas}
+                tiempoViaje={ot.tiempoViaje}
+                articulos={ot.articulos}
+                readOnly={ot.estadoAdmin === 'FINALIZADO'}
+                estadoAdmin={ot.estadoAdmin}
+              />
+            )}
           </div>
         </div>
       </div>

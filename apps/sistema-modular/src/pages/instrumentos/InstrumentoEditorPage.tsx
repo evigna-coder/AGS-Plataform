@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 import {
   CATEGORIA_INSTRUMENTO_LABELS,
   CATEGORIA_PATRON_LABELS,
@@ -29,6 +30,7 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
 export const InstrumentoEditorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const isNew = !id;
   const { getInstrumento, saveInstrumento, uploadCertificado, uploadTrazabilidad } = useInstrumentos();
 
@@ -192,7 +194,7 @@ export const InstrumentoEditorPage = () => {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" size="sm" onClick={() => navigate('/instrumentos')}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={() => goBack()}>Cancelar</Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar'}
             </Button>

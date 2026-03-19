@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService } from '../../services/firebaseService';
+import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
 import type { CondicionIva } from '@ags/shared';
 
 interface Props {
@@ -26,7 +27,45 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleClose = () => { onClose(); setForm(emptyForm); setErrors({}); };
+  // AFIP validation state
+  const [validatingCuit, setValidatingCuit] = useState(false);
+  const [afipResult, setAfipResult] = useState<CuitValidationResult | null>(null);
+
+  const handleClose = () => { onClose(); setForm(emptyForm); setErrors({}); setAfipResult(null); };
+
+  const handleValidateCuit = async () => {
+    const cuit = form.cuit.trim();
+    if (!cuit) return;
+
+    // Quick local check first
+    if (!isValidCuitLocal(cuit)) {
+      setAfipResult({ valid: false, cuit, checksumOk: false, afipFound: false, razonSocial: null, tipoPersona: null, estadoClave: null, domicilioFiscal: null, error: 'CUIT inválido: dígito verificador incorrecto' });
+      return;
+    }
+
+    try {
+      setValidatingCuit(true);
+      setAfipResult(null);
+      const result = await validateCuitAfip(cuit);
+      setAfipResult(result);
+
+      // Auto-fill fields from AFIP if found
+      if (result.valid && result.afipFound) {
+        setForm(prev => ({
+          ...prev,
+          razonSocial: prev.razonSocial || result.razonSocial || prev.razonSocial,
+          direccionFiscal: prev.direccionFiscal || result.domicilioFiscal?.direccion || prev.direccionFiscal,
+          localidadFiscal: prev.localidadFiscal || result.domicilioFiscal?.localidad || prev.localidadFiscal,
+          provinciaFiscal: prev.provinciaFiscal || result.domicilioFiscal?.provincia || prev.provinciaFiscal,
+          codigoPostalFiscal: prev.codigoPostalFiscal || result.domicilioFiscal?.codPostal || prev.codigoPostalFiscal,
+        }));
+      }
+    } catch (e) {
+      setAfipResult({ valid: false, cuit, checksumOk: true, afipFound: false, razonSocial: null, tipoPersona: null, estadoClave: null, domicilioFiscal: null, error: 'Error de conexión con AFIP' });
+    } finally {
+      setValidatingCuit(false);
+    }
+  };
 
   const handleSave = async () => {
     const errs: Record<string, string> = {};
@@ -73,11 +112,47 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
         <div>
           <h4 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Datos Basicos</h4>
           <div className="grid grid-cols-2 gap-3">
+            {/* CUIT with AFIP validation */}
+            <div>
+              <label className={lbl}>CUIT</label>
+              <div className="flex gap-1.5">
+                <input
+                  value={form.cuit}
+                  onChange={e => { set('cuit', e.target.value); setAfipResult(null); }}
+                  placeholder="XX-XXXXXXXX-X"
+                  className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                />
+                <button
+                  onClick={handleValidateCuit}
+                  disabled={validatingCuit || !form.cuit.trim()}
+                  className="shrink-0 px-2.5 py-1.5 text-[10px] font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {validatingCuit ? 'Validando...' : 'Validar AFIP'}
+                </button>
+              </div>
+              {/* AFIP Result feedback */}
+              {afipResult && (
+                <div className={`mt-1.5 px-2 py-1 rounded text-[10px] ${
+                  afipResult.valid
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-600 border border-red-200'
+                }`}>
+                  {afipResult.valid ? (
+                    <>
+                      AFIP: <span className="font-semibold">{afipResult.razonSocial}</span>
+                      {' — '}{afipResult.tipoPersona === 'FISICA' ? 'Persona Física' : 'Persona Jurídica'}
+                      {' — '}{afipResult.estadoClave}
+                    </>
+                  ) : (
+                    afipResult.error
+                  )}
+                </div>
+              )}
+            </div>
+            <Input inputSize="sm" label="País" value={form.pais} onChange={e => set('pais', e.target.value)} />
             <div className="col-span-2">
               <Input inputSize="sm" label="Razón Social *" value={form.razonSocial} onChange={e => set('razonSocial', e.target.value)} error={errors.razonSocial} />
             </div>
-            <Input inputSize="sm" label="CUIT" value={form.cuit} onChange={e => set('cuit', e.target.value)} placeholder="XX-XXXXXXXX-X" />
-            <Input inputSize="sm" label="País" value={form.pais} onChange={e => set('pais', e.target.value)} />
             <Input inputSize="sm" label="Rubro *" value={form.rubro} onChange={e => set('rubro', e.target.value)} error={errors.rubro} />
           </div>
         </div>

@@ -3,20 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { importacionesService } from '../../services/firebaseService';
 import type { Importacion } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
-import { CrearPostaModal } from '../../components/postas/CrearPostaModal';
 import { ImportacionInfoSidebar } from '../../components/stock/ImportacionInfoSidebar';
 import { ImportacionEmbarqueSection } from '../../components/stock/ImportacionEmbarqueSection';
 import { ImportacionAduanaSection } from '../../components/stock/ImportacionAduanaSection';
 import { ImportacionVEPSection } from '../../components/stock/ImportacionVEPSection';
 import { ImportacionGastosSection } from '../../components/stock/ImportacionGastosSection';
 import { ImportacionDocumentosSection } from '../../components/stock/ImportacionDocumentosSection';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const ImportacionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [imp, setImp] = useState<Importacion | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showCrearPosta, setShowCrearPosta] = useState(false);
 
   useEffect(() => {
     if (id) loadData();
@@ -60,8 +60,7 @@ export const ImportacionDetail = () => {
             <p className="text-xs text-slate-400 mt-0.5">Importacion de {imp.proveedorNombre}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowCrearPosta(true)}>Crear posta</Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/stock/importaciones')}>Volver</Button>
+            <Button variant="ghost" size="sm" onClick={() => goBack()}>Volver</Button>
           </div>
         </div>
       </div>
@@ -80,16 +79,6 @@ export const ImportacionDetail = () => {
           </div>
         </div>
       </div>
-      {showCrearPosta && id && (
-        <CrearPostaModal
-          tipoEntidad="importacion"
-          entidadId={id}
-          entidadNumero={imp.numero}
-          entidadDescripcion={`Importacion de ${imp.proveedorNombre}`}
-          categoriaDefault="administracion"
-          onClose={() => setShowCrearPosta(false)}
-        />
-      )}
     </div>
   );
 };

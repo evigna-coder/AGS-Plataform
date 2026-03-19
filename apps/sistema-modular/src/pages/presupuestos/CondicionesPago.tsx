@@ -5,9 +5,11 @@ import type { CondicionPago } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const CondicionesPago = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [condiciones, setCondiciones] = useState<CondicionPago[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -134,7 +136,7 @@ export const CondicionesPago = () => {
               + Nueva Condición
             </Button>
           )}
-          <Button variant="outline" onClick={() => navigate('/presupuestos')}>
+          <Button variant="outline" onClick={() => goBack()}>
             Volver
           </Button>
         </div>

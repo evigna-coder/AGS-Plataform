@@ -12,10 +12,12 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EquipoInfoSidebar } from '../../components/equipos/EquipoInfoSidebar';
 import { ModulosList, type ModuloFormData } from '../../components/equipos/ModulosList';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const EquipoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
 
   const [sistema, setSistema] = useState<Sistema | null>(null);
   const [establecimiento, setEstablecimiento] = useState<Establecimiento | null>(null);
@@ -61,6 +63,7 @@ export const EquipoDetail = () => {
         nombre: sistemaData.nombre,
         codigoInternoCliente: sistemaData.codigoInternoCliente,
         software: sistemaData.software || '',
+        sector: sistemaData.sector || '',
         observaciones: sistemaData.observaciones || '',
         configuracionGC: sistemaData.configuracionGC ?? {},
         activo: sistemaData.activo,
@@ -77,6 +80,8 @@ export const EquipoDetail = () => {
     } finally { setLoading(false); }
   };
 
+  const [saveMsg, setSaveMsg] = useState('');
+
   const handleSave = async () => {
     if (!id || !formData) return;
     try {
@@ -87,9 +92,16 @@ export const EquipoDetail = () => {
         establecimientoId: formData.establecimientoId || undefined,
         clienteId: formData.clienteId || undefined,
       });
-      await loadData();
+      // Actualizar estado local sin recargar de Firestore
+      setSistema(prev => prev ? { ...prev, ...dataToSave, establecimientoId: formData.establecimientoId || undefined, clienteId: formData.clienteId || undefined } as Sistema : prev);
+      // Actualizar establecimiento si cambió
+      if (formData.establecimientoId && formData.establecimientoId !== establecimiento?.id) {
+        const newEst = await establecimientosService.getById(formData.establecimientoId);
+        setEstablecimiento(newEst);
+      }
       setEditing(false);
-      alert('Sistema actualizado exitosamente');
+      setSaveMsg('Guardado');
+      setTimeout(() => setSaveMsg(''), 2000);
     } catch (error) {
       console.error('Error guardando sistema:', error);
       alert('Error al guardar el sistema');
@@ -132,6 +144,18 @@ export const EquipoDetail = () => {
     }
   };
 
+  const handleMoveModulo = async (moduloId: string, targetSistemaId: string) => {
+    if (!id) return;
+    if (!confirm('Mover este modulo al sistema seleccionado?')) return;
+    try {
+      await modulosService.move(id, moduloId, targetSistemaId);
+      setModulos(prev => prev.filter(m => m.id !== moduloId));
+    } catch (error) {
+      console.error('Error moviendo modulo:', error);
+      alert('Error al mover el modulo');
+    }
+  };
+
   const handleDeleteModulo = async (moduloId: string) => {
     if (!id) return;
     if (!confirm('Esta seguro de eliminar este modulo?')) return;
@@ -161,7 +185,7 @@ export const EquipoDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <button onClick={() => navigate('/equipos')} className="text-slate-400 hover:text-slate-600 shrink-0">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600 shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div className="min-w-0">
@@ -178,7 +202,8 @@ export const EquipoDetail = () => {
               </p>
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 items-center shrink-0">
+            {saveMsg && <span className="text-xs text-green-600 font-medium">{saveMsg}</span>}
             {!editing ? (
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
             ) : (
@@ -218,6 +243,7 @@ export const EquipoDetail = () => {
               categoriasModulos={categoriasModulos}
               onSave={handleSaveModulo}
               onDelete={handleDeleteModulo}
+              onMove={handleMoveModulo}
             />
 
             {/* Ubicaciones placeholder */}

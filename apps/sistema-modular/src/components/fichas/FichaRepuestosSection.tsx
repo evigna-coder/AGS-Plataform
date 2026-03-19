@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { fichasService } from '../../services/firebaseService';
@@ -11,6 +11,8 @@ interface Props {
 }
 
 export function FichaRepuestosSection({ ficha, onUpdate }: Props) {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const [adding, setAdding] = useState(false);
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
@@ -71,7 +73,7 @@ export function FichaRepuestosSection({ ficha, onUpdate }: Props) {
             <div className="flex-1">
               <p className="text-sm text-slate-700">{r.descripcion}</p>
               <div className="flex gap-2 mt-1 text-xs text-slate-400">
-                {r.leadId && <Link to={`/leads/${r.leadId}`} className="text-indigo-600 hover:underline">Lead: {r.leadDescripcion || r.leadId}</Link>}
+                {r.leadId && <Link to={`/leads/${r.leadId}`} state={fromState} className="text-indigo-600 hover:underline">Lead: {r.leadDescripcion || r.leadId}</Link>}
                 {r.ordenCompraId && <span>OC: {r.ordenCompraNumero || r.ordenCompraId}</span>}
               </div>
             </div>

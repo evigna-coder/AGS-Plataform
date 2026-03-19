@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { GCPortsGrid } from '../GCPortsGrid';
 import { sistemasService, clientesService, establecimientosService, categoriasEquipoService } from '../../services/firebaseService';
+import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 import type { Cliente, Establecimiento, CategoriaEquipo, ConfiguracionGC } from '@ags/shared';
 import { esGaseoso } from '@ags/shared';
 
@@ -13,10 +14,13 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  defaultClienteId?: string;
+  defaultEstablecimientoId?: string;
 }
 
-export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
+export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, defaultClienteId, defaultEstablecimientoId }) => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [saving, setSaving] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
@@ -25,18 +29,28 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
 
   const [form, setForm] = useState({
     clienteId: '', establecimientoId: '', categoriaId: '',
-    nombre: '', nombreManual: '', software: '', codigoInternoCliente: '',
+    nombre: '', nombreManual: '', software: '', codigoInternoCliente: '', sector: '',
   });
   const [gcConfig, setGcConfig] = useState<ConfiguracionGC>({});
+
+  const [sectorCatalog, setSectorCatalog] = useState<SectorCatalog[]>([]);
 
   useEffect(() => {
     if (!open) return;
     Promise.all([
-      clientesService.getAll(true), establecimientosService.getAll(), categoriasEquipoService.getAll(),
-    ]).then(([c, e, cat]) => {
-      setClientes(c); setEstablecimientos(e); setCategorias(cat);
+      clientesService.getAll(true), establecimientosService.getAll(), categoriasEquipoService.getAll(), sectoresCatalogService.getAll(),
+    ]).then(([c, e, cat, sc]) => {
+      setClientes(c); setEstablecimientos(e); setCategorias(cat); setSectorCatalog(sc);
+      // Pre-populate from defaults if provided
+      if (defaultClienteId || defaultEstablecimientoId) {
+        setForm(prev => ({
+          ...prev,
+          clienteId: defaultClienteId || prev.clienteId,
+          establecimientoId: defaultEstablecimientoId || prev.establecimientoId,
+        }));
+      }
     });
-  }, [open]);
+  }, [open, defaultClienteId, defaultEstablecimientoId]);
 
   useEffect(() => {
     if (form.clienteId) {
@@ -55,9 +69,12 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
     : form.nombre;
   const showGC = esGaseoso(nombreEfectivo) || esGaseoso(selectedCategoria?.nombre ?? '');
 
+  const selectedEst = establecimientos.find(e => e.id === form.establecimientoId);
+  const estSectores = selectedEst?.sectores || [];
+
   const handleClose = () => {
     onClose();
-    setForm({ clienteId: '', establecimientoId: '', categoriaId: '', nombre: '', nombreManual: '', software: '', codigoInternoCliente: '' });
+    setForm({ clienteId: '', establecimientoId: '', categoriaId: '', nombre: '', nombreManual: '', software: '', codigoInternoCliente: '', sector: '' });
     setGcConfig({});
   };
 
@@ -72,11 +89,12 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
       const isGC = esGaseoso(finalNombre) || esGaseoso(selectedCategoria?.nombre ?? '');
       const sistemaId = await sistemasService.create({
         establecimientoId: form.establecimientoId,
-        clienteId: form.clienteId || null,
+        clienteId: form.clienteId || undefined,
         categoriaId: form.categoriaId,
         nombre: finalNombre,
-        software: form.software.trim() || null,
+        software: form.software.trim() || undefined,
         codigoInternoCliente: form.codigoInternoCliente.trim() || `PROV-${Date.now().toString(36).toUpperCase()}`,
+        sector: form.sector.trim() || null,
         configuracionGC: isGC ? gcConfig : null,
         activo: true,
         ubicaciones: [],
@@ -84,7 +102,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
       });
       handleClose();
       onCreated();
-      navigate(`/equipos/${sistemaId}`);
+      navigate(`/equipos/${sistemaId}`, { state: { from: pathname } });
     } catch { alert('Error al crear el sistema'); }
     finally { setSaving(false); }
   };
@@ -113,11 +131,31 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
           <div>
             <label className={lbl}>Establecimiento *</label>
             <SearchableSelect value={form.establecimientoId}
-              onChange={v => set('establecimientoId', v)}
+              onChange={v => { set('establecimientoId', v); set('sector', ''); }}
               options={estFiltrados.map(e => ({ value: e.id, label: `${e.nombre} — ${e.localidad}` }))}
               placeholder="Seleccionar establecimiento..." />
           </div>
         )}
+
+        {form.establecimientoId && (() => {
+          // Merge: sectores del establecimiento + catálogo global (sin duplicados)
+          const allNames = new Set(estSectores);
+          sectorCatalog.forEach(s => allNames.add(s.nombre));
+          const sectorOptions = [
+            { value: '', label: 'Sin sector' },
+            ...[...allNames].sort().map(n => ({ value: n, label: n })),
+          ];
+          return (
+            <div>
+              <label className={lbl}>Sector</label>
+              <SearchableSelect value={form.sector}
+                onChange={v => set('sector', v)}
+                options={sectorOptions}
+                placeholder="Seleccionar sector..."
+                creatable createLabel="Crear sector" />
+            </div>
+          );
+        })()}
 
         <hr className="border-slate-100" />
 
@@ -137,7 +175,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated })
                 <SearchableSelect value={form.nombre}
                   onChange={v => set('nombre', v)}
                   options={[
-                    ...selectedCategoria!.modelos.map((m: any) => ({ value: typeof m === 'string' ? m : m.nombre, label: typeof m === 'string' ? m : m.nombre })),
+                    ...(selectedCategoria?.modelos ?? []).map((m: any) => ({ value: typeof m === 'string' ? m : m.nombre, label: typeof m === 'string' ? m : m.nombre })),
                     { value: '__otro__', label: 'Otro (ingresar manualmente)' },
                   ]}
                   placeholder="Seleccionar modelo..." />

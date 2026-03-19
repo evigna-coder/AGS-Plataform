@@ -5,9 +5,11 @@ import type { TipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const TiposServicio = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [tipos, setTipos] = useState<TipoServicio[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TipoServicio | null>(null);
@@ -92,7 +94,7 @@ export const TiposServicio = () => {
           <p className="text-sm text-slate-500 mt-1">Gestionar tipos de servicio para OTs</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/ordenes-trabajo')}>
+          <Button variant="outline" onClick={() => goBack()}>
             Volver a OTs
           </Button>
           <Button onClick={() => { setEditing(null); setFormData({ nombre: '' }); setShowModal(true); }}>

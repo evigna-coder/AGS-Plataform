@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService } from '../services/firebaseService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, OTEstadoHistorial, UsuarioAGS } from '@ags/shared';
+import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, OTEstadoHistorial, UsuarioAGS, CierreAdministrativo } from '@ags/shared';
 
 export function useOTDetail(otNumber?: string) {
   const navigate = useNavigate();
@@ -64,6 +64,13 @@ export function useOTDetail(otNumber?: string) {
   const [ingenieroAsignadoNombre, setIngenieroAsignadoNombre] = useState<string | null>(null);
   const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
 
+  // Cierre administrativo
+  const defaultCierre: CierreAdministrativo = {
+    horasConfirmadas: false, partesConfirmadas: false,
+    stockDeducido: false, avisoAdminEnviado: false,
+  };
+  const [cierreAdmin, setCierreAdmin] = useState<CierreAdministrativo>(defaultCierre);
+
   // IDs
   const [clienteId, setClienteId] = useState<string | undefined>();
   const [sistemaId, setSistemaId] = useState<string | undefined>();
@@ -108,6 +115,7 @@ export function useOTDetail(otNumber?: string) {
     aclaracionCliente, aclaracionEspecialista, materialesParaServicio, problemaFallaInicial,
     estadoAdmin, ordenCompra, fechaServicioAprox, ingenieroAsignadoId,
     clienteId || '', sistemaId || '', moduloId || '',
+    cierreAdmin,
   ]);
 
   const loadData = async () => {
@@ -140,6 +148,7 @@ export function useOTDetail(otNumber?: string) {
       setFechaServicioAprox(ot.fechaServicioAprox || '');
       setIngenieroAsignadoId(ot.ingenieroAsignadoId ?? null);
       setIngenieroAsignadoNombre(ot.ingenieroAsignadoNombre ?? null);
+      setCierreAdmin(ot.cierreAdmin ?? { ...defaultCierre });
       setClienteId(ot.clienteId); setSistemaId(ot.sistemaId); setModuloId(ot.moduloId);
 
       if (ot.clienteId) { const c = await clientesService.getById(ot.clienteId); setCliente(c); }
@@ -188,6 +197,7 @@ export function useOTDetail(otNumber?: string) {
         estadoAdmin, estadoAdminFecha: cleanValue(estadoAdminFecha), estadoHistorial,
         ordenCompra: cleanValue(ordenCompra), fechaServicioAprox: cleanValue(fechaServicioAprox),
         ingenieroAsignadoId, ingenieroAsignadoNombre,
+        cierreAdmin,
         clienteId: cleanValue(clienteId), sistemaId: cleanValue(sistemaId), moduloId: cleanValue(moduloId),
       } as Partial<WorkOrder>);
     } catch { alert('Error al guardar los cambios'); } finally { setSaving(false); }
@@ -285,6 +295,38 @@ export function useOTDetail(otNumber?: string) {
     markInteracted();
   };
 
+  const handleCierreChange = (field: keyof CierreAdministrativo, value: any) => {
+    setCierreAdmin(prev => ({ ...prev, [field]: value }));
+    markInteracted();
+  };
+
+  const handleConfirmarCierre = async () => {
+    if (!cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
+    if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
+    if (!otNumber) return;
+
+    const ahora = new Date().toISOString();
+
+    // 1. Enviar aviso por mail a administración
+    try {
+      await ordenesTrabajoService.enviarAvisoCierreAdmin(otNumber, {
+        razonSocial, tipoServicio,
+        horasLab: horasTrabajadas, horasViaje: tiempoViaje,
+        cierreAdmin: { ...cierreAdmin, fechaCierreAdmin: ahora },
+        partesCount: articulos.length,
+        ingenieroNombre: ingenieroAsignadoNombre,
+      });
+      setCierreAdmin(prev => ({ ...prev, avisoAdminEnviado: true, avisoAdminFecha: ahora, fechaCierreAdmin: ahora }));
+    } catch (err) {
+      console.error('Error encolando aviso:', err);
+      alert('Error al enviar aviso a administración. El cierre se realizará pero verifique el envío manualmente.');
+      setCierreAdmin(prev => ({ ...prev, fechaCierreAdmin: ahora }));
+    }
+
+    // 2. Cambiar estado a FINALIZADO
+    handleEstadoAdminChange('FINALIZADO');
+  };
+
   const handleCheckboxChange = (field: string, checked: boolean) => {
     markInteracted();
     if (field === 'esFacturable') setEsFacturable(checked);
@@ -347,7 +389,12 @@ export function useOTDetail(otNumber?: string) {
   };
 
   return {
-    loading, saving, status, readOnly: estadoAdmin === 'FINALIZADO' || status === 'FINALIZADO',
+    loading, saving, status,
+    // FINALIZADO = todo readonly. CIERRE_ADMINISTRATIVO = solo campos admin editables.
+    readOnly: estadoAdmin === 'FINALIZADO',
+    // Campos del reporte técnico (informe, problema, acciones) readonly si ingeniero ya cerró
+    readOnlyTecnico: estadoAdmin === 'FINALIZADO' || estadoAdmin === 'CIERRE_ADMINISTRATIVO' || status === 'FINALIZADO',
+    enCierreAdmin: estadoAdmin === 'CIERRE_ADMINISTRATIVO',
     // Handlers
     handleSave, handleDelete, openInReportesOT, handleFieldChange, handleCheckboxChange,
     handleClienteChange, handleContactoChange, handleSistemaChange, handleModuloChange,
@@ -355,6 +402,8 @@ export function useOTDetail(otNumber?: string) {
     // Admin workflow
     estadoAdmin, estadoAdminFecha, estadoHistorial, ordenCompra, fechaServicioAprox,
     ingenieroAsignadoId, ingenieroAsignadoNombre, ingenieros,
+    // Cierre administrativo
+    cierreAdmin, handleCierreChange, handleConfirmarCierre,
     // Sidebar props
     clienteId, clientes, cliente, contacto, contactos,
     emailPrincipal, direccion, localidad, provincia,

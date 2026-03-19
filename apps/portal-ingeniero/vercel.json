@@ -1,5 +1,5 @@
 {
-  "installCommand": "cd ../.. && pnpm install",
+  "installCommand": "cd ../.. && corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install",
   "buildCommand": "cd ../.. && pnpm --filter @ags/portal-ingeniero build",
   "outputDirectory": "dist",
   "framework": null,

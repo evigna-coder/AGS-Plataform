@@ -6,9 +6,11 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { clientesService } from '../../services/firebaseService';
 import type { CondicionIva } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const ClienteNew = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     razonSocial: '',
@@ -89,7 +91,7 @@ export const ClienteNew = () => {
           <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nuevo Cliente</h2>
           <p className="text-sm text-slate-500 mt-1">Complete los datos del cliente</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/clientes')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
@@ -239,7 +241,7 @@ export const ClienteNew = () => {
 
         {/* Botones */}
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/clientes')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

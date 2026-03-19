@@ -1,9 +1,12 @@
 import { ReactNode, useState, useEffect, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import type { UserRole } from '@ags/shared';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import type { ModuloId } from '@ags/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { signOut } from '../services/authService';
 import { useTabs, getNavMeta, tabId } from '../contexts/TabsContext';
+import { useBackgroundTasks } from '../contexts/BackgroundTasksContext';
+import { useFloatingPresupuesto } from '../contexts/FloatingPresupuestoContext';
+import { EditPresupuestoModal } from './presupuestos/EditPresupuestoModal';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,23 +16,23 @@ interface NavItem {
   name: string;
   path: string;
   icon: string;
-  allowedRoles?: UserRole[];
+  modulo?: ModuloId;
   children?: { name: string; path: string; separator?: boolean }[];
 }
 
 const navigation: NavItem[] = [
-  { name: 'Clientes', path: '/clientes', icon: '🏢' },
-  { name: 'Establecimientos', path: '/establecimientos', icon: '🏭' },
-  { name: 'Equipos', path: '/equipos', icon: '⚙️' },
-  { name: 'Ordenes de Trabajo', path: '/ordenes-trabajo', icon: '📝' },
-  { name: 'Leads', path: '/leads', icon: '👥' },
-  { name: 'Presupuestos', path: '/presupuestos', icon: '📋' },
-  { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐' },
-  { name: 'Instrumentos', path: '/instrumentos', icon: '🔬' },
-  { name: 'Fichas Propiedad', path: '/fichas', icon: '🔧' },
-  { name: 'Loaners', path: '/loaners', icon: '🔄' },
+  { name: 'Clientes', path: '/clientes', icon: '🏢', modulo: 'clientes' },
+  { name: 'Establecimientos', path: '/establecimientos', icon: '🏭', modulo: 'establecimientos' },
+  { name: 'Equipos', path: '/equipos', icon: '⚙️', modulo: 'equipos' },
+  { name: 'Ordenes de Trabajo', path: '/ordenes-trabajo', icon: '📝', modulo: 'ordenes-trabajo' },
+  { name: 'Leads', path: '/leads', icon: '👥', modulo: 'leads' },
+  { name: 'Presupuestos', path: '/presupuestos', icon: '📋', modulo: 'presupuestos' },
+  { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐', modulo: 'table-catalog' },
+  { name: 'Instrumentos', path: '/instrumentos', icon: '🔬', modulo: 'instrumentos' },
+  { name: 'Fichas Propiedad', path: '/fichas', icon: '🔧', modulo: 'fichas' },
+  { name: 'Loaners', path: '/loaners', icon: '🔄', modulo: 'loaners' },
   {
-    name: 'Stock', path: '/stock', icon: '📦',
+    name: 'Stock', path: '/stock', icon: '📦', modulo: 'stock',
     children: [
       { name: 'Articulos', path: '/stock/articulos' },
       { name: 'Unidades', path: '/stock/unidades' },
@@ -47,25 +50,69 @@ const navigation: NavItem[] = [
       { name: 'Marcas', path: '/stock/marcas' },
     ],
   },
-  { name: 'Usuarios', path: '/usuarios', icon: '👤', allowedRoles: ['admin'] },
-  { name: 'Agenda', path: '/agenda', icon: '📅' },
-  { name: 'Postas', path: '/postas', icon: '🔀' },
-  { name: 'Facturacion', path: '/facturacion', icon: '💰', allowedRoles: ['admin', 'administracion'] },
+  { name: 'Usuarios', path: '/usuarios', icon: '👤', modulo: 'usuarios' },
+  { name: 'Agenda', path: '/agenda', icon: '📅', modulo: 'agenda' },
+  { name: 'Facturacion', path: '/facturacion', icon: '💰', modulo: 'facturacion' },
+  { name: 'Importar Datos', path: '/admin/importar', icon: '📥', modulo: 'admin' },
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-  const { usuario, hasRole } = useAuth();
+  const navigate = useNavigate();
+  const { usuario, canAccess } = useAuth();
   const { tabs, openTab, closeTab, switchTab } = useTabs();
+  const { runningTaskIds, getTask } = useBackgroundTasks();
+  const floatingPres = useFloatingPresupuesto();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     location.pathname.startsWith('/stock') ? { '/stock': true } : {}
   );
 
-  // Auto-colapsar al hacer click en un link de nav (mobile-like UX)
+  // Module root paths — Escape stops here, never navigates past a module boundary
+  const MODULE_ROOTS = new Set(navigation.flatMap(item =>
+    item.children ? item.children.map(c => c.path) : [item.path]
+  ));
+
+  // Compute parent path by stripping the last segment, but never go past a module root
+  const getParentPath = useCallback((pathname: string): string | null => {
+    if (MODULE_ROOTS.has(pathname)) return null; // already at root
+    const segments = pathname.split('/').filter(Boolean);
+    // Try removing last segment
+    while (segments.length > 1) {
+      segments.pop();
+      const candidate = '/' + segments.join('/');
+      // If this is a valid module root or a route above it, return it
+      return candidate;
+    }
+    return '/' + segments[0]; // fallback to top-level module
+  }, []);
+
+  // Global Escape key → navigate to parent path (within module only)
+  // If location.state.from exists (navigation memory), use that instead
   useEffect(() => {
-    // No auto-colapsar, solo responder al botón
-  }, [location.pathname]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Don't navigate back if user is in an input, textarea, select, or modal
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (document.querySelector('[role="dialog"], .modal-overlay, [data-modal]')) return;
+
+      // Prefer navigation memory (state.from) over parent path
+      const stateFrom = (location.state as any)?.from;
+      if (stateFrom && typeof stateFrom === 'string') {
+        e.preventDefault();
+        navigate(stateFrom);
+        return;
+      }
+
+      const parent = getParentPath(location.pathname);
+      if (!parent) return; // at module root, don't navigate
+      e.preventDefault();
+      navigate(parent);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, location.pathname, location.state, getParentPath]);
 
   const toggleGroup = (path: string) => {
     setExpandedGroups(prev => ({ ...prev, [path]: !prev[path] }));
@@ -74,7 +121,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isStockExpanded = expandedGroups['/stock'] || location.pathname.startsWith('/stock');
 
   const visibleNav = navigation.filter(item =>
-    !item.allowedRoles || hasRole(...item.allowedRoles)
+    !item.modulo || canAccess(item.modulo)
   );
 
   /** Ctrl+click o middle-click → abrir en nueva pestaña interna */
@@ -252,6 +299,64 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* Floating background task indicator */}
+      {runningTaskIds.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+          {runningTaskIds.map(id => {
+            const task = getTask(id);
+            if (!task) return null;
+            const pct = task.progress.total > 0
+              ? Math.round((task.progress.current / task.progress.total) * 100)
+              : 0;
+            const label = id === 'bulk-cuit-validation' ? 'Validando CUITs'
+              : id === 'bulk-address-validation' ? 'Validando direcciones'
+              : id === 'dedup-modulos' ? 'Escaneando duplicados'
+              : id === 'repair-sistema-est' ? 'Reparando sistemas'
+              : id === 'unify-sistemas' ? 'Unificando sistemas'
+              : 'Procesando...';
+            return (
+              <div key={id} className="bg-white rounded-lg shadow-lg border border-slate-200 px-3 py-2 flex items-center gap-3 min-w-[200px]">
+                <div className="shrink-0 w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-slate-700">{label}</p>
+                  <div className="w-full bg-slate-100 rounded-full h-1 mt-1">
+                    <div className="h-1 rounded-full bg-indigo-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 tabular-nums shrink-0">{pct}%</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Floating presupuesto modal — persists across route changes */}
+      {floatingPres.presupuestoId && !floatingPres.minimized && (
+        <EditPresupuestoModal
+          presupuestoId={floatingPres.presupuestoId}
+          open={true}
+          onClose={floatingPres.close}
+          onUpdated={floatingPres.onUpdated || undefined}
+          onMinimize={floatingPres.minimize}
+        />
+      )}
+
+      {/* Minimized presupuesto pill */}
+      {floatingPres.presupuestoId && floatingPres.minimized && (
+        <button
+          onClick={floatingPres.restore}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+          </svg>
+          <span className="text-xs font-medium">Presupuesto abierto</span>
+          <svg className="w-3 h-3 ml-1 opacity-70" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 };

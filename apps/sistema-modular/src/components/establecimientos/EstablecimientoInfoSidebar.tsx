@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const TIPOS: { value: Establecimiento['tipo']; label: string }[] = [
   { value: 'planta', label: 'Planta' },
@@ -36,7 +36,9 @@ const LabelValue = ({ label, value }: { label: string; value: string }) => (
 
 export const EstablecimientoInfoSidebar = ({
   est, cliente, condicionesPago, editing, formData, setFormData,
-}: EstablecimientoInfoSidebarProps) => (
+}: EstablecimientoInfoSidebarProps) => {
+  const { pathname } = useLocation();
+  return (
   <div className="w-72 shrink-0 space-y-4">
     {/* Ubicacion */}
     <Card compact>
@@ -227,7 +229,7 @@ export const EstablecimientoInfoSidebar = ({
         <div className="space-y-2.5">
           <div>
             <p className="text-[11px] font-medium text-slate-400 mb-0.5">Razon Social</p>
-            <Link to={`/clientes/${est.clienteCuit}`} className="text-xs text-indigo-600 hover:underline font-medium">
+            <Link to={`/clientes/${est.clienteCuit}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:underline font-medium">
               {cliente.razonSocial}
             </Link>
           </div>
@@ -237,4 +239,5 @@ export const EstablecimientoInfoSidebar = ({
       </Card>
     )}
   </div>
-);
+  );
+};

@@ -17,7 +17,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 import { app } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
 
 export const db = getFirestore(app);
@@ -488,5 +488,139 @@ export const agendaService = {
         .filter(e => e.fechaFin >= rangeStart);
       callback(entries);
     });
+  },
+};
+
+// =============================================
+// --- Viáticos ---
+// =============================================
+
+function parseViaticoPeriodo(id: string, data: Record<string, unknown>): ViaticoPeriodo {
+  return {
+    id,
+    ingenieroId: (data.ingenieroId as string) ?? '',
+    ingenieroNombre: (data.ingenieroNombre as string) ?? '',
+    mes: (data.mes as number) ?? 1,
+    anio: (data.anio as number) ?? new Date().getFullYear(),
+    estado: (data.estado as ViaticoPeriodoEstado) ?? 'abierto',
+    gastos: (data.gastos as GastoViatico[]) ?? [],
+    totalEfectivo: (data.totalEfectivo as number) ?? 0,
+    totalTarjeta: (data.totalTarjeta as number) ?? 0,
+    total: (data.total as number) ?? 0,
+    enviadoAt: (data.enviadoAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? (data.enviadoAt as string) ?? null,
+    confirmadoAt: (data.confirmadoAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? (data.confirmadoAt as string) ?? null,
+    confirmadoPor: (data.confirmadoPor as string) ?? null,
+    confirmadoPorNombre: (data.confirmadoPorNombre as string) ?? null,
+    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
+    updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
+  };
+}
+
+function calcularTotales(gastos: GastoViatico[]) {
+  const totalEfectivo = gastos.filter(g => g.medioPago === 'efectivo').reduce((s, g) => s + g.monto, 0);
+  const totalTarjeta = gastos.filter(g => g.medioPago === 'tarjeta').reduce((s, g) => s + g.monto, 0);
+  return { totalEfectivo, totalTarjeta, total: totalEfectivo + totalTarjeta };
+}
+
+export const viaticosService = {
+  /** Obtiene o crea el período abierto actual del ingeniero */
+  async getOrCreatePeriodoActual(ingenieroId: string, ingenieroNombre: string): Promise<ViaticoPeriodo> {
+    // Buscar períodos del ingeniero y filtrar el abierto en cliente (evita índice compuesto)
+    const q = query(
+      collection(db, 'viaticos'),
+      where('ingenieroId', '==', ingenieroId),
+    );
+    const snap = await getDocs(q);
+    const abierto = snap.docs.find(d => (d.data().estado as string) === 'abierto');
+    if (abierto) {
+      return parseViaticoPeriodo(abierto.id, abierto.data() as Record<string, unknown>);
+    }
+    // Crear nuevo período para el mes actual
+    const now = new Date();
+    const payload = cleanFirestoreData({
+      ingenieroId,
+      ingenieroNombre,
+      mes: now.getMonth() + 1,
+      anio: now.getFullYear(),
+      estado: 'abierto' as const,
+      gastos: [],
+      totalEfectivo: 0,
+      totalTarjeta: 0,
+      total: 0,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    const ref = await addDoc(collection(db, 'viaticos'), payload);
+    return {
+      id: ref.id,
+      ingenieroId,
+      ingenieroNombre,
+      mes: now.getMonth() + 1,
+      anio: now.getFullYear(),
+      estado: 'abierto',
+      gastos: [],
+      totalEfectivo: 0,
+      totalTarjeta: 0,
+      total: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  },
+
+  /** Agrega un gasto al período abierto */
+  async agregarGasto(periodoId: string, gasto: GastoViatico): Promise<void> {
+    const docRef = doc(db, 'viaticos', periodoId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error('Período no encontrado');
+    const data = snap.data();
+    const gastos = [...((data.gastos as GastoViatico[]) ?? []), gasto];
+    const totales = calcularTotales(gastos);
+    await updateDoc(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+  },
+
+  /** Edita un gasto existente del período */
+  async editarGasto(periodoId: string, gastoId: string, updates: Partial<Omit<GastoViatico, 'id'>>): Promise<void> {
+    const docRef = doc(db, 'viaticos', periodoId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error('Período no encontrado');
+    const data = snap.data();
+    const gastos = ((data.gastos as GastoViatico[]) ?? []).map(g =>
+      g.id === gastoId ? { ...g, ...updates } : g
+    );
+    const totales = calcularTotales(gastos);
+    await updateDoc(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+  },
+
+  /** Elimina un gasto del período */
+  async eliminarGasto(periodoId: string, gastoId: string): Promise<void> {
+    const docRef = doc(db, 'viaticos', periodoId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error('Período no encontrado');
+    const data = snap.data();
+    const gastos = ((data.gastos as GastoViatico[]) ?? []).filter(g => g.id !== gastoId);
+    const totales = calcularTotales(gastos);
+    await updateDoc(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+  },
+
+  /** Envía el período a administración para revisión */
+  async enviarPeriodo(periodoId: string): Promise<void> {
+    await updateDoc(doc(db, 'viaticos', periodoId), {
+      estado: 'enviado',
+      enviadoAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  /** Historial de períodos cerrados del ingeniero */
+  async getHistorial(ingenieroId: string): Promise<ViaticoPeriodo[]> {
+    const q = query(
+      collection(db, 'viaticos'),
+      where('ingenieroId', '==', ingenieroId),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => parseViaticoPeriodo(d.id, d.data() as Record<string, unknown>))
+      .filter(p => p.estado === 'enviado' || p.estado === 'confirmado')
+      .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
   },
 };

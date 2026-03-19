@@ -5,12 +5,14 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
 import type { Loaner, Articulo, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const CATEGORIAS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
 
 export function LoanerEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const isEdit = Boolean(id);
   const [saving, setSaving] = useState(false);
 
@@ -102,7 +104,7 @@ export function LoanerEditor() {
           <p className="text-xs text-slate-500">Equipo de la empresa para prestamo o venta</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate('/loaners')}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={() => goBack()}>Cancelar</Button>
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar'}
           </Button>

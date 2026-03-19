@@ -88,7 +88,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
     return (
       <canvas
         ref={canvasRef}
-        className={`w-full h-28 border border-slate-300 rounded-xl bg-white touch-none ${
+        className={`w-full h-40 border border-slate-300 rounded-xl bg-white touch-none ${
           disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-crosshair'
         } ${className}`}
         onMouseDown={start}

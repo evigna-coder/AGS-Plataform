@@ -85,12 +85,28 @@ export interface WorkOrder {
   problemaFallaInicial?: string;
   ingenieroAsignadoId?: string | null;
   ingenieroAsignadoNombre?: string | null;
+  // --- Cierre administrativo ---
+  cierreAdmin?: CierreAdministrativo;
+}
+
+/** Datos del cierre administrativo de la OT */
+export interface CierreAdministrativo {
+  horasConfirmadas: boolean;
+  horasLabAjustadas?: string;       // Hs laboratorio ajustadas (si difieren del reporte)
+  horasViajeAjustadas?: string;     // Hs viaje ajustadas
+  partesConfirmadas: boolean;
+  stockDeducido: boolean;
+  notasCierre?: string;
+  avisoAdminEnviado: boolean;       // Se envió mail a administración para facturación
+  avisoAdminFecha?: string;         // Fecha ISO del envío del aviso
+  fechaCierreAdmin?: string;        // ISO date de cuando se cerró administrativamente
 }
 
 export interface Part {
   id: string;
   codigo: string;
   descripcion: string;
+  nroSerie?: string;
   cantidad: number;
   origen: string;
   /** FK opcional a artículos de stock (integración futura) */
@@ -168,7 +184,7 @@ export interface ContactoEstablecimiento {
   nombre: string;
   cargo: string;
   sector: string;
-  telefono: string;
+  telefono?: string;
   interno?: string;
   email: string;
   esPrincipal: boolean;
@@ -197,6 +213,8 @@ export interface Establecimiento {
   pagaEnTiempo?: boolean;
   sueleDemorarse?: boolean;
   activo: boolean;
+  /** Sectores/áreas del establecimiento (ej: "Control de Calidad", "Desarrollo", "Producción") */
+  sectores?: string[];
   ubicaciones?: Ubicacion[];
   createdAt: string;
   updatedAt: string;
@@ -311,6 +329,8 @@ export interface Sistema {
   codigoInternoCliente: string; // asignado por cliente o provisorio editable
   software?: string; // Información del software del sistema
   observaciones?: string;
+  /** Sector/área del establecimiento al que pertenece (ej: "Control de Calidad") */
+  sector?: string | null;
   /** Solo para sistemas cuyo nombre contiene "gaseoso" (cromatógrafos GC) */
   configuracionGC?: ConfiguracionGC | null;
   activo: boolean;
@@ -372,6 +392,21 @@ export const LEAD_AREA_COLORS: Record<LeadArea, string> = {
   pago_proveedores: 'bg-rose-100 text-rose-700',
 };
 
+// --- Prioridad ---
+export type LeadPrioridad = 'alta' | 'media' | 'baja';
+
+export const LEAD_PRIORIDAD_LABELS: Record<LeadPrioridad, string> = {
+  alta: 'Alta',
+  media: 'Media',
+  baja: 'Baja',
+};
+
+export const LEAD_PRIORIDAD_COLORS: Record<LeadPrioridad, string> = {
+  alta: 'bg-red-100 text-red-700',
+  media: 'bg-amber-100 text-amber-700',
+  baja: 'bg-emerald-100 text-emerald-700',
+};
+
 /** Agrupación visual de áreas para selectores */
 export const LEAD_AREA_GROUPS: { label: string; areas: LeadArea[] }[] = [
   { label: 'Soporte', areas: ['presupuesto_ventas', 'agenda_coordinacion', 'materiales_comex', 'ingeniero_soporte'] },
@@ -383,6 +418,7 @@ export const ROLE_LEAD_AREAS: Record<UserRole, LeadArea[]> = {
   admin: [], // admin tiene acceso total, no necesita mapeo
   admin_soporte: ['presupuesto_ventas', 'agenda_coordinacion', 'materiales_comex', 'ingeniero_soporte'],
   ingeniero_soporte: ['ingeniero_soporte'],
+  admin_contable: ['facturacion', 'pago_proveedores'],
   administracion: ['facturacion', 'pago_proveedores'],
 };
 
@@ -475,91 +511,6 @@ export interface Posta {
   accionRequerida?: string; // ej: "Averiguar N° parte", "Enviar presupuesto"
 }
 
-// --- Postas Workflow (derivaciones entre usuarios) ---
-
-export type PostaCategoria = 'administracion' | 'soporte_tecnico';
-
-export const POSTA_CATEGORIA_LABELS: Record<PostaCategoria, string> = {
-  administracion: 'Administración',
-  soporte_tecnico: 'Soporte Técnico',
-};
-
-export const POSTA_CATEGORIA_COLORS: Record<PostaCategoria, string> = {
-  administracion: 'bg-violet-100 text-violet-700',
-  soporte_tecnico: 'bg-cyan-100 text-cyan-700',
-};
-
-export type PostaTipoEntidad = 'orden_compra' | 'importacion' | 'presupuesto' | 'requerimiento' | 'agenda';
-
-export const POSTA_TIPO_ENTIDAD_LABELS: Record<PostaTipoEntidad, string> = {
-  orden_compra: 'Orden de Compra',
-  importacion: 'Importación',
-  presupuesto: 'Presupuesto',
-  requerimiento: 'Requerimiento',
-  agenda: 'Agenda',
-};
-
-export type PostaEstado = 'pendiente' | 'en_proceso' | 'completada' | 'cancelada';
-
-export const POSTA_ESTADO_LABELS: Record<PostaEstado, string> = {
-  pendiente: 'Pendiente',
-  en_proceso: 'En proceso',
-  completada: 'Completada',
-  cancelada: 'Cancelada',
-};
-
-export const POSTA_ESTADO_COLORS: Record<PostaEstado, string> = {
-  pendiente: 'bg-amber-100 text-amber-800',
-  en_proceso: 'bg-blue-100 text-blue-800',
-  completada: 'bg-emerald-100 text-emerald-800',
-  cancelada: 'bg-red-100 text-red-600',
-};
-
-export type PostaPrioridad = 'baja' | 'normal' | 'alta' | 'urgente';
-
-export const POSTA_PRIORIDAD_LABELS: Record<PostaPrioridad, string> = {
-  baja: 'Baja', normal: 'Normal', alta: 'Alta', urgente: 'Urgente',
-};
-
-export const POSTA_PRIORIDAD_COLORS: Record<PostaPrioridad, string> = {
-  baja: 'bg-slate-100 text-slate-600',
-  normal: 'bg-blue-50 text-blue-600',
-  alta: 'bg-orange-100 text-orange-700',
-  urgente: 'bg-red-100 text-red-700',
-};
-
-export interface PostaHandoff {
-  fecha: string;
-  deUsuarioId: string;
-  deUsuarioNombre: string;
-  aUsuarioId: string;
-  aUsuarioNombre: string;
-  accion: string;
-  comentario: string | null;
-}
-
-export interface PostaWorkflow {
-  id: string;
-  tipoEntidad: PostaTipoEntidad;
-  entidadId: string;
-  entidadNumero: string;
-  entidadDescripcion: string;
-  categoria: PostaCategoria;
-  responsableId: string;
-  responsableNombre: string;
-  creadoPorId: string;
-  creadoPorNombre: string;
-  estado: PostaEstado;
-  prioridad: PostaPrioridad;
-  accionRequerida: string;
-  historial: PostaHandoff[];
-  comentario: string | null;
-  fechaCreacion: string;
-  fechaVencimiento: string | null;
-  fechaCompletada: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
 
 // --- Tipos de Servicio (lista simple, sin categorías) ---
 export interface TipoServicio {
@@ -597,6 +548,9 @@ export interface Lead {
   createdBy?: string;
   finalizadoAt?: string | null;
   descripcion?: string | null;
+  prioridad?: LeadPrioridad | null;
+  proximoContacto?: string | null;
+  valorEstimado?: number | null;
   presupuestosIds?: string[];
   otIds?: string[];
   /** Origen del lead: qr = sticker QR, portal = portal cliente, manual = creado manualmente */
@@ -700,6 +654,7 @@ export interface PresupuestoItem {
   cantidad: number;
   unidad: string; // 'unidad', 'hora', 'servicio', etc.
   precioUnitario: number;
+  descuento?: number; // Porcentaje de descuento (0-100)
   categoriaPresupuestoId?: string; // Referencia a categoría para aplicar reglas tributarias
   subtotal: number;
   /** FK opcional a artículos de stock (integración futura) */
@@ -882,6 +837,11 @@ export interface Presupuesto {
   validezDias: number; // Días de validez (default 15)
   validUntil?: string;
   fechaEnvio?: string;
+  // --- Seguimiento ---
+  proximoContacto?: string | null; // ISO date para próximo follow-up
+  responsableId?: string | null;
+  responsableNombre?: string | null;
+  // --- Audit ---
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;
@@ -963,7 +923,7 @@ export interface TableCatalogRule {
  * - 'value_input' : campo con etiqueta y unidad opcional (ej. "Nro. de serie: ___")
  * - 'pass_fail'   : resultado con opciones CUMPLE / NO_CUMPLE / NA
  */
-export type ChecklistItemType = 'checkbox' | 'value_input' | 'pass_fail';
+export type ChecklistItemType = 'checkbox' | 'value_input' | 'pass_fail' | 'selector';
 
 export interface ChecklistItem {
   /** ID estable dentro del checklist (ej. "item_001") */
@@ -986,13 +946,18 @@ export interface ChecklistItem {
   canBeNA?: boolean;
   /** Prefijo numérico visible (ej. "3.2.a") */
   numberPrefix?: string | null;
+  /** Opciones para itemType 'selector' (ej. ["FID", "ECD", "FPD"]) */
+  selectorOptions?: string[] | null;
+  /** Condición de visibilidad: solo se muestra si el selector referenciado tiene alguno de los valores indicados */
+  visibleWhen?: { selectorItemId: string; values: string[] } | null;
 }
 
 /** Respuesta del técnico para un ítem de checklist */
 export type ChecklistItemAnswer =
   | { itemType: 'checkbox'; checked: boolean }
   | { itemType: 'value_input'; value: string }
-  | { itemType: 'pass_fail'; result: 'CUMPLE' | 'NO_CUMPLE' | 'NA' | '' };
+  | { itemType: 'pass_fail'; result: 'CUMPLE' | 'NO_CUMPLE' | 'NA' | '' }
+  | { itemType: 'selector'; selected: string };
 
 /** Campo de encabezado que se muestra arriba de la tabla para que el técnico seleccione una opción. */
 export interface TableHeaderField {
@@ -1964,14 +1929,147 @@ export interface Importacion {
 // --- Autenticacion y Roles ---
 // =============================================
 
-export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'administracion';
+export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'admin_contable' | 'administracion';
 export type UserStatus = 'pendiente' | 'activo' | 'deshabilitado';
+
+/** Identificadores de app para control de acceso */
+export type AppId = 'sistema-modular' | 'portal-ingeniero' | 'reportes-ot';
+
+/** Identificadores de módulo (agrupan rutas relacionadas) */
+export type ModuloId =
+  | 'clientes'
+  | 'establecimientos'
+  | 'equipos'
+  | 'ordenes-trabajo'
+  | 'leads'
+  | 'presupuestos'
+  | 'stock'
+  | 'fichas'
+  | 'loaners'
+  | 'instrumentos'
+  | 'table-catalog'
+  | 'agenda'
+  | 'facturacion'
+  | 'usuarios'
+  | 'admin';
+
+/** Permisos por defecto de cada rol — apps y módulos accesibles */
+export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
+  admin: {
+    apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'agenda', 'facturacion', 'usuarios', 'admin'],
+  },
+  ingeniero_soporte: {
+    apps: ['portal-ingeniero', 'reportes-ot'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'agenda'],
+  },
+  admin_soporte: {
+    apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'agenda'],
+  },
+  admin_contable: {
+    apps: ['sistema-modular'],
+    modulos: ['leads', 'presupuestos', 'stock', 'facturacion'],
+  },
+  administracion: {
+    apps: ['sistema-modular'],
+    modulos: ['leads', 'presupuestos', 'stock', 'facturacion'],
+  },
+};
+
+/** Mapeo de ruta → módulo (para ProtectedRoute) */
+export const RUTA_MODULO: Record<string, ModuloId> = {
+  '/clientes': 'clientes',
+  '/establecimientos': 'establecimientos',
+  '/equipos': 'equipos',
+  '/categorias-equipo': 'equipos',
+  '/ordenes-trabajo': 'ordenes-trabajo',
+  '/tipos-servicio': 'ordenes-trabajo',
+  '/leads': 'leads',
+  '/presupuestos': 'presupuestos',
+  '/stock': 'stock',
+  '/fichas': 'fichas',
+  '/loaners': 'loaners',
+  '/instrumentos': 'instrumentos',
+  '/table-catalog': 'table-catalog',
+  '/agenda': 'agenda',
+  '/facturacion': 'facturacion',
+  '/usuarios': 'usuarios',
+  '/admin': 'admin',
+};
+
+/** Labels para UI */
+export const MODULO_LABELS: Record<ModuloId, string> = {
+  'clientes': 'Clientes',
+  'establecimientos': 'Establecimientos',
+  'equipos': 'Equipos',
+  'ordenes-trabajo': 'Ordenes de Trabajo',
+  'leads': 'Leads',
+  'presupuestos': 'Presupuestos',
+  'stock': 'Stock',
+  'fichas': 'Fichas Técnicas',
+  'loaners': 'Loaners',
+  'instrumentos': 'Instrumentos',
+  'table-catalog': 'Biblioteca de Tablas',
+  'agenda': 'Agenda',
+  'facturacion': 'Facturación',
+  'usuarios': 'Usuarios',
+  'admin': 'Administración',
+};
+
+export const APP_LABELS: Record<AppId, string> = {
+  'sistema-modular': 'Sistema Modular',
+  'portal-ingeniero': 'Portal Ingeniero',
+  'reportes-ot': 'Reportes OT',
+};
+
+/**
+ * Resuelve los permisos efectivos de un usuario.
+ * Si tiene overrides en `permisos`, usa esos. Si no, usa los defaults del rol.
+ * Admin SIEMPRE tiene acceso total (no se puede restringir).
+ */
+export function getUserPermissions(usuario: UsuarioAGS): { apps: AppId[]; modulos: ModuloId[] } {
+  if (!usuario.role) return { apps: [], modulos: [] };
+  if (usuario.role === 'admin') return ROLE_DEFAULTS.admin;
+
+  const defaults = ROLE_DEFAULTS[usuario.role];
+  if (!usuario.permisos) return defaults;
+
+  return {
+    apps: usuario.permisos.apps ?? defaults.apps,
+    modulos: usuario.permisos.modulos ?? defaults.modulos,
+  };
+}
+
+/** Verifica si un usuario puede acceder a un módulo específico */
+export function canAccessModulo(usuario: UsuarioAGS, modulo: ModuloId): boolean {
+  const { modulos } = getUserPermissions(usuario);
+  return modulos.includes(modulo);
+}
+
+/** Verifica si un usuario puede acceder a una app específica */
+export function canAccessApp(usuario: UsuarioAGS, app: AppId): boolean {
+  const { apps } = getUserPermissions(usuario);
+  return apps.includes(app);
+}
+
+/** Dado un pathname, devuelve el módulo al que pertenece (o null) */
+export function getModuloFromPath(pathname: string): ModuloId | null {
+  // Busca el prefijo más largo que coincida
+  for (const [prefix, modulo] of Object.entries(RUTA_MODULO)) {
+    if (pathname === prefix || pathname.startsWith(prefix + '/')) {
+      return modulo;
+    }
+  }
+  return null;
+}
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   ingeniero_soporte: 'Ingeniero de Soporte',
   admin_soporte: 'Admin de Soporte',
-  administracion: 'Administracion',
+  admin_contable: 'Admin Contable',
+  administracion: 'Administración',
 };
 
 export const USER_STATUS_LABELS: Record<UserStatus, string> = {
@@ -1986,6 +2084,12 @@ export const USER_STATUS_COLORS: Record<UserStatus, string> = {
   deshabilitado: 'bg-red-100 text-red-700',
 };
 
+/** Permisos override por usuario — si undefined, usa defaults del rol */
+export interface UserPermissionsOverride {
+  apps?: AppId[];
+  modulos?: ModuloId[];
+}
+
 export interface UsuarioAGS {
   id: string;
   email: string;
@@ -1993,6 +2097,8 @@ export interface UsuarioAGS {
   photoURL: string | null;
   role: UserRole | null;
   status: UserStatus;
+  /** Permisos personalizados (override de los defaults del rol) */
+  permisos?: UserPermissionsOverride | null;
   /** Firma digital del usuario (base64 PNG dataUrl) */
   firmaBase64?: string | null;
   /** Nombre/aclaración que aparece debajo de la firma en reportes */
@@ -2077,3 +2183,185 @@ export interface AgendaNota {
 }
 
 export type ZoomLevel = 'week' | '2weeks' | 'month' | '2months' | 'year';
+
+// =============================================
+// --- Tipos ligeros para selectores (reportes-ot) ---
+// =============================================
+
+export interface ClienteOption {
+  id: string;
+  razonSocial: string;
+  cuit?: string | null;
+}
+
+export interface EstablecimientoOption {
+  id: string;
+  clienteCuit: string;
+  nombre: string;
+  direccion: string;
+  localidad: string;
+  provincia: string;
+}
+
+export interface ContactoOption {
+  id: string;
+  nombre: string;
+  email: string;
+  esPrincipal: boolean;
+}
+
+export interface SistemaOption {
+  id: string;
+  establecimientoId: string;
+  nombre: string;
+  codigoInternoCliente: string;
+}
+
+export interface ModuloOption {
+  id: string;
+  sistemaId: string;
+  nombre: string;
+  descripcion?: string;
+  serie?: string;
+}
+
+export interface SelectOption {
+  value: string;
+  label: string;
+}
+
+// =============================================
+// --- Instrumento/Patrón (vista ligera para selectores) ---
+// =============================================
+
+/** Instrumento o patrón (solo campos para lectura/selección por el técnico) */
+export interface InstrumentoPatronOption {
+  id: string;
+  nombre: string;
+  tipo: 'instrumento' | 'patron';
+  marca: string;
+  modelo: string;
+  serie: string;
+  categorias: string[];
+  certificadoEmisor?: string | null;
+  certificadoVencimiento?: string | null;
+  certificadoUrl?: string | null;
+}
+
+// =============================================
+// --- Adjuntos (vista ligera para reportes-ot) ---
+// =============================================
+
+/** Metadata de un adjunto con URL pública. Usado en reportes-ot. */
+export interface AdjuntoMeta {
+  id: string;
+  otNumber: string;
+  tipo: 'foto' | 'archivo';
+  storagePath: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  caption: string | null;
+  orden: number;
+  uploadedAt: string;
+}
+
+// =============================================
+// --- Tipos legacy (reportes-ot) ---
+// =============================================
+
+export interface Module {
+  id: string;
+  modelo: string;
+  descripcion: string;
+  nroSerie: string;
+}
+
+export interface Customer {
+  id: string;
+  razonSocial: string;
+  contacto: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+}
+
+export interface Equipment {
+  id: string;
+  modelo: string;
+  marca: string;
+  nroSerie: string;
+  configuracion: string;
+  customerId: string;
+  modules?: Module[];
+}
+
+// =============================================
+// --- Viáticos ---
+// =============================================
+export type MedioPago = 'efectivo' | 'tarjeta';
+export type ViaticoPeriodoEstado = 'abierto' | 'enviado' | 'confirmado';
+
+export const MEDIO_PAGO_LABELS: Record<MedioPago, string> = {
+  efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta',
+};
+
+export const VIATICO_ESTADO_LABELS: Record<ViaticoPeriodoEstado, string> = {
+  abierto: 'Abierto',
+  enviado: 'Enviado',
+  confirmado: 'Confirmado',
+};
+
+export const VIATICO_ESTADO_COLORS: Record<ViaticoPeriodoEstado, string> = {
+  abierto: 'bg-blue-50 text-blue-700',
+  enviado: 'bg-amber-50 text-amber-700',
+  confirmado: 'bg-emerald-50 text-emerald-700',
+};
+
+export interface GastoViatico {
+  id: string;
+  fecha: string; // ISO date (YYYY-MM-DD)
+  concepto: string;
+  establecimiento?: string | null; // nombre del comercio (Shell, McDonald's, etc.)
+  monto: number;
+  medioPago: MedioPago;
+  notas?: string | null;
+}
+
+export interface ViaticoPeriodo {
+  id: string;
+  ingenieroId: string;
+  ingenieroNombre: string;
+  mes: number;  // 1-12
+  anio: number;
+  estado: ViaticoPeriodoEstado;
+  gastos: GastoViatico[];
+  totalEfectivo: number;
+  totalTarjeta: number;
+  total: number;
+  enviadoAt?: string | null;
+  confirmadoAt?: string | null;
+  confirmadoPor?: string | null;
+  confirmadoPorNombre?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceReport {
+  id: string;
+  otNumber: string;
+  budgetNumber: string;
+  fechaInicio: string;
+  fechaFin: string;
+  horasTrabajadas: string;
+  tiempoViaje: string;
+  customerId: string;
+  equipmentId: string;
+  reporteTecnico: string;
+  articulos: Part[];
+  accionesTomar: string;
+  esFacturable: boolean;
+  tieneContrato: boolean;
+}

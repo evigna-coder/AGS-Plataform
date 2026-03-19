@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { esGaseoso } from '@ags/shared';
 import { Card } from '../ui/Card';
@@ -8,6 +8,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { GCPortsGrid } from '../GCPortsGrid';
 import { Button } from '../ui/Button';
 import { sistemasService } from '@/services/firebaseService';
+import { sectoresCatalogService, type SectorCatalog } from '@/services/catalogService';
 import QREquipoModal from './QREquipoModal';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5';
@@ -43,6 +44,11 @@ export const EquipoInfoSidebar: React.FC<EquipoInfoSidebarProps> = ({
   loadEstablecimientos,
 }) => {
   const [showQR, setShowQR] = useState(false);
+  const [sectorCatalog, setSectorCatalog] = useState<SectorCatalog[]>([]);
+
+  useEffect(() => {
+    if (editing) sectoresCatalogService.getAll().then(setSectorCatalog);
+  }, [editing]);
 
   const showGC = editing
     ? esGaseoso(formData.nombre ?? '') || esGaseoso(categorias.find(c => c.id === formData.categoriaId)?.nombre ?? '')
@@ -63,6 +69,7 @@ export const EquipoInfoSidebar: React.FC<EquipoInfoSidebarProps> = ({
             setEstablecimientos={setEstablecimientos}
             categorias={categorias}
             loadEstablecimientos={loadEstablecimientos}
+            sectorCatalog={sectorCatalog}
           />
         ) : (
           <ViewFields
@@ -112,12 +119,14 @@ interface ViewFieldsProps {
   onShowQR: () => void;
 }
 
-const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimiento, categoria, onShowQR }) => (
+const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimiento, categoria, onShowQR }) => {
+  const { pathname } = useLocation();
+  return (
   <div className="space-y-3">
     <div>
       <p className={lbl}>Cliente</p>
       {cliente ? (
-        <Link to={`/clientes/${cliente.id}`} className="text-xs text-indigo-600 hover:underline font-medium">
+        <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:underline font-medium">
           {cliente.razonSocial}
         </Link>
       ) : (
@@ -142,6 +151,10 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
       <p className={lbl}>Software</p>
       <p className={`${val} font-semibold`}>{sistema.software || '-'}</p>
     </div>
+    <div>
+      <p className={lbl}>Sector</p>
+      <p className={val}>{sistema.sector || '-'}</p>
+    </div>
     {/* AGS ID + QR */}
     <div>
       <p className={lbl}>ID AGS</p>
@@ -165,7 +178,8 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
       </div>
     )}
   </div>
-);
+  );
+};
 
 /* ---- Edit mode form ---- */
 interface EditFormProps {
@@ -176,6 +190,7 @@ interface EditFormProps {
   setEstablecimientos: (list: Establecimiento[]) => void;
   categorias: CategoriaEquipo[];
   loadEstablecimientos: (clienteId: string) => Promise<Establecimiento[]>;
+  sectorCatalog: SectorCatalog[];
 }
 
 const EditForm: React.FC<EditFormProps> = ({
@@ -186,6 +201,7 @@ const EditForm: React.FC<EditFormProps> = ({
   setEstablecimientos,
   categorias,
   loadEstablecimientos,
+  sectorCatalog,
 }) => {
   const [generating, setGenerating] = useState(false);
 
@@ -259,6 +275,29 @@ const EditForm: React.FC<EditFormProps> = ({
           placeholder="Ej: OpenLab, ChemStation, MassHunter..."
           required
         />
+      </div>
+      <div>
+        <label className={lbl}>Sector</label>
+        {(() => {
+          const selectedEst = establecimientos.find(e => e.id === formData.establecimientoId);
+          const estSectores = selectedEst?.sectores || [];
+          // Merge: sectores del establecimiento + catálogo global
+          const allNames = new Set(estSectores);
+          sectorCatalog.forEach(s => allNames.add(s.nombre));
+          const sectorOptions = [
+            { value: '', label: 'Sin sector' },
+            ...[...allNames].sort().map(n => ({ value: n, label: n })),
+          ];
+          return (
+            <SearchableSelect
+              value={formData.sector || ''}
+              onChange={(value) => setFormData({ ...formData, sector: value })}
+              options={sectorOptions}
+              placeholder="Seleccionar sector..."
+              creatable createLabel="Crear sector"
+            />
+          );
+        })()}
       </div>
       {/* AGS ID */}
       <div>

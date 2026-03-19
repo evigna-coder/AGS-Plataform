@@ -6,9 +6,11 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const OTNew = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [searchParams] = useSearchParams();
   const clienteIdFromUrl = searchParams.get('cliente');
   const sistemaIdFromUrl = searchParams.get('sistema');
@@ -248,7 +250,7 @@ export const OTNew = () => {
           <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Nueva Orden de Trabajo</h2>
           <p className="text-sm text-slate-500 mt-1">Seleccione cliente y sistema para pre-cargar datos</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/ordenes-trabajo')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
@@ -352,7 +354,7 @@ export const OTNew = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/ordenes-trabajo')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

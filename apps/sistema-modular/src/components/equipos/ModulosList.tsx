@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import type { ModuloSistema, CategoriaModulo } from '@ags/shared';
+import { useState, useEffect } from 'react';
+import type { ModuloSistema, CategoriaModulo, Sistema } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { sistemasService } from '../../services/firebaseService';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5';
 
@@ -13,6 +14,7 @@ interface ModulosListProps {
   categoriasModulos: CategoriaModulo[];
   onSave: (data: ModuloFormData, editingId?: string) => Promise<void>;
   onDelete: (moduloId: string) => Promise<void>;
+  onMove?: (moduloId: string, targetSistemaId: string) => Promise<void>;
 }
 
 export interface ModuloFormData {
@@ -36,14 +38,17 @@ const emptyForm: ModuloFormData = {
 };
 
 export const ModulosList: React.FC<ModulosListProps> = ({
+  sistemaId,
   modulos,
   categoriasModulos,
   onSave,
   onDelete,
+  onMove,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingModulo, setEditingModulo] = useState<ModuloSistema | null>(null);
   const [form, setForm] = useState<ModuloFormData>({ ...emptyForm });
+  const [movingModulo, setMovingModulo] = useState<ModuloSistema | null>(null);
 
   const openNew = () => {
     setEditingModulo(null);
@@ -100,6 +105,7 @@ export const ModulosList: React.FC<ModulosListProps> = ({
                 modulo={modulo}
                 onEdit={() => openEdit(modulo)}
                 onDelete={() => onDelete(modulo.id)}
+                onMove={onMove ? () => setMovingModulo(modulo) : undefined}
               />
             ))}
           </div>
@@ -124,11 +130,21 @@ export const ModulosList: React.FC<ModulosListProps> = ({
           onClose={() => { setShowModal(false); setEditingModulo(null); }}
         />
       )}
+
+      {/* Move modal */}
+      {movingModulo && onMove && (
+        <MoveModuloModal
+          modulo={movingModulo}
+          currentSistemaId={sistemaId}
+          onMove={async (targetId) => { await onMove(movingModulo.id, targetId); setMovingModulo(null); }}
+          onClose={() => setMovingModulo(null)}
+        />
+      )}
     </>
   );
 };
 
-const ModuloRow: React.FC<{ modulo: ModuloSistema; onEdit: () => void; onDelete: () => void }> = ({ modulo, onEdit, onDelete }) => (
+const ModuloRow: React.FC<{ modulo: ModuloSistema; onEdit: () => void; onDelete: () => void; onMove?: () => void }> = ({ modulo, onEdit, onDelete, onMove }) => (
   <div className="flex justify-between items-start p-3 bg-white rounded-lg border border-slate-200 hover:border-indigo-200 transition-colors">
     <div className="flex-1 min-w-0">
       <p className="text-xs font-semibold text-slate-900 tracking-tight">{modulo.nombre}</p>
@@ -140,6 +156,7 @@ const ModuloRow: React.FC<{ modulo: ModuloSistema; onEdit: () => void; onDelete:
       {modulo.observaciones && <p className="text-[11px] text-slate-400 italic mt-1">{modulo.observaciones}</p>}
     </div>
     <div className="flex gap-1 ml-2 shrink-0">
+      {onMove && <button onClick={onMove} className="text-amber-600 hover:bg-amber-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Mover</button>}
       <button onClick={onEdit} className="text-indigo-600 hover:bg-indigo-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Editar</button>
       <button onClick={onDelete} className="text-red-500 hover:bg-red-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Eliminar</button>
     </div>
@@ -232,6 +249,76 @@ const ModuloModal: React.FC<{
         <div className="flex gap-2 mt-4">
           <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={onSave}>Guardar</Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+const MoveModuloModal: React.FC<{
+  modulo: ModuloSistema;
+  currentSistemaId: string;
+  onMove: (targetSistemaId: string) => Promise<void>;
+  onClose: () => void;
+}> = ({ modulo, currentSistemaId, onMove, onClose }) => {
+  const [sistemas, setSistemas] = useState<Sistema[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [targetId, setTargetId] = useState('');
+  const [moving, setMoving] = useState(false);
+
+  useEffect(() => {
+    sistemasService.getAll().then(all => {
+      setSistemas(all.filter(s => s.id !== currentSistemaId));
+      setLoading(false);
+    });
+  }, [currentSistemaId]);
+
+  const handleMove = async () => {
+    if (!targetId) return;
+    setMoving(true);
+    try {
+      await onMove(targetId);
+    } catch { alert('Error al mover el modulo'); }
+    finally { setMoving(false); }
+  };
+
+  const target = sistemas.find(s => s.id === targetId);
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card compact className="max-w-md w-full">
+        <p className="text-sm font-semibold text-slate-900 tracking-tight mb-1">Mover modulo</p>
+        <p className="text-[11px] text-slate-500 mb-4">
+          <span className="font-medium text-slate-700">{modulo.nombre}</span>
+          {modulo.serie && <> (S/N: {modulo.serie})</>}
+        </p>
+        {loading ? (
+          <p className="text-xs text-slate-400 py-4 text-center">Cargando sistemas...</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className={lbl}>Sistema destino</label>
+              <SearchableSelect
+                value={targetId}
+                onChange={setTargetId}
+                options={sistemas.map(s => ({ value: s.id, label: `${s.nombre}${s.codigoInternoCliente ? ` (${s.codigoInternoCliente})` : ''}` }))}
+                placeholder="Buscar sistema destino..."
+              />
+            </div>
+            {target && (
+              <div className="bg-slate-50 rounded-lg border border-slate-200 p-2.5 text-[11px]">
+                <p className="font-medium text-slate-700">{target.nombre}</p>
+                {target.codigoInternoCliente && <p className="text-slate-400">Codigo: {target.codigoInternoCliente}</p>}
+                {target.sector && <p className="text-slate-400">Sector: {target.sector}</p>}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2 mt-4">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" onClick={handleMove} disabled={!targetId || moving}>
+            {moving ? 'Moviendo...' : 'Mover'}
+          </Button>
         </div>
       </Card>
     </div>

@@ -5,9 +5,11 @@ import type { CategoriaPresupuesto } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const CategoriasPresupuesto = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -144,7 +146,7 @@ export const CategoriasPresupuesto = () => {
               + Nueva Categoría
             </Button>
           )}
-          <Button variant="outline" onClick={() => navigate('/presupuestos')}>
+          <Button variant="outline" onClick={() => goBack()}>
             Volver
           </Button>
         </div>

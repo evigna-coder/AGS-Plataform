@@ -39,17 +39,26 @@ export function useResizableColumns() {
 
     const startX = e.clientX;
     const startWidth = currentWidths[colIndex];
+    const nextIndex = colIndex + 1;
+    const nextWidth = nextIndex < currentWidths.length ? currentWidths[nextIndex] : 0;
+    const minCol = 40;
 
     // Capture widths on first resize
     if (!colWidths) setColWidths(currentWidths);
 
     const onMove = (ev: MouseEvent) => {
       const diff = ev.clientX - startX;
-      const newWidth = Math.max(40, startWidth + diff);
+      // Clamp so neither column goes below minCol
+      const maxGrow = nextWidth - minCol;
+      const maxShrink = startWidth - minCol;
+      const clampedDiff = Math.max(-maxShrink, Math.min(maxGrow, diff));
       setColWidths(prev => {
         const base = prev || currentWidths;
         const next = [...base];
-        next[colIndex] = newWidth;
+        next[colIndex] = startWidth + clampedDiff;
+        if (nextIndex < next.length) {
+          next[nextIndex] = nextWidth - clampedDiff;
+        }
         return next;
       });
     };

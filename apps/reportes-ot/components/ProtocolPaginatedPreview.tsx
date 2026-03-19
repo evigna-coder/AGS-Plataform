@@ -25,6 +25,27 @@ const SERVICE_LABELS: Record<string, string> = {
   calibracion: 'Calibración',
 };
 
+/* ── Helper: split checklist items by depth-0 headers ── */
+function splitChecklistByHeaders(items: any[]): any[][] {
+  if (!items || items.length === 0) return [items || []];
+  // Si no hay cabeceras (depth 0), no dividir
+  const hasHeaders = items.some((it: any) => it.depth === 0);
+  if (!hasHeaders) return [items];
+
+  const groups: any[][] = [];
+  let current: any[] = [];
+
+  for (const item of items) {
+    if (item.depth === 0 && current.length > 0) {
+      groups.push(current);
+      current = [];
+    }
+    current.push(item);
+  }
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
+
 /* ── Types ── */
 interface ProtocolMeta {
   otNumber: string;
@@ -188,21 +209,6 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       const prevHasAttachToNext = idx > 0 && (sortedSelections[idx - 1].tableSnapshot.attachToNext ?? false);
       const glue = (sel.tableSnapshot.attachToPrevious ?? false) || prevHasAttachToNext;
 
-      const node = sel.tableSnapshot.tableType === 'signatures' ? (
-        <CatalogSignaturesView
-          selection={sel} readOnly
-          signatureClient={signatureClient} signatureEngineer={signatureEngineer}
-          aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
-          fechaInicio={fechaInicio} fechaFin={fechaFin}
-        />
-      ) : sel.tableSnapshot.tableType === 'text' ? (
-        <CatalogTextView selection={sel} readOnly />
-      ) : sel.tableSnapshot.tableType === 'checklist' ? (
-        <CatalogChecklistView selection={sel} readOnly onChangeData={() => {}} />
-      ) : (
-        <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
-      );
-
       // Buscar headerTitle/footerQF: snapshot → catálogo vivo → proyecto
       const live = catalogTables?.find(t => t.id === sel.tableId);
       const projectId = sel.tableSnapshot.projectId || live?.projectId;
@@ -210,13 +216,56 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       const headerTitle = sel.tableSnapshot.headerTitle || live?.headerTitle || project?.headerTitle || null;
       const footerQF = sel.tableSnapshot.footerQF || live?.footerQF || project?.footerQF || null;
 
-      items.push({
-        key: sel.tableId,
-        node,
-        glueWithPrev: glue && items.length > 0,
-        headerTitle,
-        footerQF,
-      });
+      if (sel.tableSnapshot.tableType === 'checklist') {
+        // Dividir checklist por cabeceras (depth 0) para page-break inteligente
+        const checklistItems = sel.tableSnapshot.checklistItems ?? [];
+        const groups = splitChecklistByHeaders(checklistItems);
+
+        for (let g = 0; g < groups.length; g++) {
+          const isFirst = g === 0;
+          const isLast = g === groups.length - 1;
+          const groupSel = {
+            ...sel,
+            tableSnapshot: {
+              ...sel.tableSnapshot,
+              checklistItems: groups[g],
+              name: isFirst ? sel.tableSnapshot.name : `${sel.tableSnapshot.name} (cont.)`,
+            },
+            // Observaciones solo en el último grupo
+            observaciones: isLast ? sel.observaciones : undefined,
+          };
+
+          const node = <CatalogChecklistView selection={groupSel} readOnly isPrint onChangeData={() => {}} />;
+          items.push({
+            key: groups.length > 1 ? `${sel.tableId}__g${g}` : sel.tableId,
+            node,
+            glueWithPrev: isFirst ? (glue && items.length > 0) : false,
+            headerTitle,
+            footerQF,
+          });
+        }
+      } else {
+        const node = sel.tableSnapshot.tableType === 'signatures' ? (
+          <CatalogSignaturesView
+            selection={sel} readOnly
+            signatureClient={signatureClient} signatureEngineer={signatureEngineer}
+            aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
+            fechaInicio={fechaInicio} fechaFin={fechaFin}
+          />
+        ) : sel.tableSnapshot.tableType === 'text' ? (
+          <CatalogTextView selection={sel} readOnly />
+        ) : (
+          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
+        );
+
+        items.push({
+          key: sel.tableId,
+          node,
+          glueWithPrev: glue && items.length > 0,
+          headerTitle,
+          footerQF,
+        });
+      }
     }
 
     if (instrumentosSeleccionados.length > 0) {

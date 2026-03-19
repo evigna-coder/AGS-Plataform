@@ -20,6 +20,8 @@ export default function LeadDetailPage() {
   const { lead, loading, refresh } = useLeadDetail(leadId!);
   const [showDerivar, setShowDerivar] = useState(false);
   const [showFinalizar, setShowFinalizar] = useState(false);
+  const [comentario, setComentario] = useState('');
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
 
   if (loading) {
     return (
@@ -58,6 +60,30 @@ export default function LeadDetailPage() {
     };
     await leadsService.completarAccion(lead.id, posta);
     refresh();
+  };
+
+  const handleAgregarComentario = async () => {
+    if (!lead || !usuario || !comentario.trim()) return;
+    setEnviandoComentario(true);
+    try {
+      await leadsService.agregarComentario(lead.id, {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: usuario.id,
+        deUsuarioNombre: usuario.displayName,
+        aUsuarioId: lead.asignadoA || usuario.id,
+        aUsuarioNombre: usuario.displayName,
+        comentario: comentario.trim(),
+        estadoAnterior: lead.estado,
+        estadoNuevo: lead.estado,
+      });
+      setComentario('');
+      refresh();
+    } catch {
+      alert('Error al agregar observación');
+    } finally {
+      setEnviandoComentario(false);
+    }
   };
 
   return (
@@ -119,6 +145,24 @@ export default function LeadDetailPage() {
               Finalizar
             </Button>
           </div>
+        )}
+
+        {/* Agregar observación */}
+        {!isClosed && canModify && (
+          <Card>
+            <div className="p-3">
+              <p className="text-[11px] font-medium text-slate-400 mb-1.5">Agregar observación</p>
+              <div className="flex gap-2">
+                <textarea value={comentario} onChange={e => setComentario(e.target.value)}
+                  rows={1} placeholder="Ej: Se envió mail al cliente, a la espera de respuesta..."
+                  className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAgregarComentario(); } }} />
+                <Button size="sm" onClick={handleAgregarComentario} disabled={!comentario.trim() || enviandoComentario}>
+                  {enviandoComentario ? '...' : 'Agregar'}
+                </Button>
+              </div>
+            </div>
+          </Card>
         )}
 
         {/* Timeline */}

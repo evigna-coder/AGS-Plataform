@@ -5,12 +5,14 @@ import type { ItemOC, TipoOC, Proveedor } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 type Moneda = 'ARS' | 'USD' | 'EUR';
 
 export const OCEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const isEdit = !!id;
 
   const [loading, setLoading] = useState(isEdit);
@@ -128,7 +130,7 @@ export const OCEditor = () => {
             {isEdit ? 'Editar Orden de Compra' : 'Nueva Orden de Compra'}
           </h2>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('/stock/ordenes-compra')}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={() => goBack()}>Cancelar</Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         </div>

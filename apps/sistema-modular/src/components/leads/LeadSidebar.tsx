@@ -1,17 +1,29 @@
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import type { Lead, LeadEstado, UsuarioAGS } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS } from '@ags/shared';
 import { Card } from '../ui/Card';
+import { getDaysOpen, getDaysSinceLastActivity, getDaysUntilContacto, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 
 interface LeadSidebarProps {
   lead: Lead;
   usuarios: UsuarioAGS[];
   onEstadoChange: (estado: LeadEstado) => void;
+  onFieldUpdate?: (field: string, value: any) => void;
   moduloNombre?: string | null;
 }
 
-export const LeadSidebar = ({ lead, usuarios, onEstadoChange, moduloNombre }: LeadSidebarProps) => {
+export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate, moduloNombre }: LeadSidebarProps) => {
+  const { pathname } = useLocation();
   const responsable = usuarios.find(u => u.id === lead.asignadoA);
+  const isActive = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';
+  const daysOpen = getDaysOpen(lead.createdAt);
+  const daysSinceActivity = getDaysSinceLastActivity(lead.postas);
+  const daysUntilContacto = getDaysUntilContacto(lead.proximoContacto);
+
+  // Local state for date input to avoid reload closing the picker
+  const [localFechaContacto, setLocalFechaContacto] = useState(lead.proximoContacto || '');
+  useEffect(() => { setLocalFechaContacto(lead.proximoContacto || ''); }, [lead.proximoContacto]);
 
   return (
     <div className="space-y-3">
@@ -23,6 +35,18 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, moduloNombre }: Le
               className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               {Object.entries(LEAD_ESTADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
+          </InfoRow>
+          <InfoRow label="Prioridad">
+            <select value={lead.prioridad || ''} onChange={e => onFieldUpdate?.('prioridad', e.target.value || null)}
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Sin definir</option>
+              {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            {lead.prioridad && (
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1 inline-block ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
+                {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
+              </span>
+            )}
           </InfoRow>
           <InfoRow label="Motivo">
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
@@ -39,6 +63,27 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, moduloNombre }: Le
               </span>
             </InfoRow>
           )}
+          <InfoRow label="Próximo contacto">
+            <input type="date" value={localFechaContacto}
+              onChange={e => setLocalFechaContacto(e.target.value)}
+              onBlur={() => { const v = localFechaContacto || null; if (v !== (lead.proximoContacto || null)) onFieldUpdate?.('proximoContacto', v); }}
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            {daysUntilContacto !== null && (
+              <span className={`text-[10px] font-medium mt-0.5 block ${getContactoStatusColor(daysUntilContacto)}`}>
+                {getContactoStatusText(daysUntilContacto)}
+              </span>
+            )}
+          </InfoRow>
+          {isActive && (
+            <InfoRow label="Días abierto">
+              <span className={`text-xs font-medium ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>
+            </InfoRow>
+          )}
+          {daysSinceActivity !== null && (
+            <InfoRow label="Última actividad">
+              <span className="text-xs text-slate-600">hace {daysSinceActivity}d</span>
+            </InfoRow>
+          )}
           <InfoRow label="Creado">
             <span className="text-xs text-slate-600">{new Date(lead.createdAt).toLocaleDateString('es-AR')}</span>
           </InfoRow>
@@ -50,45 +95,6 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, moduloNombre }: Le
         </div>
       </Card>
 
-      {/* Contacto */}
-      <Card>
-        <div className="p-4 space-y-2">
-          <h3 className="text-[11px] font-medium text-slate-400 mb-2">Contacto</h3>
-          <InfoRow label="Razón Social">
-            <span className="text-xs font-medium text-slate-700">{lead.razonSocial}</span>
-          </InfoRow>
-          <InfoRow label="Persona">
-            <span className="text-xs text-slate-700">{lead.contacto}</span>
-          </InfoRow>
-          {lead.email && (
-            <InfoRow label="Email">
-              <a href={`mailto:${lead.email}`} className="text-xs text-indigo-600 hover:text-indigo-800">{lead.email}</a>
-            </InfoRow>
-          )}
-          {lead.telefono && (
-            <InfoRow label="Teléfono">
-              <span className="text-xs text-slate-700">{lead.telefono}</span>
-            </InfoRow>
-          )}
-          {lead.clienteId && (
-            <div className="pt-2 border-t border-slate-100">
-              <Link to={`/clientes/${lead.clienteId}`} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                Ver cliente →
-              </Link>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Descripción */}
-      {(lead.motivoContacto || lead.descripcion) && (
-        <Card>
-          <div className="p-4">
-            <h3 className="text-[11px] font-medium text-slate-400 mb-1">Descripción</h3>
-            <p className="text-xs text-slate-700 whitespace-pre-wrap">{lead.descripcion || lead.motivoContacto}</p>
-          </div>
-        </Card>
-      )}
 
       {/* Sistema / Módulo */}
       {lead.sistemaId && (
@@ -96,7 +102,7 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, moduloNombre }: Le
           <div className="p-4 space-y-2">
             <div>
               <h3 className="text-[11px] font-medium text-slate-400 mb-1">Sistema/Equipo</h3>
-              <Link to={`/equipos/${lead.sistemaId}`} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+              <Link to={`/equipos/${lead.sistemaId}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
                 Ver equipo →
               </Link>
             </div>

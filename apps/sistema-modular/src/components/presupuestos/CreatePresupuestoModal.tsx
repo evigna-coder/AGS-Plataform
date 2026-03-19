@@ -3,7 +3,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { presupuestosService, clientesService, sistemasService, contactosService, leadsService, ordenesTrabajoService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../../services/firebaseService';
-import type { Cliente, Sistema, ContactoCliente, Presupuesto, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto } from '@ags/shared';
+import { useAuth } from '../../contexts/AuthContext';
+import type { Cliente, Sistema, ContactoCliente, Presupuesto, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta } from '@ags/shared';
 import { TIPO_PRESUPUESTO_LABELS, MONEDA_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS, MONEDA_SIMBOLO } from '@ags/shared';
 import { CreatePresupuestoItems } from './CreatePresupuestoItems';
 
@@ -11,6 +12,15 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated?: () => void;
+  /** Pre-fill from a lead */
+  prefill?: {
+    clienteId?: string;
+    sistemaId?: string;
+    moduloId?: string;
+    origenTipo?: OrigenPresupuesto;
+    origenId?: string;
+    origenRef?: string;
+  };
 }
 
 const TIPOS = Object.entries(TIPO_PRESUPUESTO_LABELS) as [TipoPresupuesto, string][];
@@ -41,7 +51,8 @@ const INITIAL_FORM: FormState = {
   notasTecnicas: '', condicionesComerciales: '',
 };
 
-export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
+export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreated, prefill }) => {
+  const { usuario } = useAuth();
   const [saving, setSaving] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
@@ -52,12 +63,13 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [items, setItems] = useState<PresupuestoItem[]>([]);
+  const [prefilled, setPrefilled] = useState(false);
 
   const [leadOptions, setLeadOptions] = useState<{ value: string; label: string }[]>([]);
   const [otOptions, setOtOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { setPrefilled(false); return; }
     Promise.all([
       clientesService.getAll(true), sistemasService.getAll(),
       categoriasPresupuestoService.getAll(), condicionesPagoService.getAll(),
@@ -66,6 +78,20 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
       setClientes(c); setSistemas(s); setCategorias(cats); setCondiciones(conds); setConceptos(concs);
     });
   }, [open]);
+
+  // Apply prefill once when modal opens with prefill data
+  useEffect(() => {
+    if (!open || !prefill || prefilled) return;
+    setPrefilled(true);
+    setForm(prev => ({
+      ...prev,
+      clienteId: prefill.clienteId || prev.clienteId,
+      sistemaId: prefill.sistemaId || prev.sistemaId,
+      origenTipo: prefill.origenTipo || prev.origenTipo,
+      origenId: prefill.origenId || prev.origenId,
+      origenRef: prefill.origenRef || prev.origenRef,
+    }));
+  }, [open, prefill, prefilled]);
 
   useEffect(() => {
     if (form.clienteId) {
@@ -78,7 +104,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
     if (form.origenTipo === 'lead' && leadOptions.length === 0)
       leadsService.getAll().then(leads => setLeadOptions(leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado').map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` }))));
     if (form.origenTipo === 'ot' && otOptions.length === 0)
-      ordenesTrabajoService.getAll().then(ots => setOtOptions(ots.slice(0, 50).map(ot => ({ value: ot.id || ot.otNumber, label: `OT-${ot.otNumber} — ${ot.clienteNombre || ''}` }))));
+      ordenesTrabajoService.getAll().then(ots => setOtOptions(ots.slice(0, 50).map(ot => ({ value: ot.otNumber, label: `OT-${ot.otNumber} — ${ot.razonSocial || ''}` }))));
   }, [form.origenTipo]);
 
   const handleClose = () => { onClose(); setForm(INITIAL_FORM); setItems([]); };
@@ -96,12 +122,32 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         origenId: form.origenId || null, origenRef: form.origenRef || null,
         estado: 'borrador', items, subtotal, total: subtotal,
         ordenesCompraIds: [], adjuntos: [], validezDias: form.validezDias,
-        condicionPagoId: form.condicionPagoId || null,
-        tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : null,
-        notasTecnicas: form.notasTecnicas || null,
-        condicionesComerciales: form.condicionesComerciales || null,
+        condicionPagoId: form.condicionPagoId || undefined,
+        tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : undefined,
+        notasTecnicas: form.notasTecnicas || undefined,
+        condicionesComerciales: form.condicionesComerciales || undefined,
       };
-      await presupuestosService.create(data);
+      const { id: presupuestoId, numero } = await presupuestosService.create(data);
+      // Add posta to linked lead
+      if (form.origenTipo === 'lead' && form.origenId && usuario) {
+        const posta: Posta = {
+          id: crypto.randomUUID(),
+          fecha: new Date().toISOString(),
+          deUsuarioId: usuario.id,
+          deUsuarioNombre: usuario.displayName,
+          aUsuarioId: usuario.id,
+          aUsuarioNombre: usuario.displayName,
+          comentario: `Presupuesto creado: ${numero}`,
+          estadoAnterior: 'en_presupuesto',
+          estadoNuevo: 'en_presupuesto',
+        };
+        await leadsService.agregarComentario(form.origenId, posta).catch(err =>
+          console.error('Error agregando posta al lead:', err)
+        );
+        await leadsService.linkPresupuesto(form.origenId, presupuestoId).catch(err =>
+          console.error('Error vinculando presupuesto al lead:', err)
+        );
+      }
       handleClose();
       onCreated?.();
     } catch { alert('Error al crear el presupuesto'); }

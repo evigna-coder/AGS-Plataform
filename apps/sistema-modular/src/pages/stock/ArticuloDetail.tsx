@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { AddUnitForm } from './AddUnitForm';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
 import type { UnitFormData } from './AddUnitForm';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const CONDICION_COLORS: Record<CondicionUnidad, string> = {
   nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700',
@@ -37,6 +38,7 @@ const Badge = ({ label, color }: { label: string; color: string }) => (
 export const ArticuloDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [articulo, setArticulo] = useState<Articulo | null>(null);
   const [marca, setMarca] = useState<Marca | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
@@ -89,7 +91,7 @@ export const ArticuloDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div>

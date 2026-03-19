@@ -356,25 +356,25 @@ export const OTList = () => {
           </div>
         }
       >
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="min-w-[160px]">
-            <SearchableSelect
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-[120px]">
+            <SearchableSelect size="sm"
               value={filters.clienteId}
               onChange={(value) => setFilters({ ...filters, clienteId: value })}
               options={[{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
               placeholder="Cliente"
             />
           </div>
-          <div className="min-w-[160px]">
-            <SearchableSelect
+          <div className="min-w-[120px]">
+            <SearchableSelect size="sm"
               value={filters.sistemaId}
               onChange={(value) => setFilters({ ...filters, sistemaId: value })}
               options={[{ value: '', label: 'Todos' }, ...sistemas.map(s => ({ value: s.id, label: s.nombre }))]}
               placeholder="Sistema"
             />
           </div>
-          <div className="min-w-[150px]">
-            <SearchableSelect
+          <div className="min-w-[110px]">
+            <SearchableSelect size="sm"
               value={filters.estadoAdmin}
               onChange={(value) => setFilters({ ...filters, estadoAdmin: value })}
               options={estadoOptions}

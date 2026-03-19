@@ -1,7 +1,10 @@
+import { useState, useEffect } from 'react';
 import type { ContactoEstablecimiento } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 
 const emptyContactoForm = {
   nombre: '',
@@ -33,7 +36,22 @@ export { emptyContactoForm };
 export const ContactosSection = ({
   contactos, showModal, editingContacto, contactoForm,
   onOpenNew, onOpenEdit, onDelete, onSave, onClose, setContactoForm,
-}: ContactosSectionProps) => (
+}: ContactosSectionProps) => {
+  const [sectorCatalog, setSectorCatalog] = useState<SectorCatalog[]>([]);
+
+  useEffect(() => {
+    if (showModal) {
+      sectoresCatalogService.getAll().then(setSectorCatalog);
+    }
+  }, [showModal]);
+
+  // Merge catálogo + valor actual del form (si es uno custom que no está en catálogo)
+  const sectorOptions = Array.from(new Set([
+    ...sectorCatalog.map(s => s.nombre),
+    ...(contactoForm.sector ? [contactoForm.sector] : []),
+  ])).sort().map(name => ({ value: name, label: name }));
+
+  return (
   <>
     <Card compact>
       <div className="flex justify-between items-center mb-3">
@@ -88,13 +106,17 @@ export const ContactosSection = ({
               value={contactoForm.cargo}
               onChange={e => setContactoForm({ ...contactoForm, cargo: e.target.value })}
             />
-            <Input
-              inputSize="sm"
-              label="Sector"
-              value={contactoForm.sector}
-              onChange={e => setContactoForm({ ...contactoForm, sector: e.target.value })}
-              placeholder="Laboratorio, Compras..."
-            />
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Sector</label>
+              <SearchableSelect
+                value={contactoForm.sector}
+                onChange={v => setContactoForm({ ...contactoForm, sector: v })}
+                options={sectorOptions}
+                placeholder="Seleccionar sector..."
+                creatable
+                createLabel="Crear sector"
+              />
+            </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Telefono *</label>
               <div className="grid grid-cols-3 gap-2">
@@ -141,4 +163,5 @@ export const ContactosSection = ({
       </div>
     )}
   </>
-);
+  );
+};

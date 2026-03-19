@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { FichaPropiedad } from '@ags/shared';
 import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS, VIA_INGRESO_LABELS } from '@ags/shared';
@@ -7,19 +7,21 @@ interface Props {
   ficha: FichaPropiedad;
 }
 
-function LV({ label, value, link }: { label: string; value?: string | null; link?: string }) {
+function LV({ label, value, link, navState }: { label: string; value?: string | null; link?: string; navState?: any }) {
   if (!value) return null;
   return (
     <div>
       <dt className="text-[11px] font-medium text-slate-400 tracking-wider">{label}</dt>
       <dd className="text-sm text-slate-700 mt-0.5">
-        {link ? <Link to={link} className="text-indigo-600 hover:underline">{value}</Link> : value}
+        {link ? <Link to={link} state={navState} className="text-indigo-600 hover:underline">{value}</Link> : value}
       </dd>
     </div>
   );
 }
 
 export function FichaInfoSidebar({ ficha }: Props) {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const formatDate = (iso: string) => {
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '-'; }
   };
@@ -39,8 +41,8 @@ export function FichaInfoSidebar({ ficha }: Props) {
       {/* Cliente */}
       <Card title="Cliente" compact>
         <dl className="space-y-2">
-          <LV label="Razon social" value={ficha.clienteNombre} link={`/clientes/${ficha.clienteId}`} />
-          <LV label="Establecimiento" value={ficha.establecimientoNombre} link={ficha.establecimientoId ? `/establecimientos/${ficha.establecimientoId}` : undefined} />
+          <LV label="Razon social" value={ficha.clienteNombre} link={`/clientes/${ficha.clienteId}`} navState={fromState} />
+          <LV label="Establecimiento" value={ficha.establecimientoNombre} link={ficha.establecimientoId ? `/establecimientos/${ficha.establecimientoId}` : undefined} navState={fromState} />
         </dl>
       </Card>
 
@@ -50,14 +52,14 @@ export function FichaInfoSidebar({ ficha }: Props) {
           <LV label="Fecha" value={formatDate(ficha.fechaIngreso)} />
           <LV label="Via" value={VIA_INGRESO_LABELS[ficha.viaIngreso]} />
           <LV label="Traido por" value={ficha.traidoPor} />
-          <LV label="OT referencia" value={ficha.otReferencia} link={ficha.otReferencia ? `/ordenes-trabajo/${ficha.otReferencia}` : undefined} />
+          <LV label="OT referencia" value={ficha.otReferencia} link={ficha.otReferencia ? `/ordenes-trabajo/${ficha.otReferencia}` : undefined} navState={fromState} />
         </dl>
       </Card>
 
       {/* Equipo */}
       <Card title="Equipo / Modulo" compact>
         <dl className="space-y-2">
-          <LV label="Sistema" value={ficha.sistemaNombre} link={ficha.sistemaId ? `/equipos/${ficha.sistemaId}` : undefined} />
+          <LV label="Sistema" value={ficha.sistemaNombre} link={ficha.sistemaId ? `/equipos/${ficha.sistemaId}` : undefined} navState={fromState} />
           <LV label="Modulo" value={ficha.moduloNombre} />
           {ficha.descripcionLibre && <LV label="Descripcion" value={ficha.descripcionLibre} />}
           <LV label="Part number" value={ficha.codigoArticulo} />
@@ -95,7 +97,7 @@ export function FichaInfoSidebar({ ficha }: Props) {
         <Card title="OTs vinculadas" compact>
           <div className="flex flex-wrap gap-1.5">
             {ficha.otIds.map(ot => (
-              <Link key={ot} to={`/ordenes-trabajo/${ot}`} className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+              <Link key={ot} to={`/ordenes-trabajo/${ot}`} state={fromState} className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
                 {ot}
               </Link>
             ))}

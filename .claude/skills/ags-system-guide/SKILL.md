@@ -211,6 +211,7 @@ Full inventory management with:
 5. **cleanFirestoreData()** for top-level, **deepCleanForFirestore()** for nested objects
 6. **Design system**: Inter font, indigo-600 primary, slate-900 sidebar, compact B2B style
 7. **No uppercase, no font-black** in UI text
+8. **Navigation memory**: ALL cross-module `<Link>` elements MUST include `state={{ from: pathname }}` — see "Navigation Memory Pattern" below
 
 ## Design System (sistema-modular)
 
@@ -221,6 +222,36 @@ Full inventory management with:
 - **Badges**: `text-[10px] font-medium px-1.5 py-0.5 rounded-full`
 - **Detail pages**: 2-column (sidebar w-72 + main flex-1)
 - **UI atoms**: Button, Card, Input, Modal, PageHeader, SearchableSelect
+
+## Navigation Memory Pattern
+
+**Rule**: When navigating from Module A's detail page to Module B's detail page (cross-module), pressing Escape or the back button must return to Module A, NOT to Module B's list page.
+
+**Implementation**:
+
+1. **Every cross-module `<Link>`** must pass the current path via router state:
+   ```tsx
+   const { pathname } = useLocation();
+   <Link to={`/equipos/${id}`} state={{ from: pathname }}>Ver sistema</Link>
+   ```
+
+2. **`useNavigateBack` hook** checks `location.state.from` before falling back to module root:
+   ```tsx
+   if (state?.from && typeof state.from === 'string') {
+     navigate(state.from);
+     return;
+   }
+   // fallback: navigate to module root
+   ```
+
+3. **Layout.tsx Escape handler** also checks `state.from` before using `getParentPath`.
+
+4. **What counts as cross-module**: Any `<Link>` whose `to` target is in a different top-level route (e.g., from `/clientes/X` to `/equipos/Y`, from `/fichas/X` to `/ordenes-trabajo/Y`). Links within the same module (e.g., `/clientes/X` to `/clientes/Y`) do NOT need state.
+
+5. **programmatic navigation** (`navigate()`) that goes cross-module must also pass state:
+   ```tsx
+   navigate(`/equipos/${id}`, { state: { from: pathname } });
+   ```
 
 ## For More Details
 

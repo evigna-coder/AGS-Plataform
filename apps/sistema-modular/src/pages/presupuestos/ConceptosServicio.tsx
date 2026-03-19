@@ -7,11 +7,13 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import type { ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 
 export function ConceptosServicio() {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +117,7 @@ export function ConceptosServicio() {
           </div>
         }
       >
-        <button onClick={() => navigate('/presupuestos')} className="text-xs text-indigo-600 hover:underline">← Volver a presupuestos</button>
+        <button onClick={() => goBack()} className="text-xs text-indigo-600 hover:underline">← Volver a presupuestos</button>
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4">

@@ -92,8 +92,8 @@ const PASS_LABELS: Record<string, string> = {
 };
 
 const PASS_PRINT_CHARS: Record<string, string> = {
-  PASS: '✓',
-  FAIL: '✗',
+  PASS: 'Cumple',
+  FAIL: 'No cumple',
   NA: 'N/A',
 };
 
@@ -377,7 +377,7 @@ export const CatalogTableView: React.FC<Props> = ({
     if (col.key === conclusionColKey) {
       if (isPrint) {
         return (
-          <span className="text-[10px]">
+          <span className={`text-[10px] font-semibold ${rawValue === 'PASS' ? 'text-emerald-700' : rawValue === 'FAIL' ? 'text-red-700' : 'text-slate-500'}`}>
             {(PASS_PRINT_CHARS[rawValue] ?? rawValue) || '—'}
           </span>
         );
@@ -419,12 +419,12 @@ export const CatalogTableView: React.FC<Props> = ({
   };
 
   return (
-    <div className={`mb-6 ${isPrint ? '' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
+    <div className={`mb-6 ${isPrint ? 'rounded-xl border border-slate-200 overflow-hidden' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
 
       {/* Encabezado de tabla */}
-      <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'border-b border-slate-300' : 'bg-slate-50 border-b border-slate-200'}`}>
+      <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'bg-slate-800 text-white' : 'bg-slate-50 border-b border-slate-200'}`}>
         <div className="min-w-0">
-          <p className={`font-semibold truncate ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
+          <p className={`font-semibold truncate ${isPrint ? 'text-xs font-bold uppercase tracking-wide text-white' : 'text-sm text-slate-900'}`}>
             {table.name}
           </p>
           {table.description && !isPrint && (
@@ -466,7 +466,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Campos de encabezado (selectores pre-tabla) */}
       {(table.headerFields ?? []).length > 0 && (
-        <div className={`flex flex-wrap gap-4 px-3 py-2 ${isPrint ? 'border-b border-slate-300' : 'border-b border-slate-200 bg-white'}`}>
+        <div className={`flex flex-wrap gap-4 px-3 py-2 ${isPrint ? 'border-b border-slate-300 bg-slate-50' : 'border-b border-slate-200 bg-white'}`}>
           {(table.headerFields ?? []).map(hf => {
             const value = selection.headerData?.[hf.fieldId] ?? '';
             return (
@@ -500,15 +500,15 @@ export const CatalogTableView: React.FC<Props> = ({
       <div className={isPrint ? '' : 'overflow-x-auto'}>
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className={isPrint ? 'border-b border-slate-300' : 'bg-slate-100 border-b border-slate-200'}>
+            <tr className={isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100 border-b border-slate-200'}>
               {table.columns.map(col => (
                 <th
                   key={col.key}
-                  className={`px-2 py-1.5 font-semibold text-slate-600 whitespace-nowrap ${isPrint ? 'text-[8.5px] border border-slate-300' : 'text-xs border-r border-slate-200'}`}
+                  className={`px-2 py-1.5 font-semibold whitespace-nowrap ${isPrint ? 'text-[8.5px] text-white border border-slate-500' : 'text-xs text-slate-600 border-r border-slate-200'}`}
                   style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}
                 >
                   {col.label}
-                  {col.unit && <span className="font-normal text-slate-400 ml-1">({col.unit})</span>}
+                  {col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
                   {col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
                   {/* Indicador visual de columna calculada (solo en modo edición) */}
                   {col.key === conclusionColKey && !isPrint && !readOnly && (
@@ -528,10 +528,10 @@ export const CatalogTableView: React.FC<Props> = ({
             {table.templateRows.map((row, idx) => {
               if (row.isTitle) {
                 return (
-                  <tr key={row.rowId} className={isPrint ? 'border-b border-slate-200' : 'bg-slate-50'}>
+                  <tr key={row.rowId} className={isPrint ? 'bg-slate-600 text-white' : 'bg-slate-50'}>
                     <td
                       colSpan={table.columns.length}
-                      className={`px-2 py-1 font-semibold ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs text-slate-700 border-b border-slate-200'}`}
+                      className={`px-2 py-1 font-semibold ${isPrint ? 'text-[9px] text-white border border-slate-500' : 'text-xs text-slate-700 border-b border-slate-200'}`}
                     >
                       {row.titleText ?? ''}
                     </td>

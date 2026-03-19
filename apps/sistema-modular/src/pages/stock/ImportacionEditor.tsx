@@ -7,11 +7,13 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import type { OrdenCompra } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const INCOTERMS = ['FOB', 'CIF', 'EXW', 'FCA', 'DAP'] as const;
 
 export const ImportacionEditor = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const { createImportacion } = useImportaciones();
   const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompra[]>([]);
   const [loadingOC, setLoadingOC] = useState(true);
@@ -102,7 +104,7 @@ export const ImportacionEditor = () => {
         title="Nueva importacion"
         subtitle="Crear operacion de comercio exterior"
         actions={
-          <Button variant="ghost" size="sm" onClick={() => navigate('/stock/importaciones')}>
+          <Button variant="ghost" size="sm" onClick={() => goBack()}>
             Cancelar
           </Button>
         }
@@ -169,7 +171,7 @@ export const ImportacionEditor = () => {
           </Card>
 
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" type="button" onClick={() => navigate('/stock/importaciones')}>
+            <Button variant="secondary" size="sm" type="button" onClick={() => goBack()}>
               Cancelar
             </Button>
             <Button size="sm" type="submit" disabled={saving || !form.ordenCompraId}>

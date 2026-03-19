@@ -1,339 +1,222 @@
 ---
 name: list-page-conventions
 description: >
-  Standardized conventions for building list/table pages in sistema-modular.
+  Standardized conventions for building list/table pages in sistema-modular AND portal-ingeniero.
   Use this skill when creating or refactoring any module's list page (e.g., Presupuestos,
   Fichas, Loaners, Stock, Leads, Clientes, etc.) to ensure consistent UX across the platform.
   Trigger when: building a new list page, refactoring an existing one, or when the user asks
   to "normalize" or "standardize" a module's list view.
 ---
 
-# List Page Conventions — sistema-modular
+# List Page Conventions — AGS Platform (Unified)
 
-Reference implementation: `apps/sistema-modular/src/pages/ordenes-trabajo/OTList.tsx`
+Applies to both `sistema-modular` and `portal-ingeniero`.
 
 ## Page Structure
 
-Every list page follows this skeleton:
-
 ```tsx
 <div className="h-full flex flex-col bg-slate-50">
-  <PageHeader title="..." subtitle="..." count={filtered.length} actions={<buttons>}>
-    {/* Inline filters */}
+  <PageHeader title="..." count={filtered.length} actions={<Button size="sm">+ Nuevo X</Button>}>
+    {/* Row 1: Search + Estado tabs + Mis items checkbox */}
+    {/* Row 2 (optional): Advanced filters (SearchableSelect dropdowns) */}
   </PageHeader>
 
   <div className="flex-1 min-h-0 px-5 pb-4">
-    {/* Empty state OR table card — card IS the scroll container for sticky to work */}
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-      <table ref={tableRef} className="w-full table-fixed">
-        <colgroup>{/* Column widths — tune per module, or from useResizableColumns */}</colgroup>
-        <thead className="sticky top-0 z-10">...</thead>
-        <tbody className="divide-y divide-slate-100">...</tbody>
-      </table>
-    </div>
+    {empty ? <EmptyCard /> : <TableCard />}
   </div>
 
   {/* Modals at bottom */}
 </div>
 ```
 
-## PageHeader
+## Filter System (2 rows)
 
-- `title`: `text-lg font-semibold tracking-tight` (auto from PageHeader component)
-- `subtitle`: `text-xs text-slate-400`
-- `count`: total filtered rows
-- `actions` slot: top-right buttons (+ Nuevo, links to config pages)
-- **Children**: inline filter bar
+### Row 1: Primary — Search + Tabs + Mis items
 
-## Filter Bar
-
-Order matters — always follow this sequence:
-
-1. **SearchableSelect dropdowns** (entity filters: Cliente, Sistema, Estado, etc.)
-2. **Text inputs** (search fields: OT #, Módulo/Serie, nombre, etc.)
-3. **"Limpiar" button** (resets all filters)
-
-### SearchableSelect filters
 ```tsx
-<div className="min-w-[150px]">
-  <SearchableSelect
-    value={filters.campo}
-    onChange={(value) => setFilters({ ...filters, campo: value })}
-    options={[{ value: '', label: 'Todos' }, ...data.map(d => ({ value: d.id, label: d.nombre }))]}
-    placeholder="Campo"
-  />
+<div className="flex items-center gap-3 flex-wrap">
+  {/* Search */}
+  <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+    placeholder="Buscar por razón social, contacto..."
+    className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" />
+
+  {/* Estado tabs */}
+  <div className="flex items-center gap-1.5">
+    {ESTADO_TABS.map(tab => (
+      <button key={tab.value} onClick={() => setEstadoFilter(tab.value)}
+        className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+          estadoFilter === tab.value
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+        }`}>
+        {tab.label}
+      </button>
+    ))}
+  </div>
+
+  {/* Right-aligned checkbox */}
+  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer ml-auto">
+    <input type="checkbox" checked={soloMios} onChange={e => setSoloMios(e.target.checked)}
+      className="rounded border-slate-300" />
+    Mis {entity}
+  </label>
 </div>
 ```
 
-### Text input filters
-```tsx
-<input
-  type="text"
-  value={filters.busqueda}
-  onChange={e => setFilters({ ...filters, busqueda: e.target.value })}
-  placeholder="Buscar..."
-  className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
-/>
-```
+### Row 2: Advanced — SearchableSelect dropdowns (sistema-modular only)
 
-- Width: `w-28` for short fields, `w-36` for longer ones
-- All filters in a flex row: `<div className="flex items-center gap-3 flex-wrap">`
-
-### Clear button
-```tsx
-<Button size="sm" variant="ghost" onClick={() => setFilters({ /* all empty */ })}>
-  Limpiar
-</Button>
-```
-
-## Table Layout
-
-### HARD RULE: No multi-line rows
-
-**BAJO NINGÚN CONCEPTO las filas de tabla pueden mostrarse en 2 renglones.** Toda celda debe ser single-line:
-- **Text columns** (nombres, descripciones): usar `truncate` (incluye whitespace-nowrap + overflow-hidden + text-ellipsis). El texto se corta con "..." si no entra.
-- **Short content** (fechas, badges, acciones): usar `whitespace-nowrap` — estos nunca se truncan.
-
-### Column sizing strategy
-
-Use `table-fixed` with `<colgroup>` to control proportions. Each table must be tuned per módulo — **ajustar anchos columna por columna según el contenido real del módulo**.
-
-| Column type | Width | Examples |
-|------------|-------|---------|
-| ID / short code | `70-80px` | OT number, código |
-| Date | `75-80px` | Creada, F.Servicio |
-| Status badge | `80-90px` | Estado |
-| Actions | `100-160px` | Button group (según cant. de botones) |
-| Entity name | `10%–14%` | Cliente, Sistema, Módulo |
-| Description / flex | `(no width)` | Absorbe todo el espacio restante |
+Only show when module has 2+ filter dimensions beyond estado/search.
 
 ```tsx
-<table className="w-full table-fixed">
-  <colgroup>
-    <col style={{ width: 75 }} />      {/* ID */}
-    <col style={{ width: '12%' }} />   {/* Entity 1 */}
-    <col style={{ width: '10%' }} />   {/* Entity 2 */}
-    <col />                            {/* Description — absorbe el resto */}
-    <col style={{ width: 78 }} />      {/* Date */}
-    <col style={{ width: 85 }} />      {/* Estado */}
-    <col style={{ width: 140 }} />     {/* Acciones */}
-  </colgroup>
-  <thead>...</thead>
-  <tbody>...</tbody>
-</table>
-```
-
-**Rule**: exactly ONE column has no width set — it absorbs all remaining space. This should be the most informative text column (description, notes, etc.).
-
-### Table header (thead)
-
-```tsx
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-
-<thead className="sticky top-0 z-10">
-  <tr className="bg-slate-50 border-b border-slate-200">
-    <SortableHeader label="..." field="..." ... className={thClass} />
-    <th className={thClass}>Non-sortable column</th>
-    <th className={`${thClass} text-right`}>Acciones</th>
-  </tr>
-</thead>
-```
-
-### Table cells (tbody)
-
-```tsx
-<tbody className="divide-y divide-slate-100">
-  <tr className="hover:bg-slate-50 transition-colors cursor-pointer">
-    {/* Text columns: truncate (single-line with ellipsis) */}
-    <td className="px-2 py-2 text-xs text-slate-700 truncate" title={fullText}>
-      {displayText}
-    </td>
-    {/* Short content: whitespace-nowrap */}
-    <td className="px-2 py-2 text-xs text-slate-500 whitespace-nowrap">
-      {date}
-    </td>
-  </tr>
-</tbody>
-```
-
-- All text: `text-xs`
-- Primary ID: `font-semibold text-indigo-600 text-xs`
-- Secondary text: `text-slate-600` or `text-slate-500`
-- Empty values: `<span className="text-slate-300">—</span>`
-- Always add `truncate` + `title={fullValue}` for columns that may overflow
-
-### Resizable columns
-
-Use `useResizableColumns` hook from `hooks/useResizableColumns.ts` to let users drag column borders:
-
-```tsx
-import { useResizableColumns } from '../../hooks/useResizableColumns';
-
-const { tableRef, colWidths, onResizeStart } = useResizableColumns();
-
-<table ref={tableRef} className="w-full table-fixed">
-  {colWidths ? (
-    <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-  ) : (
-    <colgroup>{/* default widths */}</colgroup>
+<div className="flex items-center gap-3 flex-wrap mt-2">
+  <div className="min-w-[130px]">
+    <SearchableSelect value={filters.campo}
+      onChange={(v) => setFilters({ ...filters, campo: v })}
+      options={[{ value: '', label: 'Campo: Todos' }, ...options]}
+      placeholder="Campo" />
+  </div>
+  {hasAdvancedFilters && (
+    <Button size="sm" variant="ghost" onClick={clearAdvancedFilters}>Limpiar</Button>
   )}
-  <thead>
-    <tr>
-      <SortableHeader ... className={`${thClass} relative`}>
-        <div onMouseDown={e => onResizeStart(colIndex, e)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" />
-      </SortableHeader>
-      {/* Last column (Acciones) has no resize handle */}
-    </tr>
-  </thead>
-</table>
+</div>
 ```
 
-### Sticky header
+### portal-ingeniero simplification
 
-**CRITICAL**: The card wrapper must use `overflow-y-auto h-full` (NOT `overflow-hidden`). The outer container uses `min-h-0` (NOT `overflow-y-auto`). `overflow-hidden` breaks `position: sticky`.
-
-### Status badges
+Portal uses `px-4 pb-3` padding, search as full-width block above tabs:
 
 ```tsx
-<span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${colorClass}`}>
-  {label}
-</span>
+<div className="px-4 pb-3 shrink-0 space-y-2">
+  <input ... className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs ..." />
+  <div className="flex items-center gap-2 overflow-x-auto">
+    {tabs}
+    <label className="ml-auto">{checkbox}</label>
+  </div>
+</div>
 ```
 
-Color convention: use semantic colors per status (emerald=success, amber=warning, red=error, blue=info, slate=neutral).
+## Table Tokens
+
+### Standard classes
+
+```tsx
+// Reuse across all list pages
+const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
+```
+
+### Table wrapper
+```tsx
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+  <table className="w-full">
+    <thead className="sticky top-0 z-10">
+      <tr className="bg-slate-50 border-b border-slate-200">
+```
+
+### Cell types
+
+| Type | Classes | Example |
+|------|---------|---------|
+| **Link (primary)** | `px-3 py-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 truncate max-w-[160px] block` | Cliente name |
+| **Text** | `px-3 py-2 text-xs text-slate-600 truncate max-w-[120px]` | Contacto |
+| **Badge** | `text-[10px] font-medium px-1.5 py-0.5 rounded-full ${COLOR_MAP[value]}` | Estado, Motivo, Área |
+| **Description** | `px-3 py-2 text-[10px] text-slate-400 truncate max-w-[180px] italic` | Motivo contacto |
+| **Date** | `px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap` | Fecha creación |
+| **Assignee** | `px-3 py-2 text-xs text-slate-500 truncate max-w-[100px] whitespace-nowrap` | Asignado |
+| **Empty value** | `text-[10px] text-slate-300` → `—` | Cuando no hay dato |
 
 ### Action buttons
 
 ```tsx
-<td className="px-2 py-2 text-right" onClick={e => e.stopPropagation()}>
-  <div className="flex items-center justify-end gap-0.5">
-    <button className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">
+<td className="px-3 py-2 text-right whitespace-nowrap">
+  <div className="flex items-center justify-end gap-1">
+    <button className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50">
+      Derivar
+    </button>
+    <button className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50">
+      Finalizar
+    </button>
+    <button className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50">
       Ver
-    </button>
-    <button className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100">
-      Editar
-    </button>
-    <button className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50">
-      Eliminar
     </button>
   </div>
 </td>
 ```
 
-- `e.stopPropagation()` on the actions cell to prevent row click
-- Color coding: emerald = primary action (view/open), indigo = create, slate = edit, red = delete
+**Action color coding:**
+- **indigo** = workflow action (Derivar, Asignar)
+- **red** = destructive/final (Finalizar, Eliminar)
+- **emerald** = primary read (Ver)
+- **slate** = secondary (Editar)
+
+## Standard Column Names
+
+Use these names consistently across ALL list pages:
+
+| Column | When to use |
+|--------|-------------|
+| Cliente | Entity name (link to detail) |
+| Contacto | Person name |
+| Motivo | Badge — `MOTIVO_LLAMADO_COLORS` |
+| Descripción | Italic preview, 60 chars + ellipsis |
+| Área | Badge — `LEAD_AREA_COLORS` |
+| Estado | Badge — entity-specific `*_ESTADO_COLORS` |
+| Asignado | Person assigned |
+| Fecha | Creation date, `dd/short-month` format |
+| Acciones | Right-aligned action buttons |
+
+## Date Formatting
+
+```tsx
+const formatDate = (d?: string) => {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }); } catch { return d; }
+};
+```
 
 ## Empty State
 
 ```tsx
-<Card>
-  <div className="text-center py-12">
-    <p className="text-slate-400">No se encontraron {entity plural}</p>
-    <button onClick={() => setShowCreate(true)}
-      className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
-      Crear primer {entity}
-    </button>
-  </div>
-</Card>
+<Card><div className="text-center py-12">
+  <p className="text-slate-400">No se encontraron {entity plural}</p>
+  <button onClick={() => setShowCreate(true)}
+    className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+    Crear primer {entity}
+  </button>
+</div></Card>
 ```
 
 ## Loading State
 
 ```tsx
 if (loading && items.length === 0) {
-  return (
-    <div className="flex items-center justify-center py-12">
-      <p className="text-slate-400">Cargando {entity plural}...</p>
-    </div>
-  );
+  return <div className="flex items-center justify-center py-12">
+    <p className="text-slate-400">Cargando {entity plural}...</p>
+  </div>;
 }
 ```
 
-## Sorting
+## HARD RULES
 
-Use `SortableHeader` component + `sortByField`/`toggleSort` from `components/ui/SortableHeader`:
-
-```tsx
-import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-
-const [sortField, setSortField] = useState('createdAt');
-const [sortDir, setSortDir] = useState<SortDir>('desc');
-
-const handleSort = (f: string) => {
-  const s = toggleSort(f, sortField, sortDir);
-  setSortField(s.field);
-  setSortDir(s.dir);
-};
-```
-
-## Modal Pattern (CRUD)
-
-- **Simple entities** (Lead, Cliente, Presupuesto): Create/Edit via Modal from the list page
-- **Complex entities** (OT, Equipo): Separate detail pages
-- Delete: `window.confirm()` inline, no modal needed
-
-```tsx
-{/* Bottom of component */}
-<CreateXModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
-{editId && (
-  <EditXModal open={!!editId} id={editId} onClose={() => setEditId(null)} onSaved={reload} />
-)}
-```
-
-## Date Formatting
-
-```tsx
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return '—';
-  try { return new Date(dateString).toLocaleDateString('es-AR'); } catch { return dateString; }
-};
-```
-
-## Key Imports
-
-```tsx
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { SearchableSelect } from '../../components/ui/SearchableSelect';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Modal } from '../../components/ui/Modal';
-import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-```
-
-## UX Conventions
-
-### Keyboard Navigation (SearchableSelect)
-- **Tab / Shift+Tab**: Navegar entre opciones del dropdown (wrapping circular)
-- **Enter**: Confirmar selección (o abrir dropdown si cerrado)
-- **Space**: Confirmar selección de opción resaltada
-- **Escape**: Cerrar dropdown
-- **Arrow Up/Down**: También navegar opciones (alternativa a Tab)
-
-### Modal Behavior
-- Modales NO se cierran al hacer click en el backdrop (prop `closeOnBackdropClick` default `false`)
-- Esc y botón X sí cierran el modal
-- Siempre incluir botón "Cancelar" explícito en el footer
-
-### Multi-ventana
-- Ctrl+click o middle-click en links del sidebar abre en nueva ventana
-- Implementado en `Layout.tsx` con `handleNavClick` + `window.open()`
+1. **No multi-line rows**: ALL cells `truncate` (text) or `whitespace-nowrap` (dates/badges/actions)
+2. **Max 250 lines per component** — extract hooks/subcomponents if needed
+3. **Modals at bottom** of component, not inline
+4. **Actions cell**: always `stopPropagation` if row is clickable
+5. **`overflow-y-auto h-full`** on table wrapper (NOT `overflow-hidden` — breaks sticky)
+6. **One flex column** (no width set) absorbs remaining space
 
 ## Checklist for New List Pages
 
-- [ ] `h-full flex flex-col bg-slate-50` root container
-- [ ] `PageHeader` with title, subtitle, count, actions, inline filters
-- [ ] Filter order: dropdowns → text inputs → Limpiar
-- [ ] Card wrapper: `overflow-y-auto h-full` (NOT `overflow-hidden`), outer: `flex-1 min-h-0`
-- [ ] `table-fixed` with `colgroup` — one flex column (no width) absorbs remaining space
-- [ ] ALL cells single-line: `truncate` for text, `whitespace-nowrap` for dates/badges/actions — NEVER 2-line rows
-- [ ] `sticky top-0 z-10` thead with `SortableHeader`
-- [ ] `useResizableColumns` hook + drag handles on all headers except last
-- [ ] All cells `text-xs`
-- [ ] Status badges `text-[10px] rounded-full`
-- [ ] Action buttons `text-[10px] font-medium` with color coding
-- [ ] `stopPropagation` on actions cell
+- [ ] Root: `h-full flex flex-col bg-slate-50`
+- [ ] PageHeader with title, count, actions, filter rows
+- [ ] Row 1: Search + Estado tabs + Mis items checkbox
+- [ ] Row 2 (optional): SearchableSelect advanced filters + Limpiar
+- [ ] Table wrapper: `overflow-y-auto h-full`, outer `flex-1 min-h-0`
+- [ ] `thClass` constant reused for all headers
+- [ ] `sticky top-0 z-10` thead
+- [ ] All cells single-line (truncate / whitespace-nowrap)
+- [ ] Badges: `text-[10px] font-medium px-1.5 py-0.5 rounded-full`
+- [ ] Actions: `text-[10px] font-medium` with color coding
 - [ ] Empty state with create link
 - [ ] Loading state
-- [ ] Modals at bottom of component
-- [ ] Max 250 lines — extract subcomponents/hooks if needed
+- [ ] Modals at bottom
+- [ ] Max 250 lines

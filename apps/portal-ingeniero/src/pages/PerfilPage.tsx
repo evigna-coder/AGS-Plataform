@@ -111,7 +111,7 @@ export default function PerfilPage() {
             ) : savedFirma && !editing ? (
               /* Preview saved signature */
               <div className="space-y-2">
-                <div className="h-28 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center p-2">
+                <div className="h-40 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center p-2">
                   <img src={savedFirma} alt="Firma" className="max-h-full max-w-full object-contain" />
                 </div>
                 <p className="text-xs font-semibold text-slate-700 text-center">{nombreAclaracion}</p>
@@ -135,13 +135,13 @@ export default function PerfilPage() {
                     className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 justify-end">
                   {editing && (
-                    <Button variant="secondary" size="sm" className="flex-1" onClick={() => setEditing(false)}>
+                    <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>
                       Cancelar
                     </Button>
                   )}
-                  <Button size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
+                  <Button size="sm" onClick={handleSave} disabled={saving}>
                     {saving ? 'Guardando...' : 'Guardar firma'}
                   </Button>
                 </div>
@@ -156,7 +156,7 @@ export default function PerfilPage() {
           </div>
         </Card>
 
-        <Button variant="danger" size="lg" className="w-full" onClick={() => signOut()}>
+        <Button variant="danger" size="sm" onClick={() => signOut()}>
           Cerrar sesión
         </Button>
       </div>

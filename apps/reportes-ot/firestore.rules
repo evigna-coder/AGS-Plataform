@@ -278,6 +278,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
     
+    // Viáticos (gastos de ingenieros — períodos mensuales)
+    match /viaticos/{viaticoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // ========== MFA / WebAuthn ==========
     // Solo Cloud Functions (Admin SDK) escriben aquí. Cliente no debe acceder.
     match /mfa/{document=**} {

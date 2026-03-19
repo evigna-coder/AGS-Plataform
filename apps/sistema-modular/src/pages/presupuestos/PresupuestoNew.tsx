@@ -6,9 +6,11 @@ import { ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const PresupuestoNew = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [searchParams] = useSearchParams();
   const origenTipo = searchParams.get('origen') as OrigenPresupuesto | null;
   const origenId = searchParams.get('origenId');
@@ -95,7 +97,7 @@ export const PresupuestoNew = () => {
         ...(origenTipo ? { origenTipo, origenId, origenRef } : {}),
       };
 
-      const presupuestoId = await presupuestosService.create(presupuestoData as any);
+      const { id: presupuestoId } = await presupuestosService.create(presupuestoData as any);
 
       // Vincular presupuesto al lead de origen
       if (origenTipo === 'lead' && origenId) {
@@ -119,7 +121,7 @@ export const PresupuestoNew = () => {
           <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nuevo Presupuesto</h2>
           <p className="text-sm text-slate-500 mt-1">Seleccione cliente y sistema para crear el presupuesto</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/presupuestos')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
@@ -187,7 +189,7 @@ export const PresupuestoNew = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/presupuestos')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

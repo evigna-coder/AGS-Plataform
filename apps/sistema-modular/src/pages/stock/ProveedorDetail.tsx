@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import type { Proveedor } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const tipoBadge = (tipo: string) =>
   tipo === 'internacional'
@@ -42,6 +43,7 @@ const toForm = (p: Proveedor): FormState => ({
 export const ProveedorDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [proveedor, setProveedor] = useState<Proveedor | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -100,7 +102,7 @@ export const ProveedorDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/stock/proveedores')} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -118,7 +120,7 @@ export const ProveedorDetail = () => {
           <div className="flex gap-2">
             {!editing ? (
               <>
-                <Button variant="outline" size="sm" onClick={() => navigate('/stock/proveedores')}>Volver</Button>
+                <Button variant="outline" size="sm" onClick={() => goBack()}>Volver</Button>
                 <Button size="sm" onClick={() => setEditing(true)}>Editar</Button>
               </>
             ) : (

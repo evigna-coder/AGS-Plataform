@@ -11,6 +11,7 @@ import LeadDetailPage from './pages/LeadDetailPage';
 import HistorialPage from './pages/HistorialPage';
 import ReportesPage from './pages/ReportesPage';
 import PerfilPage from './pages/PerfilPage';
+import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 
 // Rutas privadas (requieren auth)
@@ -71,6 +72,7 @@ function PrivateApp() {
         <Route path="leads" element={<LeadsPage />} />
         <Route path="leads/:leadId" element={<LeadDetailPage />} />
         <Route path="reportes" element={<ReportesPage />} />
+        <Route path="viaticos" element={<ViaticosPage />} />
         <Route path="perfil" element={<PerfilPage />} />
         <Route path="*" element={<Navigate to="/ordenes-trabajo" replace />} />
       </Route>

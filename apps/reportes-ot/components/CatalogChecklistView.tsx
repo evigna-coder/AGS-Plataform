@@ -66,14 +66,15 @@ function ChecklistItemRow({
   // Cabeceras (depth 0): divider sin control de respuesta
   if (item.depth === 0) {
     return (
-      <div className="w-full bg-slate-700 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 mt-2">
+      <div className="w-full bg-slate-50 border-y border-slate-200 text-[10px] font-bold text-slate-800 tracking-wide px-3 py-1.5 mt-2">
         {item.label}
       </div>
     );
   }
 
+  const isInline = item.itemType === 'value_input';
   const labelEl = (
-    <span className={`text-[11px] flex-1 leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+    <span className={`text-[11px] leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-700'} ${isInline ? 'shrink-0' : 'flex-1'}`}>
       {item.numberPrefix && (
         <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>
       )}
@@ -81,23 +82,58 @@ function ChecklistItemRow({
     </span>
   );
 
+  // ── selector ──────────────────────────────────────────────────────────────
+  if (item.itemType === 'selector') {
+    const selected = (answer as { itemType: 'selector'; selected: string } | undefined)?.selected ?? '';
+    if (isPrint) {
+      return (
+        <div className="flex items-center gap-2 py-1 px-3 bg-slate-50 border-b border-slate-200" style={{ paddingLeft: `${indent + 8}px` }}>
+          {labelEl}
+          <span className="text-[11px] font-bold text-indigo-700">{selected || '—'}</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2 py-1.5 px-2 bg-slate-50/50" style={{ paddingLeft: `${indent + 8}px` }}>
+        {labelEl}
+        <select
+          value={selected}
+          disabled={disabled}
+          onChange={e => onAnswer({ itemType: 'selector', selected: e.target.value })}
+          className="text-[11px] border border-slate-300 rounded px-2 py-1 bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed"
+        >
+          <option value="">Seleccionar...</option>
+          {(item.selectorOptions ?? []).map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
   // ── checkbox ────────────────────────────────────────────────────────────────
   if (item.itemType === 'checkbox') {
     const checked = (answer as { itemType: 'checkbox'; checked: boolean } | undefined)?.checked ?? false;
     if (isPrint) {
       return (
-        <div className="flex items-start gap-2 py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
-          <span className="text-[11px] shrink-0 mt-0.5">{isNA ? '—' : checked ? '☑' : '☐'}</span>
+        <div className="flex items-start gap-2.5 py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
+          <span className={`shrink-0 mt-px w-[14px] h-[14px] border-2 rounded-sm flex items-center justify-center ${
+            isNA ? 'border-slate-300 bg-slate-100' : checked ? 'border-slate-700 bg-slate-700' : 'border-slate-400 bg-white'
+          }`}>
+            {isNA ? <span className="text-[9px] text-slate-400 font-bold leading-none">—</span>
+              : checked ? <span className="text-[10px] text-white font-bold leading-none">✓</span>
+              : null}
+          </span>
           {labelEl}
         </div>
       );
     }
     return (
-      <label className={`flex items-start gap-2 py-1 px-2 rounded cursor-pointer hover:bg-slate-50 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+      <label className={`flex items-start gap-2.5 py-1 px-2 rounded cursor-pointer hover:bg-slate-50 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
         style={{ paddingLeft: `${indent + 8}px` }}>
         <input
           type="checkbox"
-          className="mt-0.5 shrink-0 w-3.5 h-3.5 accent-slate-700"
+          className="mt-0.5 shrink-0 w-4 h-4 accent-slate-700 rounded"
           checked={checked}
           disabled={disabled}
           onChange={e => onAnswer({ itemType: 'checkbox', checked: e.target.checked })}
@@ -122,19 +158,17 @@ function ChecklistItemRow({
       );
     }
     return (
-      <div className="flex items-center gap-2 py-1 px-2" style={{ paddingLeft: `${indent + 8}px` }}>
+      <div className="flex items-center gap-1 py-1 px-2" style={{ paddingLeft: `${indent + 8}px` }}>
         {labelEl}
-        <div className="flex items-center border border-slate-300 rounded bg-white px-1.5 py-0.5 gap-1 focus-within:ring-1 focus-within:ring-blue-500 shrink-0">
-          <input
-            type="text"
-            className="text-[11px] bg-transparent border-none outline-none w-24 disabled:cursor-not-allowed"
-            value={isNA ? '' : value}
-            disabled={disabled}
-            placeholder={isNA ? 'N/A' : '___'}
-            onChange={e => onAnswer({ itemType: 'value_input', value: e.target.value })}
-          />
-          {item.unit && <span className="text-[10px] text-slate-400 select-none pointer-events-none">{item.unit}</span>}
-        </div>
+        <input
+          type="text"
+          className="text-[11px] bg-transparent border-none outline-none border-b border-slate-300 w-24 shrink-0 disabled:cursor-not-allowed"
+          value={isNA ? '' : value}
+          disabled={disabled}
+          placeholder={isNA ? 'N/A' : '___'}
+          onChange={e => onAnswer({ itemType: 'value_input', value: e.target.value })}
+        />
+        {item.unit && <span className="text-[10px] text-slate-400 select-none pointer-events-none">{item.unit}</span>}
       </div>
     );
   }
@@ -143,13 +177,13 @@ function ChecklistItemRow({
   if (item.itemType === 'pass_fail') {
     const result = (answer as { itemType: 'pass_fail'; result: string } | undefined)?.result ?? '';
     if (isPrint) {
-      const icon = isNA ? 'N/A' : result === 'CUMPLE' ? '✓' : result === 'NO_CUMPLE' ? '✗' : '—';
+      const label = isNA ? 'N/A' : result === 'CUMPLE' ? 'Cumple' : result === 'NO_CUMPLE' ? 'No cumple' : '—';
       return (
-        <div className="flex items-center justify-between gap-2 py-0.5 border-b border-slate-100"
+        <div className="flex items-center gap-1 py-0.5 border-b border-slate-100"
           style={{ paddingLeft: `${indent + 8}px` }}>
           {labelEl}
           <span className={`text-[11px] font-bold shrink-0 ${result === 'CUMPLE' ? 'text-emerald-700' : result === 'NO_CUMPLE' ? 'text-red-700' : 'text-slate-400'}`}>
-            {icon}
+            {label}
           </span>
         </div>
       );
@@ -206,25 +240,29 @@ export const CatalogChecklistView: React.FC<Props> = ({
   return (
     <div className={`border border-slate-200 rounded-xl overflow-hidden ${isPrint ? 'mb-4' : ''}`}>
       {/* Cabecera */}
-      <div className={`flex items-center justify-between px-4 py-2 ${
-        isPrint ? 'bg-slate-800 text-white' : 'bg-slate-800 text-white'
-      }`}>
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold uppercase tracking-wide">{tableSnapshot.name}</span>
-          <span className="text-[10px] bg-white/20 rounded px-1.5 py-0.5 uppercase">Checklist</span>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${RESULTADO_COLORS[selection.resultado]}`}>
-            {RESULTADO_LABELS[selection.resultado]}
-          </span>
+          <span className="text-xs font-bold text-slate-800 tracking-tight">{tableSnapshot.name}</span>
         </div>
         {!readOnly && !isPrint && onRemove && (
           <button onClick={() => onRemove(selection.tableId)}
-            className="text-white/60 hover:text-white text-xs">× Quitar</button>
+            className="text-slate-400 hover:text-slate-700 text-xs">× Quitar</button>
         )}
       </div>
 
       {/* Cuerpo — ítems del checklist */}
       <div className={`bg-white ${isPrint ? '' : 'divide-y divide-slate-50'}`}>
         {items.map(item => {
+          // visibleWhen: ocultar si el selector referenciado no tiene alguno de los valores esperados
+          if (item.visibleWhen) {
+            const selectorAnswer = checklistData[item.visibleWhen.selectorItemId] as
+              { itemType: 'selector'; selected: string } | undefined;
+            const selectorValue = selectorAnswer?.selected ?? '';
+            // Soporte legacy (value: string) y nuevo (values: string[])
+            const allowed = (item.visibleWhen as any).values ?? [(item.visibleWhen as any).value];
+            if (!allowed.includes(selectorValue)) return null;
+          }
+
           const isNA = naSet.has(item.itemId);
           const answer = checklistData[item.itemId];
 
@@ -271,25 +309,9 @@ export const CatalogChecklistView: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Footer — Observaciones + Resultado */}
+      {/* Footer — Observaciones (solo si hay contenido en print, siempre editable fuera de print) */}
       {!isPrint ? (
-        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 space-y-2">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold text-slate-500 uppercase shrink-0">Resultado</span>
-            <div className="flex rounded border border-slate-200 overflow-hidden">
-              {(['CONFORME', 'NO_CONFORME', 'PENDIENTE'] as const).map(r => (
-                <button
-                  key={r}
-                  disabled={readOnly}
-                  onClick={() => onChangeResultado?.(selection.tableId, r)}
-                  className={`text-[10px] px-3 py-1.5 font-medium transition-colors disabled:cursor-not-allowed border-r border-slate-200 last:border-r-0
-                    ${selection.resultado === r ? RESULTADO_COLORS[r] : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-                >
-                  {RESULTADO_LABELS[r]}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
           <div className="flex items-start gap-3">
             <span className="text-[10px] font-bold text-slate-500 uppercase shrink-0 mt-1">Obs.</span>
             <textarea

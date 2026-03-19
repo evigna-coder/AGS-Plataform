@@ -46,6 +46,7 @@ const NAV_META: Record<string, { label: string; icon: string }> = {
   '/agenda': { label: 'Agenda', icon: '📅' },
   '/postas': { label: 'Postas', icon: '🔀' },
   '/facturacion': { label: 'Facturacion', icon: '💰' },
+  '/admin': { label: 'Importar Datos', icon: '📥' },
 };
 
 /** Get label and icon for a path from the nav metadata */

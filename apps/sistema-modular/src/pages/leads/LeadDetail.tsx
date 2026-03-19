@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import type { Lead, LeadEstado, UsuarioAGS, Posta } from '@ags/shared';
 import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS } from '@ags/shared';
 import { leadsService, usuariosService, presupuestosService, ordenesTrabajoService, modulosService } from '../../services/firebaseService';
@@ -10,16 +10,21 @@ import { LeadSidebar } from '../../components/leads/LeadSidebar';
 import { LeadTimeline } from '../../components/leads/LeadTimeline';
 import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
 import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
+import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const LeadDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const goBack = useNavigateBack();
   const { usuario } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [showDerivar, setShowDerivar] = useState(false);
   const [showFinalizar, setShowFinalizar] = useState(false);
+  const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
   const [comentario, setComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
 
@@ -82,6 +87,12 @@ export const LeadDetail = () => {
     await load();
   };
 
+  const handleFieldUpdate = async (field: string, value: any) => {
+    if (!lead) return;
+    await leadsService.update(lead.id, { [field]: value });
+    await load();
+  };
+
   const handleDelete = async () => {
     if (!lead || !confirm('Eliminar este lead?')) return;
     await leadsService.delete(lead.id);
@@ -90,11 +101,7 @@ export const LeadDetail = () => {
 
   const handleCrearPresupuesto = () => {
     if (!lead) return;
-    const params = new URLSearchParams({ origen: 'lead', origenId: lead.id, origenRef: lead.razonSocial });
-    if (lead.clienteId) params.set('cliente', lead.clienteId);
-    if (lead.sistemaId) params.set('sistema', lead.sistemaId);
-    if (lead.moduloId) params.set('modulo', lead.moduloId);
-    navigate(`/presupuestos/nuevo?${params.toString()}`);
+    setShowCrearPresupuesto(true);
   };
 
   const handleCrearOT = () => {
@@ -158,7 +165,7 @@ export const LeadDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/leads')} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -190,10 +197,40 @@ export const LeadDetail = () => {
       <div className="flex-1 overflow-y-auto px-5 py-4">
         <div className="flex gap-5">
           <div className="w-72 shrink-0">
-            <LeadSidebar lead={lead} usuarios={usuarios} onEstadoChange={handleEstadoChange} moduloNombre={moduloNombre} />
+            <LeadSidebar lead={lead} usuarios={usuarios} onEstadoChange={handleEstadoChange} onFieldUpdate={handleFieldUpdate} moduloNombre={moduloNombre} />
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
+            {/* Contacto + Descripción arriba de todo */}
+            <div className="flex gap-3">
+              <Card className="flex-1">
+                <div className="p-4 space-y-2">
+                  <h3 className="text-[11px] font-medium text-slate-400 mb-2">Contacto</h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
+                    {lead.clienteId && (
+                      <Link to={`/clientes/${lead.clienteId}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium shrink-0">
+                        Ver cliente →
+                      </Link>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                    {lead.contacto && <span>{lead.contacto}</span>}
+                    {lead.email && <a href={`mailto:${lead.email}`} className="text-indigo-600 hover:text-indigo-800">{lead.email}</a>}
+                    {lead.telefono && <span>{lead.telefono}</span>}
+                  </div>
+                </div>
+              </Card>
+              {(lead.motivoContacto || lead.descripcion) && (
+                <Card className="flex-1">
+                  <div className="p-4">
+                    <h3 className="text-[11px] font-medium text-slate-400 mb-1">Descripción</h3>
+                    <p className="text-xs text-slate-700 whitespace-pre-wrap">{lead.descripcion || lead.motivoContacto}</p>
+                  </div>
+                </Card>
+              )}
+            </div>
+
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -240,13 +277,13 @@ export const LeadDetail = () => {
                     {linkedPresupuestos.map(p => (
                       <div key={p.id} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">Presupuesto</span>
-                        <Link to={`/presupuestos/${p.id}`} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{p.numero}</Link>
+                        <Link to={`/presupuestos/${p.id}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{p.numero}</Link>
                       </div>
                     ))}
                     {linkedOTs.map(ot => (
                       <div key={ot.otNumber} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">OT</span>
-                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{ot.otNumber}</Link>
+                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{ot.otNumber}</Link>
                       </div>
                     ))}
                   </div>
@@ -259,6 +296,18 @@ export const LeadDetail = () => {
 
       {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); load(); }} />}
       {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); load(); }} />}
+      <CreatePresupuestoModal
+        open={showCrearPresupuesto}
+        onClose={() => setShowCrearPresupuesto(false)}
+        onCreated={() => { setShowCrearPresupuesto(false); load(); }}
+        prefill={{
+          clienteId: lead.clienteId || undefined,
+          sistemaId: lead.sistemaId || undefined,
+          origenTipo: 'lead',
+          origenId: lead.id,
+          origenRef: lead.razonSocial,
+        }}
+      />
     </div>
   );
 };

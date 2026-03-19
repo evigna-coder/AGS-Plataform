@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { PrestamoLoaner } from '@ags/shared';
 
@@ -7,6 +7,8 @@ interface Props {
 }
 
 export function LoanerPrestamosSection({ prestamos }: Props) {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const formatDate = (iso?: string | null) => {
     if (!iso) return '-';
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '-'; }
@@ -40,7 +42,7 @@ export function LoanerPrestamosSection({ prestamos }: Props) {
             {sorted.map(p => (
               <tr key={p.id} className="hover:bg-slate-50">
                 <td className="px-3 py-2 text-sm text-slate-700">
-                  <Link to={`/clientes/${p.clienteId}`} className="text-indigo-600 hover:underline">{p.clienteNombre}</Link>
+                  <Link to={`/clientes/${p.clienteId}`} state={fromState} className="text-indigo-600 hover:underline">{p.clienteNombre}</Link>
                   {p.establecimientoNombre && <span className="text-xs text-slate-400 block">{p.establecimientoNombre}</span>}
                 </td>
                 <td className="px-3 py-2 text-xs text-slate-500">{formatDate(p.fechaSalida)}</td>
@@ -55,10 +57,10 @@ export function LoanerPrestamosSection({ prestamos }: Props) {
                   </span>
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  {p.fichaId ? <Link to={`/fichas/${p.fichaId}`} className="text-indigo-600 hover:underline">{p.fichaNumero}</Link> : '-'}
+                  {p.fichaId ? <Link to={`/fichas/${p.fichaId}`} state={fromState} className="text-indigo-600 hover:underline">{p.fichaNumero}</Link> : '-'}
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  {p.remitoSalidaId ? <Link to={`/stock/remitos/${p.remitoSalidaId}`} className="text-indigo-600 hover:underline">{p.remitoSalidaNumero || 'Ver'}</Link> : '-'}
+                  {p.remitoSalidaId ? <Link to={`/stock/remitos/${p.remitoSalidaId}`} state={fromState} className="text-indigo-600 hover:underline">{p.remitoSalidaNumero || 'Ver'}</Link> : '-'}
                 </td>
               </tr>
             ))}

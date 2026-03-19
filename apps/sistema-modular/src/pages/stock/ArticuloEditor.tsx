@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Articulo, Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const CATEGORIA_OPTIONS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
 const TIPO_OPTIONS: TipoArticulo[] = ['repuesto', 'consumible', 'equipo', 'columna', 'accesorio', 'muestra', 'otro'];
@@ -46,6 +47,7 @@ const SelectField = ({ label, value, onChange, options }: {
 export const ArticuloEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const isNew = !id;
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -141,7 +143,7 @@ export const ArticuloEditor = () => {
             <p className="text-sm text-slate-500 mt-0.5">{isNew ? 'Complete los datos y guarde' : `ID: ${id}`}</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => navigate('/stock/articulos')}>Cancelar</Button>
+            <Button variant="outline" onClick={() => goBack()}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         </div>

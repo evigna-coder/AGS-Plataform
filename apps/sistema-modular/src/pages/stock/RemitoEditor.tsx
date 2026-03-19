@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Ingeniero, UnidadStock, RemitoItem, TipoRemito, TipoRemitoItem } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const TIPO_OPTIONS: { value: TipoRemito; label: string }[] = [
   { value: 'salida_campo', label: 'Salida a campo' },
@@ -22,6 +23,7 @@ interface DraftItem extends Omit<RemitoItem, 'id'> { localId: string; }
 
 export const RemitoEditor = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -129,7 +131,7 @@ export const RemitoEditor = () => {
             <p className="text-sm text-slate-500 mt-0.5">Complete los datos y agregue items</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => navigate('/stock/remitos')}>Cancelar</Button>
+            <Button variant="outline" onClick={() => goBack()}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar borrador'}</Button>
           </div>
         </div>

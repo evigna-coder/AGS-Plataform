@@ -21,7 +21,8 @@ interface AddItemModalProps {
 }
 
 export const AddItemModal = ({ newItem, setNewItem, categoriasPresupuesto, conceptosServicio, moneda, onAdd, onClose }: AddItemModalProps) => {
-  const subtotal = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
+  const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
+  const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
   const categoria = categoriasPresupuesto.find(c => c.id === newItem.categoriaPresupuestoId);
   const sym = MONEDA_SIMBOLO[(moneda as keyof typeof MONEDA_SIMBOLO) || 'USD'] || '$';
 
@@ -90,7 +91,7 @@ export const AddItemModal = ({ newItem, setNewItem, categoriasPresupuesto, conce
             <textarea value={newItem.descripcion} onChange={(e) => setNewItem({ ...newItem, descripcion: e.target.value })}
               rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs" placeholder="Descripcion del item..." />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div>
               <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Cantidad *</label>
               <input type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={(e) => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })}
@@ -105,6 +106,11 @@ export const AddItemModal = ({ newItem, setNewItem, categoriasPresupuesto, conce
               <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Precio unit. *</label>
               <input type="number" min="0" step="0.01" value={newItem.precioUnitario || ''} onChange={(e) => setNewItem({ ...newItem, precioUnitario: Number(e.target.value) || 0 })}
                 className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Dto %</label>
+              <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={(e) => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs" placeholder="0" />
             </div>
           </div>
           <div>

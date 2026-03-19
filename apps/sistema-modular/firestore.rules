@@ -214,6 +214,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Viáticos (gastos de ingenieros — períodos mensuales)
+    match /viaticos/{viaticoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Órdenes de Trabajo
     match /ordenes_trabajo/{otId} {
       allow read, write: if true; // Temporal para desarrollo
@@ -224,6 +229,11 @@ service cloud.firestore {
       allow create: if true;           // Cualquier usuario autenticado puede escribir
       allow read: if true;             // Temporal para desarrollo
       allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
+    }
+
+    // Catálogo de Sectores (predefinidos + creados por usuario)
+    match /catalogoSectores/{sectorId} {
+      allow read, write: if true; // Temporal para desarrollo
     }
 
     // Bloquear acceso a cualquier otra colección

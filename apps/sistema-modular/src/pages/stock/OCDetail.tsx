@@ -7,15 +7,15 @@ import { Button } from '../../components/ui/Button';
 import { OCInfoSidebar } from '../../components/stock/OCInfoSidebar';
 import { OCItemsTable } from '../../components/stock/OCItemsTable';
 import { OCStatusTransition } from '../../components/stock/OCStatusTransition';
-import { CrearPostaModal } from '../../components/postas/CrearPostaModal';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const OCDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [oc, setOc] = useState<OrdenCompra | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
-  const [showCrearPosta, setShowCrearPosta] = useState(false);
 
   useEffect(() => { if (id) loadOC(); }, [id]);
 
@@ -47,7 +47,7 @@ export const OCDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/stock/ordenes-compra')} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -71,8 +71,7 @@ export const OCDetail = () => {
                 <Button variant="outline" size="sm">Editar</Button>
               </Link>
             )}
-            <Button variant="outline" size="sm" onClick={() => setShowCrearPosta(true)}>Crear posta</Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/stock/ordenes-compra')}>Volver</Button>
+            <Button variant="outline" size="sm" onClick={() => goBack()}>Volver</Button>
           </div>
         </div>
       </div>
@@ -94,16 +93,6 @@ export const OCDetail = () => {
         onUpdated={() => { setShowTransition(false); loadOC(); }}
       />
 
-      {showCrearPosta && oc && (
-        <CrearPostaModal
-          tipoEntidad="orden_compra"
-          entidadId={oc.id}
-          entidadNumero={oc.numero}
-          entidadDescripcion={`${oc.proveedorNombre} - ${oc.items?.length ?? 0} items`}
-          categoriaDefault="administracion"
-          onClose={() => setShowCrearPosta(false)}
-        />
-      )}
     </div>
   );
 };

@@ -7,10 +7,12 @@ import { Card } from '../../components/ui/Card';
 import type { FichaPropiedad, ViaIngreso, AccesorioFicha, Cliente, Establecimiento, Sistema, ModuloSistema } from '@ags/shared';
 import { VIA_INGRESO_LABELS } from '@ags/shared';
 import { FichaAccesoriosSection } from '../../components/fichas/FichaAccesoriosSection';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export function FichaEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const isEdit = Boolean(id);
   const [saving, setSaving] = useState(false);
 
@@ -160,7 +162,7 @@ export function FichaEditor() {
           <p className="text-xs text-slate-500">Registrar ingreso de modulo/equipo del cliente</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate('/fichas')}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={() => goBack()}>Cancelar</Button>
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
             {saving ? 'Guardando...' : 'Guardar'}
           </Button>

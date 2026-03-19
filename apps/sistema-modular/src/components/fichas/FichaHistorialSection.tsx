@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import type { HistorialFicha } from '@ags/shared';
 import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS } from '@ags/shared';
@@ -8,6 +8,8 @@ interface Props {
 }
 
 export function FichaHistorialSection({ historial }: Props) {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const formatDate = (iso: string) => {
     try {
       return new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
@@ -40,7 +42,7 @@ export function FichaHistorialSection({ historial }: Props) {
             {h.otNumber && (
               <p className="text-xs text-slate-500 mt-0.5">
                 OT:{' '}
-                <Link to={`/ordenes-trabajo/${h.otNumber}`} className="text-indigo-600 hover:underline">
+                <Link to={`/ordenes-trabajo/${h.otNumber}`} state={fromState} className="text-indigo-600 hover:underline">
                   {h.otNumber}
                 </Link>
               </p>

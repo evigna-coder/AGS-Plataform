@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { movimientosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -25,6 +25,8 @@ const formatDate = (iso: string) =>
   });
 
 export const MovimientosPage = () => {
+  const { pathname } = useLocation();
+  const fromState = { from: pathname };
   const [items, setItems] = useState<MovimientoStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [tipoFilter, setTipoFilter] = useState<TipoMovimiento | ''>('');
@@ -129,12 +131,12 @@ export const MovimientosPage = () => {
                     <td className="px-4 py-2 text-slate-500">{m.creadoPor}</td>
                     <td className="px-4 py-2 space-x-2">
                       {m.remitoId && (
-                        <Link to={`/stock/remitos/${m.remitoId}`} className="text-indigo-600 hover:underline text-[10px] font-medium">
+                        <Link to={`/stock/remitos/${m.remitoId}`} state={fromState} className="text-indigo-600 hover:underline text-[10px] font-medium">
                           Remito
                         </Link>
                       )}
                       {m.otNumber && (
-                        <Link to={`/ordenes-trabajo/${m.otNumber}`} className="text-indigo-600 hover:underline text-[10px] font-medium">
+                        <Link to={`/ordenes-trabajo/${m.otNumber}`} state={fromState} className="text-indigo-600 hover:underline text-[10px] font-medium">
                           OT
                         </Link>
                       )}

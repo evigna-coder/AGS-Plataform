@@ -16,6 +16,12 @@ interface SearchableSelectProps {
   disabled?: boolean;
   error?: string;
   emptyMessage?: string;
+  /** Compact size for filter bars */
+  size?: 'sm' | 'md';
+  /** Allow creating new values not in the list */
+  creatable?: boolean;
+  /** Label prefix for the create option */
+  createLabel?: string;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -28,6 +34,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false,
   error,
   emptyMessage = 'No se encontraron opciones',
+  size = 'md',
+  creatable = false,
+  createLabel = 'Crear',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +52,17 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const filteredOptions = options.filter(opt =>
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // En modo creatable, agregar opción "Crear: X" si no hay match exacto
+  const trimmedSearch = searchTerm.trim();
+  const showCreateOption = creatable && trimmedSearch &&
+    !filteredOptions.some(opt => opt.label.toLowerCase() === trimmedSearch.toLowerCase());
+  const createOption: SearchableSelectOption | null = showCreateOption
+    ? { value: `__create__:${trimmedSearch}`, label: `${createLabel}: "${trimmedSearch}"` }
+    : null;
+
+  // All options including the create option (for keyboard navigation)
+  const allOptions = createOption ? [...filteredOptions, createOption] : filteredOptions;
 
   // Resetear búsqueda cuando se cierra el dropdown
   useEffect(() => {
@@ -106,7 +126,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   }, [highlightedIndex]);
 
   const handleSelect = (optionValue: string) => {
-    onChange(optionValue);
+    // En modo creatable, extraer el valor real del prefijo __create__:
+    if (optionValue.startsWith('__create__:')) {
+      onChange(optionValue.slice('__create__:'.length));
+    } else {
+      onChange(optionValue);
+    }
     setIsOpen(false);
     setSearchTerm('');
   };
@@ -117,8 +142,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     switch (e.key) {
       case 'Enter':
         e.preventDefault();
-        if (isOpen && highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
-          handleSelect(filteredOptions[highlightedIndex].value);
+        if (isOpen && highlightedIndex >= 0 && allOptions[highlightedIndex]) {
+          handleSelect(allOptions[highlightedIndex].value);
+        } else if (isOpen && createOption) {
+          // Enter sin selección pero con texto creatable → crear
+          handleSelect(createOption.value);
         } else if (!isOpen) {
           setIsOpen(true);
         }
@@ -132,7 +160,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           setIsOpen(true);
         } else {
           setHighlightedIndex(prev =>
-            prev < filteredOptions.length - 1 ? prev + 1 : prev
+            prev < allOptions.length - 1 ? prev + 1 : prev
           );
         }
         break;
@@ -147,25 +175,26 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         if (!isOpen) {
           setIsOpen(true);
         } else if (e.shiftKey) {
-          setHighlightedIndex(prev => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
+          setHighlightedIndex(prev => (prev > 0 ? prev - 1 : allOptions.length - 1));
         } else {
           setHighlightedIndex(prev =>
-            prev < filteredOptions.length - 1 ? prev + 1 : 0
+            prev < allOptions.length - 1 ? prev + 1 : 0
           );
         }
         break;
       case ' ':
         // Solo confirmar con Space si NO estamos escribiendo en el input de búsqueda
-        if (isOpen && highlightedIndex >= 0 && filteredOptions[highlightedIndex] &&
+        if (isOpen && highlightedIndex >= 0 && allOptions[highlightedIndex] &&
             e.target === containerRef.current) {
           e.preventDefault();
-          handleSelect(filteredOptions[highlightedIndex].value);
+          handleSelect(allOptions[highlightedIndex].value);
         }
         break;
     }
   };
 
-  const baseClasses = `w-full border rounded-lg px-3 py-2 text-sm bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+  const isSmall = size === 'sm';
+  const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
     error ? 'border-red-400' : 'border-slate-300'
   } ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'cursor-pointer'} ${className}`;
 
@@ -200,9 +229,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             {displayValue || placeholder}
           </span>
         )}
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
           <svg
-            className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`w-3 h-3 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -217,30 +246,38 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         <ul
           ref={listRef}
           style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto"
+          className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto"
           role="listbox"
         >
-          {filteredOptions.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-slate-400 italic">{emptyMessage}</li>
+          {allOptions.length === 0 ? (
+            <li className="px-2.5 py-1.5 text-xs text-slate-400 italic">{emptyMessage}</li>
           ) : (
-            filteredOptions.map((option, index) => (
-              <li
-                key={option.value}
-                onClick={() => handleSelect(option.value)}
-                onMouseEnter={() => setHighlightedIndex(index)}
-                className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                  option.value === value
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
-                    : highlightedIndex === index
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-700 hover:bg-slate-50'
-                }`}
-                role="option"
-                aria-selected={option.value === value}
-              >
-                {option.label}
-              </li>
-            ))
+            allOptions.map((option, index) => {
+              const isCreate = option.value.startsWith('__create__:');
+              return (
+                <li
+                  key={option.value}
+                  onClick={() => handleSelect(option.value)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  className={`px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
+                    isCreate
+                      ? highlightedIndex === index
+                        ? 'bg-indigo-100 text-indigo-800 font-medium'
+                        : 'text-indigo-600 font-medium border-t border-slate-100'
+                      : option.value === value
+                      ? 'bg-indigo-50 text-indigo-700 font-medium'
+                      : highlightedIndex === index
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                  role="option"
+                  aria-selected={option.value === value}
+                >
+                  {isCreate && <span className="mr-1">+</span>}
+                  {option.label}
+                </li>
+              );
+            })
           )}
         </ul>,
         document.body

@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Minikit, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En transito', en_revision: 'En revision',
@@ -31,6 +32,7 @@ const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
 export const MinikitDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [minikit, setMinikit] = useState<Minikit | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +105,7 @@ export const MinikitDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <div>

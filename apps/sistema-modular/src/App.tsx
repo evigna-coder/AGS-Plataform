@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TabsProvider } from './contexts/TabsContext';
+import { BackgroundTasksProvider } from './contexts/BackgroundTasksContext';
+import { FloatingPresupuestoProvider } from './contexts/FloatingPresupuestoContext';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
@@ -16,8 +18,8 @@ import { FichasList, FichaEditor, FichaDetail } from './pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from './pages/loaners';
 import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail } from './pages/stock';
 import { UsuariosList } from './pages/usuarios';
+import { ImportacionDatos } from './pages/admin';
 import { AgendaPage } from './pages/agenda';
-import { PostasVisor, PostaDetail } from './pages/postas';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
 
@@ -73,6 +75,8 @@ function AuthGate() {
   return (
     <>
       <QRNotificationListener />
+      <BackgroundTasksProvider>
+      <FloatingPresupuestoProvider>
       <TabsProvider>
       <Layout>
       <Routes>
@@ -157,12 +161,14 @@ function AuthGate() {
         <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><UsuariosList /></ProtectedRoute>} />
         {/* Placeholders */}
         <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><AgendaPage /></ProtectedRoute>} />
-        <Route path="/postas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte', 'administracion']}><PostasVisor /></ProtectedRoute>} />
-        <Route path="/postas/:id" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte', 'administracion']}><PostaDetail /></ProtectedRoute>} />
         <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'administracion']}><div className="text-center py-12"><p className="text-slate-400">Facturacion - Proximamente</p></div></ProtectedRoute>} />
+        {/* Admin — admin only */}
+        <Route path="/admin/importar" element={<ProtectedRoute allowedRoles={['admin']}><ImportacionDatos /></ProtectedRoute>} />
       </Routes>
     </Layout>
     </TabsProvider>
+    </FloatingPresupuestoProvider>
+    </BackgroundTasksProvider>
     </>
   );
 }

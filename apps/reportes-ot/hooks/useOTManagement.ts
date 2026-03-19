@@ -1,11 +1,43 @@
 import { useState } from 'react';
 import { auth } from '../services/authService';
 import { FirebaseService } from '../services/firebaseService';
-import { Part } from '../types';
+import { Part, ProtocolData } from '../types';
 import { uid, incrementSuffix, findNextAvailableOT } from '../services/utils';
 import { UseReportFormReturn } from './useReportForm';
 import { createEmptyProtocolDataForTemplate } from '../data/sampleProtocol';
 import { getProtocolTemplateForServiceType } from '../utils/protocolSelector';
+import { logger } from '../utils/logger';
+
+interface DuplicateNewState {
+  fechaInicio: string;
+  fechaFin: string;
+  horaInicio: string;
+  horaFin: string;
+  horasTrabajadas: string;
+  tiempoViaje: string;
+  signatureClient: null;
+  signatureEngineer: null;
+  clientConfirmed: boolean;
+  status: 'BORRADOR';
+  updatedAt: string;
+  razonSocial: string;
+  contacto: string;
+  direccion: string;
+  localidad: string;
+  provincia: string;
+  sistema: string;
+  moduloModelo: string;
+  moduloDescripcion: string;
+  moduloSerie: string;
+  codigoInternoCliente: string;
+  emailPrincipal: string;
+  budgets: string[];
+  accionesTomar: string;
+  reporteTecnico: string;
+  protocolTemplateId: string | null;
+  protocolData: ProtocolData | null;
+  articulos: Part[];
+}
 
 export interface DuplicateOptions {
   copyClientEquipment: boolean;
@@ -124,7 +156,7 @@ export const useOTManagement = (
         setAclaracionEspecialista(firma.nombreAclaracion);
       }
     } catch (e) {
-      console.warn('No se pudo pre-cargar firma del ingeniero:', e);
+      logger.warn('No se pudo pre-cargar firma del ingeniero:', e);
     }
   };
 
@@ -146,7 +178,7 @@ export const useOTManagement = (
       return;
     }
 
-    console.log("📥 CARGA OT solicitada:", v);
+    logger.debug("📥 CARGA OT solicitada:", v);
     hasInitialized.current = false; // Bloquear autosave mientras buscamos
 
     try {
@@ -213,21 +245,21 @@ export const useOTManagement = (
         // Si es BORRADOR, aunque tenga firma, no debe estar confirmado
         setClientConfirmed(loadedStatus === 'FINALIZADO');
         hasUserInteracted.current = true;
-        console.log("✅ OT cargada desde Firebase:", v);
+        logger.debug("✅ OT cargada desde Firebase:", v);
 
         // Pre-cargar firma del ingeniero si el reporte es BORRADOR y no tiene firma
         if (loadedStatus === 'BORRADOR' && !data.signatureEngineer) {
-          prefillFirma();
+          void prefillFirma();
         }
       } else {
         // 🟡 NO EXISTE → mostrar modal de confirmación
-        console.log("⚠️ OT no encontrada, solicitando confirmación...");
+        logger.debug("⚠️ OT no encontrada, solicitando confirmación...");
         setPendingOt(v);
         setShowNewOtModal(true);
         return; // No habilitar autosave todavía
       }
     } catch (error) {
-      console.error("❌ Error al cargar OT:", error);
+      logger.error("❌ Error al cargar OT:", error);
       // El alert será manejado por el componente que llama a loadOT
       throw error;
     }
@@ -255,10 +287,10 @@ export const useOTManagement = (
     setPendingOt('');
     hasInitialized.current = true;
     hasUserInteracted.current = true;
-    console.log("✅ Nueva OT creada:", v);
+    logger.debug("✅ Nueva OT creada:", v);
 
-    // Pre-cargar firma del ingeniero en nueva OT
-    prefillFirma();
+    // Pre-cargar firma del ingeniero en nueva OT (fire-and-forget)
+    void prefillFirma();
   };
 
   // Nuevo reporte - limpia formulario
@@ -340,22 +372,34 @@ export const useOTManagement = (
       if (existingReport) {
         if (existingReport.status === 'FINALIZADO') {
           // Si está finalizada, buscar la siguiente disponible
-          console.log(`⚠️ OT ${newOt} ya existe y está FINALIZADA. Buscando siguiente OT disponible...`);
+          logger.debug(`⚠️ OT ${newOt} ya existe y está FINALIZADA. Buscando siguiente OT disponible...`);
           newOt = await findNextAvailableOT(otNumber, firebase);
-          console.log(`✅ OT disponible encontrada: ${newOt}`);
+          logger.debug(`✅ OT disponible encontrada: ${newOt}`);
         } else {
           // Si existe pero está en BORRADOR, está disponible para editar
-          console.log(`ℹ️ OT ${newOt} ya existe pero está en BORRADOR, se puede editar`);
+          logger.debug(`ℹ️ OT ${newOt} ya existe pero está en BORRADOR, se puede editar`);
         }
       }
     } catch (error) {
-      console.warn(`Error al verificar OT ${newOt}, continuando con la creación:`, error);
+      logger.warn(`Error al verificar OT ${newOt}, continuando con la creación:`, error);
       // Si hay error al verificar, continuar con la OT sugerida
     }
     
     const today = new Date().toISOString().split('T')[0];
 
-    const newState: any = {
+    // Resolver protocolo esperado
+    const expectedTemplateDup = getProtocolTemplateForServiceType(tipoServicio);
+    let dupProtocolTemplateId: string | null = null;
+    let dupProtocolData: ProtocolData | null = null;
+    if (expectedTemplateDup) {
+      dupProtocolTemplateId = expectedTemplateDup.id;
+      dupProtocolData = (protocolTemplateId === expectedTemplateDup.id && protocolData != null)
+        ? protocolData
+        : createEmptyProtocolDataForTemplate(expectedTemplateDup);
+    }
+
+    // Construir estado completo de una vez
+    const newState: DuplicateNewState = {
       fechaInicio: today,
       fechaFin: today,
       horaInicio: '',
@@ -366,83 +410,33 @@ export const useOTManagement = (
       signatureEngineer: null,
       clientConfirmed: false,
       status: 'BORRADOR',
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      razonSocial: options.copyClientEquipment ? razonSocial : '',
+      contacto: options.copyClientEquipment ? contacto : '',
+      direccion: options.copyClientEquipment ? direccion : '',
+      localidad: options.copyClientEquipment ? localidad : '',
+      provincia: options.copyClientEquipment ? provincia : '',
+      sistema: options.copyClientEquipment ? sistema : '',
+      moduloModelo: options.copyClientEquipment ? moduloModelo : '',
+      moduloDescripcion: options.copyClientEquipment ? moduloDescripcion : '',
+      moduloSerie: options.copyClientEquipment ? moduloSerie : '',
+      codigoInternoCliente: options.copyClientEquipment ? codigoInternoCliente : '',
+      emailPrincipal: options.copyClientEquipment ? emailPrincipal : '',
+      budgets: options.copyBudgets ? [...budgets] : [''],
+      accionesTomar: options.copyObservations ? accionesTomar : '',
+      reporteTecnico: options.copyReportTecnico ? reporteTecnico : '',
+      protocolTemplateId: dupProtocolTemplateId,
+      protocolData: dupProtocolData,
+      articulos: options.copyBudgets ? articulos.map(p => ({ ...p, id: uid() })) : [],
     };
 
-    if (options.copyClientEquipment) {
-      newState.razonSocial = razonSocial;
-      newState.contacto = contacto;
-      newState.direccion = direccion;
-      newState.localidad = localidad;
-      newState.provincia = provincia;
-      newState.sistema = sistema;
-      newState.moduloModelo = moduloModelo;
-      newState.moduloDescripcion = moduloDescripcion;
-      newState.moduloSerie = moduloSerie;
-      newState.codigoInternoCliente = codigoInternoCliente;
-      newState.emailPrincipal = emailPrincipal;
-    } else {
-      newState.razonSocial = '';
-      newState.contacto = '';
-      newState.direccion = '';
-      newState.localidad = '';
-      newState.provincia = '';
-      newState.sistema = '';
-      newState.moduloModelo = '';
-      newState.moduloDescripcion = '';
-      newState.moduloSerie = '';
-      newState.codigoInternoCliente = '';
-      newState.emailPrincipal = '';
-    }
-
-    if (options.copyBudgets) {
-      newState.budgets = [...budgets];
-    } else {
-      newState.budgets = [''];
-    }
-
-    if (options.copyObservations) {
-      newState.accionesTomar = accionesTomar;
-    } else {
-      newState.accionesTomar = '';
-    }
-
-    if (options.copyReportTecnico) {
-      newState.reporteTecnico = reporteTecnico;
-    } else {
-      newState.reporteTecnico = '';
-    }
-
-    const expectedTemplateDup = getProtocolTemplateForServiceType(tipoServicio);
-    if (!expectedTemplateDup) {
-      newState.protocolTemplateId = null;
-      newState.protocolData = null;
-    } else if (
-      protocolTemplateId === expectedTemplateDup.id &&
-      protocolData != null
-    ) {
-      newState.protocolTemplateId = expectedTemplateDup.id;
-      newState.protocolData = protocolData;
-    } else {
-      newState.protocolTemplateId = expectedTemplateDup.id;
-      newState.protocolData = createEmptyProtocolDataForTemplate(expectedTemplateDup);
-    }
-
-    // Artículos: copiar solo si se copian budgets
-    if (options.copyBudgets) {
-      newState.articulos = articulos.map(p => ({ ...p, id: uid() }));
-    } else {
-      newState.articulos = [];
-    }
-
-    // Aplicar estados
+    // Aplicar estados al formulario
     // IMPORTANTE: Establecer status primero para que readOnly se calcule correctamente
     setStatus('BORRADOR');
     setClientConfirmed(false);
-    
-    console.log('🔄 Duplicando OT - Estableciendo status a BORRADOR');
-    
-    // Establecer el resto de los estados
+
+    logger.debug('🔄 Duplicando OT - Estableciendo status a BORRADOR');
+
     setOtInput(newOt);
     setOtNumber(newOt);
     setBudgets(newState.budgets);
@@ -462,8 +456,8 @@ export const useOTManagement = (
     setCodigoInternoCliente(newState.codigoInternoCliente);
     setFechaInicio(newState.fechaInicio);
     setFechaFin(newState.fechaFin);
-    setHoraInicio(newState.horaInicio || '');
-    setHoraFin(newState.horaFin || '');
+    setHoraInicio(newState.horaInicio);
+    setHoraFin(newState.horaFin);
     setHorasTrabajadas(newState.horasTrabajadas);
     setTiempoViaje(newState.tiempoViaje);
     setReporteTecnico(newState.reporteTecnico);
@@ -476,20 +470,16 @@ export const useOTManagement = (
     setAclaracionCliente('');
     setProtocolTemplateId(newState.protocolTemplateId);
     setProtocolData(newState.protocolData);
-    setProtocolSelections([]); // Nueva OT duplicada arranca sin tablas dinámicas seleccionadas
-    setInstrumentosSeleccionados([]); // Instrumentos arrancan vacíos en duplicado
+    setProtocolSelections([]);
+    setInstrumentosSeleccionados([]);
 
-    // IMPORTANTE: Habilitar autosave DESPUÉS de que se establezcan todos los estados
-    // Esto evita que el autosave intente guardar antes de que los datos estén listos
+    // Habilitar autosave DESPUÉS de establecer todos los estados
     hasUserInteracted.current = true;
-    hasInitialized.current = false; // Deshabilitar temporalmente para evitar autosave inmediato
-    
-    // Esperar un momento para que React actualice el estado antes de guardar
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    console.log('✅ Estados establecidos, guardando en Firestore con status BORRADOR');
-    
-    // Pre-crear documento en Firestore
+    hasInitialized.current = false;
+
+    logger.debug('✅ Estados establecidos, guardando en Firestore con status BORRADOR');
+
+    // Pre-crear documento en Firestore (usa el objeto local, no depende del estado React)
     try {
       const dataToSave = {
         ...newState,
@@ -498,21 +488,19 @@ export const useOTManagement = (
         esFacturable,
         tieneContrato,
         esGarantia,
-        status: 'BORRADOR' // Asegurar explícitamente que el status sea BORRADOR
+        status: 'BORRADOR' as const,
       };
-      console.log('📝 Guardando OT duplicada:', { ot: newOt, status: dataToSave.status });
+      logger.debug('📝 Guardando OT duplicada:', { ot: newOt, status: dataToSave.status });
       await firebase.saveReport(newOt, dataToSave);
-      console.log('✅ OT duplicada guardada exitosamente');
-      // Solo habilitar autosave después de que se guarde exitosamente
+      logger.debug('✅ OT duplicada guardada exitosamente');
       hasInitialized.current = true;
     } catch (err) {
-      console.error("Error pre-creando OT duplicada:", err);
-      // Aún así habilitar autosave para que intente guardar después
+      logger.error("Error pre-creando OT duplicada:", err);
       hasInitialized.current = true;
     }
 
-    // Pre-cargar firma del ingeniero en OT duplicada
-    prefillFirma();
+    // Pre-cargar firma del ingeniero en OT duplicada (fire-and-forget)
+    void prefillFirma();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return newOt; // Retornar la OT creada para mostrar el mensaje

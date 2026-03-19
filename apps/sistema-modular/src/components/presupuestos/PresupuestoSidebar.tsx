@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom';
-import type { Presupuesto, Cliente, Sistema, CondicionPago, TipoPresupuesto, MonedaPresupuesto } from '@ags/shared';
+import { Link, useLocation } from 'react-router-dom';
+import type { Presupuesto, Cliente, Sistema, CondicionPago, TipoPresupuesto, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
 import { TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { getDaysUntilExpiry, getDaysSinceEnvio, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText } from '../../utils/presupuestoHelpers';
 
 interface PresupuestoTotals {
   subtotal: number;
@@ -37,6 +38,9 @@ interface PresupuestoSidebarProps {
   validezDias: number;
   validUntil: string;
   fechaEnvio: string;
+  proximoContacto: string;
+  responsableId: string;
+  usuarios: UsuarioAGS[];
   onEstadoChange: (estado: Presupuesto['estado']) => void;
   onTipoChange: (tipo: TipoPresupuesto) => void;
   onMonedaChange: (moneda: MonedaPresupuesto) => void;
@@ -45,6 +49,8 @@ interface PresupuestoSidebarProps {
   onValidezDiasChange: (v: number) => void;
   onValidUntilChange: (v: string) => void;
   onFechaEnvioChange: (v: string) => void;
+  onProximoContactoChange: (v: string) => void;
+  onResponsableChange: (id: string, nombre: string) => void;
 }
 
 const LabelValue = ({ label, value }: { label: string; value: string }) => (
@@ -59,14 +65,20 @@ export const PresupuestoSidebar = ({
   origenTipo, origenId, origenRef,
   totals, tipoCambio, condicionPagoId, condicionesPago,
   validezDias, validUntil, fechaEnvio,
+  proximoContacto, responsableId, usuarios,
   onEstadoChange, onTipoChange, onMonedaChange,
   onTipoCambioChange, onCondicionPagoIdChange,
   onValidezDiasChange, onValidUntilChange, onFechaEnvioChange,
+  onProximoContactoChange, onResponsableChange,
 }: PresupuestoSidebarProps) => {
+  const { pathname } = useLocation();
   const condicionPagoSeleccionada = condicionesPago.find(c => c.id === condicionPagoId);
   const sym = MONEDA_SIMBOLO[moneda] || '$';
-
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+  const daysUntilExpiry = getDaysUntilExpiry(validUntil, fechaEnvio, validezDias);
+  const daysSinceEnvio = getDaysSinceEnvio(fechaEnvio);
+  const daysUntilContacto = getDaysUntilContacto(proximoContacto);
 
   return (
     <div className="w-72 shrink-0 space-y-4">
@@ -103,13 +115,13 @@ export const PresupuestoSidebar = ({
           <div>
             <LabelValue label="Razon Social" value={cliente?.razonSocial || 'No encontrado'} />
             {cliente && (
-              <Link to={`/clientes/${cliente.id}`} className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Ver cliente →</Link>
+              <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Ver cliente →</Link>
             )}
           </div>
           {sistema && (
             <div>
               <LabelValue label="Sistema" value={sistema.nombre} />
-              <Link to={`/equipos/${sistema.id}`} className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Ver sistema →</Link>
+              <Link to={`/equipos/${sistema.id}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Ver sistema →</Link>
             </div>
           )}
         </div>
@@ -121,14 +133,55 @@ export const PresupuestoSidebar = ({
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Origen</h3>
           <LabelValue label="Tipo" value={ORIGEN_PRESUPUESTO_LABELS[origenTipo as keyof typeof ORIGEN_PRESUPUESTO_LABELS] || origenTipo} />
           {origenTipo === 'lead' && origenId && (
-            <Link to={`/leads/${origenId}`} className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Ver lead →</Link>
+            <Link to={`/leads/${origenId}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Ver lead →</Link>
           )}
           {origenTipo === 'ot' && origenId && (
-            <Link to={`/ordenes-trabajo/${origenId}`} className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Ver OT →</Link>
+            <Link to={`/ordenes-trabajo/${origenId}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Ver OT →</Link>
           )}
           {origenRef && <LabelValue label="Referencia" value={origenRef} />}
         </Card>
       )}
+
+      {/* Seguimiento */}
+      <Card compact>
+        <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Seguimiento</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Responsable</label>
+            <SearchableSelect value={responsableId}
+              onChange={(v) => {
+                const usr = usuarios.find(u => u.id === v);
+                onResponsableChange(v, usr?.displayName || '');
+              }}
+              options={[{ value: '', label: 'Sin asignar' }, ...usuarios.filter(u => u.status === 'activo').map(u => ({ value: u.id, label: u.displayName }))]}
+              placeholder="Asignar..." />
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Próximo contacto</label>
+            <input type="date" value={proximoContacto} onChange={e => onProximoContactoChange(e.target.value)}
+              className="w-full border rounded-lg px-2.5 py-1.5 text-xs bg-white border-slate-200" />
+            {daysUntilContacto !== null && (
+              <span className={`text-[10px] font-medium mt-0.5 block ${getContactoStatusColor(daysUntilContacto)}`}>
+                {getContactoStatusText(daysUntilContacto)}
+              </span>
+            )}
+          </div>
+          {daysSinceEnvio !== null && (
+            <div>
+              <p className="text-[11px] font-medium text-slate-400 mb-0.5">Enviado hace</p>
+              <span className="text-xs font-medium text-slate-600">{daysSinceEnvio}d</span>
+            </div>
+          )}
+          {daysUntilExpiry !== null && (
+            <div>
+              <p className="text-[11px] font-medium text-slate-400 mb-0.5">Validez</p>
+              <span className={`text-xs font-medium ${getExpiryStatusColor(daysUntilExpiry)}`}>
+                {getExpiryStatusText(daysUntilExpiry)}
+              </span>
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* Totales */}
       <Card compact>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
 import type { CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento, ModuloSistema, ConfiguracionGC } from '@ags/shared';
 import { esGaseoso } from '@ags/shared';
@@ -8,9 +8,12 @@ import { GCPortsGrid } from '../../components/GCPortsGrid';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const EquipoNew = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const goBack = useNavigateBack();
   const [searchParams] = useSearchParams();
   const clienteIdFromUrl = searchParams.get('cliente');
   const establecimientoIdFromUrl = searchParams.get('establecimiento');
@@ -165,7 +168,7 @@ export const EquipoNew = () => {
       }
       
       alert('Sistema creado exitosamente');
-      navigate(`/equipos/${sistemaId}`);
+      navigate(`/equipos/${sistemaId}`, { state: location.state });
     } catch (error) {
       console.error('Error creando sistema:', error);
       alert('Error al crear el sistema');
@@ -245,7 +248,7 @@ export const EquipoNew = () => {
           <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Nuevo Sistema</h2>
           <p className="text-sm text-slate-500 mt-1">Complete los datos del sistema</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/equipos')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
@@ -454,7 +457,7 @@ export const EquipoNew = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/equipos')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

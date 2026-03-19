@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.webauthn = void 0;
+exports.afip = exports.webauthn = void 0;
 const app_1 = require("firebase-admin/app");
 const https_1 = require("firebase-functions/v2/https");
 const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const middleware_js_1 = require("./middleware.js");
 const webauthn_js_1 = require("./webauthn.js");
+const afip_js_1 = require("./afip.js");
 (0, app_1.initializeApp)();
 const app = (0, express_1.default)();
 // CORS: usar el paquete cors para preflight OPTIONS (Cloud Functions 2nd gen a veces no pasa OPTIONS al middleware manual).
@@ -145,3 +146,17 @@ exports.webauthn = (0, https_1.onRequest)({
     ],
     maxInstances: 10,
 }, app);
+// ---------------------------------------------------------------------------
+// AFIP: validación de CUIT contra Padrón AFIP (endpoint público, sin auth)
+// ---------------------------------------------------------------------------
+const afipApp = (0, express_1.default)();
+afipApp.use((0, cors_1.default)({ origin: true, methods: ['POST', 'OPTIONS'], allowedHeaders: ['Content-Type'], maxAge: 86400 }));
+afipApp.use(express_1.default.json({ limit: '8kb' }));
+afipApp.post('/', afip_js_1.handleValidateCuit);
+afipApp.post('/validate-cuit', afip_js_1.handleValidateCuit);
+exports.afip = (0, https_1.onRequest)({
+    region: 'us-central1',
+    invoker: 'public',
+    cors: true,
+    maxInstances: 5,
+}, afipApp);

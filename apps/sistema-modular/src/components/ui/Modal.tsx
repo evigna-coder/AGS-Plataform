@@ -6,7 +6,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   subtitle?: string;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   children: ReactNode;
   footer?: ReactNode;
   /** Si true, un click en el fondo oscuro cierra el modal. Default: false */
@@ -18,6 +18,7 @@ const widthMap = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
+  '2xl': 'max-w-6xl',
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -49,6 +50,8 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
       onClick={closeOnBackdropClick ? onClose : undefined}
     >
       <div

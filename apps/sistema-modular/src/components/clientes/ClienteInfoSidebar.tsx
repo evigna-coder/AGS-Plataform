@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import type { Cliente } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
+import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
 
 interface ClienteInfoSidebarProps {
   cliente: Cliente;
@@ -17,6 +19,38 @@ const LabelValue = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: ClienteInfoSidebarProps) => {
+  const [validatingCuit, setValidatingCuit] = useState(false);
+  const [afipResult, setAfipResult] = useState<CuitValidationResult | null>(null);
+
+  const handleValidateCuit = async () => {
+    const cuit = (formData?.cuit || '').trim();
+    if (!cuit) return;
+    if (!isValidCuitLocal(cuit)) {
+      setAfipResult({ valid: false, cuit, checksumOk: false, afipFound: false, razonSocial: null, tipoPersona: null, estadoClave: null, domicilioFiscal: null, error: 'CUIT inválido: dígito verificador incorrecto' });
+      return;
+    }
+    try {
+      setValidatingCuit(true);
+      setAfipResult(null);
+      const result = await validateCuitAfip(cuit);
+      setAfipResult(result);
+      if (result.valid && result.afipFound) {
+        setFormData({
+          ...formData,
+          razonSocial: formData.razonSocial || result.razonSocial || formData.razonSocial,
+          direccionFiscal: formData.direccionFiscal || result.domicilioFiscal?.direccion || '',
+          localidadFiscal: formData.localidadFiscal || result.domicilioFiscal?.localidad || '',
+          provinciaFiscal: formData.provinciaFiscal || result.domicilioFiscal?.provincia || '',
+          codigoPostalFiscal: formData.codigoPostalFiscal || result.domicilioFiscal?.codPostal || '',
+        });
+      }
+    } catch {
+      setAfipResult({ valid: false, cuit, checksumOk: true, afipFound: false, razonSocial: null, tipoPersona: null, estadoClave: null, domicilioFiscal: null, error: 'Error de conexión con AFIP' });
+    } finally {
+      setValidatingCuit(false);
+    }
+  };
+
   const direccionFiscal = (cliente as any).direccionFiscal ?? (cliente as any).direccion;
   const localidadFiscal = (cliente as any).localidadFiscal ?? (cliente as any).localidad ?? '';
   const provinciaFiscal = (cliente as any).provinciaFiscal ?? (cliente as any).provincia ?? '';
@@ -36,12 +70,35 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
               onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
               required
             />
-            <Input
-              inputSize="sm"
-              label="CUIT"
-              value={formData.cuit}
-              onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
-            />
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 mb-1">CUIT</label>
+              <div className="flex gap-1">
+                <input
+                  value={formData.cuit}
+                  onChange={(e) => { setFormData({ ...formData, cuit: e.target.value }); setAfipResult(null); }}
+                  placeholder="XX-XXXXXXXX-X"
+                  className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                />
+                <button
+                  onClick={handleValidateCuit}
+                  disabled={validatingCuit || !(formData.cuit || '').trim()}
+                  className="shrink-0 px-2 py-1 text-[9px] font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {validatingCuit ? '...' : 'AFIP'}
+                </button>
+              </div>
+              {afipResult && (
+                <div className={`mt-1 px-2 py-1 rounded text-[9px] leading-tight ${
+                  afipResult.valid
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-600 border border-red-200'
+                }`}>
+                  {afipResult.valid
+                    ? <><span className="font-semibold">{afipResult.razonSocial}</span> — {afipResult.estadoClave}</>
+                    : afipResult.error}
+                </div>
+              )}
+            </div>
             <Input
               inputSize="sm"
               label="Pais"

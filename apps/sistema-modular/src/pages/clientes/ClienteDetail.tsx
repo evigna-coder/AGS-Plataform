@@ -5,10 +5,12 @@ import type { Cliente, Sistema, CategoriaEquipo, Establecimiento } from '@ags/sh
 import { Button } from '../../components/ui/Button';
 import { ClienteInfoSidebar } from '../../components/clientes/ClienteInfoSidebar';
 import { ClienteMainContent } from '../../components/clientes/ClienteMainContent';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const ClienteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
@@ -122,7 +124,7 @@ export const ClienteDetail = () => {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/clientes')} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>

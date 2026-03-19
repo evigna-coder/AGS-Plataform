@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/agenda', label: 'Agenda' },
   { to: '/leads', label: 'Leads' },
   { to: '/reportes', label: 'Reportes' },
+  { to: '/viaticos', label: 'Viáticos' },
   { to: '/perfil', label: 'Perfil' },
 ];
 

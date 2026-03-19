@@ -44,7 +44,7 @@ export const PresupuestoItemsTable = ({
 }: PresupuestoItemsTableProps) => {
   const [showModal, setShowModal] = useState(false);
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({
-    descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
+    descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, descuento: 0,
     categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
   });
   const sym = MONEDA_SIMBOLO[moneda] || '$';
@@ -55,13 +55,15 @@ export const PresupuestoItemsTable = ({
       alert('Complete descripcion, cantidad y precio unitario');
       return;
     }
-    const subtotal = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
+    const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
+    const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
     onAddItem({
       id: `item-${Date.now()}`,
       descripcion: newItem.descripcion,
       cantidad: newItem.cantidad || 1,
       unidad: newItem.unidad || 'unidad',
       precioUnitario: newItem.precioUnitario || 0,
+      descuento: newItem.descuento || 0,
       categoriaPresupuestoId: newItem.categoriaPresupuestoId,
       codigoProducto: newItem.codigoProducto || null,
       conceptoServicioId: newItem.conceptoServicioId || null,
@@ -71,7 +73,7 @@ export const PresupuestoItemsTable = ({
   };
 
   const openModal = () => {
-    setNewItem({ descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
+    setNewItem({ descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, descuento: 0,
       categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null });
     setShowModal(true);
   };
@@ -99,6 +101,7 @@ export const PresupuestoItemsTable = ({
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Cant.</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-20">Unidad</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">P. Unit.</th>
+                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Dto %</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">Subtotal</th>
                   <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Categoria</th>
                   <th className="w-8"></th>
@@ -131,6 +134,11 @@ export const PresupuestoItemsTable = ({
                           onChange={e => onUpdateItem(item.id, 'precioUnitario', Number(e.target.value) || 0)}
                           className="w-full outline-none text-right bg-transparent text-xs" />
                       </td>
+                      <td className="px-2 py-2">
+                        <input type="number" min="0" max="100" step="0.5" value={item.descuento || 0}
+                          onChange={e => onUpdateItem(item.id, 'descuento', Number(e.target.value) || 0)}
+                          className="w-full outline-none text-center bg-transparent text-xs" />
+                      </td>
                       <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">
                         {fmtMoney(item.subtotal)}
                       </td>
@@ -153,33 +161,33 @@ export const PresupuestoItemsTable = ({
               </tbody>
               <tfoot className="bg-slate-50 border-t border-slate-200">
                 <tr>
-                  <td colSpan={5} className="px-3 py-2 text-right text-[11px] font-medium text-slate-400">Subtotal</td>
+                  <td colSpan={6} className="px-3 py-2 text-right text-[11px] font-medium text-slate-400">Subtotal</td>
                   <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">{fmtMoney(totals.subtotal)}</td>
                   <td colSpan={2}></td>
                 </tr>
                 {totals.iva > 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IVA</td>
+                    <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IVA</td>
                     <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iva)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 )}
                 {totals.ganancias > 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Ganancias</td>
+                    <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Ganancias</td>
                     <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.ganancias)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 )}
                 {totals.iibb > 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IIBB</td>
+                    <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IIBB</td>
                     <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iibb)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 )}
                 <tr className="bg-indigo-50">
-                  <td colSpan={5} className="px-3 py-2 text-right text-xs font-semibold text-indigo-900">Total</td>
+                  <td colSpan={6} className="px-3 py-2 text-right text-xs font-semibold text-indigo-900">Total</td>
                   <td className="px-2 py-2 text-right text-sm font-semibold text-indigo-700">{fmtMoney(totals.total)}</td>
                   <td colSpan={2}></td>
                 </tr>

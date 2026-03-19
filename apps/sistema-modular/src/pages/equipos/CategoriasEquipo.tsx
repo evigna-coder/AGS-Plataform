@@ -5,11 +5,13 @@ import type { CategoriaEquipo, CategoriaModulo, ModeloModulo } from '@ags/shared
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 type TabType = 'sistemas' | 'modulos';
 
 export const CategoriasEquipo = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [activeTab, setActiveTab] = useState<TabType>('sistemas');
   
   // Estados para categorías de sistemas
@@ -190,7 +192,7 @@ export const CategoriasEquipo = () => {
           <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Categorías</h2>
           <p className="text-sm text-slate-500 mt-1">Gestionar categorías de sistemas y módulos</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/equipos')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Volver a Equipos
         </Button>
       </div>

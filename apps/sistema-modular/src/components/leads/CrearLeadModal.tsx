@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { UsuarioAGS, MotivoLlamado, LeadArea, Cliente, Sistema, ModuloSistema } from '@ags/shared';
-import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS } from '@ags/shared';
+import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -33,6 +33,9 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
   const [asignadoA, setAsignadoA] = useState('');
   const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
   const [accionPendiente, setAccionPendiente] = useState('');
+  const [prioridad, setPrioridad] = useState<LeadPrioridad>('media');
+  const [proximoContacto, setProximoContacto] = useState('');
+  const [valorEstimado, setValorEstimado] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -114,6 +117,9 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         derivadoPor: null,
         areaActual: areaActual || null,
         accionPendiente: accionPendiente.trim() || null,
+        prioridad: prioridad || 'media',
+        proximoContacto: proximoContacto || null,
+        valorEstimado: valorEstimado ? parseFloat(valorEstimado) : null,
         createdBy: usuario?.id,
         finalizadoAt: null,
         presupuestosIds: [],
@@ -137,6 +143,27 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Prioridad</label>
+            <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad)}
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
+            <input type="date" value={proximoContacto} onChange={e => setProximoContacto(e.target.value)}
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Valor estimado (ARS)</label>
+            <input type="number" value={valorEstimado} onChange={e => setValorEstimado(e.target.value)}
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="$0" min="0" />
+          </div>
         </div>
 
         <div>

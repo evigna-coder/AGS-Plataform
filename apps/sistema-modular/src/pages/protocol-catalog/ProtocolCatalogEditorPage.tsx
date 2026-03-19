@@ -11,6 +11,7 @@ import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { categoriasEquipoService } from '../../services/firebaseService';
 import { useTableProjects } from '../../hooks/useTableProjects';
 import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
 
@@ -75,6 +76,7 @@ function validateForPublish(entry: TableCatalogEntry): string[] {
 export const TableCatalogEditorPage = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const { getTable, saveDraft, publishTable, loading } = useTableCatalog();
   const { projects } = useTableProjects();
 
@@ -176,7 +178,7 @@ export const TableCatalogEditorPage = () => {
                 {statusMsg.text}
               </span>
             )}
-            <Button variant="outline" onClick={() => navigate('/table-catalog')}>← Volver</Button>
+            <Button variant="outline" onClick={() => goBack()}>← Volver</Button>
             <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || loading}>
               {saving ? 'Guardando...' : 'Guardar borrador'}
             </Button>
@@ -404,7 +406,7 @@ export const TableCatalogEditorPage = () => {
         </div>{/* /sticky */}
 
         {/* Editor panel — tabla, checklist o texto según tipo */}
-        <div className="col-span-2">
+        <div className="col-span-2 min-w-0">
           {entry.tableType === 'text' ? (
             <Card>
               <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Contenido de texto</h3>
