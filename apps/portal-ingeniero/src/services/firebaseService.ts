@@ -5,6 +5,7 @@ import {
   getDoc,
   updateDoc,
   setDoc,
+  deleteDoc,
   query,
   where,
   getDocs,
@@ -16,8 +17,10 @@ import {
   arrayUnion,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { app } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado } from '@ags/shared';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { app, storage } from './firebase';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
+import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
 
 export const db = getFirestore(app);
@@ -30,6 +33,11 @@ export function cleanFirestoreData<T extends Record<string, unknown>>(obj: T): P
     out[k] = v === '' ? null : v;
   }
   return out as Partial<T>;
+}
+
+/** Deep-clean: removes undefined at any nesting level via JSON round-trip */
+function deepCleanForFirestore<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
 }
 
 // =============================================
@@ -276,6 +284,56 @@ export const leadsService = {
   async agregarComentario(id: string, posta: Posta): Promise<void> {
     await updateDoc(doc(db, 'leads', id), {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'leads', id));
+  },
+
+  async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoLead[]> {
+    const available = LEAD_MAX_ADJUNTOS - existingCount;
+    const toUpload = files.slice(0, available);
+    const uploaded: AdjuntoLead[] = [];
+
+    for (const file of toUpload) {
+      const storageRef = ref(storage, `leads/${leadId}/adjuntos/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const isImage = file.type.startsWith('image/');
+      uploaded.push({
+        id: `adj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        nombre: file.name,
+        url,
+        tipo: isImage ? 'imagen' : 'archivo',
+        size: file.size,
+        fechaCarga: new Date().toISOString(),
+      });
+    }
+
+    if (uploaded.length > 0) {
+      await updateDoc(doc(db, 'leads', leadId), {
+        adjuntos: arrayUnion(...uploaded.map(a => deepCleanForFirestore(a))),
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      });
+    }
+
+    return uploaded;
+  },
+
+  async removeAdjunto(leadId: string, adjunto: AdjuntoLead, allAdjuntos: AdjuntoLead[]): Promise<void> {
+    try {
+      const storageRef = ref(storage, adjunto.url);
+      await deleteObject(storageRef);
+    } catch {
+      // File may already be deleted
+    }
+    const updated = allAdjuntos.filter(a => a.id !== adjunto.id);
+    await updateDoc(doc(db, 'leads', leadId), {
+      adjuntos: updated.map(a => deepCleanForFirestore(a)),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });

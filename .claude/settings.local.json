@@ -93,7 +93,18 @@
       "Bash(npx vite:*)",
       "WebFetch(domain:www.agsanalitica.com)",
       "Bash(find 'c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\reportes-ot\\\\utils' -type f -name *.ts)",
-      "Bash(pnpm --filter @ags/portal-ingeniero build)"
+      "Bash(pnpm --filter @ags/portal-ingeniero build)",
+      "Bash(ls -la apps/reportes-ot/components/*.tsx)",
+      "Bash(done)",
+      "Bash(node scripts/add-sectores.mjs)",
+      "Bash(node ../../scripts/add-sectores.mjs)",
+      "Bash(node --experimental-specifier-resolution=node scripts/add-sectores.mjs)",
+      "Bash(NODE_PATH=node_modules node scripts/add-sectores.mjs)",
+      "Bash(node add-sectores.mjs)",
+      "Bash(node sync-modulo-desc.mjs)",
+      "Bash(find '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/pages/leads' -type f -name *.ts -o -name *.tsx)",
+      "Bash(find '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components/leads' -type f -name *.ts -o -name *.tsx)",
+      "Bash(node assign-est-sector.mjs)"
     ]
   }
 }
