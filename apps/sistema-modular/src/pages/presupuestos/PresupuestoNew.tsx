@@ -1,22 +1,32 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { presupuestosService, clientesService, sistemasService, contactosService } from '../../services/firebaseService';
-import type { Cliente, Sistema, ContactoCliente, Presupuesto } from '@ags/shared';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { presupuestosService, clientesService, sistemasService, contactosService, leadsService } from '../../services/firebaseService';
+import type { Cliente, Sistema, ContactoCliente, OrigenPresupuesto } from '@ags/shared';
+import { ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const PresupuestoNew = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
+  const [searchParams] = useSearchParams();
+  const origenTipo = searchParams.get('origen') as OrigenPresupuesto | null;
+  const origenId = searchParams.get('origenId');
+  const origenRef = searchParams.get('origenRef');
+  const clienteIdFromUrl = searchParams.get('cliente');
+  const sistemaIdFromUrl = searchParams.get('sistema');
+
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
-  
+
   const [formData, setFormData] = useState({
-    clienteId: '',
-    sistemaId: '',
+    clienteId: clienteIdFromUrl || '',
+    sistemaId: sistemaIdFromUrl || '',
     contactoId: '',
   });
 
@@ -74,20 +84,26 @@ export const PresupuestoNew = () => {
       setLoading(true);
       
       // Crear presupuesto básico - los items se agregarán en el detalle
-      const presupuestoData: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> = {
-        numero: '', // Se generará automáticamente
+      const presupuestoData = {
+        numero: '',
         clienteId: formData.clienteId,
         sistemaId: formData.sistemaId || null,
         contactoId: formData.contactoId || null,
-        estado: 'borrador',
+        estado: 'borrador' as const,
         items: [],
         subtotal: 0,
         total: 0,
         ordenesCompraIds: [],
+        ...(origenTipo ? { origenTipo, origenId, origenRef } : {}),
       };
-      
-      const presupuestoId = await presupuestosService.create(presupuestoData);
-      
+
+      const { id: presupuestoId } = await presupuestosService.create(presupuestoData as any);
+
+      // Vincular presupuesto al lead de origen
+      if (origenTipo === 'lead' && origenId) {
+        await leadsService.linkPresupuesto(origenId, presupuestoId);
+      }
+
       alert('Presupuesto creado exitosamente');
       navigate(`/presupuestos/${presupuestoId}`);
     } catch (error) {
@@ -105,12 +121,21 @@ export const PresupuestoNew = () => {
           <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nuevo Presupuesto</h2>
           <p className="text-sm text-slate-500 mt-1">Seleccione cliente y sistema para crear el presupuesto</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/presupuestos')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {origenTipo && (
+          <Card>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-slate-400">Origen:</span>
+              <span className="text-xs font-medium text-slate-700">{ORIGEN_PRESUPUESTO_LABELS[origenTipo]}</span>
+              {origenRef && <span className="text-xs text-slate-500">— {origenRef}</span>}
+            </div>
+          </Card>
+        )}
         <Card>
           <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Datos Básicos</h3>
           <div className="space-y-4">
@@ -164,7 +189,7 @@ export const PresupuestoNew = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/presupuestos')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

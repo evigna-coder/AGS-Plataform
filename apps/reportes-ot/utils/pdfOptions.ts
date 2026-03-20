@@ -1,16 +1,18 @@
 /**
  * Genera las opciones de configuración para html2pdf
  * Centraliza todas las opciones de PDF para mantener consistencia
- * 
+ *
  * @param otNumber - Número de orden de trabajo para el nombre del archivo
  * @param element - Elemento HTML del contenedor del PDF
  * @param includeBackgroundColor - Si incluir backgroundColor en html2canvas (default: false)
+ * @param forAnexo - Si es true, usa pagebreak que permite múltiples páginas (css + legacy) para anexos largos
  * @returns Objeto de opciones para html2pdf
  */
 export const getPDFOptions = (
   otNumber: string,
   element: HTMLElement,
-  includeBackgroundColor: boolean = false
+  includeBackgroundColor: boolean = false,
+  forAnexo: boolean = false
 ): any => {
   const baseOptions: any = {
     margin: [3, 0, 3, 1], // [top, right, bottom, left] en mm
@@ -35,11 +37,14 @@ export const getPDFOptions = (
       orientation: 'portrait',
       compress: true
     },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    // Anexo: permitir cortes con .break-before-page / .html2pdf__page-break (css + legacy). Hoja 1: evitar cortes.
+    pagebreak: forAnexo
+      ? { mode: ['css', 'legacy'] }
+      : { mode: ['avoid-all', 'css', 'legacy'] }
   };
 
-  // Agregar backgroundColor solo si se solicita (para generatePDFBlob)
-  if (includeBackgroundColor) {
+  // Hoja 1 o anexo: fondo blanco para evitar transparencias en PDF
+  if (includeBackgroundColor || forAnexo) {
     baseOptions.html2canvas.backgroundColor = '#ffffff';
   }
 

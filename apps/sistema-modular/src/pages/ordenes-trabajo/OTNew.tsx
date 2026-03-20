@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService } from '../../services/firebaseService';
+import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService } from '../../services/firebaseService';
 import type { Cliente, Sistema, ContactoCliente, TipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const OTNew = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [searchParams] = useSearchParams();
   const clienteIdFromUrl = searchParams.get('cliente');
   const sistemaIdFromUrl = searchParams.get('sistema');
+  const moduloIdFromUrl = searchParams.get('modulo');
+  const leadIdFromUrl = searchParams.get('leadId');
   
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -148,6 +152,21 @@ export const OTNew = () => {
         return;
       }
       
+      // Cargar módulo si viene desde un lead
+      let moduloModelo = '';
+      let moduloDescripcion = '';
+      let moduloSerie = '';
+      let moduloId: string | undefined;
+      if (moduloIdFromUrl && formData.sistemaId) {
+        const mod = await modulosService.getById(formData.sistemaId, moduloIdFromUrl);
+        if (mod) {
+          moduloModelo = mod.nombre;
+          moduloDescripcion = mod.descripcion || '';
+          moduloSerie = mod.serie || '';
+          moduloId = mod.id;
+        }
+      }
+
       // Crear OT básica - los datos completos se editarán en reportes-ot
       const otData = {
         otNumber: formData.otNumber,
@@ -163,9 +182,10 @@ export const OTNew = () => {
         localidad: cliente.localidad,
         provincia: cliente.provincia,
         sistema: sistema.nombre,
-        moduloModelo: '',
-        moduloDescripcion: '',
-        moduloSerie: '',
+        moduloModelo,
+        moduloDescripcion,
+        moduloSerie,
+        ...(moduloId ? { moduloId } : {}),
         codigoInternoCliente: sistema.codigoInternoCliente,
         fechaInicio: new Date().toISOString().split('T')[0],
         fechaFin: new Date().toISOString().split('T')[0],
@@ -185,7 +205,12 @@ export const OTNew = () => {
       };
       
       await ordenesTrabajoService.create(otData);
-      
+
+      // Vincular OT al lead de origen
+      if (leadIdFromUrl) {
+        await leadsService.linkOT(leadIdFromUrl, formData.otNumber);
+      }
+
       // Redirigir al módulo de reportes-ot para edición completa
       // Si reportes-ot está en otro puerto (3000), usar URL completa
       // En producción, ajustar según la configuración del servidor
@@ -222,21 +247,21 @@ export const OTNew = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nueva Orden de Trabajo</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Nueva Orden de Trabajo</h2>
           <p className="text-sm text-slate-500 mt-1">Seleccione cliente y sistema para pre-cargar datos</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/ordenes-trabajo')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Datos Básicos</h3>
+          <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Datos Básicos</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Número de OT *
                 </label>
                 <div className="flex gap-2">
@@ -263,7 +288,7 @@ export const OTNew = () => {
                 <p className="mt-1 text-xs text-slate-500">Formato: 5 dígitos + opcional .NN</p>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Tipo de Servicio *
                 </label>
                 <SearchableSelect
@@ -283,10 +308,10 @@ export const OTNew = () => {
         </Card>
 
         <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Cliente y Equipo</h3>
+          <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Cliente y Equipo</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Cliente *</label>
               <SearchableSelect
                 value={formData.clienteId}
                 onChange={(value) => setFormData({ ...formData, clienteId: value, sistemaId: '', contactoId: '' })}
@@ -299,7 +324,7 @@ export const OTNew = () => {
             {formData.clienteId && (
               <>
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Sistema / Equipo *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Sistema / Equipo *</label>
                   <SearchableSelect
                     value={formData.sistemaId}
                     onChange={(value) => setFormData({ ...formData, sistemaId: value })}
@@ -311,7 +336,7 @@ export const OTNew = () => {
                 
                 {contactos.length > 0 && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Contacto</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Contacto</label>
                     <SearchableSelect
                       value={formData.contactoId}
                       onChange={(value) => setFormData({ ...formData, contactoId: value })}
@@ -329,7 +354,7 @@ export const OTNew = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/ordenes-trabajo')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

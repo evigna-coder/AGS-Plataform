@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthGate } from './components/AuthGate';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,8 +12,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthGate>
-      <App />
-    </AuthGate>
+    <ErrorBoundary>
+      <AuthGate>
+        <App />
+      </AuthGate>
+    </ErrorBoundary>
   </React.StrictMode>
 );

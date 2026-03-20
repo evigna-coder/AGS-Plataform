@@ -19,7 +19,19 @@ try {
     // API para abrir una nueva ventana de Electron con una URL
     openWindow: (url) => {
       ipcRenderer.send('open-reportes-window', url);
+    },
+    // Abrir un módulo de sistema-modular en nueva ventana Electron (con preload)
+    openModuleWindow: (route) => {
+      ipcRenderer.send('open-module-window', route);
     }
+  });
+
+  // API de Google Drive (auth via service account en main process)
+  contextBridge.exposeInMainWorld('driveAPI', {
+    isConfigured: () => ipcRenderer.invoke('drive:is-configured'),
+    getToken: () => ipcRenderer.invoke('drive:get-token'),
+    getConfig: () => ipcRenderer.invoke('drive:get-config'),
+    saveConfig: (config) => ipcRenderer.invoke('drive:save-config', config),
   });
   
   console.log('[Preload] Electron API expuesta correctamente');

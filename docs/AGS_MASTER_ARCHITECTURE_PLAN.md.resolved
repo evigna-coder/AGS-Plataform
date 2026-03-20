@@ -1,0 +1,1004 @@
+# AGS Plataform — Plan Maestro de Arquitectura (v1.0)
+> **Fecha:** Febrero 2026 | **Autor:** Arq. de Software / Tech Lead  
+> **Source of truth:** [DOCUMENTACION_TECNICA_AGS.md](file:///c:/Users/Evigna/Desktop/Ags%20plataform/docs/DOCUMENTACION_TECNICA_AGS.md), [DOCUMENTACION_NEGOCIO_AGS.md](file:///c:/Users/Evigna/Desktop/Ags%20plataform/docs/DOCUMENTACION_NEGOCIO_AGS.md), [packages/shared/src/types/index.ts](file:///c:/Users/Evigna/Desktop/Ags%20plataform/packages/shared/src/types/index.ts)
+
+---
+
+## 0. Resumen Ejecutivo
+
+El sistema tiene **dos frentes activos** y un **paquete compartido de tipos**:
+
+| App | Stack | Estado | Próximo hito |
+|-----|-------|--------|--------------|
+| `apps/sistema-modular` | React 19 + Tailwind + Electron | Activo / en expansión | Import masivo Excel → Firestore |
+| `apps/reportes-ot` | React 19 + html2pdf.js | Funcional (legacy) | Motor de Protocolos/Tablas dinámicas |
+| `packages/shared` | TypeScript Types | Activo | Nuevos tipos: `ProtocolTable`, `RenderSpec`, `Adjunto` |
+
+**Principios de diseño no negociables (resumen):**
+- **SKILL A:** Layout de `reportes-ot` es sagrado. Ningún cambio visual en Hoja 1.
+- **SKILL B:** Nunca campos `undefined` al escribir en Firestore.
+- **SKILL C:** No archivos >250 líneas sin hooks en `sistema-modular`.
+- **No almacenar PDFs**; regenerar on-demand desde `RenderSpec` + datos planos.
+
+---
+
+## 1. Arquitectura Propuesta
+
+### 1.1 Diagrama de Módulos y Límites
+
+```mermaid
+graph TD
+    subgraph "apps/sistema-modular (Back-Office)"
+        SM_Clientes["📋 Módulo Clientes\n(CRUD + baja lógica)"]
+        SM_Establ["🏢 Módulo Establecimientos\n+ Contactos"]
+        SM_Sistemas["⚙️ Módulo Sistemas\n+ Módulos (subcolección)"]
+        SM_Import["📥 Import Masivo\n(UI de carga Excel)"]
+        SM_ProtoCatalog["🗂️ Catálogo de Protocolos\n(Admin de tablas maestras)"]
+        SM_OTs["📄 Vista OTs\n(solo lectura / estados)"]
+    end
+
+    subgraph "apps/reportes-ot (Tablet Field App)"
+        ROT_OTForm["📝 Formulario OT\n(mixto: DB-selector + override)"]
+        ROT_Hoja1["🖨️ Hoja 1 PDF\n(⛔ INTOCABLE)"]
+        ROT_Hoja2["📊 Hoja 2 — Selector\nde Tablas de Protocolo"]
+        ROT_PDFGen["⚡ Motor PDF\nhtml2pdf.js + RenderSpec"]
+        ROT_Adjuntos["📎 Adjuntos / Fotos"]
+    end
+
+    subgraph "packages/shared"
+        SH_Types["📦 @ags/shared\nTypes TS (source of truth)"]
+    end
+
+    subgraph "Firebase"
+        FS["🔥 Firestore\n(colecciones + subcolecciones)"]
+        FSTOR["🗄️ Firebase Storage\n(fotos / adjuntos)"]
+        AUTH["🔐 Firebase Auth"]
+    end
+
+    subgraph "scripts/migracion"
+        SCRIPT["🛠️ migrar-desde-excel.ts\n(Node + Admin SDK\n--dry-run / --run)"]
+    end
+
+    SM_Import --> SCRIPT
+    SCRIPT --> FS
+    SM_Clientes & SM_Establ & SM_Sistemas & SM_ProtoCatalog --> FS
+    ROT_OTForm -->|"Lee catálogos (clientes/sistemas/módulos/tablas)"| FS
+    ROT_OTForm -->|"Guarda WorkOrder + RenderSpec"| FS
+    ROT_PDFGen -->|"Regenera PDF on-demand"| ROT_Hoja1
+    ROT_PDFGen --> ROT_Hoja2
+    ROT_Adjuntos --> FSTOR
+    SM_Types & SH_Types -->|"Importados como @ags/shared"| SM_Clientes
+    SH_Types -->|"Importados como @ags/shared"| ROT_OTForm
+    AUTH -->|"Roles: admin / tecnico / readonly"| SM_Clientes
+    AUTH --> ROT_OTForm
+```
+
+### 1.2 Data-Flow: Creación de una OT completa
+
+```
+[Técnico en tablet]
+    │
+    ▼
+ROT_OTForm (mixto)
+    ├─➀ Selector Cliente  ──────────────── FS: /clientes/{cuit}
+    ├─➁ Selector Establecimiento  ──────── FS: /establecimientos/{id}
+    ├─➂ Selector Sistema / Módulo  ──────── FS: /sistemas/{id} + /sistemas/{id}/modulos
+    ├─➃ Selector TipoServicio  ──────────── FS: /tiposServicio/{id}
+    ├─➄ Selector Protocolo (si aplica)  ── FS: /protocolCatalog/{sysType}/tables[]
+    │   ├── valida sysType + modelo
+    │   ├── muestra tablas compatibles + defaults del sistema
+    │   └── permite fallback manual
+    ├─➅ Inputs libres (horas, repuestos, técnico, observaciones)
+    ├─➆ Firma Técnico + Firma Cliente (canvas)
+    └─➇ SAVE → WorkOrder + RenderSpec → FS /workorders/{otNumber}
+
+[On-demand PDF]
+    WorkOrder + RenderSpec  ─────► html2pdf.js ──► PDF
+                                        ├── Hoja 1 (invariante)
+                                        └── Hoja 2 (tablas dinámicas)
+
+[On-demand con adjuntos]
+    RenderSpec.adjuntos[]  ─────► Firebase Storage (signed URLs)
+                                        ├── Hoja 3: Anexo fotográfico
+                                        └── Hoja 4: Archivos adjuntos
+```
+
+---
+
+## 2. Modelo de Datos (Firestore)
+
+### 2.1 Colecciones y jerarquía
+
+```
+/clientes/{cuit}                          ← ya existe
+/establecimientos/{id}                    ← ya existe
+  └─ /contactos/{id}                      ← ya existe
+/sistemas/{id}                            ← ya existe
+  └─ /modulos/{id}                        ← ya existe (subcolección)
+/tiposServicio/{id}                       ← ya existe
+/workorders/{otNumber}                    ← ya existe (en reportes-ot)
+/protocolCatalog/{catalogId}              ← 🆕 NUEVO
+/renderSpecs/{otNumber}                   ← 🆕 NUEVO (o subcolección de workorders)
+/adjuntos/{adjuntoId}                     ← 🆕 NUEVO (metadata; binario en Storage)
+/usuarios/{uid}                           ← 🆕 NUEVO (roles + audit)
+```
+
+> **Decisión de diseño:** `renderSpecs` puede vivir como subcolección de `workorders` (`/workorders/{otNumber}/renderSpec/current`) o como top-level. **Default propuesto:** subcolección para co-localización y reglas de seguridad simplificadas.
+
+---
+
+### 2.2 Nuevos tipos en `@ags/shared`
+
+```typescript
+// ─── CATÁLOGO DE PROTOCOLOS ───────────────────────────────────────────────
+
+/** Colección: /protocolCatalog/{catalogId} */
+export interface ProtocolCatalogEntry {
+  id: string;
+  /** Tipo de sistema al que aplica: 'HPLC' | 'GC' | 'UV' | 'OSMOMETRO' | ... */
+  sysType: string;
+  /** Modelos compatibles (ej: ['1260', '1200', '1100']). null = todos los modelos del sysType */
+  modelosCompatibles: string[] | null;
+  name: string;          // Nombre legible del protocolo
+  version: string;       // ej: "2.1"
+  tables: ProtocolTable[];
+  isDefault: boolean;    // Si es la tabla default sugerida para este sysType/modelo
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+/** Tabla individual dentro de un protocolo */
+export interface ProtocolTable {
+  tableId: string;       // UUID estable (no cambia entre versiones)
+  name: string;          // "Verificación de Flujo", "Test de Linealidad", etc.
+  description?: string;
+  columns: TableColumn[];
+  /** Filas template con valores esperados/límites (pre-cargados) */
+  templateRows: TableRow[];
+  /** Tipo de servicio al que aplica (puede ser multi) */
+  tiposServicioIds: string[];
+  orden: number;         // Orden de display dentro del protocolo
+}
+
+export interface TableColumn {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'pass_fail' | 'date';
+  unit?: string;         // ej: "mL/min", "%", "nm"
+  required: boolean;
+  /** Valor esperado/límite para mostrar en template */
+  expectedValue?: string;
+}
+
+export interface TableRow {
+  rowId: string;
+  cells: Record<string, string | number | null>;
+  isHeader?: boolean;
+}
+
+// ─── RENDER SPEC ─────────────────────────────────────────────────────────────
+
+/**
+ * Especificación de renderizado: guarda TODO lo necesario para
+ * regenerar el PDF de forma determinística sin PDF binario.
+ * Colección: /workorders/{otNumber}/renderSpec/current
+ */
+export interface RenderSpec {
+  otNumber: string;
+  /** Versión del template de Hoja 1 (para detectar breaking changes futuros) */
+  templateVersion: string;       // ej: "1.0"
+  /** Versión del normalizador de tablas */
+  protocolVersion: string;       // ej: "2.1"
+  /** Versión del motor PDF (para saber qué renderer usar) */
+  rendererVersion: string;       // ej: "html2pdf-0.10"
+
+  // ── Snapshot completo de los datos capturados en el momento del guardado ──
+  workOrderSnapshot: WorkOrder;  // Copia desnormalizada (protección ante renombres)
+
+  // ── Selecciones de protocolo ──
+  protocolSelections: ProtocolSelection[] | null;
+
+  // ── Adjuntos vinculados ──
+  adjuntosIds: string[];         // IDs en colección /adjuntos
+
+  // Metadatos
+  savedAt: string;               // ISO
+  savedBy: string;               // uid
+  updatedAt: string;
+}
+
+export interface ProtocolSelection {
+  catalogId: string;            // FK a /protocolCatalog
+  tableId: string;              // tableId dentro del catalogo
+  /** Filas completadas por el técnico en campo */
+  completedRows: TableRow[];
+  observaciones?: string;
+  resultado: 'CONFORME' | 'NO_CONFORME' | 'PENDIENTE';
+  completadoAt: string;
+}
+
+// ─── ADJUNTOS ────────────────────────────────────────────────────────────────
+
+/** Colección: /adjuntos/{adjuntoId} */
+export interface Adjunto {
+  id: string;
+  otNumber: string;             // FK workorder
+  tipo: 'foto' | 'archivo';
+  storagePath: string;          // Ruta en Firebase Storage (ej: "adjuntos/30255/foto_001.jpg")
+  /** URL firmada (se regenera al visualizar, NO se guarda) */
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  caption?: string;
+  orden: number;                // Para ordenar en el PDF
+  uploadedAt: string;
+  uploadedBy: string;           // uid
+}
+
+// ─── USUARIO (roles) ─────────────────────────────────────────────────────────
+
+export type RolUsuario = 'admin' | 'tecnico' | 'readonly';
+
+export interface UsuarioAGS {
+  uid: string;                  // Firebase Auth UID
+  nombre: string;
+  email: string;
+  rol: RolUsuario;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+---
+
+### 2.3 Ejemplos de documentos Firestore
+
+```json
+// /protocolCatalog/hplc-linearity-v2
+{
+  "id": "hplc-linearity-v2",
+  "sysType": "HPLC",
+  "modelosCompatibles": ["1260", "1200", "1100"],
+  "name": "OQ - Test de Linealidad (HPLC)",
+  "version": "2.1",
+  "isDefault": true,
+  "activo": true,
+  "tables": [
+    {
+      "tableId": "tbl-lin-001",
+      "name": "Verificación de Linealidad del Detector",
+      "orden": 1,
+      "tiposServicioIds": ["calificacion-operacion"],
+      "columns": [
+        { "key": "concentracion", "label": "Concentración", "type": "number", "unit": "ppm", "required": true },
+        { "key": "absorbancia", "label": "Absorbancia", "type": "number", "unit": "AU", "required": true },
+        { "key": "r2", "label": "R²", "type": "number", "required": true, "expectedValue": ">= 0.999" },
+        { "key": "resultado", "label": "Resultado", "type": "pass_fail", "required": true }
+      ],
+      "templateRows": [
+        { "rowId": "r1", "cells": { "concentracion": 10, "absorbancia": null, "r2": null, "resultado": null } },
+        { "rowId": "r2", "cells": { "concentracion": 25, "absorbancia": null, "r2": null, "resultado": null } },
+        { "rowId": "r3", "cells": { "concentracion": 50, "absorbancia": null, "r2": null, "resultado": null } }
+      ]
+    }
+  ],
+  "createdAt": "2026-01-15T10:00:00Z",
+  "updatedAt": "2026-02-01T09:00:00Z",
+  "createdBy": "uid-admin-001"
+}
+```
+
+```json
+// /workorders/30255/renderSpec/current
+{
+  "otNumber": "30255",
+  "templateVersion": "1.0",
+  "protocolVersion": "2.1",
+  "rendererVersion": "html2pdf-0.10",
+  "workOrderSnapshot": {
+    "otNumber": "30255",
+    "razonSocial": "Laboratorio Pharma S.A.",
+    "sistema": "HPLC Agilent 1260",
+    "tipoServicio": "Calificación de Operación",
+    "fechaInicio": "2026-02-25",
+    "...": "todos los campos de WorkOrder"
+  },
+  "protocolSelections": [
+    {
+      "catalogId": "hplc-linearity-v2",
+      "tableId": "tbl-lin-001",
+      "completedRows": [
+        { "rowId": "r1", "cells": { "concentracion": 10, "absorbancia": 0.102, "r2": 0.9998, "resultado": "PASS" } },
+        { "rowId": "r2", "cells": { "concentracion": 25, "absorbancia": 0.251, "r2": 0.9998, "resultado": "PASS" } },
+        { "rowId": "r3", "cells": { "concentracion": 50, "absorbancia": 0.499, "r2": 0.9998, "resultado": "PASS" } }
+      ],
+      "observaciones": "Detector UV a 254nm. Temperatura ambiente 22°C.",
+      "resultado": "CONFORME",
+      "completadoAt": "2026-02-25T14:30:00Z"
+    }
+  ],
+  "adjuntosIds": ["adj-001", "adj-002"],
+  "savedAt": "2026-02-25T15:00:00Z",
+  "savedBy": "uid-tecnico-007",
+  "updatedAt": "2026-02-25T15:00:00Z"
+}
+```
+
+```json
+// /adjuntos/adj-001
+{
+  "id": "adj-001",
+  "otNumber": "30255",
+  "tipo": "foto",
+  "storagePath": "adjuntos/30255/foto_001.jpg",
+  "fileName": "foto_001.jpg",
+  "mimeType": "image/jpeg",
+  "sizeBytes": 1245000,
+  "caption": "Estado inicial del inyector automático",
+  "orden": 1,
+  "uploadedAt": "2026-02-25T14:15:00Z",
+  "uploadedBy": "uid-tecnico-007"
+}
+```
+
+---
+
+## 3. Estrategia de Import Masivo desde Excel
+
+### 3.1 Formato Excel esperado
+
+Archivo: un `.xlsx` con **4 hojas** (o 4 archivos CSV separados):
+
+| Hoja | Columnas obligatorias | Columnas opcionales |
+|------|-----------------------|---------------------|
+| `clientes` | `cuit`, `razonSocial`, `pais`, `rubro` | `direccionFiscal`, `localidad`, `condicionIva`, `notas` |
+| `establecimientos` | `clienteCuit`, `nombre`, `direccion`, `localidad`, `provincia` | `codigoPostal`, `tipo`, `tipoServicio`, `lat`, `lng` |
+| `sistemas` | `establecimientoRef` (nombre o id), `clienteCuit`, `categoriaId`, `nombre`, `codigoInternoCliente` | `software`, `observaciones` |
+| `modulos` | `sistemaRef` (idInterno o nombre), `nombre`, `serie` | `firmware`, `marca`, `observaciones` |
+
+> **`establecimientoRef` y `sistemaRef`:** pueden ser el nombre o el ID interno para facilitar el Excel humano. El script resuelve la referencia durante la fase de parsing.
+
+### 3.2 Script: `scripts/migracion/migrar-desde-excel.ts`
+
+**Estructura del script (ya planificada en docs):**
+
+```
+scripts/migracion/
+  ├─ migrar-desde-excel.ts   ← entry point
+  ├─ service-account.json    ← ⛔ NO commitear (.gitignore)
+  ├─ input/
+  │   ├─ clientes.csv
+  │   ├─ establecimientos.csv
+  │   ├─ sistemas.csv
+  │   └─ modulos.csv
+  └─ output/                 ← logs de dry-run y run
+      ├─ dry-run-YYYYMMDD.json
+      └─ run-report-YYYYMMDD.json
+```
+
+**Fases del script:**
+
+```
+1. PARSE & VALIDATE
+   ├─ Leer CSV/XLSX con `xlsx` o `csv-parse`
+   ├─ Validar campos obligatorios (throw con fila + columna)
+   ├─ Normalizar CUIT (quitar guiones/espacios)
+   ├─ Detectar duplicados dentro del archivo (mismo CUIT, mismo codigoInterno)
+   └─ Emitir warnings (no bloqueantes) vs errors (bloqueantes)
+
+2. CHECK FIRESTORE (deduplicación idempotente)
+   ├─ Para cada cliente: buscar por doc ID (CUIT normalizado)
+   │   └─ Si existe: SKIP (log) o UPDATE campos no-destructivos
+   ├─ Para cada sistema: buscar por (establecimientoId + codigoInternoCliente)
+   │   └─ Si existe: SKIP
+   └─ Para cada módulo: buscar en subcolección por (sistemaId + serie)
+       └─ Si existe: SKIP
+
+3. BATCH WRITE (Admin SDK)
+   ├─ Orden: clientes → establecimientos → sistemas → modulos
+   ├─ Bloques de max 500 ops por batch()
+   ├─ Rollback: si un batch falla, marcar en log y NO continuar
+   └─ Modo --dry-run: loguear todo sin escribir
+
+4. REPORT
+   ├─ Total procesados / creados / skipped / errores
+   └─ JSON + console summary
+```
+
+**Flags CLI:**
+```
+npx ts-node migrar-desde-excel.ts --dry-run   # valida y simula
+npx ts-node migrar-desde-excel.ts --run       # escribe en Firestore
+npx ts-node migrar-desde-excel.ts --run --only=clientes  # solo una entidad
+```
+
+**Estrategia de rollback:** No existe rollback automático en Firestore. En cambio:
+- `--dry-run` obligatorio antes de `--run`
+- El report JSON del `--run` lista todos los IDs creados
+- En caso de error: script de "undo" separado que elimina los IDs del report (sólo si son documentos nuevos, nunca updates)
+
+---
+
+## 4. Nuevo Flujo UX de OT/Reporte (mixto DB + override)
+
+### 4.1 Estados del formulario
+
+```
+Estado 1: INICIO
+  ├─ Selector: Cliente (autocomplete sobre /clientes, filtrado por activo:true)
+  └─ Al seleccionar: carga establecimientos del cliente
+
+Estado 2: CONTEXTO GEOGRÁFICO
+  ├─ Selector: Establecimiento (filtrado por clienteCuit)
+  ├─ Selector: Contacto (subcolección contactos del establecimiento)
+  └─ Al seleccionar: carga sistemas del establecimiento
+
+Estado 3: EQUIPO
+  ├─ Selector: Sistema (filtrado por establecimientoId)
+  ├─ Selector: Módulo (subcolección del sistema, opcional)
+  └─ Al seleccionar sistema: activa Paso 4
+
+Estado 4: TIPO DE SERVICIO
+  ├─ Selector: TipoServicio (catálogo /tiposServicio)
+  └─ Si el tipo requiere protocolo → activa bloque Protocolo
+
+Estado 5 (condicional): PROTOCOLO
+  ├─ Sistema valida sysType del sistema seleccionado
+  ├─ Muestra tablas disponibles para ese sysType/modelo
+  ├─ Pre-selecciona tablas default (isDefault:true)
+  └─ Técnico puede agregar/quitar tablas compatibles (fallback)
+
+Estado 6: DATOS DE TRABAJO
+  ├─ Fechas, horas viajadas, horas trabajadas
+  ├─ Artículos/repuestos utilizados
+  ├─ Reporte técnico (textarea)
+  └─ Acciones futuras (textarea)
+
+Estado 7: PROTOCOLO — COMPLETAR TABLAS
+  ├─ Por cada tabla seleccionada: formulario de celdas
+  ├─ Validación inline por tipo de columna
+  └─ Resultado por tabla: CONFORME / NO_CONFORME / PENDIENTE
+
+Estado 8: FIRMAS
+  ├─ Canvas firma técnico
+  └─ Canvas firma cliente
+
+Estado 9: GUARDAR / GENERAR PDF
+  ├─ Persiste WorkOrder + RenderSpec en Firestore
+  ├─ Genera PDF on-demand (Hoja 1 + Hoja 2 si hay protocolo)
+  └─ Opción: agregar adjuntos/fotos (subir o capturar)
+```
+
+### 4.2 Override manual (campos editables)
+
+Cualquier campo seleccionado desde DB puede ser **editado manual** activando un ícono de lápiz. El `RenderSpec` guarda tanto `clienteId` (FK) como el snapshot de datos al momento de edición, garantizando reproducibilidad aunque el master cambie.
+
+```
+[Campo razonSocial]
+  Valor DB: "Laboratorio Pharma S.A."  [✏️ editar]
+               ↓ si edita
+  Campo libre con placeholder "Excepción - ingresé manualmente"
+  RenderSpec guardará: workOrderSnapshot.razonSocial = "Valor manual"
+```
+
+---
+
+## 5. Motor de Protocolos / Tablas
+
+### 5.1 Selector por tipo de sistema / modelo
+
+```typescript
+// Lógica de selector (hook useProtocolSelector)
+const tablas = await getTablasCatalog({ sysType, modelo });
+// Query: /protocolCatalog where sysType == X AND (modelosCompatibles contains modelo OR modelosCompatibles == null)
+// Ordenar: isDefault primero, luego por orden asc
+```
+
+### 5.2 Compatibilidad y fallback
+
+| Caso | Comportamiento |
+|------|----------------|
+| Sistema HPLC 1260, modelo conocido | Muestra tablas default para 1260 + tablas genéricas HPLC |
+| Sistema HPLC, modelo desconocido | Muestra tablas genéricas HPLC (modelosCompatibles: null) |
+| Tipo de servicio no requiere protocolo | Oculta sección completa |
+| Técnico quiere tabla "no default" | Puede agregarla manualmente desde tablas compatibles |
+
+### 5.3 Conversor Word → Tabla vs. Table Builder
+
+**Análisis:**
+
+| Criterio | Conversor Word (reutilizar) | Table Builder (nuevo) |
+|----------|-----------------------------|-----------------------|
+| Esfuerzo | Bajo (adaptar lo existente) | Alto (UI compleja) |
+| Mantenimiento | Medio (dependencia de formato Word) | Bajo (UI nativa) |
+| Flexibilidad | Baja (formatos Word rígidos) | Alta |
+| Acceso del admin | Necesita Word instalado | Cualquier browser |
+| Versionado | Difícil (Word es binario) | Fácil (Firestore) |
+| Migración inicial | Ideal para importar tablas existentes | No aplica |
+
+**Recomendación:**
+- **Fase 1:** Usar el conversor Word→JSON existente **solo para la migración inicial** de tablas ya creadas. Adaptar output al schema `ProtocolTable`.
+- **Fase 2:** Construir el **Table Builder** en `sistema-modular` como pantalla de administración. Esto elimina la dependencia de Word y permite que el admin cree/edite tablas desde el browser.
+- **Ambos coexisten** durante la transición; el conversor acepta Word y lo importa al mismo Firestore schema.
+
+### 5.4 Encabezado y pie del Protocolo (parametrizable)
+
+```typescript
+// En RenderSpec o en ProtocolCatalogEntry
+interface ProtocolHeader {
+  titulo: string;             // "PROTOCOLO DE CALIFICACIÓN OPERACIONAL"
+  codigoDocumento: string;    // "PQ-HPLC-001"
+  revision: string;           // "Rev. 2.1"
+  logoUrl?: string;           // URL en Storage (opcional)
+}
+
+interface ProtocolFooter {
+  elaboradoPor?: string;
+  revisadoPor?: string;
+  aprobadoPor?: string;
+  vigenciaDesde?: string;
+}
+```
+
+Estos campos se definen por `ProtocolCatalogEntry` pero pueden ser sobreescritos en `RenderSpec.protocolSelections[].header/footer`.
+
+---
+
+## 6. Generación PDF (reproducible y determinística)
+
+### 6.1 Principios
+
+| Regla | Implementación |
+|-------|----------------|
+| Hoja 1 **intocable** | El componente JSX de Hoja 1 no se modifica. Se captura con el mismo selector CSS legacy |
+| Hoja 2 **dinámica** | Nuevo componente `<ProtocolSheet>` inyectado *debajo* de Hoja 1 en el array de nodos de html2pdf.js — SKILL A compliant |
+| Regeneración determinística | Se usan exactamente los datos del `workOrderSnapshot` + `protocolSelections`. Si el master cambia, el snapshot preserva el estado original |
+| Versionado de plantillas | `templateVersion` en `RenderSpec`. Si hay breaking change en Hoja 1: incrementar versión → el visor sabe qué renderer usar |
+| Adjuntos | Se cargan on-demand. El PDF se genera en 2 modos: "solo reporte+protocolo" y "reporte+protocolo+adjuntos" |
+
+### 6.2 Flujo de regeneración
+
+```
+[Usuario pide ver/descargar PDF]
+    │
+    ▼
+Lee RenderSpec de Firestore
+    │
+    ├── Si hay adjuntosIds y usuario eligió "completo":
+    │       GET signed URLs de Firebase Storage (expiran en 1h)
+    │       Inyectar imágenes al componente <AnnexSheet>
+    │
+    ├── Renderizar componentes en orden:
+    │       <ReporteSheet data={workOrderSnapshot} />   // Hoja 1 — intocable
+    │       <ProtocolSheet selections={protocolSelections} />  // Hoja 2 — dinámica
+    │       <AnnexSheet fotos={fotosResueltas} />        // Hoja 3 — opcional
+    │       <AttachmentsSheet archivos={archivosResueltos} />  // Hoja 4 — opcional
+    │
+    └── html2pdf.capture() → blob → download / preview
+```
+
+---
+
+## 7. Persistencia sin PDF
+
+### 7.1 Qué se guarda (y qué NO)
+
+| Dato | Se guarda | Formato |
+|------|-----------|---------|
+| Datos de la OT | ✅ | `/workorders/{otNumber}` (WorkOrder) |
+| Snapshot completo al guardar | ✅ | `RenderSpec.workOrderSnapshot` |
+| Selecciones de protocolo + resultados | ✅ | `RenderSpec.protocolSelections[]` |
+| Versiones de plantilla/protocolo/renderer | ✅ | `RenderSpec.{templateVersion, protocolVersion, rendererVersion}` |
+| Firmas (base64) | ✅ | `WorkOrder.signatureEngineer`, `WorkOrder.signatureClient` |
+| Metadatos de adjuntos | ✅ | `/adjuntos/{id}` |
+| Binarios de adjuntos/fotos | ✅ | Firebase Storage (no Firestore) |
+| PDF binario | ❌ NO | — |
+
+### 7.2 Versionado y migraciones futuras
+
+- Cada `RenderSpec` es inmutable una vez finalizado (status FINALIZADO).
+- Si se cambia el schema de `ProtocolTable` en el futuro: usar `protocolVersion` para detectar formato antiguo y aplicar migración al leer.
+- Estrategia de migración: **lazy migration** (al leer un `RenderSpec` con `protocolVersion < actual`, normalizar on-the-fly y guardar actualizado).
+
+---
+
+## 8. Instrumentos, Certificados y Trazabilidad
+
+> **Agregado:** 2026-02-28 — Requisitos levantados de sesión de planificación.
+
+### 8.1 Concepto general
+
+Los ingenieros utilizan **instrumentos** (termómetros, manómetros, flujímetros) y **estándares** (muestras de FID, patrones de calibración) para realizar validaciones. Se necesita:
+
+1. Un **catálogo de instrumentos y estándares** gestionados desde `sistema-modular`.
+2. Una **tabla especial `tableType: 'instruments'`** en el catálogo que, al ser seleccionada, permite elegir instrumentos de una lista y auto-completar N° serie, modelo, etc.
+3. Los **certificados de calibración** de cada instrumento/estándar se almacenan en Firestore/Storage y se **anexan automáticamente al PDF** final del reporte.
+4. Los estándares muestran: código, lote, fecha de vencimiento, y su certificado se anexa al PDF.
+5. Cada certificado tiene **fecha de vencimiento**: al vencer, el instrumento es reemplazado por otro vigente, pero el vencido queda vinculado al reporte histórico (snapshot).
+
+### 8.2 Categoría de instrumento por tipo de sistema
+
+| Tipo de sistema | Instrumentos disponibles |
+|-----------------|--------------------------|
+| Cromatógrafo Líquido (HPLC) | Termómetro, Flujímetro de líquidos |
+| Cromatógrafo Gaseoso (GC) | Termómetro, Manómetro, Flujímetro de gases |
+
+La categoría filtra qué instrumentos se ofrecen en el selector según el `sysType` del sistema vinculado a la OT.
+
+### 8.3 Trazabilidad
+
+- Ciertos clientes requieren **documentos de trazabilidad** por cada instrumento: un documento adicional que detalla todos los instrumentos que certificaron el funcionamiento del instrumento de medición.
+- La trazabilidad está **directamente ligada al instrumento**: si se selecciona TER-02, a continuación de su certificado aparece su documento de trazabilidad en el PDF.
+- Se puede detectar automáticamente según el cliente (pocos clientes la requieren). Se propone un flag `requiereTrazabilidad: boolean` en el documento del cliente en Firestore.
+- La trazabilidad se almacena igual que los certificados: en Firestore/Storage, vinculada al instrumento, con vencimiento, y se adjunta al PDF final.
+
+### 8.4 Certificado del IST (Ingeniero de Servicio Técnico)
+
+- Cada IST tiene su propio certificado profesional, que también debe anexarse al PDF del reporte.
+- Mismo procedimiento que los certificados de instrumentos.
+- **Diferencia:** el certificado del IST **no tiene vencimiento**.
+
+### 8.5 Modelo de datos propuesto
+
+```typescript
+// ─── INSTRUMENTOS Y ESTÁNDARES ─────────────────────────────────────────
+
+type CategoriaInstrumento = 'termometro' | 'manometro' | 'flujimetro_liquidos' | 'flujimetro_gases';
+
+interface InstrumentoPatron {
+  id: string;
+  tipo: 'instrumento' | 'estandar';
+  categoria: CategoriaInstrumento;
+  nombre: string;                    // "Termómetro Digital TER-02"
+  codigoInterno: string;             // "TER-02"
+  marca: string;
+  modelo: string;
+  numeroDeSerie: string;
+  // Para estándares:
+  codigoEstandar?: string;           // Código del estándar
+  lote?: string;
+  // Certificados
+  certificadoStoragePath: string;    // Ruta en Storage (PDF del certificado)
+  certificadoVencimiento: string;    // ISO date — fecha de vencimiento
+  vigente: boolean;                  // false cuando vence y es reemplazado
+  // Trazabilidad (opcional, PDF en Storage)
+  trazabilidadStoragePath?: string;  // PDF trazabilidad
+  trazabilidadVencimiento?: string;  // ISO date
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Colección: /instrumentos/{id}
+// Almacenamiento certificados: Firebase Storage /certificados/{instrumentoId}/certificado.pdf
+// Almacenamiento trazabilidad: Firebase Storage /certificados/{instrumentoId}/trazabilidad.pdf
+
+interface CertificadoIST {
+  id: string;
+  uid: string;                       // FK a /usuarios
+  nombre: string;                    // Nombre del IST
+  certificadoStoragePath: string;    // PDF en Storage
+  // Sin vencimiento
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Colección: /certificadosIST/{id}
+```
+
+### 8.6 Flujo en el PDF
+
+```
+[Hoja N — Tabla de Instrumentos y Estándares]
+  ├─ Tabla con columnas: Instrumento | Código | N° Serie | Modelo | Certificado Nro | Vencimiento
+  └─ Para cada instrumento seleccionado:
+      ├─ Hoja N+1: Certificado de calibración (PDF del instrumento)
+      ├─ Hoja N+2: Trazabilidad (si el cliente lo requiere y existe)
+      └─ Para estándares: Código | Lote | Vencimiento | Certificado
+
+[Última hoja — Certificado IST]
+  └─ PDF del certificado del ingeniero que realizó el servicio
+```
+
+### 8.7 Regeneración on-demand
+
+- Como el sistema no almacena PDFs sino que los regenera on-demand, se aplica la misma lógica que fotos y adjuntos.
+- Al regenerar se pregunta: **¿Adjuntar certificados?** (Sí/No).
+- El instrumento vencido queda vinculado al `RenderSpec` (snapshot en `protocolSelections`) — si el instrumento fue reemplazado, el reporte histórico sigue mostrando el vigente al momento del servicio.
+- Los certificados actuales (~50 MB total) se almacenan en Firebase Storage (o Google Drive si se prefiere — ver D7).
+
+---
+
+## 9. Adjuntos y Fotos
+
+### 9.1 Storage recomendado
+
+**Recomendación: Firebase Storage** (no Drive ni servidor local).
+
+| Criterio | Firebase Storage | Google Drive | Servidor local |
+|----------|-----------------|--------------|----------------|
+| Integración nativa con Auth | ✅ | Parcial (OAuth) | ❌ |
+| Reglas de seguridad granulares | ✅ | ❌ | Manual |
+| Signed URLs | ✅ | Parcial | Manual |
+| Sin infraestructura propia | ✅ | ✅ | ❌ |
+| Costo | Pay-per-use | Gratis hasta límite | Hosting propio |
+| Modo offline (tablet) | Con SDK | ❌ | ❌ |
+
+### 9.2 Esquema de seguridad de Storage
+
+```
+/adjuntos/{otNumber}/{fileName}
+  → Solo lectura: autenticado (tecnico, admin, readonly)
+  → Escritura: solo autor de la OT o admin
+  → Signed URLs: expiración 1 hora (generadas al visualizar, nunca almacenadas)
+```
+
+### 9.3 Cómo se incorporan al PDF
+
+```
+[Hoja 3 - Anexo fotográfico]
+  Para cada Adjunto de tipo "foto" (ordenado por adjunto.orden):
+    ├─ Imagen a ancho completo (A4 - márgenes)
+    ├─ Caption debajo
+    └─ Número de figura
+
+[Hoja 4 - Archivos adjuntos]
+  Para cada Adjunto de tipo "archivo":
+    ├─ Nombre de archivo
+    ├─ Fecha de carga
+    └─ Link (no embebido en PDF — solo referencia)
+```
+
+### 9.4 UI de visualización (modo demanda)
+
+```
+Modal/Screen "Ver OT 30255"
+  ┌─────────────────────────────────────┐
+  │  ¿Qué desea visualizar/descargar?   │
+  │                                     │
+  │  ◉ Solo Reporte + Protocolo         │
+  │    (generados, instantáneo)         │
+  │                                     │
+  │  ○ Reporte completo con adjuntos    │
+  │    (carga fotos y archivos, ~Xs)    │
+  │                                     │
+  │           [Generar PDF]             │
+  └─────────────────────────────────────┘
+```
+
+---
+
+## 10. Seguridad y Permisos
+
+### 10.1 Roles
+
+| Rol | Descripción | Acceso |
+|-----|-------------|--------|
+| `admin` | Back-office total | Leer/escribir todo. Gestión de usuarios, catálogos, clientes |
+| `tecnico` | Ingeniero de campo | Crear/editar OTs propias. Leer catálogos. No gestiona clientes |
+| `readonly` | Gerencia / auditores | Solo lectura. No puede crear ni editar |
+
+### 10.2 Reglas Firestore (conceptuales)
+
+```javascript
+// /workorders/{otNumber}
+allow read: if isAuthenticated();
+allow create: if isTecnico() || isAdmin();
+allow update: if isAdmin() || (isTecnico() && resource.data.createdBy == request.auth.uid
+              && resource.data.status == 'BORRADOR');
+allow delete: if isAdmin();
+
+// /protocolCatalog/{catalogId}
+allow read: if isAuthenticated();
+allow write: if isAdmin();
+
+// /clientes, /establecimientos, /sistemas
+allow read: if isAuthenticated();
+allow write: if isAdmin();
+
+// /adjuntos/{adjuntoId}
+allow read: if isAuthenticated();
+allow create: if isTecnico() || isAdmin();
+allow delete: if isAdmin();
+```
+
+### 10.3 Auditoría mínima
+
+Todos los documentos incluyen:
+```typescript
+{
+  createdAt: string;   // ISO
+  updatedAt: string;   // ISO
+  createdBy: string;   // uid
+  // En WorkOrder además:
+  lastEditedBy?: string;
+  editHistory?: AuditEntry[]; // Array de { ts, uid, cambios[] } — opcional, solo para OTs finalizadas
+}
+```
+
+---
+
+## 11. Plan por Fases (Roadmap)
+
+### Fase 0 — Fundamentos compartidos ✅ PARCIAL
+**Objetivo:** Preparar el terreno sin romper nada existente.
+
+| Tarea | Estado | Notas |
+|-------|--------|-------|
+| Agregar tipos de tablas/protocolo a `@ags/shared` | ✅ Hecho | Tipos reales: `TableCatalogEntry`, `ChecklistItem`, `ChecklistItemAnswer`, `ProtocolSelection` (difieren del plan original pero cubren la funcionalidad) |
+| Tipos `RenderSpec`, `Adjunto`, `UsuarioAGS` | ❌ Pendiente | No implementados aún |
+| Crear colección `/usuarios` con roles | ❌ Pendiente | |
+| Compilación limpia monorepo | ✅ Hecho | `pnpm build` funciona |
+
+**Riesgo:** Bajo.
+
+---
+
+### Fase 1 — Import Masivo desde Excel ✅ COMPLETADA
+**Objetivo:** Poblar Firestore con Clientes + Establecimientos + Sistemas + Módulos desde Excel.
+
+| Tarea | Estado |
+|-------|--------|
+| Script de migración Excel → Firestore | ✅ Implementado |
+| Validación y deduplicación | ✅ |
+| Soporte XLSX | ✅ |
+| Batch write Admin SDK | ✅ |
+
+**Nota:** Ejecutado con datos reales. Clientes, establecimientos, sistemas y módulos cargados.
+
+---
+
+### Fase 2 — Nuevo Flujo OT Mixto 🔶 PARCIAL
+**Objetivo:** Reemplazar carga manual de OT por selección desde DB con override.
+
+| Tarea | Estado | Notas |
+|-------|--------|-------|
+| Selector de cliente desde DB (SearchableSelect → `/clientes`) | ❌ **Pendiente** | Hoy es `<input type="text">` manual. Debe ser dropdown/autocomplete que cargue de Firestore |
+| Auto-llenado de establecimiento, contacto, dirección | ❌ **Pendiente** | Al seleccionar cliente → listar establecimientos → auto-completar dirección, localidad, provincia, contacto |
+| Selector de sistema/equipo desde DB | ❌ **Pendiente** | Hoy es texto libre. Debe cargar desde `/sistemas` filtrado por establecimiento |
+| Auto-llenado de módulo (modelo, serie, descripción) | ❌ **Pendiente** | Al seleccionar sistema → cargar módulos desde subcolección |
+| Persistencia de `WorkOrder` con `protocolSelections` | ✅ | `protocolSelections` se guarda en `/workorders/{otNumber}` |
+| Carga/guardado de OT existente | ✅ | `useOTManagement` carga OT por número, hidrata el formulario |
+| `RenderSpec` como entidad separada | ❌ Pendiente | Los datos se guardan directamente en `WorkOrder`, no hay `RenderSpec` separado aún |
+| Modo override con flag "excepción" | ❌ Pendiente | Para cuando el técnico necesita ingresar datos distintos a los de DB |
+
+**Nota:** El flujo OT funciona end-to-end pero **todos los datos de cliente y equipo se ingresan manualmente como texto libre**. No hay selectores conectados a la base de datos (solo las tablas de protocolo en Fase 3). Esta es la pieza central que falta de Fase 2.
+
+---
+
+### Fase 3 — Motor de Protocolos + Tablas 🔶 EN PROGRESO
+**Objetivo:** Selector de tablas dinámicas y Hoja 2 del PDF.
+
+| Tarea | Estado | Notas |
+|-------|--------|-------|
+| Catálogo de tablas (`/tableCatalog`) en sistema-modular | ✅ | CRUD completo, publicación, clonado, importar JSON |
+| Table Builder (editor columnas/filas/reglas) | ✅ | `TableEditor.tsx`, `RowFormPanel.tsx` |
+| Tipo `checklist` con editor + importador PDF | ✅ | `ChecklistEditor.tsx`, `ImportChecklistPdfDialog.tsx` (con pdfjs-dist) |
+| Conversor Word→ProtocolTable (adaptar existente) | ✅ | `word-to-protocol-json` + `ImportJsonDialog.tsx` |
+| TableSelectorPanel en reportes-ot | ✅ | Auto-sugiere tablas según `tipoServicio`, pre-check |
+| CatalogTableView (técnico completa filas) | ✅ | Soporta todos los tipos de columna + validación |
+| CatalogChecklistView (técnico completa checklist) | ✅ | checkbox, value_input, pass_fail, secciones N/A |
+| Tablas default por sistema + auto-load | ✅ | `suggestedTables` por `tipoServicio` |
+| **Hoja 2 PDF con header/footer por página** | ❌ **PENDIENTE** | Próximo paso — headers con logo, OT, cliente; footers con firma, página X de Y |
+| **Encabezado/pie parametrizable** (`ProtocolHeader`/`ProtocolFooter`) | ❌ **PENDIENTE** | Campos en `TableCatalogEntry` o `RenderSpec` |
+| Sticky layout en todas las páginas de sistema-modular | ✅ | Patrón OTList aplicado a 7 páginas |
+
+**Lo que queda de Fase 3:** Formato final del PDF multipágina con headers/footers por hoja.
+
+---
+
+### Fase 4 — Adjuntos, Fotos y Visor ❌ PENDIENTE
+**Objetivo:** Subir fotos/archivos y visualizarlos en el PDF.
+
+| Tarea | Estado | Criterio de aceptación |
+|-------|--------|------------------------|
+| Módulo de upload (`useAdjuntos` hook + Firebase Storage) | ❌ Pendiente | Upload de foto/archivo. Metadatos en /adjuntos |
+| Captura de foto desde tablet (camera API) | ❌ Pendiente | Foto tomada va directamente a Storage |
+| Hojas 3 y 4 del PDF (Anexo + Archivos) | ❌ Pendiente | PDF generado con adjuntos, con signed URLs efímeras |
+| Modal de selección de vista (solo reporte vs. completo) | ❌ Pendiente | UX según mockup en sección 9.4 |
+| Signed URLs: expiración 1h, nunca guardadas en Firestore | ❌ Pendiente | Verificado: URL expira y no aparece en DB |
+
+**Entregables:** PDF completo con adjuntos opcionales.
+**Riesgo:** Medio. Camera API en tablet requiere HTTPS y permisos explícitos.
+
+---
+
+### Fase 5 — Instrumentos, Certificados y Trazabilidad ❌ PENDIENTE
+**Objetivo:** Gestionar instrumentos y patrones utilizados en servicios, con certificados vinculados y control de vencimiento.
+
+| Tarea | Estado | Descripción |
+|-------|--------|-------------|
+| Catálogo de instrumentos en sistema-modular | ❌ Pendiente | CRUD de `InstrumentoPatron` en `/instrumentos/{id}`. Campos: nombre, marca, modelo, serie, tipo, categoría(s), certificado vinculado, vencimiento |
+| Categoría de instrumento por tipo de sistema | ❌ Pendiente | Enum `CategoriaInstrumento` con valores HPLC/GC-específicos. Filtro en selector según `sysType` del equipo |
+| Gestión de certificados con vencimiento | ❌ Pendiente | Upload de certificado PDF a Firebase Storage. Auto-extracción de datos (nombre, emisor, vigencia). Alertas de vencimiento próximo |
+| Estándares (patrones) con código, lote, vencimiento | ❌ Pendiente | Tabla de estándares: código, lote, fecha vencimiento, certificado vinculado. Alertas de vencimiento |
+| Flag `requiereTrazabilidad` en clientes | ❌ Pendiente | Checkbox en ficha de cliente. Cuando activo, OT debe incluir hojas de trazabilidad |
+| Documentos de trazabilidad | ❌ Pendiente | Trazabilidad vinculada directamente al instrumento. Aparece después del certificado del instrumento en el PDF |
+| Certificado del IST (ingeniero) | ❌ Pendiente | PDF del certificado del ingeniero que realizó el servicio. Sin vencimiento. Se anexa como última hoja del reporte |
+| Reemplazo de instrumentos (historial) | ❌ Pendiente | Al reemplazar un instrumento vencido, vincular al anterior. Reportes históricos mantienen el instrumento vigente al momento del servicio (snapshot) |
+| Selector de instrumentos en reportes-ot | ❌ Pendiente | Técnico selecciona instrumentos usados en la OT. Filtrado por categoría según sysType. Snapshot guardado en WorkOrder |
+| Anexado de certificados al PDF | ❌ Pendiente | Al generar PDF: opción de incluir certificados de instrumentos usados + trazabilidad + certificado IST como hojas adicionales |
+
+**Dependencias:** Fase 4 (sistema de adjuntos/Storage) debe estar funcional antes de certificados.
+**Riesgo:** Alto. Requiere definir estructura de Storage para certificados, gestión de vencimientos con notificaciones, y lógica de snapshot para reportes históricos.
+
+---
+
+## 12. Checklist de Decisiones Abiertas
+
+| # | Decisión | Default recomendado | Impacto si cambia |
+|---|----------|---------------------|-------------------|
+| D1 | ¿`renderSpecs` como subcolección de `workorders` o top-level? | **Subcolección** `/workorders/{otNumber}/renderSpec/current` | Mínimo; refactor de queries |
+| D2 | ¿Formato de input para import: Excel con 4 hojas vs 4 CSVs? | **Excel con 4 hojas** (más amigable para el usuario) | Solo el parser |
+| D3 | ¿Table Builder desde Fase 2 o post-conversor Word? | **Post-conversor (Fase 3)**: importar tablas existentes primero, builder como Fase 3b | Esfuerzo del catálogo |
+| D4 | ¿Guardar firmas en Firestore (base64) o Storage? | **Firestore base64** (ya funciona así, tamaño manejable ~20KB) | SKILL A: no tocar |
+| D5 | ¿`editHistory` de auditoría desde el inicio o post-MVP? | **Post-MVP** (Fase 0 solo `createdBy`/`updatedAt`) | Auditoría limitada hasta fase posterior |
+| D6 | ¿Adjuntos accesibles offline (PWA cache)?  | **No por ahora** (conexión asumida en campo) | Sin complejidad de sync |
+| D7 | ¿Google Drive como fallback de Storage?  | **No** (complejidad OAuth innecesaria) | Si cambia: refactor de todo adjunto |
+| D8 | ¿Signed URLs: duración 1h o 24h? | **1 hora** (seguridad > conveniencia) | Solo config de Storage |
+| D9 | ¿Protocolo obligatorio por tipo de servicio o siempre opcional?  | **Por tipo de servicio**: flag `requiresProtocol` en `/tiposServicio/{id}` | Agregar campo a `TipoServicio` |
+| D10 | ¿Modelos de sistema son catálogo libre o enum fijo? | **Catálogo libre** en Firestore (`/categoriaEquipo/{id}/modelos[]`) — ya existe `CategoriaEquipo` | Sin impacto (ya diseñado) |
+| D11 | ¿Dónde se almacenan los certificados de instrumentos? | **Firebase Storage** en `/certificados/{instrumentoId}/{fileName}`. Google Drive descartado por complejidad OAuth | Si cambia: refactor completo de upload/download de certificados |
+| D12 | ¿Cómo se detecta si una OT requiere trazabilidad? | **Flag `requiereTrazabilidad` en cliente**. Si el cliente lo tiene activo, el técnico debe incluir hojas de trazabilidad | Agregar campo a `Cliente` y lógica en reportes-ot |
+| D13 | ¿Categorías de instrumento por sysType son fijas o configurables? | **Enum fijo** (`CategoriaInstrumento`) con mapeo a sysType. Razón: las categorías LC/GC están estandarizadas en la industria | Si cambia: migrar enum a colección Firestore |
+| D14 | ¿El certificado IST tiene vencimiento? | **No**. El certificado del ingeniero se adjunta sin control de vencimiento | Sin impacto |
+
+---
+
+## 13. Quick Wins (1-3 días)
+
+- **QW1:** Agregar los nuevos tipos TS (`RenderSpec`, `ProtocolTable`, etc.) a `@ags/shared` y buildear. Cero impacto funcional; habilita todo lo demás.
+- **QW2:** Crear el skeleton del script `migrar-desde-excel.ts` con `--dry-run` que solo parsea y valida el Excel (sin escribir). Permite al equipo validar el formato del Excel inmediatamente.
+- **QW3:** Agregar campo `requiresProtocol: boolean` a la interfaz `TipoServicio` y actualizar en Firestore los tipos existentes. Habilita la lógica condicional de Fase 3 sin tocar nada de la UI.
+- **QW4:** Crear la colección `/usuarios` con documentos para los UIDs existentes y definir roles. Base para seguridad de todas las fases.
+
+---
+
+## 14. High Risk Items
+
+| Ítem | Riesgo | Mitigación |
+|------|--------|-----------|
+| **R1: SKILL A — inyección de Hoja 2** | Alterar el árbol JSX puede romper dimensiones de Hoja 1 en html2pdf.js | Inyectar Hoja 2 como nodo separado en el array de captura, nunca dentro del wrapper de Hoja 1. QA con PDF antes y después en tablet real. |
+| **R2: Cascada de selectores en OT** | Si los datos en Firestore están incompletos post-import, los selectores quedarán vacíos | Validar cobertura de datos con dry-run antes de Fase 2. Mantener siempre override manual. |
+| **R3: Import masivo — referencias ambiguas** | `establecimientoRef` por nombre puede colisionar si hay dos establecimientos con el mismo nombre en un cliente | Preferir ID interno; documentar regla de unicidad en el Excel template. |
+| **R4: Compatibilidad html2pdf.js con tablas dinámicas** | Las tablas generadas dinámicamente pueden romperse en saltos de página | Testear con tablas de 20+ filas en tablet. Implementar page-break CSS antes de asumir que funciona. |
+| **R5: Camera API en tablet** | No todos los tablets tienen cámara accesible vía browser sin HTTPS explícito | Asegurar HTTPS en el entorno tablet desde el inicio. Fallback: solo upload de archivo. |
+| **R6: Vencimiento de certificados sin notificación** | Instrumentos con certificado vencido podrían usarse en OTs sin que el técnico lo note | Implementar alertas en sistema-modular (dashboard) y validación al seleccionar instrumento en reportes-ot. Badge visual en instrumentos próximos a vencer (30 días). |
+| **R7: Snapshot de instrumentos en reportes históricos** | Al reemplazar un instrumento, los reportes anteriores deben seguir mostrando el instrumento vigente al momento del servicio | Guardar snapshot del instrumento en `WorkOrder.instrumentosUsados[]` al momento de la OT, no referencia viva. Similar al patrón de `protocolSelections.tableSnapshot`. |
+
+---
+
+## Apéndice: Diagrama de relaciones de entidades (ER simplificado)
+
+```
+Cliente (CUIT)
+  │
+  ├──[1:N]── Establecimiento
+  │             │
+  │             ├──[1:N]── ContactoEstablecimiento
+  │             └──[1:N]── Sistema
+  │                          │
+  │                          ├──[1:N]── ModuloSistema
+  │                          └──[1:N]── WorkOrder ──[1:1]── RenderSpec
+  │
+  ├──[1:N]── Lead
+  ├──[1:N]── Presupuesto ──[M:N]── OrdenCompra
+  └── requiereTrazabilidad: boolean
+
+TableCatalogEntry ──[M:N (via protocolSelections)]── WorkOrder
+Adjunto ──[N:1]── WorkOrder (vía RenderSpec.adjuntosIds)
+UsuarioAGS ──[1:N]── WorkOrder (createdBy)
+  └── certificadoIST?: string (URL en Storage)
+
+InstrumentoPatron
+  │
+  ├── categorias: CategoriaInstrumento[]
+  ├── certificadoUrl?: string (Storage)
+  ├── vencimiento?: Date
+  ├── reemplazadoPor?: InstrumentoPatron (historial)
+  ├──[1:N]── DocumentoTrazabilidad
+  └──[M:N (via WorkOrder.instrumentosUsados)]── WorkOrder
+```

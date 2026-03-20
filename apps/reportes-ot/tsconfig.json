@@ -25,10 +25,14 @@
       ],
       "@shared/*": [
         "../../packages/shared/src/*"
+      ],
+      "@ags/shared": [
+        "../../packages/shared/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true
   },
   "include": [
     "**/*.ts",

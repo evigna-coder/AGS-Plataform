@@ -5,11 +5,13 @@ import type { CategoriaEquipo, CategoriaModulo, ModeloModulo } from '@ags/shared
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 type TabType = 'sistemas' | 'modulos';
 
 export const CategoriasEquipo = () => {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [activeTab, setActiveTab] = useState<TabType>('sistemas');
   
   // Estados para categorías de sistemas
@@ -23,7 +25,7 @@ export const CategoriasEquipo = () => {
   const [showModalModulos, setShowModalModulos] = useState(false);
   const [editingModulo, setEditingModulo] = useState<CategoriaModulo | null>(null);
   const [formDataModulos, setFormDataModulos] = useState({ nombre: '', modelos: [] as ModeloModulo[] });
-  const [nuevoModelo, setNuevoModelo] = useState({ codigo: '', descripcion: '' });
+  const [nuevoModelo, setNuevoModelo] = useState({ codigo: '', descripcion: '', marca: '' });
   
   const [loading, setLoading] = useState(true);
 
@@ -111,10 +113,11 @@ export const CategoriasEquipo = () => {
       ...formDataModulos,
       modelos: [...formDataModulos.modelos, {
         codigo: nuevoModelo.codigo.trim(),
-        descripcion: nuevoModelo.descripcion.trim() || nuevoModelo.codigo.trim()
+        descripcion: nuevoModelo.descripcion.trim() || nuevoModelo.codigo.trim(),
+        ...(nuevoModelo.marca.trim() ? { marca: nuevoModelo.marca.trim() } : {}),
       }]
     });
-    setNuevoModelo({ codigo: '', descripcion: '' });
+    setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
   };
 
   const handleRemoveModelo = (index: number) => {
@@ -150,7 +153,7 @@ export const CategoriasEquipo = () => {
       setShowModalModulos(false);
       setEditingModulo(null);
       setFormDataModulos({ nombre: '', modelos: [] });
-      setNuevoModelo({ codigo: '', descripcion: '' });
+      setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
     } catch (error) {
       console.error('Error guardando categoría de módulo:', error);
       alert('Error al guardar la categoría de módulo');
@@ -160,7 +163,7 @@ export const CategoriasEquipo = () => {
   const handleEditModulo = (categoria: CategoriaModulo) => {
     setEditingModulo(categoria);
     setFormDataModulos({ nombre: categoria.nombre, modelos: [...categoria.modelos] });
-    setNuevoModelo({ codigo: '', descripcion: '' });
+    setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
     setShowModalModulos(true);
   };
 
@@ -187,10 +190,10 @@ export const CategoriasEquipo = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Categorías</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Categorías</h2>
           <p className="text-sm text-slate-500 mt-1">Gestionar categorías de sistemas y módulos</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/equipos')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Volver a Equipos
         </Button>
       </div>
@@ -199,7 +202,7 @@ export const CategoriasEquipo = () => {
       <div className="flex gap-2 border-b border-slate-200">
         <button
           onClick={() => setActiveTab('sistemas')}
-          className={`px-4 py-2 font-black text-sm uppercase transition-colors ${
+          className={`px-4 py-2 font-medium text-xs transition-colors ${
             activeTab === 'sistemas'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-slate-400 hover:text-slate-600'
@@ -209,7 +212,7 @@ export const CategoriasEquipo = () => {
         </button>
         <button
           onClick={() => setActiveTab('modulos')}
-          className={`px-4 py-2 font-black text-sm uppercase transition-colors ${
+          className={`px-4 py-2 font-medium text-xs transition-colors ${
             activeTab === 'modulos'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-slate-400 hover:text-slate-600'
@@ -223,7 +226,7 @@ export const CategoriasEquipo = () => {
       {activeTab === 'sistemas' && (
         <Card>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-black text-slate-900 uppercase">Categorías de Sistemas</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Categorías de Sistemas</h3>
             <Button onClick={() => { setEditingSistema(null); setFormDataSistemas({ nombre: '', modelosText: '' }); setShowModalSistemas(true); }}>
               + Nueva Categoría
             </Button>
@@ -240,7 +243,7 @@ export const CategoriasEquipo = () => {
                   className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200"
                 >
                   <div>
-                    <p className="font-black text-slate-900 uppercase">{categoria.nombre}</p>
+                    <p className="font-semibold text-slate-900">{categoria.nombre}</p>
                     <p className="text-xs text-slate-500 mt-1">
                       Modelos: {(categoria.modelos || []).length}
                     </p>
@@ -248,13 +251,13 @@ export const CategoriasEquipo = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEditSistema(categoria)}
-                      className="text-blue-600 hover:underline text-xs font-bold uppercase"
+                      className="text-blue-600 hover:underline text-xs font-medium"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDeleteSistema(categoria.id)}
-                      className="text-red-600 hover:underline text-xs font-bold uppercase"
+                      className="text-red-600 hover:underline text-xs font-medium"
                     >
                       Eliminar
                     </button>
@@ -270,8 +273,8 @@ export const CategoriasEquipo = () => {
       {activeTab === 'modulos' && (
         <Card>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-black text-slate-900 uppercase">Categorías de Módulos</h3>
-            <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '' }); setShowModalModulos(true); }}>
+            <h3 className="text-sm font-semibold text-slate-900">Categorías de Módulos</h3>
+            <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '', marca: '' }); setShowModalModulos(true); }}>
               + Nueva Categoría
             </Button>
           </div>
@@ -287,7 +290,7 @@ export const CategoriasEquipo = () => {
                   className="flex justify-between items-center p-4 bg-slate-50 rounded-lg border border-slate-200"
                 >
                   <div>
-                    <p className="font-black text-slate-900 uppercase">{categoria.nombre}</p>
+                    <p className="font-semibold text-slate-900">{categoria.nombre}</p>
                     <p className="text-xs text-slate-500 mt-1">
                       Modelos: {categoria.modelos.length}
                     </p>
@@ -295,13 +298,13 @@ export const CategoriasEquipo = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEditModulo(categoria)}
-                      className="text-blue-600 hover:underline text-xs font-bold uppercase"
+                      className="text-blue-600 hover:underline text-xs font-medium"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDeleteModulo(categoria.id)}
-                      className="text-red-600 hover:underline text-xs font-bold uppercase"
+                      className="text-red-600 hover:underline text-xs font-medium"
                     >
                       Eliminar
                     </button>
@@ -317,12 +320,12 @@ export const CategoriasEquipo = () => {
       {showModalSistemas && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
               {editingSistema ? 'Editar Categoría de Sistema' : 'Nueva Categoría de Sistema'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
                 <Input
                   value={formDataSistemas.nombre}
                   onChange={(e) => setFormDataSistemas({ ...formDataSistemas, nombre: e.target.value })}
@@ -331,7 +334,7 @@ export const CategoriasEquipo = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
                   Modelos (1 por línea)
                 </label>
                 <textarea
@@ -368,12 +371,12 @@ export const CategoriasEquipo = () => {
       {showModalModulos && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
               {editingModulo ? 'Editar Categoría de Módulo' : 'Nueva Categoría de Módulo'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
                 <Input
                   value={formDataModulos.nombre}
                   onChange={(e) => setFormDataModulos({ ...formDataModulos, nombre: e.target.value })}
@@ -383,11 +386,11 @@ export const CategoriasEquipo = () => {
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                <label className="block text-xs font-medium text-slate-600 mb-2">
                   Modelos ({formDataModulos.modelos.length})
                 </label>
                 
-                {/* Lista de modelos existentes */}
+                {/* Lista de modelos existentes (editable inline) */}
                 {formDataModulos.modelos.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {formDataModulos.modelos.map((modelo, index) => (
@@ -395,15 +398,43 @@ export const CategoriasEquipo = () => {
                         key={index}
                         className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200"
                       >
-                        <div className="flex-1">
-                          <span className="font-mono font-bold text-slate-900">{modelo.codigo}</span>
-                          {modelo.descripcion && (
-                            <span className="text-slate-600 ml-2">- {modelo.descripcion}</span>
-                          )}
-                        </div>
+                        <input
+                          type="text"
+                          value={modelo.codigo}
+                          onChange={(e) => {
+                            const updated = [...formDataModulos.modelos];
+                            updated[index] = { ...updated[index], codigo: e.target.value };
+                            setFormDataModulos({ ...formDataModulos, modelos: updated });
+                          }}
+                          className="w-32 shrink-0 font-mono font-bold text-slate-900 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                        />
+                        <span className="text-slate-400 text-sm">-</span>
+                        <input
+                          type="text"
+                          value={modelo.descripcion}
+                          onChange={(e) => {
+                            const updated = [...formDataModulos.modelos];
+                            updated[index] = { ...updated[index], descripcion: e.target.value };
+                            setFormDataModulos({ ...formDataModulos, modelos: updated });
+                          }}
+                          className="flex-1 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                          placeholder="Descripción"
+                        />
+                        <span className="text-slate-400 text-sm">-</span>
+                        <input
+                          type="text"
+                          value={modelo.marca || ''}
+                          onChange={(e) => {
+                            const updated = [...formDataModulos.modelos];
+                            updated[index] = { ...updated[index], marca: e.target.value };
+                            setFormDataModulos({ ...formDataModulos, modelos: updated });
+                          }}
+                          className="w-28 shrink-0 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                          placeholder="Marca"
+                        />
                         <button
                           onClick={() => handleRemoveModelo(index)}
-                          className="text-red-600 hover:text-red-800 font-bold text-sm px-2"
+                          className="text-red-600 hover:text-red-800 font-bold text-sm px-2 shrink-0"
                           type="button"
                         >
                           ×
@@ -415,8 +446,8 @@ export const CategoriasEquipo = () => {
                 
                 {/* Formulario para agregar nuevo modelo */}
                 <div className="border border-slate-300 rounded-lg p-3 bg-white">
-                  <p className="text-xs font-bold text-slate-600 uppercase mb-2">Agregar Nuevo Modelo</p>
-                  <div className="grid grid-cols-2 gap-2 mb-2">
+                  <p className="text-xs font-medium text-slate-600 mb-2">Agregar Nuevo Modelo</p>
+                  <div className="grid grid-cols-3 gap-2 mb-2">
                     <div>
                       <Input
                         value={nuevoModelo.codigo}
@@ -435,6 +466,19 @@ export const CategoriasEquipo = () => {
                         value={nuevoModelo.descripcion}
                         onChange={(e) => setNuevoModelo({ ...nuevoModelo, descripcion: e.target.value })}
                         placeholder="Descripción (ej: Bomba Cuaternaria)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddModelo();
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={nuevoModelo.marca}
+                        onChange={(e) => setNuevoModelo({ ...nuevoModelo, marca: e.target.value })}
+                        placeholder="Marca (ej: Agilent)"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -462,7 +506,7 @@ export const CategoriasEquipo = () => {
                   setShowModalModulos(false);
                   setEditingModulo(null);
                   setFormDataModulos({ nombre: '', modelos: [] });
-                  setNuevoModelo({ codigo: '', descripcion: '' });
+                  setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
                 }}
               >
                 Cancelar

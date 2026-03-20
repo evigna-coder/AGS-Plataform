@@ -10,6 +10,8 @@ import {
   handleAuthResult,
   handleRevokeDevice,
 } from './webauthn.js';
+import { handleValidateCuit } from './afip.js';
+export { processMailQueue } from './mailer.js';
 
 initializeApp();
 
@@ -142,4 +144,23 @@ export const webauthn = onRequest(
     maxInstances: 10,
   },
   app
+);
+
+// ---------------------------------------------------------------------------
+// AFIP: validación de CUIT contra Padrón AFIP (endpoint público, sin auth)
+// ---------------------------------------------------------------------------
+const afipApp = express();
+afipApp.use(cors({ origin: true, methods: ['POST', 'OPTIONS'], allowedHeaders: ['Content-Type'], maxAge: 86400 }));
+afipApp.use(express.json({ limit: '8kb' }));
+afipApp.post('/', handleValidateCuit);
+afipApp.post('/validate-cuit', handleValidateCuit);
+
+export const afip = onRequest(
+  {
+    region: 'us-central1',
+    invoker: 'public',
+    cors: true,
+    maxInstances: 5,
+  },
+  afipApp
 );

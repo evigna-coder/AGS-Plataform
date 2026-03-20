@@ -1,0 +1,19 @@
+{
+  "name": "@ags/migracion",
+  "version": "1.0.0",
+  "description": "Script de migración masiva desde Excel a Firestore",
+  "scripts": {
+    "dry-run": "ts-node migrar-desde-excel.ts --dry-run",
+    "run-migracion": "ts-node migrar-desde-excel.ts --run",
+    "solo-clientes": "ts-node migrar-desde-excel.ts --run --only=clientes"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}

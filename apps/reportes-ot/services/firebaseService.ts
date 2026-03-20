@@ -1,6 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
+import type { TableCatalogEntry } from '../types/tableCatalog';
+import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
+import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+import { deepCleanForFirestore } from '@ags/shared';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -104,7 +108,7 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     console.log('💾 Guardando reporte:', ot);
     console.log('📋 Datos a guardar:', JSON.stringify(data, null, 2));
     const docRef = doc(db, "reportes", ot);
-    await setDoc(docRef, data, { merge: true });
+    await setDoc(docRef, deepCleanForFirestore(data), { merge: true });
     console.log('✅ Reporte guardado exitosamente:', ot);
   } catch (error: any) {
     console.error('❌ Error al guardar reporte:', error);
@@ -210,11 +214,95 @@ export class FirebaseService {
   }
 
   /**
+   * Obtiene todas las tablas publicadas del catálogo, opcionalmente filtradas por sysType.
+   * Lee de la colección /tableCatalog del mismo proyecto Firebase.
+   */
+  async getPublishedTables(sysType?: string): Promise<TableCatalogEntry[]> {
+    try {
+      const col = collection(db, 'tableCatalog');
+      const q = sysType
+        ? query(col, where('status', '==', 'published'), where('sysType', '==', sysType))
+        : query(col, where('status', '==', 'published'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as TableCatalogEntry));
+    } catch (error: any) {
+      console.error('❌ Error al leer tableCatalog:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene todos los proyectos de tablas (para resolver headerTitle/footerQF a nivel proyecto).
+   */
+  async getProjects(): Promise<{ id: string; headerTitle?: string | null; footerQF?: string | null }[]> {
+    try {
+      const q = query(collection(db, 'tableProjects'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => {
+        const data = d.data();
+        return { id: d.id, headerTitle: data.headerTitle ?? null, footerQF: data.footerQF ?? null };
+      });
+    } catch (error: any) {
+      console.error('Error al leer tableProjects:', error);
+      return [];
+    }
+  }
+
+  // ── Selectores de entidades (lectura desde colecciones de sistema-modular) ──
+
+  async getClientes(): Promise<ClienteOption[]> {
+    try {
+      const q = query(collection(db, 'clientes'), where('activo', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs
+        .map(d => ({ id: d.id, razonSocial: d.data().razonSocial, cuit: d.data().cuit ?? null } as ClienteOption))
+        .sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
+    } catch (e) { console.error('Error cargando clientes:', e); return []; }
+  }
+
+  async getEstablecimientosByCliente(clienteId: string): Promise<EstablecimientoOption[]> {
+    try {
+      // Buscar por clienteCuit Y por clienteId (campo legacy de migración)
+      const [byCuit, byId] = await Promise.all([
+        getDocs(query(collection(db, 'establecimientos'), where('clienteCuit', '==', clienteId))),
+        getDocs(query(collection(db, 'establecimientos'), where('clienteId', '==', clienteId))),
+      ]);
+      const map = new Map<string, EstablecimientoOption>();
+      for (const snap of [byCuit, byId]) {
+        snap.docs.forEach(d => {
+          if (!map.has(d.id)) map.set(d.id, { id: d.id, ...d.data() } as EstablecimientoOption);
+        });
+      }
+      return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    } catch (e) { console.error('Error cargando establecimientos:', e); return []; }
+  }
+
+  async getContactosByEstablecimiento(estabId: string): Promise<ContactoOption[]> {
+    try {
+      const snap = await getDocs(collection(db, 'establecimientos', estabId, 'contactos'));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactoOption));
+    } catch (e) { console.error('Error cargando contactos:', e); return []; }
+  }
+
+  async getSistemasByEstablecimiento(estabId: string): Promise<SistemaOption[]> {
+    try {
+      const q = query(collection(db, 'sistemas'), where('establecimientoId', '==', estabId), where('activo', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as SistemaOption))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    } catch (e) { console.error('Error cargando sistemas:', e); return []; }
+  }
+
+  async getModulosBySistema(sistemaId: string): Promise<ModuloOption[]> {
+    try {
+      const snap = await getDocs(collection(db, 'sistemas', sistemaId, 'modulos'));
+      return snap.docs.map(d => ({ id: d.id, sistemaId, ...d.data() } as ModuloOption));
+    } catch (e) { console.error('Error cargando módulos:', e); return []; }
+  }
+
+  /**
    * Sube un Blob de PDF a Firebase Storage y devuelve la URL de descarga
-   * @param ot Número de orden de trabajo
-   * @param blob Blob del PDF
-   * @param filename Nombre del archivo
-   * @returns URL de descarga pública
    */
   async uploadReportBlob(ot: string, blob: Blob, filename: string): Promise<string> {
     try {
@@ -224,17 +312,117 @@ export class FirebaseService {
       return url;
     } catch (error: any) {
       console.error('❌ Error al subir PDF a Storage:', error);
-      console.error('Código de error:', error.code);
-      console.error('Mensaje:', error.message);
-      
       if (isAuthError(error)) {
         const authError = new Error(getAuthErrorMessage(error));
         (authError as any).code = error.code;
         (authError as any).isAuthError = true;
         throw authError;
       }
-      
       throw error;
     }
+  }
+
+  // ── Instrumentos (lectura para técnicos) ──
+
+  async getActiveInstrumentos(): Promise<InstrumentoPatronOption[]> {
+    try {
+      const q = query(collection(db, 'instrumentos'), where('activo', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          nombre: data.nombre,
+          tipo: data.tipo,
+          marca: data.marca,
+          modelo: data.modelo,
+          serie: data.serie,
+          categorias: data.categorias ?? [],
+          certificadoEmisor: data.certificadoEmisor ?? null,
+          certificadoVencimiento: data.certificadoVencimiento ?? null,
+          certificadoUrl: data.certificadoUrl ?? null,
+        } as InstrumentoPatronOption;
+      }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    } catch (e) { console.error('Error cargando instrumentos:', e); return []; }
+  }
+
+  // ── Adjuntos (fotos/archivos por OT) ──
+
+  async getAdjuntosByOT(otNumber: string): Promise<AdjuntoMeta[]> {
+    try {
+      const q = query(
+        collection(db, 'adjuntos'),
+        where('otNumber', '==', otNumber),
+        orderBy('orden', 'asc')
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as AdjuntoMeta));
+    } catch (e) { console.error('Error cargando adjuntos:', e); return []; }
+  }
+
+  async uploadAdjuntoFile(otNumber: string, file: File): Promise<{ url: string; path: string }> {
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `adjuntos/${otNumber}/${timestamp}_${safeName}`;
+    const storageR = ref(storage, storagePath);
+    await uploadBytes(storageR, file, { contentType: file.type });
+    const url = await getDownloadURL(storageR);
+    return { url, path: storagePath };
+  }
+
+  async createAdjunto(data: Omit<AdjuntoMeta, 'id'>): Promise<string> {
+    const docRef = await addDoc(collection(db, 'adjuntos'), data);
+    return docRef.id;
+  }
+
+  async updateAdjuntoCaption(adjuntoId: string, caption: string): Promise<void> {
+    await updateDoc(doc(db, 'adjuntos', adjuntoId), { caption });
+  }
+
+  async updateAdjuntosOrden(items: { id: string; orden: number }[]): Promise<void> {
+    const batch = writeBatch(db);
+    for (const item of items) {
+      batch.update(doc(db, 'adjuntos', item.id), { orden: item.orden });
+    }
+    await batch.commit();
+  }
+
+  async deleteAdjunto(adjuntoId: string, storagePath: string): Promise<void> {
+    try {
+      await deleteObject(ref(storage, storagePath));
+    } catch (e) {
+      console.warn('No se pudo borrar archivo de Storage:', e);
+    }
+    await deleteDoc(doc(db, 'adjuntos', adjuntoId));
+  }
+
+  /**
+   * Obtiene la firma guardada del usuario autenticado desde /usuarios/{uid}.
+   * Devuelve { firmaBase64, nombreAclaracion } o null si no tiene firma.
+   */
+  async getUserFirma(uid: string): Promise<{ firmaBase64: string; nombreAclaracion: string } | null> {
+    if (!uid) return null;
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', uid));
+      if (!snap.exists()) return null;
+      const data = snap.data();
+      const firma = data.firmaBase64 as string | undefined;
+      const nombre = data.nombreAclaracion as string | undefined;
+      if (!firma) return null;
+      return { firmaBase64: firma, nombreAclaracion: nombre || data.displayName || '' };
+    } catch (e) {
+      console.warn('No se pudo obtener firma del usuario:', e);
+      return null;
+    }
+  }
+
+  /** Descarga un archivo de Storage como Blob usando el SDK (sin CORS issues). */
+  async downloadStorageBlob(url: string): Promise<Blob> {
+    // Extraer el path del archivo de la URL de Firebase Storage
+    const match = url.match(/\/o\/(.+?)(\?|$)/);
+    if (!match) throw new Error('URL de Storage inválida');
+    const filePath = decodeURIComponent(match[1]);
+    const storageRef = ref(storage, filePath);
+    return await getBlob(storageRef);
   }
 }

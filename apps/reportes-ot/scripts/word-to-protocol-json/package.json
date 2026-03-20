@@ -1,0 +1,14 @@
+{
+  "name": "word-to-protocol-json",
+  "private": true,
+  "type": "module",
+  "description": "Prototipo: convierte documentos Word de protocolos a JSON estructurado",
+  "scripts": {
+    "convert": "node convert.mjs",
+    "convert:sample": "node convert.mjs ../sample-protocol.docx"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "mammoth": "^1.6.0"
+  }
+}

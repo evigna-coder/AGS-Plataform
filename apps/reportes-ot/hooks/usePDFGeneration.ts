@@ -1,10 +1,35 @@
 import { useState } from 'react';
+import { PDFDocument } from 'pdf-lib';
+import html2canvas from 'html2canvas';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { FirebaseService } from '../services/firebaseService';
 import { UseReportFormReturn } from './useReportForm';
 import { SignaturePadHandle } from '../components/SignaturePad';
 import { getPDFOptions } from '../utils/pdfOptions';
+import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 declare const html2pdf: any;
+
+const nextFrame = (): Promise<void> => new Promise((res) => requestAnimationFrame(() => res()));
+const nextTwoFrames = async (): Promise<void> => {
+  await nextFrame();
+  await nextFrame();
+};
+
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(',')[1];
+  if (!base64) throw new Error('Invalid data URL');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+const A4_POINTS = { width: 595.28, height: 841.89 };
+
 
 export interface UsePDFGenerationReturn {
   // Funciones
@@ -30,7 +55,9 @@ export const usePDFGeneration = (
   clientPadRef: React.RefObject<SignaturePadHandle>,
   engineerPadRef: React.RefObject<SignaturePadHandle>,
   validateBeforeClientConfirm: () => boolean,
-  showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void
+  showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void,
+  instrumentosSeleccionados: InstrumentoPatronOption[] = [],
+  adjuntos: AdjuntoMeta[] = [],
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -44,7 +71,8 @@ export const usePDFGeneration = (
 
   const {
     signatureClient,
-    signatureEngineer
+    signatureEngineer,
+    protocolTemplateId
   } = formState;
 
   const {
@@ -54,7 +82,7 @@ export const usePDFGeneration = (
     setStatus
   } = setters;
 
-  // Función para generar PDF como Blob
+  // Función para generar PDF como Blob (Hoja 1 + anexo protocolo si existe)
   const generatePDFBlob = async (): Promise<Blob> => {
     const element = document.getElementById('pdf-container');
     if (!element) {
@@ -86,13 +114,269 @@ export const usePDFGeneration = (
       });
     }));
 
-    // Usar html2pdf para generar Blob
     const opt = getPDFOptions(otNumber, element, true); // includeBackgroundColor = true
+    console.log("Generando PDF Hoja 1…");
+    const blobHoja1 = await html2pdf().set(opt).from(element).outputPdf('blob');
 
-    // Generar Blob usando html2pdf
-    const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-    
-    return pdfBlob;
+    // ── Anexos: tablas/protocolos + fotos ──
+    const tablasPdf = document.getElementById('pdf-container-tablas-pdf');
+    const fotosPdf = document.getElementById('pdf-container-fotos-pdf');
+
+    // Precargar imágenes de los contenedores ocultos
+    const preloadFromContainer = (container: HTMLElement | null) => {
+      if (!container) return Promise.resolve();
+      return Promise.all(Array.from(container.querySelectorAll('img')).map(img =>
+        new Promise(resolve => {
+          if (img.complete) resolve(null);
+          else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
+        })
+      ));
+    };
+
+    const hasTablas = tablasPdf && tablasPdf.children.length > 0;
+    const fotoPages = fotosPdf
+      ? Array.from(fotosPdf.querySelectorAll<HTMLElement>('.protocol-page'))
+      : [];
+
+    if (!hasTablas && fotoPages.length === 0) {
+      console.log("Sin páginas de anexo, sólo Hoja 1");
+      return blobHoja1;
+    }
+
+    document.body.classList.add('pdf-generating');
+
+    try {
+      await nextTwoFrames();
+      await Promise.all([preloadFromContainer(tablasPdf), preloadFromContainer(fotosPdf)]);
+
+      const pdfParts: Blob[] = [blobHoja1];
+
+      // ── Tablas/Protocolos: captura per-page de ProtocolPaginatedPreview ──
+      if (hasTablas) {
+        console.log("[PDF][TABLAS] Generando PDF de protocolos…");
+
+        // Buscar páginas A4 individuales renderizadas por ProtocolPaginatedPreview
+        const protocolPages = document.querySelectorAll<HTMLElement>('[data-protocol-page]');
+
+        if (protocolPages.length > 0) {
+          // Ocultar divs de medición para que no interfieran con la captura
+          const measureDivs = document.querySelectorAll<HTMLElement>('[data-measurement-div]');
+          measureDivs.forEach(div => { div.style.display = 'none'; });
+
+          window.scrollTo(0, 0);
+          await nextTwoFrames();
+          await preloadFromContainer(document.getElementById('pdf-preview-tablas'));
+
+          const protocolPdfDoc = await PDFDocument.create();
+
+          for (const pageEl of Array.from(protocolPages)) {
+            // Clone page into body at (0,0) for accurate html2canvas capture.
+            // This avoids scroll offset, parent flex gap, and overflow clipping
+            // bugs that occur when capturing elements deep in the DOM tree.
+            const clone = pageEl.cloneNode(true) as HTMLElement;
+            clone.style.position = 'fixed';
+            clone.style.top = '0';
+            clone.style.left = '-9999px';
+            clone.style.zIndex = '99999';
+            clone.style.margin = '0';
+
+            // Fix html2canvas clipping: remove overflow:hidden from card
+            // containers and truncated text. html2canvas mis-renders the
+            // clip region when overflow:hidden + border-radius are combined,
+            // cutting ~2 px off the top of title bars.
+            clone.querySelectorAll('.overflow-hidden, .truncate').forEach(el => {
+              (el as HTMLElement).style.setProperty('overflow', 'visible', 'important');
+            });
+
+            document.body.appendChild(clone);
+            await nextFrame();
+
+            try {
+              const canvas = await html2canvas(clone, {
+                scale: Math.max(window.devicePixelRatio * 2, 5),
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+              });
+
+              const pngData = canvas.toDataURL('image/png');
+              const pngBytes = dataUrlToUint8Array(pngData);
+              const png = await protocolPdfDoc.embedPng(pngBytes);
+              const page = protocolPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+              page.drawImage(png, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
+            } finally {
+              clone.remove();
+            }
+          }
+
+          // Restaurar measurement divs
+          measureDivs.forEach(div => { div.style.display = ''; });
+
+          pdfParts.push(new Blob([await protocolPdfDoc.save()], { type: 'application/pdf' }));
+          console.log(`[PDF][TABLAS] ${protocolPages.length} página(s) de protocolo generadas OK`);
+
+        } else {
+          // Fallback: html2pdf sobre contenedor oculto (sin ProtocolPaginatedPreview)
+          console.warn("[PDF][TABLAS] No se encontraron [data-protocol-page], usando fallback html2pdf");
+          const tablasTarget = tablasPdf!;
+          const savedStyleTablas = tablasTarget.getAttribute('style') || '';
+          Object.assign(tablasTarget.style, {
+            position: 'absolute', top: '0', left: '0',
+            width: '210mm', transform: 'none', zIndex: '99999',
+            opacity: '1', pointerEvents: 'none', background: 'white',
+          });
+
+          await nextTwoFrames();
+          await preloadFromContainer(tablasTarget);
+
+          try {
+            const optTablas = getPDFOptions(otNumber, tablasTarget, true, true);
+            const blobTablas: Blob = await html2pdf().set(optTablas).from(tablasTarget).outputPdf('blob');
+            pdfParts.push(blobTablas);
+          } finally {
+            tablasTarget.setAttribute('style', savedStyleTablas);
+          }
+        }
+      }
+
+      // ── Helper: renderizar un PDF externo (posiblemente encriptado) a páginas A4 JPEG ──
+      // Usa pdfjs-dist (motor de Firefox) que maneja cualquier PDF incluyendo encriptados.
+      // Renderiza cada página a canvas, la comprime como JPEG y la embebe en A4 via pdf-lib.
+      const renderExternalPdfToPages = async (pdfBytes: ArrayBuffer, label: string): Promise<void> => {
+        try {
+          const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+          const externalDoc = await PDFDocument.create();
+
+          for (let i = 1; i <= pdfDoc.numPages; i++) {
+            const pdfPage = await pdfDoc.getPage(i);
+            const viewport = pdfPage.getViewport({ scale: 2 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d')!;
+            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+
+            const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const jpgBytes = dataUrlToUint8Array(jpgDataUrl);
+            const jpg = await externalDoc.embedJpg(jpgBytes);
+
+            // Forzar A4 y escalar la imagen para que quepa manteniendo proporción
+            const page = externalDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+            const imgAspect = canvas.width / canvas.height;
+            const pageAspect = A4_POINTS.width / A4_POINTS.height;
+            let drawW: number, drawH: number, drawX: number, drawY: number;
+            if (imgAspect > pageAspect) {
+              // Imagen más ancha que A4 → ajustar por ancho
+              drawW = A4_POINTS.width;
+              drawH = A4_POINTS.width / imgAspect;
+              drawX = 0;
+              drawY = A4_POINTS.height - drawH; // Alinear arriba
+            } else {
+              // Imagen más alta que A4 → ajustar por alto
+              drawH = A4_POINTS.height;
+              drawW = A4_POINTS.height * imgAspect;
+              drawX = (A4_POINTS.width - drawW) / 2; // Centrar horizontalmente
+              drawY = 0;
+            }
+            page.drawImage(jpg, { x: drawX, y: drawY, width: drawW, height: drawH });
+          }
+
+          pdfDoc.destroy();
+          pdfParts.push(new Blob([await externalDoc.save()], { type: 'application/pdf' }));
+          console.log(`[PDF][${label}] ${pdfDoc.numPages} página(s) renderizadas OK`);
+        } catch (err) {
+          console.warn(`[PDF][${label}] Error renderizando PDF:`, err);
+        }
+      };
+
+      // ── Certificados: descargar y renderizar PDFs de instrumentos ──
+      const certUrls = instrumentosSeleccionados
+        .map(i => i.certificadoUrl)
+        .filter((url): url is string => !!url);
+
+      if (certUrls.length > 0) {
+        console.log(`[PDF][CERTS] Descargando ${certUrls.length} certificado(s)…`);
+        for (const url of certUrls) {
+          try {
+            const blob = await firebase.downloadStorageBlob(url);
+            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERTS');
+          } catch (err) {
+            console.warn('[PDF][CERTS] Error descargando certificado:', err);
+          }
+        }
+      }
+
+      // ── Adjuntos PDF: descargar y renderizar archivos adjuntos PDF ──
+      const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
+      if (pdfAdjuntos.length > 0) {
+        console.log(`[PDF][ADJUNTOS] Descargando ${pdfAdjuntos.length} adjunto(s) PDF…`);
+        for (const adj of pdfAdjuntos) {
+          try {
+            const blob = await firebase.downloadStorageBlob(adj.url);
+            await renderExternalPdfToPages(await blob.arrayBuffer(), 'ADJUNTOS');
+          } catch (err) {
+            console.warn(`[PDF][ADJUNTOS] Error descargando ${adj.fileName}:`, err);
+          }
+        }
+      }
+
+      // ── Fotos: html2canvas directo sobre el contenedor original ──
+      if (fotoPages.length > 0 && fotosPdf) {
+        console.log(`[PDF][FOTOS] ${fotoPages.length} página(s) de fotos`);
+
+        const savedStyleFotos = fotosPdf.getAttribute('style') || '';
+        Object.assign(fotosPdf.style, {
+          position: 'absolute',
+          top: '0',
+          left: '0',
+          width: '210mm',
+          transform: 'none',
+          zIndex: '99999',
+          opacity: '1',
+          pointerEvents: 'none',
+          background: 'white',
+        });
+
+        await nextTwoFrames();
+        await preloadFromContainer(fotosPdf);
+
+        try {
+          const fotosPdfDoc = await PDFDocument.create();
+          for (const pageEl of fotoPages) {
+            const canvas = await html2canvas(pageEl, {
+              scale: 2,
+              backgroundColor: '#ffffff',
+              useCORS: true,
+              logging: false,
+            });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const jpgBytes = dataUrlToUint8Array(dataUrl);
+            const jpg = await fotosPdfDoc.embedJpg(jpgBytes);
+            const page = fotosPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+            page.drawImage(jpg, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
+          }
+          pdfParts.push(new Blob([await fotosPdfDoc.save()], { type: 'application/pdf' }));
+          console.log("[PDF][FOTOS] PDF de fotos generado OK");
+        } finally {
+          fotosPdf.setAttribute('style', savedStyleFotos);
+        }
+      }
+
+      // ── Merge: Hoja 1 + Protocolos + Certificados + Adjuntos PDF + Fotos ──
+      const mergedPdf = await PDFDocument.create();
+      for (const partBlob of pdfParts) {
+        try {
+          const partDoc = await PDFDocument.load(await partBlob.arrayBuffer());
+          const pages = await mergedPdf.copyPages(partDoc, partDoc.getPageIndices());
+          pages.forEach(p => mergedPdf.addPage(p));
+        } catch (err) {
+          console.warn('[PDF][MERGE] Error cargando parte del PDF, omitiendo:', err);
+        }
+      }
+      return new Blob([await mergedPdf.save()], { type: 'application/pdf' });
+    } finally {
+      document.body.classList.remove('pdf-generating');
+    }
   };
 
   // Helper para detectar si es móvil
@@ -185,53 +469,34 @@ export const usePDFGeneration = (
       setSignatureEngineer(engineerSignature);
       setStatus('FINALIZADO');
       
-      // Activar modo preview para que el pdf-container esté disponible
+      // Forzar ciclo off→on para que React re-monte con datos frescos
+      // (evita servir un PDF cacheado si ya estaba en preview mode)
+      setPdfBlob(null);
+      setIsPreviewMode(false);
+      await new Promise(resolve => setTimeout(resolve, 50));
       setIsPreviewMode(true);
-      
-      // Esperar a que React renderice el componente
+
+      // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // GENERACIÓN DE PDF con opciones seguras y fallback
       try {
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 800));
-        const element = document.getElementById('pdf-container');
-        if (!element) throw new Error("No se encontró el contenedor.");
-        
-        // Asegurar que el elemento esté visible y centrado antes de capturar
-        element.style.display = 'block';
-        element.style.margin = '0 auto';
-        element.style.width = '210mm';
-        
-        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-        const images = element.querySelectorAll('img');
-        await Promise.all(Array.from(images).map(img => {
-          return new Promise((resolve) => {
-            if (img.complete) {
-              resolve(null);
-            } else {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null); // Continuar aunque falle
-            }
-          });
-        }));
-        
-        const opt = getPDFOptions(otNumber, element, false); // includeBackgroundColor = false
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
-        
-        const pdfWorker = html2pdf().set(opt).from(element);
-        
-        console.log("Generando PDF como Blob...");
-        const generatedBlob = await pdfWorker.outputPdf('blob');
-        setPdfBlob(generatedBlob);
-        downloadPDF(generatedBlob, filename);
 
-        console.log("PDF generado exitosamente");
-        showAlert({
-          title: 'Éxito',
-          message: 'Reporte finalizado y PDF generado correctamente.',
-          type: 'success'
-        });
+        const filename = `${otNumber}_Reporte_AGS.pdf`;
+        const generatedBlob = await generatePDFBlob();
+        setPdfBlob(generatedBlob);
+
+        // Subir PDF a Firebase Storage (no bloquea el flujo)
+        try {
+          const pdfUrl = await firebase.uploadReportBlob(otNumber, generatedBlob, filename);
+          await firebase.saveReport(otNumber, { pdfUrl, pdfGeneratedAt: new Date().toISOString() });
+          console.log('✅ PDF subido a Storage:', pdfUrl);
+        } catch (uploadErr) {
+          console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
+        }
+
+        downloadPDF(generatedBlob, filename);
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         showAlert({
@@ -308,58 +573,36 @@ export const usePDFGeneration = (
     // Paso 2: Generar PDF solo si el guardado fue exitoso
     if (saveSuccess) {
       try {
-        // Activar modo preview para que el pdf-container esté disponible en el DOM
+        // Forzar ciclo off→on para que React re-monte con datos frescos
+        setPdfBlob(null);
+        setIsPreviewMode(false);
+        await new Promise(resolve => setTimeout(resolve, 50));
         setIsPreviewMode(true);
-        
-        // Esperar a que React renderice el componente
+
+        // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const element = document.getElementById('pdf-container');
-        if (!element) {
-          console.error("No se encontró el contenedor para PDF");
-          showAlert({
-            title: 'Advertencia',
-            message: 'No se pudo generar el PDF, pero el reporte fue guardado correctamente.',
-            type: 'warning'
-          });
-          setIsGenerating(false);
-          return;
+
+        const filename = `${otNumber}_Reporte_AGS.pdf`;
+        console.log("Generando PDF (Hoja 1 + anexo si hay protocolo)...");
+        const generatedBlob = await generatePDFBlob();
+        setPdfBlob(generatedBlob);
+
+        // Subir PDF a Firebase Storage (no bloquea el flujo)
+        try {
+          const pdfUrl = await firebase.uploadReportBlob(otNumber, generatedBlob, filename);
+          await firebase.saveReport(otNumber, { pdfUrl, pdfGeneratedAt: new Date().toISOString() });
+          console.log('✅ PDF subido a Storage:', pdfUrl);
+        } catch (uploadErr) {
+          console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
         }
 
-        // Asegurar que el elemento esté visible y centrado antes de capturar
-        element.style.display = 'block';
-        element.style.margin = '0 auto';
-        element.style.width = '210mm';
-        
-        // Pre-cargar imágenes (especialmente el logo) para mejor calidad
-        const images = element.querySelectorAll('img');
-        await Promise.all(Array.from(images).map(img => {
-          return new Promise((resolve) => {
-            if (img.complete) {
-              resolve(null);
-            } else {
-              img.onload = () => resolve(null);
-              img.onerror = () => resolve(null); // Continuar aunque falle
-            }
-          });
-        }));
-
-        const opt = getPDFOptions(otNumber, element, false); // includeBackgroundColor = false
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
-
-        console.log("Iniciando generación de PDF con opciones:", opt);
-        const pdfWorker = html2pdf().set(opt).from(element);
-        
-        console.log("Generando PDF como Blob...");
-        const generatedBlob = await pdfWorker.outputPdf('blob');
-        setPdfBlob(generatedBlob);
         downloadPDF(generatedBlob, filename);
 
         console.log("PDF generado exitosamente");
-
+        
         showAlert({
           title: 'Éxito',
           message: 'Reporte finalizado y PDF generado correctamente.',

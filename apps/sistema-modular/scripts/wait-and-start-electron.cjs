@@ -18,21 +18,20 @@ waitOn(options)
     console.log('✅ Servidor Vite listo, iniciando Electron...');
     
     const appDir = path.join(__dirname, '..');
-    
-    // Usar npx para asegurar que electron esté disponible
-    const electronPath = path.join(appDir, 'node_modules', '.bin', 'electron');
-    const electronCmd = process.platform === 'win32' ? `${electronPath}.cmd` : electronPath;
-    
-    // En Windows, usar la ruta completa entre comillas para manejar espacios
-    const electronExec = process.platform === 'win32' 
-      ? `"${electronCmd}"` 
-      : electronCmd;
-    
-    const electron = spawn(electronExec, ['.', '--dev'], {
+
+    // Resolver el binario real de Electron (no el shim de pnpm que setea ELECTRON_RUN_AS_NODE)
+    const electronBinary = require(path.join(appDir, 'node_modules', 'electron'));
+    console.log('🔧 Binario de Electron:', electronBinary);
+
+    // Asegurar que ELECTRON_RUN_AS_NODE no esté seteado
+    const env = { ...process.env };
+    delete env.ELECTRON_RUN_AS_NODE;
+
+    const electron = spawn(electronBinary, ['.', '--dev'], {
       stdio: 'inherit',
-      shell: true,
+      shell: false,
       cwd: appDir,
-      env: { ...process.env }
+      env
     });
     
     electron.on('error', (err) => {

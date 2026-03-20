@@ -1,0 +1,239 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Colección de Leads
+    match /leads/{leadId} {
+      // Validación básica de estructura
+      function isValidLead() {
+        let data = request.resource.data;
+        return data.razonSocial is string
+               && data.contacto is string
+               && data.email is string
+               && data.telefono is string
+               && data.estado is string
+               && data.estado in ['nuevo', 'contactado', 'presupuestado', 'convertido', 'perdido'];
+      }
+      
+      // Permitir lectura y escritura (modo desarrollo sin auth)
+      // TODO: Implementar autenticación y cambiar a:
+      // allow read, write: if request.auth != null && isValidLead();
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+    
+    // Colección de Presupuestos (futuro)
+    match /quotes/{quoteId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Inventario/Stock (futuro)
+    match /inventory/{itemId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Agenda (futuro)
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Facturas (futuro)
+    match /invoices/{invoiceId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Colección de Clientes
+    match /clientes/{clienteId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /contactos/{contactoId} {
+        allow read, write: if true; // Temporal para desarrollo (legacy; contactos nuevos en establecimientos)
+      }
+    }
+
+    // Colección de Establecimientos (sedes/plantas por cliente)
+    match /establecimientos/{establecimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /contactos/{contactoId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+
+    // Colección de Sistemas (equipos)
+    match /sistemas/{sistemaId} {
+      allow read, write: if true; // Temporal para desarrollo
+      match /modulos/{moduloId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
+    }
+
+    // Catálogos y otras colecciones del sistema modular
+    match /categorias_equipo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /categorias_modulo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /presupuestos/{presupuestoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /categorias_presupuesto/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /condiciones_pago/{condicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /tipos_servicio/{tipoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /ordenes_compra/{ocId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /reportes/{document=**} {
+      allow read, write: if true; // Temporal para desarrollo (OTs)
+    }
+
+    // Catálogo de Protocolos legacy (mantenido por compatibilidad)
+    match /protocolCatalog/{catalogId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Biblioteca de Tablas individuales (admin sistema-modular; técnicos en reportes-ot solo leen publicadas)
+    match /tableCatalog/{tableId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Proyectos de Tablas (agrupan tablas del catálogo)
+    match /tableProjects/{projectId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Usuarios AGS (roles: admin / tecnico / readonly)
+    match /usuarios/{uid} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Adjuntos (metadata; binario en Firebase Storage)
+    match /adjuntos/{adjuntoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Instrumentos y Patrones (certificados de calibración)
+    match /instrumentos/{instrumentoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Marcas (catálogo compartido)
+    match /marcas/{marcaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ── Stock Module ──
+
+    // Ingenieros (catálogo de técnicos)
+    match /ingenieros/{ingenieroId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Proveedores
+    match /proveedores/{proveedorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Posiciones de stock (ubicaciones físicas)
+    match /posicionesStock/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Artículos (catálogo de parts)
+    match /articulos/{articuloId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Unidades (instancias físicas de artículos)
+    match /unidades/{unidadId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Minikits
+    match /minikits/{minikitId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Movimientos de stock (log de auditoría)
+    match /movimientosStock/{movimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Remitos (despachos digitales)
+    match /remitos/{remitoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Conceptos de servicio (catálogo de precios para presupuestos)
+    match /conceptos_servicio/{conceptoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Fichas propiedad del cliente
+    match /fichasPropiedad/{fichaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Loaners (equipos de préstamo)
+    match /loaners/{loanerId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Posiciones Arancelarias (catálogo de tratamientos)
+    match /posiciones_arancelarias/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Requerimientos de Compra
+    match /requerimientos_compra/{requerimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Importaciones (comercio exterior)
+    match /importaciones/{importacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Agenda Entries (asignaciones de servicio)
+    match /agendaEntries/{entryId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Agenda Notas (notas por dia por ingeniero)
+    match /agendaNotas/{notaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Postas (derivaciones workflow entre usuarios)
+    match /postas/{postaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Viáticos (gastos de ingenieros — períodos mensuales)
+    match /viaticos/{viaticoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Órdenes de Trabajo
+    match /ordenes_trabajo/{otId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Audit Log (trazabilidad de acciones)
+    match /audit_log/{logId} {
+      allow create: if true;           // Cualquier usuario autenticado puede escribir
+      allow read: if true;             // Temporal para desarrollo
+      allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
+    }
+
+    // Bloquear acceso a cualquier otra colección
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

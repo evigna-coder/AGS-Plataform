@@ -1,23 +1,31 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService } from '../../services/firebaseService';
-import type { CategoriaEquipo, CategoriaModulo, Cliente, ModuloSistema } from '@ags/shared';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { sistemasService, modulosService, categoriasEquipoService, categoriasModuloService, clientesService, establecimientosService } from '../../services/firebaseService';
+import type { CategoriaEquipo, CategoriaModulo, Cliente, Establecimiento, ModuloSistema, ConfiguracionGC } from '@ags/shared';
+import { esGaseoso } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
+import { GCPortsGrid } from '../../components/GCPortsGrid';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const EquipoNew = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const goBack = useNavigateBack();
   const [searchParams] = useSearchParams();
   const clienteIdFromUrl = searchParams.get('cliente');
+  const establecimientoIdFromUrl = searchParams.get('establecimiento');
   
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
   const [categoriasModulos, setCategoriasModulos] = useState<CategoriaModulo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [formData, setFormData] = useState({
     clienteId: clienteIdFromUrl || '',
+    establecimientoId: establecimientoIdFromUrl || '',
     categoriaId: '',
     nombre: '',
     nombreManual: '',
@@ -27,6 +35,7 @@ export const EquipoNew = () => {
     activo: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [gcConfig, setGcConfig] = useState<ConfiguracionGC>({});
   const [modulos, setModulos] = useState<Omit<ModuloSistema, 'id' | 'sistemaId'>[]>([]);
   const [showModuloModal, setShowModuloModal] = useState(false);
   const [editingModuloIndex, setEditingModuloIndex] = useState<number | null>(null);
@@ -44,6 +53,35 @@ export const EquipoNew = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (establecimientoIdFromUrl && !formData.clienteId) {
+      establecimientosService.getById(establecimientoIdFromUrl).then(est => {
+        if (est) {
+          setFormData(prev => ({ ...prev, establecimientoId: est.id, clienteId: est.clienteCuit }));
+          loadEstablecimientos(est.clienteCuit);
+        }
+      });
+    }
+  }, [establecimientoIdFromUrl]);
+
+  useEffect(() => {
+    if (formData.clienteId) loadEstablecimientos(formData.clienteId);
+    else setEstablecimientos([]);
+  }, [formData.clienteId]);
+
+  const loadEstablecimientos = async (clienteCuit: string) => {
+    try {
+      const data = await establecimientosService.getByCliente(clienteCuit);
+      setEstablecimientos(data);
+      setFormData(prev => {
+        const valid = prev.establecimientoId && data.some(e => e.id === prev.establecimientoId);
+        return valid ? prev : { ...prev, establecimientoId: data[0]?.id || '' };
+      });
+    } catch (e) {
+      setEstablecimientos([]);
+    }
+  };
+
   const loadData = async () => {
     try {
       const [categoriasData, categoriasModulosData, clientesData] = await Promise.all([
@@ -54,6 +92,7 @@ export const EquipoNew = () => {
       setCategorias(categoriasData);
       setCategoriasModulos(categoriasModulosData);
       setClientes(clientesData);
+      if (clienteIdFromUrl) loadEstablecimientos(clienteIdFromUrl);
     } catch (error) {
       console.error('Error cargando datos:', error);
       alert('Error al cargar categorías o clientes');
@@ -65,6 +104,9 @@ export const EquipoNew = () => {
     
     if (!formData.clienteId) {
       newErrors.clienteId = 'El cliente es obligatorio';
+    }
+    if (!formData.establecimientoId) {
+      newErrors.establecimientoId = 'El establecimiento es obligatorio';
     }
     if (!formData.categoriaId) {
       newErrors.categoriaId = 'La categoría es obligatoria';
@@ -101,14 +143,20 @@ export const EquipoNew = () => {
         ? (formData.nombre === '__otro__' ? formData.nombreManual : formData.nombre)
         : formData.nombre;
 
+      const nombreStr = String(nombreFinal || '').trim();
+      const categoriaNombre = categorias.find(c => c.id === formData.categoriaId)?.nombre ?? '';
+      const isGC = esGaseoso(nombreStr) || esGaseoso(categoriaNombre);
       const sistemaId = await sistemasService.create({
+        establecimientoId: formData.establecimientoId,
         clienteId: formData.clienteId,
         categoriaId: formData.categoriaId,
-        nombre: String(nombreFinal || '').trim(),
+        nombre: nombreStr,
         codigoInternoCliente: formData.codigoInternoCliente || 'PROV-' + Date.now().toString().slice(-6),
         software: formData.software || undefined,
         observaciones: formData.observaciones || undefined,
+        configuracionGC: isGC ? gcConfig : null,
         activo: formData.activo,
+        enContrato: false,
         ubicaciones: [],
         otIds: [],
       });
@@ -121,7 +169,7 @@ export const EquipoNew = () => {
       }
       
       alert('Sistema creado exitosamente');
-      navigate(`/equipos/${sistemaId}`);
+      navigate(`/equipos/${sistemaId}`, { state: location.state });
     } catch (error) {
       console.error('Error creando sistema:', error);
       alert('Error al crear el sistema');
@@ -198,32 +246,44 @@ export const EquipoNew = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Nuevo Sistema</h2>
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Nuevo Sistema</h2>
           <p className="text-sm text-slate-500 mt-1">Complete los datos del sistema</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/equipos')}>
+        <Button variant="outline" onClick={() => goBack()}>
           Cancelar
         </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
-          <h3 className="text-sm font-black text-slate-600 uppercase mb-4">Datos del Sistema</h3>
+          <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Datos del Sistema</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Cliente *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Cliente *</label>
                 <SearchableSelect
                   value={formData.clienteId}
-                  onChange={(value) => setFormData({ ...formData, clienteId: value })}
-                  options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+                  onChange={(value) => setFormData({ ...formData, clienteId: value, establecimientoId: '' })}
+                  options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
                   placeholder="Seleccionar cliente..."
                   required
                   error={errors.clienteId}
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Establecimiento *</label>
+                <SearchableSelect
+                  value={formData.establecimientoId}
+                  onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
+                  options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+                  placeholder={formData.clienteId ? 'Seleccionar establecimiento...' : 'Primero seleccione un cliente'}
+                  required
+                  error={errors.establecimientoId}
+                />
+                {errors.establecimientoId && <p className="text-xs text-red-600 mt-1">{errors.establecimientoId}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Categoría *</label>
                 <SearchableSelect
                   value={formData.categoriaId}
                   onChange={(value) => setFormData({ ...formData, categoriaId: value, nombre: '', nombreManual: '' })}
@@ -234,7 +294,7 @@ export const EquipoNew = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
                 {(() => {
                   const selectedCategoria = categorias.find(c => c.id === formData.categoriaId);
                   const modelos = (selectedCategoria?.modelos || []).filter(Boolean);
@@ -281,7 +341,7 @@ export const EquipoNew = () => {
                 })()}
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Código Interno Cliente</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Código Interno Cliente</label>
                 <Input
                   value={formData.codigoInternoCliente}
                   onChange={(e) => setFormData({ ...formData, codigoInternoCliente: e.target.value })}
@@ -289,7 +349,7 @@ export const EquipoNew = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Software *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Software *</label>
                 <Input
                   value={formData.software}
                   onChange={(e) => setFormData({ ...formData, software: e.target.value })}
@@ -300,7 +360,7 @@ export const EquipoNew = () => {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Observaciones</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
               <textarea
                 value={formData.observaciones}
                 onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
@@ -309,6 +369,17 @@ export const EquipoNew = () => {
                 placeholder="Ej: sistema usa sellos de fase normal..."
               />
             </div>
+            {(() => {
+              const selectedCategoria = categorias.find(c => c.id === formData.categoriaId);
+              const categoriaTieneModelos = Boolean(selectedCategoria && (selectedCategoria.modelos || []).length > 0);
+              const nombreEfectivo = categoriaTieneModelos
+                ? (formData.nombre === '__otro__' ? formData.nombreManual : formData.nombre)
+                : formData.nombre;
+              const isGC = esGaseoso(nombreEfectivo) || esGaseoso(selectedCategoria?.nombre ?? '');
+              return isGC ? (
+                <GCPortsGrid value={gcConfig} onChange={setGcConfig} />
+              ) : null;
+            })()}
           </div>
         </Card>
 
@@ -316,7 +387,7 @@ export const EquipoNew = () => {
         <Card className="bg-blue-50 border-2 border-blue-400 shadow-xl">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
-              <h3 className="text-xl font-black text-blue-900 uppercase mb-2">Módulos del Sistema</h3>
+              <h3 className="text-base font-semibold text-blue-900 mb-2">Módulos del Sistema</h3>
               <p className="text-sm text-slate-700 font-medium">Agrega los módulos que componen este sistema (Bomba, Inyector, Detector, etc.)</p>
             </div>
             <Button
@@ -339,7 +410,7 @@ export const EquipoNew = () => {
                   className="flex justify-between items-start p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm"
                 >
                   <div className="flex-1">
-                    <p className="font-black text-lg text-slate-900 uppercase">{modulo.nombre}</p>
+                    <p className="font-semibold text-sm text-slate-900">{modulo.nombre}</p>
                     {modulo.descripcion && <p className="text-sm text-slate-600 mt-1">{modulo.descripcion}</p>}
                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-slate-500">
                       {modulo.serie && <p><span className="font-bold">Serie:</span> {modulo.serie}</p>}
@@ -353,14 +424,14 @@ export const EquipoNew = () => {
                     <button
                       type="button"
                       onClick={() => handleEditModulo(index)}
-                      className="text-blue-600 hover:underline text-xs font-bold uppercase px-2 py-1 hover:bg-blue-50 rounded"
+                      className="text-blue-600 hover:underline text-xs font-medium px-2 py-1 hover:bg-blue-50 rounded"
                     >
                       Editar
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteModulo(index)}
-                      className="text-red-600 hover:underline text-xs font-bold uppercase px-2 py-1 hover:bg-red-50 rounded"
+                      className="text-red-600 hover:underline text-xs font-medium px-2 py-1 hover:bg-red-50 rounded"
                     >
                       Eliminar
                     </button>
@@ -387,7 +458,7 @@ export const EquipoNew = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/equipos')}>
+          <Button type="button" variant="outline" onClick={() => goBack()}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>
@@ -400,12 +471,12 @@ export const EquipoNew = () => {
       {showModuloModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full">
-            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
               {editingModuloIndex !== null ? 'Editar Módulo' : 'Nuevo Módulo'}
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría de Módulo</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Categoría de Módulo</label>
                 <SearchableSelect
                   value={moduloForm.categoriaModuloId}
                   onChange={(value) => {
@@ -420,7 +491,7 @@ export const EquipoNew = () => {
               {moduloForm.categoriaModuloId ? (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Modelo *</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Modelo *</label>
                     <SearchableSelect
                       value={moduloForm.modeloCodigo}
                       onChange={(value) => {
@@ -447,7 +518,7 @@ export const EquipoNew = () => {
                       return (
                         <>
                           <div>
-                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Código del Modelo</label>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Código del Modelo</label>
                             <Input
                               value={modelo.codigo}
                               disabled
@@ -455,7 +526,7 @@ export const EquipoNew = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
                             <Input
                               value={modelo.descripcion}
                               disabled
@@ -471,7 +542,7 @@ export const EquipoNew = () => {
               ) : (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre *</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
                     <Input
                       value={moduloForm.nombre}
                       onChange={(e) => setModuloForm({ ...moduloForm, nombre: e.target.value })}
@@ -480,7 +551,7 @@ export const EquipoNew = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
                     <Input
                       value={moduloForm.descripcion}
                       onChange={(e) => setModuloForm({ ...moduloForm, descripcion: e.target.value })}
@@ -490,21 +561,21 @@ export const EquipoNew = () => {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Número de Serie</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Número de Serie</label>
                 <Input
                   value={moduloForm.serie}
                   onChange={(e) => setModuloForm({ ...moduloForm, serie: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Versión Firmware</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Versión Firmware</label>
                 <Input
                   value={moduloForm.firmware}
                   onChange={(e) => setModuloForm({ ...moduloForm, firmware: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Observaciones</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
                 <textarea
                   value={moduloForm.observaciones}
                   onChange={(e) => setModuloForm({ ...moduloForm, observaciones: e.target.value })}

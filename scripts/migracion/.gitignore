@@ -1,0 +1,6 @@
+service-account.json
+node_modules/
+dist/
+input/*.xlsx
+input/*.csv
+output/

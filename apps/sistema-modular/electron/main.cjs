@@ -1,10 +1,156 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { join } = require('path');
-const { existsSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
+const os = require('os');
 
 // Configuración de la ventana
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const port = 3001;
+
+// ===== Google Drive Auth (Service Account) =====
+const AGS_DIR = join(os.homedir(), '.ags');
+const CREDENTIALS_PATH = join(AGS_DIR, 'service-account.json');
+const DRIVE_CONFIG_PATH = join(AGS_DIR, 'drive-config.json');
+
+let driveAuth = null;
+
+function initDriveAuth() {
+  if (driveAuth) return true;
+  if (!existsSync(CREDENTIALS_PATH)) return false;
+  try {
+    const { GoogleAuth } = require('google-auth-library');
+    driveAuth = new GoogleAuth({
+      keyFile: CREDENTIALS_PATH,
+      scopes: ['https://www.googleapis.com/auth/drive.file'],
+    });
+    console.log('[Drive] Auth inicializado con service account');
+    return true;
+  } catch (err) {
+    console.error('[Drive] Error inicializando auth:', err.message);
+    return false;
+  }
+}
+
+function getDriveConfig() {
+  if (existsSync(DRIVE_CONFIG_PATH)) {
+    try { return JSON.parse(readFileSync(DRIVE_CONFIG_PATH, 'utf-8')); }
+    catch { return {}; }
+  }
+  return {};
+}
+
+function saveDriveConfig(config) {
+  if (!existsSync(AGS_DIR)) mkdirSync(AGS_DIR, { recursive: true });
+  writeFileSync(DRIVE_CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+function registerIpcHandlers() {
+  // IPC: Check if Drive is configured
+  ipcMain.handle('drive:is-configured', () => {
+    return initDriveAuth();
+  });
+
+  // IPC: Get access token for Drive API calls
+  ipcMain.handle('drive:get-token', async () => {
+    if (!initDriveAuth()) return { error: 'Google Drive no configurado. Coloque service-account.json en ~/.ags/' };
+    try {
+      const client = await driveAuth.getClient();
+      const tokenResp = await client.getAccessToken();
+      return { token: tokenResp.token };
+    } catch (err) {
+      console.error('[Drive] Error obteniendo token:', err.message);
+      return { error: err.message };
+    }
+  });
+
+  // IPC: Read Drive config (rootFolderId, etc.)
+  ipcMain.handle('drive:get-config', () => getDriveConfig());
+
+  // IPC: Save Drive config
+  ipcMain.handle('drive:save-config', (_event, config) => {
+    const existing = getDriveConfig();
+    saveDriveConfig({ ...existing, ...config });
+    return true;
+  });
+
+  // Abrir módulo en nueva ventana (misma app, con preload completo)
+  ipcMain.on('open-module-window', (event, route) => {
+    console.log('[IPC] Abriendo módulo en nueva ventana:', route);
+    const mainWin = BrowserWindow.getAllWindows()[0];
+    const bounds = mainWin ? mainWin.getBounds() : {};
+
+    const moduleWindow = new BrowserWindow({
+      width: bounds.width || 1400,
+      height: bounds.height || 900,
+      minWidth: 1200,
+      minHeight: 700,
+      x: (bounds.x || 100) + 30,
+      y: (bounds.y || 100) + 30,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        enableRemoteModule: false,
+        preload: join(__dirname, 'preload.cjs'),
+      },
+      title: `AGS — ${route}`,
+      show: false,
+      backgroundColor: '#f1f5f9',
+    });
+
+    if (isDev) {
+      moduleWindow.loadURL(`http://localhost:${port}${route}`);
+    } else {
+      const indexPath = join(__dirname, '../dist/index.html');
+      moduleWindow.loadFile(indexPath, { hash: route });
+    }
+
+    moduleWindow.once('ready-to-show', () => {
+      moduleWindow.show();
+      moduleWindow.focus();
+    });
+  });
+
+  // Manejar solicitud de abrir ventana de reportes-ot
+  ipcMain.on('open-reportes-window', (event, url) => {
+    console.log('[IPC] Recibida solicitud para abrir ventana:', url);
+
+    const reportesWindow = new BrowserWindow({
+      width: 1400,
+      height: 900,
+      minWidth: 1200,
+      minHeight: 700,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        enableRemoteModule: false,
+      },
+      title: 'Editor de Reportes OT',
+      show: false,
+      backgroundColor: '#f1f5f9'
+    });
+
+    console.log('[IPC] Cargando URL en nueva ventana:', url);
+    reportesWindow.loadURL(url);
+
+    reportesWindow.once('ready-to-show', () => {
+      console.log('[IPC] Ventana lista, mostrando...');
+      reportesWindow.show();
+      reportesWindow.focus();
+    });
+
+    reportesWindow.on('closed', () => {
+      console.log('[IPC] Ventana de reportes cerrada');
+    });
+
+    reportesWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+      console.error('[IPC] Error al cargar ventana de reportes:', {
+        errorCode,
+        errorDescription,
+        url: validatedURL
+      });
+    });
+  });
+}
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -37,12 +183,12 @@ function createWindow() {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com data: blob:; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://*.firebaseio.com https://*.googleapis.com; " +
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com; " +
             "style-src 'self' 'unsafe-inline' http://localhost:*; " +
             "img-src 'self' data: blob: http://localhost:* https:; " +
             "font-src 'self' data: http://localhost:* https:; " +
-            "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com;"
+            "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
           ]
         }
       });
@@ -55,11 +201,11 @@ function createWindow() {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self'; " +
-            "script-src 'self'; " +
+            "script-src 'self' https://*.googleapis.com https://*.google.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: blob: https:; " +
             "font-src 'self' data:; " +
-            "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseapp.com;"
+            "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
           ]
         }
       });
@@ -184,56 +330,52 @@ function createWindow() {
     console.log(`[Renderer ${level}]:`, message);
   });
 
-  // Prevenir navegación externa
+  // Manejar ventanas emergentes (popups)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // Permitir abrir en navegador externo
+    // Permitir popup de Firebase/Google Auth como ventana hija de Electron
+    if (url.includes('accounts.google.com') ||
+        url.includes('firebaseapp.com/__/auth') ||
+        url.includes('googleapis.com/identitytoolkit')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 500,
+          height: 700,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      };
+    }
+    // URLs de la misma app (localhost en dev) → abrir como ventana Electron con preload
+    const appOrigin = isDev ? `http://localhost:${port}` : 'file://';
+    if (url.startsWith(appOrigin)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 1400,
+          height: 900,
+          minWidth: 1200,
+          minHeight: 700,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: false,
+            preload: join(__dirname, 'preload.cjs'),
+          },
+          backgroundColor: '#f1f5f9',
+        },
+      };
+    }
+    // Todo lo demas se abre en el navegador externo
     require('electron').shell.openExternal(url);
     return { action: 'deny' };
   });
 
   return mainWindow;
 }
-
-// Manejar solicitud de abrir ventana de reportes-ot
-ipcMain.on('open-reportes-window', (event, url) => {
-  console.log('[IPC] Recibida solicitud para abrir ventana:', url);
-  
-  const reportesWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1200,
-    minHeight: 700,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-    },
-    title: 'Editor de Reportes OT',
-    show: false,
-    backgroundColor: '#f1f5f9'
-  });
-
-  console.log('[IPC] Cargando URL en nueva ventana:', url);
-  reportesWindow.loadURL(url);
-  
-  reportesWindow.once('ready-to-show', () => {
-    console.log('[IPC] Ventana lista, mostrando...');
-    reportesWindow.show();
-    reportesWindow.focus();
-  });
-
-  reportesWindow.on('closed', () => {
-    console.log('[IPC] Ventana de reportes cerrada');
-  });
-  
-  reportesWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    console.error('[IPC] Error al cargar ventana de reportes:', {
-      errorCode,
-      errorDescription,
-      url: validatedURL
-    });
-  });
-});
 
 // Prevenir múltiples instancias
 const gotTheLock = app.requestSingleInstanceLock();
@@ -254,6 +396,7 @@ if (!gotTheLock) {
 
   // Cuando Electron esté listo
   app.whenReady().then(() => {
+    registerIpcHandlers();
     createWindow();
 
     app.on('activate', () => {

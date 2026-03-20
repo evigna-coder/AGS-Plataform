@@ -1,0 +1,71 @@
+{
+  "id": "QF7.0506.10_CalifOperacion_HPLC",
+  "name": "Calificación de Operación HPLC 1100-1200-1260",
+  "serviceType": "Calificación de operación",
+  "equipmentType": "HPLC 1100-1200-1260",
+  "template": {
+    "sections": [
+      {
+        "id": "sec_1",
+        "title": "1. Objetivo",
+        "type": "text",
+        "content": "Establecer evidencia documentada de que el sistema HPLC 1100/1200/1260 opera de acuerdo con las especificaciones definidas y es apto para el uso previsto."
+      },
+      {
+        "id": "sec_2",
+        "title": "2. Alcance",
+        "type": "text",
+        "content": "Aplica a sistemas Agilent 1100, 1200 y 1260 Infinity utilizados en análisis por cromatografía líquida. Incluye verificación de flujo, presión, linealidad y precisión según procedimiento interno."
+      },
+      {
+        "id": "sec_3",
+        "title": "3. Verificaciones realizadas",
+        "type": "checklist",
+        "items": [
+          { "id": "item_1", "label": "Verificación de flujo de bombas", "required": true, "value": false },
+          { "id": "item_2", "label": "Verificación de presión del sistema", "required": true, "value": false },
+          { "id": "item_3", "label": "Linealidad del detector UV", "required": true, "value": false },
+          { "id": "item_4", "label": "Precisión de inyección", "required": true, "value": false }
+        ]
+      },
+      {
+        "id": "sec_4",
+        "title": "4. Resultados",
+        "type": "table",
+        "headers": ["Ítem", "Especificación", "Resultado", "Cumple"],
+        "rows": [
+          {
+            "id": "row_1",
+            "cells": [
+              { "type": "text", "value": "1" },
+              { "type": "text", "value": "Flujo 1.0 mL/min ± 2%" },
+              { "type": "text", "value": "" },
+              { "type": "checkbox", "value": false }
+            ]
+          },
+          {
+            "id": "row_2",
+            "cells": [
+              { "type": "text", "value": "2" },
+              { "type": "text", "value": "Presión estable < 5% variación" },
+              { "type": "text", "value": "" },
+              { "type": "checkbox", "value": false }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec_5",
+        "title": "5. Aprobaciones",
+        "type": "signatures",
+        "signatures": [
+          { "id": "sig_ejecutor", "label": "Ejecutado por", "role": "executor" },
+          { "id": "sig_revisor", "label": "Revisado por", "role": "reviewer" }
+        ]
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "createdAt": "2026-01-27T00:00:00.000Z",
+  "updatedAt": "2026-01-27T00:00:00.000Z"
+}
