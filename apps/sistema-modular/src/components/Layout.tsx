@@ -87,14 +87,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return '/' + segments[0]; // fallback to top-level module
   }, []);
 
-  // Global Escape key → navigate to parent path (within module only)
-  // If location.state.from exists (navigation memory), use that instead
+  // Global keyboard shortcuts: Escape (navigate back) + Ctrl+Tab (switch tabs)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ── Ctrl+Tab / Ctrl+Shift+Tab → cycle tabs ──
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'Tab' || e.key === 'PageDown' || e.key === 'PageUp')) {
+        if (tabs.length <= 1) return;
+        e.preventDefault();
+        const currentId = tabId(location.pathname);
+        const currentIdx = tabs.findIndex(t => t.id === currentId);
+        const forward = e.key === 'Tab' ? !e.shiftKey : e.key === 'PageDown';
+        const nextIdx = forward
+          ? (currentIdx + 1) % tabs.length
+          : (currentIdx - 1 + tabs.length) % tabs.length;
+        switchTab(tabs[nextIdx].id);
+        return;
+      }
+
+      // ── Escape → navigate to parent ──
       if (e.key !== 'Escape') return;
-      // Don't navigate back if user is in an input, textarea, select, or modal
+      // If user is in an input, blur it first — second Escape will navigate
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        (e.target as HTMLElement).blur();
+        e.preventDefault();
+        return;
+      }
       if (document.querySelector('[role="dialog"], .modal-overlay, [data-modal]')) return;
 
       // Prefer navigation memory (state.from) over parent path
@@ -112,7 +130,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, location.pathname, location.state, getParentPath]);
+  }, [navigate, location.pathname, location.state, getParentPath, tabs, switchTab]);
 
   const toggleGroup = (path: string) => {
     setExpandedGroups(prev => ({ ...prev, [path]: !prev[path] }));
@@ -166,23 +184,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Tab bar */}
-      {tabs.length > 1 && (
-        <div className="shrink-0 bg-white border-b border-slate-200 flex items-center gap-0 px-2 overflow-x-auto z-20">
-          {tabs.map(tab => {
-            const isActiveTab = tab.id === tabId(location.pathname);
-            return (
-              <div
-                key={tab.id}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-colors shrink-0 ${
-                  isActiveTab
-                    ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50 font-medium'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                }`}
-                onClick={() => switchTab(tab.id)}
-              >
-                <span className="text-sm leading-none">{tab.icon}</span>
-                <span className="whitespace-nowrap">{tab.label}</span>
+      {/* Tab bar — always visible */}
+      <div className="shrink-0 bg-white border-b border-slate-200 flex items-center gap-0 px-2 overflow-x-auto z-20">
+        {tabs.map(tab => {
+          const isActiveTab = tab.id === tabId(location.pathname);
+          return (
+            <div
+              key={tab.id}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-colors shrink-0 ${
+                isActiveTab
+                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50 font-medium'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+              onClick={() => switchTab(tab.id)}
+            >
+              <span className="text-sm leading-none">{tab.icon}</span>
+              <span className="whitespace-nowrap">{tab.label}</span>
+              {tab.sublabel && (
+                <span className="text-[10px] text-slate-400 whitespace-nowrap">/ {tab.sublabel}</span>
+              )}
+              {tabs.length > 1 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
                   className="ml-1 p-0.5 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
@@ -192,11 +213,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
         <aside

@@ -4,6 +4,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } f
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
 import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+import { deepCleanForFirestore } from '@ags/shared';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -107,7 +108,7 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     console.log('💾 Guardando reporte:', ot);
     console.log('📋 Datos a guardar:', JSON.stringify(data, null, 2));
     const docRef = doc(db, "reportes", ot);
-    await setDoc(docRef, data, { merge: true });
+    await setDoc(docRef, deepCleanForFirestore(data), { merge: true });
     console.log('✅ Reporte guardado exitosamente:', ot);
   } catch (error: any) {
     console.error('❌ Error al guardar reporte:', error);
@@ -261,11 +262,18 @@ export class FirebaseService {
 
   async getEstablecimientosByCliente(clienteId: string): Promise<EstablecimientoOption[]> {
     try {
-      const q = query(collection(db, 'establecimientos'), where('clienteCuit', '==', clienteId));
-      const snap = await getDocs(q);
-      return snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as EstablecimientoOption))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      // Buscar por clienteCuit Y por clienteId (campo legacy de migración)
+      const [byCuit, byId] = await Promise.all([
+        getDocs(query(collection(db, 'establecimientos'), where('clienteCuit', '==', clienteId))),
+        getDocs(query(collection(db, 'establecimientos'), where('clienteId', '==', clienteId))),
+      ]);
+      const map = new Map<string, EstablecimientoOption>();
+      for (const snap of [byCuit, byId]) {
+        snap.docs.forEach(d => {
+          if (!map.has(d.id)) map.set(d.id, { id: d.id, ...d.data() } as EstablecimientoOption);
+        });
+      }
+      return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando establecimientos:', e); return []; }
   }
 

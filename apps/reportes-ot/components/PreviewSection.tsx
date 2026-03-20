@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { CompanyHeader } from './CompanyHeader';
 import { CatalogTableView } from './CatalogTableView';
 import { CatalogChecklistView } from './CatalogChecklistView';
@@ -13,6 +13,45 @@ import { Part } from '../types';
 import type { FirebaseService } from '../services/firebaseService';
 import type { ProtocolSelection, TableCatalogEntry } from '../types/tableCatalog';
 import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+
+const A4_WIDTH_PX = 794; // 210mm ≈ 794px at 96dpi
+
+/** Wraps A4-width content and scales it to fit the screen on mobile */
+function ScaledA4Wrapper({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [innerH, setInnerH] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    const update = () => {
+      const w = outer.clientWidth;
+      const s = w < A4_WIDTH_PX ? w / A4_WIDTH_PX : 1;
+      setScale(s);
+      setInnerH(s < 1 ? inner.scrollHeight * s : undefined);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(outer);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={outerRef} className={className} style={{ overflow: 'hidden', height: innerH }}>
+      <div ref={innerRef} style={{
+        transformOrigin: 'top left',
+        transform: scale < 1 ? `scale(${scale})` : undefined,
+        width: scale < 1 ? `${100 / scale}%` : undefined,
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface PreviewSectionProps {
   // Form data
@@ -89,10 +128,10 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
       </div>
 
       {/* Wrapper visual */}
-      <div className="relative bg-slate-100 pb-[12mm] flex justify-center" style={{ paddingLeft: 0, paddingRight: 0 }}>
+      <ScaledA4Wrapper className="relative bg-slate-100 pb-[12mm]">
         <div
           id="pdf-container"
-          className="bg-white shadow-2xl"
+          className="bg-white shadow-2xl mx-auto"
           style={{
             width: '210mm',
             margin: '0 auto',
@@ -124,7 +163,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
                     <h4 className="text-[9px] font-black text-slate-400 uppercase mb-0">Información del equipo</h4>
                   </div>
                   <div className="space-y-0.5 text-[10px]">
-                    <p className="text-slate-800 font-black uppercase text-[12px] truncate">{sistema || "S/D"}</p>
+                    <p className="text-slate-800 font-black uppercase text-[12px] truncate">Sistema: {sistema || "S/D"}</p>
                     <p className="text-slate-600"><span className="font-bold">Id - Código interno:</span> {codigoInternoCliente || "S/D"}</p>
                     <p className="text-slate-600"><span className="font-bold">Modelo:</span> {moduloModelo || "S/D"}</p>
                     <p className="text-slate-600 font-mono"><span className="font-bold">S/N:</span> {moduloSerie || "S/D"}</p>
@@ -246,11 +285,11 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
             </div>
           </div>
         </div>
-      </div>
+      </ScaledA4Wrapper>
 
       {/* Preview: Tablas + Instrumentos (paginado A4 con headers/footers) */}
       {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0) && (
-        <div id="pdf-preview-tablas" className="relative bg-[#f1f5f9] mt-6 pb-6 flex flex-col items-center gap-6 overflow-x-auto">
+        <ScaledA4Wrapper className="relative bg-[#f1f5f9] mt-6 pb-6"><div id="pdf-preview-tablas" className="flex flex-col gap-6">
           <ProtocolPaginatedPreview
             protocolSelections={protocolSelections}
             instrumentosSeleccionados={instrumentosSeleccionados}
@@ -273,23 +312,23 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
             catalogTables={allPublishedTables}
             catalogProjects={allProjects}
           />
-        </div>
+        </div></ScaledA4Wrapper>
       )}
 
       {/* Preview: PDFs adjuntos */}
       {adjuntos.some(a => a.mimeType === 'application/pdf') && (
-        <div className="relative bg-[#f1f5f9] mt-6 pb-[12mm] flex flex-col items-center gap-6 overflow-x-auto" style={{ paddingLeft: 0, paddingRight: 0 }}>
+        <ScaledA4Wrapper className="relative bg-[#f1f5f9] mt-6 pb-[12mm]">
           <PdfAdjuntoPreview adjuntos={adjuntos} firebase={firebase} />
-        </div>
+        </ScaledA4Wrapper>
       )}
 
       {/* Preview: Fotos */}
       {adjuntos.some(a => a.mimeType.startsWith('image/')) && (
-        <div className="relative bg-[#f1f5f9] mt-6 pb-[12mm] flex justify-center overflow-x-auto" style={{ paddingLeft: 0, paddingRight: 0 }}>
+        <ScaledA4Wrapper className="relative bg-[#f1f5f9] mt-6 pb-[12mm]">
           <div className="bg-white shadow-md rounded-sm overflow-visible shrink-0" style={{ width: '210mm', margin: '0 auto', boxSizing: 'border-box' }}>
             <AdjuntosPDFSection adjuntos={adjuntos} logoSrc={LOGO_SRC} />
           </div>
-        </div>
+        </ScaledA4Wrapper>
       )}
     </>
   );

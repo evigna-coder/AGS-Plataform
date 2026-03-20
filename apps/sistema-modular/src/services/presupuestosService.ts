@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
 import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio } from '@ags/shared';
-import { db, logAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, logAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // Servicio para Presupuestos
 export const presupuestosService = {
@@ -96,24 +96,8 @@ export const presupuestosService = {
     // Generar número si no se proporciona
     const numero = presupuestoData.numero || await this.getNextPresupuestoNumber();
 
-    // Helper para limpiar undefined y convertir fechas
-    const cleanData = (data: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          if (key === 'fechaEnvio' && value) {
-            cleaned[key] = Timestamp.fromDate(new Date(value as string));
-          } else if (key === 'validUntil' && value) {
-            cleaned[key] = Timestamp.fromDate(new Date(value as string));
-          } else {
-            cleaned[key] = value === '' ? null : value;
-          }
-        }
-      }
-      return cleaned;
-    };
-
-    const payload = cleanData({
+    // Convert date strings to Firestore Timestamps, then deep-clean
+    const raw = {
       ...presupuestoData,
       ...getCreateTrace(),
       numero,
@@ -125,7 +109,10 @@ export const presupuestosService = {
       validezDias: presupuestoData.validezDias ?? 15,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    });
+      ...(presupuestoData.fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date(presupuestoData.fechaEnvio as any)) } : {}),
+      ...(presupuestoData.validUntil ? { validUntil: Timestamp.fromDate(new Date(presupuestoData.validUntil as any)) } : {}),
+    };
+    const payload = deepCleanForFirestore(raw);
     const docRef = await addDoc(collection(db, 'presupuestos'), payload);
     logAudit({ action: 'create', collection: 'presupuestos', documentId: docRef.id, after: payload as any });
 
@@ -135,29 +122,16 @@ export const presupuestosService = {
 
   // Actualizar presupuesto
   async update(id: string, data: Partial<Presupuesto>) {
-    // Helper para limpiar undefined
-    const cleanData = (data: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          if (key === 'fechaEnvio' && value) {
-            cleaned[key] = Timestamp.fromDate(new Date(value as string));
-          } else if (key === 'validUntil' && value) {
-            cleaned[key] = Timestamp.fromDate(new Date(value as string));
-          } else {
-            cleaned[key] = value === '' ? null : value;
-          }
-        }
-      }
-      return cleaned;
-    };
-
     const docRef = doc(db, 'presupuestos', id);
-    const cleanedData = cleanData({
+    // Convert date strings to Firestore Timestamps, then deep-clean
+    const raw = {
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+      ...((data as any).fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date((data as any).fechaEnvio)) } : {}),
+      ...((data as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((data as any).validUntil)) } : {}),
+    };
+    const cleanedData = deepCleanForFirestore(raw);
 
     await updateDoc(docRef, cleanedData);
     logAudit({ action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });

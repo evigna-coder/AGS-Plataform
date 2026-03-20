@@ -68,6 +68,7 @@ export const EquipoDetail = () => {
         configuracionGC: sistemaData.configuracionGC ?? {},
         activo: sistemaData.activo,
         agsVisibleId: sistemaData.agsVisibleId ?? null,
+        enContrato: sistemaData.enContrato ?? false,
       });
 
       setModulos(modulosData);
@@ -195,6 +196,9 @@ export const EquipoDetail = () => {
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Activo</span>
                 ) : (
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactivo</span>
+                )}
+                {sistema.enContrato && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Contrato</span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400 truncate">

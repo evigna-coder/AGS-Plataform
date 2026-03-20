@@ -424,7 +424,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
           <div
             key={pageIdx}
             data-protocol-page
-            className="bg-white shadow-lg shrink-0 flex flex-col"
+            className="bg-white shadow-lg shrink-0 flex flex-col mx-auto"
             style={{
               width: `${A4_WIDTH_MM}mm`,
               height: `${A4_HEIGHT_MM}mm`,
@@ -472,7 +472,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
 
       {/* Loading state while measuring */}
       {pages.length === 0 && contentItems.length > 0 && (
-        <div className="bg-white shadow-lg shrink-0 flex items-center justify-center"
+        <div className="bg-white shadow-lg shrink-0 flex items-center justify-center mx-auto"
           style={{ width: `${A4_WIDTH_MM}mm`, height: `${A4_HEIGHT_MM}mm` }}>
           <p className="text-sm text-slate-400">Preparando páginas...</p>
         </div>

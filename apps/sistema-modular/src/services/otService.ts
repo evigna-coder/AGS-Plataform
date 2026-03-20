@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, setDoc, addDoc } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo } from '@ags/shared';
-import { db, logAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './firebase';
+import { db, logAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
@@ -139,19 +139,8 @@ export const ordenesTrabajoService = {
   async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
     console.log('📝 Creando orden de trabajo:', otData.otNumber);
 
-    // Helper para limpiar undefined (Firestore no acepta undefined)
-    const cleanData = (data: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          cleaned[key] = value === '' ? null : value;
-        }
-      }
-      return cleaned;
-    };
-
     const docRef = doc(db, 'reportes', otData.otNumber);
-    const cleanedData = cleanData({
+    const cleanedData = deepCleanForFirestore({
       ...otData,
       ...getCreateTrace(),
       status: otData.status || 'BORRADOR',
@@ -167,19 +156,8 @@ export const ordenesTrabajoService = {
 
   // Actualizar OT
   async update(otNumber: string, data: Partial<WorkOrder>) {
-    // Helper para limpiar undefined (Firestore no acepta undefined)
-    const cleanData = (data: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          cleaned[key] = value === '' ? null : value;
-        }
-      }
-      return cleaned;
-    };
-
     const docRef = doc(db, 'reportes', otNumber);
-    const cleanedData = cleanData({
+    const cleanedData = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),

@@ -357,11 +357,18 @@ export const EquiposList = () => {
                       <td className="px-3 py-2 text-xs font-mono text-slate-600 whitespace-nowrap">{sistema.codigoInternoCliente || <span className="text-slate-300">—</span>}</td>
                       <td className="px-3 py-2 text-xs text-slate-600 truncate">{sistema.software || <span className="text-slate-300">—</span>}</td>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                          sistema.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {sistema.activo ? 'Activo' : 'Inactivo'}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                            sistema.activo ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {sistema.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                          {sistema.enContrato && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                              Contrato
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">

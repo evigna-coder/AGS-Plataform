@@ -25,6 +25,9 @@
       ],
       "@shared/*": [
         "../../packages/shared/src/*"
+      ],
+      "@ags/shared": [
+        "../../packages/shared/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema } from '@ags/shared';
-import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_PRIORIDAD_LABELS, LEAD_MAX_ADJUNTOS } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -36,6 +36,8 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
   const [prioridad, setPrioridad] = useState<LeadPrioridad>('media');
   const [proximoContacto, setProximoContacto] = useState('');
   const [valorEstimado, setValorEstimado] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -98,7 +100,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         estadoNuevo: 'nuevo' as const,
       } : null;
 
-      await leadsService.create({
+      const leadId = await leadsService.create({
         clienteId: clienteId || null,
         contactoId: null,
         razonSocial: razonSocial.trim(),
@@ -125,6 +127,10 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         presupuestosIds: [],
         otIds: [],
       });
+      // Upload pending files after creation
+      if (pendingFiles.length > 0) {
+        await leadsService.uploadAdjuntos(leadId, pendingFiles, 0);
+      }
       onCreated?.();
       onClose();
     } catch {
@@ -239,6 +245,54 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
           <input type="text" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             placeholder="Ej: Averiguar N° de parte, Confirmar disponibilidad..." />
+        </div>
+
+        {/* Adjuntos */}
+        <div>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">
+            Adjuntos ({pendingFiles.length}/{LEAD_MAX_ADJUNTOS})
+          </label>
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            onChange={e => {
+              const files = e.target.files;
+              if (!files) return;
+              const total = [...pendingFiles, ...Array.from(files)].slice(0, LEAD_MAX_ADJUNTOS);
+              setPendingFiles(total);
+              if (fileRef.current) fileRef.current.value = '';
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={pendingFiles.length >= LEAD_MAX_ADJUNTOS}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:text-slate-400 disabled:cursor-not-allowed"
+            >
+              + Seleccionar archivos
+            </button>
+            {pendingFiles.length > 0 && (
+              <span className="text-[10px] text-slate-400">
+                {pendingFiles.length} archivo(s) seleccionado(s)
+              </span>
+            )}
+          </div>
+          {pendingFiles.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              {pendingFiles.map((f, i) => (
+                <div key={`${f.name}-${i}`} className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${f.type.startsWith('image/') ? 'bg-green-400' : 'bg-blue-400'}`} />
+                  <span className="truncate flex-1">{f.name}</span>
+                  <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))}
+                    className="text-red-400 hover:text-red-600 shrink-0">&times;</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

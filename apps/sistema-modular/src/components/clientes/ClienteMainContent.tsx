@@ -65,6 +65,11 @@ const SistemaExpandable = ({ sistema, establecimientos, categorias }: {
               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${sistema.activo ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
                 {sistema.activo ? 'Activo' : 'Inactivo'}
               </span>
+              {sistema.enContrato && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                  Contrato
+                </span>
+              )}
             </div>
             <div className="flex gap-2 text-[11px] text-slate-400 truncate">
               {est && <span>{est.nombre}</span>}

@@ -1,7 +1,61 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { SmartSelect } from './ui/SmartSelect';
 import { formatDateToDDMMYYYY, parseDDMMYYYYToISO, isValidDDMMYYYY } from '../services/utils';
 import { calcHours, isValidTimeHHMM } from '../services/time';
+
+// ── Contactos adicionales (para futuro envío directo) ──
+function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
+  contactos: { id: string; nombre: string; email: string; esPrincipal: boolean }[];
+  contactoPrincipalId: string | null;
+  readOnly: boolean;
+}) {
+  const [extras, setExtras] = useState<string[]>([]);
+  const available = contactos.filter(c => c.id !== contactoPrincipalId && !extras.includes(c.id));
+
+  const addContacto = useCallback((id: string) => {
+    if (id) setExtras(prev => [...prev, id]);
+  }, []);
+
+  const removeContacto = useCallback((id: string) => {
+    setExtras(prev => prev.filter(x => x !== id));
+  }, []);
+
+  const selectedExtras = contactos.filter(c => extras.includes(c.id));
+
+  if (contactos.length <= 1) return null;
+
+  return (
+    <div className="mt-2">
+      {selectedExtras.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-1.5">
+          {selectedExtras.map(c => (
+            <span key={c.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
+              {c.nombre} {c.email && <span className="text-blue-400">({c.email})</span>}
+              {!readOnly && (
+                <button type="button" onClick={() => removeContacto(c.id)}
+                  className="ml-0.5 text-blue-400 hover:text-red-500 font-bold">&times;</button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      {!readOnly && available.length > 0 && (
+        <div className="flex items-center gap-2">
+          <select
+            className="border rounded-lg px-2 py-1 text-xs text-slate-600 bg-white border-slate-200"
+            value=""
+            onChange={(e) => addContacto(e.target.value)}
+          >
+            <option value="">+ Agregar contacto...</option>
+            {available.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre} {c.email ? `(${c.email})` : ''}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface OTFormSectionProps {
   // OT
@@ -180,55 +234,90 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
           </div>
         </div>
 
-        {/* Establecimiento (visible solo si hay cliente seleccionado desde DB) */}
+        {/* Establecimiento + Sector (visible solo si hay cliente seleccionado desde DB) */}
         {entitySelectors.clienteId && !entitySelectors.manualMode.cliente && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Establecimiento</label>
-              <SmartSelect
-                value={entitySelectors.establecimientoId || ''}
-                onChange={(id: string) => entitySelectors.selectEstablecimiento(id)}
-                options={entitySelectors.establecimientoOptions}
-                placeholder="Seleccionar establecimiento..."
-                disabled={readOnly}
-                loading={entitySelectors.loadingEstablecimientos}
-              />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Establecimiento</label>
+                <SmartSelect
+                  value={entitySelectors.establecimientoId || ''}
+                  onChange={(id: string) => entitySelectors.selectEstablecimiento(id)}
+                  options={entitySelectors.establecimientoOptions}
+                  placeholder="Seleccionar establecimiento..."
+                  disabled={readOnly}
+                  loading={entitySelectors.loadingEstablecimientos}
+                />
+              </div>
+              {entitySelectors.establecimientoId && entitySelectors.sectorOptions.length > 0 && (
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Sector</label>
+                  <SmartSelect
+                    value={entitySelectors.selectedSector || ''}
+                    onChange={entitySelectors.selectSector}
+                    options={entitySelectors.sectorOptions}
+                    placeholder="Seleccionar sector..."
+                    disabled={readOnly}
+                  />
+                </div>
+              )}
             </div>
+            {/* Contacto principal */}
             {entitySelectors.establecimientoId && entitySelectors.contactoOptions.length > 0 && (
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Contacto</label>
-                <SmartSelect
-                  value=""
-                  onChange={entitySelectors.selectContacto}
-                  options={entitySelectors.contactoOptions}
-                  placeholder="Seleccionar contacto..."
-                  disabled={readOnly}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <SmartSelect
+                    value={entitySelectors.contactoId || ''}
+                    onChange={entitySelectors.selectContacto}
+                    options={entitySelectors.contactoOptions}
+                    placeholder="Seleccionar contacto..."
+                    disabled={readOnly}
+                  />
+                  <input
+                    type="email"
+                    value={emailPrincipal}
+                    placeholder="correo@ejemplo.com"
+                    onChange={(e) => { if (readOnly) return; setEmailPrincipal(e.target.value); }}
+                    disabled={readOnly}
+                    className={`w-full border rounded-lg px-3 py-1.5 text-sm
+                      ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+                  />
+                </div>
+                {/* Contactos adicionales */}
+                <ContactosAdicionales
+                  contactos={entitySelectors.contactos}
+                  contactoPrincipalId={entitySelectors.contactoId}
+                  readOnly={readOnly}
                 />
               </div>
             )}
-          </div>
+          </>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input
-            type="text"
-            value={contacto}
-            placeholder="Persona de contacto"
-            onChange={(e) => { if (readOnly) return; setContacto(e.target.value); }}
-            disabled={readOnly}
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm
-              ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
-          />
-          <input
-            type="email"
-            value={emailPrincipal}
-            placeholder="correo@ejemplo.com"
-            onChange={(e) => { if (readOnly) return; setEmailPrincipal(e.target.value); }}
-            disabled={readOnly}
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm
-              ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
-          />
-        </div>
+        {/* Fallback: contacto manual cuando no hay selector de DB */}
+        {!(entitySelectors.establecimientoId && entitySelectors.contactoOptions.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input
+              type="text"
+              value={contacto}
+              placeholder="Persona de contacto"
+              onChange={(e) => { if (readOnly) return; setContacto(e.target.value); }}
+              disabled={readOnly}
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm
+                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+            />
+            <input
+              type="email"
+              value={emailPrincipal}
+              placeholder="correo@ejemplo.com"
+              onChange={(e) => { if (readOnly) return; setEmailPrincipal(e.target.value); }}
+              disabled={readOnly}
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm
+                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+            />
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input
             type="text"
@@ -261,11 +350,10 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
 
         <div className="border-t pt-3">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-            Sistema / Equipo
+            ID Equipo
           </h3>
 
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
+          <div className="mb-3">
               {entitySelectors.manualMode.sistema || entitySelectors.manualMode.cliente ? (
                 <>
                   <input
@@ -290,7 +378,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
                     value={entitySelectors.sistemaId || ''}
                     onChange={(id: string) => entitySelectors.selectSistema(id)}
                     options={entitySelectors.sistemaOptions}
-                    placeholder={entitySelectors.establecimientoId ? 'Seleccionar sistema...' : 'Primero seleccionar establecimiento'}
+                    placeholder={entitySelectors.establecimientoId ? 'Seleccionar equipo...' : 'Primero seleccionar establecimiento'}
                     disabled={readOnly || !entitySelectors.establecimientoId}
                     loading={entitySelectors.loadingSistemas}
                   />
@@ -302,17 +390,6 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
                   )}
                 </>
               )}
-            </div>
-
-            <input
-              type="text"
-              value={codigoInternoCliente}
-              placeholder="Id - Código interno del cliente"
-              onChange={(e) => { if (readOnly) return; setCodigoInternoCliente(e.target.value); }}
-              disabled={readOnly}
-              className={`w-full border rounded-lg px-3 py-1.5 text-sm font-bold
-                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
-            />
           </div>
 
           {/* Selector de módulo (visible si hay sistema seleccionado desde DB) */}

@@ -1,6 +1,8 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta } from '@ags/shared';
-import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead } from '@ags/shared';
+import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
+import { db, storage, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 function migrateLeadEstado(raw: string): LeadEstado {
   const migration: Record<string, LeadEstado> = {
@@ -51,6 +53,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     derivadoPor: data.derivadoPor ?? null,
     areaActual: migrateLeadArea(data.areaActual),
     accionPendiente: data.accionPendiente ?? null,
+    adjuntos: data.adjuntos ?? [],
     presupuestosIds: data.presupuestosIds ?? [],
     otIds: data.otIds ?? [],
     createdAt: data.createdAt?.toDate?.()?.toISOString() ?? '',
@@ -176,5 +179,54 @@ export const leadsService = {
   async delete(id: string) {
     logAudit({ action: 'delete', collection: 'leads', documentId: id });
     await deleteDoc(doc(db, 'leads', id));
+  },
+
+  async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoLead[]> {
+    const available = LEAD_MAX_ADJUNTOS - existingCount;
+    const toUpload = files.slice(0, available);
+    const uploaded: AdjuntoLead[] = [];
+
+    for (const file of toUpload) {
+      const storageRef = ref(storage, `leads/${leadId}/adjuntos/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const isImage = file.type.startsWith('image/');
+      uploaded.push({
+        id: `adj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        nombre: file.name,
+        url,
+        tipo: isImage ? 'imagen' : 'archivo',
+        size: file.size,
+        fechaCarga: new Date().toISOString(),
+      });
+    }
+
+    if (uploaded.length > 0) {
+      await updateDoc(doc(db, 'leads', leadId), {
+        adjuntos: arrayUnion(...uploaded.map(a => deepCleanForFirestore(a))),
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      });
+    }
+
+    return uploaded;
+  },
+
+  async removeAdjunto(leadId: string, adjunto: AdjuntoLead, allAdjuntos: AdjuntoLead[]) {
+    // Delete from Storage
+    try {
+      const storageRef = ref(storage, adjunto.url);
+      await deleteObject(storageRef);
+    } catch {
+      // File may already be deleted — continue
+    }
+    // Remove from Firestore array
+    const updated = allAdjuntos.filter(a => a.id !== adjunto.id);
+    await updateDoc(doc(db, 'leads', leadId), {
+      adjuntos: updated.map(a => deepCleanForFirestore(a)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    logAudit({ action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'removeAdjunto', adjuntoId: adjunto.id } as any });
   },
 };

@@ -25,13 +25,18 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
   // ── IDs de selección (transitorios, no se persisten) ──
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [sistemaId, setSistemaId] = useState<string | null>(null);
   const [moduloId, setModuloId] = useState<string | null>(null);
+  const [contactoId, setContactoId] = useState<string | null>(null);
 
   // ── Datos cargados ──
   const [clientes, setClientes] = useState<ClienteOption[]>([]);
   const [establecimientos, setEstablecimientos] = useState<EstablecimientoOption[]>([]);
+  const [sectores, setSectores] = useState<string[]>([]);
+  const [allContactos, setAllContactos] = useState<ContactoOption[]>([]);
   const [contactos, setContactos] = useState<ContactoOption[]>([]);
+  const [allSistemas, setAllSistemas] = useState<SistemaOption[]>([]);
   const [sistemas, setSistemas] = useState<SistemaOption[]>([]);
   const [modulos, setModulos] = useState<ModuloOption[]>([]);
 
@@ -74,13 +79,20 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     value: e.id, label: e.nombre,
   }));
 
+  const sectorOptions: SelectOption[] = sectores.map(s => ({
+    value: s, label: s,
+  }));
+
   const contactoOptions: SelectOption[] = contactos.map(c => ({
     value: c.id,
     label: c.esPrincipal ? `${c.nombre} (principal)` : c.nombre,
   }));
 
   const sistemaOptions: SelectOption[] = sistemas.map(s => ({
-    value: s.id, label: s.nombre,
+    value: s.id,
+    label: s.codigoInternoCliente
+      ? `${s.codigoInternoCliente} (${s.nombre})`
+      : s.nombre,
   }));
 
   const moduloOptions: SelectOption[] = modulos.map(m => ({
@@ -98,12 +110,17 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
 
     // Limpiar downstream
     setEstablecimientoId(null);
+    setSelectedSector(null);
     setSistemaId(null);
     setModuloId(null);
     setEstablecimientos([]);
+    setSectores([]);
+    setAllContactos([]);
     setContactos([]);
+    setAllSistemas([]);
     setSistemas([]);
     setModulos([]);
+    setContactoId(null);
     setters.setContacto('');
     setters.setEmailPrincipal('');
     setters.setDireccion('');
@@ -142,43 +159,96 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setters.setLocalidad(estab.localidad || '');
     setters.setProvincia(estab.provincia || '');
 
-    // Limpiar downstream equipo
+    // Limpiar downstream
+    setSelectedSector(null);
     setSistemaId(null);
     setModuloId(null);
     setSistemas([]);
+    setAllSistemas([]);
     setModulos([]);
+    setContactos([]);
+    setAllContactos([]);
+    setContactoId(null);
+    setters.setContacto('');
+    setters.setEmailPrincipal('');
     setters.setSistema('');
     setters.setCodigoInternoCliente('');
     setters.setModuloModelo('');
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
+    // Extraer sectores del establecimiento
+    const estabSectores = estab.sectores?.filter(Boolean) || [];
+    setSectores(estabSectores);
+
     // Cargar contactos y sistemas en paralelo
+    setLoadingSistemas(true);
     const [conts, syss] = await Promise.all([
       firebase.getContactosByEstablecimiento(id),
-      (setLoadingSistemas(true), firebase.getSistemasByEstablecimiento(id)),
+      firebase.getSistemasByEstablecimiento(id),
     ]);
-
-    setContactos(conts);
-    setSistemas(syss);
     setLoadingSistemas(false);
 
-    // Auto-select contacto principal
-    const principal = conts.find(c => c.esPrincipal);
+    setAllContactos(conts);
+    setAllSistemas(syss);
+
+    // Si no hay sectores, mostrar todo directamente (flujo sin filtro)
+    if (estabSectores.length === 0) {
+      setContactos(conts);
+      setSistemas(syss);
+
+      const principal = conts.find(c => c.esPrincipal);
+      if (principal) {
+        setters.setContacto(principal.nombre);
+        setters.setEmailPrincipal(principal.email || '');
+      }
+
+      if (syss.length === 1) {
+        selectSistema(syss[0].id, syss);
+      }
+    }
+    // Si hay sectores, esperar selección de sector para filtrar
+  }, [establecimientos, firebase, setters]);
+
+  const selectSector = useCallback((sector: string) => {
+    setSelectedSector(sector);
+
+    // Limpiar downstream
+    setSistemaId(null);
+    setModuloId(null);
+    setModulos([]);
+    setContactoId(null);
+    setters.setContacto('');
+    setters.setEmailPrincipal('');
+    setters.setSistema('');
+    setters.setCodigoInternoCliente('');
+    setters.setModuloModelo('');
+    setters.setModuloDescripcion('');
+    setters.setModuloSerie('');
+
+    // Filtrar contactos y sistemas por sector
+    const filteredContactos = allContactos.filter(c => c.sector === sector);
+    const filteredSistemas = allSistemas.filter(s => s.sector === sector);
+    setContactos(filteredContactos);
+    setSistemas(filteredSistemas);
+
+    // Auto-select contacto principal del sector
+    const principal = filteredContactos.find(c => c.esPrincipal);
     if (principal) {
       setters.setContacto(principal.nombre);
       setters.setEmailPrincipal(principal.email || '');
     }
 
-    // Auto-select sistema si hay solo uno
-    if (syss.length === 1) {
-      selectSistema(syss[0].id, syss);
+    // Auto-select sistema si hay solo uno en el sector
+    if (filteredSistemas.length === 1) {
+      selectSistema(filteredSistemas[0].id, filteredSistemas);
     }
-  }, [establecimientos, firebase, setters]);
+  }, [allContactos, allSistemas, setters]);
 
   const selectContacto = useCallback((id: string) => {
     const c = contactos.find(ct => ct.id === id);
     if (!c) return;
+    setContactoId(id);
     setters.setContacto(c.nombre);
     setters.setEmailPrincipal(c.email || '');
   }, [contactos, setters]);
@@ -265,10 +335,14 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
   const reset = useCallback(() => {
     setClienteId(null);
     setEstablecimientoId(null);
+    setSelectedSector(null);
     setSistemaId(null);
     setModuloId(null);
     setEstablecimientos([]);
+    setSectores([]);
+    setAllContactos([]);
     setContactos([]);
+    setAllSistemas([]);
     setSistemas([]);
     setModulos([]);
     setManualMode({ cliente: false, sistema: false });
@@ -276,17 +350,17 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
 
   return {
     // IDs
-    clienteId, establecimientoId, sistemaId, moduloId,
+    clienteId, establecimientoId, selectedSector, sistemaId, moduloId, contactoId,
     // Opciones para SmartSelect
-    clienteOptions, establecimientoOptions, contactoOptions,
-    sistemaOptions, moduloOptions,
+    clienteOptions, establecimientoOptions, sectorOptions,
+    contactoOptions, contactos, sistemaOptions, moduloOptions,
     // Loading
     loadingClientes, loadingEstablecimientos, loadingSistemas, loadingModulos,
     // Modo manual
     manualMode, toggleManualMode,
     // Acciones
-    selectCliente, selectEstablecimiento, selectContacto,
-    selectSistema, selectModulo,
+    selectCliente, selectEstablecimiento, selectSector,
+    selectContacto, selectSistema, selectModulo,
     // Utilidades
     tryMatchExistingData, reset,
   };

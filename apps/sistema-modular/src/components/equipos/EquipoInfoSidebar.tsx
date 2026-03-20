@@ -171,6 +171,17 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
         )}
       </div>
     </div>
+    <div>
+      <p className={lbl}>Contrato</p>
+      {sistema.enContrato ? (
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          En contrato
+        </span>
+      ) : (
+        <p className={val}>Per-Incident</p>
+      )}
+    </div>
     {sistema.observaciones && (
       <div>
         <p className={lbl}>Observaciones</p>
@@ -330,6 +341,16 @@ const EditForm: React.FC<EditFormProps> = ({
           className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"
         />
       </div>
+      {/* Contrato toggle */}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={!!formData.enContrato}
+          onChange={(e) => setFormData({ ...formData, enContrato: e.target.checked })}
+          className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+        />
+        <span className="text-xs text-slate-700 font-medium">En contrato</span>
+      </label>
     </div>
   );
 };

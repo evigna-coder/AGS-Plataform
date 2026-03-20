@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
-import { db, logAudit, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, logAudit, getCreateTrace, getUpdateTrace, deepCleanForFirestore } from './firebase';
 import { establecimientosService } from './establecimientosService';
 
 // Servicio para Categorías Equipo
@@ -276,18 +276,7 @@ export const modulosService = {
   async create(sistemaId: string, moduloData: Omit<ModuloSistema, 'id' | 'sistemaId'>) {
     console.log('📝 Creando módulo para sistema:', sistemaId);
 
-    // Helper para limpiar undefined (Firestore no acepta undefined)
-    const cleanData = (data: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          cleaned[key] = value === '' ? null : value;
-        }
-      }
-      return cleaned;
-    };
-
-    const cleanedData = cleanData({
+    const cleanedData = deepCleanForFirestore({
       ...moduloData,
       sistemaId,
       ubicaciones: moduloData.ubicaciones || [],
@@ -325,19 +314,8 @@ export const modulosService = {
 
   // Actualizar módulo
   async update(sistemaId: string, moduloId: string, data: Partial<Omit<ModuloSistema, 'id' | 'sistemaId'>>) {
-    // Helper para limpiar undefined (Firestore no acepta undefined)
-    const cleanData = (data: any): any => {
-      const cleaned: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          cleaned[key] = value === '' ? null : value;
-        }
-      }
-      return cleaned;
-    };
-
     const docRef = doc(db, 'sistemas', sistemaId, 'modulos', moduloId);
-    await updateDoc(docRef, cleanData(data));
+    await updateDoc(docRef, deepCleanForFirestore(data));
   },
 
   // Eliminar módulo

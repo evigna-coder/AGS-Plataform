@@ -389,7 +389,7 @@ export const CategoriasEquipo = () => {
                   Modelos ({formDataModulos.modelos.length})
                 </label>
                 
-                {/* Lista de modelos existentes */}
+                {/* Lista de modelos existentes (editable inline) */}
                 {formDataModulos.modelos.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {formDataModulos.modelos.map((modelo, index) => (
@@ -397,15 +397,31 @@ export const CategoriasEquipo = () => {
                         key={index}
                         className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200"
                       >
-                        <div className="flex-1">
-                          <span className="font-mono font-bold text-slate-900">{modelo.codigo}</span>
-                          {modelo.descripcion && (
-                            <span className="text-slate-600 ml-2">- {modelo.descripcion}</span>
-                          )}
-                        </div>
+                        <input
+                          type="text"
+                          value={modelo.codigo}
+                          onChange={(e) => {
+                            const updated = [...formDataModulos.modelos];
+                            updated[index] = { ...updated[index], codigo: e.target.value };
+                            setFormDataModulos({ ...formDataModulos, modelos: updated });
+                          }}
+                          className="w-32 shrink-0 font-mono font-bold text-slate-900 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                        />
+                        <span className="text-slate-400 text-sm">-</span>
+                        <input
+                          type="text"
+                          value={modelo.descripcion}
+                          onChange={(e) => {
+                            const updated = [...formDataModulos.modelos];
+                            updated[index] = { ...updated[index], descripcion: e.target.value };
+                            setFormDataModulos({ ...formDataModulos, modelos: updated });
+                          }}
+                          className="flex-1 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                          placeholder="Descripción"
+                        />
                         <button
                           onClick={() => handleRemoveModelo(index)}
-                          className="text-red-600 hover:text-red-800 font-bold text-sm px-2"
+                          className="text-red-600 hover:text-red-800 font-bold text-sm px-2 shrink-0"
                           type="button"
                         >
                           ×

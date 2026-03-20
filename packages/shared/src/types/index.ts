@@ -344,6 +344,8 @@ export interface Sistema {
   updatedByName?: string | null;
   /** ID visible legible para uso humano (ej: AGS-EQ-1043, CC-015). Asignado manualmente o auto-generado. */
   agsVisibleId?: string | null;
+  /** Si el sistema está cubierto por un contrato de servicio */
+  enContrato?: boolean;
 }
 
 // --- Motivo del llamado (Leads) ---
@@ -523,6 +525,18 @@ export interface TipoServicio {
   updatedAt: string;
 }
 
+// --- Adjunto Lead ---
+export interface AdjuntoLead {
+  id: string;
+  nombre: string;
+  url: string;
+  tipo: 'imagen' | 'archivo';
+  size: number; // bytes
+  fechaCarga: string;
+}
+
+export const LEAD_MAX_ADJUNTOS = 10;
+
 // --- Lead refinado ---
 export interface Lead {
   id: string;
@@ -553,6 +567,8 @@ export interface Lead {
   valorEstimado?: number | null;
   presupuestosIds?: string[];
   otIds?: string[];
+  /** Archivos adjuntos (fotos, documentos) — máximo 10 */
+  adjuntos?: AdjuntoLead[];
   /** Origen del lead: qr = sticker QR, portal = portal cliente, manual = creado manualmente */
   source?: 'qr' | 'portal' | 'manual' | null;
   /** ID AGS visible del sistema cuando el lead viene de un QR */
@@ -2201,6 +2217,7 @@ export interface EstablecimientoOption {
   direccion: string;
   localidad: string;
   provincia: string;
+  sectores?: string[];
 }
 
 export interface ContactoOption {
@@ -2208,6 +2225,7 @@ export interface ContactoOption {
   nombre: string;
   email: string;
   esPrincipal: boolean;
+  sector?: string;
 }
 
 export interface SistemaOption {
@@ -2215,6 +2233,7 @@ export interface SistemaOption {
   establecimientoId: string;
   nombre: string;
   codigoInternoCliente: string;
+  sector?: string | null;
 }
 
 export interface ModuloOption {

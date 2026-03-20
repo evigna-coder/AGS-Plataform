@@ -156,6 +156,7 @@ export const EquipoNew = () => {
         observaciones: formData.observaciones || undefined,
         configuracionGC: isGC ? gcConfig : null,
         activo: formData.activo,
+        enContrato: false,
         ubicaciones: [],
         otIds: [],
       });

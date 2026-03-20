@@ -88,7 +88,12 @@
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(grep -r postasServices*= 'c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\sistema-modular\\\\src' --include=*.ts --include=*.tsx)",
       "Bash(find 'c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform' -type f -name *.rules)",
-      "Bash(ls \"/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/\"tsconfig*)"
+      "Bash(ls \"/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/\"tsconfig*)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npx vite:*)",
+      "WebFetch(domain:www.agsanalitica.com)",
+      "Bash(find 'c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\reportes-ot\\\\utils' -type f -name *.ts)",
+      "Bash(pnpm --filter @ags/portal-ingeniero build)"
     ]
   }
 }

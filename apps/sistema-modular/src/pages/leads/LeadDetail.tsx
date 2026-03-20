@@ -10,6 +10,7 @@ import { LeadSidebar } from '../../components/leads/LeadSidebar';
 import { LeadTimeline } from '../../components/leads/LeadTimeline';
 import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
 import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
+import { LeadAdjuntosSection } from '../../components/leads/LeadAdjuntosSection';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
@@ -230,6 +231,14 @@ export const LeadDetail = () => {
                 </Card>
               )}
             </div>
+
+            {/* Adjuntos */}
+            <LeadAdjuntosSection
+              leadId={lead.id}
+              adjuntos={lead.adjuntos || []}
+              onUpdated={load}
+              readOnly={!isActive}
+            />
 
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (

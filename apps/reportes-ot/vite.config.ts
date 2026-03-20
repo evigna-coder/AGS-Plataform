@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
           '@shared': path.resolve(__dirname, '../../packages/shared/src'),
+          '@ags/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
         }
       }
     };

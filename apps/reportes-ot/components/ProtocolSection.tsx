@@ -70,7 +70,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
       className={
         isPreviewMode
           ? 'fixed -left-[9999px] top-0 w-[210mm] no-print pointer-events-none'
-          : 'max-w-5xl mx-auto mt-4 no-print'
+          : 'max-w-5xl mx-auto mt-4 no-print w-full'
       }
       aria-hidden={isPreviewMode}
     >
@@ -81,7 +81,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
       )}
       {/* Selector de tablas dinámicas del catálogo */}
       {!readOnly && catalogServiceTypes.has(tipoServicio) && (
-        <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2">
+        <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2">
           <TableSelectorPanel
             firebase={firebase}
             sysType={sistema || undefined}
@@ -99,7 +99,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
 
       {/* Tablas y checklists seleccionados (modo edición) */}
       {protocolSelections.length > 0 && (
-        <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
+        <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
           {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel =>
             sel.tableSnapshot.tableType === 'signatures' ? (
               <CatalogSignaturesView
@@ -155,7 +155,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
 
       {/* Instrumentos/patrones: solo visible cuando hay tablas seleccionadas */}
       {protocolSelections.length > 0 && (
-        <div className="mt-4 max-w-[calc(210mm+2rem)] mx-auto px-2">
+        <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2">
           <div className="flex items-center gap-2 mb-3">
             <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -189,10 +189,10 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
         </div>
       )}
 
-      {/* Anexo edición: scroll de página */}
-      <div className="mt-6 bg-[#f1f5f9] py-6 w-full flex justify-center overflow-x-auto overflow-y-visible max-w-[calc(210mm+2rem)] mx-auto px-2">
-        <div id="pdf-container-anexo" className="shrink-0 min-h-0" style={{ width: '210mm' }}>
-          {protocolTemplate ? (
+      {/* Anexo edición: scroll de página (solo si hay template) */}
+      {protocolTemplate && (
+        <div className="mt-6 bg-[#f1f5f9] py-6 w-full flex justify-center overflow-x-auto overflow-y-visible max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2">
+          <div id="pdf-container-anexo" className="shrink-0 min-h-0" style={{ width: '210mm' }}>
             <ProtocolView
               template={protocolTemplate}
               readOnly={readOnly}
@@ -204,13 +204,10 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
               showGuides={true}
               mode="edit"
             />
-          ) : protocolSelections.length === 0 ? (
-            <p className="text-[10px] text-slate-500 italic">
-              Este tipo de servicio no requiere protocolo. Podés agregar tablas del catálogo con el botón de arriba.
-            </p>
-          ) : null}
+          </div>
         </div>
-      </div>
+      )}
+
     </div>
   );
 };

@@ -19,6 +19,11 @@ service firebase.storage {
       allow read, write: if true; // ⚠️ Solo para desarrollo
     }
 
+    // Adjuntos de leads (fotos y archivos)
+    match /leads/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
     // Bloquear acceso a otras rutas
     match /{allPaths=**} {
       allow read, write: if false;
