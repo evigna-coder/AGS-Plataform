@@ -235,6 +235,7 @@ export interface CategoriaEquipo {
 export interface ModeloModulo {
   codigo: string; // ej: G1311A
   descripcion: string; // ej: Bomba Cuaternaria
+  marca?: string; // ej: Agilent
 }
 
 // --- Categorías de módulos (catálogo) ---
@@ -308,6 +309,7 @@ export interface ModuloSistema {
   id: string;
   sistemaId: string;
   nombre: string; // Bomba, Inyector, Detector
+  marca?: string;
   descripcion?: string;
   serie?: string;
   firmware?: string;
@@ -2240,6 +2242,7 @@ export interface ModuloOption {
   id: string;
   sistemaId: string;
   nombre: string;
+  marca?: string;
   descripcion?: string;
   serie?: string;
 }

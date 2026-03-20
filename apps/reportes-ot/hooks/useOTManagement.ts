@@ -27,6 +27,7 @@ interface DuplicateNewState {
   provincia: string;
   sistema: string;
   moduloModelo: string;
+  moduloMarca: string;
   moduloDescripcion: string;
   moduloSerie: string;
   codigoInternoCliente: string;
@@ -93,6 +94,7 @@ export const useOTManagement = (
     provincia,
     sistema,
     moduloModelo,
+    moduloMarca,
     moduloDescripcion,
     moduloSerie,
     codigoInternoCliente,
@@ -123,6 +125,7 @@ export const useOTManagement = (
     setEmailPrincipal,
     setSistema,
     setModuloModelo,
+    setModuloMarca,
     setModuloDescripcion,
     setModuloSerie,
     setCodigoInternoCliente,
@@ -199,6 +202,7 @@ export const useOTManagement = (
         setProvincia(data.provincia || '');
         setSistema(data.sistema || '');
         setModuloModelo(data.moduloModelo || '');
+        setModuloMarca(data.moduloMarca || '');
         setModuloDescripcion(data.moduloDescripcion || '');
         setModuloSerie(data.moduloSerie || '');
         setCodigoInternoCliente(data.codigoInternoCliente || '');
@@ -324,6 +328,7 @@ export const useOTManagement = (
     setProvincia('');
     setSistema('');
     setModuloModelo('');
+    setModuloMarca('');
     setModuloDescripcion('');
     setModuloSerie('');
     setCodigoInternoCliente('');
@@ -418,6 +423,7 @@ export const useOTManagement = (
       provincia: options.copyClientEquipment ? provincia : '',
       sistema: options.copyClientEquipment ? sistema : '',
       moduloModelo: options.copyClientEquipment ? moduloModelo : '',
+      moduloMarca: options.copyClientEquipment ? moduloMarca : '',
       moduloDescripcion: options.copyClientEquipment ? moduloDescripcion : '',
       moduloSerie: options.copyClientEquipment ? moduloSerie : '',
       codigoInternoCliente: options.copyClientEquipment ? codigoInternoCliente : '',
@@ -451,6 +457,7 @@ export const useOTManagement = (
     setProvincia(newState.provincia);
     setSistema(newState.sistema);
     setModuloModelo(newState.moduloModelo);
+    setModuloMarca(newState.moduloMarca);
     setModuloDescripcion(newState.moduloDescripcion);
     setModuloSerie(newState.moduloSerie);
     setCodigoInternoCliente(newState.codigoInternoCliente);

@@ -62,6 +62,8 @@ interface PreviewSectionProps {
   sistema: string;
   codigoInternoCliente: string;
   moduloModelo: string;
+  moduloDescripcion: string;
+  moduloMarca: string;
   moduloSerie: string;
   fechaInicio: string;
   fechaFin: string;
@@ -97,7 +99,7 @@ interface PreviewSectionProps {
 export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
   const {
     otNumber, razonSocial, contacto, fullDireccion,
-    sistema, codigoInternoCliente, moduloModelo, moduloSerie,
+    sistema, codigoInternoCliente, moduloModelo, moduloDescripcion, moduloMarca, moduloSerie,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje,
     tipoServicio, reporteTecnico, articulos, accionesTomar, budgets,
     esFacturable, tieneContrato, esGarantia,
@@ -165,7 +167,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
                   <div className="space-y-0.5 text-[10px]">
                     <p className="text-slate-800 font-black uppercase text-[12px] truncate">Sistema: {sistema || "S/D"}</p>
                     <p className="text-slate-600"><span className="font-bold">Id - Código interno:</span> {codigoInternoCliente || "S/D"}</p>
-                    <p className="text-slate-600"><span className="font-bold">Modelo:</span> {moduloModelo || "S/D"}</p>
+                    <p className="text-slate-600"><span className="font-bold">Modelo:</span> {moduloModelo || "S/D"}{moduloDescripcion ? `, ${moduloDescripcion}` : ''}{moduloMarca ? `, Marca: ${moduloMarca}` : ''}</p>
                     <p className="text-slate-600 font-mono"><span className="font-bold">S/N:</span> {moduloSerie || "S/D"}</p>
                   </div>
                 </div>

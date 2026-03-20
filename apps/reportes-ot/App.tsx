@@ -97,6 +97,7 @@ const App: React.FC = () => {
               sistema={app.sistema} setSistema={app.setSistema}
               codigoInternoCliente={app.codigoInternoCliente} setCodigoInternoCliente={app.setCodigoInternoCliente}
               moduloModelo={app.moduloModelo} setModuloModelo={app.setModuloModelo}
+              moduloMarca={app.moduloMarca} setModuloMarca={app.setModuloMarca}
               moduloDescripcion={app.moduloDescripcion} setModuloDescripcion={app.setModuloDescripcion}
               moduloSerie={app.moduloSerie} setModuloSerie={app.setModuloSerie}
               fechaInicio={app.fechaInicio} setFechaInicio={app.setFechaInicio}
@@ -337,6 +338,7 @@ const App: React.FC = () => {
               sistema={app.sistema} setSistema={app.setSistema}
               codigoInternoCliente={app.codigoInternoCliente} setCodigoInternoCliente={app.setCodigoInternoCliente}
               moduloModelo={app.moduloModelo} setModuloModelo={app.setModuloModelo}
+              moduloMarca={app.moduloMarca} setModuloMarca={app.setModuloMarca}
               moduloDescripcion={app.moduloDescripcion} setModuloDescripcion={app.setModuloDescripcion}
               moduloSerie={app.moduloSerie} setModuloSerie={app.setModuloSerie}
               fechaInicio={app.fechaInicio} setFechaInicio={app.setFechaInicio}
@@ -452,7 +454,7 @@ const App: React.FC = () => {
             otNumber={app.otNumber} razonSocial={app.razonSocial}
             contacto={app.contacto} fullDireccion={fullDireccion}
             sistema={app.sistema} codigoInternoCliente={app.codigoInternoCliente}
-            moduloModelo={app.moduloModelo} moduloSerie={app.moduloSerie}
+            moduloModelo={app.moduloModelo} moduloDescripcion={app.moduloDescripcion} moduloMarca={app.moduloMarca} moduloSerie={app.moduloSerie}
             fechaInicio={app.fechaInicio} fechaFin={app.fechaFin}
             horaInicio={app.horaInicio} horaFin={app.horaFin}
             horasTrabajadas={app.horasTrabajadas} tiempoViaje={app.tiempoViaje}

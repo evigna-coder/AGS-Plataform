@@ -21,6 +21,7 @@ export interface ModuloFormData {
   categoriaModuloId: string;
   modeloCodigo: string;
   nombre: string;
+  marca: string;
   descripcion: string;
   serie: string;
   firmware: string;
@@ -31,6 +32,7 @@ const emptyForm: ModuloFormData = {
   categoriaModuloId: '',
   modeloCodigo: '',
   nombre: '',
+  marca: '',
   descripcion: '',
   serie: '',
   firmware: '',
@@ -72,6 +74,7 @@ export const ModulosList: React.FC<ModulosListProps> = ({
       categoriaModuloId: categoriaId,
       modeloCodigo,
       nombre: modulo.nombre,
+      marca: modulo.marca || '',
       descripcion: modulo.descripcion || '',
       serie: modulo.serie || '',
       firmware: modulo.firmware || '',
@@ -150,6 +153,7 @@ const ModuloRow: React.FC<{ modulo: ModuloSistema; onEdit: () => void; onDelete:
       <p className="text-xs font-semibold text-slate-900 tracking-tight">{modulo.nombre}</p>
       {modulo.descripcion && <p className="text-[11px] text-slate-500 mt-0.5">{modulo.descripcion}</p>}
       <div className="flex gap-3 mt-1 text-[11px] text-slate-400">
+        {modulo.marca && <span>Marca: <span className="font-medium text-slate-500">{modulo.marca}</span></span>}
         {modulo.serie && <span>Serie: <span className="font-medium text-slate-500">{modulo.serie}</span></span>}
         {modulo.firmware && <span>FW: <span className="font-medium text-slate-500">{modulo.firmware}</span></span>}
       </div>
@@ -182,7 +186,7 @@ const ModuloModal: React.FC<{
             <label className={lbl}>Categoria de Modulo</label>
             <SearchableSelect
               value={form.categoriaModuloId}
-              onChange={(value) => setForm({ ...form, categoriaModuloId: value, modeloCodigo: '', nombre: '', descripcion: '' })}
+              onChange={(value) => setForm({ ...form, categoriaModuloId: value, modeloCodigo: '', nombre: '', marca: '', descripcion: '' })}
               options={categoriasModulos.map(cat => ({ value: cat.id, label: cat.nombre }))}
               placeholder="Seleccionar categoria (opcional)..."
             />
@@ -201,6 +205,7 @@ const ModuloModal: React.FC<{
                       ...form,
                       modeloCodigo: value,
                       nombre: modelo?.codigo || '',
+                      marca: modelo?.marca || form.marca,
                       descripcion: modelo?.descripcion || '',
                     });
                   }}
@@ -227,6 +232,10 @@ const ModuloModal: React.FC<{
             </>
           )}
 
+          <div>
+            <label className={lbl}>Marca</label>
+            <Input inputSize="sm" value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })} placeholder="Ej: Agilent, Shimadzu..." />
+          </div>
           <div>
             <label className={lbl}>Numero de Serie</label>
             <Input inputSize="sm" value={form.serie} onChange={(e) => setForm({ ...form, serie: e.target.value })} />

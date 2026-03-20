@@ -104,7 +104,10 @@
       "Bash(node sync-modulo-desc.mjs)",
       "Bash(find '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/pages/leads' -type f -name *.ts -o -name *.tsx)",
       "Bash(find '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components/leads' -type f -name *.ts -o -name *.tsx)",
-      "Bash(node assign-est-sector.mjs)"
+      "Bash(node assign-est-sector.mjs)",
+      "Bash(find apps/reportes-ot/src -name *.ts)",
+      "Bash(grep -n \"marca\" apps/reportes-ot/types/*.ts)",
+      "Bash(pnpm --filter reportes-ot build)"
     ]
   }
 }

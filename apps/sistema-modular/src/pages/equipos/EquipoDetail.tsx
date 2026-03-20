@@ -123,6 +123,7 @@ export const EquipoDetail = () => {
     const clean = (v: any) => (v === '' || v == null ? null : v);
     const data = {
       nombre: nombreFinal,
+      marca: clean(form.marca),
       descripcion: clean(descripcionFinal),
       serie: clean(form.serie),
       firmware: clean(form.firmware),

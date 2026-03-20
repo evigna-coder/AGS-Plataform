@@ -28,6 +28,7 @@ export interface ReportFormState {
   // Equipo
   sistema: string;
   moduloModelo: string;
+  moduloMarca: string;
   moduloDescripcion: string;
   moduloSerie: string;
   codigoInternoCliente: string;
@@ -76,6 +77,7 @@ export interface ReportState {
   provincia: string;
   sistema: string;
   moduloModelo: string;
+  moduloMarca: string;
   moduloDescripcion: string;
   moduloSerie: string;
   codigoInternoCliente: string;
@@ -122,6 +124,7 @@ export interface UseReportFormReturn {
     setEmailPrincipal: (value: string) => void;
     setSistema: (value: string) => void;
     setModuloModelo: (value: string) => void;
+    setModuloMarca: (value: string) => void;
     setModuloDescripcion: (value: string) => void;
     setModuloSerie: (value: string) => void;
     setCodigoInternoCliente: (value: string) => void;
@@ -171,6 +174,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [provincia, setProvincia] = useState('');
   const [sistema, setSistema] = useState('');
   const [moduloModelo, setModuloModelo] = useState('');
+  const [moduloMarca, setModuloMarca] = useState('');
   const [moduloDescripcion, setModuloDescripcion] = useState('');
   const [moduloSerie, setModuloSerie] = useState('');
   const [codigoInternoCliente, setCodigoInternoCliente] = useState('');
@@ -214,7 +218,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const reportState = useMemo(() => ({
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
-    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
+    moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
@@ -223,7 +227,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
-    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
+    moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
@@ -249,6 +253,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     emailPrincipal,
     sistema,
     moduloModelo,
+    moduloMarca,
     moduloDescripcion,
     moduloSerie,
     codigoInternoCliente,
@@ -291,6 +296,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setEmailPrincipal,
       setSistema,
       setModuloModelo,
+      setModuloMarca,
       setModuloDescripcion,
       setModuloSerie,
       setCodigoInternoCliente,

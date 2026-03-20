@@ -25,7 +25,7 @@ export const CategoriasEquipo = () => {
   const [showModalModulos, setShowModalModulos] = useState(false);
   const [editingModulo, setEditingModulo] = useState<CategoriaModulo | null>(null);
   const [formDataModulos, setFormDataModulos] = useState({ nombre: '', modelos: [] as ModeloModulo[] });
-  const [nuevoModelo, setNuevoModelo] = useState({ codigo: '', descripcion: '' });
+  const [nuevoModelo, setNuevoModelo] = useState({ codigo: '', descripcion: '', marca: '' });
   
   const [loading, setLoading] = useState(true);
 
@@ -113,10 +113,11 @@ export const CategoriasEquipo = () => {
       ...formDataModulos,
       modelos: [...formDataModulos.modelos, {
         codigo: nuevoModelo.codigo.trim(),
-        descripcion: nuevoModelo.descripcion.trim() || nuevoModelo.codigo.trim()
+        descripcion: nuevoModelo.descripcion.trim() || nuevoModelo.codigo.trim(),
+        ...(nuevoModelo.marca.trim() ? { marca: nuevoModelo.marca.trim() } : {}),
       }]
     });
-    setNuevoModelo({ codigo: '', descripcion: '' });
+    setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
   };
 
   const handleRemoveModelo = (index: number) => {
@@ -152,7 +153,7 @@ export const CategoriasEquipo = () => {
       setShowModalModulos(false);
       setEditingModulo(null);
       setFormDataModulos({ nombre: '', modelos: [] });
-      setNuevoModelo({ codigo: '', descripcion: '' });
+      setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
     } catch (error) {
       console.error('Error guardando categoría de módulo:', error);
       alert('Error al guardar la categoría de módulo');
@@ -162,7 +163,7 @@ export const CategoriasEquipo = () => {
   const handleEditModulo = (categoria: CategoriaModulo) => {
     setEditingModulo(categoria);
     setFormDataModulos({ nombre: categoria.nombre, modelos: [...categoria.modelos] });
-    setNuevoModelo({ codigo: '', descripcion: '' });
+    setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
     setShowModalModulos(true);
   };
 
@@ -273,7 +274,7 @@ export const CategoriasEquipo = () => {
         <Card>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-slate-900">Categorías de Módulos</h3>
-            <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '' }); setShowModalModulos(true); }}>
+            <Button onClick={() => { setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '', marca: '' }); setShowModalModulos(true); }}>
               + Nueva Categoría
             </Button>
           </div>
@@ -419,6 +420,18 @@ export const CategoriasEquipo = () => {
                           className="flex-1 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
                           placeholder="Descripción"
                         />
+                        <span className="text-slate-400 text-sm">-</span>
+                        <input
+                          type="text"
+                          value={modelo.marca || ''}
+                          onChange={(e) => {
+                            const updated = [...formDataModulos.modelos];
+                            updated[index] = { ...updated[index], marca: e.target.value };
+                            setFormDataModulos({ ...formDataModulos, modelos: updated });
+                          }}
+                          className="w-28 shrink-0 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                          placeholder="Marca"
+                        />
                         <button
                           onClick={() => handleRemoveModelo(index)}
                           className="text-red-600 hover:text-red-800 font-bold text-sm px-2 shrink-0"
@@ -434,7 +447,7 @@ export const CategoriasEquipo = () => {
                 {/* Formulario para agregar nuevo modelo */}
                 <div className="border border-slate-300 rounded-lg p-3 bg-white">
                   <p className="text-xs font-medium text-slate-600 mb-2">Agregar Nuevo Modelo</p>
-                  <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="grid grid-cols-3 gap-2 mb-2">
                     <div>
                       <Input
                         value={nuevoModelo.codigo}
@@ -453,6 +466,19 @@ export const CategoriasEquipo = () => {
                         value={nuevoModelo.descripcion}
                         onChange={(e) => setNuevoModelo({ ...nuevoModelo, descripcion: e.target.value })}
                         placeholder="Descripción (ej: Bomba Cuaternaria)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddModelo();
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        value={nuevoModelo.marca}
+                        onChange={(e) => setNuevoModelo({ ...nuevoModelo, marca: e.target.value })}
+                        placeholder="Marca (ej: Agilent)"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -480,7 +506,7 @@ export const CategoriasEquipo = () => {
                   setShowModalModulos(false);
                   setEditingModulo(null);
                   setFormDataModulos({ nombre: '', modelos: [] });
-                  setNuevoModelo({ codigo: '', descripcion: '' });
+                  setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
                 }}
               >
                 Cancelar

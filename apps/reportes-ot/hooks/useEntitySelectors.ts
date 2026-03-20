@@ -15,6 +15,7 @@ interface FormSetters {
   setSistema: (v: string) => void;
   setCodigoInternoCliente: (v: string) => void;
   setModuloModelo: (v: string) => void;
+  setModuloMarca: (v: string) => void;
   setModuloDescripcion: (v: string) => void;
   setModuloSerie: (v: string) => void;
 }
@@ -129,6 +130,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setters.setSistema('');
     setters.setCodigoInternoCliente('');
     setters.setModuloModelo('');
+    setters.setModuloMarca('');
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
@@ -174,6 +176,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setters.setSistema('');
     setters.setCodigoInternoCliente('');
     setters.setModuloModelo('');
+    setters.setModuloMarca('');
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
@@ -223,6 +226,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setters.setSistema('');
     setters.setCodigoInternoCliente('');
     setters.setModuloModelo('');
+    setters.setModuloMarca('');
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
@@ -269,6 +273,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setModuloId(null);
     setModulos([]);
     setters.setModuloModelo('');
+    setters.setModuloMarca('');
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
@@ -289,6 +294,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     if (!mod) return;
     setModuloId(id);
     setters.setModuloModelo(mod.nombre || '');
+    setters.setModuloMarca(mod.marca || '');
     setters.setModuloDescripcion(mod.descripcion || '');
     setters.setModuloSerie(mod.serie || '');
   }, [modulos, setters]);
@@ -299,7 +305,11 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
   }, []);
 
   // ── Intentar match con datos existentes (al cargar OT) ──
-  const tryMatchExistingData = useCallback(async (razonSocial: string) => {
+  // Reconstruye la cadena de selección sin limpiar los campos del formulario
+  const tryMatchExistingData = useCallback(async (
+    razonSocial: string,
+    formData?: { direccion?: string; sistema?: string; moduloModelo?: string },
+  ) => {
     if (!razonSocial.trim()) return;
 
     // Asegurar que los clientes estén cargados
@@ -320,14 +330,70 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
       c => c.razonSocial.toLowerCase().trim() === razonSocial.toLowerCase().trim()
     );
 
-    if (match) {
-      setClienteId(match.id);
-      // Cargar establecimientos sin limpiar campos (ya están hydrated)
-      const estabs = await firebase.getEstablecimientosByCliente(match.id);
-      setEstablecimientos(estabs);
-    } else {
-      // No match → modo manual
+    if (!match) {
       setManualMode(prev => ({ ...prev, cliente: true }));
+      return;
+    }
+
+    setClienteId(match.id);
+    const estabs = await firebase.getEstablecimientosByCliente(match.id);
+    setEstablecimientos(estabs);
+
+    // Intentar match del establecimiento por dirección
+    if (!formData?.direccion || estabs.length === 0) return;
+    const estabMatch = estabs.find(
+      e => e.direccion?.toLowerCase().trim() === formData.direccion!.toLowerCase().trim()
+    ) || (estabs.length === 1 ? estabs[0] : null);
+    if (!estabMatch) return;
+
+    setEstablecimientoId(estabMatch.id);
+    const estabSectores = estabMatch.sectores?.filter(Boolean) || [];
+    setSectores(estabSectores);
+
+    // Cargar contactos y sistemas
+    const [conts, syss] = await Promise.all([
+      firebase.getContactosByEstablecimiento(estabMatch.id),
+      firebase.getSistemasByEstablecimiento(estabMatch.id),
+    ]);
+    setAllContactos(conts);
+    setAllSistemas(syss);
+
+    // Si hay sectores, filtrar por sector del sistema; si no, mostrar todo
+    let visibleSistemas = syss;
+    let visibleContactos = conts;
+    if (estabSectores.length > 0 && formData.sistema) {
+      const sysMatch = syss.find(
+        s => s.nombre.toLowerCase().trim() === formData.sistema!.toLowerCase().trim()
+      );
+      if (sysMatch?.sector) {
+        setSelectedSector(sysMatch.sector);
+        visibleSistemas = syss.filter(s => s.sector === sysMatch.sector);
+        visibleContactos = conts.filter(c => c.sector === sysMatch.sector);
+      }
+    }
+    setContactos(visibleContactos);
+    setSistemas(visibleSistemas);
+
+    // Intentar match del sistema
+    if (!formData.sistema) return;
+    const sysMatch = visibleSistemas.find(
+      s => s.nombre.toLowerCase().trim() === formData.sistema!.toLowerCase().trim()
+    );
+    if (!sysMatch) return;
+
+    setSistemaId(sysMatch.id);
+
+    // Cargar módulos
+    const mods = await firebase.getModulosBySistema(sysMatch.id);
+    setModulos(mods);
+
+    // Intentar match del módulo
+    if (!formData.moduloModelo) return;
+    const modMatch = mods.find(
+      m => m.nombre?.toLowerCase().trim() === formData.moduloModelo!.toLowerCase().trim()
+    );
+    if (modMatch) {
+      setModuloId(modMatch.id);
     }
   }, [clientes, firebase]);
 

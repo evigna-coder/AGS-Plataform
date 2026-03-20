@@ -59,7 +59,7 @@ export function useAppLogic(
     otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
     esFacturable, tieneContrato, esGarantia, razonSocial, contacto,
     direccion, localidad, provincia, emailPrincipal, sistema,
-    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
+    moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
@@ -120,13 +120,16 @@ export function useAppLogic(
     let cancelled = false;
     const loadTables = async () => {
       try {
-        const allTables = await firebase.getPublishedTables(sistema || undefined);
+        // Traer todas las tablas publicadas (sin filtrar por sysType en Firebase)
+        // y filtrar localmente por modelos y tipoServicio
+        const allTables = await firebase.getPublishedTables();
         if (cancelled) return;
+        const sistemaLower = sistema.toLowerCase().trim();
         // Tablas sin tipoServicio asignado aparecen siempre; las demás solo si coinciden
-        // Tablas sin modelos asignados aparecen siempre; las demás solo si el modelo coincide
+        // Tablas sin modelos asignados aparecen siempre; las demás solo si algún modelo coincide (case-insensitive)
         const matchingTables = allTables.filter(t =>
           (!t.tipoServicio || t.tipoServicio.length === 0 || t.tipoServicio.includes(tipoServicio))
-          && (!t.modelos || t.modelos.length === 0 || t.modelos.includes(sistema))
+          && (!t.modelos || t.modelos.length === 0 || t.modelos.some(m => m.toLowerCase().trim() === sistemaLower))
         );
         setSuggestedTables(matchingTables.sort((a, b) => (a.orden || 999) - (b.orden || 999)));
       } catch (err) {
@@ -153,7 +156,7 @@ export function useAppLogic(
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
     setTipoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
     setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
-    setEmailPrincipal, setSistema, setModuloModelo, setModuloDescripcion,
+    setEmailPrincipal, setSistema, setModuloModelo, setModuloMarca, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
@@ -329,7 +332,11 @@ export function useAppLogic(
   const prevOtRef = useRef<string>('');
   useEffect(() => {
     if (otNumber && otNumber !== prevOtRef.current && hasInitialized.current && razonSocial) {
-      entitySelectors.tryMatchExistingData(razonSocial).catch(() => {});
+      entitySelectors.tryMatchExistingData(razonSocial, {
+        direccion,
+        sistema,
+        moduloModelo,
+      }).catch(() => {});
     }
     prevOtRef.current = otNumber;
   }, [otNumber]);
@@ -768,7 +775,7 @@ export function useAppLogic(
     otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
     esFacturable, tieneContrato, esGarantia, razonSocial, contacto,
     direccion, localidad, provincia, emailPrincipal, sistema,
-    moduloModelo, moduloDescripcion, moduloSerie, codigoInternoCliente,
+    moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje,
     reporteTecnico, accionesTomar, articulos,
     signatureEngineer, aclaracionEspecialista,
@@ -790,7 +797,7 @@ export function useAppLogic(
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
     setTipoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
     setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
-    setEmailPrincipal, setSistema, setModuloModelo, setModuloDescripcion,
+    setEmailPrincipal, setSistema, setModuloModelo, setModuloMarca, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje,
     setReporteTecnico, setAccionesTomar,

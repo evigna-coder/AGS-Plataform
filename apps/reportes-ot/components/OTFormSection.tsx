@@ -85,6 +85,8 @@ interface OTFormSectionProps {
   setCodigoInternoCliente: (v: string) => void;
   moduloModelo: string;
   setModuloModelo: (v: string) => void;
+  moduloMarca: string;
+  setModuloMarca: (v: string) => void;
   moduloDescripcion: string;
   setModuloDescripcion: (v: string) => void;
   moduloSerie: string;
@@ -119,8 +121,8 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
   razonSocial, setRazonSocial, contacto, setContacto, emailPrincipal, setEmailPrincipal,
   direccion, setDireccion, localidad, setLocalidad, provincia, setProvincia,
   sistema, setSistema, codigoInternoCliente, setCodigoInternoCliente,
-  moduloModelo, setModuloModelo, moduloDescripcion, setModuloDescripcion,
-  moduloSerie, setModuloSerie,
+  moduloModelo, setModuloModelo, moduloMarca, setModuloMarca,
+  moduloDescripcion, setModuloDescripcion, moduloSerie, setModuloSerie,
   fechaInicio, setFechaInicio, fechaFin, setFechaFin,
   fechaInicioDisplay, setFechaInicioDisplay, fechaFinDisplay, setFechaFinDisplay,
   horaInicio, setHoraInicio, horaFin, setHoraFin,
@@ -407,7 +409,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <input
               type="text"
               value={moduloModelo}
@@ -422,6 +424,15 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
               value={moduloDescripcion}
               placeholder="Descripción"
               onChange={(e) => { if (readOnly) return; setModuloDescripcion(e.target.value); }}
+              disabled={readOnly}
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm
+                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+            />
+            <input
+              type="text"
+              value={moduloMarca}
+              placeholder="Marca"
+              onChange={(e) => { if (readOnly) return; setModuloMarca(e.target.value); }}
               disabled={readOnly}
               className={`w-full border rounded-lg px-3 py-1.5 text-sm
                 ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
@@ -570,10 +581,16 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             <label className="text-[9px] font-bold text-slate-400 uppercase">Hora inicio</label>
             <input
               type="time"
+              step="900"
               value={horaInicio}
               onChange={(e) => {
                 if (readOnly) return;
-                setHoraInicio(e.target.value);
+                const v = e.target.value;
+                if (v) {
+                  const [h, m] = v.split(':').map(Number);
+                  const snapped = Math.round(m / 15) * 15;
+                  setHoraInicio(`${String(h + (snapped === 60 ? 1 : 0)).padStart(2, '0')}:${String(snapped % 60).padStart(2, '0')}`);
+                } else setHoraInicio(v);
               }}
               disabled={readOnly}
               className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
@@ -585,10 +602,16 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             <label className="text-[9px] font-bold text-slate-400 uppercase">Hora fin</label>
             <input
               type="time"
+              step="900"
               value={horaFin}
               onChange={(e) => {
                 if (readOnly) return;
-                setHoraFin(e.target.value);
+                const v = e.target.value;
+                if (v) {
+                  const [h, m] = v.split(':').map(Number);
+                  const snapped = Math.round(m / 15) * 15;
+                  setHoraFin(`${String(h + (snapped === 60 ? 1 : 0)).padStart(2, '0')}:${String(snapped % 60).padStart(2, '0')}`);
+                } else setHoraFin(v);
               }}
               disabled={readOnly}
               className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono

@@ -58,9 +58,10 @@ export const TableSelectorPanel: React.FC<Props> = ({
     if (availableTables.length > 0) return;
     setLoading(true);
     try {
-      const tables = await firebase.getPublishedTables(sysType || undefined);
-      const filtered = modeloEquipo
-        ? tables.filter(t => !t.modelos || t.modelos.length === 0 || t.modelos.includes(modeloEquipo))
+      const tables = await firebase.getPublishedTables();
+      const modeloLower = modeloEquipo?.toLowerCase().trim();
+      const filtered = modeloLower
+        ? tables.filter(t => !t.modelos || t.modelos.length === 0 || t.modelos.some(m => m.toLowerCase().trim() === modeloLower))
         : tables;
       setAvailableTables(filtered.sort((a, b) => (a.orden || 999) - (b.orden || 999)));
       const already = new Set(existingSelections.map(s => s.tableId));
