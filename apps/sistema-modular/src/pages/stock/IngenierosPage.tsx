@@ -170,7 +170,7 @@ export const IngenierosPage = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
           </label>
         </div>
@@ -222,7 +222,7 @@ export const IngenierosPage = () => {
                       <span className="font-medium text-slate-900 text-xs">{ing.nombre}</span>
                       <div className="flex flex-wrap gap-2 mt-0.5 text-[11px] text-slate-400">
                         {ing.area && <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{AREA_LABELS[ing.area]}</span>}
-                        {ing.usuarioId && <span className="text-[10px] font-medium bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">Vinculado</span>}
+                        {ing.usuarioId && <span className="text-[10px] font-medium bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded">Vinculado</span>}
                         {ing.email && <span>{ing.email}</span>}
                         {ing.telefono && <span>{ing.telefono}</span>}
                       </div>
@@ -230,7 +230,7 @@ export const IngenierosPage = () => {
                   )}
                   {editingId !== ing.id && (
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => startEdit(ing)} className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
+                      <button onClick={() => startEdit(ing)} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
                       <button onClick={() => handleToggle(ing)}
                         className={`font-medium text-[11px] ${ing.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
                         {ing.activo ? 'Desactivar' : 'Activar'}

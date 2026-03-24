@@ -76,7 +76,7 @@ export const OCStatusTransition: React.FC<Props> = ({ oc, open, onClose, onUpdat
             <select
               value={newEstado}
               onChange={e => setNewEstado(e.target.value as EstadoOC)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="">Seleccionar estado...</option>
               {allowedStates.map(s => (

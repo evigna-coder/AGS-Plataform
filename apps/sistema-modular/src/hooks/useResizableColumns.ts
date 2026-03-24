@@ -18,7 +18,7 @@ import { useRef, useState, useCallback } from 'react';
  *         <th className="relative ...">
  *           Label
  *           <div onMouseDown={e => onResizeStart(0, e)}
- *                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" />
+ *                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
  *         </th>
  *       </tr>
  *     </thead>

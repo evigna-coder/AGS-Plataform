@@ -1,83 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService } from '../services/firebaseService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, OTEstadoHistorial, UsuarioAGS, CierreAdministrativo } from '@ags/shared';
+import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, UsuarioAGS } from '@ags/shared';
+import { OT_ESTADO_ORDER } from '@ags/shared';
+import { useOTFormState } from './useOTFormState';
 
 export function useOTDetail(otNumber?: string) {
   const navigate = useNavigate();
+  const { form, setField, setFields, markInteracted, hasUserInteracted, loadFromOT, buildSavePayload, validate } = useOTFormState();
 
-  // Related data
+  // Related entities
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [sistema, setSistema] = useState<Sistema | null>(null);
   const [modulo, setModulo] = useState<ModuloSistema | null>(null);
   const [items, setItems] = useState<WorkOrder[]>([]);
-  const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   // Select lists
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [modulosFiltrados, setModulosFiltrados] = useState<ModuloSistema[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
-
-  // Editable fields
-  const [razonSocial, setRazonSocial] = useState('');
-  const [contacto, setContacto] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [localidad, setLocalidad] = useState('');
-  const [provincia, setProvincia] = useState('');
-  const [emailPrincipal, setEmailPrincipal] = useState('');
-  const [sistemaNombre, setSistemaNombre] = useState('');
-  const [codigoInternoCliente, setCodigoInternoCliente] = useState('');
-  const [moduloModelo, setModuloModelo] = useState('');
-  const [moduloDescripcion, setModuloDescripcion] = useState('');
-  const [moduloSerie, setModuloSerie] = useState('');
-  const [tipoServicio, setTipoServicio] = useState('');
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [fechaFin, setFechaFin] = useState('');
-  const [horasTrabajadas, setHorasTrabajadas] = useState('');
-  const [tiempoViaje, setTiempoViaje] = useState('');
-  const [reporteTecnico, setReporteTecnico] = useState('');
-  const [accionesTomar, setAccionesTomar] = useState('');
-  const [articulos, setArticulos] = useState<Part[]>([]);
-  const [budgets, setBudgets] = useState<string[]>(['']);
-  const [esFacturable, setEsFacturable] = useState(false);
-  const [tieneContrato, setTieneContrato] = useState(false);
-  const [esGarantia, setEsGarantia] = useState(false);
-  const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
-  const [aclaracionCliente, setAclaracionCliente] = useState('');
-  const [aclaracionEspecialista, setAclaracionEspecialista] = useState('');
-  const [materialesParaServicio, setMaterialesParaServicio] = useState('');
-  const [problemaFallaInicial, setProblemaFallaInicial] = useState('');
-
-  // Admin workflow
-  const [estadoAdmin, setEstadoAdmin] = useState<OTEstadoAdmin>('CREADA');
-  const [estadoAdminFecha, setEstadoAdminFecha] = useState('');
-  const [estadoHistorial, setEstadoHistorial] = useState<OTEstadoHistorial[]>([]);
-  const [ordenCompra, setOrdenCompra] = useState('');
-  const [fechaServicioAprox, setFechaServicioAprox] = useState('');
-  const [ingenieroAsignadoId, setIngenieroAsignadoId] = useState<string | null>(null);
-  const [ingenieroAsignadoNombre, setIngenieroAsignadoNombre] = useState<string | null>(null);
+  const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
   const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
 
-  // Cierre administrativo
-  const defaultCierre: CierreAdministrativo = {
-    horasConfirmadas: false, partesConfirmadas: false,
-    stockDeducido: false, avisoAdminEnviado: false,
-  };
-  const [cierreAdmin, setCierreAdmin] = useState<CierreAdministrativo>(defaultCierre);
-
-  // IDs
-  const [clienteId, setClienteId] = useState<string | undefined>();
-  const [sistemaId, setSistemaId] = useState<string | undefined>();
-  const [moduloId, setModuloId] = useState<string | undefined>();
-
-  // Autosave
-  const hasUserInteracted = useRef(false);
+  // UI
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // New item modal
@@ -86,37 +35,8 @@ export function useOTDetail(otNumber?: string) {
     necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '',
   });
 
+  // ── Load ──────────────────────────────────────────────────────
   useEffect(() => { if (otNumber) loadData(); }, [otNumber]);
-
-  useEffect(() => {
-    if (clienteId) {
-      setSistemasFiltrados(sistemas.filter(s => s.clienteId === clienteId));
-      contactosService.getByCliente(clienteId).then(setContactos).catch(() => setContactos([]));
-    } else { setSistemasFiltrados([]); setContactos([]); }
-  }, [clienteId, sistemas]);
-
-  useEffect(() => {
-    if (sistemaId) {
-      modulosService.getBySistema(sistemaId).then(d => { setModulos(d); setModulosFiltrados(d); }).catch(() => setModulosFiltrados([]));
-    } else { setModulosFiltrados([]); }
-  }, [sistemaId]);
-
-  // Autosave debounce
-  useEffect(() => {
-    if (!hasUserInteracted.current || !otNumber || loading) return;
-    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-    autosaveTimeoutRef.current = setTimeout(() => handleSave(), 1000);
-    return () => { if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current); };
-  }, [
-    razonSocial, contacto, direccion, localidad, provincia, emailPrincipal,
-    sistemaNombre, codigoInternoCliente, moduloModelo, moduloDescripcion, moduloSerie,
-    tipoServicio, fechaInicio, fechaFin, horasTrabajadas, tiempoViaje,
-    reporteTecnico, accionesTomar, articulos, budgets, esFacturable, tieneContrato, esGarantia,
-    aclaracionCliente, aclaracionEspecialista, materialesParaServicio, problemaFallaInicial,
-    estadoAdmin, ordenCompra, fechaServicioAprox, ingenieroAsignadoId,
-    clienteId || '', sistemaId || '', moduloId || '',
-    cierreAdmin,
-  ]);
 
   const loadData = async () => {
     if (!otNumber) return;
@@ -124,299 +44,310 @@ export function useOTDetail(otNumber?: string) {
       setLoading(true);
       const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
       if (!ot) { alert('Orden de trabajo no encontrada'); navigate('/ordenes-trabajo'); return; }
-      setRazonSocial(ot.razonSocial || ''); setContacto(ot.contacto || '');
-      setDireccion(ot.direccion || ''); setLocalidad(ot.localidad || '');
-      setProvincia(ot.provincia || ''); setEmailPrincipal(ot.emailPrincipal || '');
-      setSistemaNombre(ot.sistema || ''); setCodigoInternoCliente(ot.codigoInternoCliente || '');
-      setModuloModelo(ot.moduloModelo || ''); setModuloDescripcion(ot.moduloDescripcion || '');
-      setModuloSerie(ot.moduloSerie || ''); setTipoServicio(ot.tipoServicio || '');
-      setFechaInicio(ot.fechaInicio || ''); setFechaFin(ot.fechaFin || '');
-      setHorasTrabajadas(ot.horasTrabajadas || ''); setTiempoViaje(ot.tiempoViaje || '');
-      setReporteTecnico(ot.reporteTecnico || ''); setAccionesTomar(ot.accionesTomar || '');
-      setArticulos(ot.articulos || []);
-      setBudgets(ot.budgets && ot.budgets.length > 0 ? ot.budgets : ['']);
-      setEsFacturable(ot.esFacturable || false); setTieneContrato(ot.tieneContrato || false);
-      setEsGarantia(ot.esGarantia || false); setStatus(ot.status || 'BORRADOR');
-      setAclaracionCliente(ot.aclaracionCliente || '');
-      setAclaracionEspecialista(ot.aclaracionEspecialista || '');
-      setMaterialesParaServicio(ot.materialesParaServicio || '');
-      setProblemaFallaInicial(ot.problemaFallaInicial || '');
-      setEstadoAdmin(ot.estadoAdmin || (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'CREADA'));
-      setEstadoAdminFecha(ot.estadoAdminFecha || '');
-      setEstadoHistorial(ot.estadoHistorial || []);
-      setOrdenCompra(ot.ordenCompra || '');
-      setFechaServicioAprox(ot.fechaServicioAprox || '');
-      setIngenieroAsignadoId(ot.ingenieroAsignadoId ?? null);
-      setIngenieroAsignadoNombre(ot.ingenieroAsignadoNombre ?? null);
-      setCierreAdmin(ot.cierreAdmin ?? { ...defaultCierre });
-      setClienteId(ot.clienteId); setSistemaId(ot.sistemaId); setModuloId(ot.moduloId);
 
-      if (ot.clienteId) { const c = await clientesService.getById(ot.clienteId); setCliente(c); }
+      loadFromOT(ot);
+
+      // Load related entities
+      if (ot.clienteId) { setCliente(await clientesService.getById(ot.clienteId)); }
       if (ot.sistemaId) {
         const s = await sistemasService.getById(ot.sistemaId); setSistema(s);
-        if (ot.moduloId && s) { try { setModulo(await modulosService.getById(ot.sistemaId, ot.moduloId)); } catch {} }
+        if (ot.moduloId && s) { try { setModulo(await modulosService.getById(ot.sistemaId, ot.moduloId)); } catch { /* optional */ } }
       }
-      if (otNumber && !otNumber.includes('.')) { setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber)); }
-      setTiposServicio(await tiposServicioService.getAll());
-      const [cd, sd, ud] = await Promise.all([clientesService.getAll(true), sistemasService.getAll(), usuariosService.getAll()]);
-      setClientes(cd); setSistemas(sd);
-      setIngenieros(ud.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
+      if (!otNumber.includes('.')) { setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber)); }
+
+      // Load catalogs
+      const [tiposData, clientesData, sistemasData, usersData] = await Promise.all([
+        tiposServicioService.getAll(), clientesService.getAll(true),
+        sistemasService.getAll(), usuariosService.getAll(),
+      ]);
+      setTiposServicio(tiposData); setClientes(clientesData); setSistemas(sistemasData);
+      setIngenieros(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
+
+      // Cascade
       if (ot.clienteId) {
-        setSistemasFiltrados(sd.filter(s => s.clienteId === ot.clienteId));
-        try { setContactos(await contactosService.getByCliente(ot.clienteId)); } catch {}
+        setSistemasFiltrados(sistemasData.filter(s => s.clienteId === ot.clienteId));
+        try { setContactos(await contactosService.getByCliente(ot.clienteId)); } catch { /* optional */ }
       }
       if (ot.sistemaId) {
-        try { const md = await modulosService.getBySistema(ot.sistemaId); setModulos(md); setModulosFiltrados(md); } catch {}
+        try { setModulosFiltrados(await modulosService.getBySistema(ot.sistemaId)); } catch { /* optional */ }
       }
-      hasUserInteracted.current = false;
     } catch { alert('Error al cargar la orden de trabajo'); } finally { setLoading(false); }
   };
 
-  const cleanValue = (v: any) => (v === undefined || v === '' ? null : v);
+  // ── Cascading selects ─────────────────────────────────────────
+  useEffect(() => {
+    if (form.clienteId) {
+      setSistemasFiltrados(sistemas.filter(s => s.clienteId === form.clienteId));
+      contactosService.getByCliente(form.clienteId).then(setContactos).catch(() => setContactos([]));
+    } else { setSistemasFiltrados([]); setContactos([]); }
+  }, [form.clienteId, sistemas]);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (form.sistemaId) {
+      modulosService.getBySistema(form.sistemaId).then(setModulosFiltrados).catch(() => setModulosFiltrados([]));
+    } else { setModulosFiltrados([]); }
+  }, [form.sistemaId]);
+
+  // ── Autosave ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!hasUserInteracted.current || !otNumber || loading) return;
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    autosaveTimeoutRef.current = setTimeout(() => handleSave(), 1000);
+    return () => { if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current); };
+  }, [form]);
+
+  // ── Save / Delete ─────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
     if (!otNumber) return;
-    try {
-      setSaving(true);
-      await ordenesTrabajoService.update(otNumber, {
-        razonSocial: cleanValue(razonSocial), contacto: cleanValue(contacto),
-        direccion: cleanValue(direccion), localidad: cleanValue(localidad),
-        provincia: cleanValue(provincia), emailPrincipal: cleanValue(emailPrincipal),
-        sistema: cleanValue(sistemaNombre), codigoInternoCliente: cleanValue(codigoInternoCliente),
-        moduloModelo: cleanValue(moduloModelo), moduloDescripcion: cleanValue(moduloDescripcion),
-        moduloSerie: cleanValue(moduloSerie), tipoServicio: cleanValue(tipoServicio),
-        fechaInicio: cleanValue(fechaInicio), fechaFin: cleanValue(fechaFin),
-        horasTrabajadas: cleanValue(horasTrabajadas), tiempoViaje: cleanValue(tiempoViaje),
-        reporteTecnico: cleanValue(reporteTecnico), accionesTomar: cleanValue(accionesTomar),
-        articulos, budgets: budgets.filter(b => b.trim() !== ''),
-        esFacturable, tieneContrato, esGarantia, status,
-        aclaracionCliente: cleanValue(aclaracionCliente),
-        aclaracionEspecialista: cleanValue(aclaracionEspecialista),
-        materialesParaServicio: cleanValue(materialesParaServicio),
-        problemaFallaInicial: cleanValue(problemaFallaInicial),
-        estadoAdmin, estadoAdminFecha: cleanValue(estadoAdminFecha), estadoHistorial,
-        ordenCompra: cleanValue(ordenCompra), fechaServicioAprox: cleanValue(fechaServicioAprox),
-        ingenieroAsignadoId, ingenieroAsignadoNombre,
-        cierreAdmin,
-        clienteId: cleanValue(clienteId), sistemaId: cleanValue(sistemaId), moduloId: cleanValue(moduloId),
-      } as Partial<WorkOrder>);
-    } catch { alert('Error al guardar los cambios'); } finally { setSaving(false); }
-  };
+    try { setSaving(true); await ordenesTrabajoService.update(otNumber, buildSavePayload()); }
+    catch { alert('Error al guardar los cambios'); }
+    finally { setSaving(false); }
+  }, [otNumber, buildSavePayload]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!otNumber || !window.confirm(`Eliminar OT ${otNumber}?`)) return;
     try { setSaving(true); await ordenesTrabajoService.delete(otNumber); alert('OT eliminada'); navigate('/ordenes-trabajo'); }
     catch { alert('Error al eliminar'); } finally { setSaving(false); }
-  };
+  }, [otNumber, navigate]);
 
-  const markInteracted = () => { if (!hasUserInteracted.current) hasUserInteracted.current = true; };
-
-  const addPart = () => { setArticulos([...articulos, { id: `part-${Date.now()}`, codigo: '', descripcion: '', cantidad: 1, origen: '' }]); markInteracted(); };
-  const updatePart = (id: string, field: keyof Part, value: any) => { setArticulos(articulos.map(p => p.id === id ? { ...p, [field]: value } : p)); markInteracted(); };
-  const removePart = (id: string) => { setArticulos(articulos.filter(p => p.id !== id)); markInteracted(); };
-
-  const addBudget = () => { setBudgets([...budgets, '']); markInteracted(); };
-  const updateBudget = (idx: number, val: string) => { const u = [...budgets]; u[idx] = val.substring(0, 15); setBudgets(u); markInteracted(); };
-  const removeBudget = (idx: number) => { budgets.length > 1 ? setBudgets(budgets.filter((_, i) => i !== idx)) : setBudgets(['']); markInteracted(); };
-
-  const openInReportesOT = (otNum?: string) => {
-    const n = otNum || otNumber;
-    if (!n) return;
-    const url = `http://localhost:3000?reportId=${n}`;
-    if ((window as any).electronAPI?.openWindow) (window as any).electronAPI.openWindow(url);
-    else if ((window as any).electronAPI?.openExternal) (window as any).electronAPI.openExternal(url);
-    else window.open(url, '_blank');
-  };
-
-  const handleCreateNewItem = async () => {
-    if (!otNumber || !cliente) { alert('Error: No se puede crear item sin OT padre o cliente'); return; }
-    if (!newItemData.tipoServicio.trim()) { alert('El tipo de servicio es obligatorio'); return; }
-    try {
-      const nextNum = await ordenesTrabajoService.getNextItemNumber(otNumber);
-      const itemData: any = {
-        otNumber: nextNum, status: 'BORRADOR' as const, budgets: [],
-        tipoServicio: newItemData.tipoServicio,
-        esFacturable: newItemData.necesitaPresupuesto,
-        tieneContrato: newItemData.tieneContrato || (cliente as any).tipoServicio === 'contrato',
-        esGarantia: false, razonSocial, contacto, direccion, localidad, provincia,
-        sistema: sistemaNombre, moduloModelo: moduloModelo || '', moduloDescripcion: moduloDescripcion || '',
-        moduloSerie: moduloSerie || '', codigoInternoCliente,
-        fechaInicio: new Date().toISOString().split('T')[0],
-        fechaFin: new Date().toISOString().split('T')[0],
-        horasTrabajadas: '', tiempoViaje: '',
-        reporteTecnico: newItemData.descripcion || '', accionesTomar: '', articulos: [],
-        emailPrincipal: emailPrincipal || '',
-        signatureEngineer: null, aclaracionEspecialista: '',
-        signatureClient: null, aclaracionCliente: aclaracionCliente || '',
-        materialesParaServicio: materialesParaServicio || '',
-        problemaFallaInicial: problemaFallaInicial || '',
-        updatedAt: new Date().toISOString(),
-        clienteId: cleanValue(clienteId), sistemaId: cleanValue(sistemaId), moduloId: cleanValue(moduloId),
-      };
-      await ordenesTrabajoService.create(itemData);
-      alert(`Item ${nextNum} creado exitosamente`);
-      setShowNewItemModal(false);
-      setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' });
-      await loadData();
-    } catch { alert('Error al crear el item'); }
-  };
-
-  // Generic field change handler for subcomponents
-  const handleFieldChange = (field: string, value: string) => {
+  // ── Field handlers ────────────────────────────────────────────
+  const handleFieldChange = useCallback((field: string, value: string) => {
     markInteracted();
-    const setters: Record<string, (v: any) => void> = {
-      emailPrincipal: setEmailPrincipal, direccion: setDireccion,
-      localidad: setLocalidad, provincia: setProvincia,
-      codigoInternoCliente: setCodigoInternoCliente,
-      moduloModelo: setModuloModelo, moduloDescripcion: setModuloDescripcion,
-      moduloSerie: setModuloSerie, tipoServicio: setTipoServicio,
-      fechaInicio: setFechaInicio, fechaFin: setFechaFin,
-      horasTrabajadas: setHorasTrabajadas, tiempoViaje: setTiempoViaje,
-      problemaFallaInicial: setProblemaFallaInicial, reporteTecnico: setReporteTecnico,
-      materialesParaServicio: setMaterialesParaServicio, accionesTomar: setAccionesTomar,
-      ordenCompra: setOrdenCompra, fechaServicioAprox: setFechaServicioAprox,
-    };
-    setters[field]?.(value);
-  };
+    setField(field as keyof typeof form, value as any);
+  }, [markInteracted, setField]);
 
-  const handleEstadoAdminChange = (nuevoEstado: OTEstadoAdmin) => {
-    const ahora = new Date().toISOString();
-    setEstadoAdmin(nuevoEstado);
-    setEstadoAdminFecha(ahora);
-    setEstadoHistorial(prev => [...prev, { estado: nuevoEstado, fecha: ahora }]);
-    if (nuevoEstado === 'FINALIZADO') setStatus('FINALIZADO');
+  const handleCheckboxChange = useCallback((field: string, checked: boolean) => {
     markInteracted();
-  };
+    setField(field as keyof typeof form, checked as any);
+  }, [markInteracted, setField]);
 
-  const handleIngenieroChange = (uid: string) => {
-    const u = ingenieros.find(i => i.id === uid);
-    setIngenieroAsignadoId(u?.id ?? null);
-    setIngenieroAsignadoNombre(u?.displayName ?? null);
-    markInteracted();
-  };
-
-  const handleCierreChange = (field: keyof CierreAdministrativo, value: any) => {
-    setCierreAdmin(prev => ({ ...prev, [field]: value }));
-    markInteracted();
-  };
-
-  const handleConfirmarCierre = async () => {
-    if (!cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
-    if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
-    if (!otNumber) return;
-
-    const ahora = new Date().toISOString();
-
-    // 1. Enviar aviso por mail a administración
-    try {
-      await ordenesTrabajoService.enviarAvisoCierreAdmin(otNumber, {
-        razonSocial, tipoServicio,
-        horasLab: horasTrabajadas, horasViaje: tiempoViaje,
-        cierreAdmin: { ...cierreAdmin, fechaCierreAdmin: ahora },
-        partesCount: articulos.length,
-        ingenieroNombre: ingenieroAsignadoNombre,
-      });
-      setCierreAdmin(prev => ({ ...prev, avisoAdminEnviado: true, avisoAdminFecha: ahora, fechaCierreAdmin: ahora }));
-    } catch (err) {
-      console.error('Error encolando aviso:', err);
-      alert('Error al enviar aviso a administración. El cierre se realizará pero verifique el envío manualmente.');
-      setCierreAdmin(prev => ({ ...prev, fechaCierreAdmin: ahora }));
-    }
-
-    // 2. Cambiar estado a FINALIZADO
-    handleEstadoAdminChange('FINALIZADO');
-  };
-
-  const handleCheckboxChange = (field: string, checked: boolean) => {
-    markInteracted();
-    if (field === 'esFacturable') setEsFacturable(checked);
-    else if (field === 'tieneContrato') setTieneContrato(checked);
-    else if (field === 'esGarantia') setEsGarantia(checked);
-  };
-
-  const handleClienteChange = (id: string) => {
+  const handleClienteChange = useCallback((id: string) => {
     const c = clientes.find(cl => cl.id === id);
     if (!c) return;
-    setClienteId(id); setRazonSocial(c.razonSocial); setDireccion(c.direccion || '');
-    setLocalidad(c.localidad || ''); setProvincia(c.provincia || '');
-    setSistemaId(undefined); setModuloId(undefined);
-    setSistemaNombre(''); setModuloModelo(''); setModuloDescripcion(''); setModuloSerie('');
+    setFields({
+      clienteId: id, razonSocial: c.razonSocial,
+      direccion: c.direccion || '', localidad: c.localidad || '', provincia: c.provincia || '',
+      sistemaId: undefined, moduloId: undefined,
+      sistemaNombre: '', moduloModelo: '', moduloDescripcion: '', moduloSerie: '',
+    });
     markInteracted();
-  };
+  }, [clientes, setFields, markInteracted]);
 
-  const handleContactoChange = (id: string) => {
+  const handleContactoChange = useCallback((id: string) => {
     const c = contactos.find(ct => ct.id === id);
-    if (c) { setContacto(c.nombre); setEmailPrincipal(c.email || ''); markInteracted(); }
-  };
+    if (c) { setFields({ contacto: c.nombre, emailPrincipal: c.email || '' }); markInteracted(); }
+  }, [contactos, setFields, markInteracted]);
 
-  const handleSistemaChange = (id: string) => {
+  const handleSistemaChange = useCallback((id: string) => {
     const s = sistemasFiltrados.find(si => si.id === id);
     if (!s) return;
-    setSistemaId(id); setSistemaNombre(s.nombre); setCodigoInternoCliente(s.codigoInternoCliente);
-    setModuloId(undefined); markInteracted();
-  };
+    setFields({ sistemaId: id, sistemaNombre: s.nombre, codigoInternoCliente: s.codigoInternoCliente, moduloId: undefined });
+    markInteracted();
+  }, [sistemasFiltrados, setFields, markInteracted]);
 
-  const handleModuloChange = (id: string) => {
+  const handleModuloChange = useCallback((id: string) => {
     const m = modulosFiltrados.find(mo => mo.id === id);
-    if (m) { setModuloId(id); setModuloModelo(m.nombre || ''); setModuloDescripcion(m.descripcion || ''); setModuloSerie(m.serie || ''); markInteracted(); }
-  };
+    if (m) { setFields({ moduloId: id, moduloModelo: m.nombre || '', moduloDescripcion: m.descripcion || '', moduloSerie: m.serie || '' }); markInteracted(); }
+  }, [modulosFiltrados, setFields, markInteracted]);
 
-  const handleStatusChange = async (val: string) => {
+  const handleIngenieroChange = useCallback((uid: string) => {
+    const u = ingenieros.find(i => i.id === uid);
+    setFields({ ingenieroAsignadoId: u?.id ?? null, ingenieroAsignadoNombre: u?.displayName ?? null });
+    markInteracted();
+  }, [ingenieros, setFields, markInteracted]);
+
+  // ── Estado admin ──────────────────────────────────────────────
+  const handleEstadoAdminChange = useCallback((nuevoEstado: OTEstadoAdmin) => {
+    // Validate before allowing state transition (skip for going backwards)
+    const currentIdx = OT_ESTADO_ORDER.indexOf(form.estadoAdmin);
+    const targetIdx = OT_ESTADO_ORDER.indexOf(nuevoEstado);
+    if (targetIdx > currentIdx) {
+      const errors = validate(nuevoEstado);
+      if (Object.keys(errors).length > 0) {
+        alert('No se puede avanzar el estado:\n' + Object.values(errors).join('\n'));
+        return;
+      }
+    }
+    const ahora = new Date().toISOString();
+    setFields({
+      estadoAdmin: nuevoEstado, estadoAdminFecha: ahora,
+      estadoHistorial: [...form.estadoHistorial, { estado: nuevoEstado, fecha: ahora }],
+      ...(nuevoEstado === 'FINALIZADO' ? { status: 'FINALIZADO' as const } : {}),
+    });
+    markInteracted();
+  }, [form.estadoAdmin, form.estadoHistorial, setFields, markInteracted, validate]);
+
+  const handleStatusChange = useCallback(async (val: string) => {
     const newStatus = val as 'BORRADOR' | 'FINALIZADO';
-    setStatus(newStatus);
+    setField('status', newStatus);
     markInteracted();
 
-    // Auto-update fichas when OT is finalized
     if (newStatus === 'FINALIZADO' && otNumber) {
       try {
         const fichas = await fichasService.getByOtNumber(otNumber);
         for (const ficha of fichas) {
           if (ficha.estado === 'entregado') continue;
           await fichasService.addHistorial(ficha.id, {
-            fecha: new Date().toISOString(),
-            estadoAnterior: ficha.estado,
-            estadoNuevo: ficha.estado, // Keep same status, just add history entry
-            nota: `OT ${otNumber} finalizada`,
-            otNumber,
-            reporteTecnico: reporteTecnico || null,
-            creadoPor: 'admin',
+            fecha: new Date().toISOString(), estadoAnterior: ficha.estado, estadoNuevo: ficha.estado,
+            nota: `OT ${otNumber} finalizada`, otNumber,
+            reporteTecnico: form.reporteTecnico || null, creadoPor: 'admin',
           });
         }
-      } catch (err) {
-        console.error('Error actualizando fichas vinculadas:', err);
-      }
+      } catch (err) { console.error('Error actualizando fichas vinculadas:', err); }
     }
-  };
+  }, [otNumber, form.reporteTecnico, setField, markInteracted]);
 
+  // ── Cierre administrativo ─────────────────────────────────────
+  const handleCierreChange = useCallback((field: string, value: any) => {
+    setField('cierreAdmin', { ...form.cierreAdmin, [field]: value });
+    markInteracted();
+  }, [form.cierreAdmin, setField, markInteracted]);
+
+  const handleConfirmarCierre = useCallback(async () => {
+    if (!form.cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
+    if (!form.cierreAdmin.partesConfirmadas && form.articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
+    if (!otNumber) return;
+
+    const ahora = new Date().toISOString();
+    try {
+      await ordenesTrabajoService.enviarAvisoCierreAdmin(otNumber, {
+        razonSocial: form.razonSocial, tipoServicio: form.tipoServicio,
+        horasLab: form.horasTrabajadas, horasViaje: form.tiempoViaje,
+        cierreAdmin: { ...form.cierreAdmin, fechaCierreAdmin: ahora },
+        partesCount: form.articulos.length, ingenieroNombre: form.ingenieroAsignadoNombre,
+      });
+      setField('cierreAdmin', { ...form.cierreAdmin, avisoAdminEnviado: true, avisoAdminFecha: ahora, fechaCierreAdmin: ahora });
+    } catch (err) {
+      console.error('Error encolando aviso:', err);
+      alert('Error al enviar aviso a administración. El cierre se realizará pero verifique el envío manualmente.');
+      setField('cierreAdmin', { ...form.cierreAdmin, fechaCierreAdmin: ahora });
+    }
+    handleEstadoAdminChange('FINALIZADO');
+  }, [form, otNumber, setField, handleEstadoAdminChange]);
+
+  // ── Reabrir OT ──────────────────────────────────────────────
+  const handleReabrirOT = useCallback(() => {
+    if (!window.confirm('¿Reabrir esta OT? Volverá al estado Cierre Administrativo.')) return;
+    const ahora = new Date().toISOString();
+    setFields({
+      estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
+      estadoAdminFecha: ahora,
+      status: 'BORRADOR' as const,
+      estadoHistorial: [...form.estadoHistorial, { estado: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin, fecha: ahora, nota: 'Reabierta desde Finalizado' }],
+      cierreAdmin: { ...form.cierreAdmin, avisoAdminEnviado: false, fechaCierreAdmin: undefined },
+    });
+    markInteracted();
+  }, [form.estadoHistorial, form.cierreAdmin, setFields, markInteracted]);
+
+  // ── Parts ─────────────────────────────────────────────────────
+  const addPart = useCallback((prefill?: { codigo: string; descripcion: string }) => {
+    setField('articulos', [...form.articulos, {
+      id: `part-${Date.now()}`, codigo: prefill?.codigo || '', descripcion: prefill?.descripcion || '', cantidad: 1, origen: prefill ? 'stock' : '',
+    }]);
+    markInteracted();
+  }, [form.articulos, setField, markInteracted]);
+
+  const updatePart = useCallback((id: string, field: keyof Part, value: any) => {
+    setField('articulos', form.articulos.map(p => p.id === id ? { ...p, [field]: value } : p));
+    markInteracted();
+  }, [form.articulos, setField, markInteracted]);
+
+  const removePart = useCallback((id: string) => {
+    setField('articulos', form.articulos.filter(p => p.id !== id));
+    markInteracted();
+  }, [form.articulos, setField, markInteracted]);
+
+  // ── Budgets ───────────────────────────────────────────────────
+  const addBudget = useCallback(() => { setField('budgets', [...form.budgets, '']); markInteracted(); }, [form.budgets, setField, markInteracted]);
+  const updateBudget = useCallback((idx: number, val: string) => {
+    const u = [...form.budgets]; u[idx] = val.substring(0, 15); setField('budgets', u); markInteracted();
+  }, [form.budgets, setField, markInteracted]);
+  const removeBudget = useCallback((idx: number) => {
+    setField('budgets', form.budgets.length > 1 ? form.budgets.filter((_, i) => i !== idx) : ['']); markInteracted();
+  }, [form.budgets, setField, markInteracted]);
+
+  // ── External actions ──────────────────────────────────────────
+  const openInReportesOT = useCallback((otNum?: string) => {
+    const n = otNum || otNumber;
+    if (!n) return;
+    const url = `http://localhost:3000?reportId=${n}`;
+    if ((window as any).electronAPI?.openWindow) (window as any).electronAPI.openWindow(url);
+    else if ((window as any).electronAPI?.openExternal) (window as any).electronAPI.openExternal(url);
+    else window.open(url, '_blank');
+  }, [otNumber]);
+
+  const handleCreateNewItem = useCallback(async () => {
+    if (!otNumber || !cliente) { alert('Error: No se puede crear item sin OT padre o cliente'); return; }
+    if (!newItemData.tipoServicio.trim()) { alert('El tipo de servicio es obligatorio'); return; }
+    try {
+      const nextNum = await ordenesTrabajoService.getNextItemNumber(otNumber);
+      await ordenesTrabajoService.create({
+        otNumber: nextNum, status: 'BORRADOR', budgets: [],
+        tipoServicio: newItemData.tipoServicio,
+        esFacturable: newItemData.necesitaPresupuesto,
+        tieneContrato: newItemData.tieneContrato || (cliente as any).tipoServicio === 'contrato',
+        esGarantia: false, razonSocial: form.razonSocial, contacto: form.contacto,
+        direccion: form.direccion, localidad: form.localidad, provincia: form.provincia,
+        sistema: form.sistemaNombre, moduloModelo: form.moduloModelo,
+        moduloDescripcion: form.moduloDescripcion, moduloSerie: form.moduloSerie,
+        codigoInternoCliente: form.codigoInternoCliente,
+        fechaInicio: new Date().toISOString().split('T')[0],
+        fechaFin: new Date().toISOString().split('T')[0],
+        horasTrabajadas: '', tiempoViaje: '',
+        reporteTecnico: newItemData.descripcion || '', accionesTomar: '', articulos: [],
+        emailPrincipal: form.emailPrincipal || '',
+        signatureEngineer: null, aclaracionEspecialista: '',
+        signatureClient: null, aclaracionCliente: form.aclaracionCliente || '',
+        materialesParaServicio: form.materialesParaServicio || '',
+        problemaFallaInicial: form.problemaFallaInicial || '',
+        updatedAt: new Date().toISOString(),
+        clienteId: form.clienteId || null, sistemaId: form.sistemaId || null,
+        moduloId: form.moduloId || null,
+      } as any);
+      alert(`Item ${nextNum} creado exitosamente`);
+      setShowNewItemModal(false);
+      setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' });
+      await loadData();
+    } catch { alert('Error al crear el item'); }
+  }, [otNumber, cliente, newItemData, form]);
+
+  // ── Computed ──────────────────────────────────────────────────
+  const readOnly = form.estadoAdmin === 'FINALIZADO';
+  const readOnlyTecnico = readOnly || form.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || form.status === 'FINALIZADO';
+  const enCierreAdmin = form.estadoAdmin === 'CIERRE_ADMINISTRATIVO';
+
+  // ── Return (same API as before) ───────────────────────────────
   return {
-    loading, saving, status,
-    // FINALIZADO = todo readonly. CIERRE_ADMINISTRATIVO = solo campos admin editables.
-    readOnly: estadoAdmin === 'FINALIZADO',
-    // Campos del reporte técnico (informe, problema, acciones) readonly si ingeniero ya cerró
-    readOnlyTecnico: estadoAdmin === 'FINALIZADO' || estadoAdmin === 'CIERRE_ADMINISTRATIVO' || status === 'FINALIZADO',
-    enCierreAdmin: estadoAdmin === 'CIERRE_ADMINISTRATIVO',
-    // Handlers
+    loading, saving, status: form.status,
+    readOnly, readOnlyTecnico, enCierreAdmin,
     handleSave, handleDelete, openInReportesOT, handleFieldChange, handleCheckboxChange,
     handleClienteChange, handleContactoChange, handleSistemaChange, handleModuloChange,
     handleStatusChange, handleEstadoAdminChange, handleIngenieroChange,
-    // Admin workflow
-    estadoAdmin, estadoAdminFecha, estadoHistorial, ordenCompra, fechaServicioAprox,
-    ingenieroAsignadoId, ingenieroAsignadoNombre, ingenieros,
-    // Cierre administrativo
-    cierreAdmin, handleCierreChange, handleConfirmarCierre,
-    // Sidebar props
-    clienteId, clientes, cliente, contacto, contactos,
-    emailPrincipal, direccion, localidad, provincia,
-    sistemaId, sistemasFiltrados, sistema, codigoInternoCliente,
-    moduloId, modulosFiltrados, modulo, moduloModelo, moduloDescripcion, moduloSerie,
-    tipoServicio, tiposServicio, fechaInicio, fechaFin,
-    horasTrabajadas, tiempoViaje, esFacturable, tieneContrato, esGarantia,
-    budgets, addBudget, updateBudget, removeBudget,
-    // Protocol props
-    problemaFallaInicial, reporteTecnico, materialesParaServicio, accionesTomar,
-    // Items props
-    articulos, addPart, updatePart, removePart,
+    estadoAdmin: form.estadoAdmin, estadoAdminFecha: form.estadoAdminFecha,
+    estadoHistorial: form.estadoHistorial, ordenCompra: form.ordenCompra,
+    fechaServicioAprox: form.fechaServicioAprox,
+    ingenieroAsignadoId: form.ingenieroAsignadoId, ingenieroAsignadoNombre: form.ingenieroAsignadoNombre,
+    ingenieros,
+    cierreAdmin: form.cierreAdmin, handleCierreChange, handleConfirmarCierre, handleReabrirOT,
+    clienteId: form.clienteId, clientes, cliente,
+    contacto: form.contacto, contactos,
+    emailPrincipal: form.emailPrincipal, direccion: form.direccion,
+    localidad: form.localidad, provincia: form.provincia,
+    sistemaId: form.sistemaId, sistemasFiltrados, sistema,
+    codigoInternoCliente: form.codigoInternoCliente,
+    moduloId: form.moduloId, modulosFiltrados, modulo,
+    moduloModelo: form.moduloModelo, moduloDescripcion: form.moduloDescripcion,
+    moduloSerie: form.moduloSerie,
+    tipoServicio: form.tipoServicio, tiposServicio,
+    fechaInicio: form.fechaInicio, fechaFin: form.fechaFin,
+    horasTrabajadas: form.horasTrabajadas, tiempoViaje: form.tiempoViaje,
+    esFacturable: form.esFacturable, tieneContrato: form.tieneContrato, esGarantia: form.esGarantia,
+    budgets: form.budgets, addBudget, updateBudget, removeBudget,
+    problemaFallaInicial: form.problemaFallaInicial, reporteTecnico: form.reporteTecnico,
+    materialesParaServicio: form.materialesParaServicio, accionesTomar: form.accionesTomar,
+    articulos: form.articulos, addPart, updatePart, removePart,
     items, showNewItemModal, setShowNewItemModal,
     newItemData, setNewItemData, handleCreateNewItem,
+    validate,
   };
 }

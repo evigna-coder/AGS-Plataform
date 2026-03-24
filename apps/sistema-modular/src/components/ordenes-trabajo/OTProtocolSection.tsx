@@ -1,7 +1,7 @@
 import { Card } from '../ui/Card';
 
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
-const textareaCls = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400';
+const textareaCls = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:text-slate-400';
 
 export interface OTProtocolSectionProps {
   readOnly: boolean;

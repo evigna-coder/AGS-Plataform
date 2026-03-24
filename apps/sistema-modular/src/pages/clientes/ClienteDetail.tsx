@@ -88,9 +88,8 @@ export const ClienteDetail = () => {
       if (formData.ingresosBrutos?.trim()) clienteData.ingresosBrutos = formData.ingresosBrutos.trim();
       if (formData.notas?.trim()) clienteData.notas = formData.notas.trim();
       await clientesService.update(id, clienteData);
-      await loadCliente();
+      setCliente(prev => prev ? { ...prev, ...clienteData } as Cliente : prev);
       setEditing(false);
-      alert('Cliente actualizado exitosamente');
     } catch (error) {
       console.error('Error guardando cliente:', error);
       alert('Error al guardar el cliente');
@@ -111,7 +110,7 @@ export const ClienteDetail = () => {
     return (
       <div className="text-center py-12">
         <p className="text-slate-400">Cliente no encontrado</p>
-        <Link to="/clientes" className="text-indigo-600 hover:underline mt-2 inline-block text-sm">
+        <Link to="/clientes" className="text-teal-600 hover:underline mt-2 inline-block text-sm">
           Volver a Clientes
         </Link>
       </div>
@@ -177,6 +176,7 @@ export const ClienteDetail = () => {
             editing={editing}
             formData={formData}
             setFormData={setFormData}
+            onRefresh={loadCliente}
           />
         </div>
       </div>

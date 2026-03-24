@@ -136,9 +136,9 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
           <p className="text-[11px] font-medium text-slate-500">Opciones del selector:</p>
           <div className="flex flex-wrap gap-1.5">
             {(d.selectorOptions ?? []).map(opt => (
-              <span key={opt} className="flex items-center gap-1 text-[11px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+              <span key={opt} className="flex items-center gap-1 text-[11px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">
                 {opt}
-                <button onClick={() => removeOption(opt)} className="text-indigo-400 hover:text-indigo-700 font-bold">×</button>
+                <button onClick={() => removeOption(opt)} className="text-teal-400 hover:text-teal-700 font-bold">×</button>
               </span>
             ))}
           </div>
@@ -171,7 +171,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
                     setD({ ...d, visibleWhen: null });
                   }
                 }}
-                className="accent-indigo-600"
+                className="accent-teal-600"
               />
               Visible solo si...
             </label>
@@ -205,13 +205,13 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
                     const isSelected = d.visibleWhen!.values.includes(opt);
                     return (
                       <label key={opt} className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
-                        isSelected ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                        isSelected ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                       }`}>
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleValue(opt)}
-                          className="w-3 h-3 accent-indigo-600"
+                          className="w-3 h-3 accent-teal-600"
                         />
                         {opt}
                       </label>
@@ -249,8 +249,8 @@ const InsertButton = ({ onClick }: { onClick: () => void }) => (
     className="group relative h-2 flex items-center justify-center -my-0.5 cursor-pointer"
     onClick={onClick}
   >
-    <div className="absolute inset-x-0 h-px bg-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-    <button className="relative z-10 w-5 h-5 rounded-full bg-indigo-500 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm">
+    <div className="absolute inset-x-0 h-px bg-teal-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+    <button className="relative z-10 w-5 h-5 rounded-full bg-teal-500 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm">
       +
     </button>
   </div>
@@ -344,13 +344,13 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
               <div
                 className={`flex items-center p-2 rounded-lg border border-slate-200 ${
                   item.depth === 0 ? 'border-slate-400' : ''
-                } ${item.visibleWhen ? 'border-l-2 border-l-indigo-400' : ''}`}
+                } ${item.visibleWhen ? 'border-l-2 border-l-teal-400' : ''}`}
                 style={{ paddingLeft: `${(item.depth + 1) * 12}px` }}
               >
                 {/* Left: badge + prefix + label — all shrinkable */}
                 <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden mr-2">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
-                    item.itemType === 'selector' ? 'bg-indigo-600 text-white' : DEPTH_COLORS[item.depth]
+                    item.itemType === 'selector' ? 'bg-teal-600 text-white' : DEPTH_COLORS[item.depth]
                   }`}>
                     {item.itemType === 'selector' ? 'Selector' : DEPTH_LABELS[item.depth]}
                   </span>
@@ -367,13 +367,13 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                   </span>
                   {/* Opciones del selector inline */}
                   {item.itemType === 'selector' && item.selectorOptions && item.selectorOptions.length > 0 && (
-                    <span className="text-[10px] text-indigo-500 shrink-0 truncate max-w-[200px]" title={item.selectorOptions.join(', ')}>
+                    <span className="text-[10px] text-teal-500 shrink-0 truncate max-w-[200px]" title={item.selectorOptions.join(', ')}>
                       [{item.selectorOptions.join(', ')}]
                     </span>
                   )}
                   {/* Badge de condición */}
                   {item.visibleWhen && (
-                    <span className="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-px rounded shrink-0" title={`Visible cuando "${getSelectorLabel(item.visibleWhen.selectorItemId)}" = ${item.visibleWhen.values.join(' | ')}`}>
+                    <span className="text-[9px] text-teal-500 bg-teal-50 px-1.5 py-px rounded shrink-0" title={`Visible cuando "${getSelectorLabel(item.visibleWhen.selectorItemId)}" = ${item.visibleWhen.values.join(' | ')}`}>
                       si {item.visibleWhen.values.join(' | ')}
                     </span>
                   )}

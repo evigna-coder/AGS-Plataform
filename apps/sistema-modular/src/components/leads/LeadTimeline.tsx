@@ -20,7 +20,7 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
         return (
           <div key={p.id || i} className="flex gap-3 items-start">
             <div className="flex flex-col items-center">
-              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${isComentario ? 'bg-amber-400' : 'bg-indigo-400'}`} />
+              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${isComentario ? 'bg-amber-400' : 'bg-teal-400'}`} />
               {i < sorted.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
             </div>
             <div className="flex-1 min-w-0 pb-3">
@@ -39,7 +39,7 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
                     {LEAD_ESTADO_LABELS[p.estadoAnterior]} → {LEAD_ESTADO_LABELS[p.estadoNuevo]}
                   </span>
                   {p.aArea && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600">
                       → {LEAD_AREA_LABELS[p.aArea]}
                     </span>
                   )}

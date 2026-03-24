@@ -17,6 +17,7 @@ interface ArticuloRow {
   descripcion: string;
   posicionArancelaria: string;
   marca: string;
+  origen: string;
 }
 
 export interface StockParsedData {
@@ -56,11 +57,18 @@ function formatPosicionArancelaria(raw: string): string {
 // ─── Parser ──────────────────────────────────────────────────────────────────
 
 function parseArticulos(rows: Record<string, unknown>[]): ArticuloRow[] {
-  return rows.map(r => ({
-    codigo: str(r['Codigo'] ?? r['codigo'] ?? r['Código'] ?? r['CODIGO'] ?? r['Part Number'] ?? r['part_number']),
+  // Filtrar filas que son headers duplicados (ej: "Nro. de Parte" como valor de codigo)
+  const headerWords = ['codigo', 'código', 'descripcion', 'descripción', 'nro. de parte', 'part number', 'marca'];
+  const filtered = rows.filter(r => {
+    const firstVal = str(Object.values(r)[0]).toLowerCase();
+    return !headerWords.includes(firstVal);
+  });
+  return filtered.map(r => ({
+    codigo: str(r['Codigo'] ?? r['codigo'] ?? r['Código'] ?? r['CODIGO'] ?? r['Part Number'] ?? r['part_number'] ?? r['Nro. de Parte'] ?? r['Nro de Parte'] ?? r['NRO DE PARTE']),
     descripcion: str(r['Descripcion'] ?? r['descripcion'] ?? r['Descripción'] ?? r['DESCRIPCION']),
-    posicionArancelaria: str(r['Posicion Arancelaria'] ?? r['posicionArancelaria'] ?? r['Posición Arancelaria'] ?? r['POSICION ARANCELARIA'] ?? r['PA']),
+    posicionArancelaria: str(r['Posicion Arancelaria'] ?? r['posicionArancelaria'] ?? r['Posición Arancelaria'] ?? r['POSICION ARANCELARIA'] ?? r['Posicion arancelaria'] ?? r['PA']),
     marca: str(r['Marca'] ?? r['marca'] ?? r['MARCA'] ?? r['Brand']),
+    origen: str(r['Origen'] ?? r['origen'] ?? r['ORIGEN'] ?? r['Procedencia'] ?? r['procedencia']),
   }));
 }
 
@@ -73,10 +81,10 @@ function validateArticulos(rows: ArticuloRow[]): { errors: ValidationIssue[]; wa
 
   rows.forEach((r, i) => {
     const row = i + 2;
-    if (!r.codigo) errors.push({ sheet: 'Articulos', row, column: 'Codigo', message: 'Codigo vacio' });
+    if (!r.codigo) warnings.push({ sheet: 'Articulos', row, column: 'Codigo', message: 'Codigo vacio — se omitira' });
     else if (codigos.has(r.codigo.toLowerCase())) warnings.push({ sheet: 'Articulos', row, column: 'Codigo', message: `Codigo duplicado en el archivo: ${r.codigo}` });
     else codigos.add(r.codigo.toLowerCase());
-    if (!r.descripcion) errors.push({ sheet: 'Articulos', row, column: 'Descripcion', message: 'Descripcion vacia' });
+    if (!r.descripcion) warnings.push({ sheet: 'Articulos', row, column: 'Descripcion', message: 'Descripcion vacia — se omitira' });
     if (!r.posicionArancelaria) warnings.push({ sheet: 'Articulos', row, column: 'Posicion Arancelaria', message: 'Posicion arancelaria vacia' });
     if (!r.marca) warnings.push({ sheet: 'Articulos', row, column: 'Marca', message: 'Marca vacia' });
   });
@@ -124,6 +132,7 @@ async function writeArticulos(
       descripcion: a.descripcion,
       posicionArancelaria: a.posicionArancelaria ? formatPosicionArancelaria(a.posicionArancelaria) : null,
       marca: a.marca || null,
+      origen: a.origen || null,
       // Defaults — el resto se completa desde el sistema
       categoriaEquipo: 'GENERAL',
       marcaId: '',

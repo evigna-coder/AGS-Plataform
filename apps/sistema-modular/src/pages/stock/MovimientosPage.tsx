@@ -69,7 +69,7 @@ export const MovimientosPage = () => {
           <select
             value={tipoFilter}
             onChange={e => setTipoFilter(e.target.value as TipoMovimiento | '')}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
             {TIPOS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
@@ -79,7 +79,7 @@ export const MovimientosPage = () => {
             placeholder="Buscar por codigo o descripcion..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
       </PageHeader>
@@ -131,12 +131,12 @@ export const MovimientosPage = () => {
                     <td className="px-4 py-2 text-slate-500">{m.creadoPor}</td>
                     <td className="px-4 py-2 space-x-2">
                       {m.remitoId && (
-                        <Link to={`/stock/remitos/${m.remitoId}`} state={fromState} className="text-indigo-600 hover:underline text-[10px] font-medium">
+                        <Link to={`/stock/remitos/${m.remitoId}`} state={fromState} className="text-teal-600 hover:underline text-[10px] font-medium">
                           Remito
                         </Link>
                       )}
                       {m.otNumber && (
-                        <Link to={`/ordenes-trabajo/${m.otNumber}`} state={fromState} className="text-indigo-600 hover:underline text-[10px] font-medium">
+                        <Link to={`/ordenes-trabajo/${m.otNumber}`} state={fromState} className="text-teal-600 hover:underline text-[10px] font-medium">
                           OT
                         </Link>
                       )}

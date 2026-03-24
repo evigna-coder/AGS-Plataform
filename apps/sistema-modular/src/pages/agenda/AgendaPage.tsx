@@ -1,5 +1,5 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import type { AgendaEntry, WorkOrder } from '@ags/shared';
+import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
@@ -298,6 +298,18 @@ export const AgendaPage: FC = () => {
 
   // ── Info bar actions ──
 
+  const handleChangeEstado = useCallback((entryId: string, estado: EstadoAgenda) => {
+    updateEntry(entryId, { estadoAgenda: estado });
+    // Update selected cell entry in-place for instant UI feedback
+    if (selectedCell?.entry?.id === entryId) {
+      setSelectedCell({
+        ...selectedCell,
+        entry: { ...selectedCell.entry, estadoAgenda: estado },
+        allEntries: selectedCell.allEntries.map(e => e.id === entryId ? { ...e, estadoAgenda: estado } : e),
+      });
+    }
+  }, [updateEntry, selectedCell]);
+
   const handleDeleteEntry = useCallback((entryId: string) => {
     deleteEntry(entryId);
     if (selectedCell && selectedCell.allEntries.length > 1) {
@@ -369,6 +381,7 @@ export const AgendaPage: FC = () => {
         onExtendEntry={handleExtendEntry}
         onShrinkEntry={handleShrinkEntry}
         onSelectEntry={handleSelectEntry}
+        onChangeEstado={handleChangeEstado}
       />
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -376,7 +389,7 @@ export const AgendaPage: FC = () => {
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <span className="text-indigo-600 font-bold text-xl tracking-tight">AGS</span>
+                <span className="text-teal-600 font-bold text-xl tracking-tight">AGS</span>
                 <p className="text-xs text-slate-400 mt-2">Cargando agenda...</p>
               </div>
             </div>
@@ -409,7 +422,7 @@ export const AgendaPage: FC = () => {
               style={{ width: 14, height: 22 }}
             >
               {selectedPendingOTs.size > 1 && (
-                <span className="absolute -top-2 -right-2 text-[7px] font-bold text-white bg-indigo-600 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow">
+                <span className="absolute -top-2 -right-2 text-[7px] font-bold text-white bg-teal-600 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow">
                   {selectedPendingOTs.size}
                 </span>
               )}
@@ -417,7 +430,7 @@ export const AgendaPage: FC = () => {
           )}
           {activeDragEntry && (
             <div
-              className="bg-indigo-400 border border-indigo-500 rounded-sm shadow-md pointer-events-none"
+              className="bg-teal-400 border border-teal-500 rounded-sm shadow-md pointer-events-none"
               style={{ width: 14, height: 22 }}
             />
           )}

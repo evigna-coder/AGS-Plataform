@@ -1,7 +1,10 @@
 import { type FC } from 'react';
+import { Link } from 'react-router-dom';
 import { ESTADO_AGENDA_LABELS, ESTADO_AGENDA_COLORS } from '@ags/shared';
-import type { AgendaEntry } from '@ags/shared';
+import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import type { SelectedCell } from '../../utils/agendaDateUtils';
+
+const ESTADO_ORDER: EstadoAgenda[] = ['pendiente', 'tentativo', 'confirmado', 'en_progreso', 'completado', 'cancelado'];
 
 interface AgendaInfoBarProps {
   selectedCell: SelectedCell | null;
@@ -10,6 +13,7 @@ interface AgendaInfoBarProps {
   onExtendEntry?: (entryId: string) => void;
   onShrinkEntry?: (entryId: string) => void;
   onSelectEntry?: (entry: AgendaEntry) => void;
+  onChangeEstado?: (entryId: string, estado: EstadoAgenda) => void;
 }
 
 function EntryRange({ entry }: { entry: AgendaEntry }) {
@@ -26,6 +30,7 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
   onExtendEntry,
   onShrinkEntry,
   onSelectEntry,
+  onChangeEstado,
 }) => {
   const entry = selectedCell?.entry ?? null;
   const allEntries = selectedCell?.allEntries ?? [];
@@ -33,21 +38,21 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
 
   return (
     <div className={`shrink-0 border-b px-4 flex items-center gap-3 h-7 ${
-      entry ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'
+      entry ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-slate-200'
     }`}>
       {selectedCell ? (
         entry ? (
           <>
             {hasMultiple && (
-              <div className="flex items-center gap-0.5 border-r border-indigo-200 pr-2 mr-1">
+              <div className="flex items-center gap-0.5 border-r border-teal-200 pr-2 mr-1">
                 {allEntries.map(e => (
                   <button
                     key={e.id}
                     onClick={() => onSelectEntry?.(e)}
                     className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
                       e.id === entry.id
-                        ? 'bg-indigo-200 text-indigo-800'
-                        : 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-100'
+                        ? 'bg-teal-200 text-teal-800'
+                        : 'text-teal-400 hover:text-teal-600 hover:bg-teal-100'
                     }`}
                   >
                     {e.otNumber}
@@ -56,13 +61,28 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
               </div>
             )}
 
-            <span className="text-[11px] font-semibold text-indigo-700">OT-{entry.otNumber}</span>
-            <span className="text-[11px] text-slate-600">{entry.clienteNombre}</span>
-            <span className="text-[11px] text-slate-500">{entry.tipoServicio}</span>
-            {entry.sistemaNombre && <span className="text-[11px] text-slate-400">{entry.sistemaNombre}</span>}
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_AGENDA_COLORS[entry.estadoAgenda]}`}>
-              {ESTADO_AGENDA_LABELS[entry.estadoAgenda]}
-            </span>
+            <Link
+              to={`/ordenes-trabajo/${entry.otNumber}`}
+              className="text-[11px] font-semibold text-teal-700 hover:underline shrink-0"
+              title="Ver OT"
+            >
+              OT-{entry.otNumber}
+            </Link>
+            <span className="text-[11px] text-slate-600 truncate">{entry.clienteNombre}</span>
+            <span className="text-[11px] text-slate-500 truncate">{entry.tipoServicio}</span>
+            {entry.sistemaNombre && <span className="text-[11px] text-slate-400 truncate">{entry.sistemaNombre}</span>}
+
+            {/* Estado dropdown */}
+            <select
+              value={entry.estadoAgenda}
+              onChange={e => onChangeEstado?.(entry.id, e.target.value as EstadoAgenda)}
+              className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border-0 cursor-pointer ${ESTADO_AGENDA_COLORS[entry.estadoAgenda]}`}
+            >
+              {ESTADO_ORDER.map(est => (
+                <option key={est} value={est}>{ESTADO_AGENDA_LABELS[est]}</option>
+              ))}
+            </select>
+
             <EntryRange entry={entry} />
 
             <div className="flex-1" />

@@ -4,6 +4,7 @@ import type { Cliente, Sistema, CategoriaEquipo, Establecimiento, ModuloSistema 
 import { modulosService } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
 
 interface ClienteMainContentProps {
   clienteId: string;
@@ -14,6 +15,7 @@ interface ClienteMainContentProps {
   editing: boolean;
   formData: any;
   setFormData: (data: any) => void;
+  onRefresh?: () => void;
 }
 
 const ChevronRight = () => (
@@ -28,10 +30,12 @@ const ChevronDown = ({ open }: { open: boolean }) => (
   </svg>
 );
 
-const SistemaExpandable = ({ sistema, establecimientos, categorias }: {
+const SistemaExpandable = ({ sistema, establecimientos, categorias, selected, onToggle }: {
   sistema: Sistema;
   establecimientos: Establecimiento[];
   categorias: CategoriaEquipo[];
+  selected?: boolean;
+  onToggle?: (s: Sistema) => void;
 }) => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -54,7 +58,15 @@ const SistemaExpandable = ({ sistema, establecimientos, categorias }: {
 
   return (
     <div className="bg-slate-50 rounded-lg border border-slate-100">
-      <div className="flex items-center">
+      <div className="flex items-center gap-1.5">
+        {onToggle && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggle(sistema)}
+            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 shrink-0 ml-2"
+          />
+        )}
         <button
           onClick={() => setOpen(!open)}
           className="flex-1 flex justify-between items-center px-3 py-2 hover:bg-slate-100 transition-colors rounded-lg text-left"
@@ -82,7 +94,7 @@ const SistemaExpandable = ({ sistema, establecimientos, categorias }: {
         <Link
           to={`/equipos/${sistema.id}`}
           state={{ from: pathname }}
-          className="shrink-0 px-2 py-2 text-[10px] font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded mr-1"
+          className="shrink-0 px-2 py-2 text-[10px] font-medium text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded mr-1"
           title="Ver detalle del sistema"
         >
           Ver
@@ -126,9 +138,11 @@ const SistemaExpandable = ({ sistema, establecimientos, categorias }: {
 };
 
 export const ClienteMainContent = ({
-  clienteId, cliente, sistemas, establecimientos, categorias, editing, formData, setFormData,
+  clienteId, cliente, sistemas, establecimientos, categorias, editing, formData, setFormData, onRefresh,
 }: ClienteMainContentProps) => {
   const { pathname } = useLocation();
+  const [selectedSistemaIds, setSelectedSistemaIds] = useState<Set<string>>(new Set());
+  const [showMoveModal, setShowMoveModal] = useState(false);
   // Deduplicar sistemas por ID (pueden venir duplicados por consultas legacy)
   const uniqueSistemas = sistemas.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
 
@@ -179,6 +193,11 @@ export const ClienteMainContent = ({
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Sistemas / Equipos</h3>
           <div className="flex gap-2">
+            {selectedSistemaIds.size > 0 && (
+              <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => setShowMoveModal(true)}>
+                Mover {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+              </Button>
+            )}
             <Link to={`/equipos/nuevo?cliente=${clienteId}`} state={{ from: pathname }}>
               <Button variant="outline" size="sm">+ Agregar</Button>
             </Link>
@@ -195,6 +214,14 @@ export const ClienteMainContent = ({
                 sistema={sistema}
                 establecimientos={establecimientos}
                 categorias={categorias}
+                selected={selectedSistemaIds.has(sistema.id)}
+                onToggle={(sys) => {
+                  setSelectedSistemaIds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(sys.id)) next.delete(sys.id); else next.add(sys.id);
+                    return next;
+                  });
+                }}
               />
             ))}
           </div>
@@ -216,7 +243,7 @@ export const ClienteMainContent = ({
             value={formData?.notas || ''}
             onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
             rows={3}
-            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
             placeholder="Notas internas sobre este cliente..."
           />
         ) : (
@@ -225,6 +252,15 @@ export const ClienteMainContent = ({
           </p>
         )}
       </Card>
+
+      {showMoveModal && selectedSistemaIds.size > 0 && (
+        <MoveSistemaModal
+          sistemas={uniqueSistemas.filter(s => selectedSistemaIds.has(s.id))}
+          clienteCuit={clienteId}
+          onClose={() => setShowMoveModal(false)}
+          onMoved={() => { setShowMoveModal(false); setSelectedSistemaIds(new Set()); onRefresh?.(); }}
+        />
+      )}
     </div>
   );
 };

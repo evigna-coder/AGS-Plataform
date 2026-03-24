@@ -137,7 +137,7 @@ export const BulkCuitValidationModal: React.FC<Props> = ({ open, onClose, client
           </div>
           <div className="w-full bg-slate-100 rounded-full h-1.5">
             <div
-              className={`h-1.5 rounded-full transition-all duration-300 ${done ? 'bg-green-500' : 'bg-indigo-500'}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${done ? 'bg-green-500' : 'bg-teal-500'}`}
               style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
             />
           </div>
@@ -169,7 +169,7 @@ export const BulkCuitValidationModal: React.FC<Props> = ({ open, onClose, client
                     {row.status === 'done' && row.result?.valid && row.result.tipoPersona && (
                       <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
                         row.result.tipoPersona === 'JURIDICA'
-                          ? 'bg-indigo-100 text-indigo-700'
+                          ? 'bg-teal-100 text-teal-700'
                           : 'bg-sky-100 text-sky-700'
                       }`}>
                         {row.result.tipoPersona === 'JURIDICA' ? 'Jurídica' : 'Física'}
@@ -178,7 +178,7 @@ export const BulkCuitValidationModal: React.FC<Props> = ({ open, onClose, client
                     {row.status === 'skipped' && <span className="text-[9px] text-slate-300">—</span>}
                   </td>
                   <td className="px-2 py-1.5 whitespace-nowrap">
-                    {row.status === 'validating' && <span className="text-[9px] text-indigo-500 animate-pulse">Validando...</span>}
+                    {row.status === 'validating' && <span className="text-[9px] text-teal-500 animate-pulse">Validando...</span>}
                     {row.status === 'pending' && <span className="text-[9px] text-slate-300">pendiente</span>}
                     {row.status === 'skipped' && <span className="text-[9px] text-slate-300">sin CUIT</span>}
                     {row.status === 'done' && row.result?.valid && (

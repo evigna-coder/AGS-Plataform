@@ -31,7 +31,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         className={`w-full border rounded-lg bg-white text-slate-900
           placeholder:text-slate-400
           border-slate-300
-          focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500
           disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed
           transition-colors
           ${isSmall ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm'}

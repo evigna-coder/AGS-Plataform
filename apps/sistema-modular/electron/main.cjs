@@ -73,6 +73,24 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // Shell: abrir archivo con app por defecto del sistema
+  ipcMain.handle('shell:open-path', async (_event, filePath) => {
+    const { shell } = require('electron');
+    return shell.openPath(filePath);
+  });
+
+  // File: guardar buffer como archivo temporal y abrirlo con app por defecto
+  ipcMain.handle('file:save-temp-and-open', async (_event, buffer, filename) => {
+    const { shell } = require('electron');
+    const tmpDir = join(os.tmpdir(), 'ags-pdfs');
+    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
+    const filePath = join(tmpDir, filename);
+    writeFileSync(filePath, Buffer.from(buffer));
+    const error = await shell.openPath(filePath);
+    if (error) throw new Error(error);
+    return filePath;
+  });
+
   // Abrir módulo en nueva ventana (misma app, con preload completo)
   ipcMain.on('open-module-window', (event, route) => {
     console.log('[IPC] Abriendo módulo en nueva ventana:', route);
@@ -184,11 +202,11 @@ function createWindow() {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com; " +
             "style-src 'self' 'unsafe-inline' http://localhost:*; " +
             "img-src 'self' data: blob: http://localhost:* https:; " +
             "font-src 'self' data: http://localhost:* https:; " +
-            "connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
+            "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
           ]
         }
       });
@@ -205,7 +223,7 @@ function createWindow() {
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: blob: https:; " +
             "font-src 'self' data:; " +
-            "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
+            "connect-src 'self' data: blob: https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
           ]
         }
       });

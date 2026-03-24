@@ -416,6 +416,24 @@ export class FirebaseService {
     }
   }
 
+  /** Obtiene todos los artículos activos del catálogo de stock (código + descripción). */
+  async getArticulos(): Promise<Array<{ id: string; codigo: string; descripcion: string }>> {
+    try {
+      const snap = await getDocs(collection(db, 'articulos'));
+      return snap.docs
+        .filter(d => d.data().activo !== false)
+        .map(d => ({
+          id: d.id,
+          codigo: (d.data().codigo as string) || '',
+          descripcion: (d.data().descripcion as string) || '',
+        }))
+        .sort((a, b) => a.codigo.localeCompare(b.codigo));
+    } catch (e) {
+      console.warn('No se pudieron obtener artículos:', e);
+      return [];
+    }
+  }
+
   /** Descarga un archivo de Storage como Blob usando el SDK (sin CORS issues). */
   async downloadStorageBlob(url: string): Promise<Blob> {
     // Extraer el path del archivo de la URL de Firebase Storage

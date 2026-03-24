@@ -50,12 +50,12 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
       <div className="flex items-center gap-3 flex-wrap">
         <input type="text" placeholder="Buscar por razón social, contacto..." value={search}
           onChange={e => onSearchChange(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" />
+          className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
         <div className="flex items-center gap-1.5">
           {ESTADO_TABS.map(tab => (
             <button key={tab.value} onClick={() => onEstadoChange(tab.value as LeadEstado | '')}
               className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
-                estadoFilter === tab.value ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                estadoFilter === tab.value ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}>
               {tab.label}
             </button>
@@ -100,10 +100,10 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             placeholder="Cliente" />
         </div>
         <input type="date" value={filters.fechaDesde} onChange={e => set({ fechaDesde: e.target.value })}
-          className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
           title="Desde" />
         <input type="date" value={filters.fechaHasta} onChange={e => set({ fechaHasta: e.target.value })}
-          className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
           title="Hasta" />
         {hasAdvanced && (
           <Button size="sm" variant="ghost" onClick={() => onFiltersChange(INITIAL_FILTERS)}>Limpiar</Button>

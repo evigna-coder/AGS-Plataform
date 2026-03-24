@@ -77,12 +77,12 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
                   value={formData.cuit}
                   onChange={(e) => { setFormData({ ...formData, cuit: e.target.value }); setAfipResult(null); }}
                   placeholder="XX-XXXXXXXX-X"
-                  className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                  className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
                 />
                 <button
                   onClick={handleValidateCuit}
                   disabled={validatingCuit || !(formData.cuit || '').trim()}
-                  className="shrink-0 px-2 py-1 text-[9px] font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="shrink-0 px-2 py-1 text-[9px] font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {validatingCuit ? '...' : 'AFIP'}
                 </button>

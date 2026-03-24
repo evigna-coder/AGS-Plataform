@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef, Re
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export interface Tab {
-  id: string;       // module prefix e.g. "_clientes"
+  id: string;       // unique id e.g. "tab_1", "tab_2"
   path: string;     // current path within the tab (tracks navigation)
   label: string;
   icon: string;
@@ -11,24 +11,27 @@ export interface Tab {
 
 interface TabsContextType {
   tabs: Tab[];
-  openTab: (path: string, label: string, icon: string) => void;
+  activeTabId: string;
+  openTab: (path: string, label?: string, icon?: string) => void;
   closeTab: (id: string) => void;
   switchTab: (id: string) => void;
 }
 
 const TabsContext = createContext<TabsContextType | null>(null);
 
+let nextTabCounter = 1;
+function generateTabId(): string {
+  return `tab_${nextTabCounter++}`;
+}
+
 /** Get the module prefix from a path: /clientes/123 → /clientes */
-function modulePrefix(path: string): string {
+export function modulePrefix(path: string): string {
   const parts = path.split('/').filter(Boolean);
   if (parts.length === 0) return '/clientes';
   // Stock sub-modules share the /stock prefix
   if (parts[0] === 'stock') return '/stock';
   return '/' + parts[0];
 }
-
-/** Derive tab id from a module prefix */
-export const tabId = (path: string) => modulePrefix(path).replace(/\//g, '_') || '_home';
 
 /** Lookup table: module prefix → { label, icon } */
 const NAV_META: Record<string, { label: string; icon: string }> = {
@@ -61,8 +64,6 @@ function computeSublabel(path: string): string | undefined {
   const prefix = modulePrefix(path);
   const rest = path.slice(prefix.length).replace(/^\//, '');
   if (!rest) return undefined;
-  // For paths like /stock/articulos/ABC → sublabel "ABC"
-  // For paths like /clientes/ABC123 → sublabel "ABC123"
   const segments = rest.split('/').filter(Boolean);
   if (segments.length === 0) return undefined;
   // Skip "nuevo", "editar", "categorias" as sublabel — not meaningful
@@ -81,10 +82,13 @@ function computeSublabel(path: string): string | undefined {
 export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [tabs, setTabs] = useState<Tab[]>(() => {
     const meta = getNavMeta(location.pathname);
-    return [{ id: tabId(location.pathname), path: location.pathname, label: meta.label, icon: meta.icon, sublabel: computeSublabel(location.pathname) }];
+    const id = generateTabId();
+    return [{ id, path: location.pathname, label: meta.label, icon: meta.icon, sublabel: computeSublabel(location.pathname) }];
   });
+  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id ?? '');
 
   // Track whether the navigation was initiated by switchTab/openTab
   const programmaticNav = useRef(false);
@@ -95,67 +99,79 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       programmaticNav.current = false;
       return;
     }
-    // User navigated via sidebar or link click → update the "current" tab's path
-    const currentModuleId = tabId(location.pathname);
-    setTabs(prev => {
-      // If there's a tab for this module, update its path
-      const sub = computeSublabel(location.pathname);
-      const existing = prev.find(t => t.id === currentModuleId);
-      if (existing) {
-        return prev.map(t => t.id === currentModuleId ? { ...t, path: location.pathname, sublabel: sub } : t);
-      }
-      // No tab for this module → replace the active tab's section with new module
-      // (single-tab mode: sidebar navigation replaces the first/only tab)
-      if (prev.length <= 1) {
-        const meta = getNavMeta(location.pathname);
-        return [{ id: currentModuleId, path: location.pathname, label: meta.label, icon: meta.icon, sublabel: sub }];
-      }
-      // Multi-tab: add a new tab for the module
-      const meta = getNavMeta(location.pathname);
-      return [...prev, { id: currentModuleId, path: location.pathname, label: meta.label, icon: meta.icon, sublabel: sub }];
-    });
-  }, [location.pathname]);
+    // User navigated via sidebar or link click → update the active tab's path
+    const sub = computeSublabel(location.pathname);
+    const newPrefix = modulePrefix(location.pathname);
 
-  const openTab = useCallback((path: string, label: string, icon: string) => {
-    const id = tabId(path);
-    programmaticNav.current = true;
     setTabs(prev => {
-      if (prev.some(t => t.id === id)) return prev;
-      return [...prev, { id, path, label, icon }];
+      const activeTab = prev.find(t => t.id === activeTabId);
+
+      // If active tab exists and the navigation is within the same module or a normal link click, update it
+      if (activeTab) {
+        const activePrefix = modulePrefix(activeTab.path);
+        // Same module → just update the path
+        if (activePrefix === newPrefix) {
+          return prev.map(t => t.id === activeTabId ? { ...t, path: location.pathname, sublabel: sub } : t);
+        }
+        // Different module — if single tab, replace it; if multi-tab, update the active tab
+        const meta = getNavMeta(location.pathname);
+        return prev.map(t => t.id === activeTabId
+          ? { ...t, path: location.pathname, label: meta.label, icon: meta.icon, sublabel: sub }
+          : t
+        );
+      }
+
+      // Fallback: no active tab found → replace first tab
+      const meta = getNavMeta(location.pathname);
+      if (prev.length === 0) {
+        const id = generateTabId();
+        setActiveTabId(id);
+        return [{ id, path: location.pathname, label: meta.label, icon: meta.icon, sublabel: sub }];
+      }
+      return prev.map((t, i) => i === 0 ? { ...t, path: location.pathname, label: meta.label, icon: meta.icon, sublabel: sub } : t);
     });
+  }, [location.pathname, activeTabId]);
+
+  const openTab = useCallback((path: string, label?: string, icon?: string) => {
+    const meta = label && icon ? { label, icon } : getNavMeta(path);
+    const id = generateTabId();
+    programmaticNav.current = true;
+    setTabs(prev => [...prev, { id, path, label: meta.label, icon: meta.icon, sublabel: computeSublabel(path) }]);
+    setActiveTabId(id);
     navigate(path);
   }, [navigate]);
 
-  const closeTab = useCallback((id: string) => {
+  const closeTab = useCallback((closingId: string) => {
     setTabs(prev => {
-      const idx = prev.findIndex(t => t.id === id);
-      if (idx === -1 || prev.length <= 1) return prev; // Don't close the last tab
-      const next = prev.filter(t => t.id !== id);
-      // If we're closing the active tab, navigate to nearest remaining
-      const closedTab = prev[idx];
-      const currentModuleId = tabId(location.pathname);
-      if (closedTab.id === currentModuleId) {
+      if (prev.length <= 1) return prev; // Don't close the last tab
+      const idx = prev.findIndex(t => t.id === closingId);
+      if (idx === -1) return prev;
+      const next = prev.filter(t => t.id !== closingId);
+      // If closing the active tab, switch to the nearest remaining
+      if (closingId === activeTabId) {
         const newActive = next[Math.min(idx, next.length - 1)];
+        setActiveTabId(newActive.id);
         programmaticNav.current = true;
         navigate(newActive.path);
       }
       return next;
     });
-  }, [navigate, location.pathname]);
+  }, [navigate, activeTabId]);
 
   const switchTab = useCallback((id: string) => {
     setTabs(prev => {
       const tab = prev.find(t => t.id === id);
-      if (tab) {
+      if (tab && id !== activeTabId) {
+        setActiveTabId(id);
         programmaticNav.current = true;
         navigate(tab.path);
       }
       return prev;
     });
-  }, [navigate]);
+  }, [navigate, activeTabId]);
 
   return (
-    <TabsContext.Provider value={{ tabs, openTab, closeTab, switchTab }}>
+    <TabsContext.Provider value={{ tabs, activeTabId, openTab, closeTab, switchTab }}>
       {children}
     </TabsContext.Provider>
   );

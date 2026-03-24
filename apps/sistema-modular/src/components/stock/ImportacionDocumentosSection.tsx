@@ -93,7 +93,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
                 </td>
                 <td className="text-xs py-2 pr-3 text-slate-700">
                   {d.url ? (
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">{d.nombre}</a>
+                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">{d.nombre}</a>
                   ) : d.nombre}
                 </td>
                 <td className="text-xs py-2 pr-3 text-slate-500">{d.fecha ? new Date(d.fecha).toLocaleDateString('es-AR') : '-'}</td>
@@ -104,7 +104,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
               </tr>
             ))}
             {newDoc && (
-              <tr className="border-b border-slate-50 bg-indigo-50/30">
+              <tr className="border-b border-slate-50 bg-teal-50/30">
                 <td className="py-2 pr-2">
                   <select className="text-xs border border-slate-300 rounded px-2 py-1" value={newDoc.tipo || 'invoice'} onChange={e => setNewDoc(p => ({ ...p, tipo: e.target.value }))}>
                     {TIPOS_DOCUMENTO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -121,7 +121,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
                 </td>
                 <td className="py-2 text-right">
                   <div className="flex gap-1 justify-end">
-                    <button onClick={handleSaveNew} className="text-indigo-600 hover:text-indigo-800 text-[10px] font-medium" disabled={saving}>Guardar</button>
+                    <button onClick={handleSaveNew} className="text-teal-600 hover:text-teal-800 text-[10px] font-medium" disabled={saving}>Guardar</button>
                     <button onClick={() => setNewDoc(null)} className="text-slate-400 hover:text-slate-600 text-[10px]">Cancelar</button>
                   </div>
                 </td>

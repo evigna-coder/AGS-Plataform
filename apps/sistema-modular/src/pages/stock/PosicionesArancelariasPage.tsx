@@ -168,7 +168,7 @@ export const PosicionesArancelariasPage = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
           </label>
         </div>
@@ -229,7 +229,7 @@ const ViewRow: React.FC<{
     <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.ingresosBrutos)}</td>
     <td className="text-xs py-2 px-3 text-right">
       <div className="flex justify-end gap-2">
-        <button onClick={onEdit} className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
+        <button onClick={onEdit} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
         <button onClick={onToggle} className={`font-medium text-[11px] ${p.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
           {p.activo ? 'Desactivar' : 'Activar'}
         </button>

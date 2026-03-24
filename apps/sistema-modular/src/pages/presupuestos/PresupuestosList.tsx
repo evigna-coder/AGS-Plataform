@@ -148,7 +148,7 @@ export const PresupuestosList = () => {
         }>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" placeholder="Buscar por número, cliente..." value={search} onChange={e => setSearch(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-56" />
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
           <div className="min-w-[120px]">
             <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilters({ ...filters, cliente: v })}
               options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
@@ -175,9 +175,9 @@ export const PresupuestosList = () => {
               placeholder="Responsable" />
           </div>
           <input type="date" value={filters.fechaDesde} onChange={e => setFilters({ ...filters, fechaDesde: e.target.value })}
-            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Desde" />
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Desde" />
           <input type="date" value={filters.fechaHasta} onChange={e => setFilters({ ...filters, fechaHasta: e.target.value })}
-            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Hasta" />
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Hasta" />
           {hasFilters && (
             <Button size="sm" variant="ghost" onClick={() => setFilters({ cliente: '', estado: '', tipo: '', moneda: '', responsable: '', fechaDesde: '', fechaHasta: '' })}>Limpiar</Button>
           )}
@@ -188,7 +188,7 @@ export const PresupuestosList = () => {
         {presupuestosFiltrados.length === 0 ? (
           <Card><div className="text-center py-12">
             <p className="text-slate-400">No hay presupuestos para mostrar</p>
-            <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-xs">Crear primer presupuesto</button>
+            <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">Crear primer presupuesto</button>
           </div></Card>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
@@ -218,7 +218,7 @@ export const PresupuestosList = () => {
                     <tr key={p.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(p)}`}
                       onClick={() => floatingPres.open(p.id, loadData)}>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        <span className="font-semibold text-indigo-600 text-xs">{p.numero}</span>
+                        <span className="font-semibold text-teal-600 text-xs">{p.numero}</span>
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-700 truncate max-w-[140px]" title={getClienteNombre(p.clienteId)}>
                         {getClienteNombre(p.clienteId)}

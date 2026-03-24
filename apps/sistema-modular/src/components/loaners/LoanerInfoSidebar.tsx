@@ -13,7 +13,7 @@ function LV({ label, value, link, navState }: { label: string; value?: string | 
     <div>
       <dt className="text-[11px] font-medium text-slate-400 tracking-wider">{label}</dt>
       <dd className="text-sm text-slate-700 mt-0.5">
-        {link ? <Link to={link} state={navState} className="text-indigo-600 hover:underline">{value}</Link> : value}
+        {link ? <Link to={link} state={navState} className="text-teal-600 hover:underline">{value}</Link> : value}
       </dd>
     </div>
   );

@@ -68,7 +68,7 @@ export const ContactosSection = ({
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-medium text-slate-900 truncate">{c.nombre}</p>
                   {c.esPrincipal && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">Principal</span>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700">Principal</span>
                   )}
                 </div>
                 <p className="text-[11px] text-slate-400 truncate">

@@ -47,8 +47,8 @@ export const presupuestosService = {
       return {
         id: doc.id,
         ...d,
-        createdAt: d.createdAt?.toDate().toISOString(),
-        updatedAt: d.updatedAt?.toDate().toISOString(),
+        createdAt: d.createdAt?.toDate?.()?.toISOString() ?? d.createdAt ?? '',
+        updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? d.updatedAt ?? '',
         validUntil: d.validUntil?.toDate?.()?.toISOString() ?? d.validUntil ?? null,
         fechaEnvio: d.fechaEnvio?.toDate?.()?.toISOString() ?? d.fechaEnvio ?? null,
         proximoContacto: d.proximoContacto ?? null,
@@ -77,8 +77,8 @@ export const presupuestosService = {
       return {
         id: docSnap.id,
         ...d,
-        createdAt: d.createdAt?.toDate().toISOString(),
-        updatedAt: d.updatedAt?.toDate().toISOString(),
+        createdAt: d.createdAt?.toDate?.()?.toISOString() ?? d.createdAt ?? '',
+        updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? d.updatedAt ?? '',
         validUntil: d.validUntil?.toDate?.()?.toISOString() ?? d.validUntil ?? null,
         fechaEnvio: d.fechaEnvio?.toDate?.()?.toISOString() ?? d.fechaEnvio ?? null,
         proximoContacto: d.proximoContacto ?? null,
@@ -164,6 +164,11 @@ export const presupuestosService = {
       estado: 'borrador' as PresupuestoEstado,
       updatedAt: Timestamp.now(),
     });
+  },
+
+  async hardDelete(id: string) {
+    logAudit({ action: 'delete', collection: 'presupuestos', documentId: id });
+    await deleteDoc(doc(db, 'presupuestos', id));
   },
 };
 
@@ -257,8 +262,8 @@ export const categoriasPresupuestoService = {
     const categorias = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate().toISOString(),
-      updatedAt: doc.data().updatedAt?.toDate().toISOString(),
+      createdAt: doc.data().createdAt?.toDate?.()?.toISOString() ?? '',
+      updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() ?? '',
     })) as CategoriaPresupuesto[];
 
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -274,8 +279,8 @@ export const categoriasPresupuestoService = {
       return {
         id: docSnap.id,
         ...docSnap.data(),
-        createdAt: docSnap.data().createdAt?.toDate().toISOString(),
-        updatedAt: docSnap.data().updatedAt?.toDate().toISOString(),
+        createdAt: docSnap.data().createdAt?.toDate?.()?.toISOString() ?? '',
+        updatedAt: docSnap.data().updatedAt?.toDate?.()?.toISOString() ?? '',
       } as CategoriaPresupuesto;
     }
     return null;

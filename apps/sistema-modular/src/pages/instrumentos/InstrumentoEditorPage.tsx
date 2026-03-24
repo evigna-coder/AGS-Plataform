@@ -244,11 +244,11 @@ export const InstrumentoEditorPage = () => {
               <label key={key}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors text-sm ${
                   categorias.includes(key)
-                    ? 'bg-indigo-50 border-indigo-300 text-indigo-800'
+                    ? 'bg-teal-50 border-teal-300 text-teal-800'
                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}>
                 <input type="checkbox" checked={categorias.includes(key)}
-                  onChange={() => toggleCategoria(key)} className="w-4 h-4 accent-indigo-600" />
+                  onChange={() => toggleCategoria(key)} className="w-4 h-4 accent-teal-600" />
                 {label}
               </label>
             ))}
@@ -273,7 +273,7 @@ export const InstrumentoEditorPage = () => {
               {certificadoUrl ? (
                 <div className="flex items-center gap-2">
                   <a href={certificadoUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline text-sm font-medium truncate max-w-xs">
+                    className="text-teal-600 hover:underline text-sm font-medium truncate max-w-xs">
                     {certificadoNombre || 'Ver PDF'}
                   </a>
                   <button onClick={() => certFileRef.current?.click()}
@@ -301,7 +301,7 @@ export const InstrumentoEditorPage = () => {
             {trazabilidadUrl ? (
               <div className="flex items-center gap-2">
                 <a href={trazabilidadUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-indigo-600 hover:underline text-sm font-medium truncate max-w-xs">
+                  className="text-teal-600 hover:underline text-sm font-medium truncate max-w-xs">
                   {trazabilidadNombre || 'Ver PDF'}
                 </a>
                 <button onClick={() => trazFileRef.current?.click()}

@@ -16,6 +16,14 @@ try {
     openExternal: (url) => {
       shell.openExternal(url);
     },
+    // API para abrir un archivo local con la aplicación por defecto del sistema
+    openPath: (filePath) => {
+      return ipcRenderer.invoke('shell:open-path', filePath);
+    },
+    // API para guardar un blob como archivo temporal y abrirlo
+    saveTempAndOpen: (buffer, filename) => {
+      return ipcRenderer.invoke('file:save-temp-and-open', buffer, filename);
+    },
     // API para abrir una nueva ventana de Electron con una URL
     openWindow: (url) => {
       ipcRenderer.send('open-reportes-window', url);

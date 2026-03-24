@@ -1,5 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Part } from '../types';
+import { FirebaseService } from '../services/firebaseService';
+
+interface ArticuloCatalog {
+  id: string;
+  codigo: string;
+  descripcion: string;
+}
 
 interface ServiceReportSectionProps {
   readOnly: boolean;
@@ -15,11 +22,126 @@ interface ServiceReportSectionProps {
   onRemovePart: (id: string) => void;
 }
 
+/* ── Autocomplete para código de artículo ── */
+const ArticuloAutocomplete: React.FC<{
+  value: string;
+  readOnly: boolean;
+  catalog: ArticuloCatalog[];
+  onSelect: (art: ArticuloCatalog) => void;
+  onChange: (val: string) => void;
+}> = ({ value, readOnly, catalog, onSelect, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value
+  useEffect(() => { setSearch(value); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = search.length >= 2
+    ? catalog.filter(a =>
+        a.codigo.toLowerCase().includes(search.toLowerCase()) ||
+        a.descripcion.toLowerCase().includes(search.toLowerCase())
+      ).slice(0, 10)
+    : [];
+
+  const selectItem = (art: ArticuloCatalog) => {
+    onSelect(art);
+    setSearch(art.codigo);
+    setOpen(false);
+    setHighlightIdx(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open || filtered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = highlightIdx < filtered.length - 1 ? highlightIdx + 1 : 0;
+      setHighlightIdx(next);
+      listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = highlightIdx > 0 ? highlightIdx - 1 : filtered.length - 1;
+      setHighlightIdx(next);
+      listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && highlightIdx >= 0) {
+      e.preventDefault();
+      selectItem(filtered[highlightIdx]);
+    } else if (e.key === 'Tab' && highlightIdx >= 0) {
+      e.preventDefault();
+      selectItem(filtered[highlightIdx]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setHighlightIdx(-1);
+    }
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        value={search}
+        disabled={readOnly}
+        onChange={e => {
+          setSearch(e.target.value);
+          onChange(e.target.value);
+          setOpen(e.target.value.length >= 2);
+          setHighlightIdx(-1);
+        }}
+        onFocus={() => { if (search.length >= 2 && filtered.length > 0) setOpen(true); }}
+        onKeyDown={handleKeyDown}
+        placeholder="Código..."
+        className={`w-full outline-none text-xs ${readOnly ? 'bg-transparent text-slate-400 cursor-not-allowed' : ''}`}
+      />
+      {open && filtered.length > 0 && (
+        <div ref={listRef} className="absolute z-[9999] left-0 bottom-full mb-1 min-w-[380px] bg-white border border-slate-300 rounded-md shadow-xl max-h-[280px] overflow-y-auto">
+          {filtered.map((a, i) => (
+            <button
+              key={a.id}
+              type="button"
+              className={`w-full text-left px-3 py-1.5 text-[11px] border-b border-slate-100 last:border-0 flex gap-3 items-baseline
+                ${i === highlightIdx ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+              onMouseEnter={() => setHighlightIdx(i)}
+              onClick={() => selectItem(a)}
+            >
+              <span className="font-bold text-slate-800 whitespace-nowrap shrink-0">{a.codigo}</span>
+              <span className="text-slate-500">{a.descripcion}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
   readOnly, tipoServicio, onTipoServicioChange,
   reporteTecnico, setReporteTecnico, loadingAI, onOptimizeReport,
   articulos, onAddPart, onUpdatePart, onRemovePart,
 }) => {
+  const [catalog, setCatalog] = useState<ArticuloCatalog[]>([]);
+
+  // Load catalog once
+  useEffect(() => {
+    const svc = new FirebaseService();
+    svc.getArticulos().then(setCatalog);
+  }, []);
+
+  const handleSelectArticulo = useCallback((partId: string, art: ArticuloCatalog) => {
+    onUpdatePart(partId, { codigo: art.codigo, descripcion: art.descripcion, stockArticuloId: art.id } as any);
+  }, [onUpdatePart]);
+
   return (
     <div className="space-y-6">
       <section className="no-print">
@@ -127,7 +249,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
         </div>
 
         <div
-          className={`border rounded-xl overflow-hidden shadow-sm
+          className={`border rounded-xl overflow-visible shadow-sm
             ${
               readOnly
                 ? 'border-slate-200 bg-slate-50'
@@ -150,15 +272,23 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
               {articulos.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-1.5">
-                    <input
-                      value={p.codigo}
-                      maxLength={18}
-                      disabled={readOnly}
-                      onChange={e => onUpdatePart(p.id, 'codigo', e.target.value)}
-                      className={`w-full outline-none
-                        ${readOnly ? 'bg-transparent text-slate-400 cursor-not-allowed' : ''}
-                      `}
-                    />
+                    {readOnly ? (
+                      <span className="text-xs text-slate-400">{p.codigo}</span>
+                    ) : (
+                      <ArticuloAutocomplete
+                        value={p.codigo}
+                        readOnly={readOnly}
+                        catalog={catalog}
+                        onSelect={(art) => handleSelectArticulo(p.id, art)}
+                        onChange={(val) => {
+                          onUpdatePart(p.id, 'codigo', val);
+                          // Clear stockArticuloId if typing manually
+                          if (p.stockArticuloId) {
+                            onUpdatePart(p.id, 'stockArticuloId', null);
+                          }
+                        }}
+                      />
+                    )}
                   </td>
 
                   <td className="px-4 py-1.5">

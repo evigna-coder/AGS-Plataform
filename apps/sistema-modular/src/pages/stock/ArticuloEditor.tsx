@@ -190,10 +190,10 @@ export const ArticuloEditor = () => {
             : <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 {proveedores.map(prov => (
                   <label key={prov.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors text-sm ${
-                    proveedorIds.includes(prov.id) ? 'bg-indigo-50 border-indigo-300 text-indigo-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    proveedorIds.includes(prov.id) ? 'bg-teal-50 border-teal-300 text-teal-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}>
                     <input type="checkbox" checked={proveedorIds.includes(prov.id)}
-                      onChange={() => toggleProveedor(prov.id)} className="w-4 h-4 accent-indigo-600" />
+                      onChange={() => toggleProveedor(prov.id)} className="w-4 h-4 accent-teal-600" />
                     {prov.nombre}
                   </label>
                 ))}
@@ -223,7 +223,7 @@ export const ArticuloEditor = () => {
           {posicionArancelaria.trim() && (
             <div className="mt-4">
               <button type="button" onClick={() => setArancelOpen(!arancelOpen)}
-                className="flex items-center gap-1 text-sm font-medium text-slate-700 hover:text-indigo-600 transition-colors">
+                className="flex items-center gap-1 text-sm font-medium text-slate-700 hover:text-teal-600 transition-colors">
                 <svg className={`w-4 h-4 transition-transform ${arancelOpen ? 'rotate-90' : ''}`}
                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

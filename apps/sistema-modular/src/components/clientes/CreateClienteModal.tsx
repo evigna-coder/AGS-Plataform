@@ -120,12 +120,12 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
                   value={form.cuit}
                   onChange={e => { set('cuit', e.target.value); setAfipResult(null); }}
                   placeholder="XX-XXXXXXXX-X"
-                  className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                  className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
                 />
                 <button
                   onClick={handleValidateCuit}
                   disabled={validatingCuit || !form.cuit.trim()}
-                  className="shrink-0 px-2.5 py-1.5 text-[10px] font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="shrink-0 px-2.5 py-1.5 text-[10px] font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {validatingCuit ? 'Validando...' : 'Validar AFIP'}
                 </button>

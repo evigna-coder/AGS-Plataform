@@ -77,7 +77,7 @@ export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onR
               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${TIPO_COLORS[a.tipo]}`}>
                 {TIPO_LABELS[a.tipo]}
               </span>
-              <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline truncate flex-1">{a.nombre}</a>
+              <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:underline truncate flex-1">{a.nombre}</a>
               <span className="text-[10px] text-slate-400 shrink-0">{new Date(a.fechaCarga).toLocaleDateString('es-AR')}</span>
               {a.notas && <span className="text-[10px] text-slate-400 truncate max-w-[100px]" title={a.notas}>{a.notas}</span>}
               <button onClick={() => handleRemove(a.id)} className="text-red-400 hover:text-red-600 text-xs shrink-0">&times;</button>

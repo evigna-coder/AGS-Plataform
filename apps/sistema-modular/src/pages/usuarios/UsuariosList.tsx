@@ -95,7 +95,7 @@ export const UsuariosList = () => {
                         {u.role ? USER_ROLE_LABELS[u.role] : <span className="text-slate-400 italic">Sin rol</span>}
                       </span>
                       {u.permisos && (
-                        <span className="ml-1.5 text-[9px] font-medium bg-indigo-100 text-indigo-600 px-1 py-px rounded">custom</span>
+                        <span className="ml-1.5 text-[9px] font-medium bg-teal-100 text-teal-600 px-1 py-px rounded">custom</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
@@ -117,7 +117,7 @@ export const UsuariosList = () => {
                           <>
                             <button
                               onClick={() => setEditUser(u)}
-                              className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
+                              className="text-[11px] font-medium text-teal-600 hover:text-teal-800 px-2 py-1 rounded hover:bg-teal-50 transition-colors"
                             >
                               Editar
                             </button>
@@ -164,7 +164,7 @@ export const UsuariosList = () => {
             <div>
               <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Asignar rol</label>
               <select value={selectedRole} onChange={e => setSelectedRole(e.target.value as UserRole)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
                 {ROLES.map(r => <option key={r} value={r}>{USER_ROLE_LABELS[r]}</option>)}
               </select>
             </div>
@@ -292,7 +292,7 @@ function EditUserModal({ usuario, onClose, onSaved }: {
                 onClick={() => handleRoleChange(r)}
                 className={`text-[11px] font-medium px-2 py-2 rounded-lg border transition-colors text-center ${
                   role === r
-                    ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                    ? 'border-teal-300 bg-teal-50 text-teal-700'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -322,12 +322,12 @@ function EditUserModal({ usuario, onClose, onSaved }: {
                       handleResetDefaults();
                     }
                   }}
-                  className="w-4 h-4 accent-indigo-600 rounded"
+                  className="w-4 h-4 accent-teal-600 rounded"
                 />
                 <span className="text-xs font-medium text-slate-700">Personalizar permisos</span>
               </label>
               {useCustom && (
-                <button onClick={handleResetDefaults} className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium">
+                <button onClick={handleResetDefaults} className="text-[10px] text-teal-600 hover:text-teal-800 font-medium">
                   Restaurar defaults
                 </button>
               )}
@@ -343,13 +343,13 @@ function EditUserModal({ usuario, onClose, onSaved }: {
                   return (
                     <label key={app} className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors cursor-pointer ${
                       !useCustom ? 'opacity-60 cursor-not-allowed' : ''
-                    } ${isChecked ? 'border-indigo-200 bg-indigo-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                    } ${isChecked ? 'border-teal-200 bg-teal-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                       <input
                         type="checkbox"
                         checked={isChecked}
                         disabled={!useCustom}
                         onChange={() => toggleApp(app)}
-                        className="w-3.5 h-3.5 accent-indigo-600 rounded"
+                        className="w-3.5 h-3.5 accent-teal-600 rounded"
                       />
                       <span className="text-xs text-slate-700">{APP_LABELS[app]}</span>
                       {useCustom && isChecked !== isRoleDefault && (
@@ -373,13 +373,13 @@ function EditUserModal({ usuario, onClose, onSaved }: {
                   return (
                     <label key={mod} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
                       !useCustom ? 'opacity-60 cursor-not-allowed' : ''
-                    } ${isChecked ? 'border-indigo-200 bg-indigo-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                    } ${isChecked ? 'border-teal-200 bg-teal-50/50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                       <input
                         type="checkbox"
                         checked={isChecked}
                         disabled={!useCustom}
                         onChange={() => toggleModulo(mod)}
-                        className="w-3.5 h-3.5 accent-indigo-600 rounded"
+                        className="w-3.5 h-3.5 accent-teal-600 rounded"
                       />
                       <span className="text-[11px] text-slate-700">{MODULO_LABELS[mod]}</span>
                       {useCustom && isChecked !== isRoleDefault && (

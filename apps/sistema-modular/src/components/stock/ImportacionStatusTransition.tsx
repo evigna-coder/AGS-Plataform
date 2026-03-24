@@ -66,7 +66,7 @@ export const ImportacionStatusTransition: React.FC<Props> = ({ imp, onClose, onU
               onClick={() => setSelected(estado)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left ${
                 selected === estado
-                  ? 'border-indigo-500 bg-indigo-50'
+                  ? 'border-teal-500 bg-teal-50'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >

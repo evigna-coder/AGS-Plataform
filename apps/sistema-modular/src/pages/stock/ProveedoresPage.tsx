@@ -54,13 +54,13 @@ export const ProveedoresPage = () => {
       >
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los tipos</option>
             <option value="nacional">Nacional</option>
             <option value="internacional">Internacional</option>
           </select>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
           </label>
         </div>
@@ -101,7 +101,7 @@ export const ProveedoresPage = () => {
                     <td className="px-4 py-2 text-xs text-slate-600">{p.cuit || '-'}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        <Link to={`/stock/proveedores/${p.id}`} className="text-xs text-indigo-600 hover:underline font-medium">Ver</Link>
+                        <Link to={`/stock/proveedores/${p.id}`} className="text-xs text-teal-600 hover:underline font-medium">Ver</Link>
                         <button onClick={() => handleToggle(p)}
                           className={`font-medium text-[11px] ${p.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
                           {p.activo ? 'Desactivar' : 'Activar'}

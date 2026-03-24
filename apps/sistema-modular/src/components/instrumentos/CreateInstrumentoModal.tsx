@@ -73,7 +73,7 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   const catLabels = form.tipo === 'instrumento'
     ? CATEGORIA_INSTRUMENTO_LABELS
@@ -130,13 +130,13 @@ export const CreateInstrumentoModal: React.FC<Props> = ({ open, onClose, onCreat
             {(Object.entries(catLabels) as [string, string][]).map(([key, label]) => (
               <label key={key} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-colors text-xs ${
                 form.categorias.includes(key as any)
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-800'
+                  ? 'bg-teal-50 border-teal-300 text-teal-800'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}>
                 <input type="checkbox"
                   checked={form.categorias.includes(key as any)}
                   onChange={() => toggleCategoria(key as any)}
-                  className="w-3 h-3 accent-indigo-600" />
+                  className="w-3 h-3 accent-teal-600" />
                 {label}
               </label>
             ))}

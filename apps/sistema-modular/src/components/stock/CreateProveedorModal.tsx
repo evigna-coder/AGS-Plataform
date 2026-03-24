@@ -77,7 +77,7 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
             <div>
               <label className="block text-[11px] font-medium text-slate-700 mb-1">Tipo</label>
               <select value={form.tipo} onChange={e => set('tipo', e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                 <option value="nacional">Nacional</option>
                 <option value="internacional">Internacional</option>
               </select>
@@ -120,7 +120,7 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
         <div>
           <label className="block text-[11px] font-medium text-slate-600 mb-1">Notas</label>
           <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
-            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             placeholder="Notas internas..." />
         </div>
       </div>

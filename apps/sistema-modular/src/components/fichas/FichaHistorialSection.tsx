@@ -31,7 +31,7 @@ export function FichaHistorialSection({ historial }: Props) {
       <div className="space-y-3">
         {sorted.map(h => (
           <div key={h.id} className="relative pl-6 pb-3 border-l-2 border-slate-200 last:border-l-0">
-            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-indigo-500" />
+            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-teal-500" />
             <div className="flex items-center gap-2 mb-0.5">
               <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_FICHA_COLORS[h.estadoNuevo]}`}>
                 {ESTADO_FICHA_LABELS[h.estadoNuevo]}
@@ -42,7 +42,7 @@ export function FichaHistorialSection({ historial }: Props) {
             {h.otNumber && (
               <p className="text-xs text-slate-500 mt-0.5">
                 OT:{' '}
-                <Link to={`/ordenes-trabajo/${h.otNumber}`} state={fromState} className="text-indigo-600 hover:underline">
+                <Link to={`/ordenes-trabajo/${h.otNumber}`} state={fromState} className="text-teal-600 hover:underline">
                   {h.otNumber}
                 </Link>
               </p>

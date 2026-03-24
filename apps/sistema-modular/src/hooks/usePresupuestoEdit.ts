@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
-import type { Presupuesto, Cliente, Sistema, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, LeadEstado } from '@ags/shared';
+import { modulosService } from '../services/equiposService';
+import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, LeadEstado, PresupuestoSeccionesVisibles } from '@ags/shared';
+import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], LeadEstado>> = {
@@ -23,13 +25,19 @@ export interface PresupuestoFormState {
   origenId: string | null;
   origenRef: string | null;
   clienteId: string;
+  establecimientoId: string | null;
   sistemaId: string | null;
   contactoId: string | null;
   items: PresupuestoItem[];
   tipoCambio: number | undefined;
   condicionPagoId: string | undefined;
   notasTecnicas: string;
+  notasAdministrativas: string;
+  garantia: string;
+  variacionTipoCambio: string;
   condicionesComerciales: string;
+  aceptacionPresupuesto: string;
+  seccionesVisibles: PresupuestoSeccionesVisibles;
   validezDias: number;
   validUntil: string;
   fechaEnvio: string;
@@ -37,6 +45,7 @@ export interface PresupuestoFormState {
   proximoContacto: string;
   responsableId: string;
   responsableNombre: string;
+  createdAt: string;
 }
 
 export interface PresupuestoTotals {
@@ -51,11 +60,14 @@ export interface PresupuestoTotals {
 const INITIAL_FORM: PresupuestoFormState = {
   numero: '', estado: 'borrador', tipo: 'servicio', moneda: 'USD',
   origenTipo: null, origenId: null, origenRef: null,
-  clienteId: '', sistemaId: null, contactoId: null,
+  clienteId: '', establecimientoId: null, sistemaId: null, contactoId: null,
   items: [], tipoCambio: undefined, condicionPagoId: undefined,
-  notasTecnicas: '', condicionesComerciales: '',
+  notasTecnicas: '', notasAdministrativas: '', garantia: '',
+  variacionTipoCambio: '', condicionesComerciales: '', aceptacionPresupuesto: '',
+  seccionesVisibles: { ...PRESUPUESTO_SECCIONES_DEFAULT },
   validezDias: 15, validUntil: '', fechaEnvio: '',
   adjuntos: [], proximoContacto: '', responsableId: '', responsableNombre: '',
+  createdAt: '',
 };
 
 export function usePresupuestoEdit(presupuestoId: string | null) {
@@ -65,12 +77,14 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
 
   // Related data
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [establecimiento, setEstablecimiento] = useState<Establecimiento | null>(null);
   const [sistema, setSistema] = useState<Sistema | null>(null);
-  const [contactos, setContactos] = useState<ContactoCliente[]>([]);
+  const [contactos, setContactos] = useState<(ContactoCliente | ContactoEstablecimiento)[]>([]);
   const [categoriasPresupuesto, setCategoriasPresupuesto] = useState<CategoriaPresupuesto[]>([]);
   const [condicionesPago, setCondicionesPago] = useState<CondicionPago[]>([]);
   const [conceptosServicio, setConceptosServicio] = useState<ConceptoServicio[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
+  const [clienteSistemas, setClienteSistemas] = useState<Sistema[]>([]);
 
   const dirty = useRef(false);
 
@@ -96,13 +110,19 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         origenId: presupuestoData.origenId || null,
         origenRef: presupuestoData.origenRef || null,
         clienteId: presupuestoData.clienteId,
+        establecimientoId: presupuestoData.establecimientoId || null,
         sistemaId: presupuestoData.sistemaId || null,
         contactoId: presupuestoData.contactoId || null,
         items: presupuestoData.items || [],
         tipoCambio: presupuestoData.tipoCambio,
         condicionPagoId: presupuestoData.condicionPagoId,
         notasTecnicas: presupuestoData.notasTecnicas || '',
+        notasAdministrativas: presupuestoData.notasAdministrativas || '',
+        garantia: presupuestoData.garantia || '',
+        variacionTipoCambio: presupuestoData.variacionTipoCambio || '',
         condicionesComerciales: presupuestoData.condicionesComerciales || '',
+        aceptacionPresupuesto: presupuestoData.aceptacionPresupuesto || '',
+        seccionesVisibles: presupuestoData.seccionesVisibles || { ...PRESUPUESTO_SECCIONES_DEFAULT },
         validezDias: presupuestoData.validezDias ?? 15,
         validUntil: presupuestoData.validUntil ? presupuestoData.validUntil.split('T')[0] : '',
         fechaEnvio: presupuestoData.fechaEnvio ? presupuestoData.fechaEnvio.split('T')[0] : '',
@@ -110,17 +130,27 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         proximoContacto: presupuestoData.proximoContacto || '',
         responsableId: presupuestoData.responsableId || '',
         responsableNombre: presupuestoData.responsableNombre || '',
+        createdAt: presupuestoData.createdAt || '',
       });
 
       if (presupuestoData.clienteId) {
-        const [clienteData, contactosData] = await Promise.all([
+        const [clienteData, contactosData, sistemasData] = await Promise.all([
           clientesService.getById(presupuestoData.clienteId),
           contactosService.getByCliente(presupuestoData.clienteId).catch(() => []),
+          sistemasService.getAll({ clienteId: presupuestoData.clienteId }).catch(() => [] as Sistema[]),
         ]);
         setCliente(clienteData);
         setContactos(contactosData);
+        setClienteSistemas(sistemasData);
       }
-      if (presupuestoData.sistemaId) {
+      if (presupuestoData.establecimientoId) {
+        try {
+          const { establecimientosService } = await import('../services/firebaseService');
+          const estabData = await establecimientosService.getById(presupuestoData.establecimientoId);
+          setEstablecimiento(estabData);
+        } catch { /* establecimiento optional */ }
+      }
+      if (presupuestoData.sistemaId && !presupuestoData.sistemaId.startsWith('__')) {
         const sistemaData = await sistemasService.getById(presupuestoData.sistemaId);
         setSistema(sistemaData);
       }
@@ -176,13 +206,26 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         fechaEnvioToSave = new Date().toISOString().split('T')[0];
         setFormState(prev => ({ ...prev, fechaEnvio: fechaEnvioToSave }));
       }
+      // Reassign grupo numbers based on sistemaId before saving
+      const sistemaIds = [...new Set(form.items.map(i => i.sistemaId).filter(Boolean))] as string[];
+      const grupoMap = new Map(sistemaIds.map((id, idx) => [id, idx + 1]));
+      const itemsWithGrupos = form.items.map(item => ({
+        ...item,
+        grupo: item.sistemaId ? grupoMap.get(item.sistemaId) || 0 : 0,
+      }));
+
       await presupuestosService.update(presupuestoId, {
-        estado: form.estado, tipo: form.tipo, moneda: form.moneda, items: form.items,
+        estado: form.estado, tipo: form.tipo, moneda: form.moneda, items: itemsWithGrupos,
         subtotal: totals.subtotal, total: totals.total,
         tipoCambio: form.tipoCambio || undefined,
         condicionPagoId: form.condicionPagoId || undefined,
-        notasTecnicas: form.notasTecnicas || undefined,
-        condicionesComerciales: form.condicionesComerciales || undefined,
+        notasTecnicas: form.notasTecnicas || null,
+        notasAdministrativas: form.notasAdministrativas || null,
+        garantia: form.garantia || null,
+        variacionTipoCambio: form.variacionTipoCambio || null,
+        condicionesComerciales: form.condicionesComerciales || null,
+        aceptacionPresupuesto: form.aceptacionPresupuesto || null,
+        seccionesVisibles: form.seccionesVisibles,
         validezDias: form.validezDias,
         validUntil: form.validUntil || undefined,
         fechaEnvio: fechaEnvioToSave || undefined,
@@ -265,9 +308,14 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
     }
   }, [form.origenTipo, form.origenId]);
 
+  const loadModulosBySistema = useCallback(async (sistemaId: string) => {
+    return modulosService.getBySistema(sistemaId);
+  }, []);
+
   return {
     form, setField, loading, saving, dirty,
-    cliente, sistema, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
+    cliente, establecimiento, sistema, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
+    clienteSistemas, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
     save, load,
     updateItem, addItem, removeItem,

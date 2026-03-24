@@ -14,7 +14,7 @@ import {
 
 const ORIGEN_COLORS: Record<OrigenRequerimiento, string> = {
   manual: 'bg-slate-100 text-slate-600',
-  presupuesto: 'bg-indigo-50 text-indigo-700',
+  presupuesto: 'bg-teal-50 text-teal-700',
   stock_minimo: 'bg-amber-50 text-amber-700',
   ingeniero: 'bg-blue-50 text-blue-700',
 };
@@ -100,14 +100,14 @@ export const RequerimientosList = () => {
       >
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filters.estado} onChange={e => setFilters({ ...filters, estado: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los estados</option>
             {(Object.keys(ESTADO_REQUERIMIENTO_LABELS) as EstadoRequerimiento[]).map(k => (
               <option key={k} value={k}>{ESTADO_REQUERIMIENTO_LABELS[k]}</option>
             ))}
           </select>
           <select value={filters.origen} onChange={e => setFilters({ ...filters, origen: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los orígenes</option>
             {(Object.keys(ORIGEN_REQUERIMIENTO_LABELS) as OrigenRequerimiento[]).map(k => (
               <option key={k} value={k}>{ORIGEN_REQUERIMIENTO_LABELS[k]}</option>
@@ -138,7 +138,7 @@ export const RequerimientosList = () => {
                 {sorted.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2">
-                      <span className="font-mono text-xs font-semibold text-indigo-600">{r.numero}</span>
+                      <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
                     </td>
                     <td className="px-4 py-2 text-xs text-slate-900">{r.articuloDescripcion}</td>
                     <td className="px-4 py-2 text-xs text-slate-600">
@@ -163,7 +163,7 @@ export const RequerimientosList = () => {
                             Aprobar
                           </button>
                         )}
-                        <button className="text-xs text-indigo-600 hover:underline font-medium">Ver</button>
+                        <button className="text-xs text-teal-600 hover:underline font-medium">Ver</button>
                         {r.estado === 'pendiente' && (
                           <button onClick={() => handleDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">
                             Eliminar

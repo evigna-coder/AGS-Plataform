@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { OTInfoSidebar } from '../../components/ordenes-trabajo/OTInfoSidebar';
 import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSection';
@@ -21,7 +21,6 @@ const ESTADO_COLORS: Record<string, string> = {
 
 export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const ot = useOTDetail(otNumber);
 
@@ -181,11 +180,15 @@ export const OTDetail = () => {
                 cierreAdmin={ot.cierreAdmin}
                 onChange={ot.handleCierreChange}
                 onConfirmarCierre={ot.handleConfirmarCierre}
+                onReabrirOT={ot.handleReabrirOT}
                 horasTrabajadas={ot.horasTrabajadas}
                 tiempoViaje={ot.tiempoViaje}
                 articulos={ot.articulos}
                 readOnly={ot.estadoAdmin === 'FINALIZADO'}
                 estadoAdmin={ot.estadoAdmin}
+                razonSocial={ot.cliente?.razonSocial}
+                tipoServicio={ot.tipoServicio}
+                ingenieroNombre={ot.ingenieroAsignadoNombre}
               />
             )}
           </div>

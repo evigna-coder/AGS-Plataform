@@ -84,8 +84,11 @@ export function useAgenda(): UseAgendaReturn {
       const assignedOTNumbers = new Set(
         entries.filter(e => e.estadoAgenda !== 'cancelado').map(e => e.otNumber)
       );
+      // Show OTs that are not yet finalized and don't have active agenda entries
+      const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
       const pending = allOTs.filter(
-        ot => ot.status === 'BORRADOR' && !assignedOTNumbers.has(ot.otNumber)
+        ot => !assignedOTNumbers.has(ot.otNumber) &&
+          (ot.status === 'BORRADOR' || PENDING_ESTADOS.includes(ot.estadoAdmin || ''))
       );
       setPendingOTs(pending);
     } catch (err) {

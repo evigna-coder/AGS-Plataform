@@ -18,7 +18,7 @@ interface Props {
 }
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-0.5';
-const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400';
+const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
 
 const ESTADO_COLORS: Record<string, string> = {
   CREADA: 'bg-slate-100 text-slate-600',
@@ -352,7 +352,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
                 <label className="text-[11px] font-medium text-slate-500">Presupuesto</label>
                 {!readOnly && form.presupuestos.length < 5 && (
                   <button onClick={() => set('presupuestos', [...form.presupuestos, ''])}
-                    className="text-[10px] text-indigo-600 hover:underline">+</button>
+                    className="text-[10px] text-teal-600 hover:underline">+</button>
                 )}
               </div>
               {form.presupuestos.map((b, idx) => (
@@ -391,7 +391,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
               onChange={e => set('problemaFallaInicial', e.target.value)}
               rows={2} placeholder="Descripción del problema o motivo de la OT..."
               disabled={readOnly}
-              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 disabled:bg-slate-100 disabled:text-slate-400" />
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400 disabled:bg-slate-100 disabled:text-slate-400" />
           </div>
 
           {/* Historial de estados */}

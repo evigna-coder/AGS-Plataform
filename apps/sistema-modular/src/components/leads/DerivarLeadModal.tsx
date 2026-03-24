@@ -86,7 +86,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Área destino *</label>
           <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as LeadArea | '')}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Sin área específica</option>
             {LEAD_AREA_GROUPS.map(g => (
               <optgroup key={g.label} label={g.label}>
@@ -101,7 +101,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
             Derivar a ({isIngeniero ? 'ingeniero' : 'usuario'})
           </label>
           <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Sin asignar {isIngeniero ? 'ingeniero' : 'usuario'} específico</option>
             {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -110,7 +110,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Nuevo estado</label>
           <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as LeadEstado)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
               <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
             ))}
@@ -121,7 +121,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-1 block">Prioridad</label>
             <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad | '')}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               <option value="">Sin definir</option>
               {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
@@ -129,21 +129,21 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
             <input type="date" value={proximoContacto} onChange={e => setProximoContacto(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
         </div>
 
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Acción requerida (opcional)</label>
           <input type="text" value={accionRequerida} onChange={e => setAccionRequerida(e.target.value)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="Ej: Averiguar N° de parte, Enviar cotización..." />
         </div>
 
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Comentario (opcional)</label>
           <textarea value={comentario} onChange={e => setComentario(e.target.value)} rows={3}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             placeholder="Instrucciones o contexto..." />
         </div>
 

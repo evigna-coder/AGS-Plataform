@@ -15,6 +15,7 @@ const INLET_OPTIONS: Array<{ value: InletType; label: string }> = [
 
 const DETECTOR_OPTIONS: Array<{ value: DetectorType; label: string }> = [
   { value: 'FID', label: 'FID' },
+  { value: 'TCD', label: 'TCD' },
   { value: 'NCD', label: 'NCD' },
   { value: 'FPD', label: 'FPD' },
   { value: 'ECD', label: 'ECD' },

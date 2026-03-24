@@ -187,8 +187,8 @@ export const TableCatalogPage = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {/* Acciones en lote */}
         {selectedIds.size > 0 && (
-          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
-            <span className="text-sm font-bold text-indigo-800">{selectedIds.size} seleccionada(s)</span>
+          <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+            <span className="text-sm font-bold text-teal-800">{selectedIds.size} seleccionada(s)</span>
             <div className="flex gap-3 items-center">
               {projects.length > 0 && (
                 <select defaultValue="" onChange={e => { if (e.target.value) handleBulkMove(e.target.value === '__none__' ? null : e.target.value); e.target.value = ''; }}

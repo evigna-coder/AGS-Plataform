@@ -661,11 +661,12 @@ export function useAppLogic(
     setArticulos([...articulos, { id: uid(), codigo: '', descripcion: '', cantidad: 1, origen: '' }]);
   };
 
-  const updatePart = (id: string, field: keyof Part, value: any) => {
-    const updated = articulos.map(p => 
-      p.id === id ? { ...p, [field]: value } : p
-    );
-    setArticulos(updated);
+  const updatePart = (id: string, fieldOrBulk: keyof Part | Partial<Part>, value?: any) => {
+    setArticulos(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      if (typeof fieldOrBulk === 'object') return { ...p, ...fieldOrBulk };
+      return { ...p, [fieldOrBulk]: value };
+    }));
   };
 
   const removePart = (id: string) => {

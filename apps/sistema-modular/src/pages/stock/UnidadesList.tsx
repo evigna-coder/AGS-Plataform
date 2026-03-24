@@ -6,7 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
-const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-indigo-100 text-indigo-700', scrap: 'bg-red-100 text-red-700' };
+const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', reservado: 'Reservado', asignado: 'Asignado', en_transito: 'En transito', consumido: 'Consumido', vendido: 'Vendido', baja: 'Baja' };
 const ESTADO_COLORS: Record<EstadoUnidad, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', baja: 'bg-red-100 text-red-700' };
 const UBICACION_LABELS: Record<string, string> = { posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente', proveedor: 'Proveedor', transito: 'En transito' };
@@ -72,12 +72,12 @@ export const UnidadesList = () => {
             placeholder="Buscar por codigo o descripcion..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <select
             value={filters.estado}
             onChange={e => setFilters({ ...filters, estado: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los estados</option>
             {(Object.keys(ESTADO_LABELS) as EstadoUnidad[]).map(k => (
@@ -87,7 +87,7 @@ export const UnidadesList = () => {
           <select
             value={filters.condicion}
             onChange={e => setFilters({ ...filters, condicion: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todas las condiciones</option>
             {(Object.keys(CONDICION_LABELS) as CondicionUnidad[]).map(k => (
@@ -131,7 +131,7 @@ export const UnidadesList = () => {
                   {filtered.map(u => (
                     <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-2">
-                        <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-indigo-600 hover:underline">
+                        <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">
                           {u.articuloCodigo}
                         </Link>
                       </td>

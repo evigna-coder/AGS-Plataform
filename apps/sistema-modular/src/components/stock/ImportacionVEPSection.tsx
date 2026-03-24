@@ -75,7 +75,7 @@ export const ImportacionVEPSection: React.FC<Props> = ({ imp, onUpdate }) => {
             <select
               value={form.vepMoneda}
               onChange={set('vepMoneda')}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="ARS">ARS</option>
               <option value="USD">USD</option>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CierreAdministrativo, Part } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -5,25 +6,31 @@ import { Button } from '../ui/Button';
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
 const inp = 'w-full border rounded-lg px-2.5 py-1 text-xs bg-white border-slate-300 disabled:bg-slate-100 disabled:text-slate-400';
-const chk = 'w-3.5 h-3.5 accent-indigo-600';
+const chk = 'w-3.5 h-3.5 accent-teal-600';
 
 interface Props {
   cierreAdmin: CierreAdministrativo;
   onChange: (field: keyof CierreAdministrativo, value: any) => void;
   onConfirmarCierre: () => void;
+  onReabrirOT?: () => void;
   horasTrabajadas: string;
   tiempoViaje: string;
   articulos: Part[];
   readOnly: boolean;
   estadoAdmin: string;
+  razonSocial?: string;
+  tipoServicio?: string;
+  ingenieroNombre?: string | null;
 }
 
 export const OTCierreAdminSection: React.FC<Props> = ({
-  cierreAdmin, onChange, onConfirmarCierre,
+  cierreAdmin, onChange, onConfirmarCierre, onReabrirOT,
   horasTrabajadas, tiempoViaje, articulos, readOnly, estadoAdmin,
+  razonSocial, tipoServicio, ingenieroNombre,
 }) => {
   const isClosed = estadoAdmin === 'FINALIZADO';
   const disabled = readOnly || isClosed;
+  const [showPreview, setShowPreview] = useState(false);
 
   const hsLabOriginal = Number(horasTrabajadas) || 0;
   const hsViajeOriginal = Number(tiempoViaje) || 0;
@@ -135,7 +142,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
             value={cierreAdmin.notasCierre || ''} disabled={disabled}
             onChange={e => onChange('notasCierre', e.target.value)}
             rows={3} placeholder="Observaciones del cierre administrativo..."
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
           />
         </div>
 
@@ -156,15 +163,47 @@ export const OTCierreAdminSection: React.FC<Props> = ({
           </div>
         )}
 
+        {/* Preview before confirming */}
+        {showPreview && !isClosed && (
+          <div className="border border-cyan-300 rounded-lg p-3 bg-cyan-50/60 space-y-1.5">
+            <p className="text-[10px] font-semibold text-cyan-700 uppercase tracking-wider">Preview del aviso</p>
+            <div className="text-xs text-slate-600 space-y-0.5">
+              <p><span className="text-slate-400">Cliente:</span> {razonSocial || '—'}</p>
+              <p><span className="text-slate-400">Servicio:</span> {tipoServicio || '—'}</p>
+              <p><span className="text-slate-400">Ingeniero:</span> {ingenieroNombre || 'Sin asignar'}</p>
+              <p><span className="text-slate-400">Hs Lab:</span> {hsLabFinal.toFixed(1)}h | <span className="text-slate-400">Hs Viaje:</span> {hsViajeFinal.toFixed(1)}h | <span className="text-slate-400">Total:</span> {(hsLabFinal + hsViajeFinal).toFixed(1)}h</p>
+              <p><span className="text-slate-400">Partes:</span> {articulos.length} items {cierreAdmin.stockDeducido ? '(stock deducido)' : '(stock NO deducido)'}</p>
+              {cierreAdmin.notasCierre && <p><span className="text-slate-400">Notas:</span> {cierreAdmin.notasCierre}</p>}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={() => setShowPreview(false)} className="flex-1">Volver</Button>
+              <Button size="sm" onClick={() => { setShowPreview(false); onConfirmarCierre(); }} className="flex-1">Confirmar y enviar</Button>
+            </div>
+          </div>
+        )}
+
         {/* Botón confirmar */}
-        {!isClosed && (
+        {!isClosed && !showPreview && (
           <div className="border-t border-cyan-200 pt-3">
-            <Button size="sm" onClick={onConfirmarCierre} className="w-full">
+            <Button size="sm" onClick={() => {
+              if (!cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
+              if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
+              setShowPreview(true);
+            }} className="w-full">
               Confirmar cierre y avisar a administracion
             </Button>
             <p className="text-[10px] text-slate-400 text-center mt-1">
-              Se enviara un aviso por mail a administracion para la facturacion y la OT pasara a Finalizado
+              Se mostrara un preview antes de enviar
             </p>
+          </div>
+        )}
+
+        {/* Reabrir OT */}
+        {isClosed && onReabrirOT && (
+          <div className="border-t border-cyan-200 pt-3">
+            <Button size="sm" variant="outline" onClick={onReabrirOT} className="w-full text-amber-600 border-amber-300 hover:bg-amber-50">
+              Reabrir OT (volver a Cierre Administrativo)
+            </Button>
           </div>
         )}
       </div>

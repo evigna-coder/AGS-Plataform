@@ -10,7 +10,7 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const CONDICION_COLORS: Record<CondicionUnidad, string> = {
   nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700',
-  reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-indigo-100 text-indigo-700', scrap: 'bg-red-100 text-red-700',
+  reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700',
 };
 const CONDICION_LABELS: Record<CondicionUnidad, string> = {
   nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap',
@@ -46,10 +46,10 @@ export const ArticuloDetail = () => {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [art, units] = await Promise.all([articulosService.getById(id), unidadesService.getByArticulo(id)]);
       setArticulo(art);
       setUnidades(units);
@@ -58,7 +58,7 @@ export const ArticuloDetail = () => {
         setMarca(allMarcas.find(m => m.id === art.marcaId) ?? null);
       }
     } catch (e) { console.error('Error loading articulo:', e); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -78,13 +78,13 @@ export const ArticuloDetail = () => {
         observaciones: form.observaciones || null, activo: true,
       });
       setShowForm(false);
-      await load();
+      await load(true);
     } catch (e) { console.error('Error creating unit:', e); alert('Error al crear unidad'); }
     finally { setSaving(false); }
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando articulo...</p></div>;
-  if (!articulo) return <div className="text-center py-12"><p className="text-slate-400">Articulo no encontrado</p><Link to="/stock" className="text-indigo-600 hover:underline mt-2 inline-block">Volver</Link></div>;
+  if (!articulo) return <div className="text-center py-12"><p className="text-slate-400">Articulo no encontrado</p><Link to="/stock" className="text-teal-600 hover:underline mt-2 inline-block">Volver</Link></div>;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">

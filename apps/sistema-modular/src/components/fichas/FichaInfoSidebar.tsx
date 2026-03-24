@@ -13,7 +13,7 @@ function LV({ label, value, link, navState }: { label: string; value?: string | 
     <div>
       <dt className="text-[11px] font-medium text-slate-400 tracking-wider">{label}</dt>
       <dd className="text-sm text-slate-700 mt-0.5">
-        {link ? <Link to={link} state={navState} className="text-indigo-600 hover:underline">{value}</Link> : value}
+        {link ? <Link to={link} state={navState} className="text-teal-600 hover:underline">{value}</Link> : value}
       </dd>
     </div>
   );
@@ -97,7 +97,7 @@ export function FichaInfoSidebar({ ficha }: Props) {
         <Card title="OTs vinculadas" compact>
           <div className="flex flex-wrap gap-1.5">
             {ficha.otIds.map(ot => (
-              <Link key={ot} to={`/ordenes-trabajo/${ot}`} state={fromState} className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+              <Link key={ot} to={`/ordenes-trabajo/${ot}`} state={fromState} className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-teal-50 text-teal-700 hover:bg-teal-100">
                 {ot}
               </Link>
             ))}

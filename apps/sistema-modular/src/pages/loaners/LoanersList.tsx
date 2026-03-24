@@ -98,7 +98,7 @@ export function LoanersList() {
             <div className="text-center py-12">
               <p className="text-slate-400">No hay loaners registrados</p>
               <button onClick={() => setShowCreate(true)}
-                className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
                 Crear primer loaner
               </button>
             </div>
@@ -135,7 +135,7 @@ export function LoanersList() {
                   return (
                     <tr key={l.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/loaners/${l.id}`)}>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        <span className="font-semibold text-indigo-600 text-xs">{l.codigo}</span>
+                        <span className="font-semibold text-teal-600 text-xs">{l.codigo}</span>
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-700 truncate" title={l.descripcion}>{l.descripcion}</td>
                       <td className="px-3 py-2 text-xs text-slate-500 truncate">{l.categoriaEquipo || <span className="text-slate-300">—</span>}</td>

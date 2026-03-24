@@ -16,7 +16,7 @@ interface Props {
 }
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-0.5';
-const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400';
+const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
 
 export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const [saving, setSaving] = useState(false);
@@ -342,7 +342,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
           <textarea value={form.problemaFallaInicial}
             onChange={e => set('problemaFallaInicial', e.target.value)}
             rows={2} placeholder="Descripción del problema o motivo de la OT..."
-            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400" />
+            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400" />
         </div>
       </div>
     </Modal>

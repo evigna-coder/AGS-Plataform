@@ -45,7 +45,7 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
     <span className="inline-flex items-center gap-0.5">
       {label}
       {currentField === field ? (
-        <svg className="w-3 h-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-3 h-3 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d={currentDir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
         </svg>

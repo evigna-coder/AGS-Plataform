@@ -103,7 +103,7 @@ export function FichaDerivacionSection({ ficha, onUpdate }: Props) {
                   {d.fechaEnvio && <span>Enviado: {new Date(d.fechaEnvio).toLocaleDateString('es-AR')}</span>}
                   {d.fechaRetorno && <span>Retorno: {new Date(d.fechaRetorno).toLocaleDateString('es-AR')}</span>}
                   {d.remitoSalidaId && (
-                    <Link to={`/stock/remitos/${d.remitoSalidaId}`} state={fromState} className="text-indigo-600 hover:underline">Ver remito</Link>
+                    <Link to={`/stock/remitos/${d.remitoSalidaId}`} state={fromState} className="text-teal-600 hover:underline">Ver remito</Link>
                   )}
                 </div>
                 {d.estado === 'enviado' && (

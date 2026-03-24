@@ -18,7 +18,7 @@ export function FichaLoanerLink({ ficha }: Props) {
         </div>
         <Link
           to={`/loaners/${ficha.loanerId}`}
-          className="text-xs text-indigo-600 hover:underline font-medium"
+          className="text-xs text-teal-600 hover:underline font-medium"
         >
           Ver loaner
         </Link>

@@ -33,10 +33,10 @@ export const EquipoDetail = () => {
 
   useEffect(() => { if (id) loadData(); }, [id]);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [sistemaData, modulosData, cats, catsMod, clientesData] = await Promise.all([
         sistemasService.getById(id),
         modulosService.getBySistema(id),
@@ -63,6 +63,7 @@ export const EquipoDetail = () => {
         nombre: sistemaData.nombre,
         codigoInternoCliente: sistemaData.codigoInternoCliente,
         software: sistemaData.software || '',
+        softwareRevision: sistemaData.softwareRevision || '',
         sector: sistemaData.sector || '',
         observaciones: sistemaData.observaciones || '',
         configuracionGC: sistemaData.configuracionGC ?? {},
@@ -78,7 +79,7 @@ export const EquipoDetail = () => {
     } catch (error) {
       console.error('Error cargando datos:', error);
       alert('Error al cargar los datos');
-    } finally { setLoading(false); }
+    } finally { if (!silent) setLoading(false); }
   };
 
   const [saveMsg, setSaveMsg] = useState('');
@@ -139,7 +140,7 @@ export const EquipoDetail = () => {
         await modulosService.create(id, data);
         alert('Modulo agregado exitosamente');
       }
-      await loadData();
+      await loadData(true);
     } catch (error) {
       console.error('Error guardando modulo:', error);
       alert('Error al guardar el modulo. Verifique la consola para mas detalles.');
@@ -163,7 +164,7 @@ export const EquipoDetail = () => {
     if (!confirm('Esta seguro de eliminar este modulo?')) return;
     try {
       await modulosService.delete(id, moduloId);
-      await loadData();
+      await loadData(true);
     } catch (error) {
       console.error('Error eliminando modulo:', error);
       alert('Error al eliminar el modulo');
@@ -174,7 +175,7 @@ export const EquipoDetail = () => {
   if (!sistema) return (
     <div className="text-center py-12">
       <p className="text-slate-400 text-sm">Sistema no encontrado</p>
-      <Link to="/equipos" className="text-indigo-600 hover:underline mt-2 inline-block text-xs">Volver a Equipos</Link>
+      <Link to="/equipos" className="text-teal-600 hover:underline mt-2 inline-block text-xs">Volver a Equipos</Link>
     </div>
   );
 
@@ -213,7 +214,7 @@ export const EquipoDetail = () => {
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(false); loadData(); }}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(false); loadData(true); }}>Cancelar</Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
               </>
             )}

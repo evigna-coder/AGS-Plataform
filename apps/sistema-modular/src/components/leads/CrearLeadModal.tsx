@@ -146,7 +146,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Motivo *</label>
           <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
@@ -155,19 +155,19 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-1 block">Prioridad</label>
             <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
             <input type="date" value={proximoContacto} onChange={e => setProximoContacto(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-1 block">Valor estimado (ARS)</label>
             <input type="number" value={valorEstimado} onChange={e => setValorEstimado(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
               placeholder="$0" min="0" />
           </div>
         </div>
@@ -175,7 +175,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Descripción</label>
           <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             placeholder="Detalle de la consulta o solicitud..." />
         </div>
 
@@ -221,7 +221,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Área destino (opcional)</label>
           <select value={areaActual} onChange={e => setAreaActual(e.target.value as LeadArea | '')}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Sin área específica</option>
             {LEAD_AREA_GROUPS.map(g => (
               <optgroup key={g.label} label={g.label}>
@@ -234,7 +234,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Asignar a (opcional)</label>
           <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Sin asignar</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.role})</option>)}
           </select>
@@ -243,7 +243,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Acción pendiente (opcional)</label>
           <input type="text" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="Ej: Averiguar N° de parte, Confirmar disponibilidad..." />
         </div>
 
@@ -271,7 +271,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={pendingFiles.length >= LEAD_MAX_ADJUNTOS}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:text-slate-400 disabled:cursor-not-allowed"
+              className="text-xs text-teal-600 hover:text-teal-800 font-medium disabled:text-slate-400 disabled:cursor-not-allowed"
             >
               + Seleccionar archivos
             </button>

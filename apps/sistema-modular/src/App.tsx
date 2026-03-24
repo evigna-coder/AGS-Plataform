@@ -35,7 +35,7 @@ function AuthGate() {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <span className="text-indigo-600 font-bold text-xl tracking-tight">AGS</span>
+          <span className="text-teal-600 font-bold text-xl tracking-tight">AGS</span>
           <p className="text-xs text-slate-400 mt-2">Cargando...</p>
         </div>
       </div>
@@ -46,7 +46,7 @@ function AuthGate() {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-full max-w-md text-center">
-          <span className="text-indigo-600 font-bold text-xl tracking-tight">AGS</span>
+          <span className="text-teal-600 font-bold text-xl tracking-tight">AGS</span>
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mt-4 text-left">
             <p className="text-xs text-amber-800 font-medium">Configuracion requerida</p>
             <p className="text-[11px] text-amber-700 mt-1">{authError}</p>
@@ -61,7 +61,7 @@ function AuthGate() {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-full max-w-sm text-center">
-          <span className="text-indigo-600 font-bold text-xl tracking-tight">AGS</span>
+          <span className="text-teal-600 font-bold text-xl tracking-tight">AGS</span>
           <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-3 mt-4">
             <p className="text-xs text-red-700 font-medium">Tu cuenta ha sido deshabilitada.</p>
             <p className="text-[11px] text-red-600 mt-0.5">Contacta al administrador.</p>

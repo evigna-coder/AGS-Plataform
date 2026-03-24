@@ -172,7 +172,7 @@ export function FichaDetail() {
         ) : (
           <div className="space-y-2">
             {disponibles.map(l => (
-              <label key={l.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${selectedLoanerId === l.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+              <label key={l.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${selectedLoanerId === l.id ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <input type="radio" name="loaner" value={l.id} checked={selectedLoanerId === l.id} onChange={() => setSelectedLoanerId(l.id)} />
                 <div>
                   <p className="text-sm font-medium text-slate-700">{l.codigo} — {l.descripcion}</p>

@@ -23,6 +23,7 @@ export function ConceptosServicio() {
   const [factorGlobal, setFactorGlobal] = useState('1.00');
 
   // Form
+  const [codigo, setCodigo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [valorBase, setValorBase] = useState(0);
   const [moneda, setMoneda] = useState<MonedaPresupuesto>('USD');
@@ -41,13 +42,14 @@ export function ConceptosServicio() {
   useEffect(() => { loadData(); }, []);
 
   const resetForm = () => {
-    setDescripcion(''); setValorBase(0); setMoneda('USD'); setFactor(1); setCatId(''); setActivo(true); setEditingId(null);
+    setCodigo(''); setDescripcion(''); setValorBase(0); setMoneda('USD'); setFactor(1); setCatId(''); setActivo(true); setEditingId(null);
   };
 
   const openCreate = () => { resetForm(); setShowModal(true); };
 
   const openEdit = (c: ConceptoServicio) => {
     setEditingId(c.id);
+    setCodigo(c.codigo || '');
     setDescripcion(c.descripcion);
     setValorBase(c.valorBase);
     setMoneda(c.moneda);
@@ -62,6 +64,7 @@ export function ConceptosServicio() {
     setSaving(true);
     try {
       const data = {
+        codigo: codigo.trim() || null,
         descripcion: descripcion.trim(),
         valorBase,
         moneda,
@@ -117,7 +120,7 @@ export function ConceptosServicio() {
           </div>
         }
       >
-        <button onClick={() => goBack()} className="text-xs text-indigo-600 hover:underline">← Volver a presupuestos</button>
+        <button onClick={() => goBack()} className="text-xs text-teal-600 hover:underline">← Volver a presupuestos</button>
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4">
@@ -133,6 +136,7 @@ export function ConceptosServicio() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider w-28">Codigo</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
                   <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-24">Valor base</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Moneda</th>
@@ -148,13 +152,14 @@ export function ConceptosServicio() {
                   const precioEfectivo = c.valorBase * c.factorActualizacion;
                   return (
                     <tr key={c.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2.5 text-xs text-slate-500 font-mono">{c.codigo || '—'}</td>
                       <td className="px-4 py-2.5 text-xs text-slate-700">{c.descripcion}</td>
                       <td className="px-4 py-2.5 text-xs text-right text-slate-600">
                         {MONEDA_SIMBOLO[c.moneda]} {c.valorBase.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-center text-slate-500">{c.moneda}</td>
                       <td className="px-4 py-2.5 text-xs text-center text-slate-500">x{c.factorActualizacion}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-indigo-700">
+                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-teal-700">
                         {MONEDA_SIMBOLO[c.moneda]} {precioEfectivo.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-slate-500">{getCatNombre(c.categoriaPresupuestoId)}</td>
@@ -164,7 +169,7 @@ export function ConceptosServicio() {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-right space-x-2">
-                        <button className="text-xs text-indigo-600 hover:underline" onClick={() => openEdit(c)}>Editar</button>
+                        <button className="text-xs text-teal-600 hover:underline" onClick={() => openEdit(c)}>Editar</button>
                         <button className="text-xs text-red-500 hover:underline" onClick={() => handleDelete(c.id)}>Eliminar</button>
                       </td>
                     </tr>
@@ -179,7 +184,8 @@ export function ConceptosServicio() {
       {/* Create/Edit modal */}
       <Modal open={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Editar concepto' : 'Nuevo concepto de servicio'}>
         <div className="space-y-4 p-5">
-          <div>
+          <div className="grid grid-cols-[auto_1fr] gap-3">
+            <Input size="sm" label="Codigo" value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej: MP1_CN_60" />
             <Input size="sm" label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Ej: Servicio de calibración GC MSD rango 30 km" />
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -193,7 +199,7 @@ export function ConceptosServicio() {
             <Input size="sm" label="Factor actualiz." type="number" min={0} step={0.01} value={String(factor)} onChange={e => setFactor(Number(e.target.value) || 1)} />
           </div>
           <p className="text-[11px] text-slate-400">
-            Precio efectivo: <span className="font-semibold text-indigo-700">{MONEDA_SIMBOLO[moneda]} {(valorBase * factor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+            Precio efectivo: <span className="font-semibold text-teal-700">{MONEDA_SIMBOLO[moneda]} {(valorBase * factor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
           </p>
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1">Categoria impositiva</label>

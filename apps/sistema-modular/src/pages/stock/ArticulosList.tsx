@@ -108,12 +108,12 @@ export const ArticulosList = () => {
             placeholder="Buscar por codigo o descripcion..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <select
             value={filters.categoriaEquipo}
             onChange={e => setFilters({ ...filters, categoriaEquipo: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todas las categorias</option>
             {(Object.keys(CATEGORIA_LABELS) as CategoriaEquipoStock[]).map(k => (
@@ -123,7 +123,7 @@ export const ArticulosList = () => {
           <select
             value={filters.marcaId}
             onChange={e => setFilters({ ...filters, marcaId: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todas las marcas</option>
             {marcas.map(m => (
@@ -133,7 +133,7 @@ export const ArticulosList = () => {
           <select
             value={filters.tipo}
             onChange={e => setFilters({ ...filters, tipo: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
             {(Object.keys(TIPO_LABELS) as TipoArticulo[]).map(k => (
@@ -157,7 +157,7 @@ export const ArticulosList = () => {
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron articulos</p>
-              <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+              <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
                 Crear primer articulo
               </button>
             </div>
@@ -181,7 +181,7 @@ export const ArticulosList = () => {
                   {filtered.map(art => (
                     <tr key={art.id} className={`hover:bg-slate-50 ${!art.activo ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-2">
-                        <span className="font-mono text-xs font-semibold text-indigo-600">{art.codigo}</span>
+                        <span className="font-mono text-xs font-semibold text-teal-600">{art.codigo}</span>
                       </td>
                       <td className="px-4 py-2 text-xs text-slate-900">{art.descripcion}</td>
                       <td className="px-4 py-2 text-xs text-slate-600">{getMarcaNombre(art.marcaId)}</td>
@@ -191,7 +191,7 @@ export const ArticulosList = () => {
                         </span>
                       </td>
                       <td className="px-4 py-2">
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700">
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-700">
                           {TIPO_LABELS[art.tipo] ?? art.tipo}
                         </span>
                       </td>

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { ModuloId } from '@ags/shared';
 import { useAuth } from '../contexts/AuthContext';
 import { signOut } from '../services/authService';
-import { useTabs, getNavMeta, tabId } from '../contexts/TabsContext';
+import { useTabs, getNavMeta } from '../contexts/TabsContext';
 import { useBackgroundTasks } from '../contexts/BackgroundTasksContext';
 import { useFloatingPresupuesto } from '../contexts/FloatingPresupuestoContext';
 import { EditPresupuestoModal } from './presupuestos/EditPresupuestoModal';
@@ -60,7 +60,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { usuario, canAccess } = useAuth();
-  const { tabs, openTab, closeTab, switchTab } = useTabs();
+  const { tabs, activeTabId, openTab, closeTab, switchTab } = useTabs();
   const { runningTaskIds, getTask } = useBackgroundTasks();
   const floatingPres = useFloatingPresupuesto();
   const [collapsed, setCollapsed] = useState(false);
@@ -87,15 +87,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return '/' + segments[0]; // fallback to top-level module
   }, []);
 
-  // Global keyboard shortcuts: Escape (navigate back) + Ctrl+Tab (switch tabs)
+  // Global keyboard shortcuts: Escape (navigate back) + Ctrl+Tab (switch tabs) + Ctrl+1-9
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ── Ctrl+1-9 → jump to tab by position ──
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1;
+        if (idx < tabs.length) {
+          e.preventDefault();
+          switchTab(tabs[idx].id);
+        }
+        return;
+      }
+
       // ── Ctrl+Tab / Ctrl+Shift+Tab → cycle tabs ──
       if ((e.ctrlKey || e.metaKey) && (e.key === 'Tab' || e.key === 'PageDown' || e.key === 'PageUp')) {
         if (tabs.length <= 1) return;
         e.preventDefault();
-        const currentId = tabId(location.pathname);
-        const currentIdx = tabs.findIndex(t => t.id === currentId);
+        const currentIdx = tabs.findIndex(t => t.id === activeTabId);
         const forward = e.key === 'Tab' ? !e.shiftKey : e.key === 'PageDown';
         const nextIdx = forward
           ? (currentIdx + 1) % tabs.length
@@ -130,7 +139,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, location.pathname, location.state, getParentPath, tabs, switchTab]);
+  }, [navigate, location.pathname, location.state, getParentPath, tabs, activeTabId, switchTab]);
 
   const toggleGroup = (path: string) => {
     setExpandedGroups(prev => ({ ...prev, [path]: !prev[path] }));
@@ -164,7 +173,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-indigo-600 font-bold text-base tracking-tight">AGS</span>
+          <span className="text-teal-600 font-bold text-base tracking-tight">AGS</span>
           <span className="text-slate-300 text-sm">|</span>
           <span className="text-slate-600 text-sm font-medium">Sistema Modular</span>
           {window.electronAPI && (
@@ -186,22 +195,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Tab bar — always visible */}
       <div className="shrink-0 bg-white border-b border-slate-200 flex items-center gap-0 px-2 overflow-x-auto z-20">
-        {tabs.map(tab => {
-          const isActiveTab = tab.id === tabId(location.pathname);
+        {tabs.map((tab, idx) => {
+          const isActiveTab = tab.id === activeTabId;
           return (
             <div
               key={tab.id}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-colors shrink-0 ${
                 isActiveTab
-                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50/50 font-medium'
+                  ? 'border-teal-500 text-teal-700 bg-teal-50/50 font-medium'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
               onClick={() => switchTab(tab.id)}
+              onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(tab.id); } }}
             >
               <span className="text-sm leading-none">{tab.icon}</span>
               <span className="whitespace-nowrap">{tab.label}</span>
               {tab.sublabel && (
                 <span className="text-[10px] text-slate-400 whitespace-nowrap">/ {tab.sublabel}</span>
+              )}
+              {idx < 9 && tabs.length > 1 && (
+                <span className="text-[9px] text-slate-300 font-mono ml-0.5">{idx + 1}</span>
               )}
               {tabs.length > 1 && (
                 <button
@@ -239,7 +252,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       onClick={() => collapsed ? setCollapsed(false) : toggleGroup(item.path)}
                       className={`w-full flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
                         isActive
-                          ? 'border-indigo-500 bg-slate-800 text-white font-medium'
+                          ? 'border-teal-500 bg-slate-800 text-white font-medium'
                           : 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
                       }`}
                       title={collapsed ? item.name : undefined}
@@ -268,7 +281,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                 onAuxClick={(e) => handleNavClick(e, child.path)}
                                 className={`block py-1.5 pl-10 pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
                                   childActive
-                                    ? 'border-indigo-500 bg-slate-800 text-white font-medium'
+                                    ? 'border-teal-500 bg-slate-800 text-white font-medium'
                                     : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
                                 }`}
                               >
@@ -291,7 +304,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     onAuxClick={(e) => handleNavClick(e, item.path)}
                     className={`flex-1 flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
                       isActive
-                        ? 'border-indigo-500 bg-slate-800 text-white font-medium'
+                        ? 'border-teal-500 bg-slate-800 text-white font-medium'
                         : 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
                     }`}
                     title={collapsed ? item.name : undefined}
@@ -338,11 +351,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               : 'Procesando...';
             return (
               <div key={id} className="bg-white rounded-lg shadow-lg border border-slate-200 px-3 py-2 flex items-center gap-3 min-w-[200px]">
-                <div className="shrink-0 w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <div className="shrink-0 w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-medium text-slate-700">{label}</p>
                   <div className="w-full bg-slate-100 rounded-full h-1 mt-1">
-                    <div className="h-1 rounded-full bg-indigo-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                    <div className="h-1 rounded-full bg-teal-500 transition-all duration-300" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
                 <span className="text-[10px] text-slate-400 tabular-nums shrink-0">{pct}%</span>
@@ -367,7 +380,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {floatingPres.presupuestoId && floatingPres.minimized && (
         <button
           onClick={floatingPres.restore}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 transition-colors"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-teal-600 hover:bg-teal-700 text-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />

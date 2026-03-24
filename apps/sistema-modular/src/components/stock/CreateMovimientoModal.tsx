@@ -155,7 +155,7 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   const renderLocationField = (prefix: 'origen' | 'destino', tipo: TipoOrigenDestino) => {
     if (needsEntitySelect(tipo)) {

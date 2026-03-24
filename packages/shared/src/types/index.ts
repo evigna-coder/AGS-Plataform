@@ -273,7 +273,8 @@ export type DetectorType =
   | 'NCD'   // Nitrogen/Phosphorus Detector
   | 'FPD'   // Flame Photometric Detector
   | 'ECD'   // Electron Capture Detector
-  | 'SCD';  // Sulfur Chemiluminescence Detector
+  | 'SCD'   // Sulfur Chemiluminescence Detector
+  | 'TCD';  // Thermal Conductivity Detector
 
 export interface ConfiguracionGC {
   puertoInyeccionFront?: InletType | null;
@@ -302,6 +303,7 @@ export const DETECTOR_LABELS: Record<DetectorType, string> = {
   FPD: 'FPD (Flame Photometric Detector)',
   ECD: 'ECD (Electron Capture Detector)',
   SCD: 'SCD (Sulfur Chemiluminescence Detector)',
+  TCD: 'TCD (Thermal Conductivity Detector)',
 };
 
 // --- Módulo de sistema ---
@@ -329,7 +331,8 @@ export interface Sistema {
   nombre: string; // ej. HPLC 1260 (ahora viene de modelos de categoría)
   descripcion?: string; // Campo eliminado - el nombre del modelo es suficiente
   codigoInternoCliente: string; // asignado por cliente o provisorio editable
-  software?: string; // Información del software del sistema
+  software?: string; // Nombre del software (ej: ChemStation, OpenLab, MassHunter)
+  softwareRevision?: string; // Revisión del software (ej: B.04.03)
   observaciones?: string;
   /** Sector/área del establecimiento al que pertenece (ej: "Control de Calidad") */
   sector?: string | null;
@@ -679,6 +682,22 @@ export interface PresupuestoItem {
   stockArticuloId?: string | null;
   /** FK opcional al catálogo de conceptos de servicio */
   conceptoServicioId?: string | null;
+  // --- Vinculación a equipo/módulo (para presupuestos de contrato) ---
+  sistemaId?: string | null;
+  sistemaCodigoInterno?: string | null;
+  moduloId?: string | null;
+  sistemaNombre?: string | null;
+  moduloNombre?: string | null;
+  moduloSerie?: string | null;
+  moduloMarca?: string | null;
+  /** Código de servicio interno (ej: ATI_BAS_00C, MP1_CN_60) */
+  servicioCode?: string | null;
+  /** Grupo numérico para agrupar items por sistema en contratos (1, 2, 3...) */
+  grupo?: number | null;
+  /** Numeración de sub-item dentro del grupo (ej: "1.1", "1.20") */
+  subItem?: string | null;
+  /** Item de bonificación (descuento 100%) */
+  esBonificacion?: boolean;
 }
 
 // --- Adjunto de Presupuesto ---
@@ -814,6 +833,7 @@ export interface CondicionPago {
 // --- Concepto de Servicio (catálogo de precios) ---
 export interface ConceptoServicio {
   id: string;
+  codigo?: string | null; // Código de artículo/servicio (e.g., "MP1_CN_60", "CAL_GC_01")
   descripcion: string; // "Servicio de calibración GC MSD rango 30 km"
   valorBase: number; // Valor base en la moneda indicada
   moneda: MonedaPresupuesto; // USD por defecto
@@ -824,6 +844,34 @@ export interface ConceptoServicio {
   updatedAt: string;
 }
 // Precio efectivo = valorBase * factorActualizacion
+
+// --- Secciones visibles en PDF del presupuesto ---
+export interface PresupuestoSeccionesVisibles {
+  notasTecnicas?: boolean;
+  notasAdministrativas?: boolean;
+  garantia?: boolean;
+  variacionTipoCambio?: boolean;
+  condicionesComerciales?: boolean;
+  aceptacionPresupuesto?: boolean;
+}
+
+export const PRESUPUESTO_SECCIONES_LABELS: Record<keyof PresupuestoSeccionesVisibles, string> = {
+  notasTecnicas: 'Notas Técnicas',
+  notasAdministrativas: 'Notas Administrativas',
+  garantia: 'Garantía',
+  variacionTipoCambio: 'Variación del Tipo de Cambio',
+  condicionesComerciales: 'Condiciones Comerciales',
+  aceptacionPresupuesto: 'Aceptación del Presupuesto',
+};
+
+export const PRESUPUESTO_SECCIONES_DEFAULT: PresupuestoSeccionesVisibles = {
+  notasTecnicas: true,
+  notasAdministrativas: true,
+  garantia: true,
+  variacionTipoCambio: true,
+  condicionesComerciales: true,
+  aceptacionPresupuesto: true,
+};
 
 // --- Presupuestos ---
 export interface Presupuesto {
@@ -848,9 +896,15 @@ export interface Presupuesto {
   condicionPagoId?: string;
   ordenesCompraIds: string[];
   adjuntos: AdjuntoPresupuesto[];
-  // --- Textos ---
-  notasTecnicas?: string;
+  // --- Textos / Condiciones ---
+  notasTecnicas?: string | null;
+  notasAdministrativas?: string | null;
+  garantia?: string | null;
+  variacionTipoCambio?: string | null;
   condicionesComerciales?: string | null;
+  aceptacionPresupuesto?: string | null;
+  /** Secciones visibles en el PDF (clave=sección, valor=visible) */
+  seccionesVisibles?: PresupuestoSeccionesVisibles | null;
   // --- Fechas y validez ---
   validezDias: number; // Días de validez (default 15)
   validUntil?: string;
@@ -1349,6 +1403,8 @@ export interface Articulo {
   precioReferencia?: number | null;
   monedaPrecio?: 'ARS' | 'USD' | null;
   notas?: string | null;
+  /** Origen/procedencia del artículo (ej: "Nacional", "Importado") */
+  origen?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;

@@ -283,6 +283,109 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Colección de Usuarios
+    match /usuarios/{usuarioId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Colección de Loaners (equipos en préstamo)
+    match /loaners/{loanerId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== CATÁLOGO DE TABLAS / PROTOCOLOS ==========
+    match /tableCatalog/{tableId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /tableProjects/{projectId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /protocolCatalog/{protocolId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== INSTRUMENTOS Y MARCAS ==========
+    match /instrumentos/{instrumentoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /marcas/{marcaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /catalogoSectores/{sectorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== AGENDA ==========
+    match /agendaEntries/{entryId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /agendaNotas/{notaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== IMPORTACIONES ==========
+    match /posiciones_arancelarias/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /requerimientos_compra/{requerimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /importaciones/{importacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== FICHAS DE PROPIEDAD ==========
+    match /fichasPropiedad/{fichaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== STOCK ==========
+    match /posicionesStock/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /articulos/{articuloId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /unidades/{unidadId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /minikits/{minikitId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /movimientosStock/{movimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /remitos/{remitoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== PERSONAL ==========
+    match /ingenieros/{ingenieroId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /proveedores/{proveedorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== ADJUNTOS ==========
+    match /adjuntos/{adjuntoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== CONCEPTOS DE SERVICIO ==========
+    match /conceptos_servicio/{conceptoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== AUDIT / MAIL ==========
+    match /audit_log/{logId} {
+      allow read: if true;
+      allow write: if true; // Temporal para desarrollo
+    }
+    match /mailQueue/{mailId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // ========== MFA / WebAuthn ==========
     // Solo Cloud Functions (Admin SDK) escriben aquí. Cliente no debe acceder.
     match /mfa/{document=**} {

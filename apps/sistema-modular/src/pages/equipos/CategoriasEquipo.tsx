@@ -33,9 +33,9 @@ export const CategoriasEquipo = () => {
     loadAll();
   }, []);
 
-  const loadAll = async () => {
+  const loadAll = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [sistemasData, modulosData] = await Promise.all([
         categoriasEquipoService.getAll(),
         categoriasModuloService.getAll(),
@@ -44,9 +44,9 @@ export const CategoriasEquipo = () => {
       setCategoriasModulos(modulosData);
     } catch (error) {
       console.error('Error cargando categorías:', error);
-      alert('Error al cargar categorías');
+      if (!silent) alert('Error al cargar categorías');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -69,7 +69,7 @@ export const CategoriasEquipo = () => {
       } else {
         await categoriasEquipoService.create({ nombre: formDataSistemas.nombre.trim(), modelos: modelosUniq });
       }
-      await loadAll();
+      await loadAll(true);
       setShowModalSistemas(false);
       setEditingSistema(null);
       setFormDataSistemas({ nombre: '', modelosText: '' });
@@ -89,7 +89,7 @@ export const CategoriasEquipo = () => {
     if (!confirm('¿Está seguro de eliminar esta categoría?')) return;
     try {
       await categoriasEquipoService.delete(id);
-      await loadAll();
+      await loadAll(true);
     } catch (error) {
       console.error('Error eliminando categoría:', error);
       alert('Error al eliminar la categoría');
@@ -149,7 +149,7 @@ export const CategoriasEquipo = () => {
           modelos: formDataModulos.modelos 
         });
       }
-      await loadAll();
+      await loadAll(true);
       setShowModalModulos(false);
       setEditingModulo(null);
       setFormDataModulos({ nombre: '', modelos: [] });
@@ -171,7 +171,7 @@ export const CategoriasEquipo = () => {
     if (!confirm('¿Está seguro de eliminar esta categoría de módulo?')) return;
     try {
       await categoriasModuloService.delete(id);
-      await loadAll();
+      await loadAll(true);
     } catch (error) {
       console.error('Error eliminando categoría de módulo:', error);
       alert('Error al eliminar la categoría de módulo');

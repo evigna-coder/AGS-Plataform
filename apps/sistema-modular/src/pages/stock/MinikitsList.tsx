@@ -11,7 +11,7 @@ const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En tránsito', en_revision: 'En revisión',
 };
 const ESTADO_COLORS: Record<EstadoMinikit, string> = {
-  en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-indigo-600',
+  en_base: 'bg-green-100 text-green-700', en_campo: 'bg-blue-100 text-teal-600',
   en_transito: 'bg-amber-100 text-amber-700', en_revision: 'bg-purple-100 text-purple-700',
 };
 
@@ -134,7 +134,7 @@ export const MinikitsList = () => {
           <p className="text-xs text-slate-400">{minikits.length} minikit(s)</p>
           <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
-              className="w-3.5 h-3.5 accent-indigo-600" />
+              className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
           </label>
         </div>
@@ -153,7 +153,7 @@ export const MinikitsList = () => {
               {minikits.map(mk => (
                 <div key={mk.id} className={`flex items-center justify-between py-2 px-2 ${!mk.activo ? 'opacity-50' : ''}`}>
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="font-mono font-semibold text-indigo-600 text-xs whitespace-nowrap">
+                    <span className="font-mono font-semibold text-teal-600 text-xs whitespace-nowrap">
                       {mk.codigo}
                     </span>
                     <span className="text-xs text-slate-900 truncate">{mk.nombre}</span>
@@ -168,7 +168,7 @@ export const MinikitsList = () => {
                   </div>
                   <div className="flex gap-3 shrink-0 ml-4">
                     <Link to={`/stock/minikits/${mk.id}`}
-                      className="text-indigo-600 hover:underline font-medium text-[10px]">Ver</Link>
+                      className="text-teal-600 hover:underline font-medium text-[10px]">Ver</Link>
                     <button onClick={() => handleToggleActivo(mk)}
                       className={`font-medium text-[10px] ${mk.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
                       {mk.activo ? 'Desactivar' : 'Activar'}

@@ -67,7 +67,7 @@ export const ProveedorDetail = () => {
     if (!id || !form.nombre.trim()) return;
     setSaving(true);
     try {
-      await proveedoresService.update(id, {
+      const dataToSave = {
         nombre: form.nombre.trim(), tipo: form.tipo,
         contacto: form.contacto.trim() || null, email: form.email.trim() || null,
         telefono: form.telefono.trim() || null, direccion: form.direccion.trim() || null,
@@ -80,8 +80,9 @@ export const ProveedorDetail = () => {
         swiftIntermediario: form.swiftIntermediario.trim() || null,
         abaIntermediario: form.abaIntermediario.trim() || null,
         notas: form.notas.trim() || null,
-      });
-      await load();
+      };
+      await proveedoresService.update(id, dataToSave);
+      setProveedor(prev => prev ? { ...prev, ...dataToSave } as Proveedor : prev);
       setEditing(false);
     } catch { alert('Error al guardar'); }
     finally { setSaving(false); }

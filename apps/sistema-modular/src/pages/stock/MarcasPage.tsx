@@ -122,7 +122,7 @@ export const MarcasPage = () => {
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
-              className="w-3.5 h-3.5 accent-indigo-600" />
+              className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivas
           </label>
         </div>
@@ -161,7 +161,7 @@ export const MarcasPage = () => {
                   {editingId !== m.id && (
                     <div className="flex gap-2">
                       <button onClick={() => startEdit(m)}
-                        className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
+                        className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
                       <button onClick={() => handleToggleActivo(m)}
                         className={`font-medium text-[11px] ${m.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
                         {m.activo ? 'Desactivar' : 'Activar'}

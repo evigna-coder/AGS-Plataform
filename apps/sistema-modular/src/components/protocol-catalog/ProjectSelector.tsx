@@ -87,7 +87,7 @@ export const ProjectSelector: React.FC<Props> = memo(({
   };
 
   const pillBase = 'text-xs font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer whitespace-nowrap';
-  const pillActive = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+  const pillActive = 'bg-teal-50 text-teal-700 border-teal-200';
   const pillInactive = 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700';
 
   return (
@@ -113,9 +113,9 @@ export const ProjectSelector: React.FC<Props> = memo(({
             <div className="flex items-center gap-1">
               <input value={editName} onChange={e => setEditName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setEditId(null); }}
-                className="text-xs border border-indigo-300 rounded-full px-3 py-1.5 w-40 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className="text-xs border border-teal-300 rounded-full px-3 py-1.5 w-40 focus:outline-none focus:ring-1 focus:ring-teal-400"
                 autoFocus />
-              <button onClick={() => handleRename(p.id)} className="text-xs text-indigo-600 font-medium">OK</button>
+              <button onClick={() => handleRename(p.id)} className="text-xs text-teal-600 font-medium">OK</button>
               <button onClick={() => setEditId(null)} className="text-xs text-slate-400">✕</button>
             </div>
           ) : (
@@ -151,7 +151,7 @@ export const ProjectSelector: React.FC<Props> = memo(({
 
       {/* Botón + */}
       <button onClick={() => setShowCreate(true)}
-        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1.5">
+        className="text-xs text-teal-600 hover:text-teal-800 font-medium px-2 py-1.5">
         + Nuevo
       </button>
 

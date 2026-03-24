@@ -126,7 +126,7 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
     <div>
       <p className={lbl}>Cliente</p>
       {cliente ? (
-        <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:underline font-medium">
+        <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
           {cliente.razonSocial}
         </Link>
       ) : (
@@ -149,7 +149,10 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
     </div>
     <div>
       <p className={lbl}>Software</p>
-      <p className={`${val} font-semibold`}>{sistema.software || '-'}</p>
+      <p className={`${val} font-semibold`}>
+        {sistema.software || '-'}
+        {sistema.softwareRevision && <span className="text-slate-400 font-normal ml-1">Rev. {sistema.softwareRevision}</span>}
+      </p>
     </div>
     <div>
       <p className={lbl}>Sector</p>
@@ -164,7 +167,7 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
           <button
             type="button"
             onClick={onShowQR}
-            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium underline"
+            className="text-[10px] text-teal-600 hover:text-teal-800 font-medium underline"
           >
             Ver QR
           </button>
@@ -285,6 +288,15 @@ const EditForm: React.FC<EditFormProps> = ({
           onChange={(e) => setFormData({ ...formData, software: e.target.value })}
           placeholder="Ej: OpenLab, ChemStation, MassHunter..."
           required
+        />
+      </div>
+      <div>
+        <label className={lbl}>Revisión Software</label>
+        <Input
+          inputSize="sm"
+          value={formData.softwareRevision || ''}
+          onChange={(e) => setFormData({ ...formData, softwareRevision: e.target.value })}
+          placeholder="Ej: B.04.03"
         />
       </div>
       <div>

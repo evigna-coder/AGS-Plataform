@@ -1,60 +1,79 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, setDoc, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, setDoc, addDoc, runTransaction } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo } from '@ags/shared';
 import { db, logAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
-  // Generar siguiente número de OT automáticamente (correlativo desde 30000)
+  // Generar siguiente número de OT con transacción atómica (counter doc pattern)
   async getNextOtNumber(): Promise<string> {
-    console.log('🔢 Generando siguiente número de OT...');
-    const querySnapshot = await getDocs(collection(db, 'reportes'));
+    console.log('🔢 Generando siguiente número de OT (transacción)...');
+    const counterRef = doc(db, '_counters', 'otNumber');
 
-    let maxNumber = 29999; // Base: 30000 será el primero
+    const nextOt = await runTransaction(db, async (transaction) => {
+      const counterSnap = await transaction.get(counterRef);
 
-    querySnapshot.docs.forEach(doc => {
-      const otNumber = doc.id;
-      // Extraer número base (antes del punto) - solo OTs principales, no items
-      if (!otNumber.includes('.')) {
-        const baseMatch = otNumber.match(/^(\d{5})$/);
-        if (baseMatch) {
-          const baseNum = parseInt(baseMatch[1]);
-          if (baseNum > maxNumber) {
-            maxNumber = baseNum;
+      let current: number;
+      if (counterSnap.exists()) {
+        current = counterSnap.data().value as number;
+      } else {
+        // Primera vez: escanear colección para inicializar el counter
+        const querySnapshot = await getDocs(collection(db, 'reportes'));
+        let maxNumber = 29999;
+        querySnapshot.docs.forEach(d => {
+          const id = d.id;
+          if (!id.includes('.')) {
+            const m = id.match(/^(\d{5})$/);
+            if (m) {
+              const n = parseInt(m[1]);
+              if (n > maxNumber) maxNumber = n;
+            }
           }
-        }
+        });
+        current = maxNumber;
       }
+
+      const next = current + 1;
+      transaction.set(counterRef, { value: next, updatedAt: Timestamp.now() });
+      return String(next).padStart(5, '0');
     });
 
-    const nextNumber = maxNumber + 1;
-    const nextOt = String(nextNumber).padStart(5, '0');
     console.log(`✅ Siguiente OT: ${nextOt}`);
     return nextOt;
   },
 
-  // Generar siguiente número de item para una OT padre
+  // Generar siguiente número de item con transacción atómica
   async getNextItemNumber(otPadre: string): Promise<string> {
-    console.log(`🔢 Generando siguiente item para OT ${otPadre}...`);
-    const q = query(collection(db, 'reportes'));
-    const querySnapshot = await getDocs(q);
+    console.log(`🔢 Generando siguiente item para OT ${otPadre} (transacción)...`);
+    const counterRef = doc(db, '_counters', `otItem_${otPadre}`);
 
-    let maxItem = 0;
-    const prefix = otPadre + '.';
+    const nextItemNumber = await runTransaction(db, async (transaction) => {
+      const counterSnap = await transaction.get(counterRef);
 
-    querySnapshot.docs.forEach(doc => {
-      const otNumber = doc.id;
-      if (otNumber.startsWith(prefix)) {
-        const itemMatch = otNumber.match(/\.(\d{2})$/);
-        if (itemMatch) {
-          const itemNum = parseInt(itemMatch[1]);
-          if (itemNum > maxItem) {
-            maxItem = itemNum;
+      let currentMax: number;
+      if (counterSnap.exists()) {
+        currentMax = counterSnap.data().value as number;
+      } else {
+        // Primera vez: escanear items existentes para inicializar
+        const querySnapshot = await getDocs(collection(db, 'reportes'));
+        const prefix = otPadre + '.';
+        let maxItem = 0;
+        querySnapshot.docs.forEach(d => {
+          if (d.id.startsWith(prefix)) {
+            const m = d.id.match(/\.(\d{2})$/);
+            if (m) {
+              const n = parseInt(m[1]);
+              if (n > maxItem) maxItem = n;
+            }
           }
-        }
+        });
+        currentMax = maxItem;
       }
+
+      const next = currentMax + 1;
+      transaction.set(counterRef, { value: next, updatedAt: Timestamp.now() });
+      return `${otPadre}.${String(next).padStart(2, '0')}`;
     });
 
-    const nextItem = maxItem + 1;
-    const nextItemNumber = `${otPadre}.${String(nextItem).padStart(2, '0')}`;
     console.log(`✅ Siguiente item: ${nextItemNumber}`);
     return nextItemNumber;
   },

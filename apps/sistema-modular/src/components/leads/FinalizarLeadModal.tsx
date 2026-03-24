@@ -57,7 +57,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Motivo de cierre</label>
           <select value={estadoFinal} onChange={e => setEstadoFinal(e.target.value as 'finalizado' | 'no_concretado')}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             {MOTIVOS_FINALIZACION.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
@@ -65,7 +65,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Comentario (opcional)</label>
           <textarea value={comentario} onChange={e => setComentario(e.target.value)} rows={3}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             placeholder="Notas sobre el cierre..." />
         </div>
 

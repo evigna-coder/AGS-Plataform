@@ -15,7 +15,7 @@ import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
-  <div onMouseDown={onMouseDown} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40 z-20" />
+  <div onMouseDown={onMouseDown} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40 z-20" />
 );
 
 export const EstablecimientosList = () => {
@@ -168,7 +168,7 @@ export const EstablecimientosList = () => {
             placeholder="Buscar por nombre, dirección, localidad, cliente..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-72"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
           <div className="min-w-[130px]">
             <SearchableSelect size="sm"
@@ -192,7 +192,7 @@ export const EstablecimientosList = () => {
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron establecimientos</p>
               <button onClick={() => setShowCreate(true)}
-                className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
                 Crear primer establecimiento
               </button>
             </div>
@@ -209,7 +209,7 @@ export const EstablecimientosList = () => {
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-3 py-2 w-8">
                     <input type="checkbox" checked={selected.size > 0 && selected.size === filtered.length}
-                      onChange={toggleSelectAll} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                      onChange={toggleSelectAll} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                   </th>
                   <SortableHeader label="Cliente" field="cliente" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(1, e)} />
@@ -230,14 +230,14 @@ export const EstablecimientosList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((est) => (
-                  <tr key={est.id} className={`hover:bg-slate-50 transition-colors ${selected.has(est.id) ? 'bg-indigo-50' : ''}`}>
+                  <tr key={est.id} className={`hover:bg-slate-50 transition-colors ${selected.has(est.id) ? 'bg-teal-50' : ''}`}>
                     <td className="px-3 py-2 w-8">
                       <input type="checkbox" checked={selected.has(est.id)}
-                        onChange={() => toggleSelect(est.id)} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        onChange={() => toggleSelect(est.id)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                     </td>
                     <td className="px-3 py-2 overflow-hidden">
                       <Link to={`/establecimientos/${est.id}`}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 truncate block"
+                        className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block"
                         title={clienteMap[est.clienteCuit || (est as any).clienteId]}>
                         {clienteMap[est.clienteCuit || (est as any).clienteId] || <span className="text-slate-300">—</span>}
                       </Link>
@@ -258,7 +258,7 @@ export const EstablecimientosList = () => {
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         <Link to={`/establecimientos/${est.id}`}
-                          className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50">
+                          className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">
                           Editar
                         </Link>
                         <button onClick={() => handleDelete(est)}

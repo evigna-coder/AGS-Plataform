@@ -197,7 +197,7 @@ export const InstrumentosListPage = () => {
                   const badge = ESTADO_BADGE[estado];
                   return (
                     <tr key={inst.id} className={`hover:bg-slate-50 transition-colors ${!inst.activo ? 'opacity-50' : ''}`}>
-                      <td className="px-3 py-2 text-xs font-semibold text-indigo-600 truncate" title={inst.nombre}>{inst.nombre}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-teal-600 truncate" title={inst.nombre}>{inst.nombre}</td>
                       <td className="px-3 py-2 text-xs text-slate-600 capitalize whitespace-nowrap">{inst.tipo}</td>
                       <td className="px-3 py-2 text-xs text-slate-600 truncate" title={[inst.marca, inst.modelo].filter(Boolean).join(' / ')}>
                         {[inst.marca, inst.modelo].filter(Boolean).join(' / ') || <span className="text-slate-300">—</span>}
@@ -215,7 +215,7 @@ export const InstrumentosListPage = () => {
                       <td className="px-3 py-2 text-xs whitespace-nowrap">
                         {inst.certificadoUrl ? (
                           <a href={inst.certificadoUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-indigo-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>
+                            className="text-teal-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>
                             {inst.certificadoNombre || 'Ver PDF'}
                           </a>
                         ) : <span className="text-slate-300">—</span>}

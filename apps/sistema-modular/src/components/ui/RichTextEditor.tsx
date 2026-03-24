@@ -97,7 +97,7 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
             title={btn.title}
             className={`px-2 py-1 text-xs rounded transition-colors ${
               activeFormats.has(btn.id)
-                ? 'bg-indigo-100 text-indigo-700'
+                ? 'bg-teal-100 text-teal-700'
                 : 'text-slate-600 hover:bg-slate-200'
             } ${btn.className ?? ''}`}
           >

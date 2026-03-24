@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { Sistema } from '@ags/shared';
-import { sistemasService, leadsService } from '../services/firebaseService';
+import type { Sistema, WorkOrder } from '@ags/shared';
+import { sistemasService, leadsService, otService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 import { Spinner } from '../components/ui/Spinner';
 import { Button } from '../components/ui/Button';
@@ -97,6 +97,80 @@ function SoporteForm({ sistema, agsId, onSuccess }: SoporteFormProps) {
   );
 }
 
+// ─── Sub-component: OT history (IST only) ───────────────────────────────────
+function HistorialOTs({ sistemaId }: { sistemaId: string }) {
+  const [ots, setOts] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    otService.getByEquipoId(sistemaId, 20)
+      .then(setOts)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [sistemaId]);
+
+  if (loading) return <div className="py-4 flex justify-center"><Spinner /></div>;
+  if (ots.length === 0) {
+    return (
+      <Card compact>
+        <p className="text-sm text-slate-400 text-center py-2">Sin servicios registrados para este equipo.</p>
+      </Card>
+    );
+  }
+
+  const statusColor = (ot: WorkOrder) => {
+    if (ot.status === 'FINALIZADO') return 'bg-green-100 text-green-700';
+    return 'bg-amber-100 text-amber-700';
+  };
+
+  const statusLabel = (ot: WorkOrder) => {
+    if (ot.status === 'FINALIZADO') return 'Finalizado';
+    if (ot.estadoAdmin) {
+      const labels: Record<string, string> = {
+        CREADA: 'Creada', ASIGNADA: 'Asignada', COORDINADA: 'Coordinada',
+        EN_CURSO: 'En curso', CIERRE_TECNICO: 'Cierre técnico',
+        CIERRE_ADMINISTRATIVO: 'Cierre admin', FINALIZADO: 'Finalizado',
+      };
+      return labels[ot.estadoAdmin] ?? ot.estadoAdmin;
+    }
+    return 'Borrador';
+  };
+
+  const formatDate = (d: string | undefined) => {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+    catch { return d; }
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Historial de servicios</p>
+      {ots.map(ot => (
+        <Card key={ot.otNumber} compact>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">OT {ot.otNumber}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{ot.tipoServicio || 'Sin tipo'}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{formatDate(ot.fechaInicio)}</p>
+              {ot.ingenieroAsignadoNombre && (
+                <p className="text-xs text-slate-400 mt-0.5">Ing. {ot.ingenieroAsignadoNombre}</p>
+              )}
+            </div>
+            <span className={`text-[10px] font-semibold px-2 py-1 rounded-lg shrink-0 ${statusColor(ot)}`}>
+              {statusLabel(ot)}
+            </span>
+          </div>
+          {ot.reporteTecnico && (
+            <p className="text-xs text-slate-500 mt-2 line-clamp-2 border-t border-slate-100 pt-2">
+              {ot.reporteTecnico}
+            </p>
+          )}
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function EquipoPublicPage() {
   const { agsId } = useParams<{ agsId: string }>();
@@ -164,6 +238,11 @@ export default function EquipoPublicPage() {
               Vista como <span className="font-semibold">{usuario?.displayName}</span> — Ingeniero AGS
             </p>
           </div>
+        )}
+
+        {/* OT History (IST only) */}
+        {isAuthenticated && sistema.id && (
+          <HistorialOTs sistemaId={sistema.id} />
         )}
 
         {/* Form or success */}

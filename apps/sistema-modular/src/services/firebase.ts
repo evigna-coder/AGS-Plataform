@@ -1,5 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, Timestamp } from 'firebase/firestore';
+import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
 import { getCurrentUserTrace } from './currentUser';
@@ -63,18 +64,26 @@ if (missingVars.length > 0) {
 }
 
 export let app: ReturnType<typeof initializeApp>;
-let db: ReturnType<typeof getFirestore>;
+let db: Firestore;
 export let storage: ReturnType<typeof getStorage>;
 
 try {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
+  // Reutilizar instancia existente en HMR (Vite hot-reload)
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    // Ya inicializado (HMR): reutilizar instancia existente
+    db = getFirestore(app);
+  }
   storage = getStorage(app);
-  console.log('%c✅ Firebase inicializado correctamente', 'color: green; font-weight: bold');
-  console.log('%c🔥 Sistema Modular conectado a Firestore', 'color: orange; font-weight: bold');
+  console.log('%c✅ Firebase inicializado con caché local persistente', 'color: green; font-weight: bold');
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
-  // No lanzar error para permitir que la app funcione sin Firebase (modo desarrollo)
 }
 
 export { db };

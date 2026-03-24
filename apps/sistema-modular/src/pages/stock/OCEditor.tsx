@@ -142,7 +142,7 @@ export const OCEditor = () => {
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Tipo</label>
               <select value={tipo} onChange={e => setTipo(e.target.value as TipoOC)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
                 <option value="nacional">Nacional</option>
                 <option value="importacion">Importacion</option>
               </select>
@@ -150,7 +150,7 @@ export const OCEditor = () => {
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Proveedor</label>
               <select value={proveedorId} onChange={e => handleProveedorChange(e.target.value)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
                 <option value="">Seleccionar proveedor...</option>
                 {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
@@ -158,7 +158,7 @@ export const OCEditor = () => {
             <div>
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Moneda</label>
               <select value={moneda} onChange={e => setMoneda(e.target.value as Moneda)}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
                 <option value="ARS">ARS</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -173,7 +173,7 @@ export const OCEditor = () => {
             <div className="col-span-2">
               <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Notas</label>
               <textarea value={notas} onChange={e => setNotas(e.target.value)} rows={2}
-                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
           </div>
         </Card>
@@ -201,19 +201,19 @@ export const OCEditor = () => {
                       <td className="px-3 py-1.5 text-xs text-slate-400">{idx + 1}</td>
                       <td className="px-3 py-1.5">
                         <input value={item.descripcion} onChange={e => updateItem(item.id, 'descripcion', e.target.value)}
-                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Descripcion del item" />
+                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500" placeholder="Descripcion del item" />
                       </td>
                       <td className="px-3 py-1.5">
                         <input type="number" min={1} value={item.cantidad} onChange={e => updateItem(item.id, 'cantidad', Number(e.target.value))}
-                          className="w-full text-xs text-right border border-slate-200 rounded px-2 py-1 tabular-nums focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                          className="w-full text-xs text-right border border-slate-200 rounded px-2 py-1 tabular-nums focus:outline-none focus:ring-1 focus:ring-teal-500" />
                       </td>
                       <td className="px-3 py-1.5">
                         <input value={item.unidadMedida} onChange={e => updateItem(item.id, 'unidadMedida', e.target.value)}
-                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500" />
                       </td>
                       <td className="px-3 py-1.5">
                         <input type="number" min={0} step={0.01} value={item.precioUnitario ?? ''} onChange={e => updateItem(item.id, 'precioUnitario', e.target.value ? Number(e.target.value) : null)}
-                          className="w-full text-xs text-right border border-slate-200 rounded px-2 py-1 tabular-nums focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                          className="w-full text-xs text-right border border-slate-200 rounded px-2 py-1 tabular-nums focus:outline-none focus:ring-1 focus:ring-teal-500" />
                       </td>
                       <td className="px-3 py-1.5 text-xs text-right text-slate-700 tabular-nums">
                         {(item.cantidad * (item.precioUnitario || 0)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}

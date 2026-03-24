@@ -221,7 +221,7 @@ export const BulkAddressValidationModal: React.FC<Props> = ({ open, onClose, est
           </div>
           <div className="w-full bg-slate-100 rounded-full h-1.5">
             <div
-              className={`h-1.5 rounded-full transition-all duration-300 ${done ? 'bg-green-500' : 'bg-indigo-500'}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${done ? 'bg-green-500' : 'bg-teal-500'}`}
               style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
             />
           </div>
@@ -238,7 +238,7 @@ export const BulkAddressValidationModal: React.FC<Props> = ({ open, onClose, est
           ] as const).map(tab => (
             <button key={tab.value} onClick={() => bg.setFilter(TASK_ID, tab.value)}
               className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors ${
-                filter === tab.value ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                filter === tab.value ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}>
               {tab.label}
             </button>
@@ -284,7 +284,7 @@ export const BulkAddressValidationModal: React.FC<Props> = ({ open, onClose, est
                     </div>
                   </td>
                   <td className="px-2 py-1.5 align-top">
-                    {row.status === 'validating' && <span className="text-[9px] text-indigo-500 animate-pulse">Consultando...</span>}
+                    {row.status === 'validating' && <span className="text-[9px] text-teal-500 animate-pulse">Consultando...</span>}
                     {row.status === 'pending' && <span className="text-[9px] text-slate-300">pendiente</span>}
                     {row.status === 'skipped' && <span className="text-[9px] text-slate-300">sin dirección</span>}
                     {row.status === 'error' && <span className="text-[9px] text-red-500">No encontrada</span>}

@@ -36,7 +36,7 @@ export function LoanerExtraccionesSection({ extracciones }: Props) {
             <div className="flex gap-3 mt-1 text-xs text-slate-400">
               <span>Destino: {e.destino}</span>
               {e.otNumber && (
-                <Link to={`/ordenes-trabajo/${e.otNumber}`} state={fromState} className="text-indigo-600 hover:underline">OT {e.otNumber}</Link>
+                <Link to={`/ordenes-trabajo/${e.otNumber}`} state={fromState} className="text-teal-600 hover:underline">OT {e.otNumber}</Link>
               )}
               <span>Por: {e.extraidoPor}</span>
             </div>

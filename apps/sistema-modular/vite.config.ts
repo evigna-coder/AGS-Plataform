@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
     envDir: rootDir,
     define: {
       'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(env.VITE_GOOGLE_MAPS_API_KEY ?? ''),
+      // Buffer polyfill for @react-pdf/renderer (uses Buffer internally)
+      'global': 'globalThis',
     },
     server: {
       port: 3001,

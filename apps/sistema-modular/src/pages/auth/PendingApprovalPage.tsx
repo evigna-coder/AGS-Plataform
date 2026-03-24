@@ -8,7 +8,7 @@ export const PendingApprovalPage = () => {
     <div className="h-screen bg-slate-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-full max-w-sm text-center">
         <div className="mb-4">
-          <span className="text-indigo-600 font-bold text-xl tracking-tight">AGS</span>
+          <span className="text-teal-600 font-bold text-xl tracking-tight">AGS</span>
         </div>
 
         {usuario?.photoURL && (

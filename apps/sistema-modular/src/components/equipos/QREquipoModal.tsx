@@ -75,7 +75,7 @@ export default function QREquipoModal({ agsVisibleId, equipoNombre, onClose }: Q
           <div className="text-center space-y-0.5">
             <p className="text-[11px] font-medium text-slate-700">Servicio técnico del equipo</p>
             <p className="text-[10px] text-slate-400">Escanee para solicitar soporte o ver historial</p>
-            <p className="text-[11px] font-semibold text-indigo-600 mt-1">ID: {agsVisibleId}</p>
+            <p className="text-[11px] font-semibold text-teal-600 mt-1">ID: {agsVisibleId}</p>
           </div>
         </div>
 

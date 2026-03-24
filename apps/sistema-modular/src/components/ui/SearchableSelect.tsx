@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface SearchableSelectOption {
@@ -42,7 +42,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   const selectedOption = options.find(opt => opt.value === value);
@@ -88,8 +88,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   }, [isOpen]);
 
-  // Focus en el input cuando se abre
-  useEffect(() => {
+  // Focus en el input cuando se abre (useLayoutEffect para evitar ventana sin foco)
+  useLayoutEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
@@ -134,6 +134,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
     setIsOpen(false);
     setSearchTerm('');
+    // Devolver foco al container para que Tab siga funcionando
+    requestAnimationFrame(() => containerRef.current?.focus());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -153,6 +155,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         break;
       case 'Escape':
         setIsOpen(false);
+        requestAnimationFrame(() => containerRef.current?.focus());
         break;
       case 'ArrowDown':
         e.preventDefault();
@@ -171,20 +174,34 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         }
         break;
       case 'Tab':
-        e.preventDefault();
-        if (!isOpen) {
-          setIsOpen(true);
-        } else if (e.shiftKey) {
-          setHighlightedIndex(prev => (prev > 0 ? prev - 1 : allOptions.length - 1));
-        } else {
-          setHighlightedIndex(prev =>
-            prev < allOptions.length - 1 ? prev + 1 : 0
-          );
+        // Tab navega entre opciones del dropdown abierto
+        if (isOpen && allOptions.length > 0) {
+          e.preventDefault();
+          if (e.shiftKey) {
+            if (highlightedIndex <= 0) {
+              setIsOpen(false);
+              return;
+            }
+            setHighlightedIndex(prev => prev - 1);
+          } else {
+            if (highlightedIndex >= allOptions.length - 1) {
+              if (highlightedIndex >= 0 && allOptions[highlightedIndex]) {
+                handleSelect(allOptions[highlightedIndex].value);
+              }
+              setIsOpen(false);
+              return;
+            }
+            setHighlightedIndex(prev => prev + 1);
+          }
         }
+        // Si dropdown cerrado: NO preventDefault → foco pasa al siguiente campo
         break;
       case ' ':
-        // Solo confirmar con Space si NO estamos escribiendo en el input de búsqueda
-        if (isOpen && highlightedIndex >= 0 && allOptions[highlightedIndex] &&
+        // Space abre el dropdown si está cerrado, o selecciona si está abierto
+        if (!isOpen) {
+          e.preventDefault();
+          setIsOpen(true);
+        } else if (highlightedIndex >= 0 && allOptions[highlightedIndex] &&
             e.target === containerRef.current) {
           e.preventDefault();
           handleSelect(allOptions[highlightedIndex].value);
@@ -194,7 +211,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const isSmall = size === 'sm';
-  const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+  const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-700 focus:border-teal-700 transition-colors ${
     error ? 'border-red-400' : 'border-slate-300'
   } ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'cursor-pointer'} ${className}`;
 
@@ -203,7 +220,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       {/* Input visible - muestra el valor seleccionado o permite escribir */}
       <div
         className={baseClasses}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => !disabled && !isOpen && setIsOpen(true)}
         onKeyDown={handleKeyDown}
         role="combobox"
         aria-expanded={isOpen}
@@ -212,14 +229,60 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       >
         {isOpen ? (
           <input
-            ref={inputRef}
+            ref={(el) => {
+              inputRef.current = el;
+              // Auto-focus cuando se monta (respaldo de useLayoutEffect)
+              if (el && document.activeElement !== el) el.focus();
+            }}
+            autoFocus
             type="text"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setHighlightedIndex(-1);
             }}
-            onKeyDown={handleKeyDown}
+            onKeyDown={(e) => {
+              // Tab: navegar entre opciones si hay dropdown abierto
+              if (e.key === 'Tab') {
+                if (allOptions.length > 0) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (e.shiftKey) {
+                    // Shift+Tab: ir para atrás o cerrar si estamos al inicio
+                    if (highlightedIndex <= 0) {
+                      setIsOpen(false);
+                      return;
+                    }
+                    setHighlightedIndex(prev => prev - 1);
+                  } else {
+                    // Tab: avanzar al siguiente, o seleccionar si estamos en el último
+                    if (highlightedIndex >= allOptions.length - 1) {
+                      // En el último item → seleccionar y cerrar
+                      if (highlightedIndex >= 0 && allOptions[highlightedIndex]) {
+                        handleSelect(allOptions[highlightedIndex].value);
+                      }
+                      setIsOpen(false);
+                      return;
+                    }
+                    setHighlightedIndex(prev => prev + 1);
+                  }
+                } else {
+                  setIsOpen(false);
+                  return;
+                }
+                return;
+              }
+              // Space: seleccionar el item highlighted (sin escribir espacio en el input)
+              if (e.key === ' ' && highlightedIndex >= 0 && allOptions[highlightedIndex]) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSelect(allOptions[highlightedIndex].value);
+                return;
+              }
+              handleKeyDown(e);
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
             className="w-full bg-transparent outline-none"
             placeholder={placeholder}
             disabled={disabled}
@@ -262,10 +325,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   className={`px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
                     isCreate
                       ? highlightedIndex === index
-                        ? 'bg-indigo-100 text-indigo-800 font-medium'
-                        : 'text-indigo-600 font-medium border-t border-slate-100'
+                        ? 'bg-teal-100 text-teal-800 font-medium'
+                        : 'text-teal-700 font-medium border-t border-slate-100'
                       : option.value === value
-                      ? 'bg-indigo-50 text-indigo-700 font-medium'
+                      ? 'bg-teal-50 text-teal-700 font-medium'
                       : highlightedIndex === index
                       ? 'bg-slate-100 text-slate-900'
                       : 'text-slate-700 hover:bg-slate-50'

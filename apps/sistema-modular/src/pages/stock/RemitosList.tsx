@@ -12,7 +12,7 @@ import type { Remito, TipoRemito, EstadoRemito, Cliente } from '@ags/shared';
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolución', interno: 'Interno', derivacion_proveedor: 'Derivación proveedor', loaner_salida: 'Loaner salida' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En tránsito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
 const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 text-slate-600', confirmado: 'bg-blue-100 text-blue-700', en_transito: 'bg-amber-100 text-amber-700', completado: 'bg-green-100 text-green-700', completado_parcial: 'bg-purple-100 text-purple-700', cancelado: 'bg-red-100 text-red-700' };
-const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text-blue-700', entrega_cliente: 'bg-indigo-50 text-indigo-700', devolucion: 'bg-emerald-50 text-emerald-700', interno: 'bg-slate-100 text-slate-600', derivacion_proveedor: 'bg-purple-50 text-purple-700', loaner_salida: 'bg-amber-50 text-amber-700' };
+const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text-blue-700', entrega_cliente: 'bg-teal-50 text-teal-700', devolucion: 'bg-emerald-50 text-emerald-700', interno: 'bg-slate-100 text-slate-600', derivacion_proveedor: 'bg-purple-50 text-purple-700', loaner_salida: 'bg-amber-50 text-amber-700' };
 
 export const RemitosList = () => {
   const [remitos, setRemitos] = useState<Remito[]>([]);
@@ -86,14 +86,14 @@ export const RemitosList = () => {
       >
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filters.estado} onChange={e => setFilters({ ...filters, estado: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los estados</option>
             {(Object.keys(ESTADO_LABELS) as EstadoRemito[]).map(k => (
               <option key={k} value={k}>{ESTADO_LABELS[k]}</option>
             ))}
           </select>
           <select value={filters.tipo} onChange={e => setFilters({ ...filters, tipo: e.target.value })}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los tipos</option>
             {(Object.keys(TIPO_LABELS) as TipoRemito[]).map(k => (
               <option key={k} value={k}>{TIPO_LABELS[k]}</option>
@@ -134,7 +134,7 @@ export const RemitosList = () => {
                   {sorted.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2">
-                        <span className="font-mono text-xs font-semibold text-indigo-600">{r.numero}</span>
+                        <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
                       </td>
                       <td className="px-4 py-2">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[r.tipo]}`}>
@@ -154,7 +154,7 @@ export const RemitosList = () => {
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <Link to={`/stock/remitos/${r.id}`} className="text-xs text-indigo-600 hover:underline font-medium">Ver</Link>
+                          <Link to={`/stock/remitos/${r.id}`} className="text-xs text-teal-600 hover:underline font-medium">Ver</Link>
                           {r.estado === 'borrador' && (
                             <button onClick={() => handleDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">Eliminar</button>
                           )}

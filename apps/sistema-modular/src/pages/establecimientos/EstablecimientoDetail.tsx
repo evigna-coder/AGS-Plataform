@@ -9,6 +9,7 @@ import { ContactosSection, emptyContactoForm, type ContactoFormData } from '../.
 import { CreateEquipoModal } from '../../components/equipos/CreateEquipoModal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
+import { MoveSistemaModal } from '../../components/equipos/MoveSistemaModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const ChevronRight = () => (
@@ -17,22 +18,32 @@ const ChevronRight = () => (
   </svg>
 );
 
-const SistemaRow = ({ s }: { s: Sistema }) => {
+const SistemaRow = ({ s, selected, onToggle }: { s: Sistema; selected?: boolean; onToggle?: (s: Sistema) => void }) => {
   const { pathname } = useLocation();
   return (
-  <Link key={s.id} to={`/equipos/${s.id}`} state={{ from: pathname }} className="flex justify-between items-center px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
-    <div className="min-w-0">
-      <div className="flex items-center gap-2">
-        <p className="text-xs font-medium text-slate-900 truncate">{s.nombre}</p>
-        {s.sector && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{s.sector}</span>}
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.activo ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
-          {s.activo ? 'Activo' : 'Inactivo'}
-        </span>
+  <div className="flex items-center gap-1.5">
+    {onToggle && (
+      <input
+        type="checkbox"
+        checked={!!selected}
+        onChange={() => onToggle(s)}
+        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 shrink-0"
+      />
+    )}
+    <Link key={s.id} to={`/equipos/${s.id}`} state={{ from: pathname }} className="flex-1 flex justify-between items-center px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-medium text-slate-900 truncate">{s.nombre}</p>
+          {s.sector && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600">{s.sector}</span>}
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.activo ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
+            {s.activo ? 'Activo' : 'Inactivo'}
+          </span>
+        </div>
+        {s.codigoInternoCliente && <p className="text-[11px] text-slate-400 truncate">{s.codigoInternoCliente}</p>}
       </div>
-      {s.codigoInternoCliente && <p className="text-[11px] text-slate-400 truncate">{s.codigoInternoCliente}</p>}
-    </div>
-    <ChevronRight />
-  </Link>
+      <ChevronRight />
+    </Link>
+  </div>
   );
 };
 
@@ -58,15 +69,17 @@ export const EstablecimientoDetail = () => {
   const [sectores, setSectores] = useState<string[]>([]);
   const [sectorCatalog, setSectorCatalog] = useState<SectorCatalog[]>([]);
   const [showCreateEquipo, setShowCreateEquipo] = useState(false);
+  const [selectedSistemaIds, setSelectedSistemaIds] = useState<Set<string>>(new Set());
+  const [showMoveModal, setShowMoveModal] = useState(false);
   const [showContactoModal, setShowContactoModal] = useState(false);
   const [editingContacto, setEditingContacto] = useState<ContactoEstablecimiento | null>(null);
   const [contactoForm, setContactoForm] = useState<ContactoFormData>(emptyContactoForm);
   useEffect(() => { if (id) load(); }, [id]);
 
-  const load = async () => {
+  const load = async (silent = false) => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [estData, contactosData, condicionesData, sectoresCat] = await Promise.all([
         establecimientosService.getById(id),
         contactosEstablecimientoService.getByEstablecimiento(id),
@@ -111,7 +124,7 @@ export const EstablecimientoDetail = () => {
       console.error(e);
       alert('Error al cargar');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -145,8 +158,8 @@ export const EstablecimientoDetail = () => {
     try {
       setSaving(true);
       const updated = {
-        nombre: formData.nombre.trim(), direccion: formData.direccion.trim(),
-        localidad: formData.localidad.trim(), provincia: formData.provincia.trim(),
+        nombre: (formData.nombre || '').trim(), direccion: (formData.direccion || '').trim(),
+        localidad: (formData.localidad || '').trim(), provincia: (formData.provincia || '').trim(),
         pais: formData.pais?.trim() || null, codigoPostal: formData.codigoPostal?.trim() || null,
         lat: formData.lat || null, lng: formData.lng || null,
         placeId: formData.placeId?.trim() || null, tipo: formData.tipo || null,
@@ -225,7 +238,7 @@ export const EstablecimientoDetail = () => {
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(false); load(); }}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(false); load(true); }}>Cancelar</Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? 'Guardando...' : 'Guardar'}
                 </Button>
@@ -310,7 +323,14 @@ export const EstablecimientoDetail = () => {
             <Card compact>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Sistemas / Equipos</h3>
-                <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
+                <div className="flex gap-2">
+                  {selectedSistemaIds.size > 0 && (
+                    <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => setShowMoveModal(true)}>
+                      Mover {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
+                </div>
               </div>
               {sistemas.length === 0 ? (
                 <div className="text-center py-4">
@@ -319,17 +339,38 @@ export const EstablecimientoDetail = () => {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {sistemas.map(s => <SistemaRow key={s.id} s={s} />)}
+                  {sistemas.map(s => (
+                    <SistemaRow
+                      key={s.id}
+                      s={s}
+                      selected={selectedSistemaIds.has(s.id)}
+                      onToggle={(sys) => {
+                        setSelectedSistemaIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(sys.id)) next.delete(sys.id); else next.add(sys.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
                 </div>
               )}
             </Card>
             <CreateEquipoModal
               open={showCreateEquipo}
               onClose={() => setShowCreateEquipo(false)}
-              onCreated={load}
+              onCreated={() => load(true)}
               defaultEstablecimientoId={id}
               defaultClienteId={est.clienteCuit}
             />
+            {showMoveModal && selectedSistemaIds.size > 0 && (
+              <MoveSistemaModal
+                sistemas={sistemas.filter(s => selectedSistemaIds.has(s.id))}
+                clienteCuit={est.clienteCuit}
+                onClose={() => setShowMoveModal(false)}
+                onMoved={() => { setShowMoveModal(false); setSelectedSistemaIds(new Set()); load(true); }}
+              />
+            )}
           </div>
         </div>
       </div>

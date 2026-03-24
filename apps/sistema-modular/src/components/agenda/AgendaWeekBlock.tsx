@@ -101,7 +101,7 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
           className={`bg-slate-50 border-b border-slate-100 px-2 py-px flex items-center gap-1 ${canDrillDown ? 'cursor-pointer hover:bg-slate-100 transition-colors' : ''}`}
           onClick={canDrillDown ? () => onWeekClick(weekStart) : undefined}
         >
-          <span className="text-[8px] font-semibold text-indigo-600">S{weekNum}</span>
+          <span className="text-[8px] font-semibold text-teal-600">S{weekNum}</span>
           <span className="text-[8px] text-slate-400">{formatWeekRange(weekStart)}</span>
         </div>
       ) : (
@@ -109,7 +109,7 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
           className={`bg-slate-50 border-b border-slate-200 px-3 py-0.5 flex items-center gap-2 ${canDrillDown ? 'cursor-pointer hover:bg-slate-100 transition-colors' : ''}`}
           onClick={canDrillDown ? () => onWeekClick(weekStart) : undefined}
         >
-          <span className="text-[10px] font-semibold text-indigo-600">S{weekNum}</span>
+          <span className="text-[10px] font-semibold text-teal-600">S{weekNum}</span>
           <span className="text-[10px] text-slate-400">{formatWeekRange(weekStart)}</span>
         </div>
       )}
@@ -124,10 +124,10 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
               return (
                 <div
                   key={dh.colStart}
-                  className={`text-center border-b border-slate-100 border-r border-r-slate-300 select-none ${dh.isToday ? 'bg-indigo-50' : 'bg-slate-50'}`}
+                  className={`text-center border-b border-slate-100 border-r border-r-slate-300 select-none ${dh.isToday ? 'bg-teal-50' : 'bg-slate-50'}`}
                   style={{ gridColumn: `span ${dh.span}` }}
                 >
-                  <span className={`text-[7px] font-semibold ${dh.isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <span className={`text-[7px] font-semibold ${dh.isToday ? 'text-teal-600' : 'text-slate-400'}`}>
                     {info.dayNumber}
                   </span>
                 </div>
@@ -145,12 +145,12 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
                 <div
                   key={dh.colStart}
                   className={`text-center border-b border-slate-200 border-r-2 border-r-slate-300 py-0.5 select-none
-                    ${dh.isToday ? 'bg-indigo-50 border-b-2 border-b-indigo-400' : 'bg-slate-50'}
+                    ${dh.isToday ? 'bg-teal-50 border-b-2 border-b-teal-400' : 'bg-slate-50'}
                   `}
                   style={{ gridColumn: `span ${dh.span}` }}
                 >
                   <span className="text-[8px] text-slate-400 uppercase">{info.dayName}</span>
-                  <span className={`text-[10px] font-semibold ml-0.5 ${dh.isToday ? 'text-indigo-600' : 'text-slate-600'}`}>
+                  <span className={`text-[10px] font-semibold ml-0.5 ${dh.isToday ? 'text-teal-600' : 'text-slate-600'}`}>
                     {info.dayNumber}
                   </span>
                 </div>

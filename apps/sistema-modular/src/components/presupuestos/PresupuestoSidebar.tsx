@@ -115,13 +115,13 @@ export const PresupuestoSidebar = ({
           <div>
             <LabelValue label="Razon Social" value={cliente?.razonSocial || 'No encontrado'} />
             {cliente && (
-              <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Ver cliente →</Link>
+              <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:underline mt-0.5 inline-block">Ver cliente →</Link>
             )}
           </div>
           {sistema && (
             <div>
               <LabelValue label="Sistema" value={sistema.nombre} />
-              <Link to={`/equipos/${sistema.id}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Ver sistema →</Link>
+              <Link to={`/equipos/${sistema.id}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:underline mt-0.5 inline-block">Ver sistema →</Link>
             </div>
           )}
         </div>
@@ -133,10 +133,10 @@ export const PresupuestoSidebar = ({
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Origen</h3>
           <LabelValue label="Tipo" value={ORIGEN_PRESUPUESTO_LABELS[origenTipo as keyof typeof ORIGEN_PRESUPUESTO_LABELS] || origenTipo} />
           {origenTipo === 'lead' && origenId && (
-            <Link to={`/leads/${origenId}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Ver lead →</Link>
+            <Link to={`/leads/${origenId}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:underline mt-1 inline-block">Ver lead →</Link>
           )}
           {origenTipo === 'ot' && origenId && (
-            <Link to={`/ordenes-trabajo/${origenId}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Ver OT →</Link>
+            <Link to={`/ordenes-trabajo/${origenId}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:underline mt-1 inline-block">Ver OT →</Link>
           )}
           {origenRef && <LabelValue label="Referencia" value={origenRef} />}
         </Card>
@@ -211,7 +211,7 @@ export const PresupuestoSidebar = ({
           )}
           <div className="border-t border-slate-100 pt-2 flex justify-between">
             <span className="text-xs font-semibold text-slate-700">Total</span>
-            <span className="text-sm font-semibold text-indigo-700">{fmtMoney(totals.total)}</span>
+            <span className="text-sm font-semibold text-teal-700">{fmtMoney(totals.total)}</span>
           </div>
           {condicionPagoSeleccionada && (
             <p className="text-[11px] text-slate-400 mt-1">{condicionPagoSeleccionada.nombre}{condicionPagoSeleccionada.dias > 0 && ` (${condicionPagoSeleccionada.dias} dias)`}</p>
@@ -232,7 +232,7 @@ export const PresupuestoSidebar = ({
             <SearchableSelect value={condicionPagoId || ''} onChange={(v) => onCondicionPagoIdChange(v || undefined)}
               options={[{ value: '', label: 'Sin condicion' }, ...condicionesPago.filter(c => c.activo).map(c => ({ value: c.id, label: `${c.nombre}${c.dias > 0 ? ` (${c.dias} dias)` : ' (Contado)'}` }))]}
               placeholder="Seleccionar..." />
-            <Link to="/presupuestos/condiciones-pago" className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Gestionar condiciones →</Link>
+            <Link to="/presupuestos/condiciones-pago" className="text-[11px] text-teal-600 hover:underline mt-0.5 inline-block">Gestionar condiciones →</Link>
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Validez (dias)</label>

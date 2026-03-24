@@ -70,7 +70,7 @@ export const RemitoDetail = () => {
   if (!remito) return (
     <div className="text-center py-12">
       <p className="text-slate-400">Remito no encontrado</p>
-      <Link to="/stock/remitos" className="text-indigo-600 hover:underline mt-2 inline-block">Volver</Link>
+      <Link to="/stock/remitos" className="text-teal-600 hover:underline mt-2 inline-block">Volver</Link>
     </div>
   );
 

@@ -67,7 +67,7 @@ function ClientesImport() {
             accept=".xlsx,.xls"
             onChange={handleFileChange}
             disabled={isWorking}
-            className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:cursor-pointer disabled:opacity-50"
+            className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 file:cursor-pointer disabled:opacity-50"
           />
           {step !== 'idle' && (
             <button onClick={() => { reset(); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-xs text-slate-500 hover:text-slate-700 font-medium">
@@ -82,7 +82,7 @@ function ClientesImport() {
           <h2 className="text-sm font-semibold text-slate-800 mb-3">2. Datos leidos</h2>
           <div className="grid grid-cols-4 gap-3">
             {([
-              ['Clientes', data.clientes.length, 'indigo'],
+              ['Clientes', data.clientes.length, 'teal'],
               ['Establecimientos', data.establecimientos.length, 'emerald'],
               ['Sistemas', data.sistemas.length, 'amber'],
               ['Modulos', data.modulos.length, 'slate'],
@@ -158,7 +158,7 @@ function StockImport() {
       <div className="bg-white rounded-lg border border-slate-200 p-4">
         <h2 className="text-sm font-semibold text-slate-800 mb-3">1. Seleccionar archivo Excel</h2>
         <p className="text-xs text-slate-500 mb-3">
-          El archivo debe tener una hoja con columnas: <span className="font-medium">Codigo</span>, <span className="font-medium">Descripcion</span>, <span className="font-medium">Posicion Arancelaria</span>, <span className="font-medium">Marca</span>.
+          El archivo debe tener una hoja con columnas: <span className="font-medium">Codigo</span> (o Nro. de Parte), <span className="font-medium">Descripcion</span>, <span className="font-medium">Posicion Arancelaria</span>, <span className="font-medium">Marca</span>, <span className="font-medium">Origen</span> (opcional).
         </p>
         <div className="flex items-center gap-3">
           <input
@@ -167,7 +167,7 @@ function StockImport() {
             accept=".xlsx,.xls"
             onChange={handleFileChange}
             disabled={isWorking}
-            className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:cursor-pointer disabled:opacity-50"
+            className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 file:cursor-pointer disabled:opacity-50"
           />
           {step !== 'idle' && (
             <button onClick={() => { reset(); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-xs text-slate-500 hover:text-slate-700 font-medium">
@@ -180,9 +180,9 @@ function StockImport() {
       {data && (
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <h2 className="text-sm font-semibold text-slate-800 mb-3">2. Datos leidos</h2>
-          <div className="bg-indigo-50 rounded-lg p-3 text-center inline-block min-w-[120px]">
-            <p className="text-2xl font-bold text-indigo-700">{data.articulos.length}</p>
-            <p className="text-[11px] text-indigo-600 font-medium">Articulos</p>
+          <div className="bg-teal-50 rounded-lg p-3 text-center inline-block min-w-[120px]">
+            <p className="text-2xl font-bold text-teal-700">{data.articulos.length}</p>
+            <p className="text-[11px] text-teal-600 font-medium">Articulos</p>
           </div>
           <IssueTable title="Errores (bloquean la importacion)" issues={errors} color="red" />
           <IssueTable title="Advertencias (no bloquean)" issues={warnings} color="amber" />
@@ -206,7 +206,7 @@ function StockImport() {
           <div className="space-y-3 text-xs text-slate-600">
             <div>
               <p className="font-medium text-slate-700 mb-1">Hoja "Articulos" o "Stock" (o la primera hoja)</p>
-              <p className="text-[11px] text-slate-500">Columnas: Codigo | Descripcion | Posicion Arancelaria | Marca</p>
+              <p className="text-[11px] text-slate-500">Columnas: Codigo (o Nro. de Parte) | Descripcion | Posicion Arancelaria | Marca | Origen</p>
             </div>
             <div className="mt-2 p-2 bg-slate-50 rounded text-[11px] text-slate-500">
               Los articulos existentes se detectan por codigo y no se duplican.
@@ -346,7 +346,7 @@ function DedupModulos() {
           <button
             onClick={scan}
             disabled={isRunning || status === 'deleting'}
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
           >
             {isRunning ? 'Escaneando...' : 'Escanear duplicados'}
           </button>
@@ -365,7 +365,7 @@ function DedupModulos() {
           )}
         </div>
         {isRunning && (
-          <p className="text-[10px] text-indigo-600 mt-2 font-medium">
+          <p className="text-[10px] text-teal-600 mt-2 font-medium">
             Podés navegar a otra sección. El escaneo continuará en segundo plano.
           </p>
         )}
@@ -401,7 +401,7 @@ function DedupModulos() {
         <div className="bg-slate-900 rounded-lg p-3 font-mono text-[11px] text-slate-300 max-h-48 overflow-y-auto">
           {log.map((line, i) => <div key={i}>{line}</div>)}
           {(isRunning || status === 'deleting') && (
-            <div className="text-indigo-400 animate-pulse mt-1">Procesando...</div>
+            <div className="text-teal-400 animate-pulse mt-1">Procesando...</div>
           )}
         </div>
       )}
@@ -584,7 +584,7 @@ function RepairSistemaEstablecimiento() {
         <button
           onClick={scan}
           disabled={isRunning || status === 'fixing'}
-          className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+          className="px-4 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
         >
           {isRunning ? 'Escaneando...' : 'Escanear sistemas'}
         </button>
@@ -603,7 +603,7 @@ function RepairSistemaEstablecimiento() {
         )}
       </div>
       {isRunning && (
-        <p className="text-[10px] text-indigo-600 mt-2 font-medium">
+        <p className="text-[10px] text-teal-600 mt-2 font-medium">
           Podés navegar a otra sección. El escaneo continuará en segundo plano.
         </p>
       )}
@@ -632,12 +632,12 @@ function RepairSistemaEstablecimiento() {
       {log.length > 0 && (
         <div className="mt-3 bg-slate-900 rounded-lg p-3 font-mono text-[11px] text-slate-300 max-h-48 overflow-y-auto">
           {log.map((line, i) => (
-            <div key={i} className={line.startsWith('SKIP') ? 'text-amber-400' : line.startsWith('MANUAL') ? 'text-yellow-300' : line.startsWith('---') ? 'text-indigo-400' : ''}>
+            <div key={i} className={line.startsWith('SKIP') ? 'text-amber-400' : line.startsWith('MANUAL') ? 'text-yellow-300' : line.startsWith('---') ? 'text-teal-400' : ''}>
               {line}
             </div>
           ))}
           {(isRunning || status === 'fixing') && (
-            <div className="text-indigo-400 animate-pulse mt-1">Procesando...</div>
+            <div className="text-teal-400 animate-pulse mt-1">Procesando...</div>
           )}
         </div>
       )}
@@ -895,7 +895,7 @@ function UnificarSistemasDuplicados() {
         <button
           onClick={scan}
           disabled={isRunning || status === 'merging'}
-          className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+          className="px-4 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
         >
           {isRunning ? 'Escaneando...' : 'Escanear duplicados'}
         </button>
@@ -914,7 +914,7 @@ function UnificarSistemasDuplicados() {
         )}
       </div>
       {isRunning && (
-        <p className="text-[10px] text-indigo-600 mt-2 font-medium">
+        <p className="text-[10px] text-teal-600 mt-2 font-medium">
           Podés navegar a otra sección. El escaneo continuará en segundo plano.
         </p>
       )}
@@ -981,14 +981,14 @@ function UnificarSistemasDuplicados() {
               line.startsWith('  SKIP') ? 'text-amber-400' :
               line.startsWith('  ERROR') ? 'text-red-400' :
               line.startsWith('  WARN') ? 'text-yellow-300' :
-              line.startsWith('---') ? 'text-indigo-400' :
+              line.startsWith('---') ? 'text-teal-400' :
               line.startsWith('===') ? 'text-emerald-400 font-medium' : ''
             }>
               {line}
             </div>
           ))}
           {(isRunning || status === 'merging') && (
-            <div className="text-indigo-400 animate-pulse mt-1">Procesando...</div>
+            <div className="text-teal-400 animate-pulse mt-1">Procesando...</div>
           )}
         </div>
       )}
@@ -1027,7 +1027,7 @@ function ExecuteSection({ canExecute, step, execute, progressLog, summary, summa
         <div className="flex items-center gap-3 mb-3">
           <button
             onClick={execute}
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            className="px-4 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 transition-colors"
           >
             Importar a Firestore
           </button>
@@ -1037,12 +1037,12 @@ function ExecuteSection({ canExecute, step, execute, progressLog, summary, summa
       {progressLog.length > 0 && (
         <div className="bg-slate-900 rounded-lg p-3 font-mono text-[11px] text-slate-300 max-h-64 overflow-y-auto">
           {progressLog.map((line, i) => (
-            <div key={i} className={line.startsWith('ERROR') ? 'text-red-400' : line.startsWith('---') ? 'text-indigo-400 font-medium' : ''}>
+            <div key={i} className={line.startsWith('ERROR') ? 'text-red-400' : line.startsWith('---') ? 'text-teal-400 font-medium' : ''}>
               {line}
             </div>
           ))}
           {step === 'writing' && (
-            <div className="text-indigo-400 animate-pulse mt-1">Procesando...</div>
+            <div className="text-teal-400 animate-pulse mt-1">Procesando...</div>
           )}
         </div>
       )}
@@ -1101,7 +1101,7 @@ export function ImportacionDatos() {
               onClick={() => setMode(tab.key)}
               className={`px-3 py-1.5 text-xs font-medium rounded-t-md border border-b-0 transition-colors ${
                 mode === tab.key
-                  ? 'bg-white text-indigo-700 border-slate-200'
+                  ? 'bg-white text-teal-700 border-slate-200'
                   : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'
               }`}
             >

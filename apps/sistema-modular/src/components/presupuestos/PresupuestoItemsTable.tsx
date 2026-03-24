@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema, ModuloSistema } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { SearchableSelect } from '../ui/SearchableSelect';
 import { AddItemModal } from './AddItemModal';
+import { PresupuestoItemRow } from './PresupuestoItemRow';
+import type { GrupoSistema } from '../../hooks/usePresupuestoSistemas';
 
 interface PresupuestoTotals {
   subtotal: number;
@@ -29,18 +30,33 @@ interface PresupuestoItemsTableProps {
   onNotasTecnicasChange: (v: string) => void;
   onCondicionesChange: (v: string) => void;
   calculateItemTaxes: (item: PresupuestoItem) => { iva: number; ganancias: number; iibb: number; totalImpuestos: number };
+  tipoPresupuesto?: string;
+  sistemas?: Sistema[];
+  loadModulos?: (sistemaId: string) => Promise<ModuloSistema[]>;
+  itemsByGrupo?: GrupoSistema[];
+  getGrupo?: (sistemaId: string | null | undefined) => number;
 }
 
-const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
-  { value: '', label: 'Sin categoria' },
-  ...cats.filter(c => c.activo).map(c => ({ value: c.id, label: c.nombre })),
-];
+const TABLE_HEADER = (
+  <tr className="bg-slate-50">
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Código</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-left">Descripcion</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Cant.</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-20">Unidad</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">P. Unit.</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Dto %</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">Subtotal</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Categoria</th>
+    <th className="w-8"></th>
+  </tr>
+);
 
 export const PresupuestoItemsTable = ({
   items, categoriasPresupuesto, conceptosServicio, moneda,
   totals, notasTecnicas, condicionesComerciales,
   onAddItem, onUpdateItem, onRemoveItem,
   onNotasTecnicasChange, onCondicionesChange, calculateItemTaxes,
+  tipoPresupuesto, sistemas, loadModulos, itemsByGrupo, getGrupo,
 }: PresupuestoItemsTableProps) => {
   const [showModal, setShowModal] = useState(false);
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({
@@ -49,6 +65,7 @@ export const PresupuestoItemsTable = ({
   });
   const sym = MONEDA_SIMBOLO[moneda] || '$';
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+  const hasGrupos = itemsByGrupo && itemsByGrupo.some(g => g.grupo > 0);
 
   const handleAdd = () => {
     if (!newItem.descripcion || !newItem.cantidad || !newItem.precioUnitario) {
@@ -57,6 +74,7 @@ export const PresupuestoItemsTable = ({
     }
     const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
     const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
+    const sistemaId = newItem.sistemaId === '__ALL_SISTEMAS__' ? null : (newItem.sistemaId || null);
     onAddItem({
       id: `item-${Date.now()}`,
       descripcion: newItem.descripcion,
@@ -67,6 +85,17 @@ export const PresupuestoItemsTable = ({
       categoriaPresupuestoId: newItem.categoriaPresupuestoId,
       codigoProducto: newItem.codigoProducto || null,
       conceptoServicioId: newItem.conceptoServicioId || null,
+      sistemaId,
+      sistemaNombre: newItem.sistemaId === '__ALL_SISTEMAS__' ? 'Todos los sistemas/equipos' : (newItem.sistemaNombre || null),
+      sistemaCodigoInterno: newItem.sistemaCodigoInterno || null,
+      moduloId: newItem.moduloId || null,
+      moduloNombre: newItem.moduloNombre || null,
+      moduloSerie: newItem.moduloSerie || null,
+      moduloMarca: newItem.moduloMarca || null,
+      servicioCode: newItem.servicioCode || null,
+      subItem: newItem.subItem || null,
+      esBonificacion: newItem.esBonificacion || false,
+      grupo: getGrupo ? getGrupo(sistemaId) : null,
       subtotal,
     });
     setShowModal(false);
@@ -77,6 +106,12 @@ export const PresupuestoItemsTable = ({
       categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null });
     setShowModal(true);
   };
+
+  const renderRows = (rowItems: PresupuestoItem[]) =>
+    rowItems.map(item => (
+      <PresupuestoItemRow key={item.id} item={item} categoriasPresupuesto={categoriasPresupuesto}
+        fmtMoney={fmtMoney} taxes={calculateItemTaxes(item)} onUpdateItem={onUpdateItem} onRemoveItem={onRemoveItem} />
+    ));
 
   return (
     <div className="flex-1 min-w-0 space-y-4">
@@ -94,136 +129,103 @@ export const PresupuestoItemsTable = ({
         ) : (
           <div className="border border-slate-200 rounded-lg overflow-hidden">
             <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-slate-50">
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-left">Descripcion</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Producto</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Cant.</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-20">Unidad</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">P. Unit.</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Dto %</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">Subtotal</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Categoria</th>
-                  <th className="w-8"></th>
-                </tr>
-              </thead>
+              <thead>{TABLE_HEADER}</thead>
               <tbody className="divide-y divide-slate-100">
-                {items.map((item) => {
-                  const taxes = calculateItemTaxes(item);
-                  return (
-                    <tr key={item.id}>
-                      <td className="px-3 py-2">
-                        <input value={item.descripcion} onChange={e => onUpdateItem(item.id, 'descripcion', e.target.value)}
-                          className="w-full outline-none bg-transparent text-xs" placeholder="Descripcion..." />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input value={item.codigoProducto || ''} onChange={e => onUpdateItem(item.id, 'codigoProducto', e.target.value || null)}
-                          className="w-full outline-none bg-transparent text-xs text-slate-500" placeholder="Part #" />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input type="number" min="0" step="0.01" value={item.cantidad}
-                          onChange={e => onUpdateItem(item.id, 'cantidad', Number(e.target.value) || 0)}
-                          className="w-full outline-none text-center bg-transparent text-xs" />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input value={item.unidad} onChange={e => onUpdateItem(item.id, 'unidad', e.target.value)}
-                          className="w-full outline-none bg-transparent text-xs" />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input type="number" min="0" step="0.01" value={item.precioUnitario}
-                          onChange={e => onUpdateItem(item.id, 'precioUnitario', Number(e.target.value) || 0)}
-                          className="w-full outline-none text-right bg-transparent text-xs" />
-                      </td>
-                      <td className="px-2 py-2">
-                        <input type="number" min="0" max="100" step="0.5" value={item.descuento || 0}
-                          onChange={e => onUpdateItem(item.id, 'descuento', Number(e.target.value) || 0)}
-                          className="w-full outline-none text-center bg-transparent text-xs" />
-                      </td>
-                      <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">
-                        {fmtMoney(item.subtotal)}
-                      </td>
-                      <td className="px-2 py-2">
-                        <SearchableSelect value={item.categoriaPresupuestoId || ''}
-                          onChange={(v) => onUpdateItem(item.id, 'categoriaPresupuestoId', v || undefined)}
-                          options={categoriaOptions(categoriasPresupuesto)} placeholder="Categoria..." />
-                        {taxes.totalImpuestos > 0 && (
-                          <span className="text-[10px] text-slate-400 mt-0.5 block">
-                            Imp: {fmtMoney(taxes.totalImpuestos)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="text-center">
-                        <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {hasGrupos ? (
+                  itemsByGrupo!.map(grupo => {
+                    const grupoSub = grupo.items.reduce((s, i) => s + (i.subtotal || 0), 0);
+                    return (
+                      <GroupRows key={grupo.grupo} grupo={grupo} grupoSubtotal={grupoSub}
+                        renderRows={renderRows} fmtMoney={fmtMoney} />
+                    );
+                  })
+                ) : renderRows(items)}
               </tbody>
-              <tfoot className="bg-slate-50 border-t border-slate-200">
-                <tr>
-                  <td colSpan={6} className="px-3 py-2 text-right text-[11px] font-medium text-slate-400">Subtotal</td>
-                  <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">{fmtMoney(totals.subtotal)}</td>
-                  <td colSpan={2}></td>
-                </tr>
-                {totals.iva > 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IVA</td>
-                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iva)}</td>
-                    <td colSpan={2}></td>
-                  </tr>
-                )}
-                {totals.ganancias > 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Ganancias</td>
-                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.ganancias)}</td>
-                    <td colSpan={2}></td>
-                  </tr>
-                )}
-                {totals.iibb > 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IIBB</td>
-                    <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iibb)}</td>
-                    <td colSpan={2}></td>
-                  </tr>
-                )}
-                <tr className="bg-indigo-50">
-                  <td colSpan={6} className="px-3 py-2 text-right text-xs font-semibold text-indigo-900">Total</td>
-                  <td className="px-2 py-2 text-right text-sm font-semibold text-indigo-700">{fmtMoney(totals.total)}</td>
-                  <td colSpan={2}></td>
-                </tr>
-              </tfoot>
+              <TotalsFooter totals={totals} fmtMoney={fmtMoney} />
             </table>
           </div>
         )}
       </Card>
 
-      {/* Notas tecnicas */}
       <Card compact>
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Notas tecnicas</h3>
         <textarea value={notasTecnicas} onChange={(e) => onNotasTecnicasChange(e.target.value)}
           rows={3} placeholder="Notas tecnicas, observaciones..."
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500" />
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500" />
       </Card>
 
-      {/* Condiciones comerciales */}
       <Card compact>
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Condiciones comerciales</h3>
         <textarea value={condicionesComerciales} onChange={(e) => onCondicionesChange(e.target.value)}
           rows={3} placeholder="Condiciones comerciales, forma de pago, etc..."
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-indigo-500" />
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500" />
       </Card>
 
       {showModal && (
-        <AddItemModal
-          newItem={newItem}
-          setNewItem={setNewItem}
-          categoriasPresupuesto={categoriasPresupuesto}
-          conceptosServicio={conceptosServicio}
-          moneda={moneda}
-          onAdd={handleAdd}
-          onClose={() => setShowModal(false)}
-        />
+        <AddItemModal newItem={newItem} setNewItem={setNewItem} categoriasPresupuesto={categoriasPresupuesto}
+          conceptosServicio={conceptosServicio} moneda={moneda} onAdd={handleAdd} onClose={() => setShowModal(false)}
+          tipoPresupuesto={tipoPresupuesto} sistemas={sistemas} loadModulos={loadModulos} />
       )}
     </div>
   );
 };
+
+function GroupRows({ grupo, grupoSubtotal, renderRows, fmtMoney }: {
+  grupo: GrupoSistema; grupoSubtotal: number;
+  renderRows: (items: PresupuestoItem[]) => React.ReactNode;
+  fmtMoney: (n: number) => string;
+}) {
+  return (
+    <>
+      <tr className="bg-teal-50/70">
+        <td colSpan={9} className="px-3 py-1.5">
+          <span className="text-[11px] font-semibold text-teal-800 tracking-wide">
+            {grupo.grupo > 0 ? `${grupo.grupo}. ` : ''}{grupo.sistemaNombre}
+          </span>
+          <span className="text-[10px] text-teal-500 ml-2">
+            ({grupo.items.length} items — {fmtMoney(grupoSubtotal)})
+          </span>
+        </td>
+      </tr>
+      {renderRows(grupo.items)}
+    </>
+  );
+}
+
+function TotalsFooter({ totals, fmtMoney }: { totals: PresupuestoTotals; fmtMoney: (n: number) => string }) {
+  return (
+    <tfoot className="bg-slate-50 border-t border-slate-200">
+      <tr>
+        <td colSpan={6} className="px-3 py-2 text-right text-[11px] font-medium text-slate-400">Subtotal</td>
+        <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">{fmtMoney(totals.subtotal)}</td>
+        <td colSpan={2}></td>
+      </tr>
+      {totals.iva > 0 && (
+        <tr>
+          <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IVA</td>
+          <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iva)}</td>
+          <td colSpan={2}></td>
+        </tr>
+      )}
+      {totals.ganancias > 0 && (
+        <tr>
+          <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Ganancias</td>
+          <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.ganancias)}</td>
+          <td colSpan={2}></td>
+        </tr>
+      )}
+      {totals.iibb > 0 && (
+        <tr>
+          <td colSpan={6} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">IIBB</td>
+          <td className="px-2 py-1.5 text-right text-xs text-slate-600">{fmtMoney(totals.iibb)}</td>
+          <td colSpan={2}></td>
+        </tr>
+      )}
+      <tr className="bg-teal-50">
+        <td colSpan={6} className="px-3 py-2 text-right text-xs font-semibold text-teal-900">Total</td>
+        <td className="px-2 py-2 text-right text-sm font-semibold text-teal-700">{fmtMoney(totals.total)}</td>
+        <td colSpan={2}></td>
+      </tr>
+    </tfoot>
+  );
+}

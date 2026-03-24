@@ -73,7 +73,7 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   return (
     <Modal open={open} onClose={handleClose} title="Nuevo requerimiento de compra"
@@ -119,7 +119,7 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
           <label className={lbl}>Notas</label>
           <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
             placeholder="Notas adicionales..."
-            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-teal-500" />
         </div>
       </div>
     </Modal>

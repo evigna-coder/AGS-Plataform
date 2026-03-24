@@ -124,7 +124,7 @@ export const PosicionesPage = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         <div className="flex justify-end">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-indigo-600" />
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivas
           </label>
         </div>
@@ -161,14 +161,14 @@ export const PosicionesPage = () => {
                     <>
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs font-semibold text-indigo-700">{pos.codigo}</span>
+                          <span className="font-mono text-xs font-semibold text-teal-700">{pos.codigo}</span>
                           <span className="font-medium text-slate-900 text-xs">{pos.nombre}</span>
                           <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{TIPO_LABELS[pos.tipo]}</span>
                         </div>
                         {pos.descripcion && <p className="text-[11px] text-slate-400 mt-0.5">{pos.descripcion}</p>}
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <button onClick={() => startEdit(pos)} className="text-indigo-600 hover:underline font-medium text-[11px]">Editar</button>
+                        <button onClick={() => startEdit(pos)} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
                         <button onClick={() => handleToggle(pos)}
                           className={`font-medium text-[11px] ${pos.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
                           {pos.activo ? 'Desactivar' : 'Activar'}

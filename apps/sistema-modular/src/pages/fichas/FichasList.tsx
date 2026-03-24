@@ -109,7 +109,7 @@ export function FichasList() {
             <div className="text-center py-12">
               <p className="text-slate-400">No hay fichas registradas</p>
               <button onClick={() => setShowCreate(true)}
-                className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
                 Crear primera ficha
               </button>
             </div>
@@ -141,7 +141,7 @@ export function FichasList() {
                 {filtered.map(f => (
                   <tr key={f.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/fichas/${f.id}`)}>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <span className="font-semibold text-indigo-600 text-xs">{f.numero}</span>
+                      <span className="font-semibold text-teal-600 text-xs">{f.numero}</span>
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-700 truncate" title={f.clienteNombre}>{f.clienteNombre}</td>
                     <td className="px-3 py-2 text-xs text-slate-600 truncate" title={f.moduloNombre || f.descripcionLibre || ''}>
@@ -155,7 +155,7 @@ export function FichasList() {
                     <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(f.fechaIngreso)}</td>
                     <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
                       {f.otReferencia ? (
-                        <Link to={`/ordenes-trabajo/${f.otReferencia}`} className="text-indigo-600 hover:underline" onClick={e => e.stopPropagation()}>
+                        <Link to={`/ordenes-trabajo/${f.otReferencia}`} className="text-teal-600 hover:underline" onClick={e => e.stopPropagation()}>
                           {f.otReferencia}
                         </Link>
                       ) : <span className="text-slate-300">—</span>}

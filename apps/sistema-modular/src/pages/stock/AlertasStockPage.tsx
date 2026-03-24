@@ -86,7 +86,7 @@ export const AlertasStockPage = () => {
                   {items.map(art => (
                     <tr key={art.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-4 py-2">
-                        <Link to={`/stock/articulos/${art.id}`} className="font-mono text-xs text-indigo-600 hover:underline font-medium">
+                        <Link to={`/stock/articulos/${art.id}`} className="font-mono text-xs text-teal-600 hover:underline font-medium">
                           {art.codigo}
                         </Link>
                       </td>
@@ -112,7 +112,7 @@ export const AlertasStockPage = () => {
                       <td className="px-4 py-2">
                         <Link
                           to={`/stock/articulos/${art.id}`}
-                          className="text-[10px] font-medium text-indigo-600 hover:underline"
+                          className="text-[10px] font-medium text-teal-600 hover:underline"
                         >
                           Ver detalle
                         </Link>

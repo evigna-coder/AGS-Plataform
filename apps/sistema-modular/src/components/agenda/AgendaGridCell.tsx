@@ -1,5 +1,6 @@
 import { type FC, useCallback } from 'react';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
+import { ESTADO_AGENDA_LABELS } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 // CSS utility no longer needed — we use DragOverlay instead of transforming the source cell
 
@@ -7,7 +8,7 @@ const CELL_BG: Record<EstadoAgenda, string> = {
   pendiente: 'bg-slate-300',
   tentativo: 'bg-amber-300',
   confirmado: 'bg-blue-300',
-  en_progreso: 'bg-indigo-300',
+  en_progreso: 'bg-teal-300',
   completado: 'bg-emerald-300',
   cancelado: 'bg-red-200',
 };
@@ -16,7 +17,7 @@ const CELL_TEXT: Record<EstadoAgenda, string> = {
   pendiente: 'text-slate-800',
   tentativo: 'text-amber-900',
   confirmado: 'text-blue-900',
-  en_progreso: 'text-indigo-900',
+  en_progreso: 'text-teal-900',
   completado: 'text-emerald-900',
   cancelado: 'text-red-700',
 };
@@ -91,16 +92,16 @@ export const AgendaGridCell: FC<AgendaGridCellProps> = ({
       className={`${borderClass} cursor-pointer transition-colors relative
         ${entry ? bg : 'hover:bg-slate-50'}
         ${rounded}
-        ${isToday && !entry ? 'bg-indigo-50/40' : ''}
+        ${isToday && !entry ? 'bg-teal-50/40' : ''}
         ${cancelled ? 'opacity-40' : ''}
-        ${isSelected ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''}
-        ${isOver && !isSelected ? 'ring-2 ring-inset ring-indigo-400 bg-indigo-50/60' : ''}
+        ${isSelected ? 'ring-2 ring-inset ring-teal-500 z-10' : ''}
+        ${isOver && !isSelected ? 'ring-2 ring-inset ring-teal-400 bg-teal-50/60' : ''}
         ${isDragging ? 'opacity-30' : ''}
         ${entry && isStart ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
       style={{ height: rowHeight }}
       onClick={onClick}
-      title={entry ? `OT-${entry.otNumber} | ${entry.clienteNombre}${hasMultiple ? ` (+${entryCount - 1} más)` : ''}` : undefined}
+      title={entry ? `OT-${entry.otNumber}\n${entry.clienteNombre}\n${entry.tipoServicio}${entry.sistemaNombre ? `\n${entry.sistemaNombre}` : ''}\n${ESTADO_AGENDA_LABELS[entry.estadoAgenda]}${entry.notas ? `\n${entry.notas}` : ''}${hasMultiple ? `\n(+${entryCount - 1} más)` : ''}` : undefined}
     >
       {isStart && entry && showText && (
         <span
@@ -112,7 +113,7 @@ export const AgendaGridCell: FC<AgendaGridCellProps> = ({
       )}
       {/* Multiple entries indicator — small dot at bottom-right */}
       {hasMultiple && !compact && (
-        <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-indigo-600 m-px" />
+        <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />
       )}
     </div>
   );

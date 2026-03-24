@@ -119,7 +119,7 @@ export const ImportacionEditor = () => {
                 <select
                   value={form.ordenCompraId}
                   onChange={e => handleOCChange(e.target.value)}
-                  className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
                   disabled={loadingOC}
                 >
                   <option value="">{loadingOC ? 'Cargando...' : 'Seleccionar OC'}</option>
@@ -149,7 +149,7 @@ export const ImportacionEditor = () => {
                 <select
                   value={form.incoterm}
                   onChange={set('incoterm')}
-                  className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="">Seleccionar</option>
                   {INCOTERMS.map(i => (
@@ -165,7 +165,7 @@ export const ImportacionEditor = () => {
               value={form.notas}
               onChange={set('notas')}
               rows={3}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
               placeholder="Notas adicionales..."
             />
           </Card>

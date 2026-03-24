@@ -229,7 +229,7 @@ export const EstablecimientoInfoSidebar = ({
         <div className="space-y-2.5">
           <div>
             <p className="text-[11px] font-medium text-slate-400 mb-0.5">Razon Social</p>
-            <Link to={`/clientes/${est.clienteCuit}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:underline font-medium">
+            <Link to={`/clientes/${est.clienteCuit}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
               {cliente.razonSocial}
             </Link>
           </div>

@@ -11,6 +11,8 @@ interface ElectronAPI {
   openExternal?: (url: string) => void;
   openWindow?: (url: string) => void;
   openModuleWindow?: (route: string) => void;
+  openPath?: (filePath: string) => Promise<string>;
+  saveTempAndOpen?: (buffer: Uint8Array, filename: string) => Promise<string>;
 }
 
 // API de Google Drive expuesta desde preload

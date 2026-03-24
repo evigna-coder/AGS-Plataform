@@ -109,7 +109,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
   };
 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
-  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
   return (
     <Modal open={open} onClose={handleClose} title="Nuevo articulo" maxWidth="lg"
@@ -183,11 +183,11 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
                 {proveedores.map(prov => (
                   <label key={prov.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer transition-colors text-xs ${
                     form.proveedorIds.includes(prov.id)
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-800'
+                      ? 'bg-teal-50 border-teal-300 text-teal-800'
                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}>
                     <input type="checkbox" checked={form.proveedorIds.includes(prov.id)}
-                      onChange={() => toggleProveedor(prov.id)} className="w-3 h-3 accent-indigo-600" />
+                      onChange={() => toggleProveedor(prov.id)} className="w-3 h-3 accent-teal-600" />
                     {prov.nombre}
                   </label>
                 ))}
@@ -216,7 +216,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
                 <input type="text" value={form.posicionArancelaria}
                   onChange={e => set('posicionArancelaria', formatPosicionArancelaria(e.target.value))}
                   placeholder="9027.90.90.900A" maxLength={17}
-                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-teal-500" />
               </div>
               {form.posicionArancelaria.trim() && (
                 <div className="grid grid-cols-3 gap-3">
@@ -226,7 +226,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
                       <input type="number" step="0.01"
                         value={form.tratamiento[key] != null ? String(form.tratamiento[key]) : ''}
                         onChange={e => updateTratamiento(key, e.target.value)}
-                        className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                   ))}
                 </div>
@@ -242,7 +242,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
           <label className={lbl}>Notas</label>
           <textarea value={form.notas} onChange={e => set('notas', e.target.value)} rows={2}
             placeholder="Notas internas sobre este articulo..."
-            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs resize-y focus:outline-none focus:ring-2 focus:ring-teal-500" />
         </div>
       </div>
     </Modal>

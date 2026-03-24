@@ -1,8 +1,10 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { WorkOrder, Part, TipoServicio, Cliente } from '@ags/shared';
+import type { WorkOrder, Part, TipoServicio, Cliente, Articulo } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { articulosService } from '../../services/firebaseService';
 
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const thCls = 'text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-left';
@@ -12,7 +14,7 @@ export interface OTItemsSectionProps {
   otNumber?: string;
   // Parts
   articulos: Part[];
-  onAddPart: () => void;
+  onAddPart: (prefill?: { codigo: string; descripcion: string }) => void;
   onUpdatePart: (id: string, field: keyof Part, value: any) => void;
   onRemovePart: (id: string) => void;
   // Sub-items
@@ -34,6 +36,21 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
 }) => {
   const navigate = useNavigate();
   const isParent = otNumber && !otNumber.includes('.');
+  const [stockArticulos, setStockArticulos] = useState<Articulo[]>([]);
+  const [showStockPicker, setShowStockPicker] = useState(false);
+
+  useEffect(() => {
+    if (showStockPicker && stockArticulos.length === 0) {
+      articulosService.getAll({ activoOnly: true }).then(setStockArticulos);
+    }
+  }, [showStockPicker]);
+
+  const handleAddFromStock = useCallback((artId: string) => {
+    const art = stockArticulos.find(a => a.id === artId);
+    if (!art) return;
+    onAddPart({ codigo: art.codigo, descripcion: art.descripcion });
+    setShowStockPicker(false);
+  }, [stockArticulos, onAddPart]);
 
   return (
     <div className="space-y-4">
@@ -42,9 +59,22 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
         <div className="flex justify-between items-center mb-2">
           <p className={sec + ' !mb-0'}>Materiales / Repuestos</p>
           {!readOnly && (
-            <button onClick={onAddPart} className="text-[11px] font-medium text-indigo-600 hover:underline">+ Item</button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowStockPicker(!showStockPicker)} className="text-[11px] font-medium text-cyan-600 hover:underline">+ Desde stock</button>
+              <button onClick={() => onAddPart()} className="text-[11px] font-medium text-teal-600 hover:underline">+ Manual</button>
+            </div>
           )}
         </div>
+        {showStockPicker && (
+          <div className="mb-2">
+            <SearchableSelect
+              value=""
+              onChange={handleAddFromStock}
+              options={stockArticulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+              placeholder="Buscar artículo por código o descripción..."
+            />
+          </div>
+        )}
         {articulos.length > 0 ? (
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full">
@@ -95,7 +125,7 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
             {items.map((item) => (
               <div key={item.otNumber} className="flex justify-between items-center p-2.5 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100">
                 <div>
-                  <Link to={`/ordenes-trabajo/${item.otNumber}`} className="text-xs font-semibold text-indigo-700 hover:underline">
+                  <Link to={`/ordenes-trabajo/${item.otNumber}`} className="text-xs font-semibold text-teal-700 hover:underline">
                     OT-{item.otNumber}
                   </Link>
                   <p className="text-[11px] text-slate-500 mt-0.5">{item.tipoServicio}</p>
@@ -131,7 +161,7 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
                   placeholder="Seleccionar..."
                   required
                 />
-                <Link to="/tipos-servicio" className="text-[11px] text-indigo-600 hover:underline mt-1 inline-block">Gestionar tipos de servicio</Link>
+                <Link to="/tipos-servicio" className="text-[11px] text-teal-600 hover:underline mt-1 inline-block">Gestionar tipos de servicio</Link>
               </div>
               <div>
                 <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Descripcion del trabajo</label>

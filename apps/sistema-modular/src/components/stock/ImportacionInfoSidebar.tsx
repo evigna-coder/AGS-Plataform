@@ -47,7 +47,7 @@ export const ImportacionInfoSidebar: React.FC<Props> = ({ imp, onUpdate }) => {
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Orden de compra</label>
             <Link
               to={`/stock/ordenes-compra/${imp.ordenCompraId}`}
-              className="text-xs text-indigo-600 font-medium hover:underline"
+              className="text-xs text-teal-600 font-medium hover:underline"
             >
               {imp.ordenCompraNumero}
             </Link>

@@ -50,7 +50,7 @@ export const ImportacionesList = () => {
           <select
             value={estadoFilter}
             onChange={e => setEstadoFilter(e.target.value)}
-            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los estados</option>
             {ESTADOS.map(e => (
@@ -85,7 +85,7 @@ export const ImportacionesList = () => {
                 {sorted.map(imp => (
                   <tr key={imp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="text-xs py-2 px-4">
-                      <Link to={`/stock/importaciones/${imp.id}`} className="text-indigo-600 font-medium hover:underline">
+                      <Link to={`/stock/importaciones/${imp.id}`} className="text-teal-600 font-medium hover:underline">
                         {imp.numero}
                       </Link>
                     </td>

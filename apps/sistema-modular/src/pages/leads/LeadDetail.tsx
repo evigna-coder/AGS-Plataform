@@ -35,9 +35,9 @@ export const LeadDetail = () => {
   const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string }[]>([]);
   const [linkedOTs, setLinkedOTs] = useState<{ otNumber: string }[]>([]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [data, usrs] = await Promise.all([
         leadsService.getById(id),
@@ -76,7 +76,7 @@ export const LeadDetail = () => {
     } catch (err) {
       console.error('Error al cargar lead:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id]);
 
@@ -85,13 +85,13 @@ export const LeadDetail = () => {
   const handleEstadoChange = async (estado: LeadEstado) => {
     if (!lead) return;
     await leadsService.update(lead.id, { estado });
-    await load();
+    setLead(prev => prev ? { ...prev, estado } : prev);
   };
 
   const handleFieldUpdate = async (field: string, value: any) => {
     if (!lead) return;
     await leadsService.update(lead.id, { [field]: value });
-    await load();
+    setLead(prev => prev ? { ...prev, [field]: value } : prev);
   };
 
   const handleDelete = async () => {
@@ -129,7 +129,7 @@ export const LeadDetail = () => {
       estadoNuevo: lead.estado,
     };
     await leadsService.completarAccion(lead.id, posta);
-    await load();
+    await load(true);
   };
 
   const handleAgregarComentario = async () => {
@@ -148,7 +148,7 @@ export const LeadDetail = () => {
         estadoNuevo: lead.estado,
       });
       setComentario('');
-      await load();
+      await load(true);
     } catch {
       alert('Error al agregar observación');
     } finally {
@@ -210,14 +210,14 @@ export const LeadDetail = () => {
                   <div className="flex items-baseline gap-2">
                     <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
                     {lead.clienteId && (
-                      <Link to={`/clientes/${lead.clienteId}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium shrink-0">
+                      <Link to={`/clientes/${lead.clienteId}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:text-teal-800 font-medium shrink-0">
                         Ver cliente →
                       </Link>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
                     {lead.contacto && <span>{lead.contacto}</span>}
-                    {lead.email && <a href={`mailto:${lead.email}`} className="text-indigo-600 hover:text-indigo-800">{lead.email}</a>}
+                    {lead.email && <a href={`mailto:${lead.email}`} className="text-teal-600 hover:text-teal-800">{lead.email}</a>}
                     {lead.telefono && <span>{lead.telefono}</span>}
                   </div>
                 </div>
@@ -259,7 +259,7 @@ export const LeadDetail = () => {
                   <div className="flex gap-2">
                     <textarea value={comentario} onChange={e => setComentario(e.target.value)}
                       rows={1} placeholder="Ej: Se envió mail al cliente, a la espera de respuesta..."
-                      className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAgregarComentario(); } }} />
                     <Button size="sm" onClick={handleAgregarComentario} disabled={!comentario.trim() || enviandoComentario}>
                       {enviandoComentario ? '...' : 'Agregar'}
@@ -286,13 +286,13 @@ export const LeadDetail = () => {
                     {linkedPresupuestos.map(p => (
                       <div key={p.id} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">Presupuesto</span>
-                        <Link to={`/presupuestos/${p.id}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{p.numero}</Link>
+                        <Link to={`/presupuestos/${p.id}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{p.numero}</Link>
                       </div>
                     ))}
                     {linkedOTs.map(ot => (
                       <div key={ot.otNumber} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">OT</span>
-                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{ot.otNumber}</Link>
+                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{ot.otNumber}</Link>
                       </div>
                     ))}
                   </div>
@@ -303,12 +303,12 @@ export const LeadDetail = () => {
         </div>
       </div>
 
-      {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); load(); }} />}
-      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); load(); }} />}
+      {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); load(true); }} />}
+      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); load(true); }} />}
       <CreatePresupuestoModal
         open={showCrearPresupuesto}
         onClose={() => setShowCrearPresupuesto(false)}
-        onCreated={() => { setShowCrearPresupuesto(false); load(); }}
+        onCreated={() => { setShowCrearPresupuesto(false); load(true); }}
         prefill={{
           clienteId: lead.clienteId || undefined,
           sistemaId: lead.sistemaId || undefined,

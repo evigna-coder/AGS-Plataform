@@ -178,14 +178,14 @@ export const RemitoEditor = () => {
             <div className="mb-4 border border-slate-200 rounded-lg p-3 bg-slate-50">
               <input type="text" value={unitSearchTerm} onChange={e => setUnitSearchTerm(e.target.value)}
                 placeholder="Buscar por codigo o descripcion..." autoFocus
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500" />
               <div className="max-h-48 overflow-y-auto divide-y divide-slate-100">
                 {filteredUnits.length === 0 ? (
                   <p className="text-sm text-slate-400 py-2 italic">No hay unidades disponibles</p>
                 ) : filteredUnits.slice(0, 20).map(u => (
                   <button key={u.id} onClick={() => addItem(u)}
-                    className="w-full text-left px-3 py-2 hover:bg-indigo-50 transition-colors flex justify-between items-center gap-4">
-                    <span className="font-mono text-sm font-semibold text-indigo-600">{u.articuloCodigo}</span>
+                    className="w-full text-left px-3 py-2 hover:bg-teal-50 transition-colors flex justify-between items-center gap-4">
+                    <span className="font-mono text-sm font-semibold text-teal-600">{u.articuloCodigo}</span>
                     <span className="text-sm text-slate-700 flex-1 truncate">{u.articuloDescripcion}</span>
                   </button>
                 ))}
@@ -210,7 +210,7 @@ export const RemitoEditor = () => {
                 <tbody className="divide-y divide-slate-100">
                   {items.map(item => (
                     <tr key={item.localId} className="hover:bg-slate-50">
-                      <td className="px-4 py-2 font-mono text-sm font-semibold text-indigo-600">{item.articuloCodigo}</td>
+                      <td className="px-4 py-2 font-mono text-sm font-semibold text-teal-600">{item.articuloCodigo}</td>
                       <td className="px-4 py-2 text-sm text-slate-900 truncate max-w-xs">{item.articuloDescripcion}</td>
                       <td className="px-4 py-2">
                         <input type="number" min={1} value={item.cantidad}

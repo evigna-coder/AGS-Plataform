@@ -17,6 +17,7 @@ interface Props {
 const EMPTY_ITEM: Partial<PresupuestoItem> = {
   descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
   categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
+  servicioCode: null,
 };
 
 export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
@@ -43,6 +44,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       categoriaPresupuestoId: newItem.categoriaPresupuestoId,
       codigoProducto: newItem.codigoProducto || null,
       conceptoServicioId: newItem.conceptoServicioId || null,
+      servicioCode: newItem.servicioCode || null,
       subtotal,
     });
     setNewItem({ ...EMPTY_ITEM });
@@ -58,6 +60,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       precioUnitario: precio,
       categoriaPresupuestoId: concepto.categoriaPresupuestoId || prev.categoriaPresupuestoId,
       conceptoServicioId: concepto.id,
+      servicioCode: concepto.codigo || null,
+      codigoProducto: concepto.codigo || prev.codigoProducto || null,
     }));
   };
 
@@ -75,14 +79,14 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
     if (categoria.incluyeIIBB && categoria.porcentajeIIBB) iibb = (itemSubtotal + iva) * (categoria.porcentajeIIBB / 100);
     const total = itemSubtotal + iva + ganancias + iibb;
     return (
-      <div className="bg-indigo-50 p-2 rounded-lg text-[11px] mt-1">
-        <p className="font-semibold text-slate-700 mb-0.5">"{categoria.nombre}":</p>
+      <div className="bg-teal-50 p-2 rounded-lg text-[11px]">
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-slate-600">
+          <span className="font-semibold text-slate-700">"{categoria.nombre}"</span>
           <span>Sub: {fmtMoney(itemSubtotal)}</span>
           {iva > 0 && <span>IVA {categoria.ivaReduccion && categoria.porcentajeIvaReduccion ? categoria.porcentajeIvaReduccion : categoria.porcentajeIva}%: {fmtMoney(iva)}</span>}
           {ganancias > 0 && <span>Gan {categoria.porcentajeGanancias}%: {fmtMoney(ganancias)}</span>}
           {iibb > 0 && <span>IIBB {categoria.porcentajeIIBB}%: {fmtMoney(iibb)}</span>}
-          <span className="font-semibold text-indigo-700">Total: {fmtMoney(total)}</span>
+          <span className="font-semibold text-teal-700">Total: {fmtMoney(total)}</span>
         </div>
       </div>
     );
@@ -90,7 +94,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
 
   const conceptoOptions = conceptosServicio.filter(c => c.activo).map(c => ({
     value: c.id,
-    label: `${c.descripcion} — ${MONEDA_SIMBOLO[c.moneda]} ${(c.valorBase * c.factorActualizacion).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+    label: `${c.codigo ? c.codigo + ' — ' : ''}${c.descripcion} — ${MONEDA_SIMBOLO[c.moneda]} ${(c.valorBase * c.factorActualizacion).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
   }));
 
   const categoriaOptions = [
@@ -98,119 +102,102 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
     ...categoriasPresupuesto.filter(c => c.activo).map(c => ({ value: c.id, label: c.nombre })),
   ];
 
-  const lbl = "text-[11px] font-medium text-slate-400 mb-0.5 block";
+  const lbl = "text-[10px] font-mono font-medium text-slate-500 mb-0.5 block uppercase tracking-wide";
 
   return (
-    <div>
-      <h3 className="text-xs font-semibold text-slate-700 mb-2">Items del presupuesto</h3>
+    <div className="space-y-2.5">
+      {/* Row 1: Catálogo selector */}
+      {conceptoOptions.length > 0 && (
+        <div>
+          <label className={lbl}>Catalogo de servicios</label>
+          <SearchableSelect value="" onChange={handleSelectConcepto} options={[{ value: '', label: 'Carga manual...' }, ...conceptoOptions]} placeholder="Buscar concepto..." />
+        </div>
+      )}
+
+      {/* Row 2: Código + Descripción en la misma línea */}
+      <div className="grid grid-cols-[110px_1fr] gap-2.5">
+        <div>
+          <label className={lbl}>Código</label>
+          <input value={newItem.codigoProducto || ''} onChange={e => setNewItem({ ...newItem, codigoProducto: e.target.value })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white" placeholder="MPCC01" />
+        </div>
+        <div>
+          <label className={lbl}>Descripcion *</label>
+          <input value={newItem.descripcion || ''} onChange={e => setNewItem({ ...newItem, descripcion: e.target.value })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white" placeholder="Descripcion del item..." />
+        </div>
+      </div>
+
+      {/* Row 3: Cant, Unidad, Precio, Dto, Categoría, Agregar */}
+      <div className="grid grid-cols-[60px_75px_90px_50px_1fr_auto] gap-2.5 items-end">
+        <div>
+          <label className={lbl}>Cant. *</label>
+          <input type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={e => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" />
+        </div>
+        <div>
+          <label className={lbl}>Unidad</label>
+          <input value={newItem.unidad || 'unidad'} onChange={e => setNewItem({ ...newItem, unidad: e.target.value })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white" />
+        </div>
+        <div>
+          <label className={lbl}>Precio unit. *</label>
+          <input type="number" min="0" step="0.01" value={newItem.precioUnitario || ''} onChange={e => setNewItem({ ...newItem, precioUnitario: Number(e.target.value) || 0 })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white" />
+        </div>
+        <div>
+          <label className={lbl}>Dto %</label>
+          <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={e => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" placeholder="0" />
+        </div>
+        <div>
+          <label className={lbl}>Categoria <Link to="/presupuestos/categorias" className="text-teal-700 hover:underline">→</Link></label>
+          <SearchableSelect value={newItem.categoriaPresupuestoId || ''} onChange={v => setNewItem({ ...newItem, categoriaPresupuestoId: v || undefined })}
+            options={categoriaOptions} placeholder="Sin cat." />
+        </div>
+        <Button size="sm" onClick={handleAdd}>+ Agregar</Button>
+      </div>
+
+      {taxPreview()}
 
       {/* Items table */}
       {items.length > 0 && (
-        <div className="border border-slate-200 rounded-lg overflow-hidden mb-3">
+        <div className="border border-[#E5E5E5] rounded-md overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="text-[11px] font-medium text-slate-400 tracking-wider py-1.5 px-3 text-left">Descripcion</th>
-                <th className="text-[11px] font-medium text-slate-400 tracking-wider py-1.5 px-2 text-left w-24">Producto</th>
-                <th className="text-[11px] font-medium text-slate-400 tracking-wider py-1.5 px-2 text-center w-12">Cant.</th>
-                <th className="text-[11px] font-medium text-slate-400 tracking-wider py-1.5 px-2 text-right w-20">P. Unit.</th>
-                <th className="text-[11px] font-medium text-slate-400 tracking-wider py-1.5 px-2 text-right w-20">Subtotal</th>
+              <tr className="bg-[#F0F0F0]">
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-left w-24">Codigo</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-left">Descripcion</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-12">Cant.</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-right w-20">P.Unit.</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-right w-20">Subtotal</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {items.map(item => (
                 <tr key={item.id}>
-                  <td className="px-3 py-1.5 text-xs text-slate-700 truncate max-w-[200px]">{item.descripcion}</td>
-                  <td className="px-2 py-1.5 text-xs text-slate-500">{item.codigoProducto || '—'}</td>
+                  <td className="px-2 py-1.5 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
+                  <td className="px-3 py-1.5 text-xs text-slate-700 truncate max-w-[300px]">{item.descripcion}</td>
                   <td className="px-2 py-1.5 text-xs text-center">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
-                  <td className="px-2 py-1.5 text-xs text-right">{fmtMoney(item.precioUnitario)}</td>
-                  <td className="px-2 py-1.5 text-xs text-right font-semibold text-slate-700">{fmtMoney(item.subtotal)}</td>
+                  <td className="px-2 py-1.5 text-xs text-right font-mono">{fmtMoney(item.precioUnitario)}</td>
+                  <td className="px-2 py-1.5 text-xs text-right font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal)}</td>
                   <td className="text-center">
                     <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
                   </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-slate-50 border-t border-slate-200">
+            <tfoot className="bg-[#F0F0F0] border-t border-[#E5E5E5]">
               <tr>
-                <td colSpan={4} className="px-3 py-1.5 text-right text-[11px] font-medium text-slate-400">Total</td>
-                <td className="px-2 py-1.5 text-right text-xs font-semibold text-indigo-700">{fmtMoney(totalItems)}</td>
+                <td colSpan={4} className="px-3 py-1.5 text-right text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
+                <td className="px-2 py-1.5 text-right text-xs font-mono font-semibold text-teal-700">{fmtMoney(totalItems)}</td>
                 <td></td>
               </tr>
             </tfoot>
           </table>
         </div>
       )}
-
-      {/* Inline add item form */}
-      <div className="border border-dashed border-slate-300 rounded-lg p-3 bg-slate-50/50 space-y-2">
-        <p className="text-[11px] font-semibold text-slate-500 tracking-wider uppercase">Nuevo item</p>
-
-        {/* Concepto picker */}
-        {conceptoOptions.length > 0 && (
-          <div>
-            <label className={lbl}>Seleccionar del catalogo</label>
-            <SearchableSelect value="" onChange={handleSelectConcepto} options={[{ value: '', label: 'Carga manual...' }, ...conceptoOptions]} placeholder="Buscar concepto..." />
-          </div>
-        )}
-
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <div>
-            <label className={lbl}>Descripcion *</label>
-            <input value={newItem.descripcion || ''} onChange={e => setNewItem({ ...newItem, descripcion: e.target.value })}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" placeholder="Descripcion del item..." />
-          </div>
-          <div>
-            <label className={lbl}>Cod. producto</label>
-            <input value={newItem.codigoProducto || ''} onChange={e => setNewItem({ ...newItem, codigoProducto: e.target.value })}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white w-32" placeholder="G1312-60067" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-5 gap-2">
-          <div>
-            <label className={lbl}>Cantidad *</label>
-            <input type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={e => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
-          </div>
-          <div>
-            <label className={lbl}>Unidad</label>
-            <input value={newItem.unidad || 'unidad'} onChange={e => setNewItem({ ...newItem, unidad: e.target.value })}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
-          </div>
-          <div>
-            <label className={lbl}>Precio unit. *</label>
-            <input type="number" min="0" step="0.01" value={newItem.precioUnitario || ''} onChange={e => setNewItem({ ...newItem, precioUnitario: Number(e.target.value) || 0 })}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
-          </div>
-          <div>
-            <label className={lbl}>Dto %</label>
-            <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={e => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
-              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" placeholder="0" />
-          </div>
-          <div className="flex items-end">
-            <Button size="sm" onClick={handleAdd} className="w-full">+ Agregar</Button>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-2">
-          <div className="flex-1">
-            <label className={lbl}>Categoria (reglas tributarias)</label>
-            <SearchableSelect value={newItem.categoriaPresupuestoId || ''} onChange={v => setNewItem({ ...newItem, categoriaPresupuestoId: v || undefined })}
-              options={categoriaOptions} placeholder="Seleccionar categoria..." />
-            <Link to="/presupuestos/categorias" className="text-[11px] text-indigo-600 hover:underline mt-0.5 inline-block">Gestionar categorias →</Link>
-          </div>
-          {itemSubtotal > 0 && !newItem.categoriaPresupuestoId && (
-            <div className="flex-1 bg-white p-2 rounded-lg border border-slate-200 mt-4">
-              <p className="text-xs font-semibold text-slate-700">Subtotal: {fmtMoney(itemSubtotal)}</p>
-              <p className="text-[11px] text-slate-400">Seleccione categoria para ver impuestos</p>
-            </div>
-          )}
-        </div>
-
-        {taxPreview()}
-      </div>
     </div>
   );
 };

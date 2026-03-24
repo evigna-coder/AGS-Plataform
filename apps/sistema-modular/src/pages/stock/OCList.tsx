@@ -65,7 +65,7 @@ export const OCList = () => {
           <select
             value={filtroEstado}
             onChange={e => setFiltroEstado(e.target.value as EstadoOC | '')}
-            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO_OC_LABELS).map(([k, v]) => (
@@ -75,7 +75,7 @@ export const OCList = () => {
           <select
             value={filtroTipo}
             onChange={e => setFiltroTipo(e.target.value as TipoOC | '')}
-            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
             <option value="nacional">Nacional</option>
@@ -119,7 +119,7 @@ export const OCList = () => {
                   return (
                     <tr key={o.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2">
-                        <Link to={`/stock/ordenes-compra/${o.id}`} className="font-mono font-semibold text-indigo-600 hover:underline text-xs">{o.numero}</Link>
+                        <Link to={`/stock/ordenes-compra/${o.id}`} className="font-mono font-semibold text-teal-600 hover:underline text-xs">{o.numero}</Link>
                       </td>
                       <td className="px-4 py-2">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLORS[o.tipo]}`}>{TIPO_LABELS[o.tipo]}</span>

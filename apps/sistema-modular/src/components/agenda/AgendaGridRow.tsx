@@ -1,4 +1,4 @@
-import { type FC } from 'react';
+import { type FC, useMemo } from 'react';
 import type { Ingeniero, AgendaEntry } from '@ags/shared';
 import type { GridColumn, CellOccupation } from '../../utils/agendaDateUtils';
 import { AgendaGridCell } from './AgendaGridCell';
@@ -26,14 +26,33 @@ export const AgendaGridRow: FC<AgendaGridRowProps> = ({
   onCellClick,
   onEntryClick,
 }) => {
+  // Utilization: occupied quarters / total quarters
+  const utilPct = useMemo(() => {
+    if (compact) return null;
+    let occupied = 0;
+    for (let i = 0; i < columns.length; i++) {
+      const occs = occupation.get(i);
+      if (occs && occs.length > 0 && occs[0].entry.estadoAgenda !== 'cancelado') occupied++;
+    }
+    return columns.length > 0 ? Math.round((occupied / columns.length) * 100) : 0;
+  }, [columns, occupation, compact]);
+
+  const utilColor = utilPct !== null
+    ? utilPct > 80 ? 'text-red-500' : utilPct > 50 ? 'text-amber-500' : 'text-emerald-500'
+    : '';
+
   return (
     <>
-      {/* Engineer name */}
+      {/* Engineer name + utilization */}
       <div
         className={`bg-white border-r border-r-slate-200 flex items-center px-1 truncate ${compact ? 'border-b border-b-slate-200' : 'border-b-2 border-b-slate-200'}`}
         style={{ height: rowHeight }}
+        title={utilPct !== null ? `${utilPct}% ocupado` : undefined}
       >
         <span className={`${compact ? 'text-[7px]' : 'text-[10px]'} font-medium text-slate-700 truncate`}>{ingeniero.nombre}</span>
+        {utilPct !== null && showText && (
+          <span className={`text-[8px] font-medium ml-auto shrink-0 ${utilColor}`}>{utilPct}%</span>
+        )}
       </div>
 
       {/* Calendar cells */}

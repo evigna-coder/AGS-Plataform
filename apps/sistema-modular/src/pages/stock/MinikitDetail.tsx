@@ -15,7 +15,7 @@ const ESTADO_COLORS: Record<EstadoMinikit, string> = {
   en_transito: 'bg-amber-100 text-amber-700', en_revision: 'bg-purple-100 text-purple-700',
 };
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
-const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-indigo-100 text-indigo-700', scrap: 'bg-red-100 text-red-700' };
+const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
 const ESTADO_UNIDAD_COLORS: Record<string, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', baja: 'bg-red-100 text-red-700' };
 
 const Badge = ({ label, color }: { label: string; color: string }) => (
@@ -96,7 +96,7 @@ export const MinikitDetail = () => {
   if (!minikit) return (
     <div className="h-full flex flex-col items-center justify-center bg-slate-50 gap-4">
       <p className="text-slate-500">Minikit no encontrado</p>
-      <Link to="/stock/minikits" className="text-indigo-600 hover:underline text-sm font-medium">Volver a minikits</Link>
+      <Link to="/stock/minikits" className="text-teal-600 hover:underline text-sm font-medium">Volver a minikits</Link>
     </div>
   );
 
@@ -110,7 +110,7 @@ export const MinikitDetail = () => {
             </button>
             <div>
               <h2 className="text-base font-semibold text-slate-900 tracking-tight">
-                <span className="font-mono text-indigo-600">{minikit.codigo}</span>
+                <span className="font-mono text-teal-600">{minikit.codigo}</span>
                 <span className="mx-2 text-slate-300">|</span>{minikit.nombre}
               </h2>
               <p className="text-xs text-slate-400">{minikit.descripcion || 'Minikit'}</p>
@@ -128,7 +128,7 @@ export const MinikitDetail = () => {
           <div className="w-72 shrink-0 space-y-4">
             <Card compact>
               <div className="space-y-2.5">
-                <LV label="Codigo" value={<span className="font-mono text-indigo-600">{minikit.codigo}</span>} />
+                <LV label="Codigo" value={<span className="font-mono text-teal-600">{minikit.codigo}</span>} />
                 <LV label="Nombre" value={minikit.nombre} />
                 <LV label="Descripcion" value={minikit.descripcion} />
                 <LV label="Estado" value={<Badge label={ESTADO_LABELS[minikit.estado]} color={ESTADO_COLORS[minikit.estado]} />} />
@@ -179,7 +179,7 @@ export const MinikitDetail = () => {
                     <tbody>
                       {unidades.map(u => (
                         <tr key={u.id} className="border-b border-slate-50 last:border-0">
-                          <td className="text-xs py-2 pr-3 font-mono text-indigo-600 font-semibold whitespace-nowrap">{u.articuloCodigo}</td>
+                          <td className="text-xs py-2 pr-3 font-mono text-teal-600 font-semibold whitespace-nowrap">{u.articuloCodigo}</td>
                           <td className="text-xs py-2 pr-3 text-slate-700 truncate max-w-[200px]">{u.articuloDescripcion}</td>
                           <td className="text-xs py-2 pr-3"><Badge label={CONDICION_LABELS[u.condicion]} color={CONDICION_COLORS[u.condicion]} /></td>
                           <td className="text-xs py-2 pr-3"><Badge label={u.estado.replace('_', ' ')} color={ESTADO_UNIDAD_COLORS[u.estado] ?? 'bg-slate-100 text-slate-500'} /></td>

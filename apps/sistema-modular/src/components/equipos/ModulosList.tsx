@@ -148,7 +148,7 @@ export const ModulosList: React.FC<ModulosListProps> = ({
 };
 
 const ModuloRow: React.FC<{ modulo: ModuloSistema; onEdit: () => void; onDelete: () => void; onMove?: () => void }> = ({ modulo, onEdit, onDelete, onMove }) => (
-  <div className="flex justify-between items-start p-3 bg-white rounded-lg border border-slate-200 hover:border-indigo-200 transition-colors">
+  <div className="flex justify-between items-start p-3 bg-white rounded-lg border border-slate-200 hover:border-teal-200 transition-colors">
     <div className="flex-1 min-w-0">
       <p className="text-xs font-semibold text-slate-900 tracking-tight">{modulo.nombre}</p>
       {modulo.descripcion && <p className="text-[11px] text-slate-500 mt-0.5">{modulo.descripcion}</p>}
@@ -161,7 +161,7 @@ const ModuloRow: React.FC<{ modulo: ModuloSistema; onEdit: () => void; onDelete:
     </div>
     <div className="flex gap-1 ml-2 shrink-0">
       {onMove && <button onClick={onMove} className="text-amber-600 hover:bg-amber-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Mover</button>}
-      <button onClick={onEdit} className="text-indigo-600 hover:bg-indigo-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Editar</button>
+      <button onClick={onEdit} className="text-teal-600 hover:bg-teal-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Editar</button>
       <button onClick={onDelete} className="text-red-500 hover:bg-red-50 text-[11px] font-medium px-1.5 py-0.5 rounded">Eliminar</button>
     </div>
   </div>

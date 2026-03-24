@@ -22,7 +22,7 @@ export const LoginPage = () => {
     <div className="h-screen bg-slate-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-full max-w-sm text-center">
         <div className="mb-6">
-          <span className="text-indigo-600 font-bold text-2xl tracking-tight">AGS</span>
+          <span className="text-teal-600 font-bold text-2xl tracking-tight">AGS</span>
           <p className="text-slate-400 text-xs mt-1">Sistema Modular</p>
         </div>
 
@@ -38,7 +38,7 @@ export const LoginPage = () => {
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium text-sm rounded-lg px-4 py-2.5 transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium text-sm rounded-lg px-4 py-2.5 transition-colors"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />

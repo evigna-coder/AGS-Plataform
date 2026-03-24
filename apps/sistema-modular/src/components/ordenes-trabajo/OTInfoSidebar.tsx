@@ -99,7 +99,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
               <input type="text" value={provincia} onChange={F('provincia')} disabled={roTecnico} className={inp} />
             </div>
           </div>
-          {cliente && <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline">Ver cliente completo</Link>}
+          {cliente && <Link to={`/clientes/${cliente.id}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:underline">Ver cliente completo</Link>}
         </div>
       </Card>
 
@@ -128,7 +128,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
             </>
           )}
           {modulo?.firmware && <div><span className={lbl}>Firmware</span><p className="text-xs text-slate-700 font-mono">{modulo.firmware}</p></div>}
-          {sistema && <Link to={`/equipos/${sistema.id}`} state={{ from: pathname }} className="text-[11px] text-indigo-600 hover:underline">Ver sistema completo</Link>}
+          {sistema && <Link to={`/equipos/${sistema.id}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:underline">Ver sistema completo</Link>}
         </div>
       </Card>
 
@@ -183,13 +183,35 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
           {estadoHistorial.length > 0 && (
             <div>
               <span className={lbl}>Historial de estados</span>
-              <div className="space-y-0.5 mt-1">
-                {estadoHistorial.map((h, i) => (
-                  <div key={i} className="flex justify-between text-[10px]">
-                    <span className="text-slate-600 font-medium">{OT_ESTADO_LABELS[h.estado] ?? h.estado}</span>
-                    <span className="text-slate-400">{h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR') : ''}</span>
-                  </div>
-                ))}
+              <div className="mt-1.5 relative">
+                {/* Timeline line */}
+                <div className="absolute left-[5px] top-1 bottom-1 w-px bg-slate-200" />
+                <div className="space-y-2">
+                  {[...estadoHistorial].reverse().map((h, i) => {
+                    const isLatest = i === 0;
+                    const dotColor = isLatest ? 'bg-teal-500 ring-2 ring-teal-100' : 'bg-slate-300';
+                    const fechaStr = h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
+                    const horaStr = h.fecha ? new Date(h.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+                    return (
+                      <div key={i} className="relative flex items-start gap-2.5 pl-0">
+                        <div className={`shrink-0 w-[11px] h-[11px] rounded-full mt-0.5 z-10 ${dotColor}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={`text-[10px] font-semibold ${isLatest ? 'text-teal-700' : 'text-slate-600'}`}>
+                              {OT_ESTADO_LABELS[h.estado] ?? h.estado}
+                            </span>
+                            <span className="text-[9px] text-slate-400 shrink-0">{fechaStr}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {horaStr && <span className="text-[9px] text-slate-400">{horaStr}</span>}
+                            {h.usuario && <span className="text-[9px] text-slate-400">· {h.usuario}</span>}
+                          </div>
+                          {h.nota && <p className="text-[9px] text-slate-500 mt-0.5">{h.nota}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -200,7 +222,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
       <Card compact>
         <div className="flex justify-between items-center mb-2">
           <p className={`${sec} !mb-0`}>Presupuestos</p>
-          {!roBudgets && <button onClick={onAddBudget} className="text-[11px] font-medium text-indigo-600 hover:underline">+ Agregar</button>}
+          {!roBudgets && <button onClick={onAddBudget} className="text-[11px] font-medium text-teal-600 hover:underline">+ Agregar</button>}
         </div>
         <div className="space-y-1.5">
           {budgets.map((b, idx) => (

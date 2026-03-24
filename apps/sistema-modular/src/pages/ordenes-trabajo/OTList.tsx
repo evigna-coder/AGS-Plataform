@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService } from '../../services/firebaseService';
-import type { WorkOrder, Cliente, Sistema, OTEstadoAdmin, TipoServicio } from '@ags/shared';
+import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, usuariosService } from '../../services/firebaseService';
+import type { WorkOrder, Cliente, Sistema, OTEstadoAdmin, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -22,6 +22,30 @@ const ESTADO_COLORS: Record<string, string> = {
   CIERRE_ADMINISTRATIVO: 'bg-cyan-100 text-cyan-700',
   FINALIZADO: 'bg-emerald-100 text-emerald-700',
   BORRADOR: 'bg-amber-100 text-amber-700',
+};
+
+/** Export filtered OTs to CSV and trigger download */
+const exportToCSV = (rows: { ot: WorkOrder }[], sistemas: Sistema[]) => {
+  const headers = ['OT', 'Cliente', 'Sistema', 'Id Equipo', 'Módulo', 'Serie', 'Tipo Servicio', 'Descripción', 'Estado', 'Ingeniero', 'Fecha Creación', 'Fecha Servicio', 'Hs Lab', 'Hs Viaje', 'Facturable', 'Contrato', 'Garantía'];
+  const csvRows = rows.map(({ ot }) => {
+    const sist = sistemas.find(s => s.id === ot.sistemaId);
+    return [
+      ot.otNumber, ot.razonSocial, sist?.nombre || ot.sistema || '', ot.codigoInternoCliente || '',
+      ot.moduloModelo || '', ot.moduloSerie || '', ot.tipoServicio || '',
+      (ot.problemaFallaInicial || '').replace(/[\n\r,]/g, ' '), resolveEstado(ot),
+      ot.ingenieroAsignadoNombre || '', ot.createdAt || '', ot.fechaInicio || ot.fechaServicioAprox || '',
+      ot.horasTrabajadas || '', ot.tiempoViaje || '',
+      ot.esFacturable ? 'Sí' : 'No', ot.tieneContrato ? 'Sí' : 'No', ot.esGarantia ? 'Sí' : 'No',
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  const csv = [headers.join(','), ...csvRows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ordenes_trabajo_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 const resolveEstado = (ot: WorkOrder): string => {
@@ -150,7 +174,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({ open, parentOt, onClose, on
           <textarea value={form.descripcion}
             onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
             rows={3} placeholder="Describa brevemente..."
-            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-indigo-400" />
+            className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400" />
         </div>
       </div>
     </Modal>
@@ -167,12 +191,52 @@ export const OTList = () => {
   const [ordenes, setOrdenes] = useState<WorkOrder[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
+  const [tiposServicioList, setTiposServicioList] = useState<TipoServicio[]>([]);
+  const [ingenierosList, setIngenierosList] = useState<UsuarioAGS[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
   const [editOtNumber, setEditOtNumber] = useState<string | null>(null);
   const [newItemParent, setNewItemParent] = useState<WorkOrder | null>(null);
+
+  // Bulk selection
+  const [selectedOTs, setSelectedOTs] = useState<Set<string>>(new Set());
+  const toggleSelect = (otNum: string) => setSelectedOTs(prev => {
+    const next = new Set(prev);
+    next.has(otNum) ? next.delete(otNum) : next.add(otNum);
+    return next;
+  });
+  const toggleSelectAll = () => {
+    if (selectedOTs.size === grouped.length) setSelectedOTs(new Set());
+    else setSelectedOTs(new Set(grouped.map(g => g.ot.otNumber)));
+  };
+  const handleBulkDelete = async () => {
+    if (selectedOTs.size === 0) return;
+    if (!window.confirm(`¿Eliminar ${selectedOTs.size} OTs seleccionadas?`)) return;
+    try {
+      for (const otNum of selectedOTs) await ordenesTrabajoService.delete(otNum);
+      setSelectedOTs(new Set());
+      await loadOrdenes();
+    } catch { alert('Error al eliminar'); }
+  };
+  const handleBulkEstado = async (nuevoEstado: OTEstadoAdmin) => {
+    if (selectedOTs.size === 0) return;
+    if (!window.confirm(`¿Cambiar ${selectedOTs.size} OTs a ${OT_ESTADO_LABELS[nuevoEstado]}?`)) return;
+    try {
+      const ahora = new Date().toISOString();
+      for (const otNum of selectedOTs) {
+        const ot = ordenes.find(o => o.otNumber === otNum);
+        await ordenesTrabajoService.update(otNum, {
+          estadoAdmin: nuevoEstado, estadoAdminFecha: ahora,
+          estadoHistorial: [...(ot?.estadoHistorial || []), { estado: nuevoEstado, fecha: ahora, nota: 'Cambio masivo' }],
+          ...(nuevoEstado === 'FINALIZADO' ? { status: 'FINALIZADO' } : {}),
+        });
+      }
+      setSelectedOTs(new Set());
+      await loadOrdenes();
+    } catch { alert('Error al cambiar estados'); }
+  };
 
   const [filters, setFilters] = useState({
     clienteId: clienteIdFilter || '',
@@ -181,7 +245,15 @@ export const OTList = () => {
     busquedaOT: '',
     busquedaModulo: '',
     busquedaEquipo: '',
+    tipoServicio: '',
+    ingenieroId: '',
+    fechaDesde: '',
+    fechaHasta: '',
+    soloFacturable: false,
+    soloContrato: false,
+    soloGarantia: false,
   });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [sortField, setSortField] = useState('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -217,6 +289,22 @@ export const OTList = () => {
         (ot.codigoInternoCliente || '').toLowerCase().includes(q)
       );
     }
+    if (filters.tipoServicio) {
+      list = list.filter(ot => ot.tipoServicio === filters.tipoServicio);
+    }
+    if (filters.ingenieroId) {
+      list = list.filter(ot => ot.ingenieroAsignadoId === filters.ingenieroId);
+    }
+    if (filters.fechaDesde) {
+      list = list.filter(ot => (ot.createdAt || '') >= filters.fechaDesde);
+    }
+    if (filters.fechaHasta) {
+      const hasta = filters.fechaHasta + 'T23:59:59';
+      list = list.filter(ot => (ot.createdAt || '') <= hasta);
+    }
+    if (filters.soloFacturable) list = list.filter(ot => ot.esFacturable);
+    if (filters.soloContrato) list = list.filter(ot => ot.tieneContrato);
+    if (filters.soloGarantia) list = list.filter(ot => ot.esGarantia);
 
     const parents: WorkOrder[] = [];
     const itemsByParent: Record<string, WorkOrder[]> = {};
@@ -268,7 +356,7 @@ export const OTList = () => {
     sortedOrphans.forEach(ot => result.push({ ot, isItem: false, hasItems: false }));
 
     return result;
-  }, [ordenes, filters.estadoAdmin, filters.busquedaOT, filters.busquedaModulo, filters.busquedaEquipo, sortField, sortDir]);
+  }, [ordenes, filters, sortField, sortDir]);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadOrdenes(); }, [filters.clienteId, filters.sistemaId]);
@@ -276,12 +364,16 @@ export const OTList = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [clientesData, sistemasData] = await Promise.all([
+      const [clientesData, sistemasData, tiposData, usersData] = await Promise.all([
         clientesService.getAll(true),
         sistemasService.getAll(),
+        tiposServicioService.getAll(),
+        usuariosService.getAll(),
       ]);
       setClientes(clientesData);
       setSistemas(sistemasData);
+      setTiposServicioList(tiposData);
+      setIngenierosList(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
       await loadOrdenes();
     } catch {
       alert('Error al cargar los datos');
@@ -333,6 +425,21 @@ export const OTList = () => {
     ...OT_ESTADO_ORDER.map(e => ({ value: e, label: OT_ESTADO_LABELS[e] })),
   ];
 
+  // KPI stats from all ordenes (not filtered)
+  const kpis = useMemo(() => {
+    const byEstado: Record<string, number> = {};
+    let totalHsLab = 0, totalHsViaje = 0, facturables = 0;
+    ordenes.forEach(ot => {
+      const est = resolveEstado(ot);
+      byEstado[est] = (byEstado[est] || 0) + 1;
+      totalHsLab += Number(ot.horasTrabajadas) || 0;
+      totalHsViaje += Number(ot.tiempoViaje) || 0;
+      if (ot.esFacturable) facturables++;
+    });
+    const pendientes = ordenes.filter(ot => resolveEstado(ot) !== 'FINALIZADO').length;
+    return { byEstado, totalHsLab, totalHsViaje, pendientes, facturables, total: ordenes.length };
+  }, [ordenes]);
+
   if (loading && ordenes.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -349,6 +456,10 @@ export const OTList = () => {
         count={grouped.length}
         actions={
           <div className="flex gap-2 items-center">
+            <Button size="sm" variant="outline" onClick={() => exportToCSV(grouped, sistemas)}
+              disabled={grouped.length === 0} title="Exportar datos filtrados a CSV">
+              Exportar CSV
+            </Button>
             <Link to="/tipos-servicio">
               <Button size="sm" variant="outline">Tipos de Servicio</Button>
             </Link>
@@ -386,27 +497,117 @@ export const OTList = () => {
             value={filters.busquedaOT}
             onChange={e => setFilters({ ...filters, busquedaOT: e.target.value })}
             placeholder="Buscar OT #"
-            className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+            className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
           />
           <input
             type="text"
             value={filters.busquedaEquipo}
             onChange={e => setFilters({ ...filters, busquedaEquipo: e.target.value })}
             placeholder="Id Equipo"
-            className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+            className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
           />
           <input
             type="text"
             value={filters.busquedaModulo}
             onChange={e => setFilters({ ...filters, busquedaModulo: e.target.value })}
             placeholder="Módulo / N° serie"
-            className="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+            className="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
           />
-          <Button size="sm" variant="ghost" onClick={() => setFilters({ clienteId: '', sistemaId: '', estadoAdmin: '__pendientes__', busquedaOT: '', busquedaModulo: '', busquedaEquipo: '' })}>
+          <Button size="sm" variant="ghost" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
+            {showAdvancedFilters ? 'Menos filtros' : 'Más filtros'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setFilters({
+            clienteId: '', sistemaId: '', estadoAdmin: '__pendientes__', busquedaOT: '', busquedaModulo: '', busquedaEquipo: '',
+            tipoServicio: '', ingenieroId: '', fechaDesde: '', fechaHasta: '',
+            soloFacturable: false, soloContrato: false, soloGarantia: false,
+          })}>
             Limpiar
           </Button>
         </div>
+        {showAdvancedFilters && (
+          <div className="flex items-center gap-2 flex-wrap mt-2">
+            <div className="min-w-[110px]">
+              <SearchableSelect size="sm" value={filters.tipoServicio}
+                onChange={v => setFilters({ ...filters, tipoServicio: v })}
+                options={[{ value: '', label: 'Tipo servicio' }, ...tiposServicioList.map(t => ({ value: t.nombre, label: t.nombre }))]}
+                placeholder="Tipo servicio" />
+            </div>
+            <div className="min-w-[120px]">
+              <SearchableSelect size="sm" value={filters.ingenieroId}
+                onChange={v => setFilters({ ...filters, ingenieroId: v })}
+                options={[{ value: '', label: 'Ingeniero' }, ...ingenierosList.map(u => ({ value: u.id, label: u.displayName }))]}
+                placeholder="Ingeniero" />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400">Desde</span>
+              <input type="date" value={filters.fechaDesde}
+                onChange={e => setFilters({ ...filters, fechaDesde: e.target.value })}
+                className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 outline-none" />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400">Hasta</span>
+              <input type="date" value={filters.fechaHasta}
+                onChange={e => setFilters({ ...filters, fechaHasta: e.target.value })}
+                className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 outline-none" />
+            </div>
+            <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={filters.soloFacturable}
+                onChange={e => setFilters({ ...filters, soloFacturable: e.target.checked })}
+                className="rounded border-slate-300" /> Facturable
+            </label>
+            <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={filters.soloContrato}
+                onChange={e => setFilters({ ...filters, soloContrato: e.target.checked })}
+                className="rounded border-slate-300" /> Contrato
+            </label>
+            <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={filters.soloGarantia}
+                onChange={e => setFilters({ ...filters, soloGarantia: e.target.checked })}
+                className="rounded border-slate-300" /> Garantía
+            </label>
+          </div>
+        )}
       </PageHeader>
+
+      {/* KPI summary */}
+      {ordenes.length > 0 && (
+        <div className="px-5 pb-2 flex gap-3 flex-wrap">
+          {[
+            { label: 'Total', value: kpis.total, color: 'text-slate-700' },
+            { label: 'Pendientes', value: kpis.pendientes, color: 'text-amber-600' },
+            { label: 'En curso', value: kpis.byEstado['EN_CURSO'] || 0, color: 'text-blue-600' },
+            { label: 'Cierre admin', value: kpis.byEstado['CIERRE_ADMINISTRATIVO'] || 0, color: 'text-cyan-600' },
+            { label: 'Finalizadas', value: kpis.byEstado['FINALIZADO'] || 0, color: 'text-emerald-600' },
+            { label: 'Hs Lab', value: kpis.totalHsLab.toFixed(0) + 'h', color: 'text-slate-600' },
+            { label: 'Hs Viaje', value: kpis.totalHsViaje.toFixed(0) + 'h', color: 'text-slate-600' },
+            { label: 'Facturables', value: kpis.facturables, color: 'text-teal-600' },
+          ].map(kpi => (
+            <div key={kpi.label} className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 min-w-[80px]">
+              <p className="text-[10px] text-slate-400 font-medium">{kpi.label}</p>
+              <p className={`text-sm font-semibold ${kpi.color}`}>{kpi.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bulk actions bar */}
+      {selectedOTs.size > 0 && (
+        <div className="px-5 pb-2 flex items-center gap-3">
+          <span className="text-xs text-slate-500 font-medium">{selectedOTs.size} seleccionadas</span>
+          <select
+            defaultValue=""
+            onChange={e => { if (e.target.value) handleBulkEstado(e.target.value as OTEstadoAdmin); e.target.value = ''; }}
+            className="border border-slate-300 rounded-lg px-2 py-1 text-xs"
+          >
+            <option value="" disabled>Cambiar estado a...</option>
+            {OT_ESTADO_ORDER.map(e => <option key={e} value={e}>{OT_ESTADO_LABELS[e]}</option>)}
+          </select>
+          <Button size="sm" variant="outline" onClick={handleBulkDelete} className="text-red-600 border-red-300 hover:bg-red-50">
+            Eliminar seleccionadas
+          </Button>
+          <button onClick={() => setSelectedOTs(new Set())} className="text-xs text-slate-400 hover:underline">Deseleccionar</button>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {grouped.length === 0 ? (
@@ -414,7 +615,7 @@ export const OTList = () => {
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron órdenes de trabajo</p>
               <button onClick={() => setShowCreate(true)}
-                className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+                className="text-teal-600 hover:underline mt-2 inline-block text-xs">
                 Crear primera orden de trabajo
               </button>
             </div>
@@ -428,7 +629,8 @@ export const OTList = () => {
                 </colgroup>
               ) : (
                 <colgroup>
-                  {/* OT | Cliente | Sistema | Id Equipo | Módulo | Servicio | Descripción | Creada | F.Serv | Estado | Acciones */}
+                  {/* Checkbox | OT | Cliente | Sistema | Id Equipo | Módulo | Servicio | Descripción | Creada | F.Serv | Estado | Acciones */}
+                  <col style={{ width: 32 }} />
                   <col style={{ width: 75 }} />
                   <col style={{ width: '11%' }} />
                   <col style={{ width: '9%' }} />
@@ -444,6 +646,10 @@ export const OTList = () => {
               )}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedOTs.size === grouped.length && grouped.length > 0}
+                      onChange={toggleSelectAll} className="w-3.5 h-3.5 accent-teal-600" />
+                  </th>
                   {[
                     { label: 'OT', field: 'otNumber' },
                     { label: 'Cliente', field: 'razonSocial' },
@@ -456,13 +662,13 @@ export const OTList = () => {
                       currentField={sortField} currentDir={sortDir} onSort={handleSort}
                       className={`${thClass} relative`}>
                       <div onMouseDown={e => onResizeStart(i, e)}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" />
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </SortableHeader>
                   ))}
                   <th className={`${thClass} relative`}>
                     Descripción
                     <div onMouseDown={e => onResizeStart(6, e)}
-                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" />
+                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </th>
                   {[
                     { label: 'Creada', field: 'createdAt', idx: 7 },
@@ -473,7 +679,7 @@ export const OTList = () => {
                       currentField={sortField} currentDir={sortDir} onSort={handleSort}
                       className={`${thClass} relative`}>
                       <div onMouseDown={e => onResizeStart(col.idx, e)}
-                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" />
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </SortableHeader>
                   ))}
                   <th className={`${thClass} text-right`}>Acciones</th>
@@ -488,13 +694,17 @@ export const OTList = () => {
                     <tr key={ot.otNumber}
                       className={`hover:bg-slate-50 transition-colors ${isItem ? 'bg-slate-50/50' : ''} ${parentWithItems ? '' : 'cursor-pointer'}`}
                       onClick={() => handleRowClick(ot, hasItems)}>
+                      <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedOTs.has(ot.otNumber)}
+                          onChange={() => toggleSelect(ot.otNumber)} className="w-3.5 h-3.5 accent-teal-600" />
+                      </td>
                       <td className="px-2 py-2 whitespace-nowrap">
                         {isItem ? (
-                          <span className="text-xs text-indigo-500 pl-2">
+                          <span className="text-xs text-teal-500 pl-2">
                             <span className="text-slate-300 mr-1">└</span>{ot.otNumber}
                           </span>
                         ) : (
-                          <span className="font-semibold text-indigo-600 text-xs">{ot.otNumber}</span>
+                          <span className="font-semibold text-teal-600 text-xs">{ot.otNumber}</span>
                         )}
                       </td>
                       <td className="px-2 py-2 text-xs text-slate-700 truncate" title={ot.razonSocial}>
@@ -529,7 +739,7 @@ export const OTList = () => {
                           {!isItem && (
                             <button
                               onClick={() => setNewItemParent(ot)}
-                              className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1 py-0.5 rounded hover:bg-indigo-50"
+                              className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1 py-0.5 rounded hover:bg-teal-50"
                               title="Crear nuevo item"
                             >
                               +Item
