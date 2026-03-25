@@ -1,9 +1,109 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { articulosService } from '../../services/firebaseService';
+
+// ─── Autocomplete de código de artículo (mismo patrón que reportes-ot) ──────
+
+interface ArticuloCatalog { id: string; codigo: string; descripcion: string }
+
+const CodigoAutocomplete: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  onSelect: (art: ArticuloCatalog) => void;
+  catalog: ArticuloCatalog[];
+}> = ({ value, onChange, onSelect, catalog }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setSearch(value); }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = search.length >= 2
+    ? catalog.filter(a =>
+        a.codigo.toLowerCase().includes(search.toLowerCase()) ||
+        a.descripcion.toLowerCase().includes(search.toLowerCase())
+      ).slice(0, 12)
+    : [];
+
+  const selectItem = (art: ArticuloCatalog) => {
+    onSelect(art);
+    setSearch(art.codigo);
+    setOpen(false);
+    setHighlightIdx(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open || filtered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = highlightIdx < filtered.length - 1 ? highlightIdx + 1 : 0;
+      setHighlightIdx(next);
+      listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = highlightIdx > 0 ? highlightIdx - 1 : filtered.length - 1;
+      setHighlightIdx(next);
+      listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
+    } else if ((e.key === 'Enter' || e.key === 'Tab') && highlightIdx >= 0) {
+      e.preventDefault();
+      selectItem(filtered[highlightIdx]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setHighlightIdx(-1);
+    }
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        value={search}
+        onChange={e => {
+          setSearch(e.target.value);
+          onChange(e.target.value);
+          setOpen(e.target.value.length >= 2);
+          setHighlightIdx(-1);
+        }}
+        onFocus={() => { if (search.length >= 2 && filtered.length > 0) setOpen(true); }}
+        onKeyDown={handleKeyDown}
+        placeholder="Buscar código..."
+        className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white"
+      />
+      {open && filtered.length > 0 && (
+        <div ref={listRef} className="absolute z-[9999] left-0 top-full mt-1 min-w-[400px] bg-white border border-slate-200 rounded-lg shadow-xl max-h-[240px] overflow-y-auto">
+          {filtered.map((a, i) => (
+            <button
+              key={a.id}
+              type="button"
+              className={`w-full text-left px-3 py-1.5 text-[11px] border-b border-slate-100 last:border-0 flex gap-3 items-baseline transition-colors
+                ${i === highlightIdx ? 'bg-teal-50' : 'hover:bg-slate-50'}`}
+              onMouseEnter={() => setHighlightIdx(i)}
+              onClick={() => selectItem(a)}
+            >
+              <span className="font-mono font-bold text-teal-700 whitespace-nowrap shrink-0">{a.codigo}</span>
+              <span className="text-slate-500 truncate">{a.descripcion}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Main component ─────────────────────────────────────────────────────────
 
 interface Props {
   items: PresupuestoItem[];
@@ -22,9 +122,17 @@ const EMPTY_ITEM: Partial<PresupuestoItem> = {
 
 export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({ ...EMPTY_ITEM });
+  const [articulosCatalog, setArticulosCatalog] = useState<ArticuloCatalog[]>([]);
   const sym = MONEDA_SIMBOLO[moneda] || '$';
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
   const totalItems = items.reduce((s, i) => s + (i.subtotal || 0), 0);
+
+  // Load articles catalog once
+  useEffect(() => {
+    articulosService.getAll({ activoOnly: true }).then(arts => {
+      setArticulosCatalog(arts.map(a => ({ id: a.id, codigo: a.codigo, descripcion: a.descripcion })));
+    }).catch(() => setArticulosCatalog([]));
+  }, []);
 
   const itemBase = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
   const itemSubtotal = newItem.descuento ? itemBase * (1 - newItem.descuento / 100) : itemBase;
@@ -48,6 +156,14 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       subtotal,
     });
     setNewItem({ ...EMPTY_ITEM });
+  };
+
+  const handleSelectArticulo = (art: ArticuloCatalog) => {
+    setNewItem(prev => ({
+      ...prev,
+      codigoProducto: art.codigo,
+      descripcion: art.descripcion,
+    }));
   };
 
   const handleSelectConcepto = (conceptoId: string) => {
@@ -114,12 +230,16 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
         </div>
       )}
 
-      {/* Row 2: Código + Descripción en la misma línea */}
-      <div className="grid grid-cols-[110px_1fr] gap-2.5">
+      {/* Row 2: Código (autocomplete) + Descripción en la misma línea */}
+      <div className="grid grid-cols-[140px_1fr] gap-2.5">
         <div>
           <label className={lbl}>Código</label>
-          <input value={newItem.codigoProducto || ''} onChange={e => setNewItem({ ...newItem, codigoProducto: e.target.value })}
-            className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white" placeholder="MPCC01" />
+          <CodigoAutocomplete
+            value={newItem.codigoProducto || ''}
+            onChange={val => setNewItem(prev => ({ ...prev, codigoProducto: val }))}
+            onSelect={handleSelectArticulo}
+            catalog={articulosCatalog}
+          />
         </div>
         <div>
           <label className={lbl}>Descripcion *</label>

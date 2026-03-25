@@ -46,6 +46,11 @@ export interface PresupuestoFormState {
   responsableId: string;
   responsableNombre: string;
   createdAt: string;
+  // Revisiones
+  version: number | undefined;
+  presupuestoOrigenId: string | null;
+  motivoAnulacion: string | null;
+  anuladoPorId: string | null;
 }
 
 export interface PresupuestoTotals {
@@ -68,6 +73,7 @@ const INITIAL_FORM: PresupuestoFormState = {
   validezDias: 15, validUntil: '', fechaEnvio: '',
   adjuntos: [], proximoContacto: '', responsableId: '', responsableNombre: '',
   createdAt: '',
+  version: undefined, presupuestoOrigenId: null, motivoAnulacion: null, anuladoPorId: null,
 };
 
 export function usePresupuestoEdit(presupuestoId: string | null) {
@@ -131,6 +137,10 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         responsableId: presupuestoData.responsableId || '',
         responsableNombre: presupuestoData.responsableNombre || '',
         createdAt: presupuestoData.createdAt || '',
+        version: presupuestoData.version,
+        presupuestoOrigenId: presupuestoData.presupuestoOrigenId || null,
+        motivoAnulacion: presupuestoData.motivoAnulacion || null,
+        anuladoPorId: presupuestoData.anuladoPorId || null,
       });
 
       if (presupuestoData.clienteId) {

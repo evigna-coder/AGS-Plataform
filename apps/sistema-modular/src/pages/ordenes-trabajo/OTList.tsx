@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, usuariosService } from '../../services/firebaseService';
 import type { WorkOrder, Cliente, Sistema, OTEstadoAdmin, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
@@ -9,6 +9,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
 import { EditOTModal } from '../../components/ordenes-trabajo/EditOTModal';
+import { TiposServicioModal } from '../../components/ordenes-trabajo/TiposServicioModal';
 import { Modal } from '../../components/ui/Modal';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -199,6 +200,7 @@ export const OTList = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [editOtNumber, setEditOtNumber] = useState<string | null>(null);
   const [newItemParent, setNewItemParent] = useState<WorkOrder | null>(null);
+  const [showTiposServicio, setShowTiposServicio] = useState(false);
 
   // Bulk selection
   const [selectedOTs, setSelectedOTs] = useState<Set<string>>(new Set());
@@ -460,9 +462,7 @@ export const OTList = () => {
               disabled={grouped.length === 0} title="Exportar datos filtrados a CSV">
               Exportar CSV
             </Button>
-            <Link to="/tipos-servicio">
-              <Button size="sm" variant="outline">Tipos de Servicio</Button>
-            </Link>
+            <Button size="sm" variant="outline" onClick={() => setShowTiposServicio(true)}>Tipos de Servicio</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva OT</Button>
           </div>
         }
@@ -788,6 +788,7 @@ export const OTList = () => {
         onClose={() => setNewItemParent(null)}
         onCreated={loadOrdenes}
       />
+      <TiposServicioModal open={showTiposServicio} onClose={() => setShowTiposServicio(false)} />
     </div>
   );
 };

@@ -639,7 +639,8 @@ export type PresupuestoEstado =
   | 'pendiente_certificacion'
   | 'rechazado'
   | 'vencido'
-  | 'aguarda';
+  | 'aguarda'
+  | 'anulado';
 
 export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   borrador: 'Borrador',
@@ -652,6 +653,7 @@ export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   rechazado: 'Rechazado',
   vencido: 'Vencido',
   aguarda: 'Aguarda',
+  anulado: 'Anulado',
 };
 
 export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
@@ -665,6 +667,7 @@ export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   rechazado: 'bg-red-100 text-red-700',
   vencido: 'bg-rose-100 text-rose-600',
   aguarda: 'bg-red-100 text-red-700',
+  anulado: 'bg-slate-200 text-slate-500',
 };
 
 // --- Item de Presupuesto ---
@@ -913,6 +916,11 @@ export interface Presupuesto {
   proximoContacto?: string | null; // ISO date para próximo follow-up
   responsableId?: string | null;
   responsableNombre?: string | null;
+  // --- Revisiones ---
+  version?: number; // Número de revisión (1, 2, 3...). Default 1.
+  presupuestoOrigenId?: string | null; // ID del presupuesto desde el cual se creó esta revisión
+  motivoAnulacion?: string | null; // Razón de anulación (al ser reemplazado por revisión)
+  anuladoPorId?: string | null; // ID de la revisión que reemplazó a este presupuesto
   // --- Audit ---
   createdAt: string;
   updatedAt: string;

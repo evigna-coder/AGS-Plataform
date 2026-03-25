@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { articulosService, marcasService } from '../../services/firebaseService';
+
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateArticuloModal } from '../../components/stock/CreateArticuloModal';
+import { EditArticuloModal } from '../../components/stock/EditArticuloModal';
+import { ViewArticuloModal } from '../../components/stock/ViewArticuloModal';
 import type { Articulo, Marca, CategoriaEquipoStock, TipoArticulo } from '@ags/shared';
 
 const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
@@ -21,6 +23,9 @@ export const ArticulosList = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState({
     categoriaEquipo: '' as string,
     marcaId: '' as string,
@@ -76,13 +81,59 @@ export const ArticulosList = () => {
     }
   };
 
-  const getMarcaNombre = (marcaId: string) => marcas.find(m => m.id === marcaId)?.nombre ?? '-';
+  const getMarcaNombre = (art: Articulo) => {
+    if (art.marcaId) return marcas.find(m => m.id === art.marcaId)?.nombre ?? '-';
+    return (art as any).marca || '-';
+  };
 
   const filtered = articulos.filter(a => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return a.codigo.toLowerCase().includes(term) || a.descripcion.toLowerCase().includes(term);
   });
+
+  // ─── Selection helpers ──────────────────────────────────────────────────────
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map(a => a.id)),
+    );
+  }, [filtered]);
+
+  const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
+
+  const handleBulkDeactivate = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Desactivar ${selectedIds.size} articulo(s)?`)) return;
+    try {
+      await Promise.all([...selectedIds].map(id => articulosService.deactivate(id)));
+      setSelectedIds(new Set());
+      await loadData();
+    } catch (error) {
+      console.error('Error en desactivacion masiva:', error);
+      alert('Error al desactivar articulos');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Eliminar permanentemente ${selectedIds.size} articulo(s)?\n\nEsta accion no se puede deshacer.`)) return;
+    try {
+      await Promise.all([...selectedIds].map(id => articulosService.delete(id)));
+      setSelectedIds(new Set());
+      await loadData();
+    } catch (error) {
+      console.error('Error en eliminacion masiva:', error);
+      alert('Error al eliminar articulos');
+    }
+  };
 
   if (loading && articulos.length === 0) {
     return (
@@ -152,6 +203,16 @@ export const ArticulosList = () => {
         </div>
       </PageHeader>
 
+      {/* Bulk actions bar */}
+      {selectedIds.size > 0 && (
+        <div className="mx-5 mb-2 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-4 py-2">
+          <span className="text-xs font-medium text-teal-800">{selectedIds.size} seleccionado(s)</span>
+          <button onClick={handleBulkDeactivate} className="text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2 py-0.5 rounded transition-colors">Desactivar</button>
+          <button onClick={handleBulkDelete} className="text-[11px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-0.5 rounded transition-colors">Eliminar</button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-[11px] text-slate-400 hover:text-slate-600 ml-auto">Deseleccionar</button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {filtered.length === 0 ? (
           <Card>
@@ -167,7 +228,15 @@ export const ArticulosList = () => {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
+                    <th className="px-3 py-2 w-8">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-700"
+                      />
+                    </th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Codigo</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Marca</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
@@ -179,12 +248,26 @@ export const ArticulosList = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map(art => (
-                    <tr key={art.id} className={`hover:bg-slate-50 ${!art.activo ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-2">
-                        <span className="font-mono text-xs font-semibold text-teal-600">{art.codigo}</span>
+                    <tr key={art.id} className={`hover:bg-slate-50 ${!art.activo ? 'opacity-50' : ''} ${selectedIds.has(art.id) ? 'bg-teal-50/50' : ''}`}>
+                      <td className="px-3 py-2 w-8">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(art.id)}
+                          onChange={() => toggleSelect(art.id)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-700"
+                        />
                       </td>
-                      <td className="px-4 py-2 text-xs text-slate-900">{art.descripcion}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600">{getMarcaNombre(art.marcaId)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <button onClick={() => setViewId(art.id)} className="font-mono text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline text-left">
+                          {art.codigo}
+                        </button>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-900 max-w-md truncate">
+                        <button onClick={() => setViewId(art.id)} className="hover:text-teal-700 hover:underline text-left">
+                          {art.descripcion}
+                        </button>
+                      </td>
+                      <td className="px-4 py-2 text-xs text-slate-600">{getMarcaNombre(art)}</td>
                       <td className="px-4 py-2">
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">
                           {CATEGORIA_LABELS[art.categoriaEquipo] ?? art.categoriaEquipo}
@@ -203,16 +286,19 @@ export const ArticulosList = () => {
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex justify-end gap-1">
-                          <Link to={`/stock/articulos/${art.id}`}>
-                            <Button variant="ghost" size="sm">Ver</Button>
-                          </Link>
-                          <Link to={`/stock/articulos/${art.id}/editar`}>
-                            <Button variant="outline" size="sm">Editar</Button>
-                          </Link>
+                          <button onClick={() => setViewId(art.id)}
+                            className="px-2 py-1 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                            Ver
+                          </button>
+                          <button onClick={() => setEditId(art.id)}
+                            className="px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors">
+                            Editar
+                          </button>
                           {art.activo && (
-                            <Button variant="outline" size="sm" onClick={() => handleDeactivate(art)}>
+                            <button onClick={() => handleDeactivate(art)}
+                              className="px-2 py-1 text-[10px] font-medium text-slate-500 hover:bg-slate-100 rounded transition-colors">
                               Desactivar
-                            </Button>
+                            </button>
                           )}
                           <button
                             onClick={() => handleDelete(art)}
@@ -231,6 +317,8 @@ export const ArticulosList = () => {
       </div>
 
       <CreateArticuloModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+      <EditArticuloModal open={!!editId} articuloId={editId} onClose={() => setEditId(null)} onSaved={loadData} />
+      <ViewArticuloModal open={!!viewId} articuloId={viewId} onClose={() => setViewId(null)} onEdit={id => { setViewId(null); setEditId(id); }} />
     </div>
   );
 };

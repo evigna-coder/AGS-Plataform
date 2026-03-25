@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { presupuestosService, clientesService, usuariosService } from '../../services/firebaseService';
 import type { Presupuesto, Cliente, TipoPresupuesto, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
@@ -8,21 +7,27 @@ import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { CreateRevisionModal } from '../../components/presupuestos/CreateRevisionModal';
+import { ConceptosServicioModal } from '../../components/presupuestos/ConceptosServicioModal';
+import { CategoriasPresupuestoModal } from '../../components/presupuestos/CategoriasPresupuestoModal';
+import { CondicionesPagoModal } from '../../components/presupuestos/CondicionesPagoModal';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
-import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp } from '../../utils/presupuestoHelpers';
+import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ACTIVE_PIPELINE_STATES = ['enviado', 'en_seguimiento', 'pendiente_oc', 'aceptado'];
 
 export const PresupuestosList = () => {
-  const navigate = useNavigate();
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [duplicating, setDuplicating] = useState<string | null>(null);
+  const [revisionTarget, setRevisionTarget] = useState<Presupuesto | null>(null);
+  const [showConceptos, setShowConceptos] = useState(false);
+  const [showCategorias, setShowCategorias] = useState(false);
+  const [showCondiciones, setShowCondiciones] = useState(false);
   const floatingPres = useFloatingPresupuesto();
 
   const [search, setSearch] = useState('');
@@ -30,7 +35,6 @@ export const PresupuestosList = () => {
     cliente: '',
     estado: '' as Presupuesto['estado'] | '',
     tipo: '' as TipoPresupuesto | '',
-    moneda: '' as MonedaPresupuesto | '',
     responsable: '',
     fechaDesde: '',
     fechaHasta: '',
@@ -68,7 +72,6 @@ export const PresupuestosList = () => {
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
       if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
-      if (filters.moneda && p.moneda !== filters.moneda) return false;
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
       if (filters.fechaDesde && p.createdAt < filters.fechaDesde) return false;
       if (filters.fechaHasta && p.createdAt > filters.fechaHasta + 'T23:59:59') return false;
@@ -81,7 +84,23 @@ export const PresupuestosList = () => {
         getClienteNombre(p.clienteId).toLowerCase().includes(q)
       );
     }
-    return sortByField(result, sortField, sortDir);
+    // Custom sort for computed fields
+    if (sortField === '_validez') {
+      result = [...result].sort((a, b) => {
+        const va = getDaysUntilExpiry(a.validUntil, a.fechaEnvio, a.validezDias) ?? 9999;
+        const vb = getDaysUntilExpiry(b.validUntil, b.fechaEnvio, b.validezDias) ?? 9999;
+        return sortDir === 'asc' ? va - vb : vb - va;
+      });
+    } else if (sortField === '_seguimiento') {
+      result = [...result].sort((a, b) => {
+        const va = getDaysUntilContacto(a.proximoContacto) ?? 9999;
+        const vb = getDaysUntilContacto(b.proximoContacto) ?? 9999;
+        return sortDir === 'asc' ? va - vb : vb - va;
+      });
+    } else {
+      result = sortByField(result, sortField, sortDir);
+    }
+    return result;
   }, [presupuestos, filters, search, sortField, sortDir]);
 
   const pipelineByMoneda = useMemo(() => {
@@ -112,24 +131,20 @@ export const PresupuestosList = () => {
   };
 
   const getRowStyle = (p: Presupuesto) => {
+    if (isAnulado(p)) return 'opacity-50';
     if (p.estado === 'rechazado' || p.estado === 'vencido') return 'opacity-60';
     if (isExpired(p) && ACTIVE_PIPELINE_STATES.includes(p.estado)) return 'border-l-2 border-red-300 bg-red-50/50';
     if (needsFollowUp(p)) return 'border-l-2 border-amber-300 bg-amber-50/30';
     return '';
   };
 
-  const handleDuplicate = async (p: Presupuesto, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm(`¿Duplicar ${p.numero}?`)) return;
-    setDuplicating(p.id);
-    try {
-      const newId = await presupuestosService.duplicate(p.id);
-      floatingPres.open(newId, loadData);
-    } catch { alert('Error al duplicar'); }
-    finally { setDuplicating(null); }
+  const handleRevisionCreated = (newId: string) => {
+    setRevisionTarget(null);
+    loadData();
+    floatingPres.open(newId, loadData);
   };
 
-  const hasFilters = filters.cliente || filters.estado || filters.tipo || filters.moneda || filters.responsable || filters.fechaDesde || filters.fechaHasta;
+  const hasFilters = filters.cliente || filters.estado || filters.tipo || filters.responsable || filters.fechaDesde || filters.fechaHasta;
 
   if (loading && presupuestos.length === 0) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando presupuestos...</p></div>;
@@ -140,9 +155,9 @@ export const PresupuestosList = () => {
       <PageHeader title="Presupuestos" count={presupuestosFiltrados.length} subtitle={pipelineText}
         actions={
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => navigate('/presupuestos/conceptos-servicio')}>Conceptos</Button>
-            <Button size="sm" variant="outline" onClick={() => navigate('/presupuestos/categorias')}>Categorias</Button>
-            <Button size="sm" variant="outline" onClick={() => navigate('/presupuestos/condiciones-pago')}>Condiciones</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowConceptos(true)}>Conceptos</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowCategorias(true)}>Categorías</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowCondiciones(true)}>Condiciones</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Presupuesto</Button>
           </div>
         }>
@@ -164,11 +179,6 @@ export const PresupuestosList = () => {
               options={[{ value: '', label: 'Tipo: Todos' }, ...Object.entries(TIPO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }))]}
               placeholder="Tipo" />
           </div>
-          <div className="min-w-[80px]">
-            <SearchableSelect size="sm" value={filters.moneda} onChange={v => setFilters({ ...filters, moneda: v as MonedaPresupuesto | '' })}
-              options={[{ value: '', label: 'Moneda' }, { value: 'USD', label: 'USD' }, { value: 'ARS', label: 'ARS' }, { value: 'EUR', label: 'EUR' }]}
-              placeholder="Moneda" />
-          </div>
           <div className="min-w-[110px]">
             <SearchableSelect size="sm" value={filters.responsable} onChange={v => setFilters({ ...filters, responsable: v })}
               options={[{ value: '', label: 'Responsable' }, ...usuarios.filter(u => u.status === 'activo').map(u => ({ value: u.id, label: u.displayName }))]}
@@ -179,7 +189,7 @@ export const PresupuestosList = () => {
           <input type="date" value={filters.fechaHasta} onChange={e => setFilters({ ...filters, fechaHasta: e.target.value })}
             className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Hasta" />
           {hasFilters && (
-            <Button size="sm" variant="ghost" onClick={() => setFilters({ cliente: '', estado: '', tipo: '', moneda: '', responsable: '', fechaDesde: '', fechaHasta: '' })}>Limpiar</Button>
+            <Button size="sm" variant="ghost" onClick={() => setFilters({ cliente: '', estado: '', tipo: '', responsable: '', fechaDesde: '', fechaHasta: '' })}>Limpiar</Button>
           )}
         </div>
       </PageHeader>
@@ -197,15 +207,14 @@ export const PresupuestosList = () => {
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <SortableHeader label="Número" field="numero" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Cliente" field="clienteId" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <th className={thClass}>Tipo</th>
-                  <th className={thClass}>Estado</th>
-                  <th className={`${thClass} text-center`}>Moneda</th>
-                  <th className={`${thClass} text-right`}>Total</th>
-                  <th className={thClass}>Responsable</th>
+                  <SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Estado" field="estado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Total" field="total" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} text-right`} />
+                  <SortableHeader label="Responsable" field="responsableNombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Creado" field="createdAt" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Enviado" field="fechaEnvio" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <th className={thClass}>Validez</th>
-                  <th className={thClass}>Seguimiento</th>
+                  <SortableHeader label="Validez" field="_validez" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Seguimiento" field="_seguimiento" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <th className={`${thClass} text-right`}>Acciones</th>
                 </tr>
               </thead>
@@ -229,11 +238,11 @@ export const PresupuestosList = () => {
                         </span>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
+                          title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
                           {ESTADO_PRESUPUESTO_LABELS[p.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-center text-slate-500 whitespace-nowrap">{p.moneda || 'USD'}</td>
                       <td className="px-3 py-2 text-xs text-slate-900 font-medium text-right tabular-nums whitespace-nowrap">
                         {sym} {p.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
@@ -258,12 +267,14 @@ export const PresupuestosList = () => {
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
-                          <button onClick={(e) => handleDuplicate(p, e)} disabled={duplicating === p.id} title="Duplicar"
-                            className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
-                            </svg>
-                          </button>
+                          {!isAnulado(p) && (
+                            <button onClick={() => setRevisionTarget(p)} title="Crear revisión"
+                              className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                              </svg>
+                            </button>
+                          )}
                           <button onClick={() => floatingPres.open(p.id, loadData)}
                             className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">
                             Ver
@@ -280,6 +291,10 @@ export const PresupuestosList = () => {
       </div>
 
       <CreatePresupuestoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+      <CreateRevisionModal open={!!revisionTarget} presupuesto={revisionTarget} onClose={() => setRevisionTarget(null)} onCreated={handleRevisionCreated} />
+      <ConceptosServicioModal open={showConceptos} onClose={() => setShowConceptos(false)} />
+      <CategoriasPresupuestoModal open={showCategorias} onClose={() => setShowCategorias(false)} />
+      <CondicionesPagoModal open={showCondiciones} onClose={() => setShowCondiciones(false)} />
     </div>
   );
 };

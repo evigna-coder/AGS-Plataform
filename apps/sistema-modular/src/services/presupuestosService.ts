@@ -1,27 +1,44 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
-import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta } from '@ags/shared';
 import { db, logAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { leadsService } from './leadsService';
+
+// Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
+function toISO(val: any, fallback: string | null = null): string | null {
+  if (!val) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val?.toDate === 'function') return val.toDate().toISOString();
+  if (typeof val?.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+  return fallback;
+}
 
 // Servicio para Presupuestos
 export const presupuestosService = {
-  // Generar siguiente número de presupuesto (PRE-0000)
+  // Extraer parte base de un número: PRE-0001.02 → 1, PRE-0001 (legacy) → 1
+  _extractBase(numero: string): number {
+    const match = numero.match(/PRE-(\d+)/);
+    return match ? parseInt(match[1]) : 0;
+  },
+
+  // Extraer sufijo de revisión: PRE-0001.02 → 2, PRE-0001 (legacy) → null
+  _extractRevision(numero: string): number | null {
+    const match = numero.match(/PRE-\d+\.(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  },
+
+  // Generar siguiente número de presupuesto (PRE-XXXX.01)
   async getNextPresupuestoNumber(): Promise<string> {
     console.log('🔢 Generando siguiente número de presupuesto...');
     const q = query(collection(db, 'presupuestos'), orderBy('numero', 'desc'));
     const querySnapshot = await getDocs(q);
 
-    let maxNum = 0;
-    querySnapshot.docs.forEach(doc => {
-      const numero = doc.data().numero;
-      const match = numero.match(/PRE-(\d+)/);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
-      }
+    let maxBase = 0;
+    querySnapshot.docs.forEach(d => {
+      const base = this._extractBase(d.data().numero);
+      if (base > maxBase) maxBase = base;
     });
 
-    const nextNum = maxNum + 1;
-    const nextNumber = `PRE-${String(nextNum).padStart(4, '0')}`;
+    const nextNumber = `PRE-${String(maxBase + 1).padStart(4, '0')}.01`;
     console.log(`✅ Siguiente presupuesto: ${nextNumber}`);
     return nextNumber;
   },
@@ -47,10 +64,10 @@ export const presupuestosService = {
       return {
         id: doc.id,
         ...d,
-        createdAt: d.createdAt?.toDate?.()?.toISOString() ?? d.createdAt ?? '',
-        updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? d.updatedAt ?? '',
-        validUntil: d.validUntil?.toDate?.()?.toISOString() ?? d.validUntil ?? null,
-        fechaEnvio: d.fechaEnvio?.toDate?.()?.toISOString() ?? d.fechaEnvio ?? null,
+        createdAt: toISO(d.createdAt, ''),
+        updatedAt: toISO(d.updatedAt, ''),
+        validUntil: toISO(d.validUntil),
+        fechaEnvio: toISO(d.fechaEnvio),
         proximoContacto: d.proximoContacto ?? null,
         responsableId: d.responsableId ?? null,
         responsableNombre: d.responsableNombre ?? null,
@@ -77,10 +94,10 @@ export const presupuestosService = {
       return {
         id: docSnap.id,
         ...d,
-        createdAt: d.createdAt?.toDate?.()?.toISOString() ?? d.createdAt ?? '',
-        updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? d.updatedAt ?? '',
-        validUntil: d.validUntil?.toDate?.()?.toISOString() ?? d.validUntil ?? null,
-        fechaEnvio: d.fechaEnvio?.toDate?.()?.toISOString() ?? d.fechaEnvio ?? null,
+        createdAt: toISO(d.createdAt, ''),
+        updatedAt: toISO(d.updatedAt, ''),
+        validUntil: toISO(d.validUntil),
+        fechaEnvio: toISO(d.fechaEnvio),
         proximoContacto: d.proximoContacto ?? null,
         responsableId: d.responsableId ?? null,
         responsableNombre: d.responsableNombre ?? null,
@@ -137,23 +154,110 @@ export const presupuestosService = {
     logAudit({ action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
   },
 
-  // Duplicar presupuesto (crea copia en borrador)
-  async duplicate(id: string): Promise<string> {
+  // Crear revisión de un presupuesto (anula el original)
+  async createRevision(id: string, motivo: string): Promise<{ id: string; numero: string }> {
     const original = await this.getById(id);
     if (!original) throw new Error('Presupuesto no encontrado');
-    const numero = await this.getNextPresupuestoNumber();
-    const { id: _id, createdAt: _ca, updatedAt: _ua, ...rest } = original;
+
+    // Extraer base y calcular siguiente revisión
+    const base = this._extractBase(original.numero);
+    const baseStr = `PRE-${String(base).padStart(4, '0')}`;
+
+    // Buscar todas las revisiones de la misma familia
+    const allSnap = await getDocs(collection(db, 'presupuestos'));
+    let maxRev = 0;
+    allSnap.docs.forEach(d => {
+      const num = d.data().numero as string;
+      if (this._extractBase(num) === base) {
+        const rev = this._extractRevision(num);
+        if (rev && rev > maxRev) maxRev = rev;
+        // Legacy sin sufijo cuenta como revisión 0
+        if (!rev && num === baseStr) maxRev = Math.max(maxRev, 0);
+      }
+    });
+
+    const nextRev = maxRev + 1;
+    const newNumero = `${baseStr}.${String(nextRev).padStart(2, '0')}`;
+    const newVersion = nextRev;
+
+    // Crear nuevo presupuesto (revisión)
+    const { id: _id, createdAt: _ca, updatedAt: _ua, motivoAnulacion: _ma, anuladoPorId: _ap, ...rest } = original;
     const result = await this.create({
       ...rest,
-      numero,
+      numero: newNumero,
+      version: newVersion,
+      presupuestoOrigenId: id,
       estado: 'borrador',
       items: original.items.map(i => ({ ...i, id: crypto.randomUUID() })),
       fechaEnvio: undefined,
       validUntil: undefined,
       adjuntos: [],
       ordenesCompraIds: [],
+      motivoAnulacion: null,
+      anuladoPorId: null,
     });
-    return result.id;
+
+    // Anular el presupuesto original
+    await this.update(id, {
+      estado: 'anulado',
+      motivoAnulacion: motivo,
+      anuladoPorId: result.id,
+    });
+
+    // Si hay lead vinculado, linkear nuevo presupuesto y agregar posta
+    if (original.origenTipo === 'lead' && original.origenId) {
+      try {
+        await leadsService.linkPresupuesto(original.origenId, result.id);
+        const lead = await leadsService.getById(original.origenId);
+        if (lead) {
+          const posta: Posta = {
+            id: crypto.randomUUID(),
+            fecha: new Date().toISOString(),
+            deUsuarioId: 'sistema',
+            deUsuarioNombre: 'Sistema',
+            aUsuarioId: lead.asignadoA || '',
+            aUsuarioNombre: lead.asignadoNombre || '',
+            comentario: `Presupuesto ${original.numero} anulado → revisión ${newNumero} creada. Motivo: ${motivo}`,
+            estadoAnterior: lead.estado,
+            estadoNuevo: lead.estado,
+          };
+          await leadsService.agregarComentario(original.origenId, posta);
+        }
+      } catch (e) {
+        console.error('Error actualizando lead:', e);
+      }
+    }
+
+    console.log(`✅ Revisión creada: ${newNumero} (anulado: ${original.numero})`);
+    return result;
+  },
+
+  // Obtener historial de revisiones de una familia de presupuestos
+  async getRevisionHistory(numero: string): Promise<Presupuesto[]> {
+    const base = this._extractBase(numero);
+    const allSnap = await getDocs(collection(db, 'presupuestos'));
+    const family: Presupuesto[] = [];
+
+    allSnap.docs.forEach(d => {
+      const data = d.data();
+      if (this._extractBase(data.numero) === base) {
+        family.push({
+          id: d.id,
+          ...data,
+          createdAt: toISO(data.createdAt, ''),
+          updatedAt: toISO(data.updatedAt, ''),
+          validUntil: toISO(data.validUntil),
+          fechaEnvio: toISO(data.fechaEnvio),
+          proximoContacto: data.proximoContacto ?? null,
+          responsableId: data.responsableId ?? null,
+          responsableNombre: data.responsableNombre ?? null,
+        } as Presupuesto);
+      }
+    });
+
+    // Ordenar por número ascendente
+    family.sort((a, b) => a.numero.localeCompare(b.numero));
+    return family;
   },
 
   // Eliminar presupuesto (baja lógica)

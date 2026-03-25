@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { TablePreview } from './TablePreview';
+import { convertDocxToProtocolJson } from '../../utils/wordToProtocolJson';
 import type { TableCatalogEntry, TableCatalogColumn, TableCatalogRow, TableCatalogRule } from '@ags/shared';
 
 const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
@@ -402,18 +403,26 @@ interface Props {
   onImport: (tables: TableCatalogEntry[]) => void;
 }
 
+type ImportMode = 'word' | 'json';
+
 export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
+  const [mode, setMode] = useState<ImportMode>('word');
   const [jsonText, setJsonText] = useState('');
   const [sysType, setSysType] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TableCatalogEntry[] | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [wordFileName, setWordFileName] = useState<string | null>(null);
+  const [draggingOver, setDraggingOver] = useState(false);
+  const wordInputRef = useRef<HTMLInputElement>(null);
+
+  // ─── JSON handling ──────────────────────────────────────────────────────
 
   const handleParse = () => {
     if (!jsonText.trim()) { setError('Pegá el JSON del conversor'); return; }
     try {
       const raw = JSON.parse(jsonText);
       if (!raw.template?.sections) { setError('JSON inválido: falta template.sections'); return; }
-      // flatMap porque mapSection puede devolver múltiples entradas por sección
       const tables = (raw.template.sections as any[]).flatMap(s => mapSection(s, sysType));
       if (tables.length === 0) { setError('No se encontraron secciones válidas'); return; }
       setPreview(tables);
@@ -423,7 +432,7 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
     }
   };
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -431,25 +440,110 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
     reader.readAsText(file);
   };
 
+  // ─── Word handling ──────────────────────────────────────────────────────
+
+  const processWordFile = async (file: File) => {
+    setWordFileName(file.name);
+    setError(null);
+    setConverting(true);
+    setDraggingOver(false);
+    try {
+      const buffer = await file.arrayBuffer();
+      const result = await convertDocxToProtocolJson(buffer, file.name);
+      if (!result.template?.sections?.length) {
+        setError('No se encontraron secciones en el documento Word.');
+        setConverting(false);
+        return;
+      }
+      const tables = (result.template.sections as any[]).flatMap(s => mapSection(s, sysType));
+      if (tables.length === 0) {
+        setError('El documento no contiene tablas válidas para importar.');
+        setConverting(false);
+        return;
+      }
+      setPreview(tables);
+    } catch (err) {
+      setError(`Error al convertir el documento: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const handleWordFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processWordFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      setError('Solo se aceptan archivos .docx');
+      return;
+    }
+    processWordFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingOver(false);
+  };
+
   const updatePreviewName = (idx: number, name: string) => {
     if (!preview) return;
     setPreview(preview.map((t, i) => i === idx ? { ...t, name } : t));
   };
 
+  const resetToInput = () => {
+    setPreview(null);
+    setWordFileName(null);
+    if (wordInputRef.current) wordInputRef.current.value = '';
+  };
+
+  // ─── Tab button helper ──────────────────────────────────────────────────
+
+  const tabCls = (active: boolean) =>
+    `px-4 py-2 text-xs font-mono font-medium uppercase tracking-wider border-b-2 transition-colors ${
+      active
+        ? 'border-teal-600 text-teal-700'
+        : 'border-transparent text-slate-400 hover:text-slate-600'
+    }`;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-black text-slate-900 uppercase">
-            Importar tablas desde JSON
+            Importar tablas
           </h3>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-900 font-bold text-lg">✕</button>
         </div>
 
         {!preview ? (
           <div className="space-y-4">
+            {/* Tabs */}
+            <div className="flex gap-1 border-b border-slate-200">
+              <button className={tabCls(mode === 'word')} onClick={() => { setMode('word'); setError(null); }}>
+                Desde Word (.docx)
+              </button>
+              <button className={tabCls(mode === 'json')} onClick={() => { setMode('json'); setError(null); }}>
+                Desde JSON
+              </button>
+            </div>
+
+            {/* Tipo de sistema — compartido */}
             <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+              <label className="block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide">
                 Tipo de sistema (se aplica a todas las tablas)
               </label>
               <select value={sysType} onChange={e => setSysType(e.target.value)}
@@ -459,31 +553,83 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                Subir archivo .json
-              </label>
-              <input type="file" accept=".json" onChange={handleFile} className="text-sm" />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                O pegar JSON directamente
-              </label>
-              <textarea
-                value={jsonText}
-                onChange={e => { setJsonText(e.target.value); setError(null); setPreview(null); }}
-                rows={10}
-                placeholder={'{\n  "name": "...",\n  "template": { "sections": [] }\n}'}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono resize-none"
-              />
-            </div>
+            {mode === 'word' ? (
+              <>
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                    draggingOver
+                      ? 'border-teal-500 bg-teal-50'
+                      : 'border-slate-300 hover:border-teal-400'
+                  }`}
+                  onClick={() => wordInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  <input
+                    ref={wordInputRef}
+                    type="file"
+                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={handleWordFile}
+                    className="hidden"
+                  />
+                  {converting ? (
+                    <div className="space-y-2">
+                      <div className="inline-block w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm text-slate-600">Convirtiendo <strong>{wordFileName}</strong>...</p>
+                      <p className="text-xs text-slate-400">Extrayendo tablas y estructura del documento</p>
+                    </div>
+                  ) : wordFileName ? (
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-slate-700">{wordFileName}</p>
+                      <p className="text-xs text-slate-400">Click para cambiar archivo</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <svg className="w-10 h-10 mx-auto text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p className="text-sm text-slate-600">
+                        Arrastrá o hacé click para subir un archivo <strong>.docx</strong>
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        El protocolo se convierte automáticamente a tablas
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide">
+                    Subir archivo .json
+                  </label>
+                  <input type="file" accept=".json" onChange={handleJsonFile} className="text-sm" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-medium text-slate-500 mb-0.5 uppercase tracking-wide">
+                    O pegar JSON directamente
+                  </label>
+                  <textarea
+                    value={jsonText}
+                    onChange={e => { setJsonText(e.target.value); setError(null); setPreview(null); }}
+                    rows={10}
+                    placeholder={'{\n  "name": "...",\n  "template": { "sections": [] }\n}'}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono resize-none"
+                  />
+                </div>
+              </>
+            )}
 
             {error && <p className="text-red-600 text-sm font-bold">{error}</p>}
 
             <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
               <Button variant="outline" onClick={onClose}>Cancelar</Button>
-              <Button onClick={handleParse}>Extraer tablas →</Button>
+              {mode === 'json' && (
+                <Button onClick={handleParse}>Extraer tablas →</Button>
+              )}
             </div>
           </div>
         ) : (
@@ -494,7 +640,6 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
             <div className="space-y-4">
               {preview.map((t, i) => (
                 <div key={i} className="border border-slate-200 rounded-lg overflow-hidden">
-                  {/* Nombre editable */}
                   <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 border-b border-slate-200">
                     <span className="text-xs font-bold text-slate-500 shrink-0">{i + 1}.</span>
                     <input type="text" value={t.name}
@@ -504,7 +649,6 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
                       {t.tableType} · {t.columns.length} cols · {t.templateRows.length} filas
                     </span>
                   </div>
-                  {/* Mini-preview de la tabla */}
                   {t.columns.length > 0 && (
                     <div className="p-2 overflow-x-auto max-h-48 overflow-y-auto">
                       <TablePreview table={t} />
@@ -514,7 +658,7 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
               ))}
             </div>
             <div className="flex justify-between pt-2 border-t border-slate-200">
-              <Button variant="outline" onClick={() => setPreview(null)}>← Volver</Button>
+              <Button variant="outline" onClick={resetToInput}>← Volver</Button>
               <Button onClick={() => onImport(preview)}>
                 Importar {preview.length} tabla(s)
               </Button>

@@ -142,7 +142,7 @@ export const TableCatalogPage = () => {
             <p className="text-xs text-slate-400 mt-0.5">Tablas de verificación individuales para protocolos de OT</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setShowImport(true)}>Importar JSON</Button>
+            <Button variant="outline" onClick={() => setShowImport(true)}>Importar</Button>
             <Link to="/table-catalog/nuevo"><Button>+ Nueva tabla</Button></Link>
           </div>
         </div>

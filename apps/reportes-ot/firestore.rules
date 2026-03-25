@@ -377,6 +377,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // ========== COUNTERS (OT number generation) ==========
+    match /_counters/{counterId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // ========== AUDIT / MAIL ==========
     match /audit_log/{logId} {
       allow read: if true;

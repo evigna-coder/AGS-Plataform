@@ -7,6 +7,7 @@ import { useTabs, getNavMeta } from '../contexts/TabsContext';
 import { useBackgroundTasks } from '../contexts/BackgroundTasksContext';
 import { useFloatingPresupuesto } from '../contexts/FloatingPresupuestoContext';
 import { EditPresupuestoModal } from './presupuestos/EditPresupuestoModal';
+import { MinimizedModalsBar } from './ui/Modal';
 
 interface LayoutProps {
   children: ReactNode;
@@ -391,6 +392,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </svg>
         </button>
       )}
+
+      {/* Generic minimized modals bar */}
+      <MinimizedModalsBar />
     </div>
   );
 };

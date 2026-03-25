@@ -103,6 +103,35 @@ async function writeArticulos(
     articulos: { total: articulos.length, valid: 0, skipped: 0, created: 0 },
   };
 
+  // Resolver marcas: cargar existentes y crear las nuevas
+  onProgress('Resolviendo marcas...');
+  const marcasSnap = await getDocs(collection(db, 'marcas'));
+  const marcasMap = new Map<string, string>(); // nombre lowercase → id
+  marcasSnap.docs.forEach(d => {
+    const nombre = (d.data().nombre as string) || '';
+    marcasMap.set(nombre.toLowerCase(), d.id);
+  });
+
+  // Detectar marcas nuevas del Excel
+  const marcasNuevas = new Set<string>();
+  for (const a of articulos) {
+    if (a.marca && !marcasMap.has(a.marca.toLowerCase())) marcasNuevas.add(a.marca);
+  }
+  if (marcasNuevas.size > 0) {
+    onProgress(`Creando ${marcasNuevas.size} marca(s) nueva(s)...`);
+    let marcaBatch = writeBatch(db);
+    let marcaBatchCount = 0;
+    for (const nombre of marcasNuevas) {
+      const marcaId = crypto.randomUUID();
+      const marcaRef = doc(db, 'marcas', marcaId);
+      marcaBatch.set(marcaRef, { id: marcaId, nombre, activo: true, createdAt: now, updatedAt: now });
+      marcasMap.set(nombre.toLowerCase(), marcaId);
+      marcaBatchCount++;
+      if (marcaBatchCount >= 400) { await marcaBatch.commit(); marcaBatch = writeBatch(db); marcaBatchCount = 0; }
+    }
+    if (marcaBatchCount > 0) await marcaBatch.commit();
+  }
+
   onProgress('Procesando articulos...');
   let batch = writeBatch(db);
   let batchCount = 0;
@@ -124,6 +153,8 @@ async function writeArticulos(
       continue;
     }
 
+    const marcaId = a.marca ? (marcasMap.get(a.marca.toLowerCase()) || '') : '';
+
     const id = crypto.randomUUID();
     const ref = doc(db, 'articulos', id);
     batch.set(ref, {
@@ -135,7 +166,7 @@ async function writeArticulos(
       origen: a.origen || null,
       // Defaults — el resto se completa desde el sistema
       categoriaEquipo: 'GENERAL',
-      marcaId: '',
+      marcaId,
       proveedorIds: [],
       tipo: 'repuesto',
       unidadMedida: 'unidad',

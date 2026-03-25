@@ -19,7 +19,10 @@
       "Bash(node -e \":*)",
       "Bash(find '/c/Users/Evigna/Desktop/Ags plataform/apps/reportes-ot/src' -type f -name *.tsx)",
       "Bash(grep -r \"articulos\\\\|articles\\\\|parts\\\\|partes\" '/c/Users/Evigna/Desktop/Ags plataform/apps/reportes-ot/components/' --include=*.tsx)",
-      "Bash(grep -r \"SearchableSelect\\\\|Autocomplete\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components' --include=*.tsx)"
+      "Bash(grep -r \"SearchableSelect\\\\|Autocomplete\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components' --include=*.tsx)",
+      "Bash(where skills.sh)",
+      "Bash(ls -la apps/sistema-modular/src/pages/presupuestos/*.tsx)",
+      "Bash(npx firebase:*)"
     ]
   }
 }

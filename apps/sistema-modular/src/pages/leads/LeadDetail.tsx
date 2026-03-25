@@ -32,7 +32,7 @@ export const LeadDetail = () => {
   const [moduloNombre, setModuloNombre] = useState<string | null>(null);
 
   // Entidades vinculadas
-  const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string }[]>([]);
+  const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string; estado: string }[]>([]);
   const [linkedOTs, setLinkedOTs] = useState<{ otNumber: string }[]>([]);
 
   const load = useCallback(async (silent = false) => {
@@ -60,10 +60,10 @@ export const LeadDetail = () => {
       }
 
       // Cargar entidades vinculadas
-      const presups: { id: string; numero: string }[] = [];
+      const presups: { id: string; numero: string; estado: string }[] = [];
       for (const pId of data.presupuestosIds || []) {
         const p = await presupuestosService.getById(pId);
-        if (p) presups.push({ id: p.id, numero: p.numero });
+        if (p) presups.push({ id: p.id, numero: p.numero, estado: p.estado });
       }
       setLinkedPresupuestos(presups);
 
@@ -284,9 +284,13 @@ export const LeadDetail = () => {
                   <h3 className="text-[11px] font-medium text-slate-400 mb-3">Entidades vinculadas</h3>
                   <div className="space-y-2">
                     {linkedPresupuestos.map(p => (
-                      <div key={p.id} className="flex items-center gap-2">
+                      <div key={p.id} className={`flex items-center gap-2 ${p.estado === 'anulado' ? 'opacity-50' : ''}`}>
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700">Presupuesto</span>
-                        <Link to={`/presupuestos/${p.id}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{p.numero}</Link>
+                        <Link to={`/presupuestos/${p.id}`} state={{ from: pathname }}
+                          className={`text-xs font-medium ${p.estado === 'anulado' ? 'text-slate-400 line-through' : 'text-teal-600 hover:text-teal-800'}`}>
+                          {p.numero}
+                        </Link>
+                        {p.estado === 'anulado' && <span className="text-[9px] text-slate-400">Anulado</span>}
                       </div>
                     ))}
                     {linkedOTs.map(ot => (

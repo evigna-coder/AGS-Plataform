@@ -6,6 +6,8 @@
 export function deepCleanForFirestore(obj: any): any {
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(deepCleanForFirestore);
+  // Preserve class instances (Firestore Timestamp, Date, etc.) — only recurse plain objects
+  if (Object.getPrototypeOf(obj) !== Object.prototype) return obj;
   const cleaned: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (key === '') continue;

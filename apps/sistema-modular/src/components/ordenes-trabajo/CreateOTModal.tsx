@@ -5,9 +5,10 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import {
   ordenesTrabajoService, clientesService, establecimientosService, sistemasService,
-  tiposServicioService, contactosService, modulosService, usuariosService,
+  tiposServicioService, contactosService, modulosService, usuariosService, presupuestosService,
 } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS, WorkOrder } from '@ags/shared';
+import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS, WorkOrder, Presupuesto } from '@ags/shared';
+import { MONEDA_PRESUPUESTO_LABELS } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -20,6 +21,7 @@ const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs
 
 export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   // Catálogos
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -31,11 +33,10 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
   const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
   const [establecimientosFiltrados, setEstablecimientosFiltrados] = useState<Establecimiento[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
-  const [nextOtNumber, setNextOtNumber] = useState('');
+  const [presupuestosCliente, setPresupuestosCliente] = useState<Presupuesto[]>([]);
 
   // Formulario
   const [form, setForm] = useState({
-    otNumber: '',
     clienteId: '',
     establecimientoId: '',
     sistemaId: '',
@@ -43,7 +44,8 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
     tipoServicioId: '',
     contactoId: '',
     ingenieroId: '',
-    presupuesto: '',
+    presupuestoId: '',
+    presupuestoNumero: '',
     ordenCompra: '',
     fechaServicioAprox: '',
     problemaFallaInicial: '',
@@ -54,37 +56,52 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
   // Cargar catálogos al abrir
   useEffect(() => {
     if (!open) return;
-    Promise.all([
-      clientesService.getAll(true),
-      establecimientosService.getAll(),
-      sistemasService.getAll(),
-      tiposServicioService.getAll(),
-      ordenesTrabajoService.getNextOtNumber(),
-      usuariosService.getAll(),
-    ]).then(([c, est, s, ts, otNum, u]) => {
-      setClientes(c);
-      setEstablecimientos(est);
-      setSistemas(s);
-      setTiposServicio(ts);
-      setNextOtNumber(otNum);
-      setForm(prev => ({ ...prev, otNumber: otNum }));
-      setIngenieros(u.filter(usr => usr.role === 'ingeniero_soporte' && usr.status === 'activo'));
-    });
+    setLoadError('');
+
+    const loadCatalogos = async () => {
+      try {
+        const [c, est, s, ts, u] = await Promise.all([
+          clientesService.getAll(true),
+          establecimientosService.getAll(),
+          sistemasService.getAll(),
+          tiposServicioService.getAll(),
+          usuariosService.getAll(),
+        ]);
+        setClientes(c);
+        setEstablecimientos(est);
+        setSistemas(s);
+        setTiposServicio(ts);
+        setIngenieros(u.filter(usr => usr.role === 'ingeniero_soporte' && usr.status === 'activo'));
+      } catch (err) {
+        console.error('Error cargando catálogos para OT:', err);
+        setLoadError('Error al cargar datos. Verifique la conexión e intente nuevamente.');
+      }
+    };
+
+    loadCatalogos();
   }, [open]);
 
-  // Cascada: cliente → establecimientos + contactos
+  // Cascada: cliente → establecimientos + contactos + presupuestos
   useEffect(() => {
     if (form.clienteId) {
       setEstablecimientosFiltrados(establecimientos.filter(e => e.clienteCuit === form.clienteId));
       contactosService.getByCliente(form.clienteId).then(setContactos).catch(() => setContactos([]));
+      // Cargar presupuestos del cliente (solo aprobados/enviados, no borradores/anulados)
+      presupuestosService.getAll({ clienteId: form.clienteId }).then(pres => {
+        setPresupuestosCliente(pres.filter(p => p.estado !== 'anulado'));
+      }).catch(() => setPresupuestosCliente([]));
     } else {
       setEstablecimientosFiltrados([]);
       setContactos([]);
+      setPresupuestosCliente([]);
     }
     set('establecimientoId', '');
     set('sistemaId', '');
     set('moduloId', '');
     set('contactoId', '');
+    set('presupuestoId', '');
+    set('presupuestoNumero', '');
+    set('ordenCompra', '');
   }, [form.clienteId, establecimientos]);
 
   // Cascada: establecimiento → sistemas
@@ -92,7 +109,6 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
     if (form.establecimientoId) {
       setSistemasFiltrados(sistemas.filter(s => s.establecimientoId === form.establecimientoId));
     } else if (form.clienteId) {
-      // Sin establecimiento seleccionado: mostrar todos los del cliente
       const estIds = new Set(establecimientosFiltrados.map(e => e.id));
       setSistemasFiltrados(sistemas.filter(s => s.establecimientoId && estIds.has(s.establecimientoId)));
     } else {
@@ -112,16 +128,33 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
     set('moduloId', '');
   }, [form.sistemaId]);
 
+  // Cuando selecciona presupuesto, auto-completar OC si hay
+  const handlePresupuestoChange = (presupuestoId: string) => {
+    set('presupuestoId', presupuestoId);
+    const pres = presupuestosCliente.find(p => p.id === presupuestoId);
+    if (pres) {
+      set('presupuestoNumero', pres.numero);
+      // Si el presupuesto tiene OC vinculadas, poner la primera como referencia
+      if (pres.ordenesCompraIds?.length > 0) {
+        set('ordenCompra', pres.ordenesCompraIds[0]);
+      }
+    } else {
+      set('presupuestoNumero', '');
+    }
+  };
+
   const handleClose = () => {
     onClose();
     setForm({
-      otNumber: '', clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '',
+      clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '',
       tipoServicioId: '', contactoId: '', ingenieroId: '',
-      presupuesto: '', ordenCompra: '', fechaServicioAprox: '',
+      presupuestoId: '', presupuestoNumero: '', ordenCompra: '', fechaServicioAprox: '',
       problemaFallaInicial: '',
     });
     setModulos([]);
     setContactos([]);
+    setPresupuestosCliente([]);
+    setLoadError('');
   };
 
   const handleSave = async () => {
@@ -138,11 +171,10 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
 
     if (!cliente || !tipoServ) { alert('Datos incompletos'); return; }
 
-    const otNum = form.otNumber || nextOtNumber;
-    if (!otNum) { alert('No se pudo generar número de OT'); return; }
-
     setSaving(true);
     try {
+      // Generar número de OT al momento de confirmar (no al abrir el modal)
+      const otNum = await ordenesTrabajoService.getNextOtNumber();
       const otData = {
         otNumber: otNum,
         status: 'BORRADOR' as const,
@@ -152,7 +184,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
           { estado: 'CREADA' as const, fecha: new Date().toISOString() },
           ...(ingeniero ? [{ estado: 'ASIGNADA' as const, fecha: new Date().toISOString() }] : []),
         ] as WorkOrder['estadoHistorial'],
-        budgets: form.presupuesto ? [form.presupuesto] : [],
+        budgets: form.presupuestoNumero ? [form.presupuestoNumero] : [],
         ordenCompra: form.ordenCompra || '',
         tipoServicio: tipoServ.nombre,
         esFacturable: true,
@@ -201,35 +233,38 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
       });
       handleClose();
       onCreated();
-    } catch { alert('Error al crear la orden de trabajo'); }
+    } catch (err) {
+      console.error('Error creando OT:', err);
+      alert('Error al crear la orden de trabajo');
+    }
     finally { setSaving(false); }
   };
 
   return (
     <Modal open={open} onClose={handleClose} maxWidth="lg" title="Nueva orden de trabajo"
-      subtitle={form.otNumber ? `OT #${form.otNumber} — Item ${form.otNumber}.01` : 'Generando número...'}
+      subtitle="El número de OT se asigna automáticamente al confirmar"
       footer={<>
         <Button variant="outline" size="sm" onClick={handleClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleSave} disabled={saving || !form.otNumber}>
+        <Button size="sm" onClick={handleSave} disabled={saving}>
           {saving ? 'Creando...' : 'Crear OT'}
         </Button>
       </>}>
 
       <div className="space-y-3">
-        {/* Fila 1: Número OT + Tipo de Servicio */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className={lbl}>Número OT</label>
-            <Input value={form.otNumber} onChange={e => set('otNumber', e.target.value)}
-              inputSize="sm" placeholder="Auto" />
+        {loadError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+            {loadError}
+            <button onClick={() => window.location.reload()} className="ml-2 underline">Recargar</button>
           </div>
-          <div className="col-span-2">
-            <label className={lbl}>Tipo de servicio *</label>
-            <SearchableSelect value={form.tipoServicioId}
-              onChange={v => set('tipoServicioId', v)}
-              options={tiposServicio.map(t => ({ value: t.id, label: t.nombre }))}
-              placeholder="Seleccionar tipo..." />
-          </div>
+        )}
+
+        {/* Fila 1: Tipo de Servicio */}
+        <div>
+          <label className={lbl}>Tipo de servicio *</label>
+          <SearchableSelect value={form.tipoServicioId}
+            onChange={v => set('tipoServicioId', v)}
+            options={tiposServicio.map(t => ({ value: t.id, label: t.nombre }))}
+            placeholder="Seleccionar tipo..." />
         </div>
 
         {/* Fila 2: Cliente */}
@@ -280,7 +315,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
                 { value: '', label: modulos.length === 0 ? 'Sin módulos' : 'Sistema completo' },
                 ...modulos.map(m => ({
                   value: m.id,
-                  label: `${m.nombre}${m.serie ? ` (${m.serie})` : ''}`,
+                  label: `${m.nombre}${m.descripcion ? ` — ${m.descripcion}` : ''}${m.serie ? ` (${m.serie})` : ''}`,
                 })),
               ]}
               placeholder={form.sistemaId ? 'Seleccionar...' : 'Seleccione sistema primero'}
@@ -320,8 +355,17 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className={lbl}>Presupuesto</label>
-            <Input value={form.presupuesto} onChange={e => set('presupuesto', e.target.value)}
-              inputSize="sm" placeholder="PRE-XXXX" />
+            <SearchableSelect value={form.presupuestoId}
+              onChange={handlePresupuestoChange}
+              options={[
+                { value: '', label: 'Sin presupuesto' },
+                ...presupuestosCliente.map(p => ({
+                  value: p.id,
+                  label: `${p.numero} — ${MONEDA_PRESUPUESTO_LABELS[p.moneda]} $${p.total?.toLocaleString('es-AR') ?? '0'}`,
+                })),
+              ]}
+              placeholder={form.clienteId ? 'Seleccionar...' : 'Seleccione cliente primero'}
+              disabled={!form.clienteId} />
           </div>
           <div>
             <label className={lbl}>Orden de compra</label>

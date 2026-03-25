@@ -78,3 +78,20 @@ export function needsFollowUp(p: Presupuesto): boolean {
   if (daysContact !== null && daysContact < 0) return true;
   return false;
 }
+
+/** Whether the presupuesto is anulado. */
+export function isAnulado(p: Presupuesto): boolean {
+  return p.estado === 'anulado';
+}
+
+/** Extract base number: PRE-0001.02 → 'PRE-0001', PRE-0001 (legacy) → 'PRE-0001' */
+export function extractBase(numero: string): string {
+  const match = numero.match(/(PRE-\d+)/);
+  return match ? match[1] : numero;
+}
+
+/** Extract revision number: PRE-0001.02 → 2, PRE-0001 (legacy) → null */
+export function extractVersion(numero: string): number | null {
+  const match = numero.match(/PRE-\d+\.(\d+)/);
+  return match ? parseInt(match[1]) : null;
+}
