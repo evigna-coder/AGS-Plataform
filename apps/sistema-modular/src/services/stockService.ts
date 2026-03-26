@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito } from '@ags/shared';
 import { db, logAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
@@ -56,6 +56,35 @@ export const posicionesStockService = {
     });
     await updateDoc(doc(db, 'posicionesStock', id), payload);
     logAudit({ action: 'update', collection: 'posiciones_stock', documentId: id, after: payload as any });
+  },
+
+  async getByParent(parentId: string | null): Promise<PosicionStock[]> {
+    let q;
+    if (parentId) {
+      q = query(collection(db, 'posicionesStock'), where('parentId', '==', parentId), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'posicionesStock'), where('activo', '==', true));
+      const snap = await getDocs(q);
+      const items = snap.docs
+        .filter(d => !d.data().parentId)
+        .map(d => ({
+          id: d.id,
+          ...d.data(),
+          createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+          updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        })) as PosicionStock[];
+      items.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.codigo.localeCompare(b.codigo));
+      return items;
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as PosicionStock[];
+    items.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.codigo.localeCompare(b.codigo));
+    return items;
   },
 
   async delete(id: string): Promise<void> {
@@ -196,6 +225,24 @@ export const unidadesService = {
     return this.getAll({ articuloId, activoOnly: true });
   },
 
+  async getByUbicacion(tipo: string, referenciaId: string): Promise<UnidadStock[]> {
+    const q = query(
+      collection(db, 'unidades'),
+      where('ubicacion.tipo', '==', tipo),
+      where('ubicacion.referenciaId', '==', referenciaId),
+      where('activo', '==', true),
+    );
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as UnidadStock[];
+    items.sort((a, b) => a.articuloCodigo.localeCompare(b.articuloCodigo));
+    return items;
+  },
+
   async getById(id: string): Promise<UnidadStock | null> {
     const snap = await getDoc(doc(db, 'unidades', id));
     if (!snap.exists()) return null;
@@ -296,6 +343,68 @@ export const minikitsService = {
   async delete(id: string): Promise<void> {
     logAudit({ action: 'delete', collection: 'minikits', documentId: id });
     await deleteDoc(doc(db, 'minikits', id));
+  },
+};
+
+// ========== PLANTILLAS DE MINIKIT ==========
+
+export const minikitTemplatesService = {
+  async getAll(activoOnly: boolean = true): Promise<MinikitTemplate[]> {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'minikitTemplates'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'minikitTemplates'));
+    }
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    })) as MinikitTemplate[];
+    items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return items;
+  },
+
+  async getById(id: string): Promise<MinikitTemplate | null> {
+    const snap = await getDoc(doc(db, 'minikitTemplates', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    } as MinikitTemplate;
+  },
+
+  async create(data: Omit<MinikitTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const id = crypto.randomUUID();
+    const payload = deepCleanForFirestore({
+      ...data,
+      ...getCreateTrace(),
+      activo: data.activo !== undefined ? data.activo : true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'minikitTemplates', id), payload);
+    logAudit({ action: 'create', collection: 'minikit_templates', documentId: id, after: payload as any });
+    return id;
+  },
+
+  async update(id: string, data: Partial<Omit<MinikitTemplate, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = deepCleanForFirestore({
+      ...data,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    await updateDoc(doc(db, 'minikitTemplates', id), payload);
+    logAudit({ action: 'update', collection: 'minikit_templates', documentId: id, after: payload as any });
+  },
+
+  async delete(id: string): Promise<void> {
+    logAudit({ action: 'delete', collection: 'minikit_templates', documentId: id });
+    await deleteDoc(doc(db, 'minikitTemplates', id));
   },
 };
 

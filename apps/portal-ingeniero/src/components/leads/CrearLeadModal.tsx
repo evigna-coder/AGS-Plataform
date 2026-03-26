@@ -15,9 +15,21 @@ interface Props {
 
 const MOTIVOS = Object.entries(MOTIVO_LLAMADO_LABELS) as [MotivoLlamado, string][];
 
+function useIsMobile() {
+  const [m, setM] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 640);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return m;
+}
+
 export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const { usuario } = useAuth();
+  const isMobile = useIsMobile();
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState(1);
   const [clientes, setClientes] = useState<{ id: string; razonSocial: string }[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
@@ -41,6 +53,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
       clientesService.getAll().then(setClientes);
       usuariosService.getIngenieros().then(setUsuarios);
       ingenierosService.getAll().then(setIngenieros);
+      setStep(1);
     }
   }, [open]);
 
@@ -52,7 +65,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     }
   }, [clienteId]);
 
-  // Reset asignado when area changes
   useEffect(() => { setAsignadoId(''); }, [areaActual]);
 
   const filteredClientes = clienteSearch.trim()
@@ -93,14 +105,13 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   };
 
   const canSubmit = razonSocial.trim() && contacto.trim() && areaActual;
+  const canGoStep2 = razonSocial.trim() && contacto.trim();
 
   const handleSubmit = async () => {
     if (!canSubmit || !usuario) return;
     setSaving(true);
     try {
       const asignadoNombre = getAsignadoNombre();
-
-      // Crear posta inicial de asignación
       const posta: Posta = {
         id: crypto.randomUUID(),
         fecha: new Date().toISOString(),
@@ -113,7 +124,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         estadoAnterior: nuevoEstado,
         estadoNuevo: nuevoEstado,
       };
-
       await leadsService.create({
         razonSocial: razonSocial.trim(),
         contacto: contacto.trim(),
@@ -155,158 +165,205 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setDescripcion('');
     setClienteSearch('');
     setContactos([]);
+    setStep(1);
   };
 
-  return (
-    <Modal open={open} title="Nuevo Lead" onClose={onClose}>
-      <div className="space-y-3">
-        {/* Razón Social — búsqueda de cliente o texto libre */}
-        <div className="relative">
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Razón social *</label>
-          {clienteId ? (
-            <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
-              <span className="text-xs text-slate-700 font-medium flex-1 truncate">{razonSocial}</span>
-              <button onClick={handleClearCliente} className="text-[10px] text-red-500 hover:text-red-700 font-medium shrink-0">
-                Cambiar
-              </button>
+  /* ---- Shared field renderers ---- */
+
+  const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const labelClass = 'text-[11px] font-medium text-slate-500 mb-1 block';
+
+  const clienteField = (
+    <div className="relative">
+      <label className={labelClass}>Razón social *</label>
+      {clienteId ? (
+        <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2.5 bg-slate-50">
+          <span className="text-sm text-slate-700 font-medium flex-1 truncate">{razonSocial}</span>
+          <button onClick={handleClearCliente} className="text-[10px] text-red-500 hover:text-red-700 font-medium shrink-0">
+            Cambiar
+          </button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            value={razonSocial}
+            onChange={e => { setRazonSocial(e.target.value); setClienteSearch(e.target.value); setShowClienteDropdown(true); }}
+            onFocus={() => { if (razonSocial) setShowClienteDropdown(true); }}
+            onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
+            className={selectClass}
+            placeholder="Buscar cliente existente o escribir nuevo..."
+          />
+          {showClienteDropdown && filteredClientes.length > 0 && (
+            <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {filteredClientes.map(c => (
+                <button
+                  key={c.id}
+                  onMouseDown={() => handleSelectCliente(c)}
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-indigo-50 text-slate-700 border-b border-slate-100 last:border-0"
+                >
+                  {c.razonSocial}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const contactoField = (
+    <div>
+      <label className={labelClass}>Contacto *</label>
+      {contactos.length > 0 ? (
+        <div className="space-y-1.5">
+          <select
+            value=""
+            onChange={e => { const c = contactos.find(x => x.id === e.target.value); if (c) handleSelectContacto(c); }}
+            className={selectClass}
+          >
+            <option value="">Seleccionar contacto del cliente...</option>
+            {contactos.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre}{c.cargo ? ` (${c.cargo})` : ''}</option>
+            ))}
+          </select>
+          <Input value={contacto} onChange={e => setContacto(e.target.value)} placeholder="O escribir nombre manualmente" />
+        </div>
+      ) : (
+        <Input value={contacto} onChange={e => setContacto(e.target.value)} placeholder="Persona de contacto" />
+      )}
+    </div>
+  );
+
+  const emailTelFields = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <Input label="Email" value={email} onChange={e => setEmail(e.target.value)} />
+      <Input label="Teléfono" value={telefono} onChange={e => setTelefono(e.target.value)} />
+    </div>
+  );
+
+  const motivoEstadoFields = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label className={labelClass}>Motivo *</label>
+        <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+          {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className={labelClass}>Estado inicial</label>
+        <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as LeadEstado)} className={selectClass}>
+          {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
+            <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
+  const areaAsignacionFields = (
+    <>
+      <div>
+        <label className={labelClass}>Área destino *</label>
+        <select value={areaActual} onChange={e => setAreaActual(e.target.value as LeadArea | '')} className={selectClass}>
+          <option value="">Seleccionar área...</option>
+          {LEAD_AREA_GROUPS.map(g => (
+            <optgroup key={g.label} label={g.label}>
+              {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+      {areaActual && (
+        <div>
+          <label className={labelClass}>Asignar a ({isIngeniero ? 'ingeniero' : 'usuario'})</label>
+          <select value={asignadoId} onChange={e => setAsignadoId(e.target.value)} className={selectClass}>
+            <option value="">Solo al área (sin persona específica)</option>
+            {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </div>
+      )}
+    </>
+  );
+
+  const descripcionField = (
+    <div>
+      <label className={labelClass}>Descripción</label>
+      <textarea
+        value={descripcion}
+        onChange={e => setDescripcion(e.target.value)}
+        rows={3}
+        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+      />
+    </div>
+  );
+
+  /* ---- Mobile: fullscreen wizard ---- */
+  if (isMobile && open) {
+    return (
+      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        {/* Header */}
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
+          <button onClick={onClose} className="text-sm text-slate-500">Cancelar</button>
+          <h3 className="text-sm font-semibold text-slate-900">Nuevo Lead</h3>
+          <span className="text-xs text-slate-400">{step}/2</span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="shrink-0 h-1 bg-slate-100">
+          <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${step * 50}%` }} />
+        </div>
+
+        {/* Step content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {step === 1 ? (
+            <div className="space-y-4">
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Cliente y contacto</p>
+              {clienteField}
+              {contactoField}
+              {emailTelFields}
             </div>
           ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Clasificación y asignación</p>
+              {motivoEstadoFields}
+              {areaAsignacionFields}
+              {descripcionField}
+            </div>
+          )}
+        </div>
+
+        {/* Footer navigation */}
+        <div className="shrink-0 flex gap-3 px-4 py-3 border-t border-slate-100 bg-white" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+          {step === 1 ? (
+            <Button className="flex-1" onClick={() => setStep(2)} disabled={!canGoStep2}>
+              Siguiente
+            </Button>
+          ) : (
             <>
-              <input
-                type="text"
-                value={razonSocial}
-                onChange={e => {
-                  setRazonSocial(e.target.value);
-                  setClienteSearch(e.target.value);
-                  setShowClienteDropdown(true);
-                }}
-                onFocus={() => { if (razonSocial) setShowClienteDropdown(true); }}
-                onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Buscar cliente existente o escribir nuevo..."
-              />
-              {showClienteDropdown && filteredClientes.length > 0 && (
-                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                  {filteredClientes.map(c => (
-                    <button
-                      key={c.id}
-                      onMouseDown={() => handleSelectCliente(c)}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 text-slate-700 border-b border-slate-100 last:border-0"
-                    >
-                      {c.razonSocial}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <Button variant="ghost" className="flex-1" onClick={() => setStep(1)}>
+                Anterior
+              </Button>
+              <Button className="flex-1" onClick={handleSubmit} disabled={saving || !canSubmit}>
+                {saving ? 'Creando...' : 'Crear Lead'}
+              </Button>
             </>
           )}
         </div>
+      </div>
+    );
+  }
 
-        {/* Contacto — selección de DB o libre */}
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Contacto *</label>
-          {contactos.length > 0 ? (
-            <div className="space-y-1">
-              <select
-                value=""
-                onChange={e => {
-                  const c = contactos.find(x => x.id === e.target.value);
-                  if (c) handleSelectContacto(c);
-                }}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Seleccionar contacto del cliente...</option>
-                {contactos.map(c => (
-                  <option key={c.id} value={c.id}>{c.nombre}{c.cargo ? ` (${c.cargo})` : ''}</option>
-                ))}
-              </select>
-              <Input
-                value={contacto}
-                onChange={e => setContacto(e.target.value)}
-                placeholder="O escribir nombre manualmente"
-              />
-            </div>
-          ) : (
-            <Input
-              value={contacto}
-              onChange={e => setContacto(e.target.value)}
-              placeholder="Persona de contacto"
-            />
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Input label="Email" value={email} onChange={e => setEmail(e.target.value)} />
-          <Input label="Teléfono" value={telefono} onChange={e => setTelefono(e.target.value)} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Motivo *</label>
-            <select
-              value={motivoLlamado}
-              onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Estado inicial</label>
-            <select
-              value={nuevoEstado}
-              onChange={e => setNuevoEstado(e.target.value as LeadEstado)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
-                <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Área destino y asignación — obligatorios */}
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Área destino *</label>
-          <select
-            value={areaActual}
-            onChange={e => setAreaActual(e.target.value as LeadArea | '')}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Seleccionar área...</option>
-            {LEAD_AREA_GROUPS.map(g => (
-              <optgroup key={g.label} label={g.label}>
-                {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-
-        {areaActual && (
-          <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">
-              Asignar a ({isIngeniero ? 'ingeniero' : 'usuario'})
-            </label>
-            <select
-              value={asignadoId}
-              onChange={e => setAsignadoId(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Solo al área (sin persona específica)</option>
-              {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-          </div>
-        )}
-
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Descripción</label>
-          <textarea
-            value={descripcion}
-            onChange={e => setDescripcion(e.target.value)}
-            rows={2}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-          />
-        </div>
+  /* ---- Desktop: modal normal ---- */
+  return (
+    <Modal open={open} title="Nuevo Lead" onClose={onClose}>
+      <div className="space-y-3">
+        {clienteField}
+        {contactoField}
+        {emailTelFields}
+        {motivoEstadoFields}
+        {areaAsignacionFields}
+        {descripcionField}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={handleSubmit} disabled={saving || !canSubmit}>

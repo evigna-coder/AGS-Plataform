@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { unidadesService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
@@ -15,6 +16,7 @@ export const UnidadesList = () => {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [filters, setFilters] = useState({
     estado: '' as string,
     condicion: '' as string,
@@ -42,14 +44,14 @@ export const UnidadesList = () => {
     }
   };
 
-  const filtered = unidades.filter(u => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
+  const filtered = useMemo(() => {
+    if (!debouncedSearch) return unidades;
+    const term = debouncedSearch.toLowerCase();
+    return unidades.filter(u =>
       u.articuloCodigo.toLowerCase().includes(term) ||
       u.articuloDescripcion.toLowerCase().includes(term)
     );
-  });
+  }, [unidades, debouncedSearch]);
 
   if (loading && unidades.length === 0) {
     return (

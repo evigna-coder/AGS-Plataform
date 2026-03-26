@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { sistemasService, categoriasEquipoService, clientesService, establecimientosService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -45,6 +46,7 @@ export const EquiposList = () => {
   const [reassigning, setReassigning] = useState(false);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [estadoTab, setEstadoTab] = useState<EstadoTab>('activos');
   const [categoriaFilter, setCategoriaFilter] = useState('');
   const [sortField, setSortField] = useState('cliente');
@@ -109,8 +111,8 @@ export const EquiposList = () => {
     if (estadoTab === 'activos') result = result.filter(s => s.activo !== false);
     else if (estadoTab === 'inactivos') result = result.filter(s => s.activo === false);
     if (categoriaFilter) result = result.filter(s => s.categoriaId === categoriaFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(s => {
         const est = estMap[s.establecimientoId || ''];
         const clienteName = clienteMap[est?.clienteCuit ?? s.clienteId ?? ''] || '';
@@ -135,7 +137,7 @@ export const EquiposList = () => {
       return result;
     }
     return sortByField(result, sortField, sortDir);
-  }, [sistemas, estadoTab, categoriaFilter, search, clienteMap, estMap, sortField, sortDir]);
+  }, [sistemas, estadoTab, categoriaFilter, debouncedSearch, clienteMap, estMap, sortField, sortDir]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {

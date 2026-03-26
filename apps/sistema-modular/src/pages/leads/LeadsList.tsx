@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { Lead, LeadEstado, UsuarioAGS, Cliente } from '@ags/shared';
 import {
   LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
@@ -35,6 +36,7 @@ export const LeadsList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [estadoFilter, setEstadoFilter] = useState<LeadEstado | ''>('');
   const [filters, setFilters] = useState<LeadFiltersState>(INITIAL_FILTERS);
 
@@ -70,8 +72,8 @@ export const LeadsList = () => {
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
         l.razonSocial.toLowerCase().includes(q) ||
         l.contacto.toLowerCase().includes(q) ||
@@ -80,7 +82,7 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 

@@ -236,6 +236,26 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Asignaciones de stock a ingenieros
+    match /asignaciones/{asignacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Dispositivos (celulares, computadoras, tablets)
+    match /dispositivos/{dispositivoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Vehículos
+    match /vehiculos/{vehiculoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Plantillas de Minikit
+    match /minikitTemplates/{templateId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;

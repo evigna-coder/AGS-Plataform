@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
@@ -32,12 +32,12 @@ const CodigoAutocomplete: React.FC<{
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filtered = search.length >= 2
+  const filtered = useMemo(() => search.length >= 2
     ? catalog.filter(a =>
         a.codigo.toLowerCase().includes(search.toLowerCase()) ||
         a.descripcion.toLowerCase().includes(search.toLowerCase())
       ).slice(0, 12)
-    : [];
+    : [], [search, catalog]);
 
   const selectItem = (art: ArticuloCatalog) => {
     onSelect(art);

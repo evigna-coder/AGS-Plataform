@@ -16,3 +16,7 @@ export * from './agendaService';
 export * from './fichasService';
 export * from './loanersService';
 export * from './importacionesService';
+export * from './asignacionesService';
+export * from './ingresoEmpresasService';
+export * from './vehiculosService';
+export * from './dispositivosService';

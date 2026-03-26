@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { articulosService, marcasService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -22,6 +23,7 @@ export const ArticulosList = () => {
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
@@ -86,11 +88,13 @@ export const ArticulosList = () => {
     return (art as any).marca || '-';
   };
 
-  const filtered = articulos.filter(a => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return a.codigo.toLowerCase().includes(term) || a.descripcion.toLowerCase().includes(term);
-  });
+  const filtered = useMemo(() => {
+    if (!debouncedSearch) return articulos;
+    const term = debouncedSearch.toLowerCase();
+    return articulos.filter(a =>
+      a.codigo.toLowerCase().includes(term) || a.descripcion.toLowerCase().includes(term)
+    );
+  }, [articulos, debouncedSearch]);
 
   // ─── Selection helpers ──────────────────────────────────────────────────────
   const toggleSelect = useCallback((id: string) => {
@@ -109,16 +113,29 @@ export const ArticulosList = () => {
 
   const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
 
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Process in batches of 100 to avoid Firestore rate limits
+  const processBatched = async (ids: string[], fn: (id: string) => Promise<void>) => {
+    const arr = [...ids];
+    for (let i = 0; i < arr.length; i += 100) {
+      await Promise.all(arr.slice(i, i + 100).map(fn));
+    }
+  };
+
   const handleBulkDeactivate = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Desactivar ${selectedIds.size} articulo(s)?`)) return;
     try {
-      await Promise.all([...selectedIds].map(id => articulosService.deactivate(id)));
+      setBulkLoading(true);
+      await processBatched([...selectedIds], id => articulosService.deactivate(id));
       setSelectedIds(new Set());
       await loadData();
     } catch (error) {
       console.error('Error en desactivacion masiva:', error);
       alert('Error al desactivar articulos');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -126,12 +143,15 @@ export const ArticulosList = () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Eliminar permanentemente ${selectedIds.size} articulo(s)?\n\nEsta accion no se puede deshacer.`)) return;
     try {
-      await Promise.all([...selectedIds].map(id => articulosService.delete(id)));
+      setBulkLoading(true);
+      await processBatched([...selectedIds], id => articulosService.delete(id));
       setSelectedIds(new Set());
       await loadData();
     } catch (error) {
       console.error('Error en eliminacion masiva:', error);
       alert('Error al eliminar articulos');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -207,9 +227,18 @@ export const ArticulosList = () => {
       {selectedIds.size > 0 && (
         <div className="mx-5 mb-2 flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-4 py-2">
           <span className="text-xs font-medium text-teal-800">{selectedIds.size} seleccionado(s)</span>
-          <button onClick={handleBulkDeactivate} className="text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2 py-0.5 rounded transition-colors">Desactivar</button>
-          <button onClick={handleBulkDelete} className="text-[11px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-0.5 rounded transition-colors">Eliminar</button>
-          <button onClick={() => setSelectedIds(new Set())} className="text-[11px] text-slate-400 hover:text-slate-600 ml-auto">Deseleccionar</button>
+          {bulkLoading ? (
+            <span className="flex items-center gap-2 text-xs text-teal-700">
+              <span className="inline-block w-3.5 h-3.5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+              Procesando...
+            </span>
+          ) : (
+            <>
+              <button onClick={handleBulkDeactivate} className="text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2 py-0.5 rounded transition-colors">Desactivar</button>
+              <button onClick={handleBulkDelete} className="text-[11px] font-medium text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-0.5 rounded transition-colors">Eliminar</button>
+              <button onClick={() => setSelectedIds(new Set())} className="text-[11px] text-slate-400 hover:text-slate-600 ml-auto">Deseleccionar</button>
+            </>
+          )}
         </div>
       )}
 

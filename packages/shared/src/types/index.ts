@@ -1301,6 +1301,9 @@ export interface InstrumentoPatron {
   reemplazaA?: string | null;
   /** ID del instrumento que lo reemplazó */
   reemplazadoPor?: string | null;
+  /** Asignación actual (ingeniero) */
+  asignadoAId?: string | null;
+  asignadoANombre?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1371,6 +1374,9 @@ export interface PosicionStock {
   nombre: string;
   descripcion?: string | null;
   tipo: TipoPosicionStock;
+  parentId?: string | null;
+  zona?: string | null;
+  orden?: number;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1489,6 +1495,8 @@ export interface Minikit {
   descripcion?: string | null;
   estado: EstadoMinikit;
   asignadoA?: AsignacionMinikit | null;
+  templateId?: string | null;
+  templateNombre?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1496,6 +1504,82 @@ export interface Minikit {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+}
+
+// --- Plantillas de Minikit ---
+
+export interface MinikitTemplateItem {
+  articuloId: string;
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  cantidadMinima: number;
+  sector?: string | null;
+}
+
+export interface MinikitTemplate {
+  id: string;
+  nombre: string;
+  descripcion?: string | null;
+  sectores: string[];
+  items: MinikitTemplateItem[];
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Asignaciones de Stock ---
+
+export type TipoItemAsignacion = 'articulo' | 'minikit' | 'loaner' | 'instrumento' | 'dispositivo' | 'vehiculo';
+export type EstadoItemAsignacion = 'asignado' | 'devuelto' | 'consumido';
+
+export interface ItemAsignacion {
+  id: string;
+  tipo: TipoItemAsignacion;
+  unidadId?: string | null;
+  articuloId?: string | null;
+  articuloCodigo?: string | null;
+  articuloDescripcion?: string | null;
+  cantidad: number;
+  cantidadDevuelta: number;
+  cantidadConsumida: number;
+  minikitId?: string | null;
+  minikitCodigo?: string | null;
+  loanerId?: string | null;
+  loanerCodigo?: string | null;
+  instrumentoId?: string | null;
+  instrumentoNombre?: string | null;
+  instrumentoTipo?: 'instrumento' | 'patron' | null;
+  dispositivoId?: string | null;
+  dispositivoDescripcion?: string | null;
+  vehiculoId?: string | null;
+  vehiculoPatente?: string | null;
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  otNumber?: string | null;
+  proposito?: string | null;
+  estado: EstadoItemAsignacion;
+  permanente: boolean;
+  fechaAsignacion: string;
+  fechaDevolucion?: string | null;
+}
+
+export type EstadoAsignacion = 'activa' | 'completada' | 'cancelada';
+
+export interface Asignacion {
+  id: string;
+  numero: string;
+  ingenieroId: string;
+  ingenieroNombre: string;
+  items: ItemAsignacion[];
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  observaciones?: string | null;
+  estado: EstadoAsignacion;
+  remitoId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
 }
 
 // --- Movimientos de Stock (log inmutable de auditoría) ---
@@ -1909,6 +1993,9 @@ export interface RequerimientoCompra {
   solicitadoPor: string;
   fechaSolicitud: string;
   fechaAprobacion?: string | null;
+  urgencia?: UrgenciaRequerimiento;
+  presupuestoId?: string | null;
+  presupuestoNumero?: string | null;
   notas?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -1917,6 +2004,8 @@ export interface RequerimientoCompra {
   updatedBy?: string | null;
   updatedByName?: string | null;
 }
+
+export type UrgenciaRequerimiento = 'baja' | 'media' | 'alta' | 'critica';
 
 // =============================================
 // --- Importaciones (Comercio Exterior) ---
@@ -2014,6 +2103,198 @@ export interface Importacion {
 export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'admin_contable' | 'administracion';
 export type UserStatus = 'pendiente' | 'activo' | 'deshabilitado';
 
+// ── Ingreso a Empresas ──────────────────────────────────────────────────
+
+/** Estado de un documento requerido para ingreso a empresa */
+export type DocumentoIngresoStatus =
+  | 'no_requerido'
+  | 'requerido'
+  | 'con_contrato'
+  | 'con_nomina'
+  | 'con_contrato_y_nomina';
+
+export const DOCUMENTO_INGRESO_LABELS: Record<DocumentoIngresoStatus, string> = {
+  no_requerido: 'No requerido',
+  requerido: 'Requerido',
+  con_contrato: 'Con Contrato',
+  con_nomina: 'Con Nómina',
+  con_contrato_y_nomina: 'Con Contrato y Nómina',
+};
+
+/** Tipo de cliente para ingreso */
+export type TipoIngresoCliente = 'PI' | 'CNT';
+
+export const TIPO_INGRESO_LABELS: Record<TipoIngresoCliente, string> = {
+  PI: 'Planta Industrial',
+  CNT: 'Contratista',
+};
+
+/** Documentos requeridos para ingreso a una empresa */
+export interface DocumentacionIngreso {
+  art: DocumentoIngresoStatus;
+  cnr: DocumentoIngresoStatus;
+  svo: DocumentoIngresoStatus;
+  altaTemprana: DocumentoIngresoStatus;
+  anexoN2: DocumentoIngresoStatus;
+  avisoObra: DocumentoIngresoStatus;
+  f931: DocumentoIngresoStatus;
+  estudioMedico: DocumentoIngresoStatus;
+  epp: DocumentoIngresoStatus;
+  planPagos: DocumentoIngresoStatus;
+  sueldos: DocumentoIngresoStatus;
+  hojaMembreteada: DocumentoIngresoStatus;
+}
+
+export const DOCUMENTACION_INGRESO_KEYS: { key: keyof DocumentacionIngreso; label: string }[] = [
+  { key: 'art', label: 'ART' },
+  { key: 'cnr', label: 'CNR' },
+  { key: 'svo', label: 'SVO' },
+  { key: 'altaTemprana', label: 'Alta Temprana' },
+  { key: 'anexoN2', label: 'Anexo N°2' },
+  { key: 'avisoObra', label: 'Aviso de Obra + Programa' },
+  { key: 'f931', label: 'F.931' },
+  { key: 'estudioMedico', label: 'Estudio Médico' },
+  { key: 'epp', label: 'EPP' },
+  { key: 'planPagos', label: 'Plan Pagos' },
+  { key: 'sueldos', label: 'Sueldos' },
+  { key: 'hojaMembreteada', label: 'Hoja Membretada' },
+];
+
+export const DEFAULT_DOCUMENTACION: DocumentacionIngreso = {
+  art: 'no_requerido',
+  cnr: 'no_requerido',
+  svo: 'no_requerido',
+  altaTemprana: 'no_requerido',
+  anexoN2: 'no_requerido',
+  avisoObra: 'no_requerido',
+  f931: 'no_requerido',
+  estudioMedico: 'no_requerido',
+  epp: 'no_requerido',
+  planPagos: 'no_requerido',
+  sueldos: 'no_requerido',
+  hojaMembreteada: 'no_requerido',
+};
+
+export interface IngresoEmpresa {
+  id: string;
+  clienteId: string;
+  clienteNombre: string;
+  tipo: TipoIngresoCliente;
+  induccion: {
+    requerida: boolean;
+    descripcion: string;
+    duracion?: string;
+    horario?: string;
+  };
+  contacto: string;
+  documentacion: DocumentacionIngreso;
+  notas: string;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+// ── Dispositivos (celulares, computadoras, etc.) ────────────────────────
+
+export type TipoDispositivo = 'celular' | 'computadora' | 'tablet' | 'otro';
+
+export interface Dispositivo {
+  id: string;
+  tipo: TipoDispositivo;
+  marca: string;
+  modelo: string;
+  serie: string;
+  descripcion?: string | null;
+  asignadoAId?: string | null;
+  asignadoANombre?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+// ── Seguimiento Vehicular ───────────────────────────────────────────────
+
+/** Criterio de servicio periódico para un vehículo */
+export interface CriterioServicioVehiculo {
+  servicio: string;
+  cadaKm?: number | null;
+  cadaTiempo?: string | null;
+  kmReemplazo?: number | null;
+  comentario: string;
+}
+
+/** Vencimiento con fecha */
+export interface VencimientoVehiculo {
+  tipo: string;
+  fecha: string;
+  notas?: string;
+}
+
+/** Registro de un servicio realizado (estado actual de cada tipo) */
+export interface ServicioVehiculo {
+  id: string;
+  vehiculoId: string;
+  servicio: string;
+  kmRealizacion: number;
+  extensionKm: number;
+  fechaRealizacion: string;
+  fechaEstimativa: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Visita al taller */
+export interface VisitaTaller {
+  id: string;
+  vehiculoId: string;
+  taller: string;
+  fecha: string;
+  km?: number | null;
+  factura?: string | null;
+  monto?: number | null;
+  descripcion: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Registro mensual de kilometraje */
+export interface RegistroKm {
+  id: string;
+  vehiculoId: string;
+  fecha: string;
+  km: number;
+  createdAt: string;
+}
+
+export interface Vehiculo {
+  id: string;
+  patente: string;
+  marca: string;
+  modelo: string;
+  anio?: number | null;
+  color?: string | null;
+  asignadoA: string;
+  criteriosServicio: CriterioServicioVehiculo[];
+  vencimientos: VencimientoVehiculo[];
+  kmActual?: number | null;
+  notas?: string;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 /** Identificadores de app para control de acceso */
 export type AppId = 'sistema-modular' | 'portal-ingeniero' | 'reportes-ot';
 
@@ -2030,6 +2311,9 @@ export type ModuloId =
   | 'loaners'
   | 'instrumentos'
   | 'table-catalog'
+  | 'ingreso-empresas'
+  | 'dispositivos'
+  | 'vehiculos'
   | 'agenda'
   | 'facturacion'
   | 'usuarios'
@@ -2039,15 +2323,15 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'agenda', 'facturacion', 'usuarios', 'admin'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'facturacion', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'agenda'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'agenda'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
   },
   admin_contable: {
     apps: ['sistema-modular'],
@@ -2074,6 +2358,9 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/loaners': 'loaners',
   '/instrumentos': 'instrumentos',
   '/table-catalog': 'table-catalog',
+  '/ingreso-empresas': 'ingreso-empresas',
+  '/dispositivos': 'dispositivos',
+  '/vehiculos': 'vehiculos',
   '/agenda': 'agenda',
   '/facturacion': 'facturacion',
   '/usuarios': 'usuarios',
@@ -2093,6 +2380,9 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'loaners': 'Loaners',
   'instrumentos': 'Instrumentos',
   'table-catalog': 'Biblioteca de Tablas',
+  'ingreso-empresas': 'Ingreso a Empresas',
+  'dispositivos': 'Dispositivos',
+  'vehiculos': 'Vehículos',
   'agenda': 'Agenda',
   'facturacion': 'Facturación',
   'usuarios': 'Usuarios',

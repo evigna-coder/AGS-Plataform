@@ -2,31 +2,34 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Reglas para la carpeta de reportes PDF
-    match /reports/{ot}/{filename} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.resource.size < 10 * 1024 * 1024
-                   && request.resource.contentType == 'application/pdf'
-                   && filename.matches('.*\\.pdf$')
-                   && ot.matches('\\d{5}(?:\\.\\d{2})?');
+    // Permitir acceso a archivos del sistema modular
+    match /sistema-modular/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+      // TODO: Implementar autenticación y cambiar a:
+      // allow read, write: if request.auth != null;
     }
 
-    // Reglas para adjuntos (fotos, archivos, certificados)
-    match /adjuntos/{ot}/{filename} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.resource.size < 15 * 1024 * 1024;
+    // Certificados e instrumentos (calibración y trazabilidad)
+    match /certificados/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
     }
 
-    // Reglas para certificados de instrumentos
-    match /certificados/{instrumentoId}/{filename} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.resource.size < 15 * 1024 * 1024;
+    // Adjuntos de reportes OT (fotos y archivos)
+    match /adjuntos/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
     }
 
-    // Bloquear acceso a cualquier otra ruta
+    // Adjuntos de leads (fotos y archivos)
+    match /leads/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
+    // Reportes PDF generados
+    match /reports/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
+    // Bloquear acceso a otras rutas
     match /{allPaths=**} {
       allow read, write: if false;
     }

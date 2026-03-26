@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -36,6 +37,7 @@ export const ClientesList = () => {
   const [bulkActioning, setBulkActioning] = useState(false);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [estadoTab, setEstadoTab] = useState<EstadoTab>('activos');
   const [sortField, setSortField] = useState('razonSocial');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -125,8 +127,8 @@ export const ClientesList = () => {
     let result = clientes;
     if (estadoTab === 'activos') result = result.filter(c => c.activo !== false);
     else if (estadoTab === 'inactivos') result = result.filter(c => c.activo === false);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(c =>
         c.razonSocial.toLowerCase().includes(q) ||
         (c.cuit || '').toLowerCase().includes(q) ||
@@ -134,7 +136,7 @@ export const ClientesList = () => {
       );
     }
     return sortByField(result, sortField, sortDir);
-  }, [clientes, search, estadoTab, sortField, sortDir]);
+  }, [clientes, debouncedSearch, estadoTab, sortField, sortDir]);
 
   // Determine bulk action label based on selected clients' state
   const bulkLabel = useMemo(() => {

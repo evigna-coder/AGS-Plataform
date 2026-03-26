@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, usuariosService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { WorkOrder, Cliente, Sistema, OTEstadoAdmin, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
@@ -256,6 +257,9 @@ export const OTList = () => {
     soloGarantia: false,
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const debouncedBusquedaOT = useDebounce(filters.busquedaOT, 300);
+  const debouncedBusquedaModulo = useDebounce(filters.busquedaModulo, 300);
+  const debouncedBusquedaEquipo = useDebounce(filters.busquedaEquipo, 300);
   const [sortField, setSortField] = useState('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -273,20 +277,20 @@ export const OTList = () => {
     } else if (filters.estadoAdmin) {
       list = list.filter(ot => resolveEstado(ot) === filters.estadoAdmin);
     }
-    if (filters.busquedaOT.trim()) {
-      const q = filters.busquedaOT.trim().toLowerCase();
+    if (debouncedBusquedaOT.trim()) {
+      const q = debouncedBusquedaOT.trim().toLowerCase();
       list = list.filter(ot => ot.otNumber.toLowerCase().includes(q));
     }
-    if (filters.busquedaModulo.trim()) {
-      const q = filters.busquedaModulo.trim().toLowerCase();
+    if (debouncedBusquedaModulo.trim()) {
+      const q = debouncedBusquedaModulo.trim().toLowerCase();
       list = list.filter(ot =>
         (ot.moduloModelo || '').toLowerCase().includes(q) ||
         (ot.moduloDescripcion || '').toLowerCase().includes(q) ||
         (ot.moduloSerie || '').toLowerCase().includes(q)
       );
     }
-    if (filters.busquedaEquipo.trim()) {
-      const q = filters.busquedaEquipo.trim().toLowerCase();
+    if (debouncedBusquedaEquipo.trim()) {
+      const q = debouncedBusquedaEquipo.trim().toLowerCase();
       list = list.filter(ot =>
         (ot.codigoInternoCliente || '').toLowerCase().includes(q)
       );
@@ -358,7 +362,7 @@ export const OTList = () => {
     sortedOrphans.forEach(ot => result.push({ ot, isItem: false, hasItems: false }));
 
     return result;
-  }, [ordenes, filters, sortField, sortDir]);
+  }, [ordenes, filters.estadoAdmin, filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId, filters.fechaDesde, filters.fechaHasta, filters.soloFacturable, filters.soloContrato, filters.soloGarantia, debouncedBusquedaOT, debouncedBusquedaModulo, debouncedBusquedaEquipo, sortField, sortDir]);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadOrdenes(); }, [filters.clienteId, filters.sistemaId]);

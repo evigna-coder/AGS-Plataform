@@ -1,0 +1,1 @@
+export { DispositivosList } from './DispositivosList';

@@ -22,3 +22,8 @@ export { OCDetail } from './OCDetail';
 export { ImportacionesList } from './ImportacionesList';
 export { ImportacionEditor } from './ImportacionEditor';
 export { ImportacionDetail } from './ImportacionDetail';
+export { MinikitTemplatesPage } from './MinikitTemplatesPage';
+export { AsignacionRapidaPage } from './AsignacionRapidaPage';
+export { AsignacionesList } from './AsignacionesList';
+export { AsignacionDetail } from './AsignacionDetail';
+export { InventarioIngenieroPage } from './InventarioIngenieroPage';

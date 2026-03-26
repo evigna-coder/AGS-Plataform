@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ingenierosService, usuariosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -230,6 +231,7 @@ export const IngenierosPage = () => {
                   )}
                   {editingId !== ing.id && (
                     <div className="flex gap-2 shrink-0">
+                      <Link to={`/stock/ingenieros/${ing.id}/inventario`} className="text-blue-600 hover:underline font-medium text-[11px]">Inventario</Link>
                       <button onClick={() => startEdit(ing)} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
                       <button onClick={() => handleToggle(ing)}
                         className={`font-medium text-[11px] ${ing.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>

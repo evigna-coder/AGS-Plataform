@@ -16,7 +16,10 @@ import { TableCatalogPage, TableCatalogEditorPage } from './pages/protocol-catal
 import { InstrumentosListPage, InstrumentoEditorPage } from './pages/instrumentos';
 import { FichasList, FichaEditor, FichaDetail } from './pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from './pages/loaners';
-import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail } from './pages/stock';
+import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitTemplatesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage } from './pages/stock';
+import { IngresoEmpresasList } from './pages/ingreso-empresas';
+import { DispositivosList } from './pages/dispositivos';
+import { VehiculosList, VehiculoDetail } from './pages/vehiculos';
 import { UsuariosList } from './pages/usuarios';
 import { ImportacionDatos } from './pages/admin';
 import { AgendaPage } from './pages/agenda';
@@ -115,6 +118,13 @@ function AuthGate() {
         <Route path="/table-catalog" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogPage /></ProtectedRoute>} />
         <Route path="/table-catalog/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogEditorPage /></ProtectedRoute>} />
         <Route path="/table-catalog/:tableId/edit" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogEditorPage /></ProtectedRoute>} />
+        {/* Ingreso a Empresas */}
+        <Route path="/ingreso-empresas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><IngresoEmpresasList /></ProtectedRoute>} />
+        {/* Dispositivos */}
+        <Route path="/dispositivos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><DispositivosList /></ProtectedRoute>} />
+        {/* Vehículos */}
+        <Route path="/vehiculos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><VehiculosList /></ProtectedRoute>} />
+        <Route path="/vehiculos/:id" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><VehiculoDetail /></ProtectedRoute>} />
         {/* Instrumentos — admin, ingeniero_soporte, admin_soporte */}
         <Route path="/instrumentos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentosListPage /></ProtectedRoute>} />
         <Route path="/instrumentos/nuevo" element={<Navigate to="/instrumentos" replace />} />
@@ -138,6 +148,7 @@ function AuthGate() {
         <Route path="/stock/unidades" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><UnidadesList /></ProtectedRoute>} />
         <Route path="/stock/minikits" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MinikitsList /></ProtectedRoute>} />
         <Route path="/stock/minikits/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MinikitDetail /></ProtectedRoute>} />
+        <Route path="/stock/minikit-plantillas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MinikitTemplatesPage /></ProtectedRoute>} />
         <Route path="/stock/remitos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RemitosList /></ProtectedRoute>} />
         <Route path="/stock/remitos/nuevo" element={<Navigate to="/stock/remitos" replace />} />
         <Route path="/stock/remitos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RemitoDetail /></ProtectedRoute>} />
@@ -152,11 +163,15 @@ function AuthGate() {
         <Route path="/stock/importaciones/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionEditor /></ProtectedRoute>} />
         <Route path="/stock/importaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionDetail /></ProtectedRoute>} />
         <Route path="/stock/ingenieros" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><IngenierosPage /></ProtectedRoute>} />
+        <Route path="/stock/ingenieros/:id/inventario" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><InventarioIngenieroPage /></ProtectedRoute>} />
         <Route path="/stock/proveedores" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ProveedoresPage /></ProtectedRoute>} />
         <Route path="/stock/proveedores/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ProveedorDetail /></ProtectedRoute>} />
         <Route path="/stock/posiciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PosicionesPage /></ProtectedRoute>} />
         <Route path="/stock/posiciones-arancelarias" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PosicionesArancelariasPage /></ProtectedRoute>} />
         <Route path="/stock/marcas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MarcasPage /></ProtectedRoute>} />
+        <Route path="/stock/asignaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionRapidaPage /></ProtectedRoute>} />
+        <Route path="/stock/asignaciones/historial" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionesList /></ProtectedRoute>} />
+        <Route path="/stock/asignaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AsignacionDetail /></ProtectedRoute>} />
         {/* Usuarios — admin only */}
         <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><UsuariosList /></ProtectedRoute>} />
         {/* Placeholders */}

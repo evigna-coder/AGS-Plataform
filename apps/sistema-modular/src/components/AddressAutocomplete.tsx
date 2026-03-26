@@ -99,15 +99,28 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 const formattedAddress = place.formatted_address || '';
                 const street = getComponent(comps, 'route');
                 const number = getComponent(comps, 'street_number');
-                const provincia = getComponent(comps, 'administrative_area_level_1');
                 const pais = getComponent(comps, 'country');
                 const codigoPostal = getComponent(comps, 'postal_code');
 
-                const localidad =
-                    getComponent(comps, 'locality') ||
-                    getComponent(comps, 'administrative_area_level_2') ||
-                    getComponent(comps, 'sublocality') ||
-                    '';
+                const adminLevel1 = getComponent(comps, 'administrative_area_level_1');
+                const adminLevel2 = getComponent(comps, 'administrative_area_level_2');
+                const locality = getComponent(comps, 'locality');
+                const sublocality = getComponent(comps, 'sublocality');
+
+                // CABA: Google devuelve admin_level_1 = "Ciudad Autónoma de Buenos Aires"
+                // y locality = "Buenos Aires". Para evitar redundancia, usamos CABA como localidad
+                // y dejamos provincia vacía.
+                const isCABA = adminLevel1.toLowerCase().includes('ciudad aut');
+                let localidad: string;
+                let provincia: string;
+
+                if (isCABA) {
+                    localidad = 'Ciudad Autónoma de Buenos Aires';
+                    provincia = '';
+                } else {
+                    localidad = locality || adminLevel2 || sublocality || '';
+                    provincia = adminLevel1;
+                }
 
                 const lat = place.geometry?.location?.lat();
                 const lng = place.geometry?.location?.lng();

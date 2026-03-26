@@ -358,6 +358,15 @@ service cloud.firestore {
     match /remitos/{remitoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
+    match /minikitTemplates/{templateId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /asignaciones/{asignacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /dispositivos/{dispositivoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
 
     // ========== PERSONAL ==========
     match /ingenieros/{ingenieroId} {

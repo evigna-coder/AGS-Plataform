@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { establecimientosService, clientesService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { Establecimiento, Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -33,6 +34,7 @@ export const EstablecimientosList = () => {
   const [deleting, setDeleting] = useState(false);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [clienteFilter, setClienteFilter] = useState(clienteCuitFromUrl || '');
   const [sortField, setSortField] = useState('cliente');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -121,8 +123,8 @@ export const EstablecimientosList = () => {
   const filtered = useMemo(() => {
     let result = establecimientos;
     if (clienteFilter) result = result.filter(e => (e.clienteCuit || (e as any).clienteId) === clienteFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(e =>
         e.nombre.toLowerCase().includes(q) ||
         (e.direccion || '').toLowerCase().includes(q) ||
@@ -141,7 +143,7 @@ export const EstablecimientosList = () => {
       return result;
     }
     return sortByField(result, sortField, sortDir);
-  }, [establecimientos, clienteFilter, search, clienteMap, sortField, sortDir]);
+  }, [establecimientos, clienteFilter, debouncedSearch, clienteMap, sortField, sortDir]);
 
   if (loading && establecimientos.length === 0) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando establecimientos...</p></div>;

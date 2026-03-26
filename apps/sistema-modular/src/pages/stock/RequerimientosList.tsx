@@ -5,7 +5,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRequerimientoModal } from '../../components/stock/CreateRequerimientoModal';
-import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento } from '@ags/shared';
+import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, UrgenciaRequerimiento } from '@ags/shared';
 import {
   ESTADO_REQUERIMIENTO_LABELS,
   ESTADO_REQUERIMIENTO_COLORS,
@@ -19,10 +19,20 @@ const ORIGEN_COLORS: Record<OrigenRequerimiento, string> = {
   ingeniero: 'bg-blue-50 text-blue-700',
 };
 
+const URGENCIA_COLORS: Record<UrgenciaRequerimiento, string> = {
+  baja: 'bg-slate-100 text-slate-500',
+  media: 'bg-blue-50 text-blue-700',
+  alta: 'bg-amber-50 text-amber-700',
+  critica: 'bg-red-100 text-red-700',
+};
+const URGENCIA_LABELS: Record<UrgenciaRequerimiento, string> = {
+  baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica',
+};
+
 export const RequerimientosList = () => {
   const [requerimientos, setRequerimientos] = useState<RequerimientoCompra[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ estado: '', origen: '' });
+  const [filters, setFilters] = useState({ estado: '', origen: '', urgencia: '' });
   const [showCreate, setShowCreate] = useState(false);
   const [sortField, setSortField] = useState('fechaSolicitud');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -32,7 +42,11 @@ export const RequerimientosList = () => {
     setSortField(s.field); setSortDir(s.dir);
   };
 
-  const sorted = useMemo(() => sortByField(requerimientos, sortField, sortDir), [requerimientos, sortField, sortDir]);
+  const filtered = useMemo(() => {
+    if (!filters.urgencia) return requerimientos;
+    return requerimientos.filter(r => r.urgencia === filters.urgencia);
+  }, [requerimientos, filters.urgencia]);
+  const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
   useEffect(() => { loadData(); }, [filters.estado, filters.origen]);
 
@@ -113,6 +127,13 @@ export const RequerimientosList = () => {
               <option key={k} value={k}>{ORIGEN_REQUERIMIENTO_LABELS[k]}</option>
             ))}
           </select>
+          <select value={filters.urgencia} onChange={e => setFilters({ ...filters, urgencia: e.target.value })}
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="">Todas las urgencias</option>
+            {(Object.keys(URGENCIA_LABELS) as UrgenciaRequerimiento[]).map(k => (
+              <option key={k} value={k}>{URGENCIA_LABELS[k]}</option>
+            ))}
+          </select>
         </div>
       </PageHeader>
 
@@ -129,6 +150,7 @@ export const RequerimientosList = () => {
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cantidad</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Urgencia</th>
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Solicitado por</th>
                   <SortableHeader label="Fecha" field="fechaSolicitud" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                   <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
@@ -153,6 +175,13 @@ export const RequerimientosList = () => {
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_REQUERIMIENTO_COLORS[r.estado]}`}>
                         {ESTADO_REQUERIMIENTO_LABELS[r.estado]}
                       </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {r.urgencia && (
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${URGENCIA_COLORS[r.urgencia]}`}>
+                          {URGENCIA_LABELS[r.urgencia]}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-xs text-slate-900">{r.solicitadoPor}</td>
                     <td className="px-4 py-2 text-xs text-slate-600">{formatDate(r.fechaSolicitud)}</td>

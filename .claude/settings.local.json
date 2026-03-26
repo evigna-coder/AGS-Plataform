@@ -22,7 +22,15 @@
       "Bash(grep -r \"SearchableSelect\\\\|Autocomplete\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components' --include=*.tsx)",
       "Bash(where skills.sh)",
       "Bash(ls -la apps/sistema-modular/src/pages/presupuestos/*.tsx)",
-      "Bash(npx firebase:*)"
+      "Bash(npx firebase:*)",
+      "Bash(node scripts/delete-z-articulos.mjs)",
+      "Bash(node --experimental-specifier-resolution=node -e \":*)",
+      "Bash(node delete-z-articulos.mjs)",
+      "Bash(node scripts/check-address.js \"Metro Gas\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(grep -rn \"minikit\\\\|Minikit\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/' --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn \"CreateLoanerModal\\\\|CreateRequerimientoModal\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/' --include=*.tsx)",
+      "Bash(ls \"c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\sistema-modular\"/tsconfig*.json)"
     ]
   }
 }

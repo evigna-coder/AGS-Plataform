@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { minikitsService, unidadesService, ingenierosService } from '../../services/firebaseService';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { minikitsService, unidadesService, ingenierosService, minikitTemplatesService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
-import type { Minikit, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
+import type { Minikit, MinikitTemplate, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const ESTADO_LABELS: Record<EstadoMinikit, string> = {
@@ -31,7 +31,6 @@ const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
 
 export const MinikitDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [minikit, setMinikit] = useState<Minikit | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
@@ -40,6 +39,8 @@ export const MinikitDetail = () => {
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [selectedIngenieroId, setSelectedIngenieroId] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [template, setTemplate] = useState<MinikitTemplate | null>(null);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -51,6 +52,10 @@ export const MinikitDetail = () => {
       ]);
       setMinikit(mk);
       setUnidades(allUnidades.filter(u => u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === id));
+      if (mk?.templateId) {
+        const tmpl = await minikitTemplatesService.getById(mk.templateId);
+        setTemplate(tmpl);
+      } else { setTemplate(null); }
     } catch (err) { console.error('Error cargando minikit:', err); }
     finally { setLoading(false); }
   }, [id]);
@@ -133,6 +138,7 @@ export const MinikitDetail = () => {
                 <LV label="Descripcion" value={minikit.descripcion} />
                 <LV label="Estado" value={<Badge label={ESTADO_LABELS[minikit.estado]} color={ESTADO_COLORS[minikit.estado]} />} />
                 <LV label="Asignado a" value={minikit.asignadoA ? `${minikit.asignadoA.tipo === 'ingeniero' ? 'Ing.' : 'OT'} ${minikit.asignadoA.nombre}` : null} />
+                {minikit.templateNombre && <LV label="Plantilla" value={minikit.templateNombre} />}
               </div>
             </Card>
 
@@ -191,9 +197,64 @@ export const MinikitDetail = () => {
                 </div>
               )}
             </Card>
+
+            {template && <TemplateComparisonCard template={template} unidades={unidades} />}
           </div>
         </div>
       </div>
     </div>
+  );
+};
+
+// --- Template Comparison ---
+const TemplateComparisonCard = ({ template, unidades }: { template: MinikitTemplate; unidades: UnidadStock[] }) => {
+  const comparison = useMemo(() => {
+    return template.items.map(tmplItem => {
+      const actual = unidades.filter(u => u.articuloId === tmplItem.articuloId).length;
+      const diff = actual - tmplItem.cantidadMinima;
+      const status: 'ok' | 'warning' | 'missing' = diff >= 0 ? 'ok' : diff >= -1 ? 'warning' : 'missing';
+      return { ...tmplItem, actual, diff, status };
+    });
+  }, [template, unidades]);
+
+  const statusColors = { ok: 'bg-green-100 text-green-700', warning: 'bg-amber-100 text-amber-700', missing: 'bg-red-100 text-red-700' };
+  const statusLabels = { ok: 'Completo', warning: 'Casi', missing: 'Faltante' };
+  const allOk = comparison.every(c => c.status === 'ok');
+
+  return (
+    <Card compact title={`Plantilla: ${template.nombre}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${allOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          {allOk ? 'Cumple plantilla' : 'No cumple plantilla'}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Artículo</th>
+              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Mínimo</th>
+              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Actual</th>
+              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.map((c, i) => (
+              <tr key={i} className="border-b border-slate-50 last:border-0">
+                <td className="text-xs py-2 pr-3">
+                  <span className="font-mono text-teal-600 font-semibold">{c.articuloCodigo}</span>
+                  <span className="text-slate-600 ml-1.5">{c.articuloDescripcion}</span>
+                </td>
+                <td className="text-xs py-2 text-center text-slate-500">{c.cantidadMinima}</td>
+                <td className="text-xs py-2 text-center font-medium">{c.actual}</td>
+                <td className="text-xs py-2 text-center">
+                  <Badge label={statusLabels[c.status]} color={statusColors[c.status]} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 };

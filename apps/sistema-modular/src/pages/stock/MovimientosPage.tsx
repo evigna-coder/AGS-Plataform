@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { movimientosService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -31,6 +32,7 @@ export const MovimientosPage = () => {
   const [loading, setLoading] = useState(true);
   const [tipoFilter, setTipoFilter] = useState<TipoMovimiento | ''>('');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [showCreate, setShowCreate] = useState(false);
 
   const load = async () => {
@@ -49,11 +51,11 @@ export const MovimientosPage = () => {
 
   useEffect(() => { load(); }, [tipoFilter]);
 
-  const filtered = search
+  const filtered = useMemo(() => debouncedSearch
     ? items.filter(m =>
-        m.articuloCodigo.toLowerCase().includes(search.toLowerCase()) ||
-        m.articuloDescripcion.toLowerCase().includes(search.toLowerCase()))
-    : items;
+        m.articuloCodigo.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        m.articuloDescripcion.toLowerCase().includes(debouncedSearch.toLowerCase()))
+    : items, [items, debouncedSearch]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">

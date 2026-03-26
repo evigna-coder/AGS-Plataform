@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { presupuestosService, clientesService, usuariosService } from '../../services/firebaseService';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { Presupuesto, Cliente, TipoPresupuesto, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
@@ -31,6 +32,7 @@ export const PresupuestosList = () => {
   const floatingPres = useFloatingPresupuesto();
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [filters, setFilters] = useState({
     cliente: '',
     estado: '' as Presupuesto['estado'] | '',
@@ -77,8 +79,8 @@ export const PresupuestosList = () => {
       if (filters.fechaHasta && p.createdAt > filters.fechaHasta + 'T23:59:59') return false;
       return true;
     });
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(p =>
         p.numero.toLowerCase().includes(q) ||
         getClienteNombre(p.clienteId).toLowerCase().includes(q)
@@ -101,7 +103,7 @@ export const PresupuestosList = () => {
       result = sortByField(result, sortField, sortDir);
     }
     return result;
-  }, [presupuestos, filters, search, sortField, sortDir]);
+  }, [presupuestos, filters, debouncedSearch, sortField, sortDir]);
 
   const pipelineByMoneda = useMemo(() => {
     const map: Record<string, number> = {};
