@@ -346,6 +346,11 @@ export function useAppLogic(
     if (!otNumber) entitySelectors.reset();
   }, [otNumber]);
 
+  // Limpiar PDF cacheado cuando cambia de reporte
+  useEffect(() => {
+    setGeneratedPdfBlob(null);
+  }, [otNumber]);
+
   const isLockedByClient = readOnly && status === 'BORRADOR';
 
   // Validación antes de confirmar firma o finalizar
