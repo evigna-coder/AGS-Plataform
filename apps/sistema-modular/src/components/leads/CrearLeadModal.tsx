@@ -34,11 +34,14 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
   const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
   const [accionPendiente, setAccionPendiente] = useState('');
   const [prioridad, setPrioridad] = useState<LeadPrioridad>('media');
-  const [proximoContacto, setProximoContacto] = useState('');
-  const [valorEstimado, setValorEstimado] = useState('');
+  const [diasProximoContacto, setDiasProximoContacto] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Client search state for free-text entry
+  const [clienteSearch, setClienteSearch] = useState('');
+  const [showClienteDropdown, setShowClienteDropdown] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -52,15 +55,27 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
     });
   }, []);
 
-  const handleClienteChange = (id: string) => {
-    setClienteId(id);
+  const filteredClientes = clienteSearch.trim()
+    ? clientes.filter(c => c.razonSocial.toLowerCase().includes(clienteSearch.toLowerCase())).slice(0, 8)
+    : [];
+
+  const handleSelectCliente = (cli: Cliente) => {
+    setClienteId(cli.id);
+    setRazonSocial(cli.razonSocial);
+    setClienteSearch('');
+    setShowClienteDropdown(false);
     setSistemaId('');
     setModuloId('');
     setModulos([]);
-    if (id) {
-      const cli = clientes.find(c => c.id === id);
-      if (cli) setRazonSocial(cli.razonSocial);
-    }
+  };
+
+  const handleClearCliente = () => {
+    setClienteId('');
+    setRazonSocial('');
+    setSistemaId('');
+    setModuloId('');
+    setModulos([]);
+    setSistemas(prev => prev);
   };
 
   const handleSistemaChange = async (id: string) => {
@@ -78,9 +93,17 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
     ? sistemas.filter(s => s.clienteId === clienteId)
     : sistemas;
 
+  const calcProximoContacto = (): string | null => {
+    const dias = parseInt(diasProximoContacto);
+    if (isNaN(dias) || dias <= 0) return null;
+    const date = new Date();
+    date.setDate(date.getDate() + dias);
+    return date.toISOString().split('T')[0];
+  };
+
   const handleSubmit = async () => {
     const errs: Record<string, string> = {};
-    if (!razonSocial.trim() && !clienteId) errs.razonSocial = 'Ingrese razón social o seleccione cliente';
+    if (!razonSocial.trim()) errs.razonSocial = 'Ingrese o seleccione un cliente';
     if (!contacto.trim()) errs.contacto = 'Obligatorio';
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -120,14 +143,13 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         areaActual: areaActual || null,
         accionPendiente: accionPendiente.trim() || null,
         prioridad: prioridad || 'media',
-        proximoContacto: proximoContacto || null,
-        valorEstimado: valorEstimado ? parseFloat(valorEstimado) : null,
+        proximoContacto: calcProximoContacto(),
+        valorEstimado: null,
         createdBy: usuario?.id,
         finalizadoAt: null,
         presupuestosIds: [],
         otIds: [],
       });
-      // Upload pending files after creation
       if (pendingFiles.length > 0) {
         await leadsService.uploadAdjuntos(leadId, pendingFiles, 0);
       }
@@ -140,59 +162,77 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
     }
   };
 
+  const selectClass = 'w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500';
+  const labelClass = 'text-[11px] font-medium text-slate-400 mb-1 block';
+
   return (
     <Modal open title="Nuevo Lead" subtitle="Registrar nueva consulta" onClose={onClose}>
       <div className="space-y-3">
+        {/* Motivo */}
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Motivo *</label>
-          <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <label className={labelClass}>Motivo *</label>
+          <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
             {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        {/* Prioridad + Próximo contacto (días) */}
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Prioridad</label>
-            <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <label className={labelClass}>Prioridad</label>
+            <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad)} className={selectClass}>
               {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
-            <input type="date" value={proximoContacto} onChange={e => setProximoContacto(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <label className={labelClass}>Próximo contacto (días)</label>
+            <input type="number" min="1" value={diasProximoContacto}
+              onChange={e => setDiasProximoContacto(e.target.value)}
+              className={selectClass} placeholder="Ej: 10" />
+            {diasProximoContacto && parseInt(diasProximoContacto) > 0 && (
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                {(() => { const d = new Date(); d.setDate(d.getDate() + parseInt(diasProximoContacto)); return d.toLocaleDateString('es-AR'); })()}
+              </span>
+            )}
           </div>
-          <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Valor estimado (ARS)</label>
-            <input type="number" value={valorEstimado} onChange={e => setValorEstimado(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              placeholder="$0" min="0" />
-          </div>
         </div>
 
+        {/* Cliente — búsqueda con texto libre */}
+        <div className="relative">
+          <label className={labelClass}>Cliente / Razón Social *</label>
+          {clienteId ? (
+            <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50">
+              <span className="text-xs text-slate-700 font-medium flex-1 truncate">{razonSocial}</span>
+              <button onClick={handleClearCliente} className="text-[10px] text-red-500 hover:text-red-700 font-medium shrink-0">Cambiar</button>
+            </div>
+          ) : (
+            <>
+              <input type="text" value={razonSocial}
+                onChange={e => { setRazonSocial(e.target.value); setClienteSearch(e.target.value); setShowClienteDropdown(true); }}
+                onFocus={() => { if (razonSocial) setShowClienteDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
+                className={selectClass}
+                placeholder="Buscar cliente o escribir razón social nueva..." />
+              {errors.razonSocial && <span className="text-[10px] text-red-500 mt-0.5 block">{errors.razonSocial}</span>}
+              {showClienteDropdown && filteredClientes.length > 0 && (
+                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {filteredClientes.map(c => (
+                    <button key={c.id} onMouseDown={() => handleSelectCliente(c)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-teal-50 text-slate-700 border-b border-slate-100 last:border-0">
+                      {c.razonSocial}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Contacto + Email + Teléfono */}
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Descripción</label>
-          <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-            placeholder="Detalle de la consulta o solicitud..." />
-        </div>
-
-        <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Cliente (opcional)</label>
-          <SearchableSelect value={clienteId} onChange={handleClienteChange}
-            options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
-            placeholder="Buscar cliente..." />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Input inputSize="sm" label="Razón Social *" value={razonSocial}
-            onChange={e => setRazonSocial(e.target.value)} error={errors.razonSocial} placeholder="Nombre de la empresa" />
           <Input inputSize="sm" label="Contacto *" value={contacto}
             onChange={e => setContacto(e.target.value)} error={errors.contacto} placeholder="Persona de contacto" />
         </div>
-
         <div className="grid grid-cols-2 gap-3">
           <Input inputSize="sm" label="Email" type="email" value={email}
             onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
@@ -200,9 +240,10 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
             onChange={e => setTelefono(e.target.value)} placeholder="011 1234 5678" />
         </div>
 
+        {/* Sistema/Equipo (solo si hay cliente seleccionado) */}
         {clienteId && sistemasFiltrados.length > 0 && (
           <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Sistema/Equipo (opcional)</label>
+            <label className={labelClass}>Sistema/Equipo (opcional)</label>
             <SearchableSelect value={sistemaId} onChange={handleSistemaChange}
               options={sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` }))}
               placeholder="Buscar sistema..." />
@@ -211,17 +252,17 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
 
         {sistemaId && modulos.length > 0 && (
           <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Módulo (opcional)</label>
+            <label className={labelClass}>Módulo (opcional)</label>
             <SearchableSelect value={moduloId} onChange={setModuloId}
               options={modulos.map(m => ({ value: m.id, label: m.nombre }))}
               placeholder="Buscar módulo..." />
           </div>
         )}
 
+        {/* Área destino */}
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Área destino (opcional)</label>
-          <select value={areaActual} onChange={e => setAreaActual(e.target.value as LeadArea | '')}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <label className={labelClass}>Área destino (opcional)</label>
+          <select value={areaActual} onChange={e => setAreaActual(e.target.value as LeadArea | '')} className={selectClass}>
             <option value="">Sin área específica</option>
             {LEAD_AREA_GROUPS.map(g => (
               <optgroup key={g.label} label={g.label}>
@@ -231,54 +272,50 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
           </select>
         </div>
 
+        {/* Asignar a */}
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Asignar a (opcional)</label>
-          <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <label className={labelClass}>Asignar a (opcional)</label>
+          <select value={asignadoA} onChange={e => setAsignadoA(e.target.value)} className={selectClass}>
             <option value="">Sin asignar</option>
             {usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.role})</option>)}
           </select>
         </div>
 
+        {/* Descripción — al final */}
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Acción pendiente (opcional)</label>
+          <label className={labelClass}>Descripción</label>
+          <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={2}
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            placeholder="Detalle de la consulta o solicitud..." />
+        </div>
+
+        {/* Acción pendiente — debajo de descripción */}
+        <div>
+          <label className={labelClass}>Acción pendiente (opcional)</label>
           <input type="text" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className={selectClass}
             placeholder="Ej: Averiguar N° de parte, Confirmar disponibilidad..." />
         </div>
 
         {/* Adjuntos */}
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">
-            Adjuntos ({pendingFiles.length}/{LEAD_MAX_ADJUNTOS})
-          </label>
-          <input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            multiple
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          <label className={labelClass}>Adjuntos ({pendingFiles.length}/{LEAD_MAX_ADJUNTOS})</label>
+          <input ref={fileRef} type="file" className="hidden" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
             onChange={e => {
               const files = e.target.files;
               if (!files) return;
               const total = [...pendingFiles, ...Array.from(files)].slice(0, LEAD_MAX_ADJUNTOS);
               setPendingFiles(total);
               if (fileRef.current) fileRef.current.value = '';
-            }}
-          />
+            }} />
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
+            <button type="button" onClick={() => fileRef.current?.click()}
               disabled={pendingFiles.length >= LEAD_MAX_ADJUNTOS}
-              className="text-xs text-teal-600 hover:text-teal-800 font-medium disabled:text-slate-400 disabled:cursor-not-allowed"
-            >
+              className="text-xs text-teal-600 hover:text-teal-800 font-medium disabled:text-slate-400 disabled:cursor-not-allowed">
               + Seleccionar archivos
             </button>
             {pendingFiles.length > 0 && (
-              <span className="text-[10px] text-slate-400">
-                {pendingFiles.length} archivo(s) seleccionado(s)
-              </span>
+              <span className="text-[10px] text-slate-400">{pendingFiles.length} archivo(s) seleccionado(s)</span>
             )}
           </div>
           {pendingFiles.length > 0 && (
