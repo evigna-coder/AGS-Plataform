@@ -1651,6 +1651,26 @@ export interface RemitoItem {
   tipoItem: TipoRemitoItem;
   devuelto: boolean;
   fechaDevolucion?: string | null;
+  /** Campos multi-tipo (opcionales, backward-compatible) */
+  minikitId?: string | null;
+  minikitCodigo?: string | null;
+  instrumentoId?: string | null;
+  instrumentoCodigo?: string | null;
+  instrumentoDescripcion?: string | null;
+  dispositivoId?: string | null;
+  dispositivoCodigo?: string | null;
+  dispositivoDescripcion?: string | null;
+  vehiculoId?: string | null;
+  vehiculoCodigo?: string | null;
+  vehiculoDescripcion?: string | null;
+  loanerId?: string | null;
+  loanerCodigo?: string | null;
+  loanerDescripcion?: string | null;
+  /** Tipo de entidad origen (para display genérico) */
+  tipoEntidad?: TipoItemAsignacion | null;
+  /** Trazabilidad a la asignación */
+  asignacionId?: string | null;
+  asignacionItemId?: string | null;
 }
 
 export interface Remito {

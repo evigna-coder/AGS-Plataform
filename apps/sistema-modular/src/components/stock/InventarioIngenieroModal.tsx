@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { CrearRemitoDesdeInventarioModal } from './CrearRemitoDesdeInventarioModal';
 import { useInventarioIngeniero, type InventarioItem } from '../../hooks/useInventarioIngeniero';
 import type { Cliente } from '@ags/shared';
 
@@ -21,6 +22,7 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
   const [tab, setTab] = useState<'temporales' | 'permanentes'>('temporales');
   const [actionModal, setActionModal] = useState<{ item: InventarioItem; action: 'cliente' | 'transferir' } | null>(null);
   const [actionValue, setActionValue] = useState('');
+  const [showRemitoModal, setShowRemitoModal] = useState(false);
 
   const visibleItems = tab === 'temporales' ? temporales : permanentes;
 
@@ -63,14 +65,20 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
               ))}
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2">
-              {(['temporales', 'permanentes'] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium ${tab === t ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  {t === 'temporales' ? `Temporales (${temporales.length})` : `Permanentes (${permanentes.length})`}
-                </button>
-              ))}
+            {/* Tabs + Crear Remito */}
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                {(['temporales', 'permanentes'] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)}
+                    className={`px-2.5 py-1 rounded text-xs font-medium ${tab === t ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    {t === 'temporales' ? `Temporales (${temporales.length})` : `Permanentes (${permanentes.length})`}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowRemitoModal(true)} disabled={allItems.length === 0}
+                className="px-2.5 py-1 border border-teal-600 text-teal-700 rounded text-xs font-medium hover:bg-teal-50 disabled:opacity-40">
+                Crear Remito
+              </button>
             </div>
 
             {/* Items */}
@@ -114,6 +122,17 @@ export const InventarioIngenieroModal = ({ ingenieroId, onClose }: Props) => {
             placeholder={actionModal?.action === 'cliente' ? 'Seleccionar cliente...' : 'Seleccionar ingeniero...'} />
         </div>
       </Modal>
+
+      {/* Crear Remito Modal */}
+      {ingeniero && (
+        <CrearRemitoDesdeInventarioModal
+          open={showRemitoModal}
+          onClose={() => setShowRemitoModal(false)}
+          ingenieroId={ingeniero.id}
+          ingenieroNombre={ingeniero.nombre}
+          items={allItems}
+        />
+      )}
     </>
   );
 };

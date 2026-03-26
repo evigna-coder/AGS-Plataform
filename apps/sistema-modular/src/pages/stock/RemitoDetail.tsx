@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { remitosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import type { Remito, TipoRemito, EstadoRemito, TipoRemitoItem } from '@ags/shared';
+import { getRemitoItemCodigo, getRemitoItemDescripcion, getTipoEntidadLabel } from '../../utils/inventarioToRemitoItem';
+import type { Remito, RemitoItem, TipoRemito, EstadoRemito, TipoRemitoItem } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida' };
@@ -151,6 +152,9 @@ export const RemitoDetail = () => {
                       <tr className="border-b border-slate-100">
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Codigo</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Descripcion</th>
+                        {hasMultipleTypes(remito.items) && (
+                          <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Entidad</th>
+                        )}
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Cant.</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Tipo</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Dev.</th>
@@ -159,8 +163,15 @@ export const RemitoDetail = () => {
                     <tbody>
                       {remito.items.map(item => (
                         <tr key={item.id} className="border-b border-slate-50 last:border-0">
-                          <td className="text-xs py-2 pr-3 font-mono text-slate-700">{item.articuloCodigo}</td>
-                          <td className="text-xs py-2 pr-3 text-slate-700">{item.articuloDescripcion}</td>
+                          <td className="text-xs py-2 pr-3 font-mono text-slate-700">{resolveItemCodigo(item)}</td>
+                          <td className="text-xs py-2 pr-3 text-slate-700">{resolveItemDescripcion(item)}</td>
+                          {hasMultipleTypes(remito.items) && (
+                            <td className="text-xs py-2 pr-3">
+                              {item.tipoEntidad ? (
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{getTipoEntidadLabel(item.tipoEntidad)}</span>
+                              ) : '--'}
+                            </td>
+                          )}
                           <td className="text-xs py-2 pr-3 text-center text-slate-700">{item.cantidad}</td>
                           <td className="text-xs py-2 pr-3">
                             <Badge label={TIPO_ITEM_LABELS[item.tipoItem]} color={item.tipoItem === 'sale_y_vuelve' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'} />
@@ -188,3 +199,19 @@ export const RemitoDetail = () => {
     </div>
   );
 };
+
+// ── Multi-type helpers ──
+
+function resolveItemCodigo(item: RemitoItem): string {
+  if (item.tipoEntidad) return getRemitoItemCodigo(item);
+  return item.articuloCodigo || '';
+}
+
+function resolveItemDescripcion(item: RemitoItem): string {
+  if (item.tipoEntidad) return getRemitoItemDescripcion(item);
+  return item.articuloDescripcion || '';
+}
+
+function hasMultipleTypes(items: RemitoItem[]): boolean {
+  return items.some(i => i.tipoEntidad != null);
+}

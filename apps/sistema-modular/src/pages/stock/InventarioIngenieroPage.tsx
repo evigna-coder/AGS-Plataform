@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { CrearRemitoDesdeInventarioModal } from '../../components/stock/CrearRemitoDesdeInventarioModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useInventarioIngeniero, type InventarioItem } from '../../hooks/useInventarioIngeniero';
 
@@ -19,6 +20,7 @@ export const InventarioIngenieroPage = () => {
   const [tab, setTab] = useState<'temporales' | 'permanentes'>('temporales');
   const [actionModal, setActionModal] = useState<{ item: InventarioItem; action: 'cliente' | 'transferir' } | null>(null);
   const [actionValue, setActionValue] = useState('');
+  const [showRemitoModal, setShowRemitoModal] = useState(false);
 
   const visibleItems = tab === 'temporales' ? temporales : permanentes;
 
@@ -68,9 +70,15 @@ export const InventarioIngenieroPage = () => {
               </p>
             </div>
           </div>
-          <Link to="/stock/asignaciones" className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700">
-            + Asignar
-          </Link>
+          <div className="flex gap-2">
+            <button onClick={() => setShowRemitoModal(true)} disabled={allItems.length === 0}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-teal-600 text-teal-700 rounded-lg text-xs font-medium hover:bg-teal-50 disabled:opacity-40">
+              Crear Remito
+            </button>
+            <Link to="/stock/asignaciones" className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700">
+              + Asignar
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -112,6 +120,17 @@ export const InventarioIngenieroPage = () => {
           </Card>
         )}
       </div>
+
+      {/* Crear Remito Modal */}
+      {ingeniero && (
+        <CrearRemitoDesdeInventarioModal
+          open={showRemitoModal}
+          onClose={() => setShowRemitoModal(false)}
+          ingenieroId={ingeniero.id}
+          ingenieroNombre={ingeniero.nombre}
+          items={allItems}
+        />
+      )}
 
       {/* Action Modal */}
       <Modal open={!!actionModal} onClose={() => { setActionModal(null); setActionValue(''); }}
