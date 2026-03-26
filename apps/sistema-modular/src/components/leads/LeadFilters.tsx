@@ -1,7 +1,6 @@
-import type { LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, UsuarioAGS, Cliente } from '@ags/shared';
+import type { LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import { Button } from '../ui/Button';
 
 const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -19,14 +18,13 @@ export interface LeadFiltersState {
   area: LeadArea | '';
   prioridad: LeadPrioridad | '';
   responsable: string;
-  cliente: string;
   soloMios: boolean;
   fechaDesde: string;
   fechaHasta: string;
 }
 
 export const INITIAL_FILTERS: LeadFiltersState = {
-  motivo: '', area: '', prioridad: '', responsable: '', cliente: '',
+  motivo: '', area: '', prioridad: '', responsable: '',
   soloMios: false, fechaDesde: '', fechaHasta: '',
 };
 
@@ -38,15 +36,15 @@ interface LeadFiltersProps {
   filters: LeadFiltersState;
   onFiltersChange: (f: LeadFiltersState) => void;
   usuarios: UsuarioAGS[];
-  clientes: Cliente[];
 }
 
-export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChange, filters, onFiltersChange, usuarios, clientes }: LeadFiltersProps) => {
+export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChange, filters, onFiltersChange, usuarios }: LeadFiltersProps) => {
   const set = (partial: Partial<LeadFiltersState>) => onFiltersChange({ ...filters, ...partial });
-  const hasAdvanced = filters.motivo || filters.area || filters.prioridad || filters.responsable || filters.cliente || filters.fechaDesde || filters.fechaHasta;
+  const hasAdvanced = filters.motivo || filters.area || filters.prioridad || filters.responsable || filters.fechaDesde || filters.fechaHasta;
 
   return (
     <>
+      {/* Row 1: search + estado tabs + mis leads */}
       <div className="flex items-center gap-3 flex-wrap">
         <input type="text" placeholder="Buscar por razón social, contacto..." value={search}
           onChange={e => onSearchChange(e.target.value)}
@@ -67,6 +65,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
         </label>
       </div>
 
+      {/* Row 2: advanced filters */}
       <div className="flex items-center gap-2 flex-wrap mt-2">
         <div className="min-w-[110px]">
           <SearchableSelect size="sm" value={filters.motivo}
@@ -94,19 +93,20 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
               placeholder="Responsable" />
           </div>
         )}
-        <div className="min-w-[120px]">
-          <SearchableSelect size="sm" value={filters.cliente} onChange={v => set({ cliente: v })}
-            options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
-            placeholder="Cliente" />
+        <div className="flex items-center gap-1.5">
+          <input type="date" value={filters.fechaDesde} onChange={e => set({ fechaDesde: e.target.value })}
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            title="Desde" />
+          <span className="text-[10px] text-slate-300">—</span>
+          <input type="date" value={filters.fechaHasta} onChange={e => set({ fechaHasta: e.target.value })}
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            title="Hasta" />
         </div>
-        <input type="date" value={filters.fechaDesde} onChange={e => set({ fechaDesde: e.target.value })}
-          className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          title="Desde" />
-        <input type="date" value={filters.fechaHasta} onChange={e => set({ fechaHasta: e.target.value })}
-          className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          title="Hasta" />
         {hasAdvanced && (
-          <Button size="sm" variant="ghost" onClick={() => onFiltersChange(INITIAL_FILTERS)}>Limpiar</Button>
+          <button onClick={() => onFiltersChange(INITIAL_FILTERS)}
+            className="text-[11px] text-slate-400 hover:text-slate-600 font-medium px-2 py-1">
+            Limpiar
+          </button>
         )}
       </div>
     </>

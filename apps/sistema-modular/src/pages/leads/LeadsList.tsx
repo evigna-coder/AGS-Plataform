@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import type { Lead, LeadEstado, LeadArea, MotivoLlamado, UsuarioAGS, Cliente } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import {
   LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
   LEAD_AREA_LABELS, LEAD_AREA_COLORS,
@@ -10,7 +10,7 @@ import {
   LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
   canUserModifyLead,
 } from '@ags/shared';
-import { leadsService, usuariosService, clientesService } from '../../services/firebaseService';
+import { leadsService, usuariosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -23,18 +23,24 @@ import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadF
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 
-const thBase = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
+const thBase = 'px-3 py-2 text-left text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
+
+type SortKey = 'razonSocial' | 'contacto' | 'motivoLlamado' | 'prioridad' | 'estado' | 'areaActual' | 'asignadoA' | 'createdAt' | 'proximoContacto';
+type SortDir = 'asc' | 'desc';
+
+const PRIORIDAD_ORDER: Record<string, number> = { critica: 0, alta: 1, media: 2, baja: 3 };
 
 export const LeadsList = () => {
   const { usuario } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showCreate, setShowCreate] = useState(false);
   const [derivarLead, setDerivarLead] = useState<Lead | null>(null);
   const [finalizarLead, setFinalizarLead] = useState<Lead | null>(null);
   const [quickNoteLead, setQuickNoteLead] = useState<Lead | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
 
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
@@ -43,7 +49,6 @@ export const LeadsList = () => {
     area: { type: 'string' as const, default: '' },
     responsable: { type: 'string' as const, default: '' },
     soloMios: { type: 'boolean' as const, default: false },
-    cliente: { type: 'string' as const, default: '' },
     prioridad: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
@@ -52,9 +57,7 @@ export const LeadsList = () => {
   const debouncedSearch = useDebounce(filters.search, 300);
 
   useEffect(() => {
-    Promise.all([usuariosService.getAll(), clientesService.getAll(true)]).then(([u, c]) => {
-      setUsuarios(u); setClientes(c);
-    });
+    usuariosService.getAll().then(setUsuarios);
   }, []);
 
   useEffect(() => { loadLeads(); }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.prioridad]);
@@ -79,7 +82,6 @@ export const LeadsList = () => {
 
   const leadsFiltered = useMemo(() => {
     let result = leads;
-    if (filters.cliente) result = result.filter(l => l.clienteId === filters.cliente);
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
@@ -93,7 +95,38 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+  }, [leads, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+
+  const leadsSorted = useMemo(() => {
+    const sorted = [...leadsFiltered];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'razonSocial': cmp = a.razonSocial.localeCompare(b.razonSocial); break;
+        case 'contacto': cmp = a.contacto.localeCompare(b.contacto); break;
+        case 'motivoLlamado': cmp = a.motivoLlamado.localeCompare(b.motivoLlamado); break;
+        case 'prioridad': cmp = (PRIORIDAD_ORDER[a.prioridad || 'media'] ?? 2) - (PRIORIDAD_ORDER[b.prioridad || 'media'] ?? 2); break;
+        case 'estado': cmp = a.estado.localeCompare(b.estado); break;
+        case 'areaActual': cmp = (a.areaActual || '').localeCompare(b.areaActual || ''); break;
+        case 'asignadoA': cmp = getResponsableNombre(a.asignadoA).localeCompare(getResponsableNombre(b.asignadoA)); break;
+        case 'createdAt': cmp = (a.createdAt || '').localeCompare(b.createdAt || ''); break;
+        case 'proximoContacto': cmp = (a.proximoContacto || '').localeCompare(b.proximoContacto || ''); break;
+      }
+      return cmp * dir;
+    });
+    return sorted;
+  }, [leadsFiltered, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <span className="text-slate-300 ml-0.5">↕</span>;
+    return <span className="text-teal-500 ml-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
@@ -128,11 +161,10 @@ export const LeadsList = () => {
     area: filters.area as LeadFiltersState['area'],
     prioridad: filters.prioridad as LeadFiltersState['prioridad'],
     responsable: filters.responsable,
-    cliente: filters.cliente,
     soloMios: filters.soloMios,
     fechaDesde: filters.fechaDesde,
     fechaHasta: filters.fechaHasta,
-  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.cliente, filters.soloMios, filters.fechaDesde, filters.fechaHasta]);
+  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.fechaDesde, filters.fechaHasta]);
 
   const handleLeadFiltersChange = (f: LeadFiltersState) => {
     setFilters({
@@ -140,7 +172,6 @@ export const LeadsList = () => {
       area: f.area,
       prioridad: f.prioridad,
       responsable: f.responsable,
-      cliente: f.cliente,
       soloMios: f.soloMios,
       fechaDesde: f.fechaDesde,
       fechaHasta: f.fechaHasta,
@@ -159,7 +190,7 @@ export const LeadsList = () => {
         <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
           estadoFilter={filters.estadoFilter as LeadEstado | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
           filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}
-          usuarios={usuarios} clientes={clientes} />
+          usuarios={usuarios} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
@@ -192,21 +223,21 @@ export const LeadsList = () => {
               )}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className={thBase}>Cliente<div onMouseDown={e => onResizeStart(0, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Contacto<div onMouseDown={e => onResizeStart(1, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Motivo<div onMouseDown={e => onResizeStart(2, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Prioridad<div onMouseDown={e => onResizeStart(3, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Estado<div onMouseDown={e => onResizeStart(4, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Área<div onMouseDown={e => onResizeStart(5, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Asignado<div onMouseDown={e => onResizeStart(6, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Fecha<div onMouseDown={e => onResizeStart(7, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Seguim.<div onMouseDown={e => onResizeStart(8, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={thBase}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} text-right`}>Acciones</th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('razonSocial')}>Cliente <SortIcon col="razonSocial" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(0, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('contacto')}>Contacto <SortIcon col="contacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(1, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('motivoLlamado')}>Motivo <SortIcon col="motivoLlamado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(2, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('prioridad')}>Prioridad <SortIcon col="prioridad" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(3, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('estado')}>Estado <SortIcon col="estado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(4, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('areaActual')}>Área <SortIcon col="areaActual" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(5, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('asignadoA')}>Asignado <SortIcon col="asignadoA" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(6, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('createdAt')}>Fecha <SortIcon col="createdAt" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(7, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('proximoContacto')}>Seguim. <SortIcon col="proximoContacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(8, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} text-slate-400`}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} text-right text-slate-400`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {leadsFiltered.map(lead => {
+                {leadsSorted.map(lead => {
                   const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
                   const canModify = usuario ? canUserModifyLead(lead, usuario) : false;
                   const daysOpen = getDaysOpen(lead.createdAt);

@@ -8,7 +8,7 @@ import {
   LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
   canUserModifyLead,
 } from '@ags/shared';
-import { leadsService, usuariosService, clientesService } from '../services/firebaseService';
+import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -32,16 +32,13 @@ export default function LeadsPage() {
   const [finalizarLead, setFinalizarLead] = useState<Lead | null>(null);
   const [quickNoteLead, setQuickNoteLead] = useState<Lead | null>(null);
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
-  const [clientes, setClientes] = useState<{ id: string; razonSocial: string }[]>([]);
 
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<LeadEstado | ''>('');
   const [filters, setFilters] = useState<LeadFiltersState>(INITIAL_FILTERS);
 
   useEffect(() => {
-    Promise.all([usuariosService.getIngenieros(), clientesService.getAll()]).then(([u, c]) => {
-      setUsuarios(u); setClientes(c);
-    });
+    usuariosService.getIngenieros().then(setUsuarios);
   }, []);
 
   useEffect(() => { loadLeads(); }, [estadoFilter, filters.responsable, filters.prioridad]);
@@ -77,7 +74,6 @@ export default function LeadsPage() {
     }
     if (filters.motivo) result = result.filter(l => l.motivoLlamado === filters.motivo);
     if (filters.area) result = result.filter(l => l.areaActual === filters.area);
-    if (filters.cliente) result = result.filter(l => l.clienteId === filters.cliente);
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
@@ -91,7 +87,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, usuario, filters.verTodos, filters.verCreados, filters.motivo, filters.area, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, filters.verTodos, filters.verCreados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
@@ -130,7 +126,7 @@ export default function LeadsPage() {
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
         <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
-          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} clientes={clientes} isAdmin={isAdmin} />
+          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} isAdmin={isAdmin} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-3 md:px-5 pb-4">
