@@ -525,15 +525,9 @@ export function useAppLogic(
       console.log("Preparando PDF para descargar...");
       const filename = `${otToUse}_Reporte_AGS.pdf`;
 
-      let pdfBlob: Blob;
-      if (generatedPdfBlob) {
-        console.log("Usando PDF previamente generado");
-        pdfBlob = generatedPdfBlob;
-      } else {
-        console.log("Generando PDF como Blob...");
-        pdfBlob = await generatePDFBlob();
-        setGeneratedPdfBlob(pdfBlob);
-      }
+      // Siempre regenerar el PDF para evitar descargar un reporte stale
+      console.log("Generando PDF como Blob...");
+      const pdfBlob = await generatePDFBlob();
 
       // Crear enlace de descarga
       const url = URL.createObjectURL(pdfBlob);
@@ -578,17 +572,9 @@ export function useAppLogic(
       console.log("Preparando documento para compartir...");
       const filename = `${otToUse}_Reporte_AGS.pdf`;
       
-      // Usar el Blob guardado si existe, sino generar uno nuevo
-      let pdfBlob: Blob;
-      if (generatedPdfBlob) {
-        console.log("Usando PDF previamente generado");
-        pdfBlob = generatedPdfBlob;
-      } else {
-        console.log("Generando PDF como Blob...");
-        pdfBlob = await generatePDFBlob();
-        // Guardar el Blob para futuros compartidos
-        setGeneratedPdfBlob(pdfBlob);
-      }
+      // Siempre regenerar el PDF para evitar compartir un reporte stale
+      console.log("Generando PDF como Blob...");
+      const pdfBlob = await generatePDFBlob();
 
       // Detectar si es dispositivo móvil
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
