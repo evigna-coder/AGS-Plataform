@@ -142,7 +142,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       const parent = getParentPath(location.pathname);
       if (!parent) return; // at module root, don't navigate
       e.preventDefault();
-      navigate(parent);
+      // Use real browser back to preserve search params (filters) on the previous page
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate(parent);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

@@ -2,18 +2,13 @@ import { useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 /**
- * Navigates to the module root (e.g. /clientes, /stock/articulos).
- * Unlike navigate(-1), this is deterministic and doesn't depend on
- * browser history — so tabs can't interfere with each other.
+ * Navigates back preserving URL search params (filters).
  *
- * For /stock sub-modules, goes to the sub-module root:
- *   /stock/articulos/abc123   → /stock/articulos
- *   /stock/ordenes-compra/x/y → /stock/ordenes-compra
+ * Strategy: use real browser history (navigate(-1)) so that search params
+ * on the previous page are restored. Falls back to module root when there
+ * is no in-app history to go back to.
  *
- * For everything else, goes to the top-level module:
- *   /clientes/abc123           → /clientes
- *   /table-catalog/abc/edit    → /table-catalog
- *   /presupuestos/nuevo        → /presupuestos
+ * The `from` Link state still takes priority when provided.
  */
 export function useNavigateBack() {
   const navigate = useNavigate();
@@ -26,16 +21,21 @@ export function useNavigateBack() {
       return;
     }
 
-    const segments = pathname.split('/').filter(Boolean);
-    if (segments.length <= 1) return; // already at module root
+    // Use real browser back — preserves search params on the previous page
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
 
-    // /stock sub-modules have 2-segment roots: /stock/articulos, /stock/remitos, etc.
+    // Fallback: no history, go to module root deterministically
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length <= 1) return;
+
     if (segments[0] === 'stock' && segments.length > 2) {
       navigate('/' + segments[0] + '/' + segments[1]);
       return;
     }
 
-    // Everything else: go to /<module>
     navigate('/' + segments[0]);
   }, [navigate, pathname, state]);
 }
