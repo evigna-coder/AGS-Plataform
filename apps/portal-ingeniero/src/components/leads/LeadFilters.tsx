@@ -20,14 +20,17 @@ export interface LeadFiltersState {
   prioridad: LeadPrioridad | '';
   responsable: string;
   cliente: string;
-  soloMios: boolean;
+  soloMios: boolean;       // legacy — kept for compat but unused in new logic
+  verCreados: boolean;     // include leads created/derived by user
+  verTodos: boolean;       // admin only: show all leads
   fechaDesde: string;
   fechaHasta: string;
 }
 
 export const INITIAL_FILTERS: LeadFiltersState = {
   motivo: '', area: '', prioridad: '', responsable: '', cliente: '',
-  soloMios: false, fechaDesde: '', fechaHasta: '',
+  soloMios: false, verCreados: false, verTodos: false,
+  fechaDesde: '', fechaHasta: '',
 };
 
 interface LeadFiltersProps {
@@ -39,9 +42,10 @@ interface LeadFiltersProps {
   onFiltersChange: (f: LeadFiltersState) => void;
   usuarios: { id: string; displayName: string }[];
   clientes: { id: string; razonSocial: string }[];
+  isAdmin?: boolean;
 }
 
-export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChange, filters, onFiltersChange, usuarios, clientes }: LeadFiltersProps) => {
+export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChange, filters, onFiltersChange, usuarios, clientes, isAdmin }: LeadFiltersProps) => {
   const set = (partial: Partial<LeadFiltersState>) => onFiltersChange({ ...filters, ...partial });
   const hasAdvanced = filters.motivo || filters.area || filters.prioridad || filters.responsable || filters.cliente || filters.fechaDesde || filters.fechaHasta;
 
@@ -51,7 +55,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
         <input type="text" placeholder="Buscar por razón social, contacto..." value={search}
           onChange={e => onSearchChange(e.target.value)}
           className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
           {ESTADO_TABS.map(tab => (
             <button key={tab.value} onClick={() => onEstadoChange(tab.value as LeadEstado | '')}
               className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
@@ -61,10 +65,22 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer ml-auto">
-          <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, responsable: '' })} className="rounded border-slate-300" />
-          Mis leads
-        </label>
+        <div className="flex items-center gap-3 ml-auto">
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+            <input type="checkbox" checked={filters.verCreados}
+              onChange={e => set({ verCreados: e.target.checked })}
+              className="rounded border-slate-300" />
+            Mis creados
+          </label>
+          {isAdmin && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+              <input type="checkbox" checked={filters.verTodos}
+                onChange={e => set({ verTodos: e.target.checked, verCreados: false })}
+                className="rounded border-slate-300" />
+              Ver todos
+            </label>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap mt-2">
@@ -86,7 +102,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(LEAD_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
             placeholder="Área" />
         </div>
-        {!filters.soloMios && (
+        {filters.verTodos && (
           <div className="min-w-[120px]">
             <SearchableSelect size="sm" value={filters.responsable}
               onChange={v => set({ responsable: v })}

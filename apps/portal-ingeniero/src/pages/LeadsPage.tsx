@@ -44,15 +44,14 @@ export default function LeadsPage() {
     });
   }, []);
 
-  useEffect(() => { loadLeads(); }, [estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.prioridad]);
+  useEffect(() => { loadLeads(); }, [estadoFilter, filters.responsable, filters.prioridad]);
 
   const loadLeads = async () => {
     try {
       setLoading(true);
-      const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.responsable || undefined;
       const data = await leadsService.getAll({
         ...(estadoFilter ? { estado: estadoFilter } : {}),
-        ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
+        ...(filters.responsable ? { asignadoA: filters.responsable } : {}),
       });
       setLeads(data);
     } catch (err) {
@@ -66,13 +65,15 @@ export default function LeadsPage() {
 
   const leadsFiltered = useMemo(() => {
     let result = leads;
-    // Non-admin users only see leads they created or are assigned to
-    if (!isAdmin && usuario) {
-      result = result.filter(l =>
-        l.createdBy === usuario.id ||
-        l.asignadoA === usuario.id ||
-        l.derivadoPor === usuario.id
-      );
+    // Visibility: by default only assigned leads; "verCreados" adds created/derived; "verTodos" (admin) shows all
+    if (usuario && !filters.verTodos) {
+      result = result.filter(l => {
+        const isAssigned = l.asignadoA === usuario.id;
+        if (filters.verCreados) {
+          return isAssigned || l.createdBy === usuario.id || l.derivadoPor === usuario.id;
+        }
+        return isAssigned;
+      });
     }
     if (filters.motivo) result = result.filter(l => l.motivoLlamado === filters.motivo);
     if (filters.area) result = result.filter(l => l.areaActual === filters.area);
@@ -90,7 +91,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, isAdmin, usuario, filters.motivo, filters.area, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, filters.verTodos, filters.verCreados, filters.motivo, filters.area, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
@@ -129,7 +130,7 @@ export default function LeadsPage() {
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
         <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
-          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} clientes={clientes} />
+          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} clientes={clientes} isAdmin={isAdmin} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-3 md:px-5 pb-4">
