@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { remitosService, clientesService } from '../../services/firebaseService';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -15,17 +16,24 @@ const ESTADO_COLORS: Record<EstadoRemito, string> = { borrador: 'bg-slate-100 te
 const TIPO_COLORS: Record<TipoRemito, string> = { salida_campo: 'bg-blue-50 text-blue-700', entrega_cliente: 'bg-teal-50 text-teal-700', devolucion: 'bg-emerald-50 text-emerald-700', interno: 'bg-slate-100 text-slate-600', derivacion_proveedor: 'bg-purple-50 text-purple-700', loaner_salida: 'bg-amber-50 text-amber-700' };
 
 export const RemitosList = () => {
+  const FILTER_SCHEMA = useMemo(() => ({
+    estado: { type: 'string' as const, default: '' },
+    tipo: { type: 'string' as const, default: '' },
+    showAll: { type: 'boolean' as const, default: false },
+    clienteId: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'fechaSalida' },
+    sortDir: { type: 'string' as const, default: 'desc' },
+  }), []);
+  const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+
   const [remitos, setRemitos] = useState<Remito[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ estado: '', tipo: '', showAll: false, clienteId: '' });
   const [showCreate, setShowCreate] = useState(false);
-  const [sortField, setSortField] = useState('fechaSalida');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
   useEffect(() => { clientesService.getAll(true).then(setClientes); }, []);
@@ -62,8 +70,8 @@ export const RemitosList = () => {
   const sorted = useMemo(() => {
     let result = remitos;
     if (filters.clienteId) result = result.filter(r => r.clienteId === filters.clienteId);
-    return sortByField(result, sortField, sortDir);
-  }, [remitos, filters.clienteId, sortField, sortDir]);
+    return sortByField(result, filters.sortField, filters.sortDir as SortDir);
+  }, [remitos, filters.clienteId, filters.sortField, filters.sortDir]);
 
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
@@ -85,14 +93,14 @@ export const RemitosList = () => {
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <select value={filters.estado} onChange={e => setFilters({ ...filters, estado: e.target.value })}
+          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los estados</option>
             {(Object.keys(ESTADO_LABELS) as EstadoRemito[]).map(k => (
               <option key={k} value={k}>{ESTADO_LABELS[k]}</option>
             ))}
           </select>
-          <select value={filters.tipo} onChange={e => setFilters({ ...filters, tipo: e.target.value })}
+          <select value={filters.tipo} onChange={e => setFilter('tipo', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los tipos</option>
             {(Object.keys(TIPO_LABELS) as TipoRemito[]).map(k => (
@@ -100,12 +108,12 @@ export const RemitosList = () => {
             ))}
           </select>
           <div className="min-w-[180px]">
-            <SearchableSelect value={filters.clienteId} onChange={v => setFilters({ ...filters, clienteId: v })}
+            <SearchableSelect value={filters.clienteId} onChange={v => setFilter('clienteId', v)}
               options={[{ value: '', label: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
               placeholder="Cliente..." />
           </div>
           <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
-            <input type="checkbox" checked={filters.showAll} onChange={e => setFilters({ ...filters, showAll: e.target.checked })}
+            <input type="checkbox" checked={filters.showAll} onChange={e => setFilter('showAll', e.target.checked)}
               className="w-3.5 h-3.5 rounded border-slate-300" />
             Mostrar cancelados
           </label>
@@ -125,7 +133,7 @@ export const RemitosList = () => {
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ingeniero</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
-                    <SortableHeader label="Fecha salida" field="fechaSalida" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Fecha salida" field="fechaSalida" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">OTs</th>
                     <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>

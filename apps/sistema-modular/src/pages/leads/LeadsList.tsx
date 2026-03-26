@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
-import type { Lead, LeadEstado, UsuarioAGS, Cliente } from '@ags/shared';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
+import type { Lead, LeadEstado, LeadArea, MotivoLlamado, UsuarioAGS, Cliente } from '@ags/shared';
 import {
   LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
   LEAD_AREA_LABELS, LEAD_AREA_COLORS,
@@ -18,7 +19,7 @@ import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
 import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
 import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
 import { LeadQuickNoteModal } from '../../components/leads/LeadQuickNoteModal';
-import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState } from '../../components/leads/LeadFilters';
+import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 
@@ -35,10 +36,20 @@ export const LeadsList = () => {
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
 
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
-  const [estadoFilter, setEstadoFilter] = useState<LeadEstado | ''>('');
-  const [filters, setFilters] = useState<LeadFiltersState>(INITIAL_FILTERS);
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    estadoFilter: { type: 'string' as const, default: '' },
+    motivo: { type: 'string' as const, default: '' },
+    area: { type: 'string' as const, default: '' },
+    responsable: { type: 'string' as const, default: '' },
+    soloMios: { type: 'boolean' as const, default: false },
+    cliente: { type: 'string' as const, default: '' },
+    prioridad: { type: 'string' as const, default: '' },
+    fechaDesde: { type: 'string' as const, default: '' },
+    fechaHasta: { type: 'string' as const, default: '' },
+  }), []);
+  const [filters, setFilter, setFilters, _resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   useEffect(() => {
     Promise.all([usuariosService.getAll(), clientesService.getAll(true)]).then(([u, c]) => {
@@ -46,16 +57,16 @@ export const LeadsList = () => {
     });
   }, []);
 
-  useEffect(() => { loadLeads(); }, [estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.prioridad]);
+  useEffect(() => { loadLeads(); }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.prioridad]);
 
   const loadLeads = async () => {
     try {
       setLoading(true);
       const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.responsable || undefined;
       const data = await leadsService.getAll({
-        ...(estadoFilter ? { estado: estadoFilter } : {}),
-        ...(filters.motivo ? { motivoLlamado: filters.motivo } : {}),
-        ...(filters.area ? { areaActual: filters.area } : {}),
+        ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
+        ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
+        ...(filters.area ? { areaActual: filters.area as LeadArea } : {}),
         ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
       });
       setLeads(data);
@@ -111,6 +122,31 @@ export const LeadsList = () => {
     return '';
   };
 
+  // Bridge between URL filters and LeadFilters component interface
+  const leadFiltersState = useMemo((): LeadFiltersState => ({
+    motivo: filters.motivo as LeadFiltersState['motivo'],
+    area: filters.area as LeadFiltersState['area'],
+    prioridad: filters.prioridad as LeadFiltersState['prioridad'],
+    responsable: filters.responsable,
+    cliente: filters.cliente,
+    soloMios: filters.soloMios,
+    fechaDesde: filters.fechaDesde,
+    fechaHasta: filters.fechaHasta,
+  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.cliente, filters.soloMios, filters.fechaDesde, filters.fechaHasta]);
+
+  const handleLeadFiltersChange = (f: LeadFiltersState) => {
+    setFilters({
+      motivo: f.motivo,
+      area: f.area,
+      prioridad: f.prioridad,
+      responsable: f.responsable,
+      cliente: f.cliente,
+      soloMios: f.soloMios,
+      fechaDesde: f.fechaDesde,
+      fechaHasta: f.fechaHasta,
+    });
+  };
+
   if (loading && leads.length === 0) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>;
   }
@@ -120,8 +156,10 @@ export const LeadsList = () => {
       <PageHeader title="Leads / Consultas" count={leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
-        <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
-          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} clientes={clientes} />
+        <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
+          estadoFilter={filters.estadoFilter as LeadEstado | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
+          filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}
+          usuarios={usuarios} clientes={clientes} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">

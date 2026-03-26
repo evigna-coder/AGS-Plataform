@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fichasService, clientesService } from '../../services/firebaseService';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,22 +15,24 @@ const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 trac
 
 export function FichasList() {
   const navigate = useNavigate();
+
+  const FILTER_SCHEMA = useMemo(() => ({
+    estado: { type: 'string' as const, default: '' },
+    cliente: { type: 'string' as const, default: '' },
+    showEntregadas: { type: 'boolean' as const, default: false },
+    sortField: { type: 'string' as const, default: 'fechaIngreso' },
+    sortDir: { type: 'string' as const, default: 'desc' },
+  }), []);
+  const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+
   const [fichas, setFichas] = useState<FichaPropiedad[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
-  const [filters, setFilters] = useState({
-    estado: '',
-    cliente: '',
-    showEntregadas: false,
-  });
-  const [sortField, setSortField] = useState('fechaIngreso');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
   useEffect(() => {
@@ -49,8 +52,8 @@ export function FichasList() {
       if (filters.cliente && f.clienteId !== filters.cliente) return false;
       return true;
     });
-    return sortByField(result, sortField, sortDir);
-  }, [fichas, filters.estado, filters.cliente, sortField, sortDir]);
+    return sortByField(result, filters.sortField, filters.sortDir as SortDir);
+  }, [fichas, filters.estado, filters.cliente, filters.sortField, filters.sortDir]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar esta ficha?')) return;
@@ -78,13 +81,13 @@ export function FichasList() {
       >
         <div className="flex items-center gap-3 flex-wrap">
           <div className="min-w-[160px]">
-            <SearchableSelect value={filters.cliente} onChange={(v) => setFilters({ ...filters, cliente: v })}
+            <SearchableSelect value={filters.cliente} onChange={(v) => setFilter('cliente', v)}
               options={[{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
               placeholder="Cliente" />
           </div>
           <div className="min-w-[150px]">
             <SearchableSelect value={filters.estado}
-              onChange={(v) => setFilters({ ...filters, estado: v })}
+              onChange={(v) => setFilter('estado', v)}
               options={[{ value: '', label: 'Todos' }, ...(Object.keys(ESTADO_FICHA_LABELS) as EstadoFicha[]).map(e => ({ value: e, label: ESTADO_FICHA_LABELS[e] }))]}
               placeholder="Estado" />
           </div>
@@ -92,12 +95,12 @@ export function FichasList() {
             <input
               type="checkbox"
               checked={filters.showEntregadas}
-              onChange={e => setFilters({ ...filters, showEntregadas: e.target.checked })}
+              onChange={e => setFilter('showEntregadas', e.target.checked)}
               className="rounded border-slate-300"
             />
             Mostrar entregadas
           </label>
-          <Button size="sm" variant="ghost" onClick={() => setFilters({ estado: '', cliente: '', showEntregadas: false })}>
+          <Button size="sm" variant="ghost" onClick={() => resetFilters()}>
             Limpiar
           </Button>
         </div>
@@ -128,11 +131,11 @@ export function FichasList() {
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <SortableHeader label="Numero" field="numero" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Cliente" field="clienteNombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Numero" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Cliente" field="clienteNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>Descripcion</th>
-                  <SortableHeader label="Estado" field="estado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>OT Ref</th>
                   <th className={`${thClass} text-right`}>Acciones</th>
                 </tr>

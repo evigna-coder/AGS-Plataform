@@ -62,8 +62,18 @@ export default function LeadsPage() {
     }
   };
 
+  const isAdmin = usuario?.role === 'admin';
+
   const leadsFiltered = useMemo(() => {
     let result = leads;
+    // Non-admin users only see leads they created or are assigned to
+    if (!isAdmin && usuario) {
+      result = result.filter(l =>
+        l.createdBy === usuario.id ||
+        l.asignadoA === usuario.id ||
+        l.derivadoPor === usuario.id
+      );
+    }
     if (filters.motivo) result = result.filter(l => l.motivoLlamado === filters.motivo);
     if (filters.area) result = result.filter(l => l.areaActual === filters.area);
     if (filters.cliente) result = result.filter(l => l.clienteId === filters.cliente);
@@ -80,7 +90,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, filters.motivo, filters.area, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, isAdmin, usuario, filters.motivo, filters.area, filters.cliente, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 

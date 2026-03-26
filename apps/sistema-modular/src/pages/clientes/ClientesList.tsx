@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import type { Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -23,8 +24,6 @@ const ESTADO_TABS = [
   { value: 'inactivos', label: 'Inactivos' },
   { value: 'todos', label: 'Todos' },
 ] as const;
-type EstadoTab = (typeof ESTADO_TABS)[number]['value'];
-
 export const ClientesList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientosByCliente, setEstablecimientosByCliente] = useState<Record<string, number>>({});
@@ -36,16 +35,19 @@ export const ClientesList = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkActioning, setBulkActioning] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
-  const [estadoTab, setEstadoTab] = useState<EstadoTab>('activos');
-  const [sortField, setSortField] = useState('razonSocial');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const FILTER_SCHEMA = useMemo(() => ({
+    search:    { type: 'string' as const, default: '' },
+    estadoTab: { type: 'string' as const, default: 'activos' },
+    sortField: { type: 'string' as const, default: 'razonSocial' },
+    sortDir:   { type: 'string' as const, default: 'asc' },
+  }), []);
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const debouncedSearch = useDebounce(filters.search, 300);
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
   useEffect(() => { loadClientes(); }, []);
@@ -125,8 +127,8 @@ export const ClientesList = () => {
 
   const filtered = useMemo(() => {
     let result = clientes;
-    if (estadoTab === 'activos') result = result.filter(c => c.activo !== false);
-    else if (estadoTab === 'inactivos') result = result.filter(c => c.activo === false);
+    if (filters.estadoTab === 'activos') result = result.filter(c => c.activo !== false);
+    else if (filters.estadoTab === 'inactivos') result = result.filter(c => c.activo === false);
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(c =>
@@ -135,8 +137,8 @@ export const ClientesList = () => {
         (c.rubro || '').toLowerCase().includes(q)
       );
     }
-    return sortByField(result, sortField, sortDir);
-  }, [clientes, debouncedSearch, estadoTab, sortField, sortDir]);
+    return sortByField(result, filters.sortField, filters.sortDir as SortDir);
+  }, [clientes, debouncedSearch, filters.estadoTab, filters.sortField, filters.sortDir]);
 
   // Determine bulk action label based on selected clients' state
   const bulkLabel = useMemo(() => {
@@ -171,17 +173,17 @@ export const ClientesList = () => {
           <input
             type="text"
             placeholder="Buscar por razón social, CUIT, rubro..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64"
           />
           <div className="flex items-center gap-1.5">
             {ESTADO_TABS.map(tab => (
               <button
                 key={tab.value}
-                onClick={() => setEstadoTab(tab.value)}
+                onClick={() => setFilter('estadoTab', tab.value)}
                 className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
-                  estadoTab === tab.value
+                  filters.estadoTab === tab.value
                     ? 'bg-teal-600 text-white'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
@@ -217,11 +219,11 @@ export const ClientesList = () => {
                     <input type="checkbox" checked={selected.size > 0 && selected.size === filtered.length}
                       onChange={toggleSelectAll} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                   </th>
-                  <SortableHeader label="Razón Social" field="razonSocial" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Razón Social" field="razonSocial" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(1, e)} />
                   </SortableHeader>
                   <th className={thClass}>CUIT<ResizeHandle onMouseDown={e => onResizeStart(2, e)} /></th>
-                  <SortableHeader label="Rubro" field="rubro" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Rubro" field="rubro" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(3, e)} />
                   </SortableHeader>
                   <th className={`${thClass} text-center`}>Establec.</th>

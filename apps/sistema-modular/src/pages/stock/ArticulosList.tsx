@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { articulosService, marcasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -19,21 +20,23 @@ const TIPO_LABELS: Record<TipoArticulo, string> = {
 };
 
 export const ArticulosList = () => {
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    categoriaEquipo: { type: 'string' as const, default: '' },
+    marcaId: { type: 'string' as const, default: '' },
+    tipo: { type: 'string' as const, default: '' },
+    showInactive: { type: 'boolean' as const, default: false },
+  }), []);
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const debouncedSearch = useDebounce(filters.search, 300);
+
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 300);
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filters, setFilters] = useState({
-    categoriaEquipo: '' as string,
-    marcaId: '' as string,
-    tipo: '' as string,
-    showInactive: false,
-  });
 
   useEffect(() => {
     loadData();
@@ -177,13 +180,13 @@ export const ArticulosList = () => {
           <input
             type="text"
             placeholder="Buscar por codigo o descripcion..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <select
             value={filters.categoriaEquipo}
-            onChange={e => setFilters({ ...filters, categoriaEquipo: e.target.value })}
+            onChange={e => setFilter('categoriaEquipo', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todas las categorias</option>
@@ -193,7 +196,7 @@ export const ArticulosList = () => {
           </select>
           <select
             value={filters.marcaId}
-            onChange={e => setFilters({ ...filters, marcaId: e.target.value })}
+            onChange={e => setFilter('marcaId', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todas las marcas</option>
@@ -203,7 +206,7 @@ export const ArticulosList = () => {
           </select>
           <select
             value={filters.tipo}
-            onChange={e => setFilters({ ...filters, tipo: e.target.value })}
+            onChange={e => setFilter('tipo', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
@@ -215,7 +218,7 @@ export const ArticulosList = () => {
             <input
               type="checkbox"
               checked={filters.showInactive}
-              onChange={e => setFilters({ ...filters, showInactive: e.target.checked })}
+              onChange={e => setFilter('showInactive', e.target.checked)}
               className="w-3.5 h-3.5 rounded border-slate-300"
             />
             Mostrar inactivos

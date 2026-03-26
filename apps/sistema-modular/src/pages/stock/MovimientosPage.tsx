@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { movimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -28,19 +29,24 @@ const formatDate = (iso: string) =>
 export const MovimientosPage = () => {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
+
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    tipo: { type: 'string' as const, default: '' },
+  }), []);
+  const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+
   const [items, setItems] = useState<MovimientoStock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tipoFilter, setTipoFilter] = useState<TipoMovimiento | ''>('');
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(filters.search, 300);
   const [showCreate, setShowCreate] = useState(false);
 
   const load = async () => {
     try {
       setLoading(true);
-      const filters: { tipo?: string } = {};
-      if (tipoFilter) filters.tipo = tipoFilter;
-      const data = await movimientosService.getAll(filters);
+      const queryFilters: { tipo?: string } = {};
+      if (filters.tipo) queryFilters.tipo = filters.tipo;
+      const data = await movimientosService.getAll(queryFilters);
       setItems(data);
     } catch (err) {
       console.error('Error cargando movimientos:', err);
@@ -49,7 +55,7 @@ export const MovimientosPage = () => {
     }
   };
 
-  useEffect(() => { load(); }, [tipoFilter]);
+  useEffect(() => { load(); }, [filters.tipo]);
 
   const filtered = useMemo(() => debouncedSearch
     ? items.filter(m =>
@@ -69,8 +75,8 @@ export const MovimientosPage = () => {
       >
         <div className="flex items-center gap-3 flex-wrap">
           <select
-            value={tipoFilter}
-            onChange={e => setTipoFilter(e.target.value as TipoMovimiento | '')}
+            value={filters.tipo}
+            onChange={e => setFilter('tipo', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
@@ -79,8 +85,8 @@ export const MovimientosPage = () => {
           <input
             type="text"
             placeholder="Buscar por codigo o descripcion..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { vehiculosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { VehiculoModal } from '../../components/vehiculos/VehiculoModal';
@@ -20,10 +21,15 @@ const STATUS_CLS = { ok: 'bg-emerald-50 text-emerald-700', warning: 'bg-amber-50
 
 export const VehiculosList = () => {
   const navigate = useNavigate();
+
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+  }), []);
+  const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+
   const [items, setItems] = useState<Vehiculo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 300);
+  const debouncedSearch = useDebounce(filters.search, 300);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Vehiculo | null>(null);
 
@@ -73,8 +79,8 @@ export const VehiculosList = () => {
         <input
           type="text"
           placeholder="Buscar por patente, marca, modelo o asignado..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          value={filters.search}
+          onChange={e => setFilter('search', e.target.value)}
           className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-72 focus:outline-none focus:ring-2 focus:ring-teal-500"
         />
       </PageHeader>

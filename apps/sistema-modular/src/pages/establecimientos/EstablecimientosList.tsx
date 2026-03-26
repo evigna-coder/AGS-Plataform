@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { establecimientosService, clientesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import type { Establecimiento, Cliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -20,8 +21,14 @@ const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
 );
 
 export const EstablecimientosList = () => {
-  const [searchParams] = useSearchParams();
-  const clienteCuitFromUrl = searchParams.get('cliente');
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    cliente: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'cliente' },
+    sortDir: { type: 'string' as const, default: 'asc' },
+  }), []);
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -32,17 +39,11 @@ export const EstablecimientosList = () => {
   const [showBulkAddress, setShowBulkAddress] = useState(hasAddressTask);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
-  const [clienteFilter, setClienteFilter] = useState(clienteCuitFromUrl || '');
-  const [sortField, setSortField] = useState('cliente');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -122,7 +123,7 @@ export const EstablecimientosList = () => {
 
   const filtered = useMemo(() => {
     let result = establecimientos;
-    if (clienteFilter) result = result.filter(e => (e.clienteCuit || (e as any).clienteId) === clienteFilter);
+    if (filters.cliente) result = result.filter(e => (e.clienteCuit || (e as any).clienteId) === filters.cliente);
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(e =>
@@ -133,8 +134,8 @@ export const EstablecimientosList = () => {
         (clienteMap[e.clienteCuit || (e as any).clienteId] || '').toLowerCase().includes(q)
       );
     }
-    if (sortField === 'cliente') {
-      const dir = sortDir === 'asc' ? 1 : -1;
+    if (filters.sortField === 'cliente') {
+      const dir = filters.sortDir === 'asc' ? 1 : -1;
       result = [...result].sort((a, b) => {
         const nameA = (clienteMap[a.clienteCuit || (a as any).clienteId] || '').toLowerCase();
         const nameB = (clienteMap[b.clienteCuit || (b as any).clienteId] || '').toLowerCase();
@@ -142,8 +143,8 @@ export const EstablecimientosList = () => {
       });
       return result;
     }
-    return sortByField(result, sortField, sortDir);
-  }, [establecimientos, clienteFilter, debouncedSearch, clienteMap, sortField, sortDir]);
+    return sortByField(result, filters.sortField, filters.sortDir as SortDir);
+  }, [establecimientos, filters.cliente, debouncedSearch, clienteMap, filters.sortField, filters.sortDir]);
 
   if (loading && establecimientos.length === 0) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando establecimientos...</p></div>;
@@ -168,20 +169,20 @@ export const EstablecimientosList = () => {
           <input
             type="text"
             placeholder="Buscar por nombre, dirección, localidad, cliente..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
           <div className="min-w-[130px]">
             <SearchableSelect size="sm"
-              value={clienteFilter}
-              onChange={setClienteFilter}
+              value={filters.cliente}
+              onChange={(v) => setFilter('cliente', v)}
               options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
               placeholder="Cliente"
             />
           </div>
-          {(clienteFilter || search) && (
-            <Button size="sm" variant="ghost" onClick={() => { setClienteFilter(''); setSearch(''); }}>
+          {(filters.cliente || filters.search) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFilter('cliente', ''); setFilter('search', ''); }}>
               Limpiar
             </Button>
           )}
@@ -213,17 +214,17 @@ export const EstablecimientosList = () => {
                     <input type="checkbox" checked={selected.size > 0 && selected.size === filtered.length}
                       onChange={toggleSelectAll} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                   </th>
-                  <SortableHeader label="Cliente" field="cliente" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Cliente" field="cliente" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(1, e)} />
                   </SortableHeader>
-                  <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Nombre" field="nombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(2, e)} />
                   </SortableHeader>
                   <th className={thClass}>Dirección<ResizeHandle onMouseDown={e => onResizeStart(3, e)} /></th>
-                  <SortableHeader label="Localidad" field="localidad" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Localidad" field="localidad" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(4, e)} />
                   </SortableHeader>
-                  <SortableHeader label="Provincia" field="provincia" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Provincia" field="provincia" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(5, e)} />
                   </SortableHeader>
                   <th className={thClass}>Estado</th>
@@ -282,7 +283,7 @@ export const EstablecimientosList = () => {
       </div>
 
       <CreateEstablecimientoModal open={showCreate} onClose={() => setShowCreate(false)}
-        onCreated={loadData} preselectedClienteId={clienteFilter || undefined} />
+        onCreated={loadData} preselectedClienteId={filters.cliente || undefined} />
       <BulkAddressValidationModal open={showBulkAddress} onClose={() => setShowBulkAddress(false)}
         establecimientos={establecimientos} clienteMap={clienteMap} onUpdated={loadData} />
     </div>

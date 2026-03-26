@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { dispositivosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -18,10 +19,14 @@ const TIPO_COLORS: Record<TipoDispositivo, string> = {
 };
 
 export const DispositivosList = () => {
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+  }), []);
+  const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+
   const [items, setItems] = useState<Dispositivo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 300);
+  const debouncedSearch = useDebounce(filters.search, 300);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Dispositivo | null>(null);
 
@@ -70,7 +75,7 @@ export const DispositivosList = () => {
         actions={<Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo dispositivo</Button>}
       >
         <input type="text" placeholder="Buscar por marca, modelo, serie o asignado..."
-          value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          value={filters.search} onChange={e => setFilter('search', e.target.value)}
           className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-72 focus:outline-none focus:ring-2 focus:ring-teal-500" />
       </PageHeader>
 

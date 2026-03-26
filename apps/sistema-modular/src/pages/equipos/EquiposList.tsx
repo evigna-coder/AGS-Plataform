@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { sistemasService, categoriasEquipoService, clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -24,11 +25,17 @@ const ESTADO_TABS = [
   { value: 'inactivos', label: 'Inactivos' },
   { value: 'todos', label: 'Todos' },
 ] as const;
-type EstadoTab = (typeof ESTADO_TABS)[number]['value'];
-
 export const EquiposList = () => {
-  const [searchParams] = useSearchParams();
-  const clienteIdFilter = searchParams.get('cliente');
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    estadoTab: { type: 'string' as const, default: 'activos' },
+    categoriaFilter: { type: 'string' as const, default: '' },
+    cliente: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'cliente' },
+    sortDir: { type: 'string' as const, default: 'asc' },
+  }), []);
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
@@ -44,18 +51,11 @@ export const EquiposList = () => {
   const [reassignEstId, setReassignEstId] = useState('');
   const [reassignSector, setReassignSector] = useState('');
   const [reassigning, setReassigning] = useState(false);
-
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
-  const [estadoTab, setEstadoTab] = useState<EstadoTab>('activos');
-  const [categoriaFilter, setCategoriaFilter] = useState('');
-  const [sortField, setSortField] = useState('cliente');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -65,7 +65,7 @@ export const EquiposList = () => {
       setLoading(true);
       const [sistemasData, categoriasData, clientesData, establecimientosData] = await Promise.all([
         sistemasService.getAll({
-          clienteId: clienteIdFilter || undefined,
+          clienteId: filters.cliente || undefined,
         }),
         categoriasEquipoService.getAll(),
         clientesService.getAll(),
@@ -108,9 +108,9 @@ export const EquiposList = () => {
 
   const sistemasFiltrados = useMemo(() => {
     let result = sistemas;
-    if (estadoTab === 'activos') result = result.filter(s => s.activo !== false);
-    else if (estadoTab === 'inactivos') result = result.filter(s => s.activo === false);
-    if (categoriaFilter) result = result.filter(s => s.categoriaId === categoriaFilter);
+    if (filters.estadoTab === 'activos') result = result.filter(s => s.activo !== false);
+    else if (filters.estadoTab === 'inactivos') result = result.filter(s => s.activo === false);
+    if (filters.categoriaFilter) result = result.filter(s => s.categoriaId === filters.categoriaFilter);
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(s => {
@@ -125,8 +125,8 @@ export const EquiposList = () => {
         );
       });
     }
-    if (sortField === 'cliente') {
-      const dir = sortDir === 'asc' ? 1 : -1;
+    if (filters.sortField === 'cliente') {
+      const dir = filters.sortDir === 'asc' ? 1 : -1;
       result = [...result].sort((a, b) => {
         const estA = estMap[a.establecimientoId || ''];
         const estB = estMap[b.establecimientoId || ''];
@@ -136,8 +136,8 @@ export const EquiposList = () => {
       });
       return result;
     }
-    return sortByField(result, sortField, sortDir);
-  }, [sistemas, estadoTab, categoriaFilter, debouncedSearch, clienteMap, estMap, sortField, sortDir]);
+    return sortByField(result, filters.sortField, filters.sortDir as SortDir);
+  }, [sistemas, filters.estadoTab, filters.categoriaFilter, debouncedSearch, clienteMap, estMap, filters.sortField, filters.sortDir]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -257,17 +257,17 @@ export const EquiposList = () => {
           <input
             type="text"
             placeholder="Buscar por nombre, cliente, establecimiento, código..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
           <div className="flex items-center gap-1.5">
             {ESTADO_TABS.map(tab => (
               <button
                 key={tab.value}
-                onClick={() => setEstadoTab(tab.value)}
+                onClick={() => setFilter('estadoTab', tab.value)}
                 className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
-                  estadoTab === tab.value
+                  filters.estadoTab === tab.value
                     ? 'bg-teal-600 text-white'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
@@ -278,14 +278,14 @@ export const EquiposList = () => {
           </div>
           <div className="min-w-[120px]">
             <SearchableSelect size="sm"
-              value={categoriaFilter}
-              onChange={setCategoriaFilter}
+              value={filters.categoriaFilter}
+              onChange={(v) => setFilter('categoriaFilter', v)}
               options={[{ value: '', label: 'Categoría: Todas' }, ...categorias.map(cat => ({ value: cat.id, label: cat.nombre }))]}
               placeholder="Categoría"
             />
           </div>
-          {(categoriaFilter || search) && (
-            <Button size="sm" variant="ghost" onClick={() => { setCategoriaFilter(''); setSearch(''); }}>
+          {(filters.categoriaFilter || filters.search) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFilter('categoriaFilter', ''); setFilter('search', ''); }}>
               Limpiar
             </Button>
           )}
@@ -316,14 +316,14 @@ export const EquiposList = () => {
                     <input type="checkbox" checked={selected.size > 0 && selected.size === sistemasFiltrados.length}
                       onChange={toggleSelectAll} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                   </th>
-                  <SortableHeader label="Cliente" field="cliente" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Cliente" field="cliente" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(1, e)} />
                   </SortableHeader>
-                  <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Nombre" field="nombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(2, e)} />
                   </SortableHeader>
                   <th className={thClass}>Establecimiento<ResizeHandle onMouseDown={e => onResizeStart(3, e)} /></th>
-                  <SortableHeader label="Categoría" field="categoriaId" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass}>
+                  <SortableHeader label="Categoría" field="categoriaId" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
                     <ResizeHandle onMouseDown={e => onResizeStart(4, e)} />
                   </SortableHeader>
                   <th className={thClass}>Sector<ResizeHandle onMouseDown={e => onResizeStart(5, e)} /></th>

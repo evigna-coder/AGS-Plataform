@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, usuariosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import type { WorkOrder, Cliente, Sistema, OTEstadoAdmin, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
@@ -184,10 +184,26 @@ const NewItemModal: React.FC<NewItemModalProps> = ({ open, parentOt, onClose, on
 };
 
 // ---------- Main OTList ----------
+const FILTER_SCHEMA = {
+  clienteId: { type: 'string' as const, default: '' },
+  sistemaId: { type: 'string' as const, default: '' },
+  estadoAdmin: { type: 'string' as const, default: '__pendientes__' },
+  busquedaOT: { type: 'string' as const, default: '' },
+  busquedaModulo: { type: 'string' as const, default: '' },
+  busquedaEquipo: { type: 'string' as const, default: '' },
+  tipoServicio: { type: 'string' as const, default: '' },
+  ingenieroId: { type: 'string' as const, default: '' },
+  fechaDesde: { type: 'string' as const, default: '' },
+  fechaHasta: { type: 'string' as const, default: '' },
+  soloFacturable: { type: 'boolean' as const, default: false },
+  soloContrato: { type: 'boolean' as const, default: false },
+  soloGarantia: { type: 'boolean' as const, default: false },
+  sortField: { type: 'string' as const, default: 'createdAt' },
+  sortDir: { type: 'string' as const, default: 'desc' },
+};
+
 export const OTList = () => {
-  const [searchParams] = useSearchParams();
-  const clienteIdFilter = searchParams.get('cliente');
-  const sistemaIdFilter = searchParams.get('sistema');
+  const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
   const [ordenes, setOrdenes] = useState<WorkOrder[]>([]);
@@ -241,32 +257,14 @@ export const OTList = () => {
     } catch { alert('Error al cambiar estados'); }
   };
 
-  const [filters, setFilters] = useState({
-    clienteId: clienteIdFilter || '',
-    sistemaId: sistemaIdFilter || '',
-    estadoAdmin: '__pendientes__' as string,
-    busquedaOT: '',
-    busquedaModulo: '',
-    busquedaEquipo: '',
-    tipoServicio: '',
-    ingenieroId: '',
-    fechaDesde: '',
-    fechaHasta: '',
-    soloFacturable: false,
-    soloContrato: false,
-    soloGarantia: false,
-  });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const debouncedBusquedaOT = useDebounce(filters.busquedaOT, 300);
   const debouncedBusquedaModulo = useDebounce(filters.busquedaModulo, 300);
   const debouncedBusquedaEquipo = useDebounce(filters.busquedaEquipo, 300);
-  const [sortField, setSortField] = useState('createdAt');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field);
-    setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilters({ sortField: s.field, sortDir: s.dir });
   };
 
   // Agrupar: padres y sus items. Orphaned items (sin padre en lista) se muestran standalone.
@@ -338,8 +336,8 @@ export const OTList = () => {
       }
     });
 
-    const sortedParents = sortByField(parents, sortField, sortDir);
-    const sortedOrphans = sortByField(orphans, sortField, sortDir);
+    const sortedParents = sortByField(parents, filters.sortField, filters.sortDir as SortDir);
+    const sortedOrphans = sortByField(orphans, filters.sortField, filters.sortDir as SortDir);
 
     const result: { ot: WorkOrder; isItem: boolean; hasItems: boolean }[] = [];
 
@@ -362,7 +360,7 @@ export const OTList = () => {
     sortedOrphans.forEach(ot => result.push({ ot, isItem: false, hasItems: false }));
 
     return result;
-  }, [ordenes, filters.estadoAdmin, filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId, filters.fechaDesde, filters.fechaHasta, filters.soloFacturable, filters.soloContrato, filters.soloGarantia, debouncedBusquedaOT, debouncedBusquedaModulo, debouncedBusquedaEquipo, sortField, sortDir]);
+  }, [ordenes, filters.estadoAdmin, filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId, filters.fechaDesde, filters.fechaHasta, filters.soloFacturable, filters.soloContrato, filters.soloGarantia, debouncedBusquedaOT, debouncedBusquedaModulo, debouncedBusquedaEquipo, filters.sortField, filters.sortDir]);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadOrdenes(); }, [filters.clienteId, filters.sistemaId]);
@@ -475,7 +473,7 @@ export const OTList = () => {
           <div className="min-w-[120px]">
             <SearchableSelect size="sm"
               value={filters.clienteId}
-              onChange={(value) => setFilters({ ...filters, clienteId: value })}
+              onChange={(value) => setFilter('clienteId', value)}
               options={[{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
               placeholder="Cliente"
             />
@@ -483,7 +481,7 @@ export const OTList = () => {
           <div className="min-w-[120px]">
             <SearchableSelect size="sm"
               value={filters.sistemaId}
-              onChange={(value) => setFilters({ ...filters, sistemaId: value })}
+              onChange={(value) => setFilter('sistemaId', value)}
               options={[{ value: '', label: 'Todos' }, ...sistemas.map(s => ({ value: s.id, label: s.nombre }))]}
               placeholder="Sistema"
             />
@@ -491,7 +489,7 @@ export const OTList = () => {
           <div className="min-w-[110px]">
             <SearchableSelect size="sm"
               value={filters.estadoAdmin}
-              onChange={(value) => setFilters({ ...filters, estadoAdmin: value })}
+              onChange={(value) => setFilter('estadoAdmin', value)}
               options={estadoOptions}
               placeholder="Estado"
             />
@@ -499,32 +497,28 @@ export const OTList = () => {
           <input
             type="text"
             value={filters.busquedaOT}
-            onChange={e => setFilters({ ...filters, busquedaOT: e.target.value })}
+            onChange={e => setFilter('busquedaOT', e.target.value)}
             placeholder="Buscar OT #"
             className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
           />
           <input
             type="text"
             value={filters.busquedaEquipo}
-            onChange={e => setFilters({ ...filters, busquedaEquipo: e.target.value })}
+            onChange={e => setFilter('busquedaEquipo', e.target.value)}
             placeholder="Id Equipo"
             className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
           />
           <input
             type="text"
             value={filters.busquedaModulo}
-            onChange={e => setFilters({ ...filters, busquedaModulo: e.target.value })}
+            onChange={e => setFilter('busquedaModulo', e.target.value)}
             placeholder="Módulo / N° serie"
             className="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
           />
           <Button size="sm" variant="ghost" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}>
             {showAdvancedFilters ? 'Menos filtros' : 'Más filtros'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setFilters({
-            clienteId: '', sistemaId: '', estadoAdmin: '__pendientes__', busquedaOT: '', busquedaModulo: '', busquedaEquipo: '',
-            tipoServicio: '', ingenieroId: '', fechaDesde: '', fechaHasta: '',
-            soloFacturable: false, soloContrato: false, soloGarantia: false,
-          })}>
+          <Button size="sm" variant="ghost" onClick={resetFilters}>
             Limpiar
           </Button>
         </div>
@@ -532,41 +526,41 @@ export const OTList = () => {
           <div className="flex items-center gap-2 flex-wrap mt-2">
             <div className="min-w-[110px]">
               <SearchableSelect size="sm" value={filters.tipoServicio}
-                onChange={v => setFilters({ ...filters, tipoServicio: v })}
+                onChange={v => setFilter('tipoServicio', v)}
                 options={[{ value: '', label: 'Tipo servicio' }, ...tiposServicioList.map(t => ({ value: t.nombre, label: t.nombre }))]}
                 placeholder="Tipo servicio" />
             </div>
             <div className="min-w-[120px]">
               <SearchableSelect size="sm" value={filters.ingenieroId}
-                onChange={v => setFilters({ ...filters, ingenieroId: v })}
+                onChange={v => setFilter('ingenieroId', v)}
                 options={[{ value: '', label: 'Ingeniero' }, ...ingenierosList.map(u => ({ value: u.id, label: u.displayName }))]}
                 placeholder="Ingeniero" />
             </div>
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-slate-400">Desde</span>
               <input type="date" value={filters.fechaDesde}
-                onChange={e => setFilters({ ...filters, fechaDesde: e.target.value })}
+                onChange={e => setFilter('fechaDesde', e.target.value)}
                 className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 outline-none" />
             </div>
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-slate-400">Hasta</span>
               <input type="date" value={filters.fechaHasta}
-                onChange={e => setFilters({ ...filters, fechaHasta: e.target.value })}
+                onChange={e => setFilter('fechaHasta', e.target.value)}
                 className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 outline-none" />
             </div>
             <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
               <input type="checkbox" checked={filters.soloFacturable}
-                onChange={e => setFilters({ ...filters, soloFacturable: e.target.checked })}
+                onChange={e => setFilter('soloFacturable', e.target.checked)}
                 className="rounded border-slate-300" /> Facturable
             </label>
             <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
               <input type="checkbox" checked={filters.soloContrato}
-                onChange={e => setFilters({ ...filters, soloContrato: e.target.checked })}
+                onChange={e => setFilter('soloContrato', e.target.checked)}
                 className="rounded border-slate-300" /> Contrato
             </label>
             <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
               <input type="checkbox" checked={filters.soloGarantia}
-                onChange={e => setFilters({ ...filters, soloGarantia: e.target.checked })}
+                onChange={e => setFilter('soloGarantia', e.target.checked)}
                 className="rounded border-slate-300" /> Garantía
             </label>
           </div>
@@ -663,7 +657,7 @@ export const OTList = () => {
                     { label: 'Servicio', field: 'tipoServicio' },
                   ].map((col, i) => (
                     <SortableHeader key={col.field} label={col.label} field={col.field}
-                      currentField={sortField} currentDir={sortDir} onSort={handleSort}
+                      currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort}
                       className={`${thClass} relative`}>
                       <div onMouseDown={e => onResizeStart(i, e)}
                         className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
@@ -680,7 +674,7 @@ export const OTList = () => {
                     { label: 'Estado', field: 'estadoAdmin', idx: 9 },
                   ].map(col => (
                     <SortableHeader key={col.field} label={col.label} field={col.field}
-                      currentField={sortField} currentDir={sortDir} onSort={handleSort}
+                      currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort}
                       className={`${thClass} relative`}>
                       <div onMouseDown={e => onResizeStart(col.idx, e)}
                         className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />

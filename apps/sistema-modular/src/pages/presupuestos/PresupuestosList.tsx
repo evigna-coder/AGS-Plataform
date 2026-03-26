@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { presupuestosService, clientesService, usuariosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
-import type { Presupuesto, Cliente, TipoPresupuesto, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
+import type { Presupuesto, Cliente, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -31,22 +32,23 @@ export const PresupuestosList = () => {
   const [showCondiciones, setShowCondiciones] = useState(false);
   const floatingPres = useFloatingPresupuesto();
 
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
-  const [filters, setFilters] = useState({
-    cliente: '',
-    estado: '' as Presupuesto['estado'] | '',
-    tipo: '' as TipoPresupuesto | '',
-    responsable: '',
-    fechaDesde: '',
-    fechaHasta: '',
-  });
-  const [sortField, setSortField] = useState('createdAt');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const FILTER_SCHEMA = useMemo(() => ({
+    search:      { type: 'string' as const, default: '' },
+    cliente:     { type: 'string' as const, default: '' },
+    estado:      { type: 'string' as const, default: '' },
+    tipo:        { type: 'string' as const, default: '' },
+    responsable: { type: 'string' as const, default: '' },
+    fechaDesde:  { type: 'string' as const, default: '' },
+    fechaHasta:  { type: 'string' as const, default: '' },
+    sortField:   { type: 'string' as const, default: 'createdAt' },
+    sortDir:     { type: 'string' as const, default: 'desc' },
+  }), []);
+  const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -87,23 +89,23 @@ export const PresupuestosList = () => {
       );
     }
     // Custom sort for computed fields
-    if (sortField === '_validez') {
+    if (filters.sortField === '_validez') {
       result = [...result].sort((a, b) => {
         const va = getDaysUntilExpiry(a.validUntil, a.fechaEnvio, a.validezDias) ?? 9999;
         const vb = getDaysUntilExpiry(b.validUntil, b.fechaEnvio, b.validezDias) ?? 9999;
-        return sortDir === 'asc' ? va - vb : vb - va;
+        return filters.sortDir === 'asc' ? va - vb : vb - va;
       });
-    } else if (sortField === '_seguimiento') {
+    } else if (filters.sortField === '_seguimiento') {
       result = [...result].sort((a, b) => {
         const va = getDaysUntilContacto(a.proximoContacto) ?? 9999;
         const vb = getDaysUntilContacto(b.proximoContacto) ?? 9999;
-        return sortDir === 'asc' ? va - vb : vb - va;
+        return filters.sortDir === 'asc' ? va - vb : vb - va;
       });
     } else {
-      result = sortByField(result, sortField, sortDir);
+      result = sortByField(result, filters.sortField, filters.sortDir as SortDir);
     }
     return result;
-  }, [presupuestos, filters, debouncedSearch, sortField, sortDir]);
+  }, [presupuestos, filters, debouncedSearch]);
 
   const pipelineByMoneda = useMemo(() => {
     const map: Record<string, number> = {};
@@ -164,34 +166,34 @@ export const PresupuestosList = () => {
           </div>
         }>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="text" placeholder="Buscar por número, cliente..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Buscar por número, cliente..." value={filters.search} onChange={e => setFilter('search', e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
           <div className="min-w-[120px]">
-            <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilters({ ...filters, cliente: v })}
+            <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilter('cliente', v)}
               options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
               placeholder="Cliente" />
           </div>
           <div className="min-w-[100px]">
-            <SearchableSelect size="sm" value={filters.estado} onChange={v => setFilters({ ...filters, estado: v as Presupuesto['estado'] | '' })}
+            <SearchableSelect size="sm" value={filters.estado} onChange={v => setFilter('estado', v)}
               options={[{ value: '', label: 'Estado: Todos' }, ...Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }))]}
               placeholder="Estado" />
           </div>
           <div className="min-w-[90px]">
-            <SearchableSelect size="sm" value={filters.tipo} onChange={v => setFilters({ ...filters, tipo: v as TipoPresupuesto | '' })}
+            <SearchableSelect size="sm" value={filters.tipo} onChange={v => setFilter('tipo', v)}
               options={[{ value: '', label: 'Tipo: Todos' }, ...Object.entries(TIPO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }))]}
               placeholder="Tipo" />
           </div>
           <div className="min-w-[110px]">
-            <SearchableSelect size="sm" value={filters.responsable} onChange={v => setFilters({ ...filters, responsable: v })}
+            <SearchableSelect size="sm" value={filters.responsable} onChange={v => setFilter('responsable', v)}
               options={[{ value: '', label: 'Responsable' }, ...usuarios.filter(u => u.status === 'activo').map(u => ({ value: u.id, label: u.displayName }))]}
               placeholder="Responsable" />
           </div>
-          <input type="date" value={filters.fechaDesde} onChange={e => setFilters({ ...filters, fechaDesde: e.target.value })}
+          <input type="date" value={filters.fechaDesde} onChange={e => setFilter('fechaDesde', e.target.value)}
             className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Desde" />
-          <input type="date" value={filters.fechaHasta} onChange={e => setFilters({ ...filters, fechaHasta: e.target.value })}
+          <input type="date" value={filters.fechaHasta} onChange={e => setFilter('fechaHasta', e.target.value)}
             className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Hasta" />
           {hasFilters && (
-            <Button size="sm" variant="ghost" onClick={() => setFilters({ cliente: '', estado: '', tipo: '', responsable: '', fechaDesde: '', fechaHasta: '' })}>Limpiar</Button>
+            <Button size="sm" variant="ghost" onClick={() => resetFilters()}>Limpiar</Button>
           )}
         </div>
       </PageHeader>
@@ -207,16 +209,16 @@ export const PresupuestosList = () => {
             <table className="w-full">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <SortableHeader label="Número" field="numero" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Cliente" field="clienteId" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Estado" field="estado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Total" field="total" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} text-right`} />
-                  <SortableHeader label="Responsable" field="responsableNombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Creado" field="createdAt" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Enviado" field="fechaEnvio" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Validez" field="_validez" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Seguimiento" field="_seguimiento" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Número" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Cliente" field="clienteId" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Total" field="total" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} text-right`} />
+                  <SortableHeader label="Responsable" field="responsableNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Creado" field="createdAt" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Enviado" field="fechaEnvio" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Validez" field="_validez" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <SortableHeader label="Seguimiento" field="_seguimiento" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={`${thClass} text-right`}>Acciones</th>
                 </tr>
               </thead>

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { minikitsService } from '../../services/firebaseService';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -16,9 +17,13 @@ const ESTADO_COLORS: Record<EstadoMinikit, string> = {
 };
 
 export const MinikitsList = () => {
+  const FILTER_SCHEMA = useMemo(() => ({
+    showInactive: { type: 'boolean' as const, default: false },
+  }), []);
+  const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+
   const [minikits, setMinikits] = useState<Minikit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showInactive, setShowInactive] = useState(false);
 
   // Inline create
   const [showCreate, setShowCreate] = useState(false);
@@ -28,7 +33,7 @@ export const MinikitsList = () => {
   const reload = async () => {
     setLoading(true);
     try {
-      const data = await minikitsService.getAll(showInactive ? false : true);
+      const data = await minikitsService.getAll(filters.showInactive ? false : true);
       setMinikits(data);
     } catch (err) {
       console.error('Error cargando minikits:', err);
@@ -37,7 +42,7 @@ export const MinikitsList = () => {
     }
   };
 
-  useEffect(() => { reload(); }, [showInactive]);
+  useEffect(() => { reload(); }, [filters.showInactive]);
 
   const handleCreate = async () => {
     if (!form.codigo.trim() || !form.nombre.trim()) return;
@@ -133,7 +138,7 @@ export const MinikitsList = () => {
         <div className="flex justify-between items-center">
           <p className="text-xs text-slate-400">{minikits.length} minikit(s)</p>
           <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
+            <input type="checkbox" checked={filters.showInactive} onChange={e => setFilter('showInactive', e.target.checked)}
               className="w-3.5 h-3.5 accent-teal-600" />
             Mostrar inactivos
           </label>

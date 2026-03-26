@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ingresoEmpresasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { IngresoEmpresaModal } from '../../components/ingreso-empresas/IngresoEmpresaModal';
@@ -16,11 +17,15 @@ const STATUS_ICON: Record<DocumentoIngresoStatus, { symbol: string; cls: string 
 };
 
 export const IngresoEmpresasList = () => {
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    tipo: { type: 'string' as const, default: '' },
+  }), []);
+  const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+
   const [items, setItems] = useState<IngresoEmpresa[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 300);
-  const [filterTipo, setFilterTipo] = useState<string>('');
+  const debouncedSearch = useDebounce(filters.search, 300);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<IngresoEmpresa | null>(null);
 
@@ -39,13 +44,13 @@ export const IngresoEmpresasList = () => {
 
   const filtered = useMemo(() => {
     let result = items;
-    if (filterTipo) result = result.filter(i => i.tipo !== filterTipo ? false : true);
+    if (filters.tipo) result = result.filter(i => i.tipo !== filters.tipo ? false : true);
     if (!debouncedSearch) return result;
     const t = debouncedSearch.toLowerCase();
     return result.filter(i =>
       i.clienteNombre.toLowerCase().includes(t) || i.contacto.toLowerCase().includes(t)
     );
-  }, [items, filterTipo, debouncedSearch]);
+  }, [items, filters.tipo, debouncedSearch]);
 
   const handleEdit = (item: IngresoEmpresa) => {
     setEditItem(item);
@@ -79,13 +84,13 @@ export const IngresoEmpresasList = () => {
           <input
             type="text"
             placeholder="Buscar cliente..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <select
-            value={filterTipo}
-            onChange={e => setFilterTipo(e.target.value)}
+            value={filters.tipo}
+            onChange={e => setFilter('tipo', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
