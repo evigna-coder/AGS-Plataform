@@ -89,6 +89,24 @@ export function useAppLogic(
 
   const [manualHoras, setManualHoras] = useState(false);
 
+  // Detectar horas manuales al cargar un reporte:
+  // Si horasTrabajadas tiene valor y difiere del cálculo automático, activar manualHoras
+  const prevOtForManualRef = useRef<string>('');
+  useEffect(() => {
+    if (otNumber && otNumber !== prevOtForManualRef.current) {
+      prevOtForManualRef.current = otNumber;
+      if (horasTrabajadas && fechaInicio && fechaFin && horaInicio && horaFin &&
+          isValidTimeHHMM(horaInicio) && isValidTimeHHMM(horaFin)) {
+        const autoCalc = String(calcHours(fechaInicio, horaInicio, fechaFin, horaFin));
+        if (horasTrabajadas !== autoCalc) {
+          setManualHoras(true);
+          return;
+        }
+      }
+      setManualHoras(false);
+    }
+  }, [otNumber, horasTrabajadas, fechaInicio, fechaFin, horaInicio, horaFin]);
+
   // Auto-calcular horas trabajadas cuando manualHoras es false y las cuatro fechas/horas son válidas
   useEffect(() => {
     if (manualHoras) return;
