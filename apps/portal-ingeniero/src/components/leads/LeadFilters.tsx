@@ -62,7 +62,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           ))}
         </div>
         <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer ml-auto">
-          <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked })} className="rounded border-slate-300" />
+          <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, responsable: '' })} className="rounded border-slate-300" />
           Mis leads
         </label>
       </div>
