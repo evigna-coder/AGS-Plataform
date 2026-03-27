@@ -32,6 +32,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   }, [isModoFirma]);
 
   useEffect(() => {
+    if (isModoFirma) return; // Ya está en 'authenticated'
     if (!user) {
       setPhase('login');
       return;
@@ -41,7 +42,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
       return;
     }
     setPhase('authenticated');
-  }, [user]);
+  }, [user, isModoFirma]);
 
   const handleLoginError = (message: string) => {
     setLoginError(message);
