@@ -62,7 +62,7 @@ export const PresupuestoHeaderBar: React.FC<Props> = ({
           {estado === 'borrador' && (
             <Button variant="outline" size="sm" onClick={onEnviar}>Enviar</Button>
           )}
-          {estado === 'autorizado' && (
+          {['autorizado', 'aceptado', 'pendiente_oc'].includes(estado) && (
             <Button variant="outline" size="sm" onClick={() => { onClose(); navigate(`/ordenes-trabajo/nuevo?presupuestoId=${presupuestoId}`); }}>Crear OT</Button>
           )}
           <Button variant="ghost" size="sm" onClick={onDelete} disabled={deleting} title="Eliminar presupuesto"

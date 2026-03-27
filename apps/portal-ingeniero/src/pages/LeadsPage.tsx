@@ -41,14 +41,15 @@ export default function LeadsPage() {
     usuariosService.getIngenieros().then(setUsuarios);
   }, []);
 
-  useEffect(() => { loadLeads(); }, [estadoFilter, filters.responsable, filters.prioridad]);
+  useEffect(() => { loadLeads(); }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, filters.prioridad]);
 
   const loadLeads = async () => {
     try {
       setLoading(true);
+      const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
       const data = await leadsService.getAll({
         ...(estadoFilter ? { estado: estadoFilter } : {}),
-        ...(filters.responsable ? { asignadoA: filters.responsable } : {}),
+        ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
       });
       setLeads(data);
     } catch (err) {
@@ -58,19 +59,10 @@ export default function LeadsPage() {
     }
   };
 
-  const isAdmin = usuario?.role === 'admin';
-
   const leadsFiltered = useMemo(() => {
     let result = leads;
-    // Visibility: by default only assigned leads; "verCreados" adds created/derived; "verTodos" (admin) shows all
-    if (usuario && !filters.verTodos) {
-      result = result.filter(l => {
-        const isAssigned = l.asignadoA === usuario.id;
-        if (filters.verCreados) {
-          return isAssigned || l.createdBy === usuario.id || l.derivadoPor === usuario.id;
-        }
-        return isAssigned;
-      });
+    if (filters.misCreados && usuario) {
+      result = result.filter(l => l.createdBy === usuario.id || l.derivadoPor === usuario.id);
     }
     if (filters.motivo) result = result.filter(l => l.motivoLlamado === filters.motivo);
     if (filters.area) result = result.filter(l => l.areaActual === filters.area);
@@ -87,7 +79,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, usuario, filters.verTodos, filters.verCreados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, filters.misCreados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
@@ -126,14 +118,14 @@ export default function LeadsPage() {
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
         <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
-          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} isAdmin={isAdmin} />
+          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-3 md:px-5 pb-4">
         {leadsFiltered.length === 0 ? (
           <Card><div className="text-center py-12">
             <p className="text-slate-400">No se encontraron leads</p>
-            <button onClick={() => setShowCreate(true)} className="text-indigo-600 hover:underline mt-2 inline-block text-xs">
+            <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
               Crear primer lead
             </button>
           </div></Card>
@@ -209,16 +201,16 @@ export default function LeadsPage() {
                 )}
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className={thBase}>Cliente<div onMouseDown={e => onResizeStart(0, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Contacto<div onMouseDown={e => onResizeStart(1, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Motivo<div onMouseDown={e => onResizeStart(2, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Prioridad<div onMouseDown={e => onResizeStart(3, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Estado<div onMouseDown={e => onResizeStart(4, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Área<div onMouseDown={e => onResizeStart(5, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Asignado<div onMouseDown={e => onResizeStart(6, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Fecha<div onMouseDown={e => onResizeStart(7, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Seguim.<div onMouseDown={e => onResizeStart(8, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
-                    <th className={thBase}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-400/40" /></th>
+                    <th className={thBase}>Cliente<div onMouseDown={e => onResizeStart(0, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Contacto<div onMouseDown={e => onResizeStart(1, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Motivo<div onMouseDown={e => onResizeStart(2, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Prioridad<div onMouseDown={e => onResizeStart(3, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Estado<div onMouseDown={e => onResizeStart(4, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Área<div onMouseDown={e => onResizeStart(5, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Asignado<div onMouseDown={e => onResizeStart(6, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Fecha<div onMouseDown={e => onResizeStart(7, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Seguim.<div onMouseDown={e => onResizeStart(8, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={thBase}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                     <th className={`${thBase} text-right`}>Acciones</th>
                   </tr>
                 </thead>
@@ -231,7 +223,7 @@ export default function LeadsPage() {
                     return (
                       <tr key={lead.id} className={`hover:bg-slate-50 transition-colors ${getRowStyle(lead)}`}>
                         <td className="px-3 py-2 overflow-hidden">
-                          <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 truncate block" title={lead.razonSocial}>
+                          <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
                             {lead.razonSocial}
                           </Link>
                         </td>
@@ -292,7 +284,7 @@ export default function LeadsPage() {
                                   </svg>
                                 </button>
                                 <button onClick={() => setDerivarLead(lead)}
-                                  className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-0.5 rounded hover:bg-indigo-50">
+                                  className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">
                                   Derivar
                                 </button>
                                 <button onClick={() => setFinalizarLead(lead)}

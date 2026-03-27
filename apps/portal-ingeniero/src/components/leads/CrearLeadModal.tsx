@@ -170,7 +170,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
 
   /* ---- Shared field renderers ---- */
 
-  const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
   const labelClass = 'text-[11px] font-medium text-slate-500 mb-1 block';
 
   const clienteField = (
@@ -200,7 +200,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
                 <button
                   key={c.id}
                   onMouseDown={() => handleSelectCliente(c)}
-                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-indigo-50 text-slate-700 border-b border-slate-100 last:border-0"
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-teal-50 text-slate-700 border-b border-slate-100 last:border-0"
                 >
                   {c.razonSocial}
                 </button>
@@ -293,7 +293,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         value={descripcion}
         onChange={e => setDescripcion(e.target.value)}
         rows={3}
-        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
       />
     </div>
   );
@@ -311,7 +311,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
 
         {/* Progress bar */}
         <div className="shrink-0 h-1 bg-slate-100">
-          <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${step * 50}%` }} />
+          <div className="h-full bg-teal-500 transition-all duration-300" style={{ width: `${step * 50}%` }} />
         </div>
 
         {/* Step content */}

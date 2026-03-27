@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService } from '../services/firebaseService';
+import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService, presupuestosService } from '../services/firebaseService';
 import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_ORDER } from '@ags/shared';
 import { useOTFormState } from './useOTFormState';
@@ -28,6 +28,9 @@ export function useOTDetail(otNumber?: string) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Presupuesto origen nombre (para display)
+  const [presupuestoOrigenNumero, setPresupuestoOrigenNumero] = useState<string | null>(null);
 
   // New item modal
   const [showNewItemModal, setShowNewItemModal] = useState(false);
@@ -73,6 +76,10 @@ export function useOTDetail(otNumber?: string) {
         }
         if (ot.sistemaId) {
           try { const mods = await modulosService.getBySistema(ot.sistemaId); if (!cancelled) setModulosFiltrados(mods); } catch { /* optional */ }
+        }
+        // Load presupuesto origen numero for display
+        if (ot.presupuestoOrigenId) {
+          try { const pres = await presupuestosService.getById(ot.presupuestoOrigenId); if (!cancelled && pres) setPresupuestoOrigenNumero(pres.numero); } catch { /* optional */ }
         }
       } catch { if (!cancelled) alert('Error al cargar la orden de trabajo'); } finally { if (!cancelled) setLoading(false); }
     };
@@ -359,5 +366,6 @@ export function useOTDetail(otNumber?: string) {
     items, showNewItemModal, setShowNewItemModal,
     newItemData, setNewItemData, handleCreateNewItem,
     validate,
+    leadId: form.leadId, presupuestoOrigenId: form.presupuestoOrigenId, presupuestoOrigenNumero,
   };
 }

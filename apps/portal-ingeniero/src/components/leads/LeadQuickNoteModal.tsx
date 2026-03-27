@@ -50,7 +50,7 @@ export default function LeadQuickNoteModal({ lead, onClose, onAdded }: LeadQuick
           rows={3}
           autoFocus
           placeholder="Escribí una nota o actualización..."
-          className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
         />
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>

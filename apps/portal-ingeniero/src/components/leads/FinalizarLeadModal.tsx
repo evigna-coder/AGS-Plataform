@@ -52,7 +52,7 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
           <select
             value={resultado}
             onChange={e => setResultado(e.target.value as LeadEstado)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             {RESULTADOS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
@@ -63,7 +63,7 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
             value={comentario}
             onChange={e => setComentario(e.target.value)}
             rows={3}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             placeholder="Notas de cierre..."
           />
         </div>

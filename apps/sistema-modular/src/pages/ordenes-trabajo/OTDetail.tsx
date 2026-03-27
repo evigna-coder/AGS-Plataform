@@ -147,6 +147,9 @@ export const OTDetail = () => {
             estadoAdmin={ot.estadoAdmin}
             estadoAdminFecha={ot.estadoAdminFecha}
             estadoHistorial={ot.estadoHistorial}
+            leadId={ot.leadId}
+            presupuestoOrigenId={ot.presupuestoOrigenId}
+            presupuestoOrigenNumero={ot.presupuestoOrigenNumero}
           />
 
           {/* Main content */}

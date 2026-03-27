@@ -42,6 +42,9 @@ export interface OTInfoSidebarProps {
   estadoAdmin: string;
   estadoAdminFecha: string;
   estadoHistorial: OTEstadoHistorial[];
+  leadId?: string | null;
+  presupuestoOrigenId?: string | null;
+  presupuestoOrigenNumero?: string | null;
 }
 
 export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
@@ -57,6 +60,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   onCheckboxChange, budgets, onAddBudget, onUpdateBudget, onRemoveBudget,
   ordenCompra, fechaServicioAprox, ingenieroAsignadoId, ingenieroAsignadoNombre: _ian,
   ingenieros, onIngenieroChange, estadoAdmin: _ea, estadoAdminFecha: _eaf, estadoHistorial,
+  leadId, presupuestoOrigenId, presupuestoOrigenNumero,
 }) => {
   const { pathname } = useLocation();
   const totalHs = (Number(horasTrabajadas) || 0) + (Number(tiempoViaje) || 0);
@@ -217,6 +221,31 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
           )}
         </div>
       </Card>
+
+      {/* Origen / Trazabilidad */}
+      {(leadId || presupuestoOrigenId) && (
+        <Card compact>
+          <p className={sec}>Origen</p>
+          <div className="space-y-1.5">
+            {leadId && (
+              <div>
+                <span className={lbl}>Lead</span>
+                <Link to={`/leads/${leadId}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
+                  Ver lead origen →
+                </Link>
+              </div>
+            )}
+            {presupuestoOrigenId && (
+              <div>
+                <span className={lbl}>Presupuesto</span>
+                <Link to={`/presupuestos/${presupuestoOrigenId}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
+                  {presupuestoOrigenNumero || 'Ver presupuesto'} →
+                </Link>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Budgets */}
       <Card compact>

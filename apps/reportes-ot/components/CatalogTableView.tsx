@@ -7,7 +7,7 @@ import type { TableCatalogColumn, ProtocolSelection } from '../types/tableCatalo
  * Soporta: rangos (95 – 105), NMT/NLT, >, <, >=, <=, número exacto, N/A.
  * Retorna: 'PASS' | 'FAIL' | 'NA' | '' (vacío = no se pudo determinar)
  */
-function computeConclusion(resultado: string, spec: string): 'PASS' | 'FAIL' | 'NA' | '' {
+function computeConclusion(resultado: string, spec: string, nominal?: string): 'PASS' | 'FAIL' | 'NA' | '' {
   const r = resultado.trim();
   if (!r) return '';
 
@@ -48,11 +48,15 @@ function computeConclusion(resultado: string, spec: string): 'PASS' | 'FAIL' | '
     return isNaN(n) ? '' : numR >= n ? 'PASS' : 'FAIL';
   }
 
-  // Plus-minus: "±1.2" | "± 1.2" | "±1.2 psi" → |resultado| <= valor
+  // Plus-minus: "±1.2" | "± 1.2" | "±1.2 psi" → |resultado - nominal| <= tolerance
   const pmMatch = s.match(/^±\s*(\d+[.,]?\d*)/);
   if (pmMatch) {
     const tolerance = parseFloat(pmMatch[1].replace(',', '.'));
-    return isNaN(tolerance) ? '' : Math.abs(numR) <= tolerance ? 'PASS' : 'FAIL';
+    if (isNaN(tolerance)) return '';
+    // If nominal value provided, compare delta from nominal; otherwise treat resultado as delta
+    const numNominal = nominal ? parseFloat(nominal.replace(',', '.')) : NaN;
+    const delta = !isNaN(numNominal) ? Math.abs(numR - numNominal) : Math.abs(numR);
+    return delta <= tolerance ? 'PASS' : 'FAIL';
   }
 
   // Mayor estricto: "> X"
@@ -262,16 +266,20 @@ export const CatalogTableView: React.FC<Props> = ({
   const table = selection.tableSnapshot;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
 
-  // Extraer la regla vs_spec si existe
-  const vsSpecRule = table.validationRules?.find(r => r.operator === 'vs_spec');
+  // Extraer la regla vs_spec si existe (sourceColumn/specColumn/targetColumn deben tener contenido)
+  const vsSpecRule = table.validationRules?.find(r =>
+    r.operator === 'vs_spec' && r.sourceColumn && r.targetColumn && (r.specColumn || r.factoryThreshold)
+  );
   const specColKey = vsSpecRule
-    ? (vsSpecRule.specColumn ?? String(vsSpecRule.factoryThreshold))
+    ? (vsSpecRule.specColumn || String(vsSpecRule.factoryThreshold) || null)
     : null;
-  const resultadoColKey = vsSpecRule?.sourceColumn ?? null;
-  const conclusionColKey = vsSpecRule?.targetColumn ?? null;
+  const resultadoColKey = vsSpecRule?.sourceColumn || null;
+  const conclusionColKey = vsSpecRule?.targetColumn || null;
+  const referenceColKey = vsSpecRule?.referenceColumn || null;
 
   // Extraer reglas compute (operaciones aritméticas entre columnas)
-  const computeRules = (table.validationRules ?? []).filter(r => r.operator === 'compute' && r.computeOperator && r.operandColumn);
+  // Nota: computeOperator puede ser null en reglas legacy — se trata como resta por defecto
+  const computeRules = (table.validationRules ?? []).filter(r => r.operator === 'compute' && r.operandColumn);
 
   /** Valor de fábrica para cualquier columna y fila (del template) */
   const getFactoryValue = (rowId: string, colKey: string): string => {
@@ -320,15 +328,20 @@ export const CatalogTableView: React.FC<Props> = ({
       const a = parseFloat(rawA.replace(',', '.'));
       const b = parseFloat(rawB.replace(',', '.'));
 
-      if (isNaN(a) || isNaN(b)) continue;
+      if (isNaN(a) || isNaN(b)) {
+        // Si algún operando está vacío, limpiar el resultado computado
+        onChangeData(selection.tableId, rowId, rule.targetColumn, '');
+        computed.set(rule.targetColumn, '');
+        continue;
+      }
 
       let result: number;
-      switch (rule.computeOperator) {
+      switch (rule.computeOperator ?? '-') {
         case '+': result = a + b; break;
         case '-': result = a - b; break;
         case '*': result = a * b; break;
         case '/': result = b !== 0 ? a / b : NaN; break;
-        default: continue;
+        default: result = a - b; break;
       }
       if (isNaN(result)) continue;
 
@@ -347,22 +360,30 @@ export const CatalogTableView: React.FC<Props> = ({
     // Run compute rules (e.g. ΔP = Valor Final - Valor Inicial)
     const computedValues = runComputeRules(rowId, colKey, value);
 
-    // Auto-computar conclusión si cambió resultado o especificación del cliente
+    // Auto-computar conclusión si cambió resultado, especificación del cliente, o valor nominal
     if (vsSpecRule && conclusionColKey && resultadoColKey) {
       // The resultado might have been updated by a compute rule
       const computedResultado = computedValues.get(resultadoColKey);
       const isResultadoChange = colKey === resultadoColKey || computedResultado !== undefined;
       const isSpecChange = colKey === specColKey && clientSpecEnabled;
+      const isReferenceChange = colKey === referenceColKey;
 
-      if (isResultadoChange || isSpecChange) {
+      if (isResultadoChange || isSpecChange || isReferenceChange) {
         const currentResultado = computedResultado
           ?? (colKey === resultadoColKey ? value : (selection.filledData[rowId]?.[resultadoColKey] ?? ''));
         const currentSpec = isSpecChange
           ? value
           : getActiveSpec(rowId);
-        const conclusion = computeConclusion(currentResultado, currentSpec);
+        // Nominal value for ± specs: from referenceColumn (user-filled or factory)
+        const currentNominal = referenceColKey
+          ? (colKey === referenceColKey ? value : (selection.filledData[rowId]?.[referenceColKey] ?? getFactoryValue(rowId, referenceColKey)))
+          : undefined;
+        const conclusion = computeConclusion(currentResultado, currentSpec, currentNominal);
+        // Si hay conclusión la escribe; si el resultado está vacío, resetea a vacío (muestra "Auto")
         if (conclusion !== '') {
           onChangeData(selection.tableId, rowId, conclusionColKey, conclusion);
+        } else if (!currentResultado.trim()) {
+          onChangeData(selection.tableId, rowId, conclusionColKey, '');
         }
       }
     }
@@ -564,14 +585,14 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Tabla */}
       <div className={isPrint ? '' : 'overflow-x-auto'}>
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse" style={table.columns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
           <thead>
             <tr className={isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100 border-b border-slate-200'}>
               {table.columns.map(col => (
                 <th
                   key={col.key}
-                  className={`px-2 py-1.5 font-semibold whitespace-nowrap ${isPrint ? 'text-[8.5px] text-white border border-slate-500' : 'text-xs text-slate-600 border-r border-slate-200'}`}
-                  style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}
+                  className={`px-2 py-1.5 font-semibold ${isPrint ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap' : 'text-xs text-slate-600 border-r border-slate-200'}`}
+                  style={col.width ? { width: `${col.width}mm` } : undefined}
                 >
                   {col.label}
                   {col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
@@ -627,39 +648,72 @@ export const CatalogTableView: React.FC<Props> = ({
                       : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                     }
                   >
-                    {table.columns.map((col, colIdx) => (
-                      <td
-                        key={col.key}
-                        className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
-                      >
-                        {colIdx === 0 ? (
-                          // Primera columna: solo el label
-                          <span className={`text-[10px] font-semibold ${isPrint ? '' : 'text-slate-700'}`}>
-                            {row.selectorLabel}{isPrint && selectorValue ? ` (${selectorValue})` : ''}
-                          </span>
-                        ) : colIdx === 1 ? (
-                          // Segunda columna: el dropdown selector
-                          isPrint ? (
-                            <span className="text-[10px]">{selectorValue || '—'}</span>
+                    {(() => {
+                      // Si selectorColumn está definido y > 0: label en col 0, dropdown en selectorColumn
+                      // Si no: label + dropdown juntos en col 0, resto editables
+                      const splitSelector = (row.selectorColumn ?? 0) > 0;
+                      const dropdownCol = row.selectorColumn ?? 0;
+                      return table.columns.map((col, colIdx) => (
+                        <td
+                          key={col.key}
+                          className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
+                        >
+                          {splitSelector ? (
+                            // ── Selector separado: label en col 0, dropdown en dropdownCol ──
+                            colIdx === 0 ? (
+                              <span className={`text-[10px] font-semibold ${isPrint ? '' : 'text-slate-700'}`}>
+                                {row.selectorLabel}{isPrint && selectorValue ? ` (${selectorValue})` : ''}
+                              </span>
+                            ) : colIdx === dropdownCol ? (
+                              isPrint ? (
+                                <span className="text-[10px]">{selectorValue || '—'}</span>
+                              ) : (
+                                <select
+                                  value={selectorValue}
+                                  disabled={readOnly}
+                                  onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
+                                  className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                  <option value="">Seleccionar...</option>
+                                  {(row.selectorOptions ?? []).map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              )
+                            ) : (
+                              renderTableCell(col, row.rowId)
+                            )
                           ) : (
-                            <select
-                              value={selectorValue}
-                              disabled={readOnly}
-                              onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
-                              className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value="">Seleccionar...</option>
-                              {(row.selectorOptions ?? []).map(opt => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
-                          )
-                        ) : (
-                          // Resto de columnas: celdas editables normales
-                          renderTableCell(col, row.rowId)
-                        )}
-                      </td>
-                    ))}
+                            // ── Default: label+dropdown en col 0, resto editables ──
+                            colIdx === 0 ? (
+                              isPrint ? (
+                                <span className="text-[10px]">
+                                  <span className="font-semibold">{row.selectorLabel}</span>
+                                  {selectorValue ? ` (${selectorValue})` : ''}
+                                </span>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
+                                  <select
+                                    value={selectorValue}
+                                    disabled={readOnly}
+                                    onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
+                                    className="text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  >
+                                    <option value="">Seleccionar...</option>
+                                    {(row.selectorOptions ?? []).map(opt => (
+                                      <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )
+                            ) : (
+                              renderTableCell(col, row.rowId)
+                            )
+                          )}
+                        </td>
+                      ));
+                    })()}
                   </tr>
                 );
               }

@@ -41,6 +41,8 @@ export interface OTFormState {
   clienteId?: string;
   sistemaId?: string;
   moduloId?: string;
+  leadId?: string | null;
+  presupuestoOrigenId?: string | null;
 }
 
 const DEFAULT_CIERRE: CierreAdministrativo = {
@@ -60,6 +62,7 @@ const INITIAL_FORM: OTFormState = {
   ingenieroAsignadoId: null, ingenieroAsignadoNombre: null,
   cierreAdmin: { ...DEFAULT_CIERRE },
   clienteId: undefined, sistemaId: undefined, moduloId: undefined,
+  leadId: null, presupuestoOrigenId: null,
 };
 
 export function useOTFormState() {
@@ -105,6 +108,7 @@ export function useOTFormState() {
       ingenieroAsignadoNombre: ot.ingenieroAsignadoNombre ?? null,
       cierreAdmin: ot.cierreAdmin ?? { ...DEFAULT_CIERRE },
       clienteId: ot.clienteId, sistemaId: ot.sistemaId, moduloId: ot.moduloId,
+      leadId: ot.leadId ?? null, presupuestoOrigenId: ot.presupuestoOrigenId ?? null,
     });
     hasUserInteracted.current = false;
   }, []);

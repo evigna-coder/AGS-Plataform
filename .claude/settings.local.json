@@ -36,7 +36,10 @@
       "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig.\"*)",
       "Bash(grep -E \"\\\\.\\(md|ts\\)$\")",
       "Bash(grep -E \"\\\\.md$\")",
-      "Bash(find 'c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components/protocol-catalog' -type f -name *.tsx -o -name *.ts)"
+      "Bash(find 'c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components/protocol-catalog' -type f -name *.tsx -o -name *.ts)",
+      "Bash(grep -r \"Headspace\\\\|Tray \\(ALS\\)\\\\|Inyector automático\" apps/reportes-ot --include=*.tsx --include=*.ts --include=*.json)",
+      "Bash(grep -r \"Puerto de Inyección\\\\|Headspace\\\\|Tray\\\\|Inyector automático\" apps/sistema-modular --include=*.tsx --include=*.ts)",
+      "Bash(find 'c:/Users/Evigna/Desktop/Ags plataform/apps/portal-ingeniero' -type f -name *lead*)"
     ]
   }
 }

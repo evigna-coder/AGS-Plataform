@@ -19,13 +19,14 @@ export interface LeadFiltersState {
   prioridad: LeadPrioridad | '';
   responsable: string;
   soloMios: boolean;
+  misCreados: boolean;
   fechaDesde: string;
   fechaHasta: string;
 }
 
 export const INITIAL_FILTERS: LeadFiltersState = {
   motivo: '', area: '', prioridad: '', responsable: '',
-  soloMios: false, fechaDesde: '', fechaHasta: '',
+  soloMios: false, misCreados: false, fechaDesde: '', fechaHasta: '',
 };
 
 interface LeadFiltersProps {
@@ -59,10 +60,16 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer ml-auto">
-          <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked })} className="rounded border-slate-300" />
-          Mis leads
-        </label>
+        <div className="flex items-center gap-3 ml-auto">
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+            <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, misCreados: false })} className="rounded border-slate-300" />
+            Mis leads
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+            <input type="checkbox" checked={filters.misCreados} onChange={e => set({ misCreados: e.target.checked, soloMios: false })} className="rounded border-slate-300" />
+            Mis creados
+          </label>
+        </div>
       </div>
 
       {/* Row 2: advanced filters */}
@@ -85,7 +92,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(LEAD_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
             placeholder="Área" />
         </div>
-        {!filters.soloMios && (
+        {!filters.soloMios && !filters.misCreados && (
           <div className="min-w-[120px]">
             <SearchableSelect size="sm" value={filters.responsable}
               onChange={v => set({ responsable: v })}

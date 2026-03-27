@@ -46,6 +46,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     motivoContacto: data.motivoContacto ?? '',
     descripcion: data.descripcion ?? null,
     sistemaId: data.sistemaId ?? null,
+    moduloId: data.moduloId ?? null,
     estado: migrateLeadEstado(data.estado ?? 'nuevo'),
     postas: data.postas ?? [],
     asignadoA: data.asignadoA ?? null,

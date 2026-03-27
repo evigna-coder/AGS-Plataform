@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService } from '../../services/firebaseService';
+import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService, presupuestosService } from '../../services/firebaseService';
 import type { Cliente, Sistema, ContactoCliente, TipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -16,7 +16,8 @@ export const OTNew = () => {
   const sistemaIdFromUrl = searchParams.get('sistema');
   const moduloIdFromUrl = searchParams.get('modulo');
   const leadIdFromUrl = searchParams.get('leadId');
-  
+  const presupuestoIdFromUrl = searchParams.get('presupuestoId');
+
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
@@ -48,6 +49,23 @@ export const OTNew = () => {
     };
     initOt();
   }, []);
+
+  // Prefill desde presupuesto si viene por URL
+  useEffect(() => {
+    if (!presupuestoIdFromUrl || clientes.length === 0) return;
+    const loadPresupuesto = async () => {
+      try {
+        const pres = await presupuestosService.getById(presupuestoIdFromUrl);
+        if (!pres) return;
+        const updates: Partial<typeof formData> = { clienteId: pres.clienteId };
+        if (pres.sistemaId) updates.sistemaId = pres.sistemaId;
+        setFormData(prev => ({ ...prev, ...updates }));
+      } catch (err) {
+        console.error('Error cargando presupuesto origen:', err);
+      }
+    };
+    loadPresupuesto();
+  }, [presupuestoIdFromUrl, clientes.length]);
 
   useEffect(() => {
     if (formData.clienteId) {
@@ -171,16 +189,18 @@ export const OTNew = () => {
       const otData = {
         otNumber: formData.otNumber,
         status: 'BORRADOR' as const,
-        budgets: [],
+        budgets: presupuestoIdFromUrl ? [presupuestoIdFromUrl] : [],
+        leadId: leadIdFromUrl ?? null,
+        presupuestoOrigenId: presupuestoIdFromUrl ?? null,
         tipoServicio: formData.tipoServicio,
         esFacturable: false,
         tieneContrato: cliente.tipoServicio === 'contrato',
         esGarantia: false,
         razonSocial: cliente.razonSocial,
         contacto: contacto?.nombre || '',
-        direccion: cliente.direccion,
-        localidad: cliente.localidad,
-        provincia: cliente.provincia,
+        direccion: cliente.direccion || '',
+        localidad: cliente.localidad || '',
+        provincia: cliente.provincia || '',
         sistema: sistema.nombre,
         moduloModelo,
         moduloDescripcion,
@@ -211,13 +231,15 @@ export const OTNew = () => {
         await leadsService.linkOT(leadIdFromUrl, formData.otNumber);
       }
 
-      // Redirigir al módulo de reportes-ot para edición completa
-      // Si reportes-ot está en otro puerto (3000), usar URL completa
-      // En producción, ajustar según la configuración del servidor
-      const reportesOtUrl = window.location.port === '3001' 
-        ? `http://localhost:3000?reportId=${formData.otNumber}`
-        : `/?reportId=${formData.otNumber}`;
-      
+      // Vincular OT al presupuesto de origen
+      if (presupuestoIdFromUrl) {
+        try {
+          await presupuestosService.update(presupuestoIdFromUrl, { otVinculadaNumber: formData.otNumber });
+        } catch (err) {
+          console.error('Error vinculando presupuesto:', err);
+        }
+      }
+
       alert('Orden de trabajo creada exitosamente. Puede abrirla en el editor completo desde el detalle.');
       navigate(`/ordenes-trabajo/${formData.otNumber}`);
     } catch (error) {

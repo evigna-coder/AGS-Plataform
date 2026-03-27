@@ -28,7 +28,7 @@ const thBase = 'px-3 py-2 text-left text-[11px] font-medium tracking-wider white
 type SortKey = 'razonSocial' | 'contacto' | 'motivoLlamado' | 'prioridad' | 'estado' | 'areaActual' | 'asignadoA' | 'createdAt' | 'proximoContacto';
 type SortDir = 'asc' | 'desc';
 
-const PRIORIDAD_ORDER: Record<string, number> = { critica: 0, alta: 1, media: 2, baja: 3 };
+const PRIORIDAD_ORDER: Record<string, number> = { alta: 0, media: 1, baja: 2 };
 
 export const LeadsList = () => {
   const { usuario } = useAuth();
@@ -50,6 +50,7 @@ export const LeadsList = () => {
     area: { type: 'string' as const, default: '' },
     responsable: { type: 'string' as const, default: '' },
     soloMios: { type: 'boolean' as const, default: false },
+    misCreados: { type: 'boolean' as const, default: false },
     prioridad: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
@@ -61,13 +62,13 @@ export const LeadsList = () => {
     usuariosService.getAll().then(setUsuarios);
   }, []);
 
-  useEffect(() => { loadLeads(); }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.prioridad]);
+  useEffect(() => { loadLeads(); }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.prioridad]);
 
   const loadLeads = async () => {
     try {
       setLoading(true);
       setLoadError(null);
-      const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.responsable || undefined;
+      const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
       const data = await leadsService.getAll({
         ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
         ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
@@ -85,6 +86,9 @@ export const LeadsList = () => {
 
   const leadsFiltered = useMemo(() => {
     let result = leads;
+    if (filters.misCreados && usuario) {
+      result = result.filter(l => l.createdBy === usuario.id || l.derivadoPor === usuario.id);
+    }
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
@@ -98,7 +102,7 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+  }, [leads, usuario, filters.misCreados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
 
   const leadsSorted = useMemo(() => {
     const sorted = [...leadsFiltered];
@@ -165,9 +169,10 @@ export const LeadsList = () => {
     prioridad: filters.prioridad as LeadFiltersState['prioridad'],
     responsable: filters.responsable,
     soloMios: filters.soloMios,
+    misCreados: filters.misCreados,
     fechaDesde: filters.fechaDesde,
     fechaHasta: filters.fechaHasta,
-  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.fechaDesde, filters.fechaHasta]);
+  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.misCreados, filters.fechaDesde, filters.fechaHasta]);
 
   const handleLeadFiltersChange = (f: LeadFiltersState) => {
     setFilters({
@@ -176,6 +181,7 @@ export const LeadsList = () => {
       prioridad: f.prioridad,
       responsable: f.responsable,
       soloMios: f.soloMios,
+      misCreados: f.misCreados,
       fechaDesde: f.fechaDesde,
       fechaHasta: f.fechaHasta,
     });

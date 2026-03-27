@@ -80,6 +80,8 @@ export interface WorkOrder {
   establecimientoId?: string;
   sistemaId?: string;
   moduloId?: string;
+  leadId?: string | null;
+  presupuestoOrigenId?: string | null;
   createdAt?: string;
   createdBy?: string;
   fechaAsignacion?: string;
@@ -403,7 +405,7 @@ export const LEAD_AREA_LABELS: Record<LeadArea, string> = {
 };
 
 export const LEAD_AREA_COLORS: Record<LeadArea, string> = {
-  presupuesto_ventas: 'bg-indigo-100 text-indigo-700',
+  presupuesto_ventas: 'bg-teal-100 text-teal-700',
   agenda_coordinacion: 'bg-cyan-100 text-cyan-700',
   materiales_comex: 'bg-amber-100 text-amber-700',
   ingeniero_soporte: 'bg-teal-100 text-teal-700',
@@ -497,7 +499,7 @@ export const LEAD_ESTADO_LABELS: Record<LeadEstado, string> = {
 export const LEAD_ESTADO_COLORS: Record<LeadEstado, string> = {
   nuevo: 'bg-blue-100 text-blue-800',
   pendiente_info: 'bg-amber-100 text-amber-800',
-  en_presupuesto: 'bg-indigo-100 text-indigo-800',
+  en_presupuesto: 'bg-teal-100 text-teal-800',
   presupuesto_enviado: 'bg-violet-100 text-violet-800',
   esperando_oc: 'bg-orange-100 text-orange-800',
   espera_importacion: 'bg-yellow-100 text-yellow-800',
@@ -754,7 +756,7 @@ export const ESTADO_OC_COLORS: Record<EstadoOC, string> = {
   borrador: 'bg-slate-100 text-slate-600',
   pendiente_aprobacion: 'bg-yellow-100 text-yellow-700',
   aprobada: 'bg-blue-100 text-blue-700',
-  enviada_proveedor: 'bg-indigo-100 text-indigo-700',
+  enviada_proveedor: 'bg-teal-100 text-teal-700',
   confirmada: 'bg-cyan-100 text-cyan-700',
   en_transito: 'bg-amber-100 text-amber-700',
   recibida_parcial: 'bg-purple-100 text-purple-700',
@@ -933,6 +935,8 @@ export interface Presupuesto {
   presupuestoOrigenId?: string | null; // ID del presupuesto desde el cual se creó esta revisión
   motivoAnulacion?: string | null; // Razón de anulación (al ser reemplazado por revisión)
   anuladoPorId?: string | null; // ID de la revisión que reemplazó a este presupuesto
+  // --- OT vinculada ---
+  otVinculadaNumber?: string | null;
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
@@ -991,6 +995,12 @@ export interface TableCatalogRow {
   selectorLabel?: string | null;
   selectorOptions?: string[] | null;
   /**
+   * Índice de columna donde se renderiza el dropdown del selector (0-based).
+   * Default: 0 (label + dropdown juntos en la primera columna).
+   * Si es > 0: la columna 0 muestra sólo el label, y selectorColumn muestra el dropdown.
+   */
+  selectorColumn?: number;
+  /**
    * Cuántas filas consecutivas (incluyendo esta) abarcan las columnas indicadas en spanColumns.
    * Ej: rowSpan=3 + spanColumns=['detector'] → la celda "detector" de esta fila ocupa 3 filas.
    * Las siguientes (rowSpan-1) filas NO renderizan esas columnas (quedan cubiertas por el span).
@@ -1014,6 +1024,9 @@ export interface TableCatalogRule {
   factoryThreshold: string | number;
   /** For 'vs_spec': key of the column that holds the expected spec value per row. */
   specColumn?: string | null;
+  /** For 'vs_spec' with ± specs: key of the column that holds the nominal/reference value.
+   *  When spec is "±X", conclusion = |resultado - nominal| <= X instead of |resultado| <= X. */
+  referenceColumn?: string | null;
   unit?: string | null;
   targetColumn: string;
   valueIfPass: string;
@@ -2011,7 +2024,7 @@ export const ESTADO_REQUERIMIENTO_LABELS: Record<EstadoRequerimiento, string> = 
 export const ESTADO_REQUERIMIENTO_COLORS: Record<EstadoRequerimiento, string> = {
   pendiente: 'bg-yellow-100 text-yellow-700',
   aprobado: 'bg-blue-100 text-blue-700',
-  en_compra: 'bg-indigo-100 text-indigo-700',
+  en_compra: 'bg-teal-100 text-teal-700',
   comprado: 'bg-green-100 text-green-700',
   cancelado: 'bg-red-100 text-red-700',
 };
@@ -2561,7 +2574,7 @@ export const ESTADO_AGENDA_COLORS: Record<EstadoAgenda, string> = {
   pendiente: 'bg-slate-200 text-slate-700',
   tentativo: 'bg-amber-200 text-amber-800',
   confirmado: 'bg-blue-200 text-blue-800',
-  en_progreso: 'bg-indigo-200 text-indigo-800',
+  en_progreso: 'bg-teal-200 text-teal-800',
   completado: 'bg-emerald-200 text-emerald-800',
   cancelado: 'bg-red-100 text-red-600',
 };

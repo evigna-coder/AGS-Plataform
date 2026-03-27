@@ -75,7 +75,7 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
           <select
             value={areaDestino}
             onChange={e => setAreaDestino(e.target.value as LeadArea | '')}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Sin área específica</option>
             {LEAD_AREA_GROUPS.map(g => (
@@ -92,7 +92,7 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
           <select
             value={destinatarioId}
             onChange={e => setDestinatarioId(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Sin asignar {isIngeniero ? 'ingeniero' : 'usuario'}</option>
             {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -103,7 +103,7 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
           <select
             value={nuevoEstado}
             onChange={e => setNuevoEstado(e.target.value as LeadEstado)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
               <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
@@ -116,7 +116,7 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
             type="text"
             value={accionRequerida}
             onChange={e => setAccionRequerida(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="Ej: Averiguar N° de parte..."
           />
         </div>
@@ -126,7 +126,7 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
             value={comentario}
             onChange={e => setComentario(e.target.value)}
             rows={3}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             placeholder="Motivo de derivación..."
           />
         </div>

@@ -27,13 +27,13 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate }: L
         <div className="p-4 space-y-3">
           <InfoRow label="Estado">
             <select value={lead.estado} onChange={e => onEstadoChange(e.target.value as LeadEstado)}
-              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               {Object.entries(LEAD_ESTADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </InfoRow>
           <InfoRow label="Prioridad">
             <select value={lead.prioridad || ''} onChange={e => onFieldUpdate?.('prioridad', e.target.value || null)}
-              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               <option value="">Sin definir</option>
               {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
@@ -62,7 +62,7 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate }: L
             <input type="date" value={localFechaContacto}
               onChange={e => setLocalFechaContacto(e.target.value)}
               onBlur={() => { const v = localFechaContacto || null; if (v !== (lead.proximoContacto || null)) onFieldUpdate?.('proximoContacto', v); }}
-              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500" />
             {daysUntilContacto !== null && (
               <span className={`text-[10px] font-medium mt-0.5 block ${getContactoStatusColor(daysUntilContacto)}`}>
                 {getContactoStatusText(daysUntilContacto)}

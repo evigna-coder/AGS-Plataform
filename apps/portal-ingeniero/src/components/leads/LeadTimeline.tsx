@@ -23,7 +23,7 @@ export default function LeadTimeline({ postas }: Props) {
         return (
           <div key={p.id || i} className="flex gap-3 pb-4 last:pb-0">
             <div className="flex flex-col items-center">
-              <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${isComment ? 'bg-amber-400' : 'bg-indigo-500'}`} />
+              <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${isComment ? 'bg-amber-400' : 'bg-teal-500'}`} />
               {i < sorted.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
             </div>
             <div className="flex-1 min-w-0">
@@ -46,7 +46,7 @@ export default function LeadTimeline({ postas }: Props) {
                     {LEAD_ESTADO_LABELS[p.estadoAnterior] ?? p.estadoAnterior} → {LEAD_ESTADO_LABELS[p.estadoNuevo] ?? p.estadoNuevo}
                   </span>
                   {p.aArea && (
-                    <span className="text-[10px] font-medium text-indigo-500 ml-1">
+                    <span className="text-[10px] font-medium text-teal-500 ml-1">
                       → {LEAD_AREA_LABELS[p.aArea]}
                     </span>
                   )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -93,7 +93,28 @@ interface RuleFormProps {
 }
 
 const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
-  const [d, setD] = useState<TableCatalogRule>(rule);
+  /** Auto-detecta columnas para vs_spec basándose en labels */
+  const autoFillVsSpec = (r: TableCatalogRule): TableCatalogRule => {
+    if (r.operator !== 'vs_spec') return r;
+    const next = { ...r };
+    const find = (patterns: RegExp[]) => columns.find(c => patterns.some(p => p.test(c.label)))?.key ?? '';
+    if (!next.sourceColumn) next.sourceColumn = find([/resultado/i, /valor\s+medido/i, /medido/i, /ΔP/i, /delta/i]);
+    if (!next.specColumn) {
+      const specKey = find([/especificaci[oó]n/i, /spec/i]);
+      next.specColumn = specKey || null;
+      if (specKey) next.factoryThreshold = specKey;
+    }
+    if (!next.targetColumn) next.targetColumn = find([/conclusi[oó]n/i, /cumple/i, /pass.*fail/i]);
+    if (!next.referenceColumn) next.referenceColumn = find([/valor\s+nominal/i, /nominal/i, /referencia/i, /set\s*point/i]) || null;
+    if (!next.description && next.sourceColumn && next.targetColumn) {
+      const srcLabel = columns.find(c => c.key === next.sourceColumn)?.label ?? '';
+      const tgtLabel = columns.find(c => c.key === next.targetColumn)?.label ?? '';
+      next.description = `Auto: compara ${srcLabel} vs Especificación del template → ${tgtLabel}`;
+    }
+    return next;
+  };
+
+  const [d, setD] = useState<TableCatalogRule>(() => autoFillVsSpec(rule));
   const allOps: TableCatalogRule['operator'][] = ['<=', '>=', '<', '>', '==', '!=', 'vs_spec', 'compute'];
   const opLabels: Record<string, string> = {
     '<=': '≤', '>=': '≥', '<': '<', '>': '>', '==': '==', '!=': '!=',
@@ -102,99 +123,203 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
   const isCompute = d.operator === 'compute';
   const isVsSpec = d.operator === 'vs_spec';
   const computeOps: NonNullable<TableCatalogRule['computeOperator']>[] = ['+', '-', '*', '/'];
+
+  // Auto-detectar columnas al abrir si están vacías
+  useEffect(() => {
+    if (d.operator === 'vs_spec' && (!d.sourceColumn || !d.specColumn || !d.targetColumn)) {
+      setD(prev => autoFillVsSpec(prev));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleOperatorChange = (op: TableCatalogRule['operator']) => {
+    const next = { ...d, operator: op };
+    // Inicializar computeOperator al cambiar a compute para evitar que quede null
+    if (op === 'compute' && !next.computeOperator) next.computeOperator = '-';
+    setD(autoFillVsSpec(next));
+  };
+
+  const handleSave = () => {
+    if (isVsSpec && (!d.sourceColumn || !d.specColumn || !d.targetColumn)) return;
+    if (isCompute && (!d.sourceColumn || !d.operandColumn || !d.targetColumn)) return;
+    onSave(d);
+  };
+
   return (
     <div className="border border-slate-900 rounded-lg p-3 space-y-2 bg-slate-50 mt-2">
       <Input placeholder="Descripción de la regla" value={d.description}
         onChange={e => setD({ ...d, description: e.target.value })} />
       <div className="grid grid-cols-3 gap-2">
-        <select value={d.operator} onChange={e => setD({ ...d, operator: e.target.value as TableCatalogRule['operator'] })}
+        <select value={d.operator} onChange={e => handleOperatorChange(e.target.value as TableCatalogRule['operator'])}
           className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-medium">
           {allOps.map(op => <option key={op} value={op}>{opLabels[op]}</option>)}
         </select>
       </div>
 
       {isCompute ? (
-        /* ── Compute: targetCol = sourceCol {op} operandCol ── */
-        <>
-          <p className="text-[10px] text-slate-500 font-bold uppercase">Resultado = Columna A {d.computeOperator ?? '?'} Columna B</p>
+        /* ── Compute: operación aritmética entre 2 columnas → escribe resultado en otra ── */
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2">
+          <p className="text-[10px] text-purple-700 font-bold uppercase">Cálculo automático entre columnas</p>
+          <p className="text-[10px] text-purple-600">El técnico no edita la columna resultado — se calcula solo.</p>
           <div className="grid grid-cols-3 gap-2">
-            <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Columna A…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <select value={d.computeOperator ?? '-'} onChange={e => setD({ ...d, computeOperator: e.target.value as TableCatalogRule['computeOperator'] })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold">
-              {computeOps.map(op => <option key={op} value={op}>{op}</option>)}
-            </select>
-            <select value={d.operandColumn ?? ''} onChange={e => setD({ ...d, operandColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Columna B…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna A</label>
+              <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.sourceColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operación</label>
+              <select value={d.computeOperator ?? '-'} onChange={e => setD({ ...d, computeOperator: e.target.value as TableCatalogRule['computeOperator'] })}
+                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold">
+                {computeOps.map(op => <option key={op} value={op}>{op === '+' ? '+ (suma)' : op === '-' ? '- (resta)' : op === '*' ? '× (multiplica)' : '÷ (divide)'}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna B</label>
+              <select value={d.operandColumn ?? ''} onChange={e => setD({ ...d, operandColumn: e.target.value })}
+                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.operandColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Columna resultado…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <Input placeholder="Unidad (ej: psi)" value={d.unit ?? ''}
-              onChange={e => setD({ ...d, unit: e.target.value || null })} />
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna donde se escribe el resultado</label>
+              <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.targetColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Unidad (opcional)</label>
+              <Input placeholder="ej: psi, mL/min" value={d.unit ?? ''}
+                onChange={e => setD({ ...d, unit: e.target.value || null })} />
+            </div>
           </div>
-        </>
+          {d.sourceColumn && d.operandColumn && d.targetColumn && (
+            <p className="text-[10px] text-purple-600 bg-purple-100 rounded px-2 py-1">
+              {columns.find(c => c.key === d.targetColumn)?.label} = {columns.find(c => c.key === d.sourceColumn)?.label} {d.computeOperator ?? '-'} {columns.find(c => c.key === d.operandColumn)?.label}
+            </p>
+          )}
+        </div>
       ) : isVsSpec ? (
-        /* ── vs_spec: compare resultado col against spec col ── */
-        <>
-          <p className="text-[10px] text-slate-500 font-bold uppercase">Compara valor medido contra especificación por fila</p>
+        /* ── vs_spec: compara valor medido contra especificación por fila → escribe PASA/FALLA ── */
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-blue-700 font-bold uppercase">Comparar valor vs especificación</p>
+              <p className="text-[10px] text-blue-600">Lee la spec de cada fila y evalúa si el resultado cumple. Soporta: rangos, ±, NMT/NLT, {'>'}{'<'}.</p>
+            </div>
+            {(!d.sourceColumn || !d.specColumn || !d.targetColumn) && (
+              <button onClick={() => setD(autoFillVsSpec({ ...d, sourceColumn: '', specColumn: null, targetColumn: '' }))}
+                className="text-[10px] text-blue-600 font-bold hover:underline shrink-0 ml-2">
+                Auto-detectar
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-2">
-            <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Col. Resultado…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <select value={d.specColumn ?? ''} onChange={e => setD({ ...d, specColumn: e.target.value || null, factoryThreshold: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Col. Especificación…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Col. Conclusión…</option>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Valor medido</label>
+              <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.sourceColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Especificación</label>
+              <select value={d.specColumn ?? ''} onChange={e => setD({ ...d, specColumn: e.target.value || null, factoryThreshold: e.target.value })}
+                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.specColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Donde escribir resultado</label>
+              <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.targetColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Valor nominal / referencia (solo para specs ±)</label>
+            <p className="text-[9px] text-slate-400 mb-1">Si la spec es "±1.2", se evalúa |medido - nominal| {'<='} 1.2. Si no hay nominal, se asume que el valor medido ya es un delta.</p>
+            <select value={d.referenceColumn ?? ''} onChange={e => setD({ ...d, referenceColumn: e.target.value || null })}
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">(ninguna — el valor medido ya es la diferencia)</option>
               {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
           </div>
-        </>
+          {(!d.sourceColumn || !d.specColumn || !d.targetColumn) && (
+            <p className="text-[9px] text-slate-400">
+              Columnas: {columns.map(c => `"${c.label}" (${c.key})`).join(' | ')}
+            </p>
+          )}
+        </div>
       ) : (
-        /* ── Standard comparison: sourceCol {op} threshold → targetCol ── */
-        <>
+        /* ── Standard: compara una columna contra un umbral fijo ── */
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+          <p className="text-[10px] text-amber-700 font-bold uppercase">Comparación contra umbral fijo</p>
+          <p className="text-[10px] text-amber-600">Se compara el valor de una columna contra un número fijo (igual para todas las filas).</p>
           <div className="grid grid-cols-3 gap-2">
-            <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Columna fuente…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <span className="text-center text-sm font-bold text-slate-600 self-center">{opLabels[d.operator]}</span>
-            <Input placeholder="Umbral (ej: 5.0)" value={String(d.factoryThreshold)}
-              onChange={e => setD({ ...d, factoryThreshold: e.target.value })} />
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna a evaluar</label>
+              <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operador</label>
+              <span className="block text-center text-sm font-bold text-slate-600 py-1.5">{opLabels[d.operator]}</span>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Umbral</label>
+              <Input placeholder="ej: 5.0" value={String(d.factoryThreshold)}
+                onChange={e => setD({ ...d, factoryThreshold: e.target.value })} />
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-              <option value="">Columna resultado…</option>
-              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <Input placeholder="Etiqueta si pasa" value={d.valueIfPass}
-              onChange={e => setD({ ...d, valueIfPass: e.target.value })} />
-            <Input placeholder="Etiqueta si falla" value={d.valueIfFail}
-              onChange={e => setD({ ...d, valueIfFail: e.target.value })} />
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna resultado</label>
+              <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+                <option value="">Seleccionar…</option>
+                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Texto si cumple</label>
+              <Input placeholder="ej: PASA" value={d.valueIfPass}
+                onChange={e => setD({ ...d, valueIfPass: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Texto si no cumple</label>
+              <Input placeholder="ej: FALLA" value={d.valueIfFail}
+                onChange={e => setD({ ...d, valueIfFail: e.target.value })} />
+            </div>
           </div>
-        </>
+        </div>
       )}
 
+      {/* Advertencia si faltan columnas */}
+      {isVsSpec && (!d.sourceColumn || !d.specColumn || !d.targetColumn) && (
+        <p className="text-[10px] text-red-500 font-bold">Seleccioná las 3 columnas para guardar la regla.</p>
+      )}
+      {isCompute && (!d.sourceColumn || !d.operandColumn || !d.targetColumn) && (
+        <p className="text-[10px] text-red-500 font-bold">Seleccioná todas las columnas para guardar la regla.</p>
+      )}
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button size="sm" onClick={() => onSave(d)}>Guardar regla</Button>
+        <Button size="sm" onClick={handleSave}>Guardar regla</Button>
       </div>
     </div>
   );
@@ -254,7 +379,7 @@ const newRule = (): TableCatalogRule => ({
   valueIfPass: 'PASA',
   valueIfFail: 'FALLA',
   operandColumn: null,
-  computeOperator: null,
+  computeOperator: '-',
 });
 
 export const TableEditor = ({ table, onChange }: Props) => {
@@ -439,6 +564,15 @@ export const TableEditor = ({ table, onChange }: Props) => {
       {/* Rules (validation only) */}
       {activeTab === 'rules' && table.tableType === 'validation' && (
         <div className="space-y-2">
+          <label className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer">
+            <input type="checkbox" checked={table.allowClientSpec ?? false}
+              onChange={e => upd('allowClientSpec', e.target.checked || undefined)}
+              className="w-4 h-4 accent-blue-600" />
+            <div>
+              <span className="text-xs font-bold text-slate-700">Permitir especificaciones del cliente</span>
+              <p className="text-[10px] text-slate-500">El técnico puede activar "Especificaciones ampliadas" para sobreescribir la spec de fábrica por fila.</p>
+            </div>
+          </label>
           <div className="flex justify-between items-center">
             <span className="text-xs text-slate-500">{table.validationRules.length} reglas</span>
             {!addingRule && editingRuleIdx === null && (

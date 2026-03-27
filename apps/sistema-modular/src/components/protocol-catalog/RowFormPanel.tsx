@@ -22,6 +22,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
   const [titleText, setTitleText] = useState(row.titleText ?? '');
   const [selectorLabel, setSelectorLabel] = useState(row.selectorLabel ?? '');
   const [selectorOptionsText, setSelectorOptionsText] = useState((row.selectorOptions ?? []).join(', '));
+  const [selectorColumn, setSelectorColumn] = useState(row.selectorColumn ?? 0);
   const [rowSpan, setRowSpan] = useState(row.rowSpan ?? 1);
   const [spanColumns, setSpanColumns] = useState<string[]>(row.spanColumns ?? []);
 
@@ -34,7 +35,8 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
       onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined });
     } else if (mode === 'selector') {
       const options = selectorOptionsText.split(',').map(o => o.trim()).filter(Boolean);
-      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, rowSpan: undefined, spanColumns: undefined });
+      const effectiveSelectorCol = selectorColumn > 0 ? selectorColumn : undefined;
+      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined });
     } else {
       const effectiveSpan = rowSpan > 1 ? rowSpan : undefined;
       const effectiveSpanCols = effectiveSpan && spanColumns.length > 0 ? spanColumns : undefined;
@@ -90,7 +92,24 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
       ) : mode === 'selector' ? (
         <div className="space-y-3">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-            <p className="text-[10px] font-bold text-blue-700 uppercase">Columna 1 → Selector</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-blue-700 uppercase">Selector</p>
+              {columns.length > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Dropdown en:</span>
+                  <select
+                    value={selectorColumn}
+                    onChange={e => setSelectorColumn(Number(e.target.value))}
+                    className="text-xs border border-slate-300 rounded px-1.5 py-0.5 bg-white"
+                  >
+                    <option value={0}>{columns[0]?.label ?? 'Col 1'} (junto al label)</option>
+                    {columns.slice(1).map((col, i) => (
+                      <option key={col.key} value={i + 1}>{col.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta</label>
