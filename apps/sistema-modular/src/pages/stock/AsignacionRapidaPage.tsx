@@ -169,21 +169,21 @@ const IngenieroDropZone = ({ nombre, count, isOver, clienteId, clienteOpts, onCl
   onNameClick: () => void;
 }) => (
   <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave}
-    className={`rounded-xl border-2 transition-all ${
+    className={`rounded-md border transition-all ${
       isOver
-        ? 'border-dashed border-teal-500 bg-teal-50 shadow-lg ring-2 ring-teal-200 scale-[1.01]'
+        ? 'border-dashed border-amber-400 bg-amber-50 shadow-lg ring-2 ring-amber-200 scale-[1.01]'
         : count > 0
-          ? 'border-teal-300 bg-teal-50/60'
-          : 'border-slate-100 bg-white hover:border-slate-200'
+          ? 'border-amber-200 bg-amber-50'
+          : 'border-amber-200 bg-amber-50 hover:border-amber-300'
     }`}>
     {/* Header */}
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className={`flex items-center justify-between px-4 ${count > 0 ? 'py-3' : 'py-7'}`}>
       <button onClick={onNameClick}
-        className={`text-sm font-semibold truncate text-left ${count > 0 ? 'text-teal-900 hover:text-teal-700' : 'text-slate-600 hover:text-teal-700'}`}>
+        className={`text-sm font-semibold truncate text-left ${count > 0 ? 'text-amber-900 hover:text-amber-700' : 'text-slate-600 hover:text-amber-700'}`}>
         {nombre}
       </button>
       {count > 0 ? (
-        <span className="ml-2 inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full bg-teal-600 text-white text-[10px] font-bold shrink-0">
+        <span className="ml-2 inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full bg-amber-500 text-white text-[10px] font-bold shrink-0">
           {count}
         </span>
       ) : (

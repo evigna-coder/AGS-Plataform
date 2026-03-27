@@ -92,10 +92,17 @@ export const Modal: React.FC<ModalProps> = ({
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key !== 'Escape') return;
+      // If user is typing in an input, blur it first — second Escape will close
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        (e.target as HTMLElement).blur();
+        e.preventDefault();
         e.stopImmediatePropagation();
-        onClose();
+        return;
       }
+      e.stopImmediatePropagation();
+      onClose();
     };
     document.addEventListener('keydown', handleKey);
     return () => {
@@ -161,12 +168,13 @@ export const Modal: React.FC<ModalProps> = ({
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby={`modal-title-${modalId.current}`}
       onClick={closeOnBackdropClick ? onClose : undefined}
     >
       <div
         ref={dialogRef}
-        className={`w-full ${widthMap[maxWidth]} bg-[#FAFAFA] rounded-xl shadow-xl flex flex-col max-h-[90vh]`}
-        style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        className={`w-full ${widthMap[maxWidth]} bg-[#FAFAFA] rounded-xl shadow-xl flex flex-col max-h-[90vh] relative`}
+        style={{ left: `${offset.x}px`, top: `${offset.y}px` }}
         onClick={e => e.stopPropagation()}
       >
         <div
@@ -174,7 +182,7 @@ export const Modal: React.FC<ModalProps> = ({
           onMouseDown={handleMouseDown}
         >
           <div>
-            <h3 className="text-lg font-serif font-semibold text-white tracking-tight">{title}</h3>
+            <h3 id={`modal-title-${modalId.current}`} className="text-lg font-serif font-semibold text-white tracking-tight">{title}</h3>
             {subtitle && <p className="text-[11px] font-mono text-teal-100/70 mt-0.5 uppercase tracking-wider">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-1">

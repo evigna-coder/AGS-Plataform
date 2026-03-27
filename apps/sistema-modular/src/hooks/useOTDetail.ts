@@ -36,43 +36,50 @@ export function useOTDetail(otNumber?: string) {
   });
 
   // ── Load ──────────────────────────────────────────────────────
-  useEffect(() => { if (otNumber) loadData(); }, [otNumber]);
-
-  const loadData = async () => {
+  useEffect(() => {
     if (!otNumber) return;
-    try {
-      setLoading(true);
-      const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
-      if (!ot) { alert('Orden de trabajo no encontrada'); navigate('/ordenes-trabajo'); return; }
+    let cancelled = false;
 
-      loadFromOT(ot);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const ot = await ordenesTrabajoService.getByOtNumber(otNumber);
+        if (cancelled) return;
+        if (!ot) { alert('Orden de trabajo no encontrada'); navigate('/ordenes-trabajo'); return; }
 
-      // Load related entities
-      if (ot.clienteId) { setCliente(await clientesService.getById(ot.clienteId)); }
-      if (ot.sistemaId) {
-        const s = await sistemasService.getById(ot.sistemaId); setSistema(s);
-        if (ot.moduloId && s) { try { setModulo(await modulosService.getById(ot.sistemaId, ot.moduloId)); } catch { /* optional */ } }
-      }
-      if (!otNumber.includes('.')) { setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber)); }
+        loadFromOT(ot);
 
-      // Load catalogs
-      const [tiposData, clientesData, sistemasData, usersData] = await Promise.all([
-        tiposServicioService.getAll(), clientesService.getAll(true),
-        sistemasService.getAll(), usuariosService.getAll(),
-      ]);
-      setTiposServicio(tiposData); setClientes(clientesData); setSistemas(sistemasData);
-      setIngenieros(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
+        // Load related entities
+        if (ot.clienteId) { const c = await clientesService.getById(ot.clienteId); if (!cancelled) setCliente(c); }
+        if (ot.sistemaId) {
+          const s = await sistemasService.getById(ot.sistemaId); if (!cancelled) setSistema(s);
+          if (ot.moduloId && s) { try { const m = await modulosService.getById(ot.sistemaId, ot.moduloId); if (!cancelled) setModulo(m); } catch { /* optional */ } }
+        }
+        if (!otNumber.includes('.')) { const itms = await ordenesTrabajoService.getItemsByOtPadre(otNumber); if (!cancelled) setItems(itms); }
 
-      // Cascade
-      if (ot.clienteId) {
-        setSistemasFiltrados(sistemasData.filter(s => s.clienteId === ot.clienteId));
-        try { setContactos(await contactosService.getByCliente(ot.clienteId)); } catch { /* optional */ }
-      }
-      if (ot.sistemaId) {
-        try { setModulosFiltrados(await modulosService.getBySistema(ot.sistemaId)); } catch { /* optional */ }
-      }
-    } catch { alert('Error al cargar la orden de trabajo'); } finally { setLoading(false); }
-  };
+        // Load catalogs
+        const [tiposData, clientesData, sistemasData, usersData] = await Promise.all([
+          tiposServicioService.getAll(), clientesService.getAll(true),
+          sistemasService.getAll(), usuariosService.getAll(),
+        ]);
+        if (cancelled) return;
+        setTiposServicio(tiposData); setClientes(clientesData); setSistemas(sistemasData);
+        setIngenieros(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
+
+        // Cascade
+        if (ot.clienteId) {
+          setSistemasFiltrados(sistemasData.filter(s => s.clienteId === ot.clienteId));
+          try { const ct = await contactosService.getByCliente(ot.clienteId); if (!cancelled) setContactos(ct); } catch { /* optional */ }
+        }
+        if (ot.sistemaId) {
+          try { const mods = await modulosService.getBySistema(ot.sistemaId); if (!cancelled) setModulosFiltrados(mods); } catch { /* optional */ }
+        }
+      } catch { if (!cancelled) alert('Error al cargar la orden de trabajo'); } finally { if (!cancelled) setLoading(false); }
+    };
+
+    loadData();
+    return () => { cancelled = true; };
+  }, [otNumber]);
 
   // ── Cascading selects ─────────────────────────────────────────
   useEffect(() => {
@@ -88,14 +95,6 @@ export function useOTDetail(otNumber?: string) {
     } else { setModulosFiltrados([]); }
   }, [form.sistemaId]);
 
-  // ── Autosave ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (!hasUserInteracted.current || !otNumber || loading) return;
-    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-    autosaveTimeoutRef.current = setTimeout(() => handleSave(), 1000);
-    return () => { if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current); };
-  }, [form]);
-
   // ── Save / Delete ─────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!otNumber) return;
@@ -103,6 +102,14 @@ export function useOTDetail(otNumber?: string) {
     catch { alert('Error al guardar los cambios'); }
     finally { setSaving(false); }
   }, [otNumber, buildSavePayload]);
+
+  // ── Autosave ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!hasUserInteracted.current || !otNumber || loading) return;
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    autosaveTimeoutRef.current = setTimeout(() => handleSave(), 1000);
+    return () => { if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current); };
+  }, [form, handleSave]);
 
   const handleDelete = useCallback(async () => {
     if (!otNumber || !window.confirm(`Eliminar OT ${otNumber}?`)) return;
@@ -285,7 +292,7 @@ export function useOTDetail(otNumber?: string) {
         otNumber: nextNum, status: 'BORRADOR', budgets: [],
         tipoServicio: newItemData.tipoServicio,
         esFacturable: newItemData.necesitaPresupuesto,
-        tieneContrato: newItemData.tieneContrato || (cliente as any).tipoServicio === 'contrato',
+        tieneContrato: newItemData.tieneContrato || cliente?.tipoServicio === 'contrato',
         esGarantia: false, razonSocial: form.razonSocial, contacto: form.contacto,
         direccion: form.direccion, localidad: form.localidad, provincia: form.provincia,
         sistema: form.sistemaNombre, moduloModelo: form.moduloModelo,
@@ -307,7 +314,10 @@ export function useOTDetail(otNumber?: string) {
       alert(`Item ${nextNum} creado exitosamente`);
       setShowNewItemModal(false);
       setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' });
-      await loadData();
+      // Reload items list
+      if (otNumber && !otNumber.includes('.')) {
+        setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber));
+      }
     } catch { alert('Error al crear el item'); }
   }, [otNumber, cliente, newItemData, form]);
 

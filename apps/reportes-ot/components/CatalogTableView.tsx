@@ -538,6 +538,53 @@ export const CatalogTableView: React.FC<Props> = ({
                   </tr>
                 );
               }
+              if (row.isSelector) {
+                const selectorValue = selection.filledData[row.rowId]?.['__selector__'] ?? '';
+                return (
+                  <tr
+                    key={row.rowId}
+                    className={isPrint
+                      ? 'border-b border-slate-200'
+                      : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
+                    }
+                  >
+                    {table.columns.map((col, colIdx) => (
+                      <td
+                        key={col.key}
+                        className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
+                      >
+                        {colIdx === 0 ? (
+                          // Primera columna: label + dropdown
+                          isPrint ? (
+                            <span className="text-[10px]">
+                              <span className="font-semibold">{row.selectorLabel}</span>
+                              {selectorValue ? ` (${selectorValue})` : ''}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
+                              <select
+                                value={selectorValue}
+                                disabled={readOnly}
+                                onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
+                                className="flex-1 min-w-0 text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">Seleccionar...</option>
+                                {(row.selectorOptions ?? []).map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )
+                        ) : (
+                          // Resto de columnas: celdas editables normales
+                          renderTableCell(col, row.rowId)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              }
               const isExtra = row.rowId.startsWith('extra_');
               return (
                 <tr

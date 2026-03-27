@@ -4,6 +4,7 @@ import { asignacionesService, ingenierosService } from '../../services/firebaseS
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, Ingeniero, EstadoAsignacion } from '@ags/shared';
 
 const ESTADO_COLORS: Record<EstadoAsignacion, string> = {
@@ -18,6 +19,7 @@ export const AsignacionesList = () => {
   const [loading, setLoading] = useState(true);
   const [filtroIngeniero, setFiltroIngeniero] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -80,6 +82,11 @@ export const AsignacionesList = () => {
                     {a.clienteNombre && <span className="text-[10px] text-slate-400">→ {a.clienteNombre}</span>}
                   </div>
                   <div className="flex items-center gap-2">
+                    <button onClick={e => { e.preventDefault(); setInventarioIngId(a.ingenieroId); }}
+                      className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50"
+                      title="Ver inventario del ingeniero">
+                      Inventario
+                    </button>
                     <span className="text-[10px] font-medium bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{a.items.length} items</span>
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_COLORS[a.estado]}`}>{a.estado}</span>
                     <span className="text-[10px] text-slate-400">{new Date(a.createdAt).toLocaleDateString('es-AR')}</span>
@@ -90,6 +97,8 @@ export const AsignacionesList = () => {
           </div>
         )}
       </div>
+
+      <InventarioIngenieroModal ingenieroId={inventarioIngId} onClose={() => setInventarioIngId(null)} />
     </div>
   );
 };

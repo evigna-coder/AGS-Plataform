@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { WorkOrder, Part, TipoServicio, Cliente, Articulo } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/firebaseService';
 
@@ -145,67 +146,68 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
       )}
 
       {/* New item modal */}
-      {showNewItemModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-sm font-semibold text-slate-900 tracking-tight mb-4">
-              Crear nuevo item para OT-{otNumber}
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Tipo de servicio *</label>
-                <SearchableSelect
-                  value={newItemData.tipoServicio}
-                  onChange={v => setNewItemData({ ...newItemData, tipoServicio: v })}
-                  options={tiposServicio.map(t => ({ value: t.nombre, label: t.nombre }))}
-                  placeholder="Seleccionar..."
-                  required
-                />
-                <Link to="/tipos-servicio" className="text-[11px] text-teal-600 hover:underline mt-1 inline-block">Gestionar tipos de servicio</Link>
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Descripcion del trabajo</label>
-                <textarea
-                  value={newItemData.descripcion}
-                  onChange={e => setNewItemData({ ...newItemData, descripcion: e.target.value })}
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"
-                  placeholder="Describa brevemente el trabajo a realizar..."
-                />
-              </div>
-              <div className="border-t pt-3 space-y-2">
-                <p className="text-[11px] font-medium text-slate-400 mb-1">Evaluacion para apertura</p>
+      <Modal
+        open={showNewItemModal}
+        onClose={() => { setShowNewItemModal(false); setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' }); }}
+        title={`Crear nuevo item para OT-${otNumber}`}
+        maxWidth="md"
+        minimizable={false}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => { setShowNewItemModal(false); setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' }); }}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={onCreateNewItem}>Crear Item</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Tipo de servicio *</label>
+            <SearchableSelect
+              value={newItemData.tipoServicio}
+              onChange={v => setNewItemData({ ...newItemData, tipoServicio: v })}
+              options={tiposServicio.map(t => ({ value: t.nombre, label: t.nombre }))}
+              placeholder="Seleccionar..."
+              required
+            />
+            <Link to="/tipos-servicio" className="text-[11px] text-teal-600 hover:underline mt-1 inline-block">Gestionar tipos de servicio</Link>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Descripcion del trabajo</label>
+            <textarea
+              value={newItemData.descripcion}
+              onChange={e => setNewItemData({ ...newItemData, descripcion: e.target.value })}
+              rows={3}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"
+              placeholder="Describa brevemente el trabajo a realizar..."
+            />
+          </div>
+          <div className="border-t pt-3 space-y-2">
+            <p className="text-[11px] font-medium text-slate-400 mb-1">Evaluacion para apertura</p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={newItemData.necesitaPresupuesto} onChange={e => setNewItemData({ ...newItemData, necesitaPresupuesto: e.target.checked })} className="w-3.5 h-3.5" />
+              <span className="text-xs text-slate-700">Requiere nuevo presupuesto</span>
+            </label>
+            {cliente && (
+              <>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={newItemData.necesitaPresupuesto} onChange={e => setNewItemData({ ...newItemData, necesitaPresupuesto: e.target.checked })} className="w-3.5 h-3.5" />
-                  <span className="text-xs text-slate-700">Requiere nuevo presupuesto</span>
+                  <input type="checkbox" checked={newItemData.clienteConfiable} onChange={e => setNewItemData({ ...newItemData, clienteConfiable: e.target.checked })} className="w-3.5 h-3.5" disabled={cliente?.pagaEnTiempo === true} />
+                  <span className="text-xs text-slate-700">
+                    Cliente confiable{cliente?.pagaEnTiempo && <span className="text-emerald-600 ml-1">- Verificado</span>}
+                  </span>
                 </label>
-                {cliente && (
-                  <>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={newItemData.clienteConfiable} onChange={e => setNewItemData({ ...newItemData, clienteConfiable: e.target.checked })} className="w-3.5 h-3.5" disabled={(cliente as any).pagaEnTiempo === true} />
-                      <span className="text-xs text-slate-700">
-                        Cliente confiable{(cliente as any).pagaEnTiempo && <span className="text-emerald-600 ml-1">- Verificado</span>}
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={newItemData.tieneContrato || (cliente as any).tipoServicio === 'contrato'} onChange={e => setNewItemData({ ...newItemData, tieneContrato: e.target.checked })} className="w-3.5 h-3.5" disabled={(cliente as any).tipoServicio === 'contrato'} />
-                      <span className="text-xs text-slate-700">
-                        Con contrato{(cliente as any).tipoServicio === 'contrato' && <span className="text-emerald-600 ml-1">- Tiene contrato</span>}
-                      </span>
-                    </label>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <Button variant="outline" size="sm" onClick={() => { setShowNewItemModal(false); setNewItemData({ necesitaPresupuesto: false, clienteConfiable: false, tieneContrato: false, tipoServicio: '', descripcion: '' }); }}>
-                Cancelar
-              </Button>
-              <Button size="sm" onClick={onCreateNewItem}>Crear Item</Button>
-            </div>
-          </Card>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={newItemData.tieneContrato || cliente?.tipoServicio === 'contrato'} onChange={e => setNewItemData({ ...newItemData, tieneContrato: e.target.checked })} className="w-3.5 h-3.5" disabled={cliente?.tipoServicio === 'contrato'} />
+                  <span className="text-xs text-slate-700">
+                    Con contrato{cliente?.tipoServicio === 'contrato' && <span className="text-emerald-600 ml-1">- Tiene contrato</span>}
+                  </span>
+                </label>
+              </>
+            )}
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

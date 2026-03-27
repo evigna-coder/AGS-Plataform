@@ -51,10 +51,10 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
     }
   };
 
-  const direccionFiscal = (cliente as any).direccionFiscal ?? (cliente as any).direccion;
-  const localidadFiscal = (cliente as any).localidadFiscal ?? (cliente as any).localidad ?? '';
-  const provinciaFiscal = (cliente as any).provinciaFiscal ?? (cliente as any).provincia ?? '';
-  const cpFiscal = (cliente as any).codigoPostalFiscal ?? (cliente as any).codigoPostal ?? '';
+  const direccionFiscal = cliente.direccionFiscal ?? cliente.direccion;
+  const localidadFiscal = cliente.localidadFiscal ?? cliente.localidad ?? '';
+  const provinciaFiscal = cliente.provinciaFiscal ?? cliente.provincia ?? '';
+  const cpFiscal = cliente.codigoPostalFiscal ?? cliente.codigoPostal ?? '';
 
   return (
     <div className="w-72 shrink-0 space-y-4">
@@ -168,8 +168,8 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Fiscal / IVA</h3>
         {editing ? (
           <div className="space-y-3">
-            {(cliente as any).condicionIva && (
-              <LabelValue label="Condicion IVA" value={(cliente as any).condicionIva} />
+            {cliente.condicionIva && (
+              <LabelValue label="Condicion IVA" value={cliente.condicionIva} />
             )}
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -184,13 +184,13 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
           </div>
         ) : (
           <div className="space-y-2.5">
-            {(cliente as any).condicionIva && (
-              <LabelValue label="Condicion IVA" value={(cliente as any).condicionIva} />
+            {cliente.condicionIva && (
+              <LabelValue label="Condicion IVA" value={cliente.condicionIva} />
             )}
             <div>
               <p className="text-[11px] font-medium text-slate-400 mb-0.5">Requiere Trazabilidad</p>
-              <p className={`text-xs font-medium ${(cliente as any).requiereTrazabilidad ? 'text-green-600' : 'text-slate-400'}`}>
-                {(cliente as any).requiereTrazabilidad ? 'Si' : 'No'}
+              <p className={`text-xs font-medium ${cliente.requiereTrazabilidad ? 'text-green-600' : 'text-slate-400'}`}>
+                {cliente.requiereTrazabilidad ? 'Si' : 'No'}
               </p>
             </div>
           </div>

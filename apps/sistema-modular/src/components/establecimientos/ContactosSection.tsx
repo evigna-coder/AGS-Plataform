@@ -3,6 +3,7 @@ import type { ContactoEstablecimiento } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 
@@ -86,82 +87,83 @@ export const ContactosSection = ({
     </Card>
 
     {/* Modal contacto */}
-    {showModal && (
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <Card compact className="max-w-md w-full">
-          <h3 className="text-sm font-semibold text-slate-900 tracking-tight mb-4">
-            {editingContacto ? 'Editar contacto' : 'Nuevo contacto'}
-          </h3>
-          <div className="space-y-3">
-            <Input
-              inputSize="sm"
-              label="Nombre *"
-              value={contactoForm.nombre}
-              onChange={e => setContactoForm({ ...contactoForm, nombre: e.target.value })}
-              required
-            />
-            <Input
-              inputSize="sm"
-              label="Cargo"
-              value={contactoForm.cargo}
-              onChange={e => setContactoForm({ ...contactoForm, cargo: e.target.value })}
-            />
-            <div>
-              <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Sector</label>
-              <SearchableSelect
-                value={contactoForm.sector}
-                onChange={v => setContactoForm({ ...contactoForm, sector: v })}
-                options={sectorOptions}
-                placeholder="Seleccionar sector..."
-                creatable
-                createLabel="Crear sector"
+    <Modal
+      open={showModal}
+      onClose={onClose}
+      title={editingContacto ? 'Editar contacto' : 'Nuevo contacto'}
+      maxWidth="sm"
+      minimizable={false}
+      footer={
+        <>
+          <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" onClick={onSave}>{editingContacto ? 'Guardar' : 'Agregar'}</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <Input
+          inputSize="sm"
+          label="Nombre *"
+          value={contactoForm.nombre}
+          onChange={e => setContactoForm({ ...contactoForm, nombre: e.target.value })}
+          required
+        />
+        <Input
+          inputSize="sm"
+          label="Cargo"
+          value={contactoForm.cargo}
+          onChange={e => setContactoForm({ ...contactoForm, cargo: e.target.value })}
+        />
+        <div>
+          <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Sector</label>
+          <SearchableSelect
+            value={contactoForm.sector}
+            onChange={v => setContactoForm({ ...contactoForm, sector: v })}
+            options={sectorOptions}
+            placeholder="Seleccionar sector..."
+            creatable
+            createLabel="Crear sector"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Telefono *</label>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2">
+              <Input
+                inputSize="sm"
+                value={contactoForm.telefono}
+                onChange={e => setContactoForm({ ...contactoForm, telefono: e.target.value })}
+                placeholder="Telefono"
+                required
               />
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Telefono *</label>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <Input
-                    inputSize="sm"
-                    value={contactoForm.telefono}
-                    onChange={e => setContactoForm({ ...contactoForm, telefono: e.target.value })}
-                    placeholder="Telefono"
-                    required
-                  />
-                </div>
-                <Input
-                  inputSize="sm"
-                  value={contactoForm.interno}
-                  onChange={e => setContactoForm({ ...contactoForm, interno: e.target.value })}
-                  placeholder="Int."
-                />
-              </div>
-            </div>
             <Input
               inputSize="sm"
-              label="Email *"
-              type="email"
-              value={contactoForm.email}
-              onChange={e => setContactoForm({ ...contactoForm, email: e.target.value })}
-              required
+              value={contactoForm.interno}
+              onChange={e => setContactoForm({ ...contactoForm, interno: e.target.value })}
+              placeholder="Int."
             />
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={contactoForm.esPrincipal}
-                onChange={e => setContactoForm({ ...contactoForm, esPrincipal: e.target.checked })}
-                className="w-3.5 h-3.5"
-              />
-              <span className="text-xs text-slate-600">Contacto principal</span>
-            </label>
           </div>
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" onClick={onSave}>{editingContacto ? 'Guardar' : 'Agregar'}</Button>
-          </div>
-        </Card>
+        </div>
+        <Input
+          inputSize="sm"
+          label="Email *"
+          type="email"
+          value={contactoForm.email}
+          onChange={e => setContactoForm({ ...contactoForm, email: e.target.value })}
+          required
+        />
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={contactoForm.esPrincipal}
+            onChange={e => setContactoForm({ ...contactoForm, esPrincipal: e.target.checked })}
+            className="w-3.5 h-3.5"
+          />
+          <span className="text-xs text-slate-600">Contacto principal</span>
+        </label>
       </div>
-    )}
+    </Modal>
   </>
   );
 };

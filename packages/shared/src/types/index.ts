@@ -51,10 +51,13 @@ export interface WorkOrder {
   sistema: string;
   moduloModelo: string;
   moduloDescripcion: string;
+  moduloMarca?: string;
   moduloSerie: string;
   codigoInternoCliente: string;
   fechaInicio: string;
   fechaFin: string;
+  horaInicio?: string;
+  horaFin?: string;
   horasTrabajadas: string;
   tiempoViaje: string;
   reporteTecnico: string;
@@ -87,6 +90,11 @@ export interface WorkOrder {
   ingenieroAsignadoNombre?: string | null;
   // --- Cierre administrativo ---
   cierreAdmin?: CierreAdministrativo;
+  // --- Campos de reportes-ot (protocolo/instrumentos) ---
+  protocolSelections?: Record<string, unknown>[];
+  instrumentosSeleccionados?: Record<string, unknown>[];
+  protocolTemplateId?: string | null;
+  protocolData?: Record<string, unknown> | null;
 }
 
 /** Datos del cierre administrativo de la OT */
@@ -168,6 +176,10 @@ export interface Cliente {
   notas?: string;
   /** Si true, las OTs de este cliente deben incluir documentación de trazabilidad */
   requiereTrazabilidad?: boolean;
+  /** Si true, el cliente tiene buen historial de pago (auto-habilita "cliente confiable") */
+  pagaEnTiempo?: boolean;
+  /** Tipo de servicio predominante: 'contrato' | 'per_incident' | etc. */
+  tipoServicio?: string;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -974,6 +986,10 @@ export interface TableCatalogRow {
   /** True = full-width section title row; uses titleText instead of cells */
   isTitle?: boolean;
   titleText?: string | null;
+  /** True = full-width selector row; shows selectorLabel + dropdown with selectorOptions */
+  isSelector?: boolean;
+  selectorLabel?: string | null;
+  selectorOptions?: string[] | null;
 }
 
 export interface TableCatalogRule {

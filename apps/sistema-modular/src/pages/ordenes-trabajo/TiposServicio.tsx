@@ -5,6 +5,7 @@ import type { TipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const TiposServicio = () => {
@@ -144,43 +145,33 @@ export const TiposServicio = () => {
       )}
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">
-              {editing ? 'Editar Tipo de Servicio' : 'Nuevo Tipo de Servicio'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Nombre del Tipo de Servicio *
-                </label>
-                <Input
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ nombre: e.target.value })}
-                  placeholder="Ej: Mantenimiento preventivo, Calificación de operación..."
-                  required
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowModal(false);
-                  setEditing(null);
-                  setFormData({ nombre: '' });
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleSave}>
-                Guardar
-              </Button>
-            </div>
-          </Card>
+      <Modal
+        open={showModal}
+        onClose={() => { setShowModal(false); setEditing(null); setFormData({ nombre: '' }); }}
+        title={editing ? 'Editar Tipo de Servicio' : 'Nuevo Tipo de Servicio'}
+        maxWidth="sm"
+        minimizable={false}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setShowModal(false); setEditing(null); setFormData({ nombre: '' }); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Guardar</Button>
+          </>
+        }
+      >
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Nombre del Tipo de Servicio *
+          </label>
+          <Input
+            value={formData.nombre}
+            onChange={(e) => setFormData({ nombre: e.target.value })}
+            placeholder="Ej: Mantenimiento preventivo, Calificacion de operacion..."
+            required
+          />
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

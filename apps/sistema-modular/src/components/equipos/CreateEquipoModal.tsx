@@ -89,13 +89,18 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
       const isGC = esGaseoso(finalNombre) || esGaseoso(selectedCategoria?.nombre ?? '');
       const sistemaId = await sistemasService.create({
         establecimientoId: form.establecimientoId,
-        clienteId: form.clienteId || undefined,
+        clienteId: form.clienteId || null,
         categoriaId: form.categoriaId,
         nombre: finalNombre,
-        software: form.software.trim() || undefined,
+        software: form.software.trim() || null,
         codigoInternoCliente: form.codigoInternoCliente.trim() || `PROV-${Date.now().toString(36).toUpperCase()}`,
         sector: form.sector.trim() || null,
-        configuracionGC: isGC ? gcConfig : null,
+        configuracionGC: isGC ? {
+          puertoInyeccionFront: gcConfig.puertoInyeccionFront || null,
+          puertoInyeccionBack: gcConfig.puertoInyeccionBack || null,
+          detectorFront: gcConfig.detectorFront || null,
+          detectorBack: gcConfig.detectorBack || null,
+        } : null,
         activo: true,
         ubicaciones: [],
         otIds: [],
@@ -103,7 +108,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
       handleClose();
       onCreated();
       navigate(`/equipos/${sistemaId}`, { state: { from: pathname } });
-    } catch { alert('Error al crear el sistema'); }
+    } catch (err) { console.error('Error creando sistema:', err); alert('Error al crear el sistema'); }
     finally { setSaving(false); }
   };
 

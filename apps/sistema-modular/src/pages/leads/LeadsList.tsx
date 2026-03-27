@@ -34,6 +34,7 @@ export const LeadsList = () => {
   const { usuario } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showCreate, setShowCreate] = useState(false);
@@ -65,6 +66,7 @@ export const LeadsList = () => {
   const loadLeads = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.responsable || undefined;
       const data = await leadsService.getAll({
         ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
@@ -75,6 +77,7 @@ export const LeadsList = () => {
       setLeads(data);
     } catch (err) {
       console.error('Error al cargar leads:', err);
+      setLoadError('Error al cargar los leads. Verifique su conexión e intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -180,6 +183,15 @@ export const LeadsList = () => {
 
   if (loading && leads.length === 0) {
     return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3">
+        <p className="text-sm text-red-600">{loadError}</p>
+        <button onClick={loadLeads} className="text-xs text-teal-600 hover:text-teal-800 font-medium">Reintentar</button>
+      </div>
+    );
   }
 
   return (

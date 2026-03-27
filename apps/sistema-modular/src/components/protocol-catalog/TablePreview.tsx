@@ -50,6 +50,26 @@ export const TablePreview = ({ table }: Props) => {
                         {row.titleText || ''}
                       </td>
                     </tr>
+                  ) : row.isSelector ? (
+                    <tr key={row.rowId} className="bg-white">
+                      {table.columns.map((col: TableCatalogEntry['columns'][number], colIdx: number) => (
+                        <td key={col.key} className="px-3 py-2 border border-slate-200 text-slate-700">
+                          {colIdx === 0 ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
+                              <select className="border border-slate-300 rounded px-2 py-0.5 text-xs bg-white" disabled>
+                                <option>Seleccionar...</option>
+                                {(row.selectorOptions ?? []).map(opt => (
+                                  <option key={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : (
+                            row.cells[col.key] != null ? String(row.cells[col.key]) : '—'
+                          )}
+                        </td>
+                      ))}
+                    </tr>
                   ) : (
                     <tr key={row.rowId} className="bg-white">
                       {table.columns.map((col: TableCatalogEntry['columns'][number]) => (

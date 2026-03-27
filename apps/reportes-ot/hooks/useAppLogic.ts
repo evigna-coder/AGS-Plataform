@@ -767,7 +767,7 @@ export function useAppLogic(
   // Confirmar firma del cliente, finalizar reporte y generar PDF (wrapper del hook)
   const confirmClientAndFinalize = confirmClientAndFinalizeFromHook;
 
-  const fullDireccion = `${direccion}${localidad ? `, ${localidad}` : ''}${provincia ? `, ${provincia}` : ''}`;
+  const fullDireccion = [direccion, localidad, provincia].filter(Boolean).join(', ');
 
 
   return {

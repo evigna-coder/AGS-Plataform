@@ -203,9 +203,9 @@ function createWindow() {
           'Content-Security-Policy': [
             "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com; " +
-            "style-src 'self' 'unsafe-inline' http://localhost:*; " +
+            "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
             "img-src 'self' data: blob: http://localhost:* https:; " +
-            "font-src 'self' data: http://localhost:* https:; " +
+            "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
             "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
           ]
         }
@@ -220,9 +220,9 @@ function createWindow() {
           'Content-Security-Policy': [
             "default-src 'self'; " +
             "script-src 'self' https://*.googleapis.com https://*.google.com; " +
-            "style-src 'self' 'unsafe-inline'; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "img-src 'self' data: blob: https:; " +
-            "font-src 'self' data:; " +
+            "font-src 'self' data: https://fonts.gstatic.com; " +
             "connect-src 'self' data: blob: https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
           ]
         }

@@ -30,7 +30,10 @@
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(grep -rn \"minikit\\\\|Minikit\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/' --include=*.tsx --include=*.ts)",
       "Bash(grep -rn \"CreateLoanerModal\\\\|CreateRequerimientoModal\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/' --include=*.tsx)",
-      "Bash(ls \"c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\sistema-modular\"/tsconfig*.json)"
+      "Bash(ls \"c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\sistema-modular\"/tsconfig*.json)",
+      "Bash(python3 -c \":*)",
+      "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig\"*)",
+      "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig.\"*)"
     ]
   }
 }

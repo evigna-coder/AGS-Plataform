@@ -3,6 +3,53 @@ import { SmartSelect } from './ui/SmartSelect';
 import { formatDateToDDMMYYYY, parseDDMMYYYYToISO, isValidDDMMYYYY } from '../services/utils';
 import { calcHours, isValidTimeHHMM } from '../services/time';
 
+// ── Selector de hora con minutos cada 15 (mobile-friendly) ──
+function TimeSelect15({ value, onChange, disabled, label }: {
+  value: string; onChange: (v: string) => void; disabled: boolean; label: string;
+}) {
+  const h = value ? value.split(':')[0] : '';
+  const m = value ? value.split(':')[1] : '';
+  return (
+    <div>
+      <label className="text-[9px] font-bold text-slate-400 uppercase">{label}</label>
+      <div className="flex gap-1">
+        <select
+          value={h}
+          onChange={(e) => {
+            if (disabled) return;
+            const newH = e.target.value;
+            onChange(newH ? `${newH}:${m || '00'}` : '');
+          }}
+          disabled={disabled}
+          className={`w-1/2 border rounded-lg px-1 py-1.5 text-[10px] md:text-xs font-mono appearance-none text-center
+            ${disabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+        >
+          <option value="">--</option>
+          {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(hh => (
+            <option key={hh} value={hh}>{hh}</option>
+          ))}
+        </select>
+        <select
+          value={m}
+          onChange={(e) => {
+            if (disabled) return;
+            const newM = e.target.value;
+            onChange(h ? `${h}:${newM}` : `00:${newM}`);
+          }}
+          disabled={disabled}
+          className={`w-1/2 border rounded-lg px-1 py-1.5 text-[10px] md:text-xs font-mono appearance-none text-center
+            ${disabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+        >
+          <option value="">--</option>
+          {['00', '15', '30', '45'].map(mm => (
+            <option key={mm} value={mm}>{mm}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 // ── Contactos adicionales (para futuro envío directo) ──
 function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
   contactos: { id: string; nombre: string; email: string; esPrincipal: boolean }[];
@@ -577,47 +624,8 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             />
           </div>
 
-          <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase">Hora inicio</label>
-            <input
-              type="time"
-              step="900"
-              value={horaInicio}
-              onChange={(e) => {
-                if (readOnly) return;
-                const v = e.target.value;
-                if (v) {
-                  const [h, m] = v.split(':').map(Number);
-                  const snapped = Math.round(m / 15) * 15;
-                  setHoraInicio(`${String(h + (snapped === 60 ? 1 : 0)).padStart(2, '0')}:${String(snapped % 60).padStart(2, '0')}`);
-                } else setHoraInicio(v);
-              }}
-              disabled={readOnly}
-              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
-                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
-            />
-          </div>
-
-          <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase">Hora fin</label>
-            <input
-              type="time"
-              step="900"
-              value={horaFin}
-              onChange={(e) => {
-                if (readOnly) return;
-                const v = e.target.value;
-                if (v) {
-                  const [h, m] = v.split(':').map(Number);
-                  const snapped = Math.round(m / 15) * 15;
-                  setHoraFin(`${String(h + (snapped === 60 ? 1 : 0)).padStart(2, '0')}:${String(snapped % 60).padStart(2, '0')}`);
-                } else setHoraFin(v);
-              }}
-              disabled={readOnly}
-              className={`w-full border rounded-lg px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-mono
-                ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
-            />
-          </div>
+          <TimeSelect15 label="Hora inicio" value={horaInicio} onChange={setHoraInicio} disabled={readOnly} />
+          <TimeSelect15 label="Hora fin" value={horaFin} onChange={setHoraFin} disabled={readOnly} />
 
           <div>
             <label className="text-[9px] font-bold text-slate-400 uppercase">Hs Lab</label>

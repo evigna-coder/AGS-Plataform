@@ -4,6 +4,7 @@ import { asignacionesService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, ItemAsignacion, EstadoItemAsignacion } from '@ags/shared';
 
 const ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
@@ -18,6 +19,7 @@ export const AsignacionDetail = () => {
   const [asg, setAsg] = useState<Asignacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showInventario, setShowInventario] = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
     if (!id) return;
@@ -85,6 +87,10 @@ export const AsignacionDetail = () => {
               asg.estado === 'activa' ? 'bg-green-100 text-green-700' :
               asg.estado === 'completada' ? 'bg-slate-100 text-slate-500' : 'bg-red-100 text-red-700'
             }`}>{asg.estado}</span>
+            <button onClick={() => setShowInventario(true)}
+              className="text-[11px] font-medium text-teal-600 hover:text-teal-800 px-2 py-0.5 rounded hover:bg-teal-50">
+              Ver inventario
+            </button>
             {asg.remitoId && (
               <Link to={`/stock/remitos/${asg.remitoId}`} className="text-[11px] text-teal-600 hover:underline">Ver remito</Link>
             )}
@@ -120,6 +126,8 @@ export const AsignacionDetail = () => {
           </Card>
         )}
       </div>
+
+      <InventarioIngenieroModal ingenieroId={showInventario ? asg.ingenieroId : null} onClose={() => setShowInventario(false)} />
     </div>
   );
 };

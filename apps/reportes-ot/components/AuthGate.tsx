@@ -15,17 +15,21 @@ type AuthPhase = 'loading' | 'login' | 'domain_error' | 'authenticated';
  * (El segundo factor WebAuthn está deshabilitado por ahora.)
  */
 export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
+  // Modo firma por QR: el cliente no tiene cuenta, dejar pasar sin auth
+  const isModoFirma = new URLSearchParams(window.location.search).get('modo') === 'firma';
+
   const [user, setUser] = useState<User | null>(null);
-  const [phase, setPhase] = useState<AuthPhase>('loading');
+  const [phase, setPhase] = useState<AuthPhase>(isModoFirma ? 'authenticated' : 'loading');
   const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isModoFirma) return; // No necesita auth
     const unsubscribe = onAuthStateChanged((u) => {
       setUser(u);
       setLoginError(null);
     });
     return () => unsubscribe();
-  }, []);
+  }, [isModoFirma]);
 
   useEffect(() => {
     if (!user) {

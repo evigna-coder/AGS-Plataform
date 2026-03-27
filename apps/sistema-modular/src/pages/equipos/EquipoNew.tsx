@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { GCPortsGrid } from '../../components/GCPortsGrid';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
@@ -468,141 +469,135 @@ export const EquipoNew = () => {
       </form>
 
       {/* Modal Módulo */}
-      {showModuloModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">
-              {editingModuloIndex !== null ? 'Editar Módulo' : 'Nuevo Módulo'}
-            </h3>
-            <div className="space-y-4">
+      <Modal
+        open={showModuloModal}
+        onClose={() => { setShowModuloModal(false); setEditingModuloIndex(null); setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' }); }}
+        title={editingModuloIndex !== null ? 'Editar Modulo' : 'Nuevo Modulo'}
+        maxWidth="sm"
+        minimizable={false}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setShowModuloModal(false); setEditingModuloIndex(null); setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' }); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddModulo}>
+              {editingModuloIndex !== null ? 'Actualizar' : 'Agregar'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Categoria de Modulo</label>
+            <SearchableSelect
+              value={moduloForm.categoriaModuloId}
+              onChange={(value) => {
+                setModuloForm({ ...moduloForm, categoriaModuloId: value, modeloCodigo: '', nombre: '', descripcion: '' });
+              }}
+              options={categoriasModulos.map(cat => ({ value: cat.id, label: cat.nombre }))}
+              placeholder="Seleccionar categoria (opcional)..."
+            />
+            <p className="mt-1 text-xs text-slate-500">O deje vacio para escribir manualmente</p>
+          </div>
+
+          {moduloForm.categoriaModuloId ? (
+            <>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Categoría de Módulo</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Modelo *</label>
                 <SearchableSelect
-                  value={moduloForm.categoriaModuloId}
+                  value={moduloForm.modeloCodigo}
                   onChange={(value) => {
-                    setModuloForm({ ...moduloForm, categoriaModuloId: value, modeloCodigo: '', nombre: '', descripcion: '' });
-                  }}
-                  options={categoriasModulos.map(cat => ({ value: cat.id, label: cat.nombre }))}
-                  placeholder="Seleccionar categoría (opcional)..."
-                />
-                <p className="mt-1 text-xs text-slate-500">O deje vacío para escribir manualmente</p>
-              </div>
-
-              {moduloForm.categoriaModuloId ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Modelo *</label>
-                    <SearchableSelect
-                      value={moduloForm.modeloCodigo}
-                      onChange={(value) => {
-                        const categoria = categoriasModulos.find(c => c.id === moduloForm.categoriaModuloId);
-                        const modelo = categoria?.modelos.find(m => m.codigo === value);
-                        setModuloForm({
-                          ...moduloForm,
-                          modeloCodigo: value,
-                          nombre: modelo?.codigo || '',
-                          descripcion: modelo?.descripcion || '',
-                        });
-                      }}
-                      options={categoriasModulos
-                        .find(c => c.id === moduloForm.categoriaModuloId)
-                        ?.modelos.map(m => ({ value: m.codigo, label: `${m.codigo} - ${m.descripcion}` })) || []}
-                      placeholder="Seleccionar modelo..."
-                      required
-                    />
-                  </div>
-                  {moduloForm.modeloCodigo && (() => {
                     const categoria = categoriasModulos.find(c => c.id === moduloForm.categoriaModuloId);
-                    const modelo = categoria?.modelos.find(m => m.codigo === moduloForm.modeloCodigo);
-                    if (modelo) {
-                      return (
-                        <>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-600 mb-1">Código del Modelo</label>
-                            <Input
-                              value={modelo.codigo}
-                              disabled
-                              className="bg-slate-100 text-slate-600 cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
-                            <Input
-                              value={modelo.descripcion}
-                              disabled
-                              className="bg-slate-100 text-slate-600 cursor-not-allowed"
-                            />
-                          </div>
-                        </>
-                      );
-                    }
-                    return null;
-                  })()}
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
-                    <Input
-                      value={moduloForm.nombre}
-                      onChange={(e) => setModuloForm({ ...moduloForm, nombre: e.target.value })}
-                      placeholder="Bomba, Inyector, Detector..."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
-                    <Input
-                      value={moduloForm.descripcion}
-                      onChange={(e) => setModuloForm({ ...moduloForm, descripcion: e.target.value })}
-                    />
-                  </div>
-                </>
-              )}
+                    const modelo = categoria?.modelos.find(m => m.codigo === value);
+                    setModuloForm({
+                      ...moduloForm,
+                      modeloCodigo: value,
+                      nombre: modelo?.codigo || '',
+                      descripcion: modelo?.descripcion || '',
+                    });
+                  }}
+                  options={categoriasModulos
+                    .find(c => c.id === moduloForm.categoriaModuloId)
+                    ?.modelos.map(m => ({ value: m.codigo, label: `${m.codigo} - ${m.descripcion}` })) || []}
+                  placeholder="Seleccionar modelo..."
+                  required
+                />
+              </div>
+              {moduloForm.modeloCodigo && (() => {
+                const categoria = categoriasModulos.find(c => c.id === moduloForm.categoriaModuloId);
+                const modelo = categoria?.modelos.find(m => m.codigo === moduloForm.modeloCodigo);
+                if (modelo) {
+                  return (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Codigo del Modelo</label>
+                        <Input
+                          value={modelo.codigo}
+                          disabled
+                          className="bg-slate-100 text-slate-600 cursor-not-allowed"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Descripcion</label>
+                        <Input
+                          value={modelo.descripcion}
+                          disabled
+                          className="bg-slate-100 text-slate-600 cursor-not-allowed"
+                        />
+                      </div>
+                    </>
+                  );
+                }
+                return null;
+              })()}
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
+                <Input
+                  value={moduloForm.nombre}
+                  onChange={(e) => setModuloForm({ ...moduloForm, nombre: e.target.value })}
+                  placeholder="Bomba, Inyector, Detector..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Descripcion</label>
+                <Input
+                  value={moduloForm.descripcion}
+                  onChange={(e) => setModuloForm({ ...moduloForm, descripcion: e.target.value })}
+                />
+              </div>
+            </>
+          )}
 
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Número de Serie</label>
-                <Input
-                  value={moduloForm.serie}
-                  onChange={(e) => setModuloForm({ ...moduloForm, serie: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Versión Firmware</label>
-                <Input
-                  value={moduloForm.firmware}
-                  onChange={(e) => setModuloForm({ ...moduloForm, firmware: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
-                <textarea
-                  value={moduloForm.observaciones}
-                  onChange={(e) => setModuloForm({ ...moduloForm, observaciones: e.target.value })}
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Ej: bomba tiene canal c anulado..."
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowModuloModal(false);
-                  setEditingModuloIndex(null);
-                  setModuloForm({ categoriaModuloId: '', modeloCodigo: '', nombre: '', descripcion: '', serie: '', firmware: '', observaciones: '' });
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleAddModulo}>
-                {editingModuloIndex !== null ? 'Actualizar' : 'Agregar'}
-              </Button>
-            </div>
-          </Card>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Numero de Serie</label>
+            <Input
+              value={moduloForm.serie}
+              onChange={(e) => setModuloForm({ ...moduloForm, serie: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Version Firmware</label>
+            <Input
+              value={moduloForm.firmware}
+              onChange={(e) => setModuloForm({ ...moduloForm, firmware: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
+            <textarea
+              value={moduloForm.observaciones}
+              onChange={(e) => setModuloForm({ ...moduloForm, observaciones: e.target.value })}
+              rows={3}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              placeholder="Ej: bomba tiene canal c anulado..."
+            />
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

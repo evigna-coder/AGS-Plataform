@@ -1,15 +1,11 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-
-export interface SearchableSelectOption {
-  value: string;
-  label: string;
-}
+import { useSearchableSelect } from './useSearchableSelect';
+export type { SearchableSelectOption } from './useSearchableSelect';
 
 interface SearchableSelectProps {
   value: string;
   onChange: (value: string) => void;
-  options: SearchableSelectOption[];
+  options: { value: string; label: string }[];
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -30,7 +26,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
   placeholder = 'Seleccionar...',
   className = '',
-  required = false,
+  required: _required = false,
   disabled = false,
   error,
   emptyMessage = 'No se encontraron opciones',
@@ -38,177 +34,23 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   creatable = false,
   createLabel = 'Crear',
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-
-  const selectedOption = options.find(opt => opt.value === value);
-  const displayValue = selectedOption ? selectedOption.label : '';
-
-  // Filtrar opciones basado en el término de búsqueda
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // En modo creatable, agregar opción "Crear: X" si no hay match exacto
-  const trimmedSearch = searchTerm.trim();
-  const showCreateOption = creatable && trimmedSearch &&
-    !filteredOptions.some(opt => opt.label.toLowerCase() === trimmedSearch.toLowerCase());
-  const createOption: SearchableSelectOption | null = showCreateOption
-    ? { value: `__create__:${trimmedSearch}`, label: `${createLabel}: "${trimmedSearch}"` }
-    : null;
-
-  // All options including the create option (for keyboard navigation)
-  const allOptions = createOption ? [...filteredOptions, createOption] : filteredOptions;
-
-  // Resetear búsqueda cuando se cierra el dropdown
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchTerm('');
-      setHighlightedIndex(-1);
-    }
-  }, [isOpen]);
-
-  // Cerrar al hacer click fuera (incluye portal dropdown)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target) &&
-          listRef.current && !listRef.current.contains(target)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  // Focus en el input cuando se abre (useLayoutEffect para evitar ventana sin foco)
-  useLayoutEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  // Calcular posición del dropdown (portal)
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-  const updateDropdownPos = useCallback(() => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    updateDropdownPos();
-    window.addEventListener('scroll', updateDropdownPos, true);
-    window.addEventListener('resize', updateDropdownPos);
-    return () => {
-      window.removeEventListener('scroll', updateDropdownPos, true);
-      window.removeEventListener('resize', updateDropdownPos);
-    };
-  }, [isOpen, updateDropdownPos]);
-
-  // Scroll al elemento destacado
-  useEffect(() => {
-    if (highlightedIndex >= 0 && listRef.current) {
-      const highlightedElement = listRef.current.children[highlightedIndex] as HTMLElement;
-      if (highlightedElement) {
-        highlightedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }
-  }, [highlightedIndex]);
-
-  const handleSelect = (optionValue: string) => {
-    // En modo creatable, extraer el valor real del prefijo __create__:
-    if (optionValue.startsWith('__create__:')) {
-      onChange(optionValue.slice('__create__:'.length));
-    } else {
-      onChange(optionValue);
-    }
-    setIsOpen(false);
-    setSearchTerm('');
-    // Devolver foco al container para que Tab siga funcionando
-    requestAnimationFrame(() => containerRef.current?.focus());
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
-
-    switch (e.key) {
-      case 'Enter':
-        e.preventDefault();
-        if (isOpen && highlightedIndex >= 0 && allOptions[highlightedIndex]) {
-          handleSelect(allOptions[highlightedIndex].value);
-        } else if (isOpen && createOption) {
-          // Enter sin selección pero con texto creatable → crear
-          handleSelect(createOption.value);
-        } else if (!isOpen) {
-          setIsOpen(true);
-        }
-        break;
-      case 'Escape':
-        setIsOpen(false);
-        requestAnimationFrame(() => containerRef.current?.focus());
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        if (!isOpen) {
-          setIsOpen(true);
-        } else {
-          setHighlightedIndex(prev =>
-            prev < allOptions.length - 1 ? prev + 1 : prev
-          );
-        }
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        if (isOpen) {
-          setHighlightedIndex(prev => (prev > 0 ? prev - 1 : -1));
-        }
-        break;
-      case 'Tab':
-        // Tab navega entre opciones del dropdown abierto
-        if (isOpen && allOptions.length > 0) {
-          e.preventDefault();
-          if (e.shiftKey) {
-            if (highlightedIndex <= 0) {
-              setIsOpen(false);
-              return;
-            }
-            setHighlightedIndex(prev => prev - 1);
-          } else {
-            if (highlightedIndex >= allOptions.length - 1) {
-              if (highlightedIndex >= 0 && allOptions[highlightedIndex]) {
-                handleSelect(allOptions[highlightedIndex].value);
-              }
-              setIsOpen(false);
-              return;
-            }
-            setHighlightedIndex(prev => prev + 1);
-          }
-        }
-        // Si dropdown cerrado: NO preventDefault → foco pasa al siguiente campo
-        break;
-      case ' ':
-        // Space abre el dropdown si está cerrado, o selecciona si está abierto
-        if (!isOpen) {
-          e.preventDefault();
-          setIsOpen(true);
-        } else if (highlightedIndex >= 0 && allOptions[highlightedIndex] &&
-            e.target === containerRef.current) {
-          e.preventDefault();
-          handleSelect(allOptions[highlightedIndex].value);
-        }
-        break;
-    }
-  };
+  const {
+    isOpen,
+    searchTerm,
+    highlightedIndex,
+    dropdownPos,
+    containerRef,
+    inputRef,
+    listRef,
+    displayValue,
+    allOptions,
+    handleSelect,
+    handleKeyDown,
+    handleInputKeyDown,
+    handleSearchChange,
+    setHighlightedIndex,
+    open,
+  } = useSearchableSelect({ value, onChange, options, disabled, creatable, createLabel });
 
   const isSmall = size === 'sm';
   const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-700 focus:border-teal-700 transition-colors ${
@@ -217,10 +59,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Input visible - muestra el valor seleccionado o permite escribir */}
+      {/* Visible input - shows selected value or allows typing */}
       <div
         className={baseClasses}
-        onClick={() => !disabled && !isOpen && setIsOpen(true)}
+        onClick={open}
         onKeyDown={handleKeyDown}
         role="combobox"
         aria-expanded={isOpen}
@@ -231,57 +73,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           <input
             ref={(el) => {
               inputRef.current = el;
-              // Auto-focus cuando se monta (respaldo de useLayoutEffect)
               if (el && document.activeElement !== el) el.focus();
             }}
             autoFocus
             type="text"
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setHighlightedIndex(-1);
-            }}
-            onKeyDown={(e) => {
-              // Tab: navegar entre opciones si hay dropdown abierto
-              if (e.key === 'Tab') {
-                if (allOptions.length > 0) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (e.shiftKey) {
-                    // Shift+Tab: ir para atrás o cerrar si estamos al inicio
-                    if (highlightedIndex <= 0) {
-                      setIsOpen(false);
-                      return;
-                    }
-                    setHighlightedIndex(prev => prev - 1);
-                  } else {
-                    // Tab: avanzar al siguiente, o seleccionar si estamos en el último
-                    if (highlightedIndex >= allOptions.length - 1) {
-                      // En el último item → seleccionar y cerrar
-                      if (highlightedIndex >= 0 && allOptions[highlightedIndex]) {
-                        handleSelect(allOptions[highlightedIndex].value);
-                      }
-                      setIsOpen(false);
-                      return;
-                    }
-                    setHighlightedIndex(prev => prev + 1);
-                  }
-                } else {
-                  setIsOpen(false);
-                  return;
-                }
-                return;
-              }
-              // Space: seleccionar el item highlighted (sin escribir espacio en el input)
-              if (e.key === ' ' && highlightedIndex >= 0 && allOptions[highlightedIndex]) {
-                e.preventDefault();
-                e.stopPropagation();
-                handleSelect(allOptions[highlightedIndex].value);
-                return;
-              }
-              handleKeyDown(e);
-              e.stopPropagation();
-            }}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={handleInputKeyDown}
             onClick={(e) => e.stopPropagation()}
             className="w-full bg-transparent outline-none"
             placeholder={placeholder}
@@ -304,7 +102,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         </span>
       </div>
 
-      {/* Dropdown con opciones filtradas — portal para evitar clip por overflow */}
+      {/* Dropdown with filtered options — portal to avoid clip by overflow */}
       {isOpen && !disabled && createPortal(
         <ul
           ref={listRef}
@@ -346,7 +144,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         document.body
       )}
 
-      {/* Mensaje de error */}
+      {/* Error message */}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );

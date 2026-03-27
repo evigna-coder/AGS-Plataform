@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { categoriasEquipoService, categoriasModuloService } from '../../services/firebaseService';
 import type { CategoriaEquipo, CategoriaModulo, ModeloModulo } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 type TabType = 'sistemas' | 'modulos';
 
 export const CategoriasEquipo = () => {
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [activeTab, setActiveTab] = useState<TabType>('sistemas');
   
@@ -317,207 +316,191 @@ export const CategoriasEquipo = () => {
       )}
 
       {/* Modal Categorías de Sistemas */}
-      {showModalSistemas && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">
-              {editingSistema ? 'Editar Categoría de Sistema' : 'Nueva Categoría de Sistema'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
-                <Input
-                  value={formDataSistemas.nombre}
-                  onChange={(e) => setFormDataSistemas({ ...formDataSistemas, nombre: e.target.value })}
-                  placeholder="Ej: Osmómetros, Cromatógrafos..."
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Modelos (1 por línea)
-                </label>
-                <textarea
-                  value={formDataSistemas.modelosText}
-                  onChange={(e) => setFormDataSistemas({ ...formDataSistemas, modelosText: e.target.value })}
-                  rows={6}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder={"Ej:\nHPLC 1200\nHPLC 1100\nHPLC IONICO"}
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  Estos modelos se usarán como “Nombre” al crear un Sistema dentro de la categoría.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowModalSistemas(false);
-                  setEditingSistema(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveSistema}>
-                Guardar
-              </Button>
-            </div>
-          </Card>
+      <Modal
+        open={showModalSistemas}
+        onClose={() => { setShowModalSistemas(false); setEditingSistema(null); }}
+        title={editingSistema ? 'Editar Categoría de Sistema' : 'Nueva Categoría de Sistema'}
+        maxWidth="sm"
+        minimizable={false}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setShowModalSistemas(false); setEditingSistema(null); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveSistema}>Guardar</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
+            <Input
+              value={formDataSistemas.nombre}
+              onChange={(e) => setFormDataSistemas({ ...formDataSistemas, nombre: e.target.value })}
+              placeholder="Ej: Osmómetros, Cromatógrafos..."
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Modelos (1 por línea)
+            </label>
+            <textarea
+              value={formDataSistemas.modelosText}
+              onChange={(e) => setFormDataSistemas({ ...formDataSistemas, modelosText: e.target.value })}
+              rows={6}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              placeholder={"Ej:\nHPLC 1200\nHPLC 1100\nHPLC IONICO"}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Estos modelos se usarán como "Nombre" al crear un Sistema dentro de la categoría.
+            </p>
+          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Modal Categorías de Módulos */}
-      {showModalModulos && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">
-              {editingModulo ? 'Editar Categoría de Módulo' : 'Nueva Categoría de Módulo'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
-                <Input
-                  value={formDataModulos.nombre}
-                  onChange={(e) => setFormDataModulos({ ...formDataModulos, nombre: e.target.value })}
-                  placeholder="Ej: Bombas, Detectores, Inyectores..."
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-2">
-                  Modelos ({formDataModulos.modelos.length})
-                </label>
-                
-                {/* Lista de modelos existentes (editable inline) */}
-                {formDataModulos.modelos.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {formDataModulos.modelos.map((modelo, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200"
-                      >
-                        <input
-                          type="text"
-                          value={modelo.codigo}
-                          onChange={(e) => {
-                            const updated = [...formDataModulos.modelos];
-                            updated[index] = { ...updated[index], codigo: e.target.value };
-                            setFormDataModulos({ ...formDataModulos, modelos: updated });
-                          }}
-                          className="w-32 shrink-0 font-mono font-bold text-slate-900 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
-                        />
-                        <span className="text-slate-400 text-sm">-</span>
-                        <input
-                          type="text"
-                          value={modelo.descripcion}
-                          onChange={(e) => {
-                            const updated = [...formDataModulos.modelos];
-                            updated[index] = { ...updated[index], descripcion: e.target.value };
-                            setFormDataModulos({ ...formDataModulos, modelos: updated });
-                          }}
-                          className="flex-1 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
-                          placeholder="Descripción"
-                        />
-                        <span className="text-slate-400 text-sm">-</span>
-                        <input
-                          type="text"
-                          value={modelo.marca || ''}
-                          onChange={(e) => {
-                            const updated = [...formDataModulos.modelos];
-                            updated[index] = { ...updated[index], marca: e.target.value };
-                            setFormDataModulos({ ...formDataModulos, modelos: updated });
-                          }}
-                          className="w-28 shrink-0 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
-                          placeholder="Marca"
-                        />
-                        <button
-                          onClick={() => handleRemoveModelo(index)}
-                          className="text-red-600 hover:text-red-800 font-bold text-sm px-2 shrink-0"
-                          type="button"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Formulario para agregar nuevo modelo */}
-                <div className="border border-slate-300 rounded-lg p-3 bg-white">
-                  <p className="text-xs font-medium text-slate-600 mb-2">Agregar Nuevo Modelo</p>
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <div>
-                      <Input
-                        value={nuevoModelo.codigo}
-                        onChange={(e) => setNuevoModelo({ ...nuevoModelo, codigo: e.target.value })}
-                        placeholder="Código (ej: G1311A)"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddModelo();
-                          }
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={nuevoModelo.descripcion}
-                        onChange={(e) => setNuevoModelo({ ...nuevoModelo, descripcion: e.target.value })}
-                        placeholder="Descripción (ej: Bomba Cuaternaria)"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddModelo();
-                          }
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        value={nuevoModelo.marca}
-                        onChange={(e) => setNuevoModelo({ ...nuevoModelo, marca: e.target.value })}
-                        placeholder="Marca (ej: Agilent)"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddModelo();
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleAddModelo}
-                    className="w-full"
-                    size="sm"
+      <Modal
+        open={showModalModulos}
+        onClose={() => { setShowModalModulos(false); setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '', marca: '' }); }}
+        title={editingModulo ? 'Editar Categoría de Módulo' : 'Nueva Categoría de Módulo'}
+        maxWidth="lg"
+        minimizable={false}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => { setShowModalModulos(false); setEditingModulo(null); setFormDataModulos({ nombre: '', modelos: [] }); setNuevoModelo({ codigo: '', descripcion: '', marca: '' }); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveModulo}>Guardar</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
+            <Input
+              value={formDataModulos.nombre}
+              onChange={(e) => setFormDataModulos({ ...formDataModulos, nombre: e.target.value })}
+              placeholder="Ej: Bombas, Detectores, Inyectores..."
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">
+              Modelos ({formDataModulos.modelos.length})
+            </label>
+
+            {/* Lista de modelos existentes (editable inline) */}
+            {formDataModulos.modelos.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {formDataModulos.modelos.map((modelo, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200"
                   >
-                    + Agregar Modelo
-                  </Button>
+                    <input
+                      type="text"
+                      value={modelo.codigo}
+                      onChange={(e) => {
+                        const updated = [...formDataModulos.modelos];
+                        updated[index] = { ...updated[index], codigo: e.target.value };
+                        setFormDataModulos({ ...formDataModulos, modelos: updated });
+                      }}
+                      className="w-32 shrink-0 font-mono font-bold text-slate-900 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-200 outline-none"
+                    />
+                    <span className="text-slate-400 text-sm">-</span>
+                    <input
+                      type="text"
+                      value={modelo.descripcion}
+                      onChange={(e) => {
+                        const updated = [...formDataModulos.modelos];
+                        updated[index] = { ...updated[index], descripcion: e.target.value };
+                        setFormDataModulos({ ...formDataModulos, modelos: updated });
+                      }}
+                      className="flex-1 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-200 outline-none"
+                      placeholder="Descripción"
+                    />
+                    <span className="text-slate-400 text-sm">-</span>
+                    <input
+                      type="text"
+                      value={modelo.marca || ''}
+                      onChange={(e) => {
+                        const updated = [...formDataModulos.modelos];
+                        updated[index] = { ...updated[index], marca: e.target.value };
+                        setFormDataModulos({ ...formDataModulos, modelos: updated });
+                      }}
+                      className="w-28 shrink-0 text-slate-600 bg-white border border-slate-200 rounded px-2 py-1 text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-200 outline-none"
+                      placeholder="Marca"
+                    />
+                    <button
+                      onClick={() => handleRemoveModelo(index)}
+                      className="text-red-600 hover:text-red-800 font-bold text-sm px-2 shrink-0"
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Formulario para agregar nuevo modelo */}
+            <div className="border border-slate-300 rounded-lg p-3 bg-white">
+              <p className="text-xs font-medium text-slate-600 mb-2">Agregar Nuevo Modelo</p>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <div>
+                  <Input
+                    value={nuevoModelo.codigo}
+                    onChange={(e) => setNuevoModelo({ ...nuevoModelo, codigo: e.target.value })}
+                    placeholder="Código (ej: G1311A)"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddModelo();
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Input
+                    value={nuevoModelo.descripcion}
+                    onChange={(e) => setNuevoModelo({ ...nuevoModelo, descripcion: e.target.value })}
+                    placeholder="Descripción (ej: Bomba Cuaternaria)"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddModelo();
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Input
+                    value={nuevoModelo.marca}
+                    onChange={(e) => setNuevoModelo({ ...nuevoModelo, marca: e.target.value })}
+                    placeholder="Marca (ej: Agilent)"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddModelo();
+                      }
+                    }}
+                  />
                 </div>
               </div>
-            </div>
-            <div className="flex gap-3 mt-6">
               <Button
-                variant="outline"
-                onClick={() => {
-                  setShowModalModulos(false);
-                  setEditingModulo(null);
-                  setFormDataModulos({ nombre: '', modelos: [] });
-                  setNuevoModelo({ codigo: '', descripcion: '', marca: '' });
-                }}
+                type="button"
+                onClick={handleAddModelo}
+                className="w-full"
+                size="sm"
               >
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveModulo}>
-                Guardar
+                + Agregar Modelo
               </Button>
             </div>
-          </Card>
+          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

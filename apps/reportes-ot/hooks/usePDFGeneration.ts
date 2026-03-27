@@ -281,9 +281,10 @@ export const usePDFGeneration = (
             page.drawImage(jpg, { x: drawX, y: drawY, width: drawW, height: drawH });
           }
 
+          const numPagesRendered = pdfDoc.numPages;
           pdfDoc.destroy();
           pdfParts.push(new Blob([await externalDoc.save()], { type: 'application/pdf' }));
-          console.log(`[PDF][${label}] ${pdfDoc.numPages} página(s) renderizadas OK`);
+          console.log(`[PDF][${label}] ${numPagesRendered} página(s) renderizadas OK`);
         } catch (err) {
           console.warn(`[PDF][${label}] Error renderizando PDF:`, err);
         }

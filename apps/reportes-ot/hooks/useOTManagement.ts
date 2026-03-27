@@ -260,7 +260,8 @@ export const useOTManagement = (
         logger.debug("⚠️ OT no encontrada, solicitando confirmación...");
         setPendingOt(v);
         setShowNewOtModal(true);
-        return; // No habilitar autosave todavía
+        hasInitialized.current = true; // Desbloquear para que futuras cargas funcionen
+        return;
       }
     } catch (error) {
       logger.error("❌ Error al cargar OT:", error);
