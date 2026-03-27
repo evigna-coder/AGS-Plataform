@@ -1,5 +1,4 @@
 import { useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { useTabs } from '../../contexts/TabsContext';
 import { MODULE_ROOTS } from './navigation';
 
@@ -10,19 +9,17 @@ import { MODULE_ROOTS } from './navigation';
  * - Ctrl+1-9: jump to tab by position
  */
 export function useLayoutKeyboardShortcuts() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { tabs, activeTabId, switchTab } = useTabs();
+  const { tabs, activeTabId, activeTabPath, switchTab, navigateInActiveTab } = useTabs();
+
+  const pathname = activeTabPath.split('?')[0];
 
   // Compute parent path by stripping the last segment, but never go past a module root
-  const getParentPath = useCallback((pathname: string): string | null => {
-    if (MODULE_ROOTS.has(pathname)) return null; // already at root
-    const segments = pathname.split('/').filter(Boolean);
-    // Try removing last segment
+  const getParentPath = useCallback((currentPath: string): string | null => {
+    if (MODULE_ROOTS.has(currentPath)) return null; // already at root
+    const segments = currentPath.split('/').filter(Boolean);
     while (segments.length > 1) {
       segments.pop();
       const candidate = '/' + segments.join('/');
-      // If this is a valid module root or a route above it, return it
       return candidate;
     }
     return '/' + segments[0]; // fallback to top-level module
@@ -64,25 +61,12 @@ export function useLayoutKeyboardShortcuts() {
       }
       if (document.querySelector('[role="dialog"], .modal-overlay, [data-modal]')) return;
 
-      // Prefer navigation memory (state.from) over parent path
-      const stateFrom = (location.state as any)?.from;
-      if (stateFrom && typeof stateFrom === 'string') {
-        e.preventDefault();
-        navigate(stateFrom);
-        return;
-      }
-
-      const parent = getParentPath(location.pathname);
+      const parent = getParentPath(pathname);
       if (!parent) return; // at module root, don't navigate
       e.preventDefault();
-      // Use real browser back to preserve search params (filters) on the previous page
-      if (window.history.length > 1) {
-        navigate(-1);
-      } else {
-        navigate(parent);
-      }
+      navigateInActiveTab(parent);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, location.pathname, location.state, getParentPath, tabs, activeTabId, switchTab]);
+  }, [pathname, getParentPath, tabs, activeTabId, switchTab, navigateInActiveTab]);
 }

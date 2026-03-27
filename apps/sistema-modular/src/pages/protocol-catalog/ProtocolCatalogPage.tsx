@@ -34,7 +34,7 @@ function readSavedProject(): string | null | undefined {
 
 export const TableCatalogPage = () => {
   const navigate = useNavigate();
-  const { tables, loading, error, listTables, archiveTable, cloneTable, importTables, deleteTable, assignProject } = useTableCatalog();
+  const { tables, loading, error, listTables, archiveTable, publishTable, cloneTable, importTables, deleteTable, assignProject } = useTableCatalog();
   const { projects, createProject, updateProject, deleteProject } = useTableProjects();
 
   const [activeProjectId, setActiveProjectId] = useState<string | null | undefined>(readSavedProject);
@@ -101,6 +101,10 @@ export const TableCatalogPage = () => {
   const handleArchive = async (entry: TableCatalogEntry) => {
     if (!confirm(`¿Archivar "${entry.name}"?`)) return;
     try { await archiveTable(entry.id); reload(); } catch { alert('Error al archivar'); }
+  };
+  const handlePublish = async (entry: TableCatalogEntry) => {
+    if (!confirm(`¿Publicar "${entry.name}"?`)) return;
+    try { await publishTable(entry.id); reload(); } catch { alert('Error al publicar'); }
   };
   const handleDelete = async (entry: TableCatalogEntry) => {
     if (!confirm(`¿Eliminar permanentemente "${entry.name}"?\n\nEsta acción no se puede deshacer.`)) return;
@@ -252,6 +256,7 @@ export const TableCatalogPage = () => {
                           <div className="flex gap-3">
                             <Link to={`/table-catalog/${t.id}/edit`}><button className="text-blue-600 hover:underline font-medium text-xs">Editar</button></Link>
                             <button onClick={() => handleClone(t)} className="text-slate-600 hover:underline font-medium text-xs">Clonar</button>
+                            {t.status !== 'published' && <button onClick={() => handlePublish(t)} className="text-green-600 hover:underline font-medium text-xs">Publicar</button>}
                             {t.status !== 'archived' && <button onClick={() => handleArchive(t)} className="text-amber-600 hover:underline font-medium text-xs">Archivar</button>}
                             <button onClick={() => handleDelete(t)} className="text-red-600 hover:underline font-medium text-xs">Eliminar</button>
                           </div>

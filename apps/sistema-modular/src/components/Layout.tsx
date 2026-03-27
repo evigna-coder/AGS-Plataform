@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { signOut } from '../services/authService';
 import { MinimizedModalsBar } from './ui/Modal';
@@ -7,12 +7,9 @@ import { TabBar } from './layout/TabBar';
 import { SidebarNav } from './layout/SidebarNav';
 import { BackgroundTasksIndicator } from './layout/BackgroundTasksIndicator';
 import { FloatingPresupuesto } from './layout/FloatingPresupuesto';
+import { TabContentManager } from './layout/TabContentManager';
 
-interface LayoutProps {
-  children: ReactNode;
-}
-
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC = () => {
   const { usuario } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -56,7 +53,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav collapsed={collapsed} onCollapse={setCollapsed} />
         <main className="flex-1 min-h-0 bg-slate-50">
-          {children}
+          <TabContentManager />
         </main>
       </div>
 

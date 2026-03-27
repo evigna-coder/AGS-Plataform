@@ -741,7 +741,16 @@ export function useAppLogic(
         newOtSuffix: options.newOtSuffix
       });
       setShowDuplicateModal(false);
-      
+
+      // Reconstruir entity selectors si se copió cliente/equipo
+      if (options.copyClientEquipment && razonSocial) {
+        await entitySelectors.tryMatchExistingData(razonSocial, {
+          direccion,
+          sistema,
+          moduloModelo,
+        }).catch(() => {});
+      }
+
       // Esperar un momento para que React actualice el estado antes de mostrar el alert
       await new Promise(resolve => setTimeout(resolve, 150));
       

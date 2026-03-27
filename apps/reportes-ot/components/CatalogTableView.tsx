@@ -48,6 +48,13 @@ function computeConclusion(resultado: string, spec: string): 'PASS' | 'FAIL' | '
     return isNaN(n) ? '' : numR >= n ? 'PASS' : 'FAIL';
   }
 
+  // Plus-minus: "±1.2" | "± 1.2" | "±1.2 psi" → |resultado| <= valor
+  const pmMatch = s.match(/^±\s*(\d+[.,]?\d*)/);
+  if (pmMatch) {
+    const tolerance = parseFloat(pmMatch[1].replace(',', '.'));
+    return isNaN(tolerance) ? '' : Math.abs(numR) <= tolerance ? 'PASS' : 'FAIL';
+  }
+
   // Mayor estricto: "> X"
   if (/^>\s*\d/.test(s)) {
     const n = extractNum(s);
@@ -263,6 +270,9 @@ export const CatalogTableView: React.FC<Props> = ({
   const resultadoColKey = vsSpecRule?.sourceColumn ?? null;
   const conclusionColKey = vsSpecRule?.targetColumn ?? null;
 
+  // Extraer reglas compute (operaciones aritméticas entre columnas)
+  const computeRules = (table.validationRules ?? []).filter(r => r.operator === 'compute' && r.computeOperator && r.operandColumn);
+
   /** Valor de fábrica para cualquier columna y fila (del template) */
   const getFactoryValue = (rowId: string, colKey: string): string => {
     const row = table.templateRows.find(r => r.rowId === rowId);
@@ -297,18 +307,56 @@ export const CatalogTableView: React.FC<Props> = ({
     return getFactorySpec(rowId);
   };
 
+  /** Ejecuta reglas compute afectadas por un cambio, retorna el valor computado si la columna target es relevante */
+  const runComputeRules = (rowId: string, changedColKey: string, changedValue: string): Map<string, string> => {
+    const computed = new Map<string, string>();
+    for (const rule of computeRules) {
+      const isSourceChange = changedColKey === rule.sourceColumn;
+      const isOperandChange = changedColKey === rule.operandColumn;
+      if (!isSourceChange && !isOperandChange) continue;
+
+      const rawA = isSourceChange ? changedValue : (selection.filledData[rowId]?.[rule.sourceColumn] ?? '');
+      const rawB = isOperandChange ? changedValue : (selection.filledData[rowId]?.[rule.operandColumn!] ?? '');
+      const a = parseFloat(rawA.replace(',', '.'));
+      const b = parseFloat(rawB.replace(',', '.'));
+
+      if (isNaN(a) || isNaN(b)) continue;
+
+      let result: number;
+      switch (rule.computeOperator) {
+        case '+': result = a + b; break;
+        case '-': result = a - b; break;
+        case '*': result = a * b; break;
+        case '/': result = b !== 0 ? a / b : NaN; break;
+        default: continue;
+      }
+      if (isNaN(result)) continue;
+
+      // Round to reasonable precision to avoid floating point noise
+      const rounded = Math.round(result * 1e6) / 1e6;
+      const strResult = String(rounded);
+      onChangeData(selection.tableId, rowId, rule.targetColumn, strResult);
+      computed.set(rule.targetColumn, strResult);
+    }
+    return computed;
+  };
+
   const handleCellChange = (rowId: string, colKey: string, value: string) => {
     onChangeData(selection.tableId, rowId, colKey, value);
 
+    // Run compute rules (e.g. ΔP = Valor Final - Valor Inicial)
+    const computedValues = runComputeRules(rowId, colKey, value);
+
     // Auto-computar conclusión si cambió resultado o especificación del cliente
     if (vsSpecRule && conclusionColKey && resultadoColKey) {
-      const isResultadoChange = colKey === resultadoColKey;
+      // The resultado might have been updated by a compute rule
+      const computedResultado = computedValues.get(resultadoColKey);
+      const isResultadoChange = colKey === resultadoColKey || computedResultado !== undefined;
       const isSpecChange = colKey === specColKey && clientSpecEnabled;
 
       if (isResultadoChange || isSpecChange) {
-        const currentResultado = isResultadoChange
-          ? value
-          : (selection.filledData[rowId]?.[resultadoColKey] ?? '');
+        const currentResultado = computedResultado
+          ?? (colKey === resultadoColKey ? value : (selection.filledData[rowId]?.[resultadoColKey] ?? ''));
         const currentSpec = isSpecChange
           ? value
           : getActiveSpec(rowId);
@@ -388,6 +436,24 @@ export const CatalogTableView: React.FC<Props> = ({
       return (
         <span className={`text-[10px] ${PASS_COLORS[rawValue] ?? 'text-slate-600'}`}>
           {PASS_LABELS[rawValue] ?? rawValue}
+        </span>
+      );
+    }
+
+    // ── Columna computada (ej. ΔP = Valor Final - Valor Inicial) ───────────
+    const computeRule = computeRules.find(r => r.targetColumn === col.key);
+    if (computeRule) {
+      const unit = computeRule.unit ?? col.unit ?? null;
+      if (isPrint) {
+        return (
+          <span className="text-[10px]">
+            {rawValue ? `${rawValue}${unit ? '\u00A0' + unit : ''}` : '—'}
+          </span>
+        );
+      }
+      return (
+        <span className="text-[10px] text-purple-700 font-medium" title="Valor calculado automáticamente">
+          {rawValue ? `${rawValue}${unit ? ' ' + unit : ''}` : <span className="text-slate-300 italic font-normal">Auto</span>}
         </span>
       );
     }
@@ -514,6 +580,9 @@ export const CatalogTableView: React.FC<Props> = ({
                   {col.key === conclusionColKey && !isPrint && !readOnly && (
                     <span className="ml-1 text-blue-400 font-normal text-[9px]">auto</span>
                   )}
+                  {computeRules.some(r => r.targetColumn === col.key) && !isPrint && !readOnly && (
+                    <span className="ml-1 text-purple-400 font-normal text-[9px]">calc</span>
+                  )}
                   {/* Indicador de especificación bloqueada / cliente (solo en modo edición) */}
                   {col.key === specColKey && !isPrint && !readOnly && (
                     <span className="ml-1 text-slate-400 font-normal text-[9px]">
@@ -525,7 +594,17 @@ export const CatalogTableView: React.FC<Props> = ({
             </tr>
           </thead>
           <tbody>
-            {table.templateRows.map((row, idx) => {
+            {(() => {
+              // Pre-compute which cells are covered by a previous row's rowSpan
+              const coveredCells = new Set<string>(); // "rowIdx:colKey"
+              table.templateRows.forEach((row, idx) => {
+                if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.length) {
+                  for (let offset = 1; offset < row.rowSpan; offset++) {
+                    row.spanColumns.forEach(colKey => coveredCells.add(`${idx + offset}:${colKey}`));
+                  }
+                }
+              });
+              return table.templateRows.map((row, idx) => {
               if (row.isTitle) {
                 return (
                   <tr key={row.rowId} className={isPrint ? 'bg-slate-600 text-white' : 'bg-slate-50'}>
@@ -554,27 +633,26 @@ export const CatalogTableView: React.FC<Props> = ({
                         className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
                       >
                         {colIdx === 0 ? (
-                          // Primera columna: label + dropdown
+                          // Primera columna: solo el label
+                          <span className={`text-[10px] font-semibold ${isPrint ? '' : 'text-slate-700'}`}>
+                            {row.selectorLabel}{isPrint && selectorValue ? ` (${selectorValue})` : ''}
+                          </span>
+                        ) : colIdx === 1 ? (
+                          // Segunda columna: el dropdown selector
                           isPrint ? (
-                            <span className="text-[10px]">
-                              <span className="font-semibold">{row.selectorLabel}</span>
-                              {selectorValue ? ` (${selectorValue})` : ''}
-                            </span>
+                            <span className="text-[10px]">{selectorValue || '—'}</span>
                           ) : (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
-                              <select
-                                value={selectorValue}
-                                disabled={readOnly}
-                                onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
-                                className="flex-1 min-w-0 text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              >
-                                <option value="">Seleccionar...</option>
-                                {(row.selectorOptions ?? []).map(opt => (
-                                  <option key={opt} value={opt}>{opt}</option>
-                                ))}
-                              </select>
-                            </div>
+                            <select
+                              value={selectorValue}
+                              disabled={readOnly}
+                              onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
+                              className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="">Seleccionar...</option>
+                              {(row.selectorOptions ?? []).map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
                           )
                         ) : (
                           // Resto de columnas: celdas editables normales
@@ -594,14 +672,20 @@ export const CatalogTableView: React.FC<Props> = ({
                     : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                   }
                 >
-                  {table.columns.map(col => (
-                    <td
-                      key={col.key}
-                      className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
-                    >
-                      {renderTableCell(col, row.rowId)}
-                    </td>
-                  ))}
+                  {table.columns.map(col => {
+                    // Skip cells covered by a previous row's rowSpan
+                    if (coveredCells.has(`${idx}:${col.key}`)) return null;
+                    const isSpanning = row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(col.key);
+                    return (
+                      <td
+                        key={col.key}
+                        rowSpan={isSpanning ? row.rowSpan : undefined}
+                        className={`px-2 py-1.5 align-middle ${isSpanning ? 'align-middle font-semibold' : ''} ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
+                      >
+                        {renderTableCell(col, row.rowId)}
+                      </td>
+                    );
+                  })}
                   {/* Botón eliminar fila extra */}
                   {isExtra && !readOnly && !isPrint && onRemoveRow && (
                     <td className="px-1 py-1 align-middle w-6">
@@ -618,7 +702,8 @@ export const CatalogTableView: React.FC<Props> = ({
                   )}
                 </tr>
               );
-            })}
+            });
+            })()}
           </tbody>
         </table>
       </div>

@@ -33,7 +33,10 @@
       "Bash(ls \"c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform\\\\apps\\\\sistema-modular\"/tsconfig*.json)",
       "Bash(python3 -c \":*)",
       "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig\"*)",
-      "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig.\"*)"
+      "Bash(ls \"c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/tsconfig.\"*)",
+      "Bash(grep -E \"\\\\.\\(md|ts\\)$\")",
+      "Bash(grep -E \"\\\\.md$\")",
+      "Bash(find 'c:/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components/protocol-catalog' -type f -name *.tsx -o -name *.ts)"
     ]
   }
 }

@@ -41,8 +41,17 @@ export const TablePreview = ({ table }: Props) => {
                     Sin filas template
                   </td>
                 </tr>
-              ) : (
-                table.templateRows.map((row: TableCatalogEntry['templateRows'][number]) => (
+              ) : (() => {
+                // Pre-compute cells covered by rowSpan
+                const coveredCells = new Set<string>();
+                table.templateRows.forEach((row, idx) => {
+                  if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.length) {
+                    for (let offset = 1; offset < row.rowSpan; offset++) {
+                      row.spanColumns.forEach(colKey => coveredCells.add(`${idx + offset}:${colKey}`));
+                    }
+                  }
+                });
+                return table.templateRows.map((row: TableCatalogEntry['templateRows'][number], idx: number) => (
                   row.isTitle ? (
                     <tr key={row.rowId} className="bg-slate-200">
                       <td colSpan={table.columns.length}
@@ -72,15 +81,23 @@ export const TablePreview = ({ table }: Props) => {
                     </tr>
                   ) : (
                     <tr key={row.rowId} className="bg-white">
-                      {table.columns.map((col: TableCatalogEntry['columns'][number]) => (
-                        <td key={col.key} className="px-3 py-2 border border-slate-200 text-slate-700">
-                          {row.cells[col.key] != null ? String(row.cells[col.key]) : '—'}
-                        </td>
-                      ))}
+                      {table.columns.map((col: TableCatalogEntry['columns'][number]) => {
+                        if (coveredCells.has(`${idx}:${col.key}`)) return null;
+                        const isSpanning = row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(col.key);
+                        return (
+                          <td
+                            key={col.key}
+                            rowSpan={isSpanning ? row.rowSpan : undefined}
+                            className={`px-3 py-2 border border-slate-200 text-slate-700 ${isSpanning ? 'align-middle font-semibold bg-slate-50' : ''}`}
+                          >
+                            {row.cells[col.key] != null ? String(row.cells[col.key]) : '—'}
+                          </td>
+                        );
+                      })}
                     </tr>
                   )
-                ))
-              )}
+                ));
+              })()}
             </tbody>
           </table>
         </div>

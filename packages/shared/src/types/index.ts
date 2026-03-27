@@ -990,6 +990,14 @@ export interface TableCatalogRow {
   isSelector?: boolean;
   selectorLabel?: string | null;
   selectorOptions?: string[] | null;
+  /**
+   * Cuántas filas consecutivas (incluyendo esta) abarcan las columnas indicadas en spanColumns.
+   * Ej: rowSpan=3 + spanColumns=['detector'] → la celda "detector" de esta fila ocupa 3 filas.
+   * Las siguientes (rowSpan-1) filas NO renderizan esas columnas (quedan cubiertas por el span).
+   */
+  rowSpan?: number;
+  /** Column keys que se fusionan verticalmente (rowspan) cuando rowSpan > 1 */
+  spanColumns?: string[];
 }
 
 export interface TableCatalogRule {
@@ -999,8 +1007,9 @@ export interface TableCatalogRule {
   /**
    * '<=' | '>=' | '<' | '>' | '==' | '!=' : compare sourceColumn value against factoryThreshold
    * 'vs_spec' : compare sourceColumn (Resultado) value against the per-row value in specColumn (Especificación)
+   * 'compute' : targetColumn = sourceColumn {computeOperator} operandColumn (arithmetic between columns)
    */
-  operator: '<=' | '>=' | '<' | '>' | '==' | '!=' | 'vs_spec';
+  operator: '<=' | '>=' | '<' | '>' | '==' | '!=' | 'vs_spec' | 'compute';
   /** Fixed numeric/string threshold. For 'vs_spec', stores the specColumn key as a human-readable reference. */
   factoryThreshold: string | number;
   /** For 'vs_spec': key of the column that holds the expected spec value per row. */
@@ -1009,6 +1018,10 @@ export interface TableCatalogRule {
   targetColumn: string;
   valueIfPass: string;
   valueIfFail: string;
+  /** For 'compute': key of the second operand column. */
+  operandColumn?: string | null;
+  /** For 'compute': arithmetic operator to apply. targetColumn = sourceColumn {op} operandColumn */
+  computeOperator?: '+' | '-' | '*' | '/' | null;
 }
 
 // --- Checklist types (para tableType: 'checklist') ---

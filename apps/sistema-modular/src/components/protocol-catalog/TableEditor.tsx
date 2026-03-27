@@ -94,35 +94,104 @@ interface RuleFormProps {
 
 const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
   const [d, setD] = useState<TableCatalogRule>(rule);
-  const ops: TableCatalogRule['operator'][] = ['<=', '>=', '<', '>', '==', '!='];
+  const allOps: TableCatalogRule['operator'][] = ['<=', '>=', '<', '>', '==', '!=', 'vs_spec', 'compute'];
+  const opLabels: Record<string, string> = {
+    '<=': '≤', '>=': '≥', '<': '<', '>': '>', '==': '==', '!=': '!=',
+    vs_spec: 'vs Especificación', compute: 'Cálculo entre columnas',
+  };
+  const isCompute = d.operator === 'compute';
+  const isVsSpec = d.operator === 'vs_spec';
+  const computeOps: NonNullable<TableCatalogRule['computeOperator']>[] = ['+', '-', '*', '/'];
   return (
     <div className="border border-slate-900 rounded-lg p-3 space-y-2 bg-slate-50 mt-2">
       <Input placeholder="Descripción de la regla" value={d.description}
         onChange={e => setD({ ...d, description: e.target.value })} />
       <div className="grid grid-cols-3 gap-2">
-        <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-          <option value="">Columna fuente…</option>
-          {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-        </select>
         <select value={d.operator} onChange={e => setD({ ...d, operator: e.target.value as TableCatalogRule['operator'] })}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-          {ops.map(op => <option key={op} value={op}>{op}</option>)}
+          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-medium">
+          {allOps.map(op => <option key={op} value={op}>{opLabels[op]}</option>)}
         </select>
-        <Input placeholder="Umbral (ej: 5.0)" value={String(d.factoryThreshold)}
-          onChange={e => setD({ ...d, factoryThreshold: e.target.value })} />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
-          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
-          <option value="">Columna resultado…</option>
-          {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-        </select>
-        <Input placeholder="Etiqueta si pasa" value={d.valueIfPass}
-          onChange={e => setD({ ...d, valueIfPass: e.target.value })} />
-        <Input placeholder="Etiqueta si falla" value={d.valueIfFail}
-          onChange={e => setD({ ...d, valueIfFail: e.target.value })} />
-      </div>
+
+      {isCompute ? (
+        /* ── Compute: targetCol = sourceCol {op} operandCol ── */
+        <>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">Resultado = Columna A {d.computeOperator ?? '?'} Columna B</p>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Columna A…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <select value={d.computeOperator ?? '-'} onChange={e => setD({ ...d, computeOperator: e.target.value as TableCatalogRule['computeOperator'] })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold">
+              {computeOps.map(op => <option key={op} value={op}>{op}</option>)}
+            </select>
+            <select value={d.operandColumn ?? ''} onChange={e => setD({ ...d, operandColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Columna B…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Columna resultado…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <Input placeholder="Unidad (ej: psi)" value={d.unit ?? ''}
+              onChange={e => setD({ ...d, unit: e.target.value || null })} />
+          </div>
+        </>
+      ) : isVsSpec ? (
+        /* ── vs_spec: compare resultado col against spec col ── */
+        <>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">Compara valor medido contra especificación por fila</p>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Col. Resultado…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <select value={d.specColumn ?? ''} onChange={e => setD({ ...d, specColumn: e.target.value || null, factoryThreshold: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Col. Especificación…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Col. Conclusión…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </div>
+        </>
+      ) : (
+        /* ── Standard comparison: sourceCol {op} threshold → targetCol ── */
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={d.sourceColumn} onChange={e => setD({ ...d, sourceColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Columna fuente…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <span className="text-center text-sm font-bold text-slate-600 self-center">{opLabels[d.operator]}</span>
+            <Input placeholder="Umbral (ej: 5.0)" value={String(d.factoryThreshold)}
+              onChange={e => setD({ ...d, factoryThreshold: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={d.targetColumn} onChange={e => setD({ ...d, targetColumn: e.target.value })}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Columna resultado…</option>
+              {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <Input placeholder="Etiqueta si pasa" value={d.valueIfPass}
+              onChange={e => setD({ ...d, valueIfPass: e.target.value })} />
+            <Input placeholder="Etiqueta si falla" value={d.valueIfFail}
+              onChange={e => setD({ ...d, valueIfFail: e.target.value })} />
+          </div>
+        </>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
         <Button size="sm" onClick={() => onSave(d)}>Guardar regla</Button>
@@ -184,6 +253,8 @@ const newRule = (): TableCatalogRule => ({
   targetColumn: '',
   valueIfPass: 'PASA',
   valueIfFail: 'FALLA',
+  operandColumn: null,
+  computeOperator: null,
 });
 
 export const TableEditor = ({ table, onChange }: Props) => {
@@ -327,6 +398,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
             <div key={row.rowId}>
               {selectedRow?.rowId === row.rowId ? (
                 <RowFormPanel row={selectedRow} columns={table.columns}
+                  totalRows={table.templateRows.length} rowIndex={i}
                   onSave={saveRow}
                   onDelete={() => { upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId)); setSelectedRow(null); }}
                   onCancel={() => setSelectedRow(null)} />
@@ -345,7 +417,10 @@ export const TableEditor = ({ table, onChange }: Props) => {
                         ? <span className="font-bold text-slate-500 uppercase text-xs">📌 {row.titleText || '(título vacío)'}</span>
                         : row.isSelector
                         ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
-                        : Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
+                        : <>
+                            {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
+                            {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
+                          </>}
                     </span>
                     <span className="text-blue-600 text-xs font-bold">Editar</span>
                   </div>
@@ -355,6 +430,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
           ))}
           {selectedRow && !table.templateRows.some(r => r.rowId === selectedRow.rowId) && (
             <RowFormPanel row={selectedRow} columns={table.columns}
+              totalRows={table.templateRows.length} rowIndex={table.templateRows.length}
               onSave={saveRow} onCancel={() => setSelectedRow(null)} />
           )}
         </div>

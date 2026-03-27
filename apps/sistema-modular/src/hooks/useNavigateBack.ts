@@ -12,7 +12,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
  */
 export function useNavigateBack() {
   const navigate = useNavigate();
-  const { pathname, state } = useLocation();
+  const { pathname, state, key } = useLocation();
 
   return useCallback(() => {
     // If the caller passed { from: '/some/path' } via Link state, go back there
@@ -21,8 +21,9 @@ export function useNavigateBack() {
       return;
     }
 
-    // Use real browser back — preserves search params on the previous page
-    if (window.history.length > 1) {
+    // MemoryRouter: key !== 'default' means there's history to go back to
+    // (initial entry always has key "default", subsequent navigations get random keys)
+    if (key !== 'default') {
       navigate(-1);
       return;
     }
@@ -37,5 +38,5 @@ export function useNavigateBack() {
     }
 
     navigate('/' + segments[0]);
-  }, [navigate, pathname, state]);
+  }, [navigate, pathname, state, key]);
 }

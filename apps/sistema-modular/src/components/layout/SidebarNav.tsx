@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabs, getNavMeta } from '../../contexts/TabsContext';
 import { navigation, NavItem } from './navigation';
@@ -10,36 +9,41 @@ interface SidebarNavProps {
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse }) => {
-  const location = useLocation();
+  const { activeTabPath, openTab, navigateInActiveTab } = useTabs();
   const { canAccess } = useAuth();
-  const { openTab } = useTabs();
+
+  // Extract pathname (without search params) for active highlighting
+  const pathname = activeTabPath.split('?')[0];
+
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-    location.pathname.startsWith('/stock') ? { '/stock': true } : {}
+    pathname.startsWith('/stock') ? { '/stock': true } : {}
   );
 
   const toggleGroup = (path: string) => {
     setExpandedGroups(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
-  const isStockExpanded = expandedGroups['/stock'] || location.pathname.startsWith('/stock');
+  const isStockExpanded = expandedGroups['/stock'] || pathname.startsWith('/stock');
 
   const visibleNav = navigation.filter(item =>
     !item.modulo || canAccess(item.modulo)
   );
 
-  /** Ctrl+click or middle-click opens in new internal tab */
-  const handleNavClick = useCallback((e: React.MouseEvent, path: string) => {
+  /** Normal click → navigate active tab. Ctrl/Meta/middle → open new tab. */
+  const handleNavClick = useCallback((e: React.MouseEvent, path: string, label?: string, icon?: string) => {
+    e.preventDefault();
     if (e.ctrlKey || e.metaKey || e.button === 1) {
-      e.preventDefault();
-      const meta = getNavMeta(path);
+      const meta = label && icon ? { label, icon } : getNavMeta(path);
       openTab(path, meta.label, meta.icon);
+    } else {
+      navigateInActiveTab(path);
     }
-  }, [openTab]);
+  }, [openTab, navigateInActiveTab]);
 
   const renderNavItem = (item: NavItem) => {
     const isActive =
-      location.pathname === item.path ||
-      location.pathname.startsWith(item.path + '/');
+      pathname === item.path ||
+      pathname.startsWith(item.path + '/');
 
     if (item.children) {
       return renderGroupItem(item, isActive);
@@ -47,10 +51,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
 
     return (
       <div key={item.path} className="flex items-center">
-        <Link
-          to={item.path}
-          onClick={(e) => handleNavClick(e, item.path)}
-          onAuxClick={(e) => handleNavClick(e, item.path)}
+        <a
+          href={item.path}
+          onClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
+          onAuxClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
           className={`flex-1 flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
             isActive
               ? 'border-teal-500 bg-slate-800 text-white font-medium'
@@ -60,7 +64,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         >
           <span className="text-base leading-none shrink-0">{item.icon}</span>
           {!collapsed && <span className="leading-tight whitespace-nowrap">{item.name}</span>}
-        </Link>
+        </a>
         {!collapsed && (
           <button
             onClick={() => openTab(item.path, item.name, item.icon)}
@@ -100,15 +104,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         {isExpanded && !collapsed && (
           <div className="ml-2 space-y-0.5 mt-0.5">
             {item.children!.map((child) => {
-              const childActive = location.pathname === child.path ||
-                location.pathname.startsWith(child.path + '/');
+              const childActive = pathname === child.path ||
+                pathname.startsWith(child.path + '/');
               return (
                 <div key={child.path}>
                   {child.separator && (
                     <div className="border-t border-slate-700 mx-3 my-1.5" />
                   )}
-                  <Link
-                    to={child.path}
+                  <a
+                    href={child.path}
                     onClick={(e) => handleNavClick(e, child.path)}
                     onAuxClick={(e) => handleNavClick(e, child.path)}
                     className={`block py-1.5 pl-10 pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
@@ -118,7 +122,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
                     }`}
                   >
                     {child.name}
-                  </Link>
+                  </a>
                 </div>
               );
             })}
