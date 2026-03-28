@@ -42,15 +42,29 @@ export const TablePreview = ({ table }: Props) => {
                   </td>
                 </tr>
               ) : (() => {
-                // Pre-compute cells covered by rowSpan
+                // Pre-compute cells covered by column spans (nuevo) o rowSpan+spanColumns (legacy)
                 const coveredCells = new Set<string>();
+                const spanAt = (row: typeof table.templateRows[number], colKey: string): number => {
+                  if (row.columnSpans?.[colKey] && row.columnSpans[colKey] > 1) return row.columnSpans[colKey];
+                  if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(colKey)) return row.rowSpan;
+                  return 1;
+                };
                 table.templateRows.forEach((row, idx) => {
-                  if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.length) {
-                    for (let offset = 1; offset < row.rowSpan; offset++) {
-                      row.spanColumns.forEach(colKey => coveredCells.add(`${idx + offset}:${colKey}`));
+                  for (const col of table.columns) {
+                    const span = spanAt(row, col.key);
+                    if (span > 1) {
+                      for (let offset = 1; offset < span; offset++) {
+                        coveredCells.add(`${idx + offset}:${col.key}`);
+                      }
                     }
                   }
                 });
+                // Detect rows that START a span group (any column has span > 1)
+                const isGroupStart = (rowIdx: number): boolean => {
+                  const row = table.templateRows[rowIdx];
+                  if (!row) return false;
+                  return table.columns.some(col => spanAt(row, col.key) > 1);
+                };
                 return table.templateRows.map((row: TableCatalogEntry['templateRows'][number], idx: number) => (
                   row.isTitle ? (
                     <tr key={row.rowId} className="bg-slate-200">
@@ -97,23 +111,30 @@ export const TablePreview = ({ table }: Props) => {
                         </td>
                       ))}
                     </tr>);
-                  })() : (
-                    <tr key={row.rowId} className="bg-white">
+                  })() : (() => {
+                    const groupStart = isGroupStart(idx);
+                    return (
+                    <tr key={row.rowId}>
                       {table.columns.map((col: TableCatalogEntry['columns'][number]) => {
                         if (coveredCells.has(`${idx}:${col.key}`)) return null;
-                        const isSpanning = row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(col.key);
+                        const colSpan = spanAt(row, col.key);
+                        const isSpanning = colSpan > 1;
                         return (
                           <td
                             key={col.key}
-                            rowSpan={isSpanning ? row.rowSpan : undefined}
-                            className={`px-3 py-2 border border-slate-200 text-slate-700 ${isSpanning ? 'align-middle font-semibold bg-slate-50' : ''}`}
+                            rowSpan={isSpanning ? colSpan : undefined}
+                            className={[
+                              'px-3 py-2 border border-slate-200 text-slate-700',
+                              isSpanning ? 'align-middle font-semibold bg-slate-100 text-center border-r-2 border-r-slate-300' : '',
+                              groupStart ? 'border-t-2 border-t-slate-400' : '',
+                            ].join(' ')}
                           >
                             {row.cells[col.key] != null ? String(row.cells[col.key]) : '—'}
                           </td>
                         );
                       })}
-                    </tr>
-                  )
+                    </tr>);
+                  })()
                 ));
               })()}
             </tbody>

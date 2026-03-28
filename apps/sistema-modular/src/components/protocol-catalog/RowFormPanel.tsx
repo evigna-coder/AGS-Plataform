@@ -23,8 +23,18 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
   const [selectorLabel, setSelectorLabel] = useState(row.selectorLabel ?? '');
   const [selectorOptionsText, setSelectorOptionsText] = useState((row.selectorOptions ?? []).join(', '));
   const [selectorColumn, setSelectorColumn] = useState(row.selectorColumn ?? 0);
-  const [rowSpan, setRowSpan] = useState(row.rowSpan ?? 1);
-  const [spanColumns, setSpanColumns] = useState<string[]>(row.spanColumns ?? []);
+
+  // Inicializar columnSpans desde columnSpans (nuevo) o rowSpan+spanColumns (legacy)
+  const initColumnSpans = (): Record<string, number> => {
+    if (row.columnSpans && Object.keys(row.columnSpans).length > 0) return { ...row.columnSpans };
+    if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.length) {
+      const spans: Record<string, number> = {};
+      row.spanColumns.forEach(key => { spans[key] = row.rowSpan!; });
+      return spans;
+    }
+    return {};
+  };
+  const [columnSpans, setColumnSpans] = useState<Record<string, number>>(initColumnSpans);
 
   const handleChange = (key: string, value: string | boolean | null) => {
     setCells(prev => ({ ...prev, [key]: value === '' ? null : value }));
@@ -32,26 +42,42 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
 
   const handleSave = () => {
     if (mode === 'title') {
-      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined });
+      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined });
     } else if (mode === 'selector') {
       const options = selectorOptionsText.split(',').map(o => o.trim()).filter(Boolean);
       const effectiveSelectorCol = selectorColumn > 0 ? selectorColumn : undefined;
-      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined });
+      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined });
     } else {
-      const effectiveSpan = rowSpan > 1 ? rowSpan : undefined;
-      const effectiveSpanCols = effectiveSpan && spanColumns.length > 0 ? spanColumns : undefined;
-      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: effectiveSpan, spanColumns: effectiveSpanCols });
+      // Filtrar spans <= 1 y construir el objeto limpio
+      const cleanSpans: Record<string, number> = {};
+      for (const [key, val] of Object.entries(columnSpans)) {
+        if (val > 1) cleanSpans[key] = val;
+      }
+      const hasSpans = Object.keys(cleanSpans).length > 0;
+      onSave({
+        ...row, cells, isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
+        rowSpan: undefined, spanColumns: undefined,
+        columnSpans: hasSpans ? cleanSpans : undefined,
+      });
     }
   };
 
   // Max rowSpan: can't exceed remaining rows below this one
   const maxRowSpan = totalRows - rowIndex;
 
-  const toggleSpanColumn = (colKey: string) => {
-    setSpanColumns(prev =>
-      prev.includes(colKey) ? prev.filter(k => k !== colKey) : [...prev, colKey]
-    );
+  const setColSpan = (colKey: string, value: number) => {
+    setColumnSpans(prev => {
+      const next = { ...prev };
+      if (value > 1) {
+        next[colKey] = Math.min(value, maxRowSpan);
+      } else {
+        delete next[colKey];
+      }
+      return next;
+    });
   };
+
+  const hasAnySpan = Object.values(columnSpans).some(v => v > 1);
 
   // En modo selector, la primera columna se reemplaza por el dropdown; el resto son editables
   const restColumns = mode === 'selector' && columns.length > 1 ? columns.slice(1) : [];
@@ -210,44 +236,30 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
             ))}
           </div>
 
-          {/* Row spanning config */}
+          {/* Column-level span config */}
           {maxRowSpan > 1 && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-              <p className="text-[10px] font-bold text-amber-700 uppercase">Fusión de filas (Row Span)</p>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-bold text-slate-600 uppercase shrink-0">Abarcar filas</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={maxRowSpan}
-                  value={rowSpan}
-                  onChange={e => setRowSpan(Math.max(1, Math.min(maxRowSpan, Number(e.target.value) || 1)))}
-                  className="w-16 border border-slate-300 rounded-lg px-2 py-1 text-sm text-center"
-                />
-                <span className="text-[10px] text-slate-500">
-                  (máx. {maxRowSpan} — filas restantes debajo)
-                </span>
-              </div>
-              {rowSpan > 1 && (
-                <div>
-                  <p className="text-[10px] font-bold text-slate-600 uppercase mb-1.5">Columnas que se fusionan verticalmente</p>
-                  <div className="flex flex-wrap gap-2">
-                    {columns.map(col => (
-                      <label key={col.key} className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={spanColumns.includes(col.key)}
-                          onChange={() => toggleSpanColumn(col.key)}
-                          className="w-3.5 h-3.5 accent-amber-600"
-                        />
-                        <span className="text-xs text-slate-700">{col.label}</span>
-                      </label>
-                    ))}
+              <p className="text-[10px] font-bold text-amber-700 uppercase">Fusión de filas por columna</p>
+              <p className="text-[10px] text-amber-600">Cada columna puede abarcar un número distinto de filas hacia abajo. Dejá en 1 las que no se fusionan.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {columns.map(col => (
+                  <div key={col.key} className="flex items-center gap-2">
+                    <span className="text-xs text-slate-700 truncate flex-1">{col.label}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={maxRowSpan}
+                      value={columnSpans[col.key] ?? 1}
+                      onChange={e => setColSpan(col.key, Math.max(1, Math.min(maxRowSpan, Number(e.target.value) || 1)))}
+                      className={`w-14 border rounded-lg px-2 py-1 text-xs text-center ${(columnSpans[col.key] ?? 1) > 1 ? 'border-amber-400 bg-amber-100 font-bold' : 'border-slate-300'}`}
+                    />
                   </div>
-                  <p className="text-[10px] text-amber-600 mt-1.5">
-                    Las columnas seleccionadas mostrarán una sola celda que abarca {rowSpan} filas. Las demás columnas tendrán celdas independientes por cada sub-fila.
-                  </p>
-                </div>
+                ))}
+              </div>
+              {hasAnySpan && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  Las columnas con valor {'>'} 1 mostrarán una celda fusionada. Las filas cubiertas no renderizan esas celdas.
+                </p>
               )}
             </div>
           )}

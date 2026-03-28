@@ -1001,13 +1001,18 @@ export interface TableCatalogRow {
    */
   selectorColumn?: number;
   /**
+   * @deprecated Usar `columnSpans` para span por columna independiente.
    * Cuántas filas consecutivas (incluyendo esta) abarcan las columnas indicadas en spanColumns.
-   * Ej: rowSpan=3 + spanColumns=['detector'] → la celda "detector" de esta fila ocupa 3 filas.
-   * Las siguientes (rowSpan-1) filas NO renderizan esas columnas (quedan cubiertas por el span).
    */
   rowSpan?: number;
-  /** Column keys que se fusionan verticalmente (rowspan) cuando rowSpan > 1 */
+  /** @deprecated Usar `columnSpans`. Column keys que se fusionan verticalmente cuando rowSpan > 1 */
   spanColumns?: string[];
+  /**
+   * Span por columna independiente. Cada key es un column key, cada value es cuántas filas abarca.
+   * Ej: { detector: 6, valor_nominal: 2 } → "detector" abarca 6 filas, "valor_nominal" abarca 2.
+   * Reemplaza rowSpan+spanColumns permitiendo spans distintos por columna en la misma fila.
+   */
+  columnSpans?: Record<string, number>;
 }
 
 export interface TableCatalogRule {

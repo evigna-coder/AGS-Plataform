@@ -422,7 +422,24 @@ export const ImportJsonDialog = ({ onClose, onImport }: Props) => {
     if (!jsonText.trim()) { setError('Pegá el JSON del conversor'); return; }
     try {
       const raw = JSON.parse(jsonText);
-      if (!raw.template?.sections) { setError('JSON inválido: falta template.sections'); return; }
+
+      // Formato 1: array directo de TableCatalogEntry (exportado desde la app)
+      if (Array.isArray(raw) && raw.length > 0 && raw[0].columns) {
+        const tables = raw.map((t: any) => ({
+          ...t,
+          id: '',
+          sysType: t.sysType || sysType,
+          status: 'draft',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })) as TableCatalogEntry[];
+        setPreview(tables);
+        setError(null);
+        return;
+      }
+
+      // Formato 2: { template: { sections: [...] } } (conversor Word)
+      if (!raw.template?.sections) { setError('JSON inválido: falta template.sections o array de tablas'); return; }
       const tables = (raw.template.sections as any[]).flatMap(s => mapSection(s, sysType));
       if (tables.length === 0) { setError('No se encontraron secciones válidas'); return; }
       setPreview(tables);

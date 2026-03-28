@@ -266,16 +266,21 @@ export const CatalogTableView: React.FC<Props> = ({
   const table = selection.tableSnapshot;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
 
-  // Extraer la regla vs_spec si existe (sourceColumn/specColumn/targetColumn deben tener contenido)
-  const vsSpecRule = table.validationRules?.find(r =>
+  // Extraer TODAS las reglas vs_spec (soporta múltiples, ej. FRONT y BACK con conclusiones separadas)
+  const vsSpecRules = (table.validationRules ?? []).filter(r =>
     r.operator === 'vs_spec' && r.sourceColumn && r.targetColumn && (r.specColumn || r.factoryThreshold)
   );
+  const vsSpecRule = vsSpecRules[0] ?? null;
   const specColKey = vsSpecRule
     ? (vsSpecRule.specColumn || String(vsSpecRule.factoryThreshold) || null)
     : null;
   const resultadoColKey = vsSpecRule?.sourceColumn || null;
   const conclusionColKey = vsSpecRule?.targetColumn || null;
   const referenceColKey = vsSpecRule?.referenceColumn || null;
+  // Sets for multi-rule column identification
+  const allResultadoColKeys = new Set(vsSpecRules.map(r => r.sourceColumn));
+  const allConclusionColKeys = new Set(vsSpecRules.map(r => r.targetColumn));
+  const allSpecColKeys = new Set(vsSpecRules.map(r => r.specColumn || String(r.factoryThreshold)).filter(Boolean));
 
   // Extraer reglas compute (operaciones aritméticas entre columnas)
   // Nota: computeOperator puede ser null en reglas legacy — se trata como resta por defecto
@@ -360,30 +365,34 @@ export const CatalogTableView: React.FC<Props> = ({
     // Run compute rules (e.g. ΔP = Valor Final - Valor Inicial)
     const computedValues = runComputeRules(rowId, colKey, value);
 
-    // Auto-computar conclusión si cambió resultado, especificación del cliente, o valor nominal
-    if (vsSpecRule && conclusionColKey && resultadoColKey) {
-      // The resultado might have been updated by a compute rule
-      const computedResultado = computedValues.get(resultadoColKey);
-      const isResultadoChange = colKey === resultadoColKey || computedResultado !== undefined;
-      const isSpecChange = colKey === specColKey && clientSpecEnabled;
-      const isReferenceChange = colKey === referenceColKey;
+    // Auto-computar conclusiones para TODAS las reglas vs_spec
+    for (const rule of vsSpecRules) {
+      const rSrcCol = rule.sourceColumn;
+      const rTgtCol = rule.targetColumn;
+      const rSpecCol = rule.specColumn || String(rule.factoryThreshold) || '';
+      const rRefCol = rule.referenceColumn || null;
+
+      const computedResultado = computedValues.get(rSrcCol);
+      const isResultadoChange = colKey === rSrcCol || computedResultado !== undefined;
+      const isSpecChange = colKey === rSpecCol && clientSpecEnabled;
+      const isReferenceChange = colKey === rRefCol;
 
       if (isResultadoChange || isSpecChange || isReferenceChange) {
         const currentResultado = computedResultado
-          ?? (colKey === resultadoColKey ? value : (selection.filledData[rowId]?.[resultadoColKey] ?? ''));
+          ?? (colKey === rSrcCol ? value : (selection.filledData[rowId]?.[rSrcCol] ?? ''));
         const currentSpec = isSpecChange
           ? value
-          : getActiveSpec(rowId);
-        // Nominal value for ± specs: from referenceColumn (user-filled or factory)
-        const currentNominal = referenceColKey
-          ? (colKey === referenceColKey ? value : (selection.filledData[rowId]?.[referenceColKey] ?? getFactoryValue(rowId, referenceColKey)))
+          : (clientSpecEnabled && rSpecCol
+            ? (selection.filledData[rowId]?.[rSpecCol] || getFactoryValue(rowId, rSpecCol))
+            : getFactoryValue(rowId, rSpecCol));
+        const currentNominal = rRefCol
+          ? (colKey === rRefCol ? value : (selection.filledData[rowId]?.[rRefCol] ?? getFactoryValue(rowId, rRefCol)))
           : undefined;
         const conclusion = computeConclusion(currentResultado, currentSpec, currentNominal);
-        // Si hay conclusión la escribe; si el resultado está vacío, resetea a vacío (muestra "Auto")
         if (conclusion !== '') {
-          onChangeData(selection.tableId, rowId, conclusionColKey, conclusion);
+          onChangeData(selection.tableId, rowId, rTgtCol, conclusion);
         } else if (!currentResultado.trim()) {
-          onChangeData(selection.tableId, rowId, conclusionColKey, '');
+          onChangeData(selection.tableId, rowId, rTgtCol, '');
         }
       }
     }
@@ -394,7 +403,7 @@ export const CatalogTableView: React.FC<Props> = ({
     const rawValue = selection.filledData[rowId]?.[col.key] ?? '';
 
     // ── Columna Especificación ──────────────────────────────────────────────
-    if (col.key === specColKey) {
+    if (allSpecColKeys.has(col.key)) {
       const factoryVal = getFactorySpec(rowId);
 
       if (!clientSpecEnabled) {
@@ -442,8 +451,8 @@ export const CatalogTableView: React.FC<Props> = ({
       );
     }
 
-    // ── Columna Conclusión (pass_fail calculado) ────────────────────────────
-    if (col.key === conclusionColKey) {
+    // ── Columna Conclusión (pass_fail calculado) — soporta múltiples reglas ─
+    if (allConclusionColKeys.has(col.key)) {
       if (isPrint) {
         return (
           <span className={`text-[10px] font-semibold ${rawValue === 'PASS' ? 'text-emerald-700' : rawValue === 'FAIL' ? 'text-red-700' : 'text-slate-500'}`}>
@@ -483,9 +492,9 @@ export const CatalogTableView: React.FC<Props> = ({
     // Si la columna tiene valor en templateRows y NO es una columna especial
     // (resultado/spec/conclusión), se muestra como texto de solo lectura.
     const isSpecialCol =
-      col.key === specColKey ||
-      col.key === resultadoColKey ||
-      col.key === conclusionColKey;
+      allSpecColKeys.has(col.key) ||
+      allResultadoColKeys.has(col.key) ||
+      allConclusionColKeys.has(col.key);
 
     if (!isSpecialCol) {
       const factoryVal = getFactoryValue(rowId, col.key);
@@ -500,7 +509,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
     // ── Resto de columnas (Resultado y otras editables) ─────────────────────
     // Para la columna Resultado, inyectar la unidad detectada de la especificación de esta fila
-    const rowUnit = col.key === resultadoColKey && !col.unit ? getRowResultUnit(rowId) : null;
+    const rowUnit = allResultadoColKeys.has(col.key) && !col.unit ? getRowResultUnit(rowId) : null;
     const colForRender = rowUnit ? { ...col, unit: rowUnit } : col;
     return renderDefaultCell(colForRender, rowId, selection.filledData, readOnly, isPrint, handleCellChange);
   };
@@ -598,14 +607,14 @@ export const CatalogTableView: React.FC<Props> = ({
                   {col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
                   {col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
                   {/* Indicador visual de columna calculada (solo en modo edición) */}
-                  {col.key === conclusionColKey && !isPrint && !readOnly && (
+                  {allConclusionColKeys.has(col.key) && !isPrint && !readOnly && (
                     <span className="ml-1 text-blue-400 font-normal text-[9px]">auto</span>
                   )}
                   {computeRules.some(r => r.targetColumn === col.key) && !isPrint && !readOnly && (
                     <span className="ml-1 text-purple-400 font-normal text-[9px]">calc</span>
                   )}
                   {/* Indicador de especificación bloqueada / cliente (solo en modo edición) */}
-                  {col.key === specColKey && !isPrint && !readOnly && (
+                  {allSpecColKeys.has(col.key) && !isPrint && !readOnly && (
                     <span className="ml-1 text-slate-400 font-normal text-[9px]">
                       {clientSpecEnabled ? '✎' : '🔒'}
                     </span>
@@ -616,15 +625,30 @@ export const CatalogTableView: React.FC<Props> = ({
           </thead>
           <tbody>
             {(() => {
-              // Pre-compute which cells are covered by a previous row's rowSpan
+              // Pre-compute which cells are covered by a previous row's span
+              // Soporta columnSpans (nuevo, por columna) y rowSpan+spanColumns (legacy, uniforme)
               const coveredCells = new Set<string>(); // "rowIdx:colKey"
+              const spanAt = (row: typeof table.templateRows[number], colKey: string): number => {
+                if (row.columnSpans?.[colKey] && row.columnSpans[colKey] > 1) return row.columnSpans[colKey];
+                if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(colKey)) return row.rowSpan;
+                return 1;
+              };
               table.templateRows.forEach((row, idx) => {
-                if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.length) {
-                  for (let offset = 1; offset < row.rowSpan; offset++) {
-                    row.spanColumns.forEach(colKey => coveredCells.add(`${idx + offset}:${colKey}`));
+                for (const col of table.columns) {
+                  const span = spanAt(row, col.key);
+                  if (span > 1) {
+                    for (let offset = 1; offset < span; offset++) {
+                      coveredCells.add(`${idx + offset}:${col.key}`);
+                    }
                   }
                 }
               });
+              // Detect rows that START a span group (any column has span > 1)
+              const isGroupStart = (rowIdx: number): boolean => {
+                const r = table.templateRows[rowIdx];
+                if (!r) return false;
+                return table.columns.some(col => spanAt(r, col.key) > 1);
+              };
               return table.templateRows.map((row, idx) => {
               if (row.isTitle) {
                 return (
@@ -718,6 +742,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 );
               }
               const isExtra = row.rowId.startsWith('extra_');
+              const groupStart = isGroupStart(idx);
               return (
                 <tr
                   key={row.rowId}
@@ -727,14 +752,20 @@ export const CatalogTableView: React.FC<Props> = ({
                   }
                 >
                   {table.columns.map(col => {
-                    // Skip cells covered by a previous row's rowSpan
+                    // Skip cells covered by a previous row's span
                     if (coveredCells.has(`${idx}:${col.key}`)) return null;
-                    const isSpanning = row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(col.key);
+                    const colSpan = spanAt(row, col.key);
+                    const isSpanning = colSpan > 1;
                     return (
                       <td
                         key={col.key}
-                        rowSpan={isSpanning ? row.rowSpan : undefined}
-                        className={`px-2 py-1.5 align-middle ${isSpanning ? 'align-middle font-semibold' : ''} ${isPrint ? 'text-[9px] border border-slate-300' : 'text-xs border-r border-slate-100'}`}
+                        rowSpan={isSpanning ? colSpan : undefined}
+                        className={[
+                          'px-2 py-1.5 align-middle',
+                          isPrint
+                            ? `text-[9px] border border-slate-300${isSpanning ? ' font-semibold text-center bg-slate-50' : ''}${groupStart ? ' border-t-2 border-t-slate-500' : ''}`
+                            : `text-xs border-r border-slate-100 border-b border-b-slate-100${isSpanning ? ' font-semibold text-center bg-slate-50 border-r-2 border-r-slate-300' : ''}${groupStart ? ' border-t-2 border-t-slate-300' : ''}`,
+                        ].join(' ')}
                       >
                         {renderTableCell(col, row.rowId)}
                       </td>

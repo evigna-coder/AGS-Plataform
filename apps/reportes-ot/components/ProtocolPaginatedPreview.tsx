@@ -255,7 +255,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         ) : sel.tableSnapshot.tableType === 'text' ? (
           <CatalogTextView selection={sel} readOnly />
         ) : (
-          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
+          <CatalogTableView selection={sel} readOnly isPrint onChangeData={() => {}} />
         );
 
         items.push({
