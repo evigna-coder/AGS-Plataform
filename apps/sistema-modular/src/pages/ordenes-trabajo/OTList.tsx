@@ -697,7 +697,7 @@ export const OTList = () => {
                     <tr key={ot.otNumber}
                       className={`hover:bg-slate-50 transition-colors ${isItem ? 'bg-slate-50/50' : ''} ${parentWithItems ? '' : 'cursor-pointer'}`}
                       onClick={() => handleRowClick(ot, hasItems)}>
-                      <td className="px-1 py-2 text-left" onClick={e => e.stopPropagation()}>
+                      <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedOTs.has(ot.otNumber)}
                           onChange={() => toggleSelect(ot.otNumber)} className="w-3.5 h-3.5 accent-teal-600" />
                       </td>
@@ -730,7 +730,7 @@ export const OTList = () => {
                       <td className="px-2 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(ot.createdAt)}</td>
                       <td className="px-2 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(ot.fechaInicio || ot.fechaServicioAprox)}</td>
                       <td className="px-2 py-2 whitespace-nowrap"><StatusBadge ot={ot} /></td>
-                      <td className="px-2 py-2 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <td className="px-2 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
                           <button
                             onClick={() => openReport(ot.otNumber)}

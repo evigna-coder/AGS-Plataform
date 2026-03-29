@@ -226,7 +226,7 @@ export const InstrumentosListPage = () => {
                           {badge.label}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-end gap-0.5">
                           <Link to={`/instrumentos/${inst.id}/editar`}
                             className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100">

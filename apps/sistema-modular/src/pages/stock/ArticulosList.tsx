@@ -304,8 +304,8 @@ export const ArticulosList = () => {
                           {TIPO_LABELS[art.tipo] ?? art.tipo}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-xs text-slate-600 text-right">{art.stockMinimo}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600 text-right">
+                      <td className="px-4 py-2 text-xs text-slate-600 text-center">{art.stockMinimo}</td>
+                      <td className="px-4 py-2 text-xs text-slate-600 text-center">
                         {art.precioReferencia != null
                           ? `${art.monedaPrecio === 'USD' ? 'US$' : '$'} ${art.precioReferencia.toLocaleString('es-AR')}`
                           : '-'}

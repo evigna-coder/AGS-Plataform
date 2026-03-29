@@ -100,13 +100,13 @@ export const AlertasStockPage = () => {
                           {art.categoriaEquipo}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums font-semibold text-red-600">
+                      <td className="px-4 py-2 text-center tabular-nums font-semibold text-red-600">
                         {art.stockActual}
                       </td>
-                      <td className="px-4 py-2 text-right tabular-nums text-slate-600">
+                      <td className="px-4 py-2 text-center tabular-nums text-slate-600">
                         {art.stockMinimo}
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-2 text-center">
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">
                           -{art.deficit}
                         </span>

@@ -247,7 +247,7 @@ export const ClientesList = () => {
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap overflow-hidden">{cliente.cuit || <span className="text-slate-300">—</span>}</td>
                     <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden">{cliente.rubro || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600 text-left tabular-nums whitespace-nowrap">{establecimientosByCliente[cliente.id] ?? 0}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600 text-center tabular-nums whitespace-nowrap">{establecimientosByCliente[cliente.id] ?? 0}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                         cliente.activo !== false ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
@@ -255,7 +255,7 @@ export const ClientesList = () => {
                         {cliente.activo !== false ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         <Link to={`/clientes/${cliente.id}`}
                           className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">

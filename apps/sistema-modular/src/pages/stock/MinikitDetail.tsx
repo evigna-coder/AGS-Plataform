@@ -245,9 +245,9 @@ const TemplateComparisonCard = ({ template, unidades }: { template: MinikitTempl
                   <span className="font-mono text-teal-600 font-semibold">{c.articuloCodigo}</span>
                   <span className="text-slate-600 ml-1.5">{c.articuloDescripcion}</span>
                 </td>
-                <td className="text-xs py-2 text-left text-slate-500">{c.cantidadMinima}</td>
-                <td className="text-xs py-2 text-left font-medium">{c.actual}</td>
-                <td className="text-xs py-2 text-left">
+                <td className="text-xs py-2 text-center text-slate-500">{c.cantidadMinima}</td>
+                <td className="text-xs py-2 text-center font-medium">{c.actual}</td>
+                <td className="text-xs py-2 text-center">
                   <Badge label={statusLabels[c.status]} color={statusColors[c.status]} />
                 </td>
               </tr>

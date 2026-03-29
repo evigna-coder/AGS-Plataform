@@ -215,7 +215,7 @@ export const OCEditor = () => {
                         <input type="number" min={0} step={0.01} value={item.precioUnitario ?? ''} onChange={e => updateItem(item.id, 'precioUnitario', e.target.value ? Number(e.target.value) : null)}
                           className="w-full text-xs text-right border border-slate-200 rounded px-2 py-1 tabular-nums focus:outline-none focus:ring-1 focus:ring-teal-500" />
                       </td>
-                      <td className="px-3 py-1.5 text-xs text-right text-slate-700 tabular-nums">
+                      <td className="px-3 py-1.5 text-xs text-center text-slate-700 tabular-nums">
                         {(item.cantidad * (item.precioUnitario || 0)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-3 py-1.5">
@@ -230,8 +230,8 @@ export const OCEditor = () => {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-slate-200">
-                    <td colSpan={5} className="px-3 py-2 text-xs font-medium text-slate-700 text-right">Total</td>
-                    <td className="px-3 py-2 text-xs font-semibold text-slate-900 text-right tabular-nums">
+                    <td colSpan={5} className="px-3 py-2 text-xs font-medium text-slate-700 text-center">Total</td>
+                    <td className="px-3 py-2 text-xs font-semibold text-slate-900 text-center tabular-nums">
                       {calcTotal().toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </td>
                     <td></td>

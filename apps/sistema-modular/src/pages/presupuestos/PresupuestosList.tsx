@@ -252,7 +252,7 @@ export const PresupuestosList = () => {
                           {ESTADO_PRESUPUESTO_LABELS[p.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-900 font-medium text-right tabular-nums whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-slate-900 font-medium text-center tabular-nums whitespace-nowrap">
                         {sym} {p.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[90px] whitespace-nowrap" title={p.responsableNombre || ''}>
@@ -274,7 +274,7 @@ export const PresupuestosList = () => {
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
                           {!isAnulado(p) && (
                             <button onClick={() => setRevisionTarget(p)} title="Crear revisión"

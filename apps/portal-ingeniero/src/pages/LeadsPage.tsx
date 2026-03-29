@@ -281,7 +281,7 @@ export default function LeadsPage() {
                             {lead.descripcion || lead.motivoContacto || '—'}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap overflow-hidden">
+                        <td className="px-3 py-2 text-center whitespace-nowrap overflow-hidden">
                           <div className="flex items-center justify-end gap-1">
                             {!isClosed && canModify && (
                               <>

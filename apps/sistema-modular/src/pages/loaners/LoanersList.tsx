@@ -158,7 +158,7 @@ export function LoanersList() {
                       <td className="px-3 py-2 text-xs text-slate-500 truncate">
                         {prestamo ? prestamo.clienteNombre : l.estado === 'en_base' ? 'AGS Base' : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
                           <button onClick={() => navigate(`/loaners/${l.id}`)}
                             className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">

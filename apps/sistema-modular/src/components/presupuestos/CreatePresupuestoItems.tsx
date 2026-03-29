@@ -299,10 +299,10 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
                 <tr key={item.id}>
                   <td className="px-2 py-1.5 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
                   <td className="px-3 py-1.5 text-xs text-slate-700 truncate max-w-[300px]">{item.descripcion}</td>
-                  <td className="px-2 py-1.5 text-xs text-left">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
-                  <td className="px-2 py-1.5 text-xs text-right font-mono">{fmtMoney(item.precioUnitario)}</td>
-                  <td className="px-2 py-1.5 text-xs text-right font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal)}</td>
-                  <td className="text-left">
+                  <td className="px-2 py-1.5 text-xs text-center">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
+                  <td className="px-2 py-1.5 text-xs text-center font-mono">{fmtMoney(item.precioUnitario)}</td>
+                  <td className="px-2 py-1.5 text-xs text-center font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal)}</td>
+                  <td className="text-center">
                     <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
                   </td>
                 </tr>
@@ -310,8 +310,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
             </tbody>
             <tfoot className="bg-[#F0F0F0] border-t border-[#E5E5E5]">
               <tr>
-                <td colSpan={4} className="px-3 py-1.5 text-right text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
-                <td className="px-2 py-1.5 text-right text-xs font-mono font-semibold text-teal-700">{fmtMoney(totalItems)}</td>
+                <td colSpan={4} className="px-3 py-1.5 text-center text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
+                <td className="px-2 py-1.5 text-center text-xs font-mono font-semibold text-teal-700">{fmtMoney(totalItems)}</td>
                 <td></td>
               </tr>
             </tfoot>

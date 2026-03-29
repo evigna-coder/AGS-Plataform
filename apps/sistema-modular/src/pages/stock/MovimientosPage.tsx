@@ -132,7 +132,7 @@ export const MovimientosPage = () => {
                     </td>
                     <td className="px-4 py-2 font-mono text-slate-700">{m.articuloCodigo}</td>
                     <td className="px-4 py-2 text-slate-700 max-w-[200px] truncate">{m.articuloDescripcion}</td>
-                    <td className="px-4 py-2 text-right tabular-nums font-medium">{m.cantidad}</td>
+                    <td className="px-4 py-2 text-center tabular-nums font-medium">{m.cantidad}</td>
                     <td className="px-4 py-2 text-slate-600">{m.origenTipo} — {m.origenNombre}</td>
                     <td className="px-4 py-2 text-slate-600">{m.destinoTipo} — {m.destinoNombre}</td>
                     <td className="px-4 py-2 text-slate-500 max-w-[150px] truncate">{m.motivo ?? '—'}</td>

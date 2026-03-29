@@ -128,15 +128,15 @@ export const OCList = () => {
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_OC_COLORS[o.estado]}`}>{ESTADO_OC_LABELS[o.estado]}</span>
                       </td>
                       <td className="px-4 py-2 text-xs text-slate-700">{o.proveedorNombre}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600 text-right tabular-nums">{o.items.length}</td>
-                      <td className="px-4 py-2 text-xs text-slate-900 font-medium text-right tabular-nums">
+                      <td className="px-4 py-2 text-xs text-slate-600 text-center tabular-nums">{o.items.length}</td>
+                      <td className="px-4 py-2 text-xs text-slate-900 font-medium text-center tabular-nums">
                         {o.total != null ? `${sym} ${o.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
                       </td>
-                      <td className="px-4 py-2 text-xs text-left text-slate-500">{o.moneda}</td>
+                      <td className="px-4 py-2 text-xs text-center text-slate-500">{o.moneda}</td>
                       <td className="px-4 py-2 text-xs text-slate-500">
                         {o.fechaEntregaEstimada ? new Date(o.fechaEntregaEstimada).toLocaleDateString('es-AR') : '-'}
                       </td>
-                      <td className="px-4 py-2 text-right space-x-1">
+                      <td className="px-4 py-2 text-center space-x-1">
                         <Link to={`/stock/ordenes-compra/${o.id}`}><Button variant="ghost" size="sm">Ver</Button></Link>
                         {o.estado === 'borrador' && (
                           <Button variant="ghost" size="sm" onClick={() => handleDelete(o.id)}>Eliminar</Button>

@@ -98,7 +98,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
                 </td>
                 <td className="text-xs py-2 pr-3 text-slate-500">{d.fecha ? new Date(d.fecha).toLocaleDateString('es-AR') : '-'}</td>
                 <td className="text-xs py-2 pr-3 text-slate-500">{d.notas || '-'}</td>
-                <td className="text-xs py-2 text-right">
+                <td className="text-xs py-2 text-center">
                   <button onClick={() => handleDelete(d.id)} className="text-red-500 hover:text-red-700 text-[10px]" disabled={saving}>Eliminar</button>
                 </td>
               </tr>
@@ -119,7 +119,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
                 <td className="py-2 pr-2">
                   <input className="w-full text-xs border border-slate-300 rounded px-2 py-1" placeholder="Notas" value={newDoc.notas || ''} onChange={e => setNewDoc(p => ({ ...p, notas: e.target.value }))} />
                 </td>
-                <td className="py-2 text-right">
+                <td className="py-2 text-center">
                   <div className="flex gap-1 justify-end">
                     <button onClick={handleSaveNew} className="text-teal-600 hover:text-teal-800 text-[10px] font-medium" disabled={saving}>Guardar</button>
                     <button onClick={() => setNewDoc(null)} className="text-slate-400 hover:text-slate-600 text-[10px]">Cancelar</button>
@@ -129,7 +129,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
             )}
             {(imp.documentos || []).length === 0 && !newDoc && (
               <tr>
-                <td colSpan={5} className="text-left py-6 text-xs text-slate-400">Sin documentos</td>
+                <td colSpan={5} className="text-center py-6 text-xs text-slate-400">Sin documentos</td>
               </tr>
             )}
           </tbody>

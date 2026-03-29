@@ -44,7 +44,7 @@ export const PresupuestoItemRow = ({ item, categoriasPresupuesto, fmtMoney, taxe
         onChange={e => onUpdateItem(item.id, 'descuento', Number(e.target.value) || 0)}
         className="w-full outline-none text-center bg-transparent text-xs" />
     </td>
-    <td className="px-2 py-2 text-right text-xs font-semibold text-slate-700">
+    <td className="px-2 py-2 text-center text-xs font-semibold text-slate-700">
       {fmtMoney(item.subtotal)}
     </td>
     <td className="px-2 py-2">
@@ -55,7 +55,7 @@ export const PresupuestoItemRow = ({ item, categoriasPresupuesto, fmtMoney, taxe
         <span className="text-[10px] text-slate-400 mt-0.5 block">Imp: {fmtMoney(taxes.totalImpuestos)}</span>
       )}
     </td>
-    <td className="text-left">
+    <td className="text-center">
       <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
     </td>
   </tr>

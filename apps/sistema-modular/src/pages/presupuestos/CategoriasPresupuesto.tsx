@@ -400,7 +400,7 @@ export const CategoriasPresupuesto = () => {
                           {cat.activo ? 'Activa' : 'Inactiva'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-center">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"

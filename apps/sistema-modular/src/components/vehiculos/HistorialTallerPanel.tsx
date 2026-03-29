@@ -73,10 +73,10 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
               {historial.map(h => (
                 <tr key={h.id} className="hover:bg-slate-50">
                   <td className="px-4 py-2 text-xs font-medium text-slate-900">{h.taller}</td>
-                  <td className="px-3 py-2 text-xs text-left text-slate-600">{h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR') : '—'}</td>
-                  <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{h.km?.toLocaleString('es-AR') ?? '—'}</td>
+                  <td className="px-3 py-2 text-xs text-center text-slate-600">{h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR') : '—'}</td>
+                  <td className="px-3 py-2 text-xs text-center font-mono text-slate-700">{h.km?.toLocaleString('es-AR') ?? '—'}</td>
                   <td className="px-3 py-2 text-xs text-slate-600">{h.factura ?? '—'}</td>
-                  <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{h.monto != null ? `$ ${h.monto.toLocaleString('es-AR')}` : '—'}</td>
+                  <td className="px-3 py-2 text-xs text-center font-mono text-slate-700">{h.monto != null ? `$ ${h.monto.toLocaleString('es-AR')}` : '—'}</td>
                   <td className="px-3 py-2 text-xs text-slate-600 max-w-xs">{h.descripcion}</td>
                   <td className="px-2 py-2"><button onClick={() => handleDelete(h.id)} className="text-[10px] text-red-500 hover:text-red-700">×</button></td>
                 </tr>

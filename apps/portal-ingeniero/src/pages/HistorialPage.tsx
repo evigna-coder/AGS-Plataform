@@ -152,7 +152,7 @@ export default function HistorialPage() {
                       <td className="px-3 py-2 text-xs text-slate-600 truncate max-w-[140px]" title={ot.tipoServicio}>{ot.tipoServicio || '—'}</td>
                       <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{fmt(ot.fechaInicio || ot.updatedAt)}</td>
                       <td className="px-3 py-2 whitespace-nowrap"><OTStatusBadge status={ot.status} /></td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           {ot.status === 'FINALIZADO' ? (
                             <button

@@ -235,16 +235,16 @@ export const TableCatalogPage = () => {
                     return (
                       <tr key={t.id} className={`hover:bg-slate-50 ${sel ? 'bg-blue-50/60' : ''}`}>
                         <td className="px-4 py-3"><input type="checkbox" checked={sel} onChange={() => toggleOne(t.id)} className="w-4 h-4 accent-blue-600 cursor-pointer" /></td>
-                        <td className="px-4 py-3 text-slate-400 text-xs text-left font-mono">{t.orden || '—'}</td>
+                        <td className="px-4 py-3 text-slate-400 text-xs text-center font-mono">{t.orden || '—'}</td>
                         <td className="px-4 py-3 font-bold text-slate-900">{t.name}</td>
                         <td className="px-4 py-3 text-slate-600 font-mono text-xs">{t.sysType || '—'}</td>
                         <td className="px-4 py-3 text-xs text-slate-500 max-w-[180px] truncate" title={t.modelos?.join(', ') || 'Todos'}>
                           {t.modelos?.length ? t.modelos.join(', ') : <span className="text-slate-300">Todos</span>}
                         </td>
                         <td className="px-4 py-3 text-slate-500 text-xs">{TABLE_TYPE_LABELS[t.tableType] ?? t.tableType}</td>
-                        <td className="px-4 py-3 text-slate-600 text-left">{t.columns.length}</td>
-                        <td className="px-4 py-3 text-slate-600 text-left">{t.templateRows.length}</td>
-                        <td className="px-4 py-3 text-left">{t.isDefault ? <span className="text-green-600 font-bold text-xs">✓</span> : <span className="text-slate-300 text-xs">—</span>}</td>
+                        <td className="px-4 py-3 text-slate-600 text-center">{t.columns.length}</td>
+                        <td className="px-4 py-3 text-slate-600 text-center">{t.templateRows.length}</td>
+                        <td className="px-4 py-3 text-center">{t.isDefault ? <span className="text-green-600 font-bold text-xs">✓</span> : <span className="text-slate-300 text-xs">—</span>}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${STATUS_COLORS[t.status] ?? 'bg-slate-100 text-slate-600'}`}>{STATUS_LABELS[t.status] ?? t.status}</span>
                         </td>

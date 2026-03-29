@@ -369,7 +369,7 @@ export const EquiposList = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <Link to={`/equipos/${sistema.id}`}
                             className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50">

@@ -226,13 +226,13 @@ const ViewRow: React.FC<{
   <>
     <td className="text-xs py-2 px-3 font-medium text-slate-900 font-mono">{p.codigo}</td>
     <td className="text-xs py-2 px-3 text-slate-700 max-w-[200px] truncate">{p.descripcion}</td>
-    <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.derechoImportacion)}</td>
-    <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.estadistica)}</td>
-    <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.iva)}</td>
-    <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.ivaAdicional)}</td>
-    <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.ganancias)}</td>
-    <td className="text-xs py-2 px-2 text-right tabular-nums">{fmtNum(p.tratamiento?.ingresosBrutos)}</td>
-    <td className="text-xs py-2 px-3 text-right">
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.derechoImportacion)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.estadistica)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.iva)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.ivaAdicional)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.ganancias)}</td>
+    <td className="text-xs py-2 px-2 text-center tabular-nums">{fmtNum(p.tratamiento?.ingresosBrutos)}</td>
+    <td className="text-xs py-2 px-3 text-center">
       <div className="flex justify-end gap-2">
         <button onClick={onEdit} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
         <button onClick={onToggle} className={`font-medium text-[11px] ${p.activo ? 'text-amber-600' : 'text-green-600'} hover:underline`}>
@@ -266,7 +266,7 @@ const EditRow: React.FC<{
     <td className="py-1.5 px-2">{numInput(form.ivaAdicional, 'ivaAdicional', setForm)}</td>
     <td className="py-1.5 px-2">{numInput(form.ganancias, 'ganancias', setForm)}</td>
     <td className="py-1.5 px-2">{numInput(form.ingresosBrutos, 'ingresosBrutos', setForm)}</td>
-    <td className="py-1.5 px-3 text-right">
+    <td className="py-1.5 px-3 text-center">
       <div className="flex justify-end gap-2">
         <button onClick={onSave} className="text-green-600 hover:underline font-medium text-[11px]">Guardar</button>
         <button onClick={onCancel} className="text-slate-500 hover:underline text-[11px]">Cancelar</button>

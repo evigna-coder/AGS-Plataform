@@ -67,8 +67,8 @@ export const RegistroKmPanel: React.FC<Props> = ({ vehiculoId, registros, onChan
                 return (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="px-4 py-2 text-xs text-slate-700">{new Date(r.fecha).toLocaleDateString('es-AR')}</td>
-                    <td className="px-3 py-2 text-xs text-right font-mono font-bold text-slate-900">{r.km.toLocaleString('es-AR')} km</td>
-                    <td className="px-3 py-2 text-xs text-right font-mono text-slate-500">{diff != null ? `+${diff.toLocaleString('es-AR')}` : '—'}</td>
+                    <td className="px-3 py-2 text-xs text-center font-mono font-bold text-slate-900">{r.km.toLocaleString('es-AR')} km</td>
+                    <td className="px-3 py-2 text-xs text-center font-mono text-slate-500">{diff != null ? `+${diff.toLocaleString('es-AR')}` : '—'}</td>
                     <td className="px-2 py-2"><button onClick={() => handleDelete(r.id)} className="text-[10px] text-red-500 hover:text-red-700">×</button></td>
                   </tr>
                 );

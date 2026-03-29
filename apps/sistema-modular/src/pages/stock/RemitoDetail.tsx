@@ -171,11 +171,11 @@ export const RemitoDetail = () => {
                               ) : '--'}
                             </td>
                           )}
-                          <td className="text-xs py-2 pr-3 text-left text-slate-700">{item.cantidad}</td>
+                          <td className="text-xs py-2 pr-3 text-center text-slate-700">{item.cantidad}</td>
                           <td className="text-xs py-2 pr-3">
                             <Badge label={TIPO_ITEM_LABELS[item.tipoItem]} color={item.tipoItem === 'sale_y_vuelve' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'} />
                           </td>
-                          <td className="text-xs py-2 text-left">
+                          <td className="text-xs py-2 text-center">
                             {remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
                               <button onClick={() => toggleDevuelto(item.id, item.devuelto)} disabled={acting}
                                 className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-colors ${item.devuelto ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>

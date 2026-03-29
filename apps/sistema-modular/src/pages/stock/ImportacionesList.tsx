@@ -98,7 +98,7 @@ export const ImportacionesList = () => {
                     </td>
                     <td className="text-xs py-2 px-4 text-slate-700">{imp.puertoDestino || '-'}</td>
                     <td className="text-xs py-2 px-4 text-slate-700">{formatDate(imp.fechaEstimadaArribo)}</td>
-                    <td className="text-xs py-2 px-4 text-right">
+                    <td className="text-xs py-2 px-4 text-center">
                       <Button
                         variant="ghost"
                         size="sm"

@@ -104,7 +104,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
                   <td className="px-3 py-2">
                     <span className="font-medium text-slate-900">{t.nombre}</span>
                   </td>
-                  <td className="px-3 py-2 text-left text-slate-500">
+                  <td className="px-3 py-2 text-center text-slate-500">
                     {t.requiresProtocol ? '✓' : '—'}
                   </td>
                   <td className="px-3 py-2">
@@ -112,7 +112,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
                       {t.activo ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-right space-x-2">
+                  <td className="px-3 py-2 text-center space-x-2">
                     <button className="text-teal-600 hover:underline" onClick={() => handleEdit(t)}>Editar</button>
                     <button className="text-red-500 hover:underline" onClick={() => handleDelete(t.id)}>Eliminar</button>
                   </td>

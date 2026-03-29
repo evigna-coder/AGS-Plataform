@@ -106,7 +106,7 @@ export const UsuariosList = () => {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap">{formatDate(u.lastLoginAt)}</td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         {u.status === 'pendiente' ? (
                           <button

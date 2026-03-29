@@ -256,7 +256,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
                       )}
                     </td>
                   ))}
-                  <td className="px-1 text-left">
+                  <td className="px-1 text-center">
                     <button onClick={() => removeRow(ri)} className="text-red-400 hover:text-red-600 text-xs">×</button>
                   </td>
                 </tr>

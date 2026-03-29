@@ -152,21 +152,21 @@ export function ConceptosServicio() {
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5 text-xs text-slate-500 font-mono">{c.codigo || '—'}</td>
                       <td className="px-4 py-2.5 text-xs text-slate-700">{c.descripcion}</td>
-                      <td className="px-4 py-2.5 text-xs text-right text-slate-600">
+                      <td className="px-4 py-2.5 text-xs text-center text-slate-600">
                         {MONEDA_SIMBOLO[c.moneda]} {c.valorBase.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-left text-slate-500">{c.moneda}</td>
-                      <td className="px-4 py-2.5 text-xs text-left text-slate-500">x{c.factorActualizacion}</td>
-                      <td className="px-4 py-2.5 text-xs text-right font-semibold text-teal-700">
+                      <td className="px-4 py-2.5 text-xs text-center text-slate-500">{c.moneda}</td>
+                      <td className="px-4 py-2.5 text-xs text-center text-slate-500">x{c.factorActualizacion}</td>
+                      <td className="px-4 py-2.5 text-xs text-center font-semibold text-teal-700">
                         {MONEDA_SIMBOLO[c.moneda]} {precioEfectivo.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-slate-500">{getCatNombre(c.categoriaPresupuestoId)}</td>
-                      <td className="px-4 py-2.5 text-left">
+                      <td className="px-4 py-2.5 text-center">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${c.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                           {c.activo ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right space-x-2">
+                      <td className="px-4 py-2.5 text-center space-x-2">
                         <button className="text-xs text-teal-600 hover:underline" onClick={() => openEdit(c)}>Editar</button>
                         <button className="text-xs text-red-500 hover:underline" onClick={() => handleDelete(c.id)}>Eliminar</button>
                       </td>

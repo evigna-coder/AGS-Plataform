@@ -958,7 +958,7 @@ function UnificarSistemasDuplicados() {
                         </td>
                         <td className="py-1 pr-2 font-mono text-slate-700">{s.codigoInterno || <span className="text-slate-300 italic">sin código</span>}</td>
                         <td className="py-1 pr-2 text-slate-500 truncate max-w-[150px]">{s.establecimientoId ? s.establecimientoId.slice(0, 12) + '...' : '—'}</td>
-                        <td className="py-1 pr-2 text-right font-semibold">{s.moduloCount}</td>
+                        <td className="py-1 pr-2 text-center font-semibold">{s.moduloCount}</td>
                         <td className="py-1 text-slate-400 truncate max-w-[200px]">
                           {s.modulos.length > 0
                             ? s.modulos.map(m => m.serie ? `${m.nombre}(${m.serie})` : m.nombre).join(', ')

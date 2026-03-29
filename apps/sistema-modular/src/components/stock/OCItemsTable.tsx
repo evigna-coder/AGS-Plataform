@@ -47,16 +47,16 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
                     <td className="px-3 py-2 text-xs text-slate-400">{idx + 1}</td>
                     <td className="px-3 py-2 text-xs text-slate-700">{item.descripcion}</td>
                     <td className="px-3 py-2 text-xs text-slate-500 font-mono">{item.articuloCodigo || '-'}</td>
-                    <td className="px-3 py-2 text-xs text-slate-700 text-right tabular-nums">{item.cantidad}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
+                    <td className="px-3 py-2 text-xs text-slate-700 text-center tabular-nums">{item.cantidad}</td>
+                    <td className="px-3 py-2 text-center tabular-nums">
                       <span className={`text-xs ${isComplete ? 'text-green-600 font-medium' : isPartial ? 'text-amber-600' : 'text-slate-500'}`}>
                         {item.cantidadRecibida}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-700 text-right tabular-nums">
+                    <td className="px-3 py-2 text-xs text-slate-700 text-center tabular-nums">
                       {item.precioUnitario != null ? `${sym} ${fmtNum(item.precioUnitario)}` : '-'}
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-900 font-medium text-right tabular-nums">
+                    <td className="px-3 py-2 text-xs text-slate-900 font-medium text-center tabular-nums">
                       {item.precioUnitario != null ? `${sym} ${fmtNum(lineSubtotal)}` : '-'}
                     </td>
                   </tr>
@@ -65,8 +65,8 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50">
-                <td colSpan={6} className="px-3 py-2 text-xs font-medium text-slate-700 text-right">Total</td>
-                <td className="px-3 py-2 text-sm font-semibold text-slate-900 text-right tabular-nums">
+                <td colSpan={6} className="px-3 py-2 text-xs font-medium text-slate-700 text-center">Total</td>
+                <td className="px-3 py-2 text-sm font-semibold text-slate-900 text-center tabular-nums">
                   {sym} {fmtNum(total)}
                 </td>
               </tr>

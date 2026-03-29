@@ -75,7 +75,7 @@ export const BulkValidationTable: React.FC<Props> = ({ filteredRows, clienteMap,
                 </div>
               )}
             </td>
-            <td className="px-2 py-1.5 text-right align-top whitespace-nowrap">
+            <td className="px-2 py-1.5 text-center align-top whitespace-nowrap">
               {row.diffs.length > 0 && !row.applied && (
                 <button onClick={() => onApply(row)}
                   className="text-[9px] font-medium text-amber-600 hover:text-amber-800 px-1.5 py-0.5 rounded hover:bg-amber-100">

@@ -86,10 +86,10 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
               <tr key={g.id} className="border-b border-slate-50">
                 <td className="text-xs py-2 pr-3 text-slate-700">{g.concepto}</td>
                 <td className="text-xs py-2 pr-3 text-slate-500">{g.descripcion || '-'}</td>
-                <td className="text-xs py-2 pr-3 text-slate-700 text-right tabular-nums">{g.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                <td className="text-xs py-2 pr-3 text-slate-700 text-center tabular-nums">{g.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                 <td className="text-xs py-2 pr-3 text-slate-500">{g.moneda}</td>
                 <td className="text-xs py-2 pr-3 text-slate-500">{g.fecha ? new Date(g.fecha).toLocaleDateString('es-AR') : '-'}</td>
-                <td className="text-xs py-2 text-right">
+                <td className="text-xs py-2 text-center">
                   <button onClick={() => handleDelete(g.id)} className="text-red-500 hover:text-red-700 text-[10px]" disabled={saving}>Eliminar</button>
                 </td>
               </tr>
@@ -113,7 +113,7 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
                 <td className="py-2 pr-2">
                   <input type="date" className="text-xs border border-slate-300 rounded px-2 py-1" value={newGasto.fecha || ''} onChange={e => setNewGasto(p => ({ ...p, fecha: e.target.value }))} />
                 </td>
-                <td className="py-2 text-right">
+                <td className="py-2 text-center">
                   <div className="flex gap-1 justify-end">
                     <button onClick={handleSaveNew} className="text-teal-600 hover:text-teal-800 text-[10px] font-medium" disabled={saving}>Guardar</button>
                     <button onClick={() => setNewGasto(null)} className="text-slate-400 hover:text-slate-600 text-[10px]">Cancelar</button>

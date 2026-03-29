@@ -112,7 +112,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
                     <tr key={p.id} className="bg-white/40">
                       <td className="px-2 py-1 text-xs text-slate-600 font-mono">{p.codigo || '-'}</td>
                       <td className="px-2 py-1 text-xs text-slate-600">{p.descripcion || '-'}</td>
-                      <td className="px-2 py-1 text-xs text-slate-600 text-left">{p.cantidad}</td>
+                      <td className="px-2 py-1 text-xs text-slate-600 text-center">{p.cantidad}</td>
                     </tr>
                   ))}
                 </tbody>

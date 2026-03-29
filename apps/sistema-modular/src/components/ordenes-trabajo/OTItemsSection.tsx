@@ -104,7 +104,7 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
                       <input value={p.origen} maxLength={12} disabled={readOnly} onChange={e => onUpdatePart(p.id, 'origen', e.target.value)} className="w-full outline-none bg-transparent text-xs disabled:text-slate-400" />
                     </td>
                     {!readOnly && (
-                      <td className="text-left">
+                      <td className="text-center">
                         <button onClick={() => onRemovePart(p.id)} className="text-red-400 hover:text-red-600 text-xs">x</button>
                       </td>
                     )}
