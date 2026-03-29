@@ -23,7 +23,7 @@ export const TablePreview = ({ table }: Props) => {
             <thead>
               <tr className="bg-slate-50">
                 {table.columns.map((col: TableCatalogEntry['columns'][number]) => (
-                  <th key={col.key} className={`px-3 py-2 font-bold text-slate-700 border border-slate-200 ${col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center'}`}
+                  <th key={col.key} className={`px-3 py-2 font-bold text-slate-700 border border-slate-200 ${col.align === 'left' ? 'text-center' : col.align === 'right' ? 'text-center' : 'text-center'}`}
                     style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
                     {col.label}
                     {col.unit ? ` (${col.unit})` : ''}

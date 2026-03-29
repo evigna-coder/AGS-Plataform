@@ -102,8 +102,8 @@ export const OTCierreAdminSection: React.FC<Props> = ({
               <table className="w-full">
                 <thead className="bg-white/60">
                   <tr>
-                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-left">Codigo</th>
-                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-left">Descripcion</th>
+                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-center">Codigo</th>
+                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-center">Descripcion</th>
                     <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-center w-12">Cant.</th>
                   </tr>
                 </thead>
@@ -112,7 +112,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
                     <tr key={p.id} className="bg-white/40">
                       <td className="px-2 py-1 text-xs text-slate-600 font-mono">{p.codigo || '-'}</td>
                       <td className="px-2 py-1 text-xs text-slate-600">{p.descripcion || '-'}</td>
-                      <td className="px-2 py-1 text-xs text-slate-600 text-center">{p.cantidad}</td>
+                      <td className="px-2 py-1 text-xs text-slate-600 text-left">{p.cantidad}</td>
                     </tr>
                   ))}
                 </tbody>

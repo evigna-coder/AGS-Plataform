@@ -113,7 +113,7 @@ export const MovimientosPage = () => {
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Cant.</th>
+                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Cant.</th>
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Destino</th>
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>

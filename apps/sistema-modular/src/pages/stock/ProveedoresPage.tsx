@@ -80,12 +80,12 @@ export const ProveedoresPage = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nombre</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">País</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">CUIT</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nombre</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">País</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">CUIT</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

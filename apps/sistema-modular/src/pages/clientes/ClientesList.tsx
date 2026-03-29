@@ -13,7 +13,7 @@ import { BulkCuitValidationModal } from '../../components/clientes/BulkCuitValid
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
+const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
   <div onMouseDown={onMouseDown} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40 z-20" />
@@ -228,7 +228,7 @@ export const ClientesList = () => {
                   </SortableHeader>
                   <th className={`${thClass} text-center`}>Establec.</th>
                   <th className={thClass}>Estado</th>
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -247,7 +247,7 @@ export const ClientesList = () => {
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap overflow-hidden">{cliente.cuit || <span className="text-slate-300">—</span>}</td>
                     <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden">{cliente.rubro || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600 text-center tabular-nums whitespace-nowrap">{establecimientosByCliente[cliente.id] ?? 0}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600 text-left tabular-nums whitespace-nowrap">{establecimientosByCliente[cliente.id] ?? 0}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                         cliente.activo !== false ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'

@@ -141,15 +141,15 @@ export const RequerimientosList = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Artículo</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cantidad</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Urgencia</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Solicitado por</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Artículo</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Cantidad</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Urgencia</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Solicitado por</th>
                   <SortableHeader label="Fecha" field="fechaSolicitud" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

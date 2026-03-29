@@ -66,7 +66,7 @@ const StatusBadge = ({ ot }: { ot: WorkOrder }) => {
   );
 };
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
+const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 /** Abre el reporte en reportes-ot (Electron o browser) */
 const openReport = (otNum: string) => {
@@ -685,7 +685,7 @@ export const OTList = () => {
                         className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </SortableHeader>
                   ))}
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -697,7 +697,7 @@ export const OTList = () => {
                     <tr key={ot.otNumber}
                       className={`hover:bg-slate-50 transition-colors ${isItem ? 'bg-slate-50/50' : ''} ${parentWithItems ? '' : 'cursor-pointer'}`}
                       onClick={() => handleRowClick(ot, hasItems)}>
-                      <td className="px-1 py-2 text-center" onClick={e => e.stopPropagation()}>
+                      <td className="px-1 py-2 text-left" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedOTs.has(ot.otNumber)}
                           onChange={() => toggleSelect(ot.otNumber)} className="w-3.5 h-3.5 accent-teal-600" />
                       </td>

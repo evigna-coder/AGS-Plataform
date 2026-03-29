@@ -11,11 +11,11 @@ export const BulkValidationTable: React.FC<Props> = ({ filteredRows, clienteMap,
     <table className="w-full text-xs">
       <thead className="sticky top-0 bg-slate-50 z-10">
         <tr className="border-b border-slate-200">
-          <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Establecimiento</th>
-          <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Dirección actual</th>
-          <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Google sugiere</th>
-          <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Diferencias</th>
-          <th className="px-2 py-1.5 text-right text-[10px] font-medium text-slate-400">Acción</th>
+          <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Establecimiento</th>
+          <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Dirección actual</th>
+          <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Google sugiere</th>
+          <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Diferencias</th>
+          <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Acción</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">

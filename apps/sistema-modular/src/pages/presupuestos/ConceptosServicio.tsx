@@ -134,15 +134,15 @@ export function ConceptosServicio() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider w-28">Codigo</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                  <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-24">Valor base</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Codigo</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24">Valor base</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Moneda</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Factor</th>
-                  <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-28">Precio efectivo</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider w-28">Categoria</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Precio efectivo</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Categoria</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Estado</th>
-                  <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-24">Acciones</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -155,13 +155,13 @@ export function ConceptosServicio() {
                       <td className="px-4 py-2.5 text-xs text-right text-slate-600">
                         {MONEDA_SIMBOLO[c.moneda]} {c.valorBase.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-center text-slate-500">{c.moneda}</td>
-                      <td className="px-4 py-2.5 text-xs text-center text-slate-500">x{c.factorActualizacion}</td>
+                      <td className="px-4 py-2.5 text-xs text-left text-slate-500">{c.moneda}</td>
+                      <td className="px-4 py-2.5 text-xs text-left text-slate-500">x{c.factorActualizacion}</td>
                       <td className="px-4 py-2.5 text-xs text-right font-semibold text-teal-700">
                         {MONEDA_SIMBOLO[c.moneda]} {precioEfectivo.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-slate-500">{getCatNombre(c.categoriaPresupuestoId)}</td>
-                      <td className="px-4 py-2.5 text-center">
+                      <td className="px-4 py-2.5 text-left">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${c.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                           {c.activo ? 'Activo' : 'Inactivo'}
                         </span>

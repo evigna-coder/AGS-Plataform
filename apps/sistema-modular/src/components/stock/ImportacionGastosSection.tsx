@@ -73,12 +73,12 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Concepto</th>
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Descripcion</th>
-              <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Monto</th>
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Moneda</th>
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Fecha</th>
-              <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2"></th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Concepto</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Descripcion</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Monto</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Moneda</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Fecha</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2"></th>
             </tr>
           </thead>
           <tbody>

@@ -102,15 +102,15 @@ export const OCList = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Proveedor</th>
-                  <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
-                  <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Total</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Proveedor</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Total</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Moneda</th>
                   <SortableHeader label="Entrega est." field="fechaEntregaEstimada" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -132,7 +132,7 @@ export const OCList = () => {
                       <td className="px-4 py-2 text-xs text-slate-900 font-medium text-right tabular-nums">
                         {o.total != null ? `${sym} ${o.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
                       </td>
-                      <td className="px-4 py-2 text-xs text-center text-slate-500">{o.moneda}</td>
+                      <td className="px-4 py-2 text-xs text-left text-slate-500">{o.moneda}</td>
                       <td className="px-4 py-2 text-xs text-slate-500">
                         {o.fechaEntregaEstimada ? new Date(o.fechaEntregaEstimada).toLocaleDateString('es-AR') : '-'}
                       </td>

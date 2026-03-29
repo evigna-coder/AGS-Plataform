@@ -64,7 +64,8 @@
       "Bash(sed -i \"s/, useCallback//\" pages/stock/MinikitsList.tsx)",
       "Bash(sed -i \"s/, useCallback//\" pages/stock/UnidadesList.tsx)",
       "Bash(sed -i \"s/useParams, useNavigate, Link/useParams, Link/\" pages/stock/ArticuloDetail.tsx)",
-      "Bash(sed -i \"s/useParams, useNavigate, Link/useParams, Link/\" pages/stock/RemitoDetail.tsx)"
+      "Bash(sed -i \"s/useParams, useNavigate, Link/useParams, Link/\" pages/stock/RemitoDetail.tsx)",
+      "Bash(xargs sed:*)"
     ]
   }
 }

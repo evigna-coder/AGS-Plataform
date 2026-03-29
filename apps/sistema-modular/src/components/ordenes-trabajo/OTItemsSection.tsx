@@ -8,7 +8,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/firebaseService';
 
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
-const thCls = 'text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-left';
+const thCls = 'text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-center';
 
 export interface OTItemsSectionProps {
   readOnly: boolean;
@@ -104,7 +104,7 @@ export const OTItemsSection: React.FC<OTItemsSectionProps> = ({
                       <input value={p.origen} maxLength={12} disabled={readOnly} onChange={e => onUpdatePart(p.id, 'origen', e.target.value)} className="w-full outline-none bg-transparent text-xs disabled:text-slate-400" />
                     </td>
                     {!readOnly && (
-                      <td className="text-center">
+                      <td className="text-left">
                         <button onClick={() => onRemovePart(p.id)} className="text-red-400 hover:text-red-600 text-xs">x</button>
                       </td>
                     )}

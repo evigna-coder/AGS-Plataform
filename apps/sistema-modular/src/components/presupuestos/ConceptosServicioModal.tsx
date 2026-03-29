@@ -153,14 +153,14 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-y border-slate-200">
                   <tr>
-                    <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">Código</th>
-                    <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">Descripción</th>
-                    <th className="px-3 py-1.5 text-right text-[10px] font-medium text-slate-400 tracking-wider">Valor base</th>
+                    <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Código</th>
+                    <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Descripción</th>
+                    <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Valor base</th>
                     <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Factor</th>
-                    <th className="px-3 py-1.5 text-right text-[10px] font-medium text-slate-400 tracking-wider">Precio efectivo</th>
-                    <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">Categoría</th>
+                    <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Precio efectivo</th>
+                    <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Categoría</th>
                     <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-3 py-1.5 text-right text-[10px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -171,10 +171,10 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
                         <td className="px-3 py-2 text-slate-500 font-mono">{c.codigo || '—'}</td>
                         <td className="px-3 py-2 text-slate-700">{c.descripcion}</td>
                         <td className="px-3 py-2 text-right text-slate-600">{MONEDA_SIMBOLO[c.moneda]} {c.valorBase.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-center text-slate-500">x{c.factorActualizacion}</td>
+                        <td className="px-3 py-2 text-left text-slate-500">x{c.factorActualizacion}</td>
                         <td className="px-3 py-2 text-right font-semibold text-teal-700">{MONEDA_SIMBOLO[c.moneda]} {precio.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                         <td className="px-3 py-2 text-slate-500">{getCatNombre(c.categoriaPresupuestoId)}</td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3 py-2 text-left">
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${c.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                             {c.activo ? 'Activo' : 'Inactivo'}
                           </span>

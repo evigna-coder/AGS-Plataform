@@ -21,7 +21,7 @@ import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState } from '../componen
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../utils/leadHelpers';
 import { useResizableColumns } from '../hooks/useResizableColumns';
 
-const thBase = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
+const thBase = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 export default function LeadsPage() {
   const { usuario } = useAuth();
@@ -219,7 +219,7 @@ export default function LeadsPage() {
                     <th className={thBase}>Fecha<div onMouseDown={e => onResizeStart(7, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                     <th className={thBase}>Seguim.<div onMouseDown={e => onResizeStart(8, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                     <th className={thBase}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} text-right`}>Acciones</th>
+                    <th className={`${thBase} text-center`}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

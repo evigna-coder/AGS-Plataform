@@ -23,7 +23,7 @@ import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadF
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 
-const thBase = 'px-3 py-2 text-left text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
+const thBase = 'px-3 py-2 text-center text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
 
 type SortKey = 'razonSocial' | 'contacto' | 'motivoLlamado' | 'prioridad' | 'estado' | 'areaActual' | 'asignadoA' | 'createdAt' | 'proximoContacto';
 type SortDir = 'asc' | 'desc';
@@ -262,7 +262,7 @@ export const LeadsList = () => {
                   <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('createdAt')}>Fecha <SortIcon col="createdAt" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(7, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('proximoContacto')}>Seguim. <SortIcon col="proximoContacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(8, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thBase} text-slate-400`}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} text-right text-slate-400`}>Acciones</th>
+                  <th className={`${thBase} text-center text-slate-400`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

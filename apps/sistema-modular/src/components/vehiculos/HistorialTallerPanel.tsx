@@ -60,12 +60,12 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Taller</th>
+                <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Taller</th>
                 <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">KM</th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Factura</th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Monto</th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripción</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">KM</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Factura</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Monto</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripción</th>
                 <th className="px-2 py-2 w-10"></th>
               </tr>
             </thead>
@@ -73,7 +73,7 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
               {historial.map(h => (
                 <tr key={h.id} className="hover:bg-slate-50">
                   <td className="px-4 py-2 text-xs font-medium text-slate-900">{h.taller}</td>
-                  <td className="px-3 py-2 text-xs text-center text-slate-600">{h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR') : '—'}</td>
+                  <td className="px-3 py-2 text-xs text-left text-slate-600">{h.fecha ? new Date(h.fecha).toLocaleDateString('es-AR') : '—'}</td>
                   <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{h.km?.toLocaleString('es-AR') ?? '—'}</td>
                   <td className="px-3 py-2 text-xs text-slate-600">{h.factura ?? '—'}</td>
                   <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{h.monto != null ? `$ ${h.monto.toLocaleString('es-AR')}` : '—'}</td>

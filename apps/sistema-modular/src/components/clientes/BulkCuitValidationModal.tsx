@@ -150,10 +150,10 @@ export const BulkCuitValidationModal: React.FC<Props> = ({ open, onClose, client
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-slate-50 z-10">
               <tr className="border-b border-slate-200">
-                <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Cliente</th>
-                <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">CUIT</th>
-                <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Tipo persona</th>
-                <th className="px-2 py-1.5 text-left text-[10px] font-medium text-slate-400">Resultado</th>
+                <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Cliente</th>
+                <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">CUIT</th>
+                <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Tipo persona</th>
+                <th className="px-2 py-1.5 text-center text-[10px] font-medium text-slate-400">Resultado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

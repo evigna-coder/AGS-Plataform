@@ -113,14 +113,14 @@ export const IngresoEmpresasList = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider sticky left-0 bg-slate-50 z-10">Cliente</th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider sticky left-0 bg-slate-50 z-10">Cliente</th>
                   <th className="px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
                   <th className="px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Induc.</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
+                  <th className="px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
                   {DOCUMENTACION_INGRESO_KEYS.map(({ key, label }) => (
                     <th key={key} className="px-1.5 py-2 text-center text-[10px] font-medium text-slate-400 tracking-wider whitespace-nowrap">{label}</th>
                   ))}
-                  <th className="px-2 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className="px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -129,12 +129,12 @@ export const IngresoEmpresasList = () => {
                     <td className="px-3 py-2 text-xs font-medium text-slate-900 sticky left-0 bg-white z-10 whitespace-nowrap">
                       <button onClick={() => handleEdit(item)} className="text-teal-700 hover:underline text-left">{item.clienteNombre}</button>
                     </td>
-                    <td className="px-2 py-2 text-center">
+                    <td className="px-2 py-2 text-left">
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${item.tipo === 'PI' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
                         {item.tipo}
                       </span>
                     </td>
-                    <td className="px-2 py-2 text-center">
+                    <td className="px-2 py-2 text-left">
                       {item.induccion.requerida ? (
                         <span className="text-emerald-600 font-bold text-xs" title={item.induccion.descripcion}>Sí</span>
                       ) : (
@@ -146,7 +146,7 @@ export const IngresoEmpresasList = () => {
                       const st = item.documentacion[key];
                       const { symbol, cls } = STATUS_ICON[st];
                       return (
-                        <td key={key} className={`px-1.5 py-2 text-center text-[11px] ${cls}`} title={st.replace(/_/g, ' ')}>
+                        <td key={key} className={`px-1.5 py-2 text-left text-[11px] ${cls}`} title={st.replace(/_/g, ' ')}>
                           {symbol}
                         </td>
                       );

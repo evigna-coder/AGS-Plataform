@@ -200,11 +200,11 @@ export const RemitoEditor = () => {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 tracking-tight">Codigo</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 tracking-tight">Descripcion</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 tracking-tight w-24">Cantidad</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 tracking-tight w-40">Tipo</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600 tracking-tight w-20"></th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-600 tracking-tight">Codigo</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-600 tracking-tight">Descripcion</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-600 tracking-tight w-24">Cantidad</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-600 tracking-tight w-40">Tipo</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-600 tracking-tight w-20"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

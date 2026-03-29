@@ -160,12 +160,12 @@ export const CategoriasPresupuestoModal: React.FC<Props> = ({ open, onClose }) =
           <table className="w-full text-xs">
             <thead className="bg-slate-50 border-y border-slate-200">
               <tr>
-                <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">Nombre</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">IVA</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">Ganancias</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">IIBB</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-medium text-slate-400 tracking-wider">Estado</th>
-                <th className="px-3 py-1.5 text-right text-[10px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Nombre</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">IVA</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Ganancias</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">IIBB</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Estado</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

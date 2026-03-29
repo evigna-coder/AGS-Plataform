@@ -72,13 +72,13 @@ export const ImportacionesList = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Numero</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">OC</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Proveedor</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Estado</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Puerto destino</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Numero</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">OC</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Proveedor</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Estado</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Puerto destino</th>
                   <SortableHeader label="ETA" field="fechaEstimadaArribo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4" />
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Acciones</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Acciones</th>
                 </tr>
               </thead>
               <tbody>

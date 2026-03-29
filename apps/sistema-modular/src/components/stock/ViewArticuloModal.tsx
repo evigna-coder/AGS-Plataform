@@ -154,11 +154,11 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-[#F0F0F0]">
-                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-left">S/N</th>
-                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-left">Lote</th>
-                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-left">Condicion</th>
-                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-left">Estado</th>
-                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-left">Ubicacion</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">S/N</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Lote</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Condicion</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Estado</th>
+                  <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-1.5 px-2 text-center">Ubicacion</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

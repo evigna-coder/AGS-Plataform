@@ -222,7 +222,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
             <thead>
               <tr className="bg-slate-100">
                 {columns.map(col => (
-                  <th key={col.key} className="px-2 py-1.5 text-left font-bold text-slate-600 border-b border-slate-200">
+                  <th key={col.key} className="px-2 py-1.5 text-center font-bold text-slate-600 border-b border-slate-200">
                     {col.group && <span className="text-[9px] text-blue-400 mr-1">[{col.group}]</span>}
                     {col.label}
                     {col.isRowHeader && <span className="ml-1 text-[9px] text-orange-400">H</span>}
@@ -256,7 +256,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
                       )}
                     </td>
                   ))}
-                  <td className="px-1 text-center">
+                  <td className="px-1 text-left">
                     <button onClick={() => removeRow(ri)} className="text-red-400 hover:text-red-600 text-xs">×</button>
                   </td>
                 </tr>

@@ -28,13 +28,13 @@ export const OCItemsTable: React.FC<Props> = ({ items, moneda }) => {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider w-10">#</th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider w-24">Codigo</th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-20">Cantidad</th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-20">Recibida</th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-28">Precio unit.</th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider w-28">Subtotal</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-10">#</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24">Codigo</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-20">Cantidad</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-20">Recibida</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Precio unit.</th>
+                <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Subtotal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

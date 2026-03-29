@@ -17,7 +17,7 @@ import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContex
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
+const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ACTIVE_PIPELINE_STATES = ['enviado', 'en_seguimiento', 'pendiente_oc', 'aceptado'];
 
 export const PresupuestosList = () => {
@@ -224,7 +224,7 @@ export const PresupuestosList = () => {
                   <SortableHeader label="Enviado" field="fechaEnvio" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Validez" field="_validez" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Seguimiento" field="_seguimiento" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

@@ -55,7 +55,7 @@ export const PresupuestoItemRow = ({ item, categoriasPresupuesto, fmtMoney, taxe
         <span className="text-[10px] text-slate-400 mt-0.5 block">Imp: {fmtMoney(taxes.totalImpuestos)}</span>
       )}
     </td>
-    <td className="text-center">
+    <td className="text-left">
       <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
     </td>
   </tr>

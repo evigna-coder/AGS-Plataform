@@ -30,12 +30,12 @@ export function LoanerPrestamosSection({ prestamos }: Props) {
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-3 py-1.5 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
-              <th className="px-3 py-1.5 text-left text-[11px] font-medium text-slate-400 tracking-wider">Salida</th>
-              <th className="px-3 py-1.5 text-left text-[11px] font-medium text-slate-400 tracking-wider">Retorno</th>
-              <th className="px-3 py-1.5 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-              <th className="px-3 py-1.5 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ficha</th>
-              <th className="px-3 py-1.5 text-left text-[11px] font-medium text-slate-400 tracking-wider">Remito</th>
+              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Cliente</th>
+              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Salida</th>
+              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Retorno</th>
+              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ficha</th>
+              <th className="px-3 py-1.5 text-center text-[11px] font-medium text-slate-400 tracking-wider">Remito</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

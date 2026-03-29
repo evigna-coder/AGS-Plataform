@@ -149,13 +149,13 @@ export const RemitoDetail = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Codigo</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Descripcion</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Codigo</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Descripcion</th>
                         {hasMultipleTypes(remito.items) && (
-                          <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Entidad</th>
+                          <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Entidad</th>
                         )}
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Cant.</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Tipo</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Tipo</th>
                         <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Dev.</th>
                       </tr>
                     </thead>
@@ -171,11 +171,11 @@ export const RemitoDetail = () => {
                               ) : '--'}
                             </td>
                           )}
-                          <td className="text-xs py-2 pr-3 text-center text-slate-700">{item.cantidad}</td>
+                          <td className="text-xs py-2 pr-3 text-left text-slate-700">{item.cantidad}</td>
                           <td className="text-xs py-2 pr-3">
                             <Badge label={TIPO_ITEM_LABELS[item.tipoItem]} color={item.tipoItem === 'sale_y_vuelve' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'} />
                           </td>
-                          <td className="text-xs py-2 text-center">
+                          <td className="text-xs py-2 text-left">
                             {remito.estado === 'en_transito' && item.tipoItem === 'sale_y_vuelve' ? (
                               <button onClick={() => toggleDevuelto(item.id, item.devuelto)} disabled={acting}
                                 className={`w-4 h-4 rounded border inline-flex items-center justify-center transition-colors ${item.devuelto ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 hover:border-slate-400'}`}>

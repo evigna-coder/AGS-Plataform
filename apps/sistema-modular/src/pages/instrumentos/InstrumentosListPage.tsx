@@ -17,7 +17,7 @@ import {
   type InstrumentoPatron,
 } from '@ags/shared';
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
+const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 const ESTADO_BADGE: Record<EstadoCertificado, { label: string; cls: string }> = {
   vigente: { label: 'Vigente', cls: 'bg-green-100 text-green-800' },
@@ -188,7 +188,7 @@ export const InstrumentosListPage = () => {
                   <th className={thClass}>Certificado</th>
                   <SortableHeader label="Vencim." field="certificadoVencimiento" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>Estado</th>
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

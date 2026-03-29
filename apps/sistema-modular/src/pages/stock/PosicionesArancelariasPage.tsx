@@ -187,15 +187,15 @@ export const PosicionesArancelariasPage = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Codigo</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Descripcion</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">DI%</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">Est%</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IVA%</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IVA Ad%</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">Gan%</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IIBB%</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Acciones</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Codigo</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Descripcion</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">DI%</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">Est%</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IVA%</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IVA Ad%</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">Gan%</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IIBB%</th>
+                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">

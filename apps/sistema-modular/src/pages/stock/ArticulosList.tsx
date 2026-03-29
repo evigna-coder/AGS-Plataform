@@ -262,14 +262,14 @@ export const ArticulosList = () => {
                         className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-700"
                       />
                     </th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Codigo</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Marca</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Stock min.</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Precio ref.</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Codigo</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Marca</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Stock min.</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Precio ref.</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

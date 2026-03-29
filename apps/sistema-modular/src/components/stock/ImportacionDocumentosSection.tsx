@@ -76,11 +76,11 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Tipo</th>
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Nombre</th>
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Fecha</th>
-              <th className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Notas</th>
-              <th className="text-right text-[11px] font-medium text-slate-400 tracking-wider py-2"></th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Tipo</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Nombre</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Fecha</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 pr-3">Notas</th>
+              <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -129,7 +129,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
             )}
             {(imp.documentos || []).length === 0 && !newDoc && (
               <tr>
-                <td colSpan={5} className="text-center py-6 text-xs text-slate-400">Sin documentos</td>
+                <td colSpan={5} className="text-left py-6 text-xs text-slate-400">Sin documentos</td>
               </tr>
             )}
           </tbody>

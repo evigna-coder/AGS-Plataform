@@ -175,11 +175,11 @@ export const MinikitDetail = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Codigo</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Descripcion</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Condicion</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Estado</th>
-                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Serie</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Codigo</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Descripcion</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Condicion</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
+                        <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Serie</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -232,7 +232,7 @@ const TemplateComparisonCard = ({ template, unidades }: { template: MinikitTempl
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left">Artículo</th>
+              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Artículo</th>
               <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Mínimo</th>
               <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Actual</th>
               <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
@@ -245,9 +245,9 @@ const TemplateComparisonCard = ({ template, unidades }: { template: MinikitTempl
                   <span className="font-mono text-teal-600 font-semibold">{c.articuloCodigo}</span>
                   <span className="text-slate-600 ml-1.5">{c.articuloDescripcion}</span>
                 </td>
-                <td className="text-xs py-2 text-center text-slate-500">{c.cantidadMinima}</td>
-                <td className="text-xs py-2 text-center font-medium">{c.actual}</td>
-                <td className="text-xs py-2 text-center">
+                <td className="text-xs py-2 text-left text-slate-500">{c.cantidadMinima}</td>
+                <td className="text-xs py-2 text-left font-medium">{c.actual}</td>
+                <td className="text-xs py-2 text-left">
                   <Badge label={statusLabels[c.status]} color={statusColors[c.status]} />
                 </td>
               </tr>

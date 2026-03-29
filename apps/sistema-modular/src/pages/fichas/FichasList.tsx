@@ -11,7 +11,7 @@ import type { FichaPropiedad, EstadoFicha, Cliente } from '@ags/shared';
 import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
+const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 export function FichasList() {
   const navigate = useNavigate();
@@ -144,7 +144,7 @@ export function FichasList() {
                   <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Ingreso" field="fechaIngreso" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <th className={thClass}>OT Ref</th>
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

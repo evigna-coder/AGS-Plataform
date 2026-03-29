@@ -65,10 +65,10 @@ export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criteri
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Servicio</th>
-              <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">KM Realización</th>
-              <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">Extensión</th>
-              <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider">KM Que Faltan</th>
+              <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Servicio</th>
+              <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">KM Realización</th>
+              <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Extensión</th>
+              <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">KM Que Faltan</th>
               <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Fecha Estimativa</th>
               <th className="px-2 py-2 w-16"></th>
             </tr>
@@ -90,7 +90,7 @@ export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criteri
                   <td className={`px-3 py-2 text-xs text-right font-mono font-bold ${isOverdue ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-emerald-700'}`}>
                     {kmFaltan != null ? kmFaltan.toLocaleString('es-AR') : <span className="text-slate-300 font-normal">N/A</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-center text-slate-600">
+                  <td className="px-3 py-2 text-xs text-left text-slate-600">
                     {servicio?.fechaEstimativa ? new Date(servicio.fechaEstimativa).toLocaleDateString('es-AR') : <span className="text-slate-300">—</span>}
                   </td>
                   <td className="px-2 py-2">
@@ -107,7 +107,7 @@ export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criteri
                 <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{s.kmRealizacion.toLocaleString('es-AR')}</td>
                 <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{s.extensionKm.toLocaleString('es-AR')}</td>
                 <td className="px-3 py-2 text-xs text-right font-mono text-slate-700">{((s.kmRealizacion + s.extensionKm) - kmActual).toLocaleString('es-AR')}</td>
-                <td className="px-3 py-2 text-xs text-center text-slate-600">{s.fechaEstimativa ? new Date(s.fechaEstimativa).toLocaleDateString('es-AR') : '—'}</td>
+                <td className="px-3 py-2 text-xs text-left text-slate-600">{s.fechaEstimativa ? new Date(s.fechaEstimativa).toLocaleDateString('es-AR') : '—'}</td>
                 <td className="px-2 py-2"><button onClick={() => handleDelete(s.id)} className="text-[10px] text-red-500 hover:text-red-700">×</button></td>
               </tr>
             ))}

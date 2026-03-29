@@ -78,9 +78,9 @@ export const AlertasStockPage = () => {
                     <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
                     <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
                     <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Stock actual</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Minimo</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-right">Deficit</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Stock actual</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Minimo</th>
+                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Deficit</th>
                     <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>

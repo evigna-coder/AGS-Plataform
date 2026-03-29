@@ -286,11 +286,11 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-[#F0F0F0]">
-                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-left w-24">Codigo</th>
-                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-left">Descripcion</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center w-24">Codigo</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center">Descripcion</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-12">Cant.</th>
-                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-right w-20">P.Unit.</th>
-                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-right w-20">Subtotal</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-20">P.Unit.</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-20">Subtotal</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -299,10 +299,10 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
                 <tr key={item.id}>
                   <td className="px-2 py-1.5 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
                   <td className="px-3 py-1.5 text-xs text-slate-700 truncate max-w-[300px]">{item.descripcion}</td>
-                  <td className="px-2 py-1.5 text-xs text-center">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
+                  <td className="px-2 py-1.5 text-xs text-left">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
                   <td className="px-2 py-1.5 text-xs text-right font-mono">{fmtMoney(item.precioUnitario)}</td>
                   <td className="px-2 py-1.5 text-xs text-right font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal)}</td>
-                  <td className="text-center">
+                  <td className="text-left">
                     <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
                   </td>
                 </tr>

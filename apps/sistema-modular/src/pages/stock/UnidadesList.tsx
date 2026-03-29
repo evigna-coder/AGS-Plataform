@@ -118,13 +118,13 @@ export const UnidadesList = () => {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

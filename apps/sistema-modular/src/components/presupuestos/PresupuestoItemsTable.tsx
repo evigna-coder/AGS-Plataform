@@ -39,14 +39,14 @@ interface PresupuestoItemsTableProps {
 
 const TABLE_HEADER = (
   <tr className="bg-slate-50">
-    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Código</th>
-    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-left">Descripcion</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-28">Código</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3 text-center">Descripcion</th>
     <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Cant.</th>
-    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-20">Unidad</th>
-    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">P. Unit.</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-20">Unidad</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-24">P. Unit.</th>
     <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-16">Dto %</th>
-    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-right w-24">Subtotal</th>
-    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-left w-28">Categoria</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-24">Subtotal</th>
+    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2 text-center w-28">Categoria</th>
     <th className="w-8"></th>
   </tr>
 );

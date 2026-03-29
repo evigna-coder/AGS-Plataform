@@ -14,7 +14,7 @@ import { BulkAddressValidationModal } from '../../components/establecimientos/Bu
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
 
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
+const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
 const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
   <div onMouseDown={onMouseDown} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40 z-20" />
@@ -227,7 +227,7 @@ export const EstablecimientosList = () => {
                     <ResizeHandle onMouseDown={e => onResizeStart(5, e)} />
                   </SortableHeader>
                   <th className={thClass}>Estado</th>
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

@@ -111,11 +111,11 @@ const SistemaExpandable = ({ sistema, establecimientos, categorias, selected, on
             <table className="w-full mt-1">
               <thead>
                 <tr className="border-b border-slate-200">
-                  <th className="text-left text-[10px] font-medium text-slate-400 py-1 pr-2">Código</th>
-                  <th className="text-left text-[10px] font-medium text-slate-400 py-1 pr-2">Descripción</th>
-                  <th className="text-left text-[10px] font-medium text-slate-400 py-1 pr-2">Serie</th>
-                  <th className="text-left text-[10px] font-medium text-slate-400 py-1 pr-2">Firmware</th>
-                  <th className="text-left text-[10px] font-medium text-slate-400 py-1">Observaciones</th>
+                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Código</th>
+                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Descripción</th>
+                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Serie</th>
+                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Firmware</th>
+                  <th className="text-center text-[10px] font-medium text-slate-400 py-1">Observaciones</th>
                 </tr>
               </thead>
               <tbody>

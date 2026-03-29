@@ -19,10 +19,10 @@ function IssueTable({ title, issues, color }: { title: string; issues: Validatio
         <table className="w-full text-[11px]">
           <thead>
             <tr className={`${textSub} border-b border-current/20`}>
-              <th className="text-left py-1 pr-2 w-28">Hoja</th>
-              <th className="text-left py-1 pr-2 w-12">Fila</th>
-              <th className="text-left py-1 pr-2 w-32">Columna</th>
-              <th className="text-left py-1">Mensaje</th>
+              <th className="text-center py-1 pr-2 w-28">Hoja</th>
+              <th className="text-center py-1 pr-2 w-12">Fila</th>
+              <th className="text-center py-1 pr-2 w-32">Columna</th>
+              <th className="text-center py-1">Mensaje</th>
             </tr>
           </thead>
           <tbody>
@@ -378,9 +378,9 @@ function DedupModulos() {
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="text-slate-500 border-b">
-                  <th className="text-left py-1 pr-2">Sistema</th>
-                  <th className="text-left py-1 pr-2">Serie</th>
-                  <th className="text-left py-1">Modulo ID</th>
+                  <th className="text-center py-1 pr-2">Sistema</th>
+                  <th className="text-center py-1 pr-2">Serie</th>
+                  <th className="text-center py-1">Modulo ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -613,8 +613,8 @@ function RepairSistemaEstablecimiento() {
           <table className="w-full text-[11px]">
             <thead>
               <tr className="text-slate-500 border-b">
-                <th className="text-left py-1 pr-2">Sistema</th>
-                <th className="text-left py-1 pr-2">Establecimiento destino</th>
+                <th className="text-center py-1 pr-2">Sistema</th>
+                <th className="text-center py-1 pr-2">Establecimiento destino</th>
               </tr>
             </thead>
             <tbody>
@@ -937,11 +937,11 @@ function UnificarSistemasDuplicados() {
                 <table className="w-full text-[11px]">
                   <thead>
                     <tr className="text-slate-400 border-b">
-                      <th className="text-left py-1 w-8">Maestro</th>
-                      <th className="text-left py-1 pr-2">Código</th>
-                      <th className="text-left py-1 pr-2">Establecimiento</th>
-                      <th className="text-right py-1 pr-2">Módulos</th>
-                      <th className="text-left py-1">Detalle módulos</th>
+                      <th className="text-center py-1 w-8">Maestro</th>
+                      <th className="text-center py-1 pr-2">Código</th>
+                      <th className="text-center py-1 pr-2">Establecimiento</th>
+                      <th className="text-center py-1 pr-2">Módulos</th>
+                      <th className="text-center py-1">Detalle módulos</th>
                     </tr>
                   </thead>
                   <tbody>

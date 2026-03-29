@@ -68,12 +68,12 @@ export const UsuariosList = () => {
             <table className="w-full">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider w-10"></th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Usuario</th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Rol</th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Estado</th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Ultimo login</th>
-                  <th className="px-3 py-2 text-right text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap w-28"></th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-10"></th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Usuario</th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Rol</th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Estado</th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Ultimo login</th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap w-28"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
