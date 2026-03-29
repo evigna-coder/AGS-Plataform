@@ -54,7 +54,7 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
     const tolerance = parseFloat(pmMatch[1].replace(',', '.'));
     if (isNaN(tolerance)) return '';
     // If nominal value provided, compare delta from nominal; otherwise treat resultado as delta
-    const numNominal = nominal ? parseFloat(nominal.replace(',', '.')) : NaN;
+    const numNominal = nominal ? extractNum(nominal) : NaN;
     const delta = !isNaN(numNominal) ? Math.abs(numR - numNominal) : Math.abs(numR);
     return delta <= tolerance ? 'PASS' : 'FAIL';
   }
@@ -593,14 +593,14 @@ export const CatalogTableView: React.FC<Props> = ({
       )}
 
       {/* Tabla */}
-      <div className={isPrint ? '' : 'overflow-x-auto'}>
+      <div className={isPrint || readOnly ? '' : 'overflow-x-auto'}>
         <table className="w-full text-left border-collapse" style={table.columns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
           <thead>
             <tr className={isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100 border-b border-slate-200'}>
               {table.columns.map(col => (
                 <th
                   key={col.key}
-                  className={`px-2 py-1.5 font-semibold ${isPrint ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap' : 'text-xs text-slate-600 border-r border-slate-200'}`}
+                  className={`px-2 py-1.5 font-semibold ${col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center'} ${isPrint ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap' : 'text-xs text-slate-600 border-r border-slate-200'}`}
                   style={col.width ? { width: `${col.width}mm` } : undefined}
                 >
                   {col.label}
@@ -643,11 +643,22 @@ export const CatalogTableView: React.FC<Props> = ({
                   }
                 }
               });
-              // Detect rows that START a span group (any column has span > 1)
+              // Detect rows that START a new group: either has a span > 1,
+              // or is NOT covered by a previous row's span in the first spannable column
+              // (handles single-row groups like μECD)
               const isGroupStart = (rowIdx: number): boolean => {
+                if (rowIdx === 0) return false;
                 const r = table.templateRows[rowIdx];
                 if (!r) return false;
-                return table.columns.some(col => spanAt(r, col.key) > 1);
+                // Has an explicit span → definitely a group start
+                if (table.columns.some(col => spanAt(r, col.key) > 1)) return true;
+                // Check if previous row had a span that covered this row — if not, it's a new group
+                const prevRow = table.templateRows[rowIdx - 1];
+                if (!prevRow) return false;
+                return table.columns.some(col => {
+                  const prevSpan = spanAt(prevRow, col.key);
+                  return prevSpan > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`);
+                }) && !table.columns.some(col => coveredCells.has(`${rowIdx}:${col.key}`));
               };
               return table.templateRows.map((row, idx) => {
               if (row.isTitle) {
@@ -686,17 +697,16 @@ export const CatalogTableView: React.FC<Props> = ({
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
                             colIdx === 0 ? (
                               <span className={`text-[10px] font-semibold ${isPrint ? '' : 'text-slate-700'}`}>
-                                {row.selectorLabel}{isPrint && selectorValue ? ` (${selectorValue})` : ''}
+                                {row.selectorLabel}{(isPrint || readOnly) && selectorValue ? ` (${selectorValue})` : ''}
                               </span>
                             ) : colIdx === dropdownCol ? (
-                              isPrint ? (
+                              (isPrint || readOnly) ? (
                                 <span className="text-[10px]">{selectorValue || '—'}</span>
                               ) : (
                                 <select
                                   value={selectorValue}
-                                  disabled={readOnly}
                                   onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
-                                  className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 >
                                   <option value="">Seleccionar...</option>
                                   {(row.selectorOptions ?? []).map(opt => (
@@ -710,7 +720,7 @@ export const CatalogTableView: React.FC<Props> = ({
                           ) : (
                             // ── Default: label+dropdown en col 0, resto editables ──
                             colIdx === 0 ? (
-                              isPrint ? (
+                              (isPrint || readOnly) ? (
                                 <span className="text-[10px]">
                                   <span className="font-semibold">{row.selectorLabel}</span>
                                   {selectorValue ? ` (${selectorValue})` : ''}
@@ -720,9 +730,8 @@ export const CatalogTableView: React.FC<Props> = ({
                                   <span className="text-[10px] font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
                                   <select
                                     value={selectorValue}
-                                    disabled={readOnly}
                                     onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
-                                    className="text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   >
                                     <option value="">Seleccionar...</option>
                                     {(row.selectorOptions ?? []).map(opt => (
@@ -756,6 +765,10 @@ export const CatalogTableView: React.FC<Props> = ({
                     if (coveredCells.has(`${idx}:${col.key}`)) return null;
                     const colSpan = spanAt(row, col.key);
                     const isSpanning = colSpan > 1;
+                    // A cell is "group-like" if it spans OR if it's a single-row group
+                    // in a column that HAS spans elsewhere (e.g. μECD in the "detector" column)
+                    const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
+                    const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
                     return (
                       <td
                         key={col.key}
@@ -763,8 +776,9 @@ export const CatalogTableView: React.FC<Props> = ({
                         className={[
                           'px-2 py-1.5 align-middle',
                           isPrint
-                            ? `text-[9px] border border-slate-300${isSpanning ? ' font-semibold text-center bg-slate-50' : ''}${groupStart ? ' border-t-2 border-t-slate-500' : ''}`
-                            : `text-xs border-r border-slate-100 border-b border-b-slate-100${isSpanning ? ' font-semibold text-center bg-slate-50 border-r-2 border-r-slate-300' : ''}${groupStart ? ' border-t-2 border-t-slate-300' : ''}`,
+                            ? `text-[9px] border border-slate-300${isGroupCell ? ' font-semibold text-center bg-slate-50' : ''}${groupStart ? ' border-t-2 border-t-slate-500' : ''}`
+                            : `text-xs border-r border-slate-100 border-b border-b-slate-100${isGroupCell ? ' font-semibold text-center bg-slate-50 border-r-2 border-r-slate-300' : ''}${groupStart ? ' border-t-2 border-t-slate-300' : ''}`,
+                          !isGroupCell ? (col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center') : '',
                         ].join(' ')}
                       >
                         {renderTableCell(col, row.rowId)}

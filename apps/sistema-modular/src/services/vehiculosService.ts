@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
-import { db, logAudit, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -25,8 +25,11 @@ function docToVehiculo(d: any): Vehiculo {
 export const vehiculosService = {
   async create(data: Omit<Vehiculo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = { ...data, ...getCreateTrace(), activo: true, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
-    const ref = await addDoc(collection(db, 'vehiculos'), payload);
-    logAudit({ action: 'create', collection: 'vehiculos', documentId: ref.id, after: payload as any });
+    const ref = newDocRef('vehiculos');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'vehiculos', documentId: ref.id, after: payload as any });
+    await batch.commit();
     return ref.id;
   },
 
@@ -45,13 +48,34 @@ export const vehiculosService = {
 
   async update(id: string, data: Partial<Omit<Vehiculo, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const payload = { ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() };
-    await updateDoc(doc(db, 'vehiculos', id), payload);
-    logAudit({ action: 'update', collection: 'vehiculos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('vehiculos', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'vehiculos', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'vehiculos', documentId: id });
-    await deleteDoc(doc(db, 'vehiculos', id));
+    const batch = createBatch();
+    batch.delete(docRef('vehiculos', id));
+    batchAudit(batch, { action: 'delete', collection: 'vehiculos', documentId: id });
+    await batch.commit();
+  },
+
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    activosOnly: boolean,
+    callback: (vehiculos: Vehiculo[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, 'vehiculos'), orderBy('patente', 'asc'));
+    return onSnapshot(q, snap => {
+      let items = snap.docs.map(docToVehiculo);
+      if (activosOnly) items = items.filter(v => v.activo);
+      callback(items);
+    }, err => {
+      console.error('Vehiculos subscription error:', err);
+      onError?.(err);
+    });
   },
 };
 

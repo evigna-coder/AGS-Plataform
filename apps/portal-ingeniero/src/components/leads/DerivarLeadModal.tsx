@@ -53,11 +53,11 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
         deUsuarioNombre: usuario?.displayName ?? '',
         aUsuarioId: destinatarioId || '',
         aUsuarioNombre: destNombre,
-        aArea: areaDestino || undefined,
-        comentario: comentario.trim() || undefined,
+        ...(areaDestino ? { aArea: areaDestino } : {}),
+        ...(comentario.trim() ? { comentario: comentario.trim() } : {}),
         estadoAnterior: lead.estado,
         estadoNuevo: nuevoEstado,
-        accionRequerida: accionRequerida.trim() || undefined,
+        ...(accionRequerida.trim() ? { accionRequerida: accionRequerida.trim() } : {}),
       };
       await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null);
       onSuccess();

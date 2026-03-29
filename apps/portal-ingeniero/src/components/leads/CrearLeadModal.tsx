@@ -119,8 +119,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         deUsuarioNombre: usuario.displayName,
         aUsuarioId: asignadoId || '',
         aUsuarioNombre: asignadoNombre || '',
-        aArea: areaActual || undefined,
-        comentario: descripcion.trim() || undefined,
+        ...(areaActual ? { aArea: areaActual } : {}),
+        ...(descripcion.trim() ? { comentario: descripcion.trim() } : {}),
         estadoAnterior: nuevoEstado,
         estadoNuevo: nuevoEstado,
       };

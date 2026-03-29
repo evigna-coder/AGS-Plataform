@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useTableCatalog } from '../../hooks/useTableCatalog';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -75,7 +75,6 @@ function validateForPublish(entry: TableCatalogEntry): string[] {
 
 export const TableCatalogEditorPage = () => {
   const { tableId } = useParams<{ tableId: string }>();
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const { getTable, saveDraft, publishTable, loading } = useTableCatalog();
   const { projects } = useTableProjects();

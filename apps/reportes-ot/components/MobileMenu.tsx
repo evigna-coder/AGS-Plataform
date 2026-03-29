@@ -14,6 +14,7 @@ interface MobileMenuProps {
   onSharePDF: () => void;
   onDownloadPDF: () => void;
   onSignOut: () => void;
+  onBackToEdit?: () => void;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -29,7 +30,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onFinalSubmit,
   onSharePDF,
   onDownloadPDF,
-  onSignOut
+  onSignOut,
+  onBackToEdit
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -87,13 +89,23 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             )}
           </>
         ) : (
-          <button 
-            onClick={onFinalSubmit} 
-            disabled={isGenerating || !hasSignatures} 
-            className={`font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'}`}
-          >
-            {isGenerating ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
-          </button>
+          <div className="flex flex-col gap-2 items-end">
+            {onBackToEdit && (
+              <button
+                onClick={onBackToEdit}
+                className="bg-slate-700 text-white font-black px-6 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95"
+              >
+                Volver a Editar
+              </button>
+            )}
+            <button
+              onClick={onFinalSubmit}
+              disabled={isGenerating || !hasSignatures}
+              className={`font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'}`}
+            >
+              {isGenerating ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
+            </button>
+          </div>
         )}
         <button
           onClick={onSignOut}
@@ -209,18 +221,31 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                 )}
               </>
             ) : (
-              <button 
-                onClick={() => {
-                  setIsOpen(false);
-                  onFinalSubmit();
-                }} 
-                disabled={isGenerating || !hasSignatures} 
-                className={`font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 whitespace-nowrap ${
-                  !hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'
-                }`}
-              >
-                {isGenerating ? 'Generando...' : 'Finalizar PDF'}
-              </button>
+              <>
+                {onBackToEdit && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      onBackToEdit();
+                    }}
+                    className="bg-slate-700 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    Volver a Editar
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    onFinalSubmit();
+                  }}
+                  disabled={isGenerating || !hasSignatures}
+                  className={`font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 whitespace-nowrap ${
+                    !hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'
+                  }`}
+                >
+                  {isGenerating ? 'Generando...' : 'Finalizar PDF'}
+                </button>
+              </>
             )}
             <button
               onClick={() => {

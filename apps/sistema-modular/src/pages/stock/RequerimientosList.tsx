@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { requerimientosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -48,23 +48,19 @@ export const RequerimientosList = () => {
   }, [requerimientos, filters.urgencia]);
   const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
-  useEffect(() => { loadData(); }, [filters.estado, filters.origen]);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const data = await requerimientosService.getAll({
-        estado: filters.estado || undefined,
-        origen: filters.origen || undefined,
-      });
-      setRequerimientos(data);
-    } catch (error) {
-      console.error('Error cargando requerimientos:', error);
-      alert('Error al cargar los requerimientos');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = requerimientosService.subscribe(
+      { estado: filters.estado || undefined, origen: filters.origen || undefined },
+      (items) => { setRequerimientos(items); setLoading(false); },
+      (err) => { console.error('Error cargando requerimientos:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [filters.estado, filters.origen]);
+
+  const loadData = useCallback(() => {}, []);
 
   const handleAprobar = async (id: string) => {
     if (!confirm('¿Aprobar este requerimiento?')) return;

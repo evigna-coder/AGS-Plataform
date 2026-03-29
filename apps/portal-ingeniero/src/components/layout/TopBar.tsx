@@ -20,8 +20,8 @@ export default function TopBar() {
             className="w-7 h-7 rounded-full object-cover"
           />
         ) : (
-          <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center">
-            <span className="text-[11px] font-semibold text-indigo-700">
+          <div className="w-7 h-7 rounded-full bg-teal-100 flex items-center justify-center">
+            <span className="text-[11px] font-semibold text-teal-700">
               {usuario?.displayName?.charAt(0).toUpperCase() ?? 'U'}
             </span>
           </div>

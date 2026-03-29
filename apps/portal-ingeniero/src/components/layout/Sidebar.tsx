@@ -32,7 +32,7 @@ export default function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 isActive
-                  ? 'bg-indigo-600 text-white border-l-2 border-indigo-300 pl-[10px]'
+                  ? 'bg-teal-600 text-white border-l-2 border-teal-300 pl-[10px]'
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`
             }

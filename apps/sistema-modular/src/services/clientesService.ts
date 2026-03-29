@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc, query, Timestamp, onSnapshot, addDoc, updateDoc } from 'firebase/firestore';
 import type { Cliente, ContactoCliente } from '@ags/shared';
-import { db, logAudit, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef } from './firebase';
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
 export const clientesService = {
@@ -21,9 +21,10 @@ export const clientesService = {
       updatedAt: Timestamp.now(),
     };
     delete (payload as any).contactos;
-    const docRef = doc(db, 'clientes', id);
-    await setDoc(docRef, payload);
-    logAudit({ action: 'create', collection: 'clientes', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'clientes', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'clientes', documentId: id, after: payload as any });
+    await batch.commit();
     console.log('✅ Cliente creado exitosamente con ID:', id);
     return id;
   },
@@ -53,6 +54,36 @@ export const clientesService = {
 
     console.log(`✅ ${clientes.length} clientes cargados`);
     return clientes;
+  },
+
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    activosOnly: boolean,
+    callback: (clientes: Cliente[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, 'clientes'));
+    return onSnapshot(q, snap => {
+      let clientes = snap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        const { contactos: _, ...rest } = data;
+        return {
+          id: docSnap.id,
+          ...rest,
+          activo: data.activo !== false,
+          createdAt: data.createdAt?.toDate().toISOString(),
+          updatedAt: data.updatedAt?.toDate().toISOString(),
+        } as Cliente;
+      });
+      if (activosOnly) {
+        clientes = clientes.filter(c => c.activo !== false);
+      }
+      clientes.sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
+      callback(clientes);
+    }, err => {
+      console.error('Clientes subscription error:', err);
+      onError?.(err);
+    });
   },
 
   // Buscar clientes (por razón social o CUIT)
@@ -90,14 +121,15 @@ export const clientesService = {
 
   // Actualizar cliente
   async update(id: string, data: Partial<Omit<Cliente, 'id' | 'createdAt' | 'updatedAt'>>) {
-    const docRef = doc(db, 'clientes', id);
     const payload = {
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
-    await updateDoc(docRef, payload);
-    logAudit({ action: 'update', collection: 'clientes', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(firestoreDocRef('clientes', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'clientes', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   // Baja lógica (marcar como inactivo)

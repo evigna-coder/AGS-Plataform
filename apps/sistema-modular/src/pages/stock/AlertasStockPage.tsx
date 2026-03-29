@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { articulosService, unidadesService } from '../../services/firebaseService';
 import { Card } from '../../components/ui/Card';
@@ -14,39 +14,41 @@ export const AlertasStockPage = () => {
   const [items, setItems] = useState<ArticuloConStock[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        // Traer todos los artículos activos
-        const articulos = await articulosService.getAll({ activoOnly: true });
+  const unsubRef = useRef<(() => void) | null>(null);
 
-        // Para cada artículo, contar unidades disponibles
-        const alertas: ArticuloConStock[] = [];
-        for (const art of articulos) {
-          if (art.stockMinimo <= 0) continue;
-          const unidades = await unidadesService.getByArticulo(art.id);
-          const disponibles = unidades.filter(u => u.activo && u.estado === 'disponible').length;
-          if (disponibles < art.stockMinimo) {
-            alertas.push({
-              ...art,
-              stockActual: disponibles,
-              deficit: art.stockMinimo - disponibles,
-            });
-          }
+  const computeAlertas = useCallback(async (articulos: import('@ags/shared').Articulo[]) => {
+    try {
+      const alertas: ArticuloConStock[] = [];
+      for (const art of articulos) {
+        if (art.stockMinimo <= 0) continue;
+        const unidades = await unidadesService.getByArticulo(art.id);
+        const disponibles = unidades.filter(u => u.activo && u.estado === 'disponible').length;
+        if (disponibles < art.stockMinimo) {
+          alertas.push({
+            ...art,
+            stockActual: disponibles,
+            deficit: art.stockMinimo - disponibles,
+          });
         }
-
-        // Ordenar por déficit descendente
-        alertas.sort((a, b) => b.deficit - a.deficit);
-        setItems(alertas);
-      } catch (err) {
-        console.error('Error calculando alertas:', err);
-      } finally {
-        setLoading(false);
       }
-    };
-    load();
+      alertas.sort((a, b) => b.deficit - a.deficit);
+      setItems(alertas);
+    } catch (err) {
+      console.error('Error calculando alertas:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = articulosService.subscribe(
+      { activoOnly: true },
+      (articulos) => { computeAlertas(articulos); },
+      (err) => { console.error('Error cargando articulos:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [computeAlertas]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, doc, writeBatch, Timestamp } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
@@ -88,7 +88,8 @@ try {
 
 export { db };
 
-// ========== AUDIT LOG (fire-and-forget) ==========
+// ========== AUDIT LOG ==========
+/** Fire-and-forget audit — no await needed, no extra latency */
 export function logAudit(params: {
   action: AuditAction;
   collection: string;
@@ -109,6 +110,49 @@ export function logAudit(params: {
       ? { before: params.before ?? null, after: params.after ?? null }
       : null,
   }).catch(err => console.error('Audit log failed:', err));
+}
+
+/** Build audit entry for use inside writeBatch */
+function buildAuditEntry(params: {
+  action: AuditAction;
+  collection: string;
+  documentId: string;
+  after?: Record<string, unknown> | null;
+}) {
+  const user = getCurrentUserTrace();
+  return {
+    action: params.action,
+    collection: params.collection,
+    documentId: params.documentId,
+    userId: user?.uid ?? 'unknown',
+    userName: user?.name ?? 'unknown',
+    timestamp: Timestamp.now(),
+    changes: params.after ? { before: null, after: params.after } : null,
+  };
+}
+
+/** Create a Firestore WriteBatch pre-configured with db */
+export function createBatch() {
+  return writeBatch(db);
+}
+
+/** Get a new auto-id doc ref for a collection */
+export function newDocRef(collectionName: string) {
+  return doc(collection(db, collectionName));
+}
+
+/** Get a doc ref for an existing document */
+export function docRef(collectionName: string, docId: string) {
+  return doc(db, collectionName, docId);
+}
+
+/** Add audit entry to an existing batch (single round-trip) */
+export function batchAudit(
+  batch: ReturnType<typeof writeBatch>,
+  params: { action: AuditAction; collection: string; documentId: string; after?: Record<string, unknown> | null }
+) {
+  const auditRef = doc(collection(db, 'audit_log'));
+  batch.set(auditRef, buildAuditEntry(params));
 }
 
 // Re-export currentUser utilities for convenience

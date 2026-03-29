@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { condicionesPagoService } from '../../services/firebaseService';
 import type { CondicionPago } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -8,7 +7,6 @@ import { Input } from '../../components/ui/Input';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const CondicionesPago = () => {
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [condiciones, setCondiciones] = useState<CondicionPago[]>([]);
   const [loading, setLoading] = useState(true);

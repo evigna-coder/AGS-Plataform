@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { minikitsService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -29,20 +29,18 @@ export const MinikitsList = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ codigo: '', nombre: '', descripcion: '' });
   const [creating, setCreating] = useState(false);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const reload = async () => {
-    setLoading(true);
-    try {
-      const data = await minikitsService.getAll(filters.showInactive ? false : true);
-      setMinikits(data);
-    } catch (err) {
-      console.error('Error cargando minikits:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = minikitsService.subscribe(
+      !filters.showInactive,
+      (data) => { setMinikits(data); setLoading(false); },
+      (err) => { console.error('Error cargando minikits:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [filters.showInactive]);
 
-  useEffect(() => { reload(); }, [filters.showInactive]);
 
   const handleCreate = async () => {
     if (!form.codigo.trim() || !form.nombre.trim()) return;
@@ -58,7 +56,6 @@ export const MinikitsList = () => {
       });
       setForm({ codigo: '', nombre: '', descripcion: '' });
       setShowCreate(false);
-      reload();
     } catch {
       alert('Error al crear el minikit');
     } finally {
@@ -69,7 +66,6 @@ export const MinikitsList = () => {
   const handleToggleActivo = async (mk: Minikit) => {
     try {
       await minikitsService.update(mk.id, { activo: !mk.activo });
-      reload();
     } catch {
       alert('Error al cambiar el estado');
     }
@@ -79,7 +75,6 @@ export const MinikitsList = () => {
     if (!confirm(`¿Eliminar permanentemente "${mk.codigo} - ${mk.nombre}"?`)) return;
     try {
       await minikitsService.delete(mk.id);
-      reload();
     } catch {
       alert('Error al eliminar el minikit');
     }

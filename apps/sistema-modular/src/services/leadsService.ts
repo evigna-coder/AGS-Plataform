@@ -1,8 +1,8 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
-import { db, storage, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
 
 function migrateLeadEstado(raw: string): LeadEstado {
   const migration: Record<string, LeadEstado> = {
@@ -79,9 +79,12 @@ export const leadsService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    const docRef = await addDoc(collection(db, 'leads'), payload);
-    logAudit({ action: 'create', collection: 'leads', documentId: docRef.id, after: payload as any });
-    return docRef.id;
+    const leadRef = newDocRef('leads');
+    const batch = createBatch();
+    batch.set(leadRef, payload);
+    batchAudit(batch, { action: 'create', collection: 'leads', documentId: leadRef.id, after: payload as any });
+    await batch.commit();
+    return leadRef.id;
   },
 
   async getAll(filters?: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: LeadArea }) {
@@ -96,6 +99,27 @@ export const leadsService = {
     return snap.docs.map(d => parseLeadDoc(d));
   },
 
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    filters: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: LeadArea } | undefined,
+    callback: (leads: Lead[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: any[] = [];
+    if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
+    if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
+    if (filters?.motivoLlamado) constraints.push(where('motivoLlamado', '==', filters.motivoLlamado));
+    if (filters?.areaActual) constraints.push(where('areaActual', '==', filters.areaActual));
+    constraints.push(orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'leads'), ...constraints);
+    return onSnapshot(q, snap => {
+      callback(snap.docs.map(d => parseLeadDoc(d)));
+    }, err => {
+      console.error('Leads subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async getById(id: string): Promise<Lead | null> {
     const snap = await getDoc(doc(db, 'leads', id));
     if (!snap.exists()) return null;
@@ -108,12 +132,14 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'leads', id), payload);
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('leads', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { prioridad?: LeadPrioridad | null; proximoContacto?: string | null }) {
-    const update: Record<string, any> = {
+    const data: Record<string, any> = {
       postas: arrayUnion(deepCleanForFirestore(posta)),
       asignadoA: nuevoAsignadoA || null,
       asignadoNombre: nuevoAsignadoNombre || null,
@@ -122,43 +148,51 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
-    if (area !== undefined) update.areaActual = area || null;
-    if (accionRequerida !== undefined) update.accionPendiente = accionRequerida || null;
-    if (extras?.prioridad !== undefined) update.prioridad = extras.prioridad;
-    if (extras?.proximoContacto !== undefined) update.proximoContacto = extras.proximoContacto || null;
-    await updateDoc(doc(db, 'leads', id), update);
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } as any });
+    if (area !== undefined) data.areaActual = area || null;
+    if (accionRequerida !== undefined) data.accionPendiente = accionRequerida || null;
+    if (extras?.prioridad !== undefined) data.prioridad = extras.prioridad;
+    if (extras?.proximoContacto !== undefined) data.proximoContacto = extras.proximoContacto || null;
+    const batch = createBatch();
+    batch.update(docRef('leads', id), data);
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } as any });
+    await batch.commit();
   },
 
   async completarAccion(id: string, posta: Posta) {
-    await updateDoc(doc(db, 'leads', id), {
+    const batch = createBatch();
+    batch.update(docRef('leads', id), {
       postas: arrayUnion(deepCleanForFirestore(posta)),
       accionPendiente: null,
       estado: posta.estadoNuevo,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'completarAccion', posta } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'completarAccion', posta } as any });
+    await batch.commit();
   },
 
   async finalizar(id: string, posta: Posta) {
-    await updateDoc(doc(db, 'leads', id), {
+    const batch = createBatch();
+    batch.update(docRef('leads', id), {
       postas: arrayUnion(deepCleanForFirestore(posta)),
       estado: posta.estadoNuevo,
       finalizadoAt: Timestamp.now(),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } as any });
+    await batch.commit();
   },
 
   async agregarComentario(id: string, posta: Posta) {
-    await updateDoc(doc(db, 'leads', id), {
+    const batch = createBatch();
+    batch.update(docRef('leads', id), {
       postas: arrayUnion(deepCleanForFirestore(posta)),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { accion: 'comentario', posta } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'comentario', posta } as any });
+    await batch.commit();
   },
 
   async linkPresupuesto(id: string, presupuestoId: string) {
@@ -178,8 +212,10 @@ export const leadsService = {
   },
 
   async delete(id: string) {
-    logAudit({ action: 'delete', collection: 'leads', documentId: id });
-    await deleteDoc(doc(db, 'leads', id));
+    const batch = createBatch();
+    batch.delete(docRef('leads', id));
+    batchAudit(batch, { action: 'delete', collection: 'leads', documentId: id });
+    await batch.commit();
   },
 
   async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoLead[]> {
@@ -223,11 +259,13 @@ export const leadsService = {
     }
     // Remove from Firestore array
     const updated = allAdjuntos.filter(a => a.id !== adjunto.id);
-    await updateDoc(doc(db, 'leads', leadId), {
+    const batch = createBatch();
+    batch.update(docRef('leads', leadId), {
       adjuntos: updated.map(a => deepCleanForFirestore(a)),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    logAudit({ action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'removeAdjunto', adjuntoId: adjunto.id } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'removeAdjunto', adjuntoId: adjunto.id } as any });
+    await batch.commit();
   },
 };

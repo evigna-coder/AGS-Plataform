@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { sistemasService, categoriasEquipoService, clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -42,6 +42,7 @@ export const EquiposList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [loading, setLoading] = useState(true);
+  const unsubRef = useRef<(() => void) | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [qrSistema, setQrSistema] = useState<Sistema | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -58,30 +59,29 @@ export const EquiposList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    // Load reference data
+    Promise.all([
+      categoriasEquipoService.getAll(),
+      clientesService.getAll(),
+      establecimientosService.getAll(),
+    ]).then(([cats, cls, ests]) => {
+      setCategorias(cats);
+      setClientes(cls);
+      setEstablecimientos(ests);
+    }).catch(err => console.error('Error cargando datos de referencia:', err));
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [sistemasData, categoriasData, clientesData, establecimientosData] = await Promise.all([
-        sistemasService.getAll({
-          clienteId: filters.cliente || undefined,
-        }),
-        categoriasEquipoService.getAll(),
-        clientesService.getAll(),
-        establecimientosService.getAll(),
-      ]);
-      setSistemas(sistemasData);
-      setCategorias(categoriasData);
-      setClientes(clientesData);
-      setEstablecimientos(establecimientosData);
-    } catch (error) {
-      console.error('Error cargando datos:', error);
-      alert('Error al cargar los datos');
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Subscribe to main data (sistemas)
+    unsubRef.current?.();
+    unsubRef.current = sistemasService.subscribe(
+      undefined,
+      (data) => { setSistemas(data); setLoading(false); },
+      (err) => { console.error('Sistemas subscription error:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, []);
+
+  const loadData = useCallback(() => {}, []);
 
   const clienteMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -159,7 +159,6 @@ export const EquiposList = () => {
     if (!confirm(`¿Eliminar el sistema "${sistemaNombre}"?\n\nEsta acción eliminará también todos los módulos asociados y no se puede deshacer.`)) return;
     try {
       await sistemasService.delete(sistemaId);
-      await loadData();
     } catch (error) {
       console.error('Error eliminando sistema:', error);
       alert('Error al eliminar el sistema');
@@ -175,7 +174,6 @@ export const EquiposList = () => {
         await sistemasService.delete(id);
       }
       setSelected(new Set());
-      await loadData();
     } catch (error) {
       console.error('Error eliminando sistemas:', error);
       alert('Error al eliminar sistemas');
@@ -218,7 +216,6 @@ export const EquiposList = () => {
       }
       setSelected(new Set());
       setShowReassign(false);
-      await loadData();
     } catch (error) {
       console.error('Error reasignando sistemas:', error);
       alert('Error al reasignar');

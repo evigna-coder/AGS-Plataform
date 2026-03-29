@@ -163,7 +163,7 @@ export default function LeadDetailPage() {
                   <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
                     {lead.contacto && <span>{lead.contacto}</span>}
-                    {lead.email && <a href={`mailto:${lead.email}`} className="text-indigo-600 hover:text-indigo-800">{lead.email}</a>}
+                    {lead.email && <a href={`mailto:${lead.email}`} className="text-teal-600 hover:text-teal-800">{lead.email}</a>}
                     {lead.telefono && <span>{lead.telefono}</span>}
                   </div>
                 </div>
@@ -205,7 +205,7 @@ export default function LeadDetailPage() {
                   <div className="flex gap-2">
                     <textarea value={comentario} onChange={e => setComentario(e.target.value)}
                       rows={1} placeholder="Ej: Se envió mail al cliente, a la espera de respuesta..."
-                      className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAgregarComentario(); } }} />
                     <Button size="sm" onClick={handleAgregarComentario} disabled={!comentario.trim() || enviandoComentario}>
                       {enviandoComentario ? '...' : 'Agregar'}
@@ -232,7 +232,7 @@ export default function LeadDetailPage() {
                     {linkedOTs.map(otNum => (
                       <div key={otNum} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">OT</span>
-                        <Link to={`/ordenes-trabajo/${otNum}`} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{otNum}</Link>
+                        <Link to={`/ordenes-trabajo/${otNum}`} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{otNum}</Link>
                       </div>
                     ))}
                   </div>

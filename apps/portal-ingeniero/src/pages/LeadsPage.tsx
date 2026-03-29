@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Lead, LeadEstado } from '@ags/shared';
 import {
@@ -37,27 +37,35 @@ export default function LeadsPage() {
   const [estadoFilter, setEstadoFilter] = useState<LeadEstado | ''>('');
   const [filters, setFilters] = useState<LeadFiltersState>(INITIAL_FILTERS);
 
+  const unsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     usuariosService.getIngenieros().then(setUsuarios);
   }, []);
 
-  useEffect(() => { loadLeads(); }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, filters.prioridad]);
+  // Build Firestore query filters
+  const queryFilters = useMemo(() => {
+    const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
+    return {
+      ...(estadoFilter ? { estado: estadoFilter as LeadEstado } : {}),
+      ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
+    };
+  }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, usuario]);
 
-  const loadLeads = async () => {
-    try {
-      setLoading(true);
-      const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
-      const data = await leadsService.getAll({
-        ...(estadoFilter ? { estado: estadoFilter } : {}),
-        ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
-      });
-      setLeads(data);
-    } catch (err) {
-      console.error('Error al cargar leads:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Real-time subscription
+  useEffect(() => {
+    setLoading(true);
+    unsubRef.current?.();
+    unsubRef.current = leadsService.subscribe(
+      queryFilters,
+      (data) => { setLeads(data); setLoading(false); },
+      (err) => { console.error('Error leads:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [queryFilters]);
+
+  // No-op: onSnapshot handles real-time updates automatically
+  const loadLeads = useCallback(async () => {}, []);
 
   const leadsFiltered = useMemo(() => {
     let result = leads;

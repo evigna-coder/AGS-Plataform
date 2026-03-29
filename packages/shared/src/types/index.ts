@@ -982,6 +982,8 @@ export interface TableCatalogColumn {
   options?: string[];
   /** Ancho de la columna en mm. Si no se define, se distribuye automáticamente. */
   width?: number | null;
+  /** Alineación del texto en la columna. Por defecto 'center'. */
+  align?: 'left' | 'center' | 'right' | null;
 }
 
 export interface TableCatalogRow {
@@ -1046,11 +1048,13 @@ export interface TableCatalogRule {
 
 /**
  * Tipo de interacción de cada ítem de checklist:
- * - 'checkbox'    : tarea simple para tildar
- * - 'value_input' : campo con etiqueta y unidad opcional (ej. "Nro. de serie: ___")
- * - 'pass_fail'   : resultado con opciones CUMPLE / NO_CUMPLE / NA
+ * - 'checkbox'        : tarea simple para tildar
+ * - 'value_input'     : campo con etiqueta y unidad opcional (ej. "Nro. de serie: ___")
+ * - 'pass_fail'       : resultado con opciones CUMPLE / NO_CUMPLE / NA
+ * - 'selector'        : menú desplegable con opciones predefinidas
+ * - 'embedded_table'  : tabla informacional embebida (solo lectura para el técnico)
  */
-export type ChecklistItemType = 'checkbox' | 'value_input' | 'pass_fail' | 'selector';
+export type ChecklistItemType = 'checkbox' | 'value_input' | 'pass_fail' | 'selector' | 'embedded_table';
 
 export interface ChecklistItem {
   /** ID estable dentro del checklist (ej. "item_001") */
@@ -1075,16 +1079,41 @@ export interface ChecklistItem {
   numberPrefix?: string | null;
   /** Opciones para itemType 'selector' (ej. ["FID", "ECD", "FPD"]) */
   selectorOptions?: string[] | null;
-  /** Condición de visibilidad: solo se muestra si el selector referenciado tiene alguno de los valores indicados */
-  visibleWhen?: { selectorItemId: string; values: string[] } | null;
+  /** Condición de visibilidad:
+   *  - Selector: solo se muestra si el selector referenciado tiene alguno de los valores indicados
+   *  - Checkbox: solo se muestra si el checkbox referenciado tiene el estado indicado en whenChecked */
+  visibleWhen?:
+    | { selectorItemId: string; values: string[] }
+    | { checkboxItemId: string; whenChecked: boolean }
+    | null;
+  /** Para checkbox: si está definido, al tildar aparece un campo de valor con esta etiqueta (ej. "Cantidad") */
+  linkedValueLabel?: string | null;
+  /** Unidad del campo vinculado (ej. "unid.", "ml") */
+  linkedValueUnit?: string | null;
+  /** Columnas de la tabla embebida (solo para itemType 'embedded_table').
+   *  Si `options` está definido, la celda se renderiza como selector en vez de texto fijo. */
+  embeddedColumns?: {
+    key: string;
+    label: string;
+    options?: string[] | null;
+    /** Cómo mostrar las opciones: 'select' (desplegable) o 'radio' (botones radio inline). Default: 'select'. */
+    displayAs?: 'select' | 'radio' | null;
+    /** Nombre del grupo padre. Columnas con el mismo group comparten un header agrupado (colspan). */
+    group?: string | null;
+    /** Si true, esta columna actúa como cabecera de fila (bold, alineada a la izquierda). */
+    isRowHeader?: boolean;
+  }[] | null;
+  /** Filas de la tabla embebida (solo para itemType 'embedded_table'). Cada entrada mapea column key → valor. */
+  embeddedRows?: Record<string, string>[] | null;
 }
 
 /** Respuesta del técnico para un ítem de checklist */
 export type ChecklistItemAnswer =
-  | { itemType: 'checkbox'; checked: boolean }
+  | { itemType: 'checkbox'; checked: boolean; linkedValue?: string }
   | { itemType: 'value_input'; value: string }
   | { itemType: 'pass_fail'; result: 'CUMPLE' | 'NO_CUMPLE' | 'NA' | '' }
-  | { itemType: 'selector'; selected: string };
+  | { itemType: 'selector'; selected: string }
+  | { itemType: 'embedded_table'; cells: Record<string, string>[] };
 
 /** Campo de encabezado que se muestra arriba de la tabla para que el técnico seleccione una opción. */
 export interface TableHeaderField {

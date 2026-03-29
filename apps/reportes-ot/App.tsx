@@ -470,12 +470,7 @@ const App: React.FC = () => {
             adjuntos={app.adjuntos} firebase={app.firebase}
             setIsPreviewMode={app.setIsPreviewMode}
           />
-          <button
-            onClick={() => app.setIsPreviewMode(false)}
-            className="fixed bottom-24 right-6 bg-slate-800 text-white font-black px-6 py-3 rounded-full uppercase tracking-widest text-[10px] shadow-xl hover:bg-slate-700 no-print z-50"
-          >
-            Volver a Editar
-          </button>
+{/* Botón "Volver a Editar" ahora está integrado en MobileMenu */}
         </>
       )}
 
@@ -492,6 +487,7 @@ const App: React.FC = () => {
         onSharePDF={app.shareReportPDF}
         onDownloadPDF={app.downloadPDF}
         onSignOut={signOut}
+        onBackToEdit={app.isPreviewMode ? () => app.setIsPreviewMode(false) : undefined}
       />
 
       {/* Modals */}

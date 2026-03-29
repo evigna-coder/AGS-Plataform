@@ -19,11 +19,11 @@ export const TablePreview = ({ table }: Props) => {
         <div className="p-6 text-center text-slate-400 text-sm">Sin columnas definidas</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse" style={table.columns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
             <thead>
               <tr className="bg-slate-50">
                 {table.columns.map((col: TableCatalogEntry['columns'][number]) => (
-                  <th key={col.key} className="px-3 py-2 text-left font-bold text-slate-700 border border-slate-200"
+                  <th key={col.key} className={`px-3 py-2 font-bold text-slate-700 border border-slate-200 ${col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center'}`}
                     style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
                     {col.label}
                     {col.unit ? ` (${col.unit})` : ''}
@@ -59,11 +59,19 @@ export const TablePreview = ({ table }: Props) => {
                     }
                   }
                 });
-                // Detect rows that START a span group (any column has span > 1)
+                // Detect rows that START a new group: either has a span > 1,
+                // or is NOT covered by a previous row's span (handles single-row groups like μECD)
                 const isGroupStart = (rowIdx: number): boolean => {
+                  if (rowIdx === 0) return false;
                   const row = table.templateRows[rowIdx];
                   if (!row) return false;
-                  return table.columns.some(col => spanAt(row, col.key) > 1);
+                  if (table.columns.some(col => spanAt(row, col.key) > 1)) return true;
+                  const prevRow = table.templateRows[rowIdx - 1];
+                  if (!prevRow) return false;
+                  return table.columns.some(col => {
+                    const prevSpan = spanAt(prevRow, col.key);
+                    return prevSpan > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`);
+                  }) && !table.columns.some(col => coveredCells.has(`${rowIdx}:${col.key}`));
                 };
                 return table.templateRows.map((row: TableCatalogEntry['templateRows'][number], idx: number) => (
                   row.isTitle ? (
@@ -119,13 +127,17 @@ export const TablePreview = ({ table }: Props) => {
                         if (coveredCells.has(`${idx}:${col.key}`)) return null;
                         const colSpan = spanAt(row, col.key);
                         const isSpanning = colSpan > 1;
+                        // Single-row group cell (e.g. μECD): style like spanning, but only for columns that have spans elsewhere
+                        const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
+                        const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
                         return (
                           <td
                             key={col.key}
                             rowSpan={isSpanning ? colSpan : undefined}
                             className={[
                               'px-3 py-2 border border-slate-200 text-slate-700',
-                              isSpanning ? 'align-middle font-semibold bg-slate-100 text-center border-r-2 border-r-slate-300' : '',
+                              isGroupCell ? 'align-middle font-semibold bg-slate-100 text-center border-r-2 border-r-slate-300'
+                                : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center',
                               groupStart ? 'border-t-2 border-t-slate-400' : '',
                             ].join(' ')}
                           >

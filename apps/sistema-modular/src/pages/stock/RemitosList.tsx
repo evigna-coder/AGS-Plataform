@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { remitosService, clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -36,25 +36,30 @@ export const RemitosList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  useEffect(() => { clientesService.getAll(true).then(setClientes); }, []);
-  useEffect(() => { loadData(); }, [filters.estado, filters.tipo, filters.showAll]);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const data = await remitosService.getAll({
+  // Load reference data (clientes) once
+  useEffect(() => { clientesService.getAll(true).then(setClientes); }, []);
+
+  // Subscribe to remitos with current filters
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = remitosService.subscribe(
+      {
         estado: filters.estado || undefined,
         tipo: filters.tipo || undefined,
-      });
-      const filtered = filters.showAll ? data : data.filter(r => r.estado !== 'cancelado');
-      setRemitos(filtered);
-    } catch (error) {
-      console.error('Error cargando remitos:', error);
-      alert('Error al cargar los remitos');
-    } finally {
-      setLoading(false);
-    }
-  };
+      },
+      (data) => {
+        const filtered = filters.showAll ? data : data.filter(r => r.estado !== 'cancelado');
+        setRemitos(filtered);
+        setLoading(false);
+      },
+      (err) => { console.error('Error cargando remitos:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [filters.estado, filters.tipo, filters.showAll]);
+
+  const loadData = useCallback(() => {}, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este remito borrador?')) return;

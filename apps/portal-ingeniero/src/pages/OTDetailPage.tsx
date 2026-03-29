@@ -19,8 +19,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'firmas', label: 'Firmas' },
 ];
 
-const ta = 'w-full border border-slate-300 rounded-xl px-3 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none disabled:bg-slate-50 disabled:text-slate-500';
-const inp = 'w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500';
+const ta = 'w-full border border-slate-300 rounded-xl px-3 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none disabled:bg-slate-50 disabled:text-slate-500';
+const inp = 'w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-500';
 const lbl = 'block text-xs font-medium text-slate-500 mb-1';
 
 export default function OTDetailPage() {
@@ -91,7 +91,7 @@ export default function OTDetailPage() {
               href={reportesUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium px-2 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 font-medium px-2 py-1.5 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -110,7 +110,7 @@ export default function OTDetailPage() {
             onClick={() => setTab(t.id)}
             className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
               tab === t.id
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-teal-600 text-teal-600'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >

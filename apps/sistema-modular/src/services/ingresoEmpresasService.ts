@@ -1,7 +1,7 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 import type { IngresoEmpresa } from '@ags/shared';
 import { DEFAULT_DOCUMENTACION } from '@ags/shared';
-import { db, logAudit, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace } from './firebase';
 
 type CreateData = Omit<IngresoEmpresa, 'id' | 'createdAt' | 'updatedAt'>;
 type UpdateData = Partial<Omit<IngresoEmpresa, 'id' | 'createdAt' | 'updatedAt'>>;
@@ -27,9 +27,12 @@ export const ingresoEmpresasService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
-    const docRef = await addDoc(collection(db, 'ingresosEmpresas'), payload);
-    logAudit({ action: 'create', collection: 'ingresosEmpresas', documentId: docRef.id, after: payload as any });
-    return docRef.id;
+    const ref = newDocRef('ingresosEmpresas');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'ingresosEmpresas', documentId: ref.id, after: payload as any });
+    await batch.commit();
+    return ref.id;
   },
 
   async getAll(activosOnly = false): Promise<IngresoEmpresa[]> {
@@ -51,13 +54,34 @@ export const ingresoEmpresasService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
-    await updateDoc(doc(db, 'ingresosEmpresas', id), payload);
-    logAudit({ action: 'update', collection: 'ingresosEmpresas', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('ingresosEmpresas', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'ingresosEmpresas', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'ingresosEmpresas', documentId: id });
-    await deleteDoc(doc(db, 'ingresosEmpresas', id));
+    const batch = createBatch();
+    batch.delete(docRef('ingresosEmpresas', id));
+    batchAudit(batch, { action: 'delete', collection: 'ingresosEmpresas', documentId: id });
+    await batch.commit();
+  },
+
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    activosOnly: boolean,
+    callback: (ingresos: IngresoEmpresa[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, 'ingresosEmpresas'), orderBy('clienteNombre', 'asc'));
+    return onSnapshot(q, snap => {
+      let items = snap.docs.map(docToIngreso);
+      if (activosOnly) items = items.filter(i => i.activo);
+      callback(items);
+    }, err => {
+      console.error('IngresosEmpresas subscription error:', err);
+      onError?.(err);
+    });
   },
 
   async deactivate(id: string): Promise<void> {

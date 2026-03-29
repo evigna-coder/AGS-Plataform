@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { articulosService, marcasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -37,38 +37,35 @@ export const ArticulosList = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const unsubRef = useRef<(() => void) | null>(null);
 
+  // Load reference data (marcas) once
   useEffect(() => {
-    loadData();
+    marcasService.getAll(false).then(data => setMarcas(data as Marca[]));
+  }, []);
+
+  // Subscribe to articulos with current filters
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = articulosService.subscribe(
+      {
+        categoriaEquipo: filters.categoriaEquipo || undefined,
+        marcaId: filters.marcaId || undefined,
+        tipo: filters.tipo || undefined,
+        activoOnly: !filters.showInactive,
+      },
+      (data) => { setArticulos(data); setLoading(false); },
+      (err) => { console.error('Error cargando articulos:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
   }, [filters.categoriaEquipo, filters.marcaId, filters.tipo, filters.showInactive]);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [artData, marcasData] = await Promise.all([
-        articulosService.getAll({
-          categoriaEquipo: filters.categoriaEquipo || undefined,
-          marcaId: filters.marcaId || undefined,
-          tipo: filters.tipo || undefined,
-          activoOnly: !filters.showInactive,
-        }),
-        marcas.length === 0 ? marcasService.getAll(false) : Promise.resolve(marcas),
-      ]);
-      setArticulos(artData);
-      if (marcas.length === 0) setMarcas(marcasData as Marca[]);
-    } catch (error) {
-      console.error('Error cargando articulos:', error);
-      alert('Error al cargar los articulos');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadData = useCallback(() => {}, []);
 
   const handleDeactivate = async (art: Articulo) => {
     if (!confirm(`Desactivar el articulo "${art.codigo} - ${art.descripcion}"?`)) return;
     try {
       await articulosService.deactivate(art.id);
-      await loadData();
     } catch (error) {
       console.error('Error desactivando articulo:', error);
       alert('Error al desactivar el articulo');
@@ -79,7 +76,6 @@ export const ArticulosList = () => {
     if (!confirm(`Eliminar permanentemente "${art.codigo}"?\n\nEsta accion no se puede deshacer.`)) return;
     try {
       await articulosService.delete(art.id);
-      await loadData();
     } catch (error) {
       console.error('Error eliminando articulo:', error);
       alert('Error al eliminar el articulo');
@@ -133,7 +129,6 @@ export const ArticulosList = () => {
       setBulkLoading(true);
       await processBatched([...selectedIds], id => articulosService.deactivate(id));
       setSelectedIds(new Set());
-      await loadData();
     } catch (error) {
       console.error('Error en desactivacion masiva:', error);
       alert('Error al desactivar articulos');
@@ -149,7 +144,6 @@ export const ArticulosList = () => {
       setBulkLoading(true);
       await processBatched([...selectedIds], id => articulosService.delete(id));
       setSelectedIds(new Set());
-      await loadData();
     } catch (error) {
       console.error('Error en eliminacion masiva:', error);
       alert('Error al eliminar articulos');

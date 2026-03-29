@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { proveedoresService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -16,20 +16,24 @@ export const ProveedoresPage = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [filterTipo, setFilterTipo] = useState('');
 
-  const reload = async () => {
-    setLoading(true);
-    try {
-      const data = await proveedoresService.getAll(!showInactive);
-      const filtered = filterTipo ? data.filter(p => p.tipo === filterTipo) : data;
-      setItems(filtered);
-    } catch (err) {
-      console.error('Error cargando proveedores:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const unsubRef = useRef<(() => void) | null>(null);
+  const [allItems, setAllItems] = useState<Proveedor[]>([]);
 
-  useEffect(() => { reload(); }, [showInactive, filterTipo]);
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = proveedoresService.subscribe(
+      !showInactive,
+      (data) => { setAllItems(data); setLoading(false); },
+      (err) => { console.error('Error cargando proveedores:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [showInactive]);
+
+  useEffect(() => {
+    setItems(filterTipo ? allItems.filter(p => p.tipo === filterTipo) : allItems);
+  }, [allItems, filterTipo]);
+
+  const reload = useCallback(() => {}, []);
 
   const handleToggle = async (p: Proveedor) => {
     try { await proveedoresService.update(p.id, { activo: !p.activo }); reload(); }

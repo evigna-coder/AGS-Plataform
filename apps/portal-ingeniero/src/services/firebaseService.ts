@@ -232,6 +232,25 @@ export const leadsService = {
     return snap.docs.map(d => parseLead(d.id, d.data() as Record<string, unknown>));
   },
 
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    filters: { estado?: LeadEstado; asignadoA?: string } | undefined,
+    callback: (leads: Lead[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: QueryConstraint[] = [];
+    if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
+    if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
+    constraints.push(orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'leads'), ...constraints);
+    return onSnapshot(q, snap => {
+      callback(snap.docs.map(d => parseLead(d.id, d.data() as Record<string, unknown>)));
+    }, err => {
+      console.error('Leads subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async getById(id: string): Promise<Lead | null> {
     const snap = await getDoc(doc(db, 'leads', id));
     if (!snap.exists()) return null;
@@ -463,6 +482,26 @@ export const otService = {
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
+  },
+
+  /** Real-time subscription to OTs. Subscribes to ordenes_trabajo collection. */
+  subscribe(
+    filters: { ingenieroId?: string; status?: string } | undefined,
+    callback: (ots: WorkOrderWithPdf[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: QueryConstraint[] = [];
+    if (filters?.ingenieroId) constraints.push(where('ingenieroAsignadoId', '==', filters.ingenieroId));
+    if (filters?.status) constraints.push(where('status', '==', filters.status));
+    const q = query(collection(db, 'ordenes_trabajo'), ...constraints);
+    return onSnapshot(q, snap => {
+      const ots = snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
+      ots.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      callback(ots);
+    }, err => {
+      console.error('OT subscription error:', err);
+      onError?.(err);
+    });
   },
 };
 

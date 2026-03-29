@@ -14,7 +14,7 @@ export default function AgendaEntryCard({ entry }: Props) {
     pendiente: 'border-l-slate-400',
     tentativo: 'border-l-amber-400',
     confirmado: 'border-l-blue-500',
-    en_progreso: 'border-l-indigo-500',
+    en_progreso: 'border-l-teal-500',
     completado: 'border-l-emerald-500',
     cancelado: 'border-l-red-400',
   };
@@ -32,7 +32,7 @@ export default function AgendaEntryCard({ entry }: Props) {
       <div>
         <Link
           to={`/ordenes-trabajo/${entry.otNumber}`}
-          className="text-xs font-semibold text-indigo-600 hover:underline"
+          className="text-xs font-semibold text-teal-600 hover:underline"
         >
           OT {entry.otNumber}
         </Link>

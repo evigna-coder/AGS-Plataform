@@ -32,7 +32,7 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
         deUsuarioNombre: usuario?.displayName ?? '',
         aUsuarioId: usuario?.id ?? '',
         aUsuarioNombre: usuario?.displayName ?? '',
-        comentario: comentario.trim() || undefined,
+        ...(comentario.trim() ? { comentario: comentario.trim() } : {}),
         estadoAnterior: lead.estado,
         estadoNuevo: resultado,
       };

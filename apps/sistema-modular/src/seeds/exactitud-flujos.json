@@ -10,39 +10,34 @@
     "allowClientSpec": true,
     "allowExtraRows": false,
     "columns": [
-      { "key": "flujo", "label": "Gas / Flujo", "type": "fixed_text", "required": false, "width": 35 },
-      { "key": "front", "label": "FRONT", "type": "number_input", "required": true, "unit": "mL/min", "width": 22 },
-      { "key": "back", "label": "BACK", "type": "number_input", "required": true, "unit": "mL/min", "width": 22 },
-      { "key": "spec", "label": "Especificación", "type": "fixed_text", "required": false, "unit": "mL/min", "width": 25 },
-      { "key": "conc_front", "label": "Conc. FRONT", "type": "text_input", "required": false, "width": 22 },
-      { "key": "conc_back", "label": "Conc. BACK", "type": "text_input", "required": false, "width": 22 }
+      { "key": "detector", "label": "Detector", "type": "fixed_text", "required": false, "width": 16 },
+      { "key": "flujo", "label": "Gas / Flujo", "type": "fixed_text", "required": false, "width": 28 },
+      { "key": "spec", "label": "Espec.", "type": "fixed_text", "required": false, "width": 18 },
+      { "key": "front", "label": "FRONT", "type": "number_input", "required": true, "unit": "mL/min", "width": 20 },
+      { "key": "conc_front", "label": "Conc.", "type": "text_input", "required": false, "width": 16 },
+      { "key": "back", "label": "BACK", "type": "number_input", "required": true, "unit": "mL/min", "width": 20 },
+      { "key": "conc_back", "label": "Conc.", "type": "text_input", "required": false, "width": 16 }
     ],
     "templateRows": [
-      { "rowId": "t_fid", "isTitle": true, "titleText": "FID", "cells": {} },
-      { "rowId": "r001", "cells": { "flujo": "Aire 400 mL/min", "front": null, "back": null, "spec": "± 40.0", "conc_front": null, "conc_back": null } },
-      { "rowId": "r002", "cells": { "flujo": "H₂ 30 mL/min", "front": null, "back": null, "spec": "± 3.0", "conc_front": null, "conc_back": null } },
-      { "rowId": "r003", "cells": { "flujo": "Aux 25 mL/min", "front": null, "back": null, "spec": "± 2.5", "conc_front": null, "conc_back": null } },
+      { "rowId": "r001", "cells": { "detector": "FID", "flujo": "Aire 400 mL/min", "front": null, "back": null, "spec": "± 40.0", "conc_front": null, "conc_back": null }, "columnSpans": { "detector": 3 } },
+      { "rowId": "r002", "cells": { "detector": "FID", "flujo": "H₂ 30 mL/min", "front": null, "back": null, "spec": "± 3.0", "conc_front": null, "conc_back": null } },
+      { "rowId": "r003", "cells": { "detector": "FID", "flujo": "Aux 25 mL/min", "front": null, "back": null, "spec": "± 2.5", "conc_front": null, "conc_back": null } },
 
-      { "rowId": "t_ecd", "isTitle": true, "titleText": "ECD", "cells": {} },
-      { "rowId": "r004", "cells": { "flujo": "Aux 60 mL/min", "front": null, "back": null, "spec": "± 6.0", "conc_front": null, "conc_back": null } },
-      { "rowId": "r005", "cells": { "flujo": "Ánodo 6 mL/min", "front": null, "back": null, "spec": "± 0.6", "conc_front": null, "conc_back": null } },
+      { "rowId": "r004", "cells": { "detector": "ECD", "flujo": "Aux 60 mL/min", "front": null, "back": null, "spec": "± 6.0", "conc_front": null, "conc_back": null }, "columnSpans": { "detector": 2 } },
+      { "rowId": "r005", "cells": { "detector": "ECD", "flujo": "Ánodo 6 mL/min", "front": null, "back": null, "spec": "± 0.6", "conc_front": null, "conc_back": null } },
 
-      { "rowId": "t_uecd", "isTitle": true, "titleText": "μECD", "cells": {} },
-      { "rowId": "r006", "cells": { "flujo": "Aux 25 mL/min", "front": null, "back": null, "spec": "± 2.5", "conc_front": null, "conc_back": null } },
+      { "rowId": "r006", "cells": { "detector": "μECD", "flujo": "Aux 25 mL/min", "front": null, "back": null, "spec": "± 2.5", "conc_front": null, "conc_back": null } },
 
-      { "rowId": "t_tcd", "isTitle": true, "titleText": "TCD", "cells": {} },
-      { "rowId": "r007", "cells": { "flujo": "Ref 30 mL/min", "front": null, "back": null, "spec": "± 3.0", "conc_front": null, "conc_back": null } },
-      { "rowId": "r008", "cells": { "flujo": "Aux 2 mL/min", "front": null, "back": null, "spec": "± 0.5", "conc_front": null, "conc_back": null } },
+      { "rowId": "r007", "cells": { "detector": "TCD", "flujo": "Ref 30 mL/min", "front": null, "back": null, "spec": "± 3.0", "conc_front": null, "conc_back": null }, "columnSpans": { "detector": 2 } },
+      { "rowId": "r008", "cells": { "detector": "TCD", "flujo": "Aux 2 mL/min", "front": null, "back": null, "spec": "± 0.5", "conc_front": null, "conc_back": null } },
 
-      { "rowId": "t_npd", "isTitle": true, "titleText": "NPD", "cells": {} },
-      { "rowId": "r009", "cells": { "flujo": "H₂ 3 mL/min", "front": null, "back": null, "spec": "± 0.5", "conc_front": null, "conc_back": null } },
-      { "rowId": "r010", "cells": { "flujo": "Aire 60 mL/min", "front": null, "back": null, "spec": "± 6.0", "conc_front": null, "conc_back": null } },
-      { "rowId": "r011", "cells": { "flujo": "Aux 10 mL/min", "front": null, "back": null, "spec": "± 1.0", "conc_front": null, "conc_back": null } },
+      { "rowId": "r009", "cells": { "detector": "NPD", "flujo": "H₂ 3 mL/min", "front": null, "back": null, "spec": "± 0.5", "conc_front": null, "conc_back": null }, "columnSpans": { "detector": 3 } },
+      { "rowId": "r010", "cells": { "detector": "NPD", "flujo": "Aire 60 mL/min", "front": null, "back": null, "spec": "± 6.0", "conc_front": null, "conc_back": null } },
+      { "rowId": "r011", "cells": { "detector": "NPD", "flujo": "Aux 10 mL/min", "front": null, "back": null, "spec": "± 1.0", "conc_front": null, "conc_back": null } },
 
-      { "rowId": "t_fpd", "isTitle": true, "titleText": "FPD", "cells": {} },
-      { "rowId": "r012", "cells": { "flujo": "Aire 100 mL/min", "front": null, "back": null, "spec": "± 10", "conc_front": null, "conc_back": null } },
-      { "rowId": "r013", "cells": { "flujo": "H₂ 75 mL/min", "front": null, "back": null, "spec": "± 7.5", "conc_front": null, "conc_back": null } },
-      { "rowId": "r014", "cells": { "flujo": "Aux 60 mL/min", "front": null, "back": null, "spec": "± 6.0", "conc_front": null, "conc_back": null } }
+      { "rowId": "r012", "cells": { "detector": "FPD", "flujo": "Aire 100 mL/min", "front": null, "back": null, "spec": "± 10", "conc_front": null, "conc_back": null }, "columnSpans": { "detector": 3 } },
+      { "rowId": "r013", "cells": { "detector": "FPD", "flujo": "H₂ 75 mL/min", "front": null, "back": null, "spec": "± 7.5", "conc_front": null, "conc_back": null } },
+      { "rowId": "r014", "cells": { "detector": "FPD", "flujo": "Aux 60 mL/min", "front": null, "back": null, "spec": "± 6.0", "conc_front": null, "conc_back": null } }
     ],
     "validationRules": [
       {
@@ -53,7 +48,7 @@
         "specColumn": "spec",
         "factoryThreshold": "spec",
         "targetColumn": "conc_front",
-        "referenceColumn": null,
+        "referenceColumn": "flujo",
         "valueIfPass": "PASA",
         "valueIfFail": "FALLA"
       },
@@ -65,7 +60,7 @@
         "specColumn": "spec",
         "factoryThreshold": "spec",
         "targetColumn": "conc_back",
-        "referenceColumn": null,
+        "referenceColumn": "flujo",
         "valueIfPass": "PASA",
         "valueIfFail": "FALLA"
       }

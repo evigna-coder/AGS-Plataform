@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito } from '@ags/shared';
-import { db, logAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
 
@@ -43,8 +43,10 @@ export const posicionesStockService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'posicionesStock', id), payload);
-    logAudit({ action: 'create', collection: 'posiciones_stock', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'posicionesStock', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'posiciones_stock', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -54,8 +56,10 @@ export const posicionesStockService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'posicionesStock', id), payload);
-    logAudit({ action: 'update', collection: 'posiciones_stock', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('posicionesStock', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'posiciones_stock', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async getByParent(parentId: string | null): Promise<PosicionStock[]> {
@@ -88,12 +92,40 @@ export const posicionesStockService = {
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'posiciones_stock', documentId: id });
-    await deleteDoc(doc(db, 'posicionesStock', id));
+    const batch = createBatch();
+    batch.delete(docRef('posicionesStock', id));
+    batchAudit(batch, { action: 'delete', collection: 'posiciones_stock', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (items: PosicionStock[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'posicionesStock'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'posicionesStock'));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as PosicionStock[];
+      items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+      callback(items);
+    }, err => {
+      console.error('posicionesStock subscribe error:', err);
+      onError?.(err);
+    });
   },
 };
 
-// ========== ARTICULOS (catálogo de partes) ==========
+// ========== ARTICULOS (catalogo de partes) ==========
 
 export const articulosService = {
   async getAll(filters?: {
@@ -159,8 +191,10 @@ export const articulosService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'articulos', id), payload);
-    logAudit({ action: 'create', collection: 'articulos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'articulos', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'articulos', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -170,8 +204,10 @@ export const articulosService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'articulos', id), payload);
-    logAudit({ action: 'update', collection: 'articulos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('articulos', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'articulos', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async deactivate(id: string): Promise<void> {
@@ -179,8 +215,43 @@ export const articulosService = {
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'articulos', documentId: id });
-    await deleteDoc(doc(db, 'articulos', id));
+    const batch = createBatch();
+    batch.delete(docRef('articulos', id));
+    batchAudit(batch, { action: 'delete', collection: 'articulos', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    filters: { categoriaEquipo?: string; marcaId?: string; tipo?: string; activoOnly?: boolean } | undefined,
+    callback: (items: Articulo[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q = query(collection(db, 'articulos'));
+    if (filters?.activoOnly !== false) {
+      q = query(q, where('activo', '==', true));
+    }
+    if (filters?.categoriaEquipo) {
+      q = query(q, where('categoriaEquipo', '==', filters.categoriaEquipo));
+    }
+    if (filters?.marcaId) {
+      q = query(q, where('marcaId', '==', filters.marcaId));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Articulo[];
+      items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+      callback(items);
+    }, err => {
+      console.error('articulos subscribe error:', err);
+      onError?.(err);
+    });
   },
 };
 
@@ -263,8 +334,10 @@ export const unidadesService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'unidades', id), payload);
-    logAudit({ action: 'create', collection: 'unidades_stock', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'unidades', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'unidades_stock', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -274,13 +347,54 @@ export const unidadesService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'unidades', id), payload);
-    logAudit({ action: 'update', collection: 'unidades_stock', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('unidades', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'unidades_stock', documentId: id });
-    await deleteDoc(doc(db, 'unidades', id));
+    const batch = createBatch();
+    batch.delete(docRef('unidades', id));
+    batchAudit(batch, { action: 'delete', collection: 'unidades_stock', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    filters: { articuloId?: string; estado?: string; condicion?: string; activoOnly?: boolean } | undefined,
+    callback: (items: UnidadStock[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q = query(collection(db, 'unidades'));
+    if (filters?.activoOnly !== false) {
+      q = query(q, where('activo', '==', true));
+    }
+    if (filters?.articuloId) {
+      q = query(q, where('articuloId', '==', filters.articuloId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    if (filters?.condicion) {
+      q = query(q, where('condicion', '==', filters.condicion));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as UnidadStock[];
+      items.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      callback(items);
+    }, err => {
+      console.error('unidades subscribe error:', err);
+      onError?.(err);
+    });
   },
 };
 
@@ -325,8 +439,10 @@ export const minikitsService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'minikits', id), payload);
-    logAudit({ action: 'create', collection: 'minikits', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'minikits', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'minikits', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -336,13 +452,43 @@ export const minikitsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'minikits', id), payload);
-    logAudit({ action: 'update', collection: 'minikits', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('minikits', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'minikits', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'minikits', documentId: id });
-    await deleteDoc(doc(db, 'minikits', id));
+    const batch = createBatch();
+    batch.delete(docRef('minikits', id));
+    batchAudit(batch, { action: 'delete', collection: 'minikits', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (items: Minikit[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'minikits'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'minikits'));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Minikit[];
+      items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+      callback(items);
+    }, err => {
+      console.error('minikits subscribe error:', err);
+      onError?.(err);
+    });
   },
 };
 
@@ -387,8 +533,10 @@ export const minikitTemplatesService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'minikitTemplates', id), payload);
-    logAudit({ action: 'create', collection: 'minikit_templates', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'minikitTemplates', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'minikit_templates', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -398,13 +546,43 @@ export const minikitTemplatesService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'minikitTemplates', id), payload);
-    logAudit({ action: 'update', collection: 'minikit_templates', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('minikitTemplates', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'minikit_templates', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'minikit_templates', documentId: id });
-    await deleteDoc(doc(db, 'minikitTemplates', id));
+    const batch = createBatch();
+    batch.delete(docRef('minikitTemplates', id));
+    batchAudit(batch, { action: 'delete', collection: 'minikit_templates', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (items: MinikitTemplate[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'minikitTemplates'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'minikitTemplates'));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as MinikitTemplate[];
+      items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(items);
+    }, err => {
+      console.error('minikitTemplates subscribe error:', err);
+      onError?.(err);
+    });
   },
 };
 
@@ -463,9 +641,50 @@ export const movimientosService = {
       ...getCreateTrace(),
       createdAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'movimientosStock', id), payload);
-    logAudit({ action: 'create', collection: 'movimientos_stock', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'movimientosStock', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'movimientos_stock', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
+  },
+
+  subscribe(
+    filters: { articuloId?: string; unidadId?: string; tipo?: string; remitoId?: string; otNumber?: string } | undefined,
+    callback: (items: MovimientoStock[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q = query(collection(db, 'movimientosStock'));
+    if (filters?.articuloId) {
+      q = query(q, where('articuloId', '==', filters.articuloId));
+    }
+    if (filters?.unidadId) {
+      q = query(q, where('unidadId', '==', filters.unidadId));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    if (filters?.remitoId) {
+      q = query(q, where('remitoId', '==', filters.remitoId));
+    }
+    if (filters?.otNumber) {
+      q = query(q, where('otNumber', '==', filters.otNumber));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as MovimientoStock[];
+      items.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      callback(items);
+    }, err => {
+      console.error('movimientosStock subscribe error:', err);
+      onError?.(err);
+    });
   },
 };
 
@@ -546,8 +765,10 @@ export const remitosService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'remitos', id), payload);
-    logAudit({ action: 'create', collection: 'remitos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'remitos', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -557,12 +778,52 @@ export const remitosService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'remitos', id), payload);
-    logAudit({ action: 'update', collection: 'remitos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('remitos', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'remitos', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'remitos', documentId: id });
-    await deleteDoc(doc(db, 'remitos', id));
+    const batch = createBatch();
+    batch.delete(docRef('remitos', id));
+    batchAudit(batch, { action: 'delete', collection: 'remitos', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    filters: { ingenieroId?: string; estado?: string; tipo?: string } | undefined,
+    callback: (items: Remito[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q = query(collection(db, 'remitos'));
+    if (filters?.ingenieroId) {
+      q = query(q, where('ingenieroId', '==', filters.ingenieroId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        fechaSalida: d.data().fechaSalida?.toDate?.().toISOString() ?? d.data().fechaSalida ?? null,
+        fechaDevolucion: d.data().fechaDevolucion?.toDate?.().toISOString() ?? d.data().fechaDevolucion ?? null,
+      })) as Remito[];
+      items.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      callback(items);
+    }, err => {
+      console.error('remitos subscribe error:', err);
+      onError?.(err);
+    });
   },
 };

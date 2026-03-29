@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ingenierosService, usuariosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -39,22 +39,24 @@ export const IngenierosPage = () => {
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
 
-  const reload = async () => {
-    setLoading(true);
-    try {
-      const data = await ingenierosService.getAll(!showInactive);
-      setItems(data);
-    } catch (err) {
-      console.error('Error cargando ingenieros:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => { reload(); }, [showInactive]);
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = ingenierosService.subscribe(
+      !showInactive,
+      (data) => { setItems(data); setLoading(false); },
+      (err) => { console.error('Error cargando ingenieros:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [showInactive]);
+
+  // Reference data: one-shot load
   useEffect(() => {
     usuariosService.getAll().then(u => setUsuarios(u.filter(x => x.status === 'activo'))).catch(() => {});
   }, []);
+
+  const reload = useCallback(() => {}, []);
 
   const handleCreate = async () => {
     if (!form.nombre.trim()) return;

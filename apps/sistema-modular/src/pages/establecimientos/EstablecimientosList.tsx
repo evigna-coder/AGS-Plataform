@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { establecimientosService, clientesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -33,6 +33,8 @@ export const EstablecimientosList = () => {
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const unsubEstRef = useRef<(() => void) | null>(null);
+  const unsubClientesRef = useRef<(() => void) | null>(null);
   const bgTasks = useBackgroundTasks();
   const hasAddressTask = !!bgTasks.getTask('bulk-address-validation');
   const [showCreate, setShowCreate] = useState(false);
@@ -46,23 +48,22 @@ export const EstablecimientosList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    unsubEstRef.current?.();
+    unsubEstRef.current = establecimientosService.subscribe(
+      (data) => { setEstablecimientos(data); setLoading(false); },
+      (err) => { console.error('Establecimientos subscription error:', err); setLoading(false); },
+    );
+    unsubClientesRef.current?.();
+    unsubClientesRef.current = clientesService.subscribe(
+      false,
+      (data) => { setClientes(data); },
+      (err) => { console.error('Clientes subscription error:', err); },
+    );
+    return () => { unsubEstRef.current?.(); unsubClientesRef.current?.(); };
+  }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [estData, clientesData] = await Promise.all([
-        establecimientosService.getAll(),
-        clientesService.getAll(),
-      ]);
-      setEstablecimientos(estData);
-      setClientes(clientesData);
-    } catch (e) {
-      console.error('Error cargando establecimientos:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadData = useCallback(() => {}, []);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -84,7 +85,6 @@ export const EstablecimientosList = () => {
     if (!confirm(`¿Eliminar el establecimiento "${est.nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
     try {
       await establecimientosService.delete(est.id);
-      await loadData();
     } catch (e) {
       console.error('Error eliminando establecimiento:', e);
       alert('Error al eliminar el establecimiento');
@@ -100,7 +100,6 @@ export const EstablecimientosList = () => {
         await establecimientosService.delete(id);
       }
       setSelected(new Set());
-      await loadData();
     } catch (e) {
       console.error('Error eliminando establecimientos:', e);
       alert('Error al eliminar establecimientos');

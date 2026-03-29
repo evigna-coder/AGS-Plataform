@@ -1,5 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -25,6 +26,19 @@ if (missing.length > 0) {
   console.warn('⚠️ Firebase env vars faltantes:', missing);
 }
 
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+let db: Firestore;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+} catch {
+  // Ya inicializado (HMR): reutilizar instancia existente
+  db = getFirestore(app);
+}
+
+export { db };
 export const storage = getStorage(app);

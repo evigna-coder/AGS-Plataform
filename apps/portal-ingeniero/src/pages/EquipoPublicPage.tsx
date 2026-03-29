@@ -11,7 +11,7 @@ import { Card } from '../components/ui/Card';
 // ─── Sub-component: header branding ──────────────────────────────────────────
 function PublicHeader() {
   return (
-    <header className="bg-indigo-600 px-5 py-4 flex items-center gap-3">
+    <header className="bg-teal-600 px-5 py-4 flex items-center gap-3">
       <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
         <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -19,7 +19,7 @@ function PublicHeader() {
         </svg>
       </div>
       <div>
-        <p className="text-[11px] font-semibold text-indigo-200 uppercase tracking-widest">AGS Analítica</p>
+        <p className="text-[11px] font-semibold text-teal-200 uppercase tracking-widest">AGS Analítica</p>
         <p className="text-sm font-semibold text-white">Servicio técnico de equipos</p>
       </div>
     </header>
@@ -86,7 +86,7 @@ function SoporteForm({ sistema, agsId, onSuccess }: SoporteFormProps) {
           required
           rows={3}
           placeholder="Describí brevemente el problema o lo que necesitás..."
-          className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
         />
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -222,7 +222,7 @@ export default function EquipoPublicPage() {
               <p className="text-base font-semibold text-slate-900">{sistema.nombre}</p>
               {sistema.software && <p className="text-xs text-slate-500 mt-0.5">{sistema.software}</p>}
             </div>
-            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg font-mono">
+            <span className="text-[10px] font-semibold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg font-mono">
               {agsId}
             </span>
           </div>

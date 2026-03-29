@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { presupuestosService, clientesService, usuariosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -51,25 +51,30 @@ export const PresupuestosList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  useEffect(() => { loadData(); }, []);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [presupuestosData, clientesData, usrs] = await Promise.all([
-        presupuestosService.getAll(),
-        clientesService.getAll(true),
-        usuariosService.getAll(),
-      ]);
-      setPresupuestos(presupuestosData);
+  useEffect(() => {
+    // Load reference data
+    Promise.all([
+      clientesService.getAll(true),
+      usuariosService.getAll(),
+    ]).then(([clientesData, usrs]) => {
       setClientes(clientesData);
       setUsuarios(usrs);
-    } catch (error) {
-      console.error('Error cargando presupuestos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    }).catch(err => console.error('Error cargando datos de referencia:', err));
+
+    // Real-time subscription for presupuestos
+    setLoading(true);
+    unsubRef.current = presupuestosService.subscribe(
+      undefined,
+      (data) => { setPresupuestos(data); setLoading(false); },
+      (err) => { console.error('Error presupuestos:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, []);
+
+  // No-op: onSnapshot handles real-time updates. Kept for callback compatibility.
+  const loadData = () => {};
 
   const presupuestosFiltrados = useMemo(() => {
     let result = presupuestos.filter(p => {

@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, setDoc, addDoc, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, Timestamp, addDoc, runTransaction, onSnapshot } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo } from '@ags/shared';
-import { db, logAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
+import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
@@ -116,6 +116,38 @@ export const ordenesTrabajoService = {
     return ordenes;
   },
 
+  /** Real-time subscription for OTs. Returns unsubscribe function. */
+  subscribe(
+    filters: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] } | undefined,
+    callback: (ots: WorkOrder[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q = query(collection(db, 'reportes'));
+    if (filters?.clienteId) q = query(q, where('clienteId', '==', filters.clienteId));
+    if (filters?.sistemaId) q = query(q, where('sistemaId', '==', filters.sistemaId));
+    if (filters?.status) q = query(q, where('status', '==', filters.status));
+
+    return onSnapshot(q, snap => {
+      const ordenes = snap.docs.map(d => ({
+        otNumber: d.id,
+        ...d.data(),
+        updatedAt: d.data().updatedAt || new Date().toISOString(),
+      })) as WorkOrder[];
+      ordenes.sort((a, b) => {
+        const numA = parseInt(a.otNumber.split('.')[0]);
+        const numB = parseInt(b.otNumber.split('.')[0]);
+        if (numA !== numB) return numB - numA;
+        const itemA = a.otNumber.includes('.') ? parseInt(a.otNumber.split('.')[1]) : 0;
+        const itemB = b.otNumber.includes('.') ? parseInt(b.otNumber.split('.')[1]) : 0;
+        return itemB - itemA;
+      });
+      callback(ordenes);
+    }, err => {
+      console.error('OT subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   // Obtener items de una OT padre
   async getItemsByOtPadre(otPadre: string): Promise<WorkOrder[]> {
     const q = query(collection(db, 'reportes'));
@@ -142,8 +174,8 @@ export const ordenesTrabajoService = {
 
   // Obtener OT por número
   async getByOtNumber(otNumber: string) {
-    const docRef = doc(db, 'reportes', otNumber);
-    const docSnap = await getDoc(docRef);
+    const otDocRef = doc(db, 'reportes', otNumber);
+    const docSnap = await getDoc(otDocRef);
     if (docSnap.exists()) {
       return {
         otNumber: docSnap.id,
@@ -158,7 +190,7 @@ export const ordenesTrabajoService = {
   async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
     console.log('📝 Creando orden de trabajo:', otData.otNumber);
 
-    const docRef = doc(db, 'reportes', otData.otNumber);
+    const otDocRef = doc(db, 'reportes', otData.otNumber);
     const cleanedData = deepCleanForFirestore({
       ...otData,
       ...getCreateTrace(),
@@ -167,28 +199,33 @@ export const ordenesTrabajoService = {
       createdAt: Timestamp.now(),
     });
 
-    await setDoc(docRef, cleanedData);
-    logAudit({ action: 'create', collection: 'ordenes_trabajo', documentId: otData.otNumber, after: cleanedData as any });
+    const batch = createBatch();
+    batch.set(otDocRef, cleanedData);
+    batchAudit(batch, { action: 'create', collection: 'ordenes_trabajo', documentId: otData.otNumber, after: cleanedData as any });
+    await batch.commit();
     console.log('✅ Orden de trabajo creada exitosamente');
     return otData.otNumber;
   },
 
   // Actualizar OT
   async update(otNumber: string, data: Partial<WorkOrder>) {
-    const docRef = doc(db, 'reportes', otNumber);
     const cleanedData = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
 
-    await updateDoc(docRef, cleanedData);
-    logAudit({ action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData as any });
+    const batch = createBatch();
+    batch.update(docRef('reportes', otNumber), cleanedData);
+    batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData as any });
+    await batch.commit();
   },
 
   async delete(otNumber: string) {
-    logAudit({ action: 'delete', collection: 'ordenes_trabajo', documentId: otNumber });
-    await deleteDoc(doc(db, 'reportes', otNumber));
+    const batch = createBatch();
+    batch.delete(docRef('reportes', otNumber));
+    batchAudit(batch, { action: 'delete', collection: 'ordenes_trabajo', documentId: otNumber });
+    await batch.commit();
   },
 
   /** Encola un mail de aviso a administración para facturación */

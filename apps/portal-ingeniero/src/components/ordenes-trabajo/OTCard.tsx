@@ -25,10 +25,10 @@ export function OTCard({ ot }: OTCardProps) {
         href={reportesUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="block bg-white rounded-xl border border-slate-200 px-4 py-3.5 hover:border-indigo-300 hover:shadow-sm transition-all active:bg-slate-50"
+        className="block bg-white rounded-xl border border-slate-200 px-4 py-3.5 hover:border-teal-300 hover:shadow-sm transition-all active:bg-slate-50"
       >
         <CardContent ot={ot} />
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-indigo-500 font-medium">
+        <div className="mt-2 flex items-center gap-1 text-[10px] text-teal-500 font-medium">
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
@@ -62,7 +62,7 @@ export function OTCard({ ot }: OTCardProps) {
   return (
     <Link
       to={`/ordenes-trabajo/${ot.otNumber}`}
-      className="block bg-white rounded-xl border border-slate-200 px-4 py-3.5 hover:border-indigo-300 hover:shadow-sm transition-all active:bg-slate-50"
+      className="block bg-white rounded-xl border border-slate-200 px-4 py-3.5 hover:border-teal-300 hover:shadow-sm transition-all active:bg-slate-50"
     >
       <CardContent ot={ot} />
     </Link>
@@ -74,7 +74,7 @@ function CardContent({ ot }: { ot: WorkOrderWithPdf }) {
     <>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold font-mono text-indigo-600">OT-{ot.otNumber}</span>
+          <span className="text-xs font-semibold font-mono text-teal-600">OT-{ot.otNumber}</span>
           <OTStatusBadge status={ot.status} />
         </div>
         <span className="text-[11px] text-slate-400 shrink-0">{fmt(ot.fechaInicio || ot.updatedAt)}</span>

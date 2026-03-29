@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { remitosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -31,7 +31,6 @@ const formatDate = (iso: string | null | undefined) => {
 
 export const RemitoDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [remito, setRemito] = useState<Remito | null>(null);
   const [loading, setLoading] = useState(true);

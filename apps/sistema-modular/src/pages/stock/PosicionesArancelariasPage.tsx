@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { posicionesArancelariasService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -76,14 +76,19 @@ export const PosicionesArancelariasPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
 
-  const reload = async () => {
-    setLoading(true);
-    try { setItems(await posicionesArancelariasService.getAll(!showInactive)); }
-    catch (err) { console.error('Error cargando posiciones arancelarias:', err); }
-    finally { setLoading(false); }
-  };
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => { reload(); }, [showInactive]);
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = posicionesArancelariasService.subscribe(
+      !showInactive,
+      (data) => { setItems(data); setLoading(false); },
+      (err) => { console.error('Error cargando posiciones arancelarias:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [showInactive]);
+
+  const reload = useCallback(() => {}, []);
 
   const handleCreate = async () => {
     if (!form.codigo.trim() || !form.descripcion.trim()) return;

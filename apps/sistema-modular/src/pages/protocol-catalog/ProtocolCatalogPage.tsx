@@ -42,7 +42,6 @@ export const TableCatalogPage = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [cloneTarget, setCloneTarget] = useState<TableCatalogEntry | null>(null);
   const [cloneName, setCloneName] = useState('');
   const [cloneSysType, setCloneSysType] = useState('');
@@ -98,42 +97,39 @@ export const TableCatalogPage = () => {
       navigate(`/table-catalog/${newId}/edit`);
     } catch { alert('Error al clonar'); }
   };
-  const handleArchive = async (entry: TableCatalogEntry) => {
+  const handleArchive = (entry: TableCatalogEntry) => {
     if (!confirm(`¿Archivar "${entry.name}"?`)) return;
-    try { await archiveTable(entry.id); reload(); } catch { alert('Error al archivar'); }
+    archiveTable(entry.id);
   };
-  const handlePublish = async (entry: TableCatalogEntry) => {
+  const handlePublish = (entry: TableCatalogEntry) => {
     if (!confirm(`¿Publicar "${entry.name}"?`)) return;
-    try { await publishTable(entry.id); reload(); } catch { alert('Error al publicar'); }
+    publishTable(entry.id);
   };
-  const handleDelete = async (entry: TableCatalogEntry) => {
+  const handleDelete = (entry: TableCatalogEntry) => {
     if (!confirm(`¿Eliminar permanentemente "${entry.name}"?\n\nEsta acción no se puede deshacer.`)) return;
-    try { await deleteTable(entry.id); reload(); } catch { alert('Error al eliminar'); }
+    deleteTable(entry.id);
   };
 
   // --- Lote ---
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (!confirm(`¿Eliminar ${selectedIds.size} tabla(s)?\n\nEsta acción no se puede deshacer.`)) return;
-    setBulkDeleting(true);
-    try { await Promise.all([...selectedIds].map(id => deleteTable(id))); reload(); }
-    catch { alert('Error al eliminar'); } finally { setBulkDeleting(false); }
+    [...selectedIds].forEach(id => deleteTable(id));
+    setSelectedIds(new Set());
   };
 
-  const handleBulkMove = async (targetProjectId: string | null) => {
-    try { await assignProject([...selectedIds], targetProjectId); reload(); }
-    catch { alert('Error al mover tablas'); }
+  const handleBulkMove = (targetProjectId: string | null) => {
+    assignProject([...selectedIds], targetProjectId);
+    setSelectedIds(new Set());
   };
 
   const handleImport = async (imported: TableCatalogEntry[]) => {
     setShowImport(false);
     try {
-      // Si hay un proyecto activo, auto-asignar
       const withProject = activeProjectId && activeProjectId !== 'undefined'
         ? imported.map(t => ({ ...t, projectId: activeProjectId }))
         : imported;
       await importTables(withProject);
-      alert(`${imported.length} tabla(s) importada(s) correctamente.`);
-      reload();
+      reload(); // import necesita reload porque las tablas no están en estado local
     } catch { alert('Error al importar'); }
   };
 
@@ -203,9 +199,9 @@ export const TableCatalogPage = () => {
                 </select>
               )}
               <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-600 hover:text-slate-900 font-medium">Deseleccionar</button>
-              <button onClick={handleBulkDelete} disabled={bulkDeleting}
-                className="text-xs bg-red-600 text-white font-medium px-4 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
-                {bulkDeleting ? 'Eliminando...' : `Eliminar ${selectedIds.size}`}
+              <button onClick={handleBulkDelete}
+                className="text-xs bg-red-600 text-white font-medium px-4 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
+                {`Eliminar ${selectedIds.size}`}
               </button>
             </div>
           </div>

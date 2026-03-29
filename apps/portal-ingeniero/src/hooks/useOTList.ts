@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { otService, type WorkOrderWithPdf } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,23 +11,25 @@ export function useOTList() {
   const [statusFilter, setStatusFilter] = useState<OTStatusFilter>('all');
   const [search, setSearch] = useState('');
   const [misOTs, setMisOTs] = useState(true);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const filters: { status?: string; ingenieroId?: string } = {};
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      if (misOTs && usuario?.id) filters.ingenieroId = usuario.id;
-      const data = await otService.getAll(filters);
-      setOts(data);
-    } catch (err) {
-      console.error('[OTList] Error cargando OTs:', err);
-    } finally {
-      setLoading(false);
-    }
+  const queryFilters = useMemo(() => {
+    const f: { status?: string; ingenieroId?: string } = {};
+    if (statusFilter !== 'all') f.status = statusFilter;
+    if (misOTs && usuario?.id) f.ingenieroId = usuario.id;
+    return f;
   }, [statusFilter, misOTs, usuario?.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    setLoading(true);
+    unsubRef.current?.();
+    unsubRef.current = otService.subscribe(
+      queryFilters,
+      (data) => { setOts(data); setLoading(false); },
+      (err) => { console.error('[OTList] Subscription error:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [queryFilters]);
 
   const filtered = ots.filter(ot => {
     if (!search) return true;
@@ -46,6 +48,6 @@ export function useOTList() {
     search, setSearch,
     statusFilter, setStatusFilter,
     misOTs, setMisOTs,
-    refresh: load,
+    refresh: () => {},
   };
 }

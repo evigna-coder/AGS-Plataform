@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { conceptosServicioService, categoriasPresupuestoService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -12,7 +11,6 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 
 export function ConceptosServicio() {
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);

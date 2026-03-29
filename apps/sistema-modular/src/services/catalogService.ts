@@ -1,7 +1,7 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca } from '@ags/shared';
-import { db, storage, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // --- Biblioteca de Tablas (/tableCatalog) ---
 
@@ -43,14 +43,18 @@ export const tableCatalogService = {
       updatedAt: Timestamp.now(),
     };
     if (id) {
-      await setDoc(doc(db, 'tableCatalog', id), payload, { merge: true });
-      logAudit({ action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+      const batch = createBatch();
+      batch.set(docRef('tableCatalog', id), payload, { merge: true });
+      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+      await batch.commit();
       return id;
     }
     const newId = crypto.randomUUID();
     const createPayload = { ...payload, ...getCreateTrace(), createdAt: Timestamp.now() };
-    await setDoc(doc(db, 'tableCatalog', newId), createPayload);
-    logAudit({ action: 'create', collection: 'tableCatalog', documentId: newId, after: createPayload as any });
+    const batch = createBatch();
+    batch.set(docRef('tableCatalog', newId), createPayload);
+    batchAudit(batch, { action: 'create', collection: 'tableCatalog', documentId: newId, after: createPayload as any });
+    await batch.commit();
     return newId;
   },
 
@@ -85,14 +89,35 @@ export const tableCatalogService = {
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'tableCatalog', documentId: id });
-    await deleteDoc(doc(db, 'tableCatalog', id));
+    const batch = createBatch();
+    batch.delete(docRef('tableCatalog', id));
+    batchAudit(batch, { action: 'delete', collection: 'tableCatalog', documentId: id });
+    await batch.commit();
   },
 
   async assignProject(tableIds: string[], projectId: string | null): Promise<void> {
     await Promise.all(tableIds.map(id =>
       updateDoc(doc(db, 'tableCatalog', id), { projectId: projectId ?? null, updatedAt: Timestamp.now() })
     ));
+  },
+
+  subscribe(
+    filters: { sysType?: string; status?: string; projectId?: string | null } | undefined,
+    callback: (entries: TableCatalogEntry[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    const q = query(collection(db, 'tableCatalog'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, snap => {
+      let entries = snap.docs.map(d => toTableCatalogEntry(d.id, d.data()));
+      if (filters?.sysType) entries = entries.filter(e => e.sysType === filters.sysType);
+      if (filters?.status) entries = entries.filter(e => e.status === filters.status);
+      if (filters?.projectId !== undefined) {
+        entries = filters.projectId === null
+          ? entries.filter(e => !e.projectId)
+          : entries.filter(e => e.projectId === filters.projectId);
+      }
+      callback(entries);
+    }, onError);
   },
 };
 
@@ -125,8 +150,10 @@ export const tableProjectsService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'tableProjects', id), payload);
-    logAudit({ action: 'create', collection: 'tableProjects', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(docRef('tableProjects', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'tableProjects', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -143,8 +170,20 @@ export const tableProjectsService = {
     await Promise.all(tablesInProject.map(d =>
       updateDoc(doc(db, 'tableCatalog', d.id), { projectId: null, updatedAt: Timestamp.now() })
     ));
-    logAudit({ action: 'delete', collection: 'tableProjects', documentId: id });
-    await deleteDoc(doc(db, 'tableProjects', id));
+    const batch = createBatch();
+    batch.delete(docRef('tableProjects', id));
+    batchAudit(batch, { action: 'delete', collection: 'tableProjects', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    callback: (projects: import('@ags/shared').TableProject[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    const q = query(collection(db, 'tableProjects'), orderBy('name', 'asc'));
+    return onSnapshot(q, snap => {
+      callback(snap.docs.map(d => toTableProject(d.id, d.data())));
+    }, onError);
   },
 };
 
@@ -196,8 +235,10 @@ export const instrumentosService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'instrumentos', id), payload);
-    logAudit({ action: 'create', collection: 'instrumentos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(docRef('instrumentos', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'instrumentos', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -207,8 +248,10 @@ export const instrumentosService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'instrumentos', id), payload);
-    logAudit({ action: 'update', collection: 'instrumentos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('instrumentos', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'instrumentos', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async deactivate(id: string): Promise<void> {
@@ -220,7 +263,6 @@ export const instrumentosService = {
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'instrumentos', documentId: id });
     // Intentar borrar archivos de Storage antes de eliminar el documento
     const instrumento = await this.getById(id);
     if (instrumento?.certificadoStoragePath) {
@@ -229,7 +271,10 @@ export const instrumentosService = {
     if (instrumento?.trazabilidadStoragePath) {
       try { await deleteObject(storageRef(storage, instrumento.trazabilidadStoragePath)); } catch { /* ignore */ }
     }
-    await deleteDoc(doc(db, 'instrumentos', id));
+    const batch = createBatch();
+    batch.delete(docRef('instrumentos', id));
+    batchAudit(batch, { action: 'delete', collection: 'instrumentos', documentId: id });
+    await batch.commit();
   },
 
   async reemplazar(idViejo: string, idNuevo: string): Promise<void> {
@@ -268,9 +313,31 @@ export const instrumentosService = {
   async deleteStorageFile(storagePath: string): Promise<void> {
     await deleteObject(storageRef(storage, storagePath));
   },
+
+  subscribe(
+    filters: { tipo?: 'instrumento' | 'patron'; categoria?: CategoriaInstrumento; activoOnly?: boolean } | undefined,
+    callback: (items: InstrumentoPatron[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    let q = query(collection(db, 'instrumentos'));
+    if (filters?.activoOnly) {
+      q = query(q, where('activo', '==', true));
+    }
+    if (filters?.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    return onSnapshot(q, snap => {
+      let items = snap.docs.map(d => toInstrumento(d.id, d.data()));
+      if (filters?.categoria) {
+        items = items.filter(i => i.categorias.includes(filters.categoria!));
+      }
+      items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(items);
+    }, onError);
+  },
 };
 
-// ========== MARCAS (catálogo compartido) ==========
+// ========== MARCAS (catalogo compartido) ==========
 
 export const marcasService = {
   async getAll(activoOnly: boolean = true): Promise<Marca[]> {
@@ -299,9 +366,12 @@ export const marcasService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
-    const docRef = await addDoc(collection(db, 'marcas'), payload);
-    logAudit({ action: 'create', collection: 'marcas', documentId: docRef.id, after: payload as any });
-    return docRef.id;
+    const ref = newDocRef('marcas');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'marcas', documentId: ref.id, after: payload as any });
+    await batch.commit();
+    return ref.id;
   },
 
   async update(id: string, data: Partial<Omit<Marca, 'id' | 'createdAt'>>): Promise<void> {
@@ -310,17 +380,44 @@ export const marcasService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
-    await updateDoc(doc(db, 'marcas', id), payload);
-    logAudit({ action: 'update', collection: 'marcas', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('marcas', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'marcas', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'marcas', documentId: id });
-    await deleteDoc(doc(db, 'marcas', id));
+    const batch = createBatch();
+    batch.delete(docRef('marcas', id));
+    batchAudit(batch, { action: 'delete', collection: 'marcas', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (marcas: Marca[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'marcas'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'marcas'));
+    }
+    return onSnapshot(q, snap => {
+      const marcas = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Marca[];
+      marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(marcas);
+    }, onError);
   },
 };
 
-// --- Catálogo de Sectores (/catalogoSectores) ---
+// --- Catalogo de Sectores (/catalogoSectores) ---
 
 export interface SectorCatalog {
   id: string;
@@ -328,7 +425,7 @@ export interface SectorCatalog {
 }
 
 const DEFAULT_SECTORES = [
-  'Laboratorio', 'Control de Calidad', 'Desarrollo', 'Administración', 'Compras', 'Producción',
+  'Laboratorio', 'Control de Calidad', 'Desarrollo', 'Administracion', 'Compras', 'Produccion',
 ];
 
 export const sectoresCatalogService = {
@@ -348,8 +445,8 @@ export const sectoresCatalogService = {
   },
 
   async create(nombre: string): Promise<string> {
-    const docRef = await addDoc(collection(db, 'catalogoSectores'), { nombre });
-    return docRef.id;
+    const ref = await addDoc(collection(db, 'catalogoSectores'), { nombre });
+    return ref.id;
   },
 
   async delete(id: string): Promise<void> {

@@ -9,7 +9,7 @@ interface PartesFormProps {
   onRemove: (id: string) => void;
 }
 
-const inp = 'border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400';
+const inp = 'border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-slate-50 disabled:text-slate-400';
 
 export function PartesForm({ parts, readOnly = false, onAdd, onUpdate, onRemove }: PartesFormProps) {
   return (

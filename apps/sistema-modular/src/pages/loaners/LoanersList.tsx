@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loanersService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -22,6 +22,7 @@ export function LoanersList() {
   const [loaners, setLoaners] = useState<Loaner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const unsubRef = useRef<(() => void) | null>(null);
 
   const [filters, setFilters] = useState({
     estado: '',
@@ -37,9 +38,13 @@ export function LoanersList() {
 
   useEffect(() => {
     setLoading(true);
-    loanersService.getAll({ activoOnly: !filters.showInactivos })
-      .then(setLoaners)
-      .finally(() => setLoading(false));
+    unsubRef.current?.();
+    unsubRef.current = loanersService.subscribe(
+      { activoOnly: !filters.showInactivos },
+      (data) => { setLoaners(data); setLoading(false); },
+      (err) => { console.error('Loaners subscription error:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
   }, [filters.showInactivos]);
 
   const filtered = useMemo(() => {
@@ -176,9 +181,7 @@ export function LoanersList() {
         )}
       </div>
 
-      <CreateLoanerModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => {
-        loanersService.getAll({ activoOnly: !filters.showInactivos }).then(setLoaners);
-      }} />
+      <CreateLoanerModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => {}} />
     </div>
   );
 }

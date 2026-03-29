@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
-import { db, logAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef } from './firebase';
 
 // Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)
 export const contactosEstablecimientoService = {
@@ -45,10 +45,13 @@ export const establecimientosService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    const docRef = await addDoc(collection(db, 'establecimientos'), payload);
-    logAudit({ action: 'create', collection: 'establecimientos', documentId: docRef.id, after: payload as any });
-    console.log('✅ Establecimiento creado con ID:', docRef.id);
-    return docRef.id;
+    const estRef = newDocRef('establecimientos');
+    const batch = createBatch();
+    batch.set(estRef, payload);
+    batchAudit(batch, { action: 'create', collection: 'establecimientos', documentId: estRef.id, after: payload as any });
+    await batch.commit();
+    console.log('✅ Establecimiento creado con ID:', estRef.id);
+    return estRef.id;
   },
 
   async getById(id: string): Promise<Establecimiento | null> {
@@ -110,20 +113,49 @@ export const establecimientosService = {
     return list;
   },
 
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    callback: (establecimientos: Establecimiento[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, 'establecimientos'));
+    return onSnapshot(q, snap => {
+      const list = snap.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...d,
+          clienteCuit: d.clienteCuit || d.clienteId || null,
+          ubicaciones: d.ubicaciones || [],
+          createdAt: d.createdAt?.toDate().toISOString(),
+          updatedAt: d.updatedAt?.toDate().toISOString(),
+        } as Establecimiento;
+      });
+      list.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(list);
+    }, err => {
+      console.error('Establecimientos subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async update(id: string, data: Partial<Omit<Establecimiento, 'id' | 'clienteCuit' | 'createdAt' | 'updatedAt'>>) {
-    const docRef = doc(db, 'establecimientos', id);
     const payload = cleanFirestoreData({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(docRef, payload);
-    logAudit({ action: 'update', collection: 'establecimientos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(firestoreDocRef('establecimientos', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'establecimientos', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string) {
-    logAudit({ action: 'delete', collection: 'establecimientos', documentId: id });
-    await deleteDoc(doc(db, 'establecimientos', id));
+    const batch = createBatch();
+    batch.delete(firestoreDocRef('establecimientos', id));
+    batchAudit(batch, { action: 'delete', collection: 'establecimientos', documentId: id });
+    await batch.commit();
   },
 
   async deactivate(id: string) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { dispositivosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -29,19 +29,19 @@ export const DispositivosList = () => {
   const debouncedSearch = useDebounce(filters.search, 300);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Dispositivo | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setItems(await dispositivosService.getAll());
-    } catch (err) {
-      console.error('Error cargando dispositivos:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = dispositivosService.subscribe(
+      false,
+      (data) => { setItems(data); setLoading(false); },
+      (err) => { console.error('Error cargando dispositivos:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  const loadData = useCallback(() => {}, []);
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return items;
@@ -56,7 +56,6 @@ export const DispositivosList = () => {
     if (!confirm(`Eliminar dispositivo "${d.marca} ${d.modelo}"?`)) return;
     try {
       await dispositivosService.delete(d.id);
-      await loadData();
     } catch (err) {
       console.error('Error eliminando:', err);
     }

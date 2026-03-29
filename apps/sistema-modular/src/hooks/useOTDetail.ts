@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService, presupuestosService } from '../services/firebaseService';
+import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, fichasService, usuariosService, presupuestosService, leadsService } from '../services/firebaseService';
 import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Part, ContactoCliente, OTEstadoAdmin, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_ORDER } from '@ags/shared';
 import { useOTFormState } from './useOTFormState';
@@ -328,6 +328,58 @@ export function useOTDetail(otNumber?: string) {
     } catch { alert('Error al crear el item'); }
   }, [otNumber, cliente, newItemData, form]);
 
+  // ── Create Lead from OT ─────────────────────────────────────
+  const [creatingLead, setCreatingLead] = useState(false);
+
+  const handleCreateLeadFromOT = useCallback(async () => {
+    if (!otNumber) return;
+    try {
+      setCreatingLead(true);
+      const leadId = await leadsService.create({
+        clienteId: form.clienteId || null,
+        contactoId: null,
+        razonSocial: form.razonSocial || '',
+        contacto: form.contacto || '',
+        email: form.emailPrincipal || '',
+        telefono: '',
+        motivoLlamado: 'ventas',
+        motivoContacto: `Presupuesto pendiente — generado desde OT-${otNumber}`,
+        descripcion: `Presupuesto pendiente para ${form.razonSocial || 'cliente'} originado en OT-${otNumber}. Sistema: ${form.sistemaNombre || 'N/A'}. Tipo de servicio: ${form.tipoServicio || 'N/A'}.`,
+        sistemaId: form.sistemaId || null,
+        moduloId: form.moduloId || null,
+        estado: 'en_presupuesto',
+        postas: [],
+        asignadoA: null,
+        asignadoNombre: null,
+        derivadoPor: null,
+        areaActual: 'presupuesto_ventas',
+        accionPendiente: 'Generar presupuesto',
+        presupuestosIds: [],
+        otIds: [otNumber],
+        adjuntos: [],
+        prioridad: 'media',
+        proximoContacto: null,
+        valorEstimado: null,
+        finalizadoAt: null,
+      });
+
+      // Link lead to OT
+      await leadsService.linkOT(leadId, otNumber);
+
+      // Update OT with the new leadId
+      setField('leadId', leadId);
+      markInteracted();
+
+      alert(`Lead creado exitosamente. Se vinculó a la OT-${otNumber}.`);
+      navigate(`/leads/${leadId}`);
+    } catch (err) {
+      console.error('Error creando lead desde OT:', err);
+      alert('Error al crear el lead');
+    } finally {
+      setCreatingLead(false);
+    }
+  }, [otNumber, form, setField, markInteracted, navigate]);
+
   // ── Computed ──────────────────────────────────────────────────
   const readOnly = form.estadoAdmin === 'FINALIZADO';
   const readOnlyTecnico = readOnly || form.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || form.status === 'FINALIZADO';
@@ -367,5 +419,6 @@ export function useOTDetail(otNumber?: string) {
     newItemData, setNewItemData, handleCreateNewItem,
     validate,
     leadId: form.leadId, presupuestoOrigenId: form.presupuestoOrigenId, presupuestoOrigenNumero,
+    handleCreateLeadFromOT, creatingLead,
   };
 }

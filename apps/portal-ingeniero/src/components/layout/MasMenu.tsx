@@ -33,7 +33,7 @@ export default function MasMenu({ open, onClose }: MasMenuProps) {
               onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
+                  isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'
                 }`
               }
             >

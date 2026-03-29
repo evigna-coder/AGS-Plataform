@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { usuariosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -20,28 +20,30 @@ export const UsuariosList = () => {
   const [showApprove, setShowApprove] = useState<UsuarioAGS | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('ingeniero_soporte');
   const [editUser, setEditUser] = useState<UsuarioAGS | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const reload = async () => {
-    setLoading(true);
-    try { setUsers(await usuariosService.getAll()); }
-    catch (err) { console.error('Error cargando usuarios:', err); }
-    finally { setLoading(false); }
-  };
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = usuariosService.subscribe(
+      (data) => { setUsers(data); setLoading(false); },
+      (err) => { console.error('Error cargando usuarios:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, []);
 
-  useEffect(() => { reload(); }, []);
+  const reload = useCallback(() => {}, []);
 
   const handleApprove = async () => {
     if (!showApprove) return;
     try {
       await usuariosService.approveUser(showApprove.id, selectedRole);
       setShowApprove(null);
-      reload();
     } catch { alert('Error al aprobar usuario'); }
   };
 
   const handleToggleStatus = async (u: UsuarioAGS) => {
     const newStatus = u.status === 'activo' ? 'deshabilitado' : 'activo';
-    try { await usuariosService.updateStatus(u.id, newStatus); reload(); }
+    try { await usuariosService.updateStatus(u.id, newStatus); }
     catch { alert('Error al cambiar estado'); }
   };
 

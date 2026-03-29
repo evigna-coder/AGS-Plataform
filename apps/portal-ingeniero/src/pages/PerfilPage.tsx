@@ -74,8 +74,8 @@ export default function PerfilPage() {
             {usuario?.photoURL ? (
               <img src={usuario.photoURL} alt="" className="w-14 h-14 rounded-full" />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center">
-                <span className="text-xl font-bold text-indigo-700">
+              <div className="w-14 h-14 rounded-full bg-teal-100 flex items-center justify-center">
+                <span className="text-xl font-bold text-teal-700">
                   {usuario?.displayName?.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -132,7 +132,7 @@ export default function PerfilPage() {
                     value={nombreAclaracion}
                     onChange={e => setNombreAclaracion(e.target.value)}
                     placeholder="Nombre completo"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
                 <div className="flex gap-2 justify-end">

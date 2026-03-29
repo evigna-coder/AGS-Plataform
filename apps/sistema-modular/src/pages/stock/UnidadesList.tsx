@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { unidadesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -25,27 +25,22 @@ export const UnidadesList = () => {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const debouncedSearch = useDebounce(filters.search, 300);
+  const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    loadData();
-  }, [filters.estado, filters.condicion, filters.showInactive]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const data = await unidadesService.getAll({
+    unsubRef.current?.();
+    unsubRef.current = unidadesService.subscribe(
+      {
         estado: filters.estado || undefined,
         condicion: filters.condicion || undefined,
         activoOnly: !filters.showInactive,
-      });
-      setUnidades(data);
-    } catch (error) {
-      console.error('Error cargando unidades:', error);
-      alert('Error al cargar las unidades');
-    } finally {
-      setLoading(false);
-    }
-  };
+      },
+      (data) => { setUnidades(data); setLoading(false); },
+      (err) => { console.error('Error cargando unidades:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [filters.estado, filters.condicion, filters.showInactive]);
+
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return unidades;

@@ -155,7 +155,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const isSmall = size === 'sm';
-  const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+  const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors ${
     error ? 'border-red-400' : 'border-slate-300'
   } ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'cursor-pointer'} ${className}`;
 
@@ -208,8 +208,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   onMouseEnter={() => setHighlightedIndex(index)}
                   className={`px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
                     isCreate
-                      ? highlightedIndex === index ? 'bg-indigo-100 text-indigo-800 font-medium' : 'text-indigo-600 font-medium border-t border-slate-100'
-                      : option.value === value ? 'bg-indigo-50 text-indigo-700 font-medium'
+                      ? highlightedIndex === index ? 'bg-teal-100 text-teal-800 font-medium' : 'text-teal-600 font-medium border-t border-slate-100'
+                      : option.value === value ? 'bg-teal-50 text-teal-700 font-medium'
                       : highlightedIndex === index ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                   role="option" aria-selected={option.value === value}>

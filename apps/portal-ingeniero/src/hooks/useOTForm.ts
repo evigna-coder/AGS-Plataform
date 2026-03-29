@@ -71,9 +71,9 @@ export function useOTForm(otNumber?: string) {
     try {
       await otService.update(otNumber, {
         reporteTecnico: reporteTecnico || '',
-        problemaFallaInicial: (problemaFallaInicial || undefined) as string | undefined,
+        ...(problemaFallaInicial ? { problemaFallaInicial } : {}),
         accionesTomar: accionesTomar || '',
-        materialesParaServicio: (materialesParaServicio || undefined) as string | undefined,
+        ...(materialesParaServicio ? { materialesParaServicio } : {}),
         horasTrabajadas: horasTrabajadas || '',
         tiempoViaje: tiempoViaje || '',
         fechaInicio: fechaInicio || '',

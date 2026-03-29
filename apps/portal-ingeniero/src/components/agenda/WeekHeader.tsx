@@ -39,7 +39,7 @@ export default function WeekHeader({ weekStart, selectedDate, onSelectDate, onPr
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <button onClick={onToday} className="px-2 py-1 text-[11px] font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg">
+          <button onClick={onToday} className="px-2 py-1 text-[11px] font-medium text-teal-600 hover:bg-teal-50 rounded-lg">
             Hoy
           </button>
           <button onClick={onNext} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
@@ -77,7 +77,7 @@ export default function WeekHeader({ weekStart, selectedDate, onSelectDate, onPr
               key={i}
               onClick={() => onSelectDate(day)}
               className={`flex flex-col items-center py-1.5 rounded-lg text-center transition-colors ${
-                isSelected ? 'bg-indigo-600 text-white' : isToday ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'
+                isSelected ? 'bg-teal-600 text-white' : isToday ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50 text-slate-600'
               }`}
             >
               <span className="text-[10px] font-medium">{name}</span>

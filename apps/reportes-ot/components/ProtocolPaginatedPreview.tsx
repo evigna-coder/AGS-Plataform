@@ -25,22 +25,33 @@ const SERVICE_LABELS: Record<string, string> = {
   calibracion: 'Calibración',
 };
 
-/* ── Helper: split checklist items by depth-0 headers ── */
+/* ── Helper: split checklist items by depth-0 headers AND embedded_tables ── */
 function splitChecklistByHeaders(items: any[]): any[][] {
   if (!items || items.length === 0) return [items || []];
-  // Si no hay cabeceras (depth 0), no dividir
   const hasHeaders = items.some((it: any) => it.depth === 0);
-  if (!hasHeaders) return [items];
+  const hasEmbeddedTables = items.some((it: any) => it.itemType === 'embedded_table');
+  if (!hasHeaders && !hasEmbeddedTables) return [items];
 
   const groups: any[][] = [];
   let current: any[] = [];
 
   for (const item of items) {
+    // Split at depth-0 headers
     if (item.depth === 0 && current.length > 0) {
       groups.push(current);
       current = [];
     }
+    // Split before embedded_table so it becomes its own group (won't be cut across pages)
+    if (item.itemType === 'embedded_table' && current.length > 0) {
+      groups.push(current);
+      current = [];
+    }
     current.push(item);
+    // Split after embedded_table too — table is its own atomic group
+    if (item.itemType === 'embedded_table') {
+      groups.push(current);
+      current = [];
+    }
   }
   if (current.length > 0) groups.push(current);
   return groups;
@@ -255,7 +266,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         ) : sel.tableSnapshot.tableType === 'text' ? (
           <CatalogTextView selection={sel} readOnly />
         ) : (
-          <CatalogTableView selection={sel} readOnly isPrint onChangeData={() => {}} />
+          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
         );
 
         items.push({

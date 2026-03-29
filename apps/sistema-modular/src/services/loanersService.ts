@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner } from '@ags/shared';
-import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // --- Loaners (Equipos en préstamo) ---
 
@@ -42,6 +42,30 @@ export const loanersService = {
     return items;
   },
 
+  subscribe(
+    filters: { estado?: string; activoOnly?: boolean } | undefined,
+    callback: (items: Loaner[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    let q = query(collection(db, 'loaners'));
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    return onSnapshot(q, snap => {
+      let items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Loaner[];
+      if (filters?.activoOnly) {
+        items = items.filter(l => l.activo);
+      }
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      callback(items);
+    }, onError);
+  },
+
   async getById(id: string): Promise<Loaner | null> {
     const snap = await getDoc(doc(db, 'loaners', id));
     if (!snap.exists()) return null;
@@ -63,8 +87,10 @@ export const loanersService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'loaners', id), payload);
-    logAudit({ action: 'create', collection: 'loaners', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(docRef('loaners', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'loaners', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -74,13 +100,17 @@ export const loanersService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'loaners', id), payload);
-    logAudit({ action: 'update', collection: 'loaners', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('loaners', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'loaners', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'loaners', documentId: id });
-    await deleteDoc(doc(db, 'loaners', id));
+    const batch = createBatch();
+    batch.delete(docRef('loaners', id));
+    batchAudit(batch, { action: 'delete', collection: 'loaners', documentId: id });
+    await batch.commit();
   },
 
   async getDisponibles(): Promise<Loaner[]> {

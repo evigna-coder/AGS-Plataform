@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { marcasService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -20,19 +20,19 @@ export const MarcasPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNombre, setEditingNombre] = useState('');
 
-  const reload = async () => {
-    setLoading(true);
-    try {
-      const data = await marcasService.getAll(!showInactive);
-      setMarcas(data);
-    } catch (err) {
-      console.error('Error cargando marcas:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => { reload(); }, [showInactive]);
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = marcasService.subscribe(
+      !showInactive,
+      (data) => { setMarcas(data); setLoading(false); },
+      (err) => { console.error('Error cargando marcas:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [showInactive]);
+
+  const reload = useCallback(() => {}, []);
 
   const handleCreate = async () => {
     if (!nuevaMarca.trim()) return;

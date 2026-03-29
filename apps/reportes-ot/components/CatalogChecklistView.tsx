@@ -63,6 +63,150 @@ function ChecklistItemRow({
   const indent = item.depth * 16;
   const disabled = readOnly || isNA;
 
+  // ── embedded_table ──────────────────────────────────────────────────────────
+  if (item.itemType === 'embedded_table') {
+    const cols = item.embeddedColumns ?? [];
+    const rows = item.embeddedRows ?? [];
+    if (cols.length === 0) return null;
+    const answerCells = (answer as { itemType: 'embedded_table'; cells: Record<string, string>[] } | undefined)?.cells ?? [];
+
+    const getCellValue = (ri: number, colKey: string) => {
+      if (answerCells[ri]?.[colKey] !== undefined && answerCells[ri][colKey] !== '') return answerCells[ri][colKey];
+      return rows[ri]?.[colKey] ?? '';
+    };
+
+    const updateTableCell = (ri: number, colKey: string, value: string) => {
+      const newCells = [...answerCells];
+      while (newCells.length <= ri) newCells.push({});
+      newCells[ri] = { ...newCells[ri], [colKey]: value };
+      onAnswer({ itemType: 'embedded_table', cells: newCells });
+    };
+
+    // Calcular grupos para header agrupado (2 filas de thead)
+    const hasGroups = cols.some(c => c.group);
+    type HeaderGroup = { type: 'group'; name: string; span: number } | { type: 'solo'; colIdx: number };
+    const groupRow: HeaderGroup[] = [];
+    if (hasGroups) {
+      let i = 0;
+      while (i < cols.length) {
+        const col = cols[i];
+        if (col.group) {
+          let span = 1;
+          while (i + span < cols.length && cols[i + span].group === col.group) span++;
+          groupRow.push({ type: 'group', name: col.group, span });
+          i += span;
+        } else {
+          groupRow.push({ type: 'solo', colIdx: i });
+          i++;
+        }
+      }
+    }
+
+    const thBase = `px-3 py-2 font-bold text-center border ${isPrint ? 'border-slate-400 bg-slate-100 text-slate-800' : 'border-slate-300 bg-slate-50 text-slate-700'}`;
+    const tdBase = `px-3 py-3 text-center border ${isPrint ? 'border-slate-400 text-slate-700' : 'border-slate-300 text-slate-700'}`;
+    const tdRowHeader = `px-3 py-3 text-left font-semibold border ${isPrint ? 'border-slate-400 bg-slate-50 text-slate-800' : 'border-slate-300 bg-slate-50/50 text-slate-800'}`;
+
+    return (
+      <div className={`py-2.5 ${isPrint ? '' : 'px-3'}`} style={{ paddingLeft: `${indent + 8}px` }}>
+        {item.label && (
+          <p className={`text-xs font-semibold mb-2 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+            {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
+            {item.label}
+          </p>
+        )}
+        <table className={`w-full text-xs border-collapse ${isNA ? 'opacity-40' : ''}`}>
+          <thead>
+            {hasGroups ? (
+              <>
+                {/* Fila 1: grupos + columnas sin grupo (con rowSpan=2) */}
+                <tr>
+                  {groupRow.map((g, gi) =>
+                    g.type === 'group'
+                      ? <th key={`g-${gi}`} colSpan={g.span} className={thBase}>{g.name}</th>
+                      : <th key={`g-${gi}`} rowSpan={2} className={thBase}>{cols[g.colIdx].label}</th>
+                  )}
+                </tr>
+                {/* Fila 2: sub-columnas de cada grupo */}
+                <tr>
+                  {cols.filter(c => c.group).map(col => (
+                    <th key={col.key} className={thBase}>{col.label}</th>
+                  ))}
+                </tr>
+              </>
+            ) : (
+              <tr>
+                {cols.map(col => (
+                  <th key={col.key} className={thBase}>{col.label}</th>
+                ))}
+              </tr>
+            )}
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri}>
+                {cols.map(col => {
+                  const cellVal = getCellValue(ri, col.key);
+                  const hasOptions = col.options && col.options.length > 0;
+
+                  // Row header: siempre texto bold a la izquierda
+                  if (col.isRowHeader) {
+                    return <td key={col.key} className={tdRowHeader}>{cellVal || '\u00A0'}</td>;
+                  }
+
+                  // Radio buttons
+                  if (hasOptions && col.displayAs === 'radio') {
+                    return (
+                      <td key={col.key} className={`px-2 py-2 border ${isPrint ? 'border-slate-400' : 'border-slate-300'}`}>
+                        <div className="flex items-center justify-center gap-3 flex-wrap">
+                          {col.options!.map(opt => (
+                            <label key={opt} className={`flex items-center gap-1 text-xs cursor-pointer whitespace-nowrap ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                              <input
+                                type="radio"
+                                name={`radio-${col.key}-${ri}`}
+                                checked={cellVal === opt}
+                                disabled={disabled}
+                                onChange={() => updateTableCell(ri, col.key, opt)}
+                                className="accent-teal-600"
+                              />
+                              <span className={`${cellVal === opt ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // Selector (dropdown)
+                  if (hasOptions) {
+                    if (isPrint || readOnly) {
+                      return <td key={col.key} className={tdBase}>{cellVal || '\u00A0'}</td>;
+                    }
+                    return (
+                      <td key={col.key} className="px-1 py-1 text-center border border-slate-300">
+                        <select
+                          className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:cursor-not-allowed"
+                          value={cellVal}
+                          disabled={disabled}
+                          onChange={e => updateTableCell(ri, col.key, e.target.value)}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {col.options!.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </td>
+                    );
+                  }
+
+                  // Texto normal
+                  return <td key={col.key} className={tdBase}>{cellVal || '\u00A0'}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   // Cabeceras (depth 0): divider sin control de respuesta
   if (item.depth === 0) {
     return (
@@ -74,7 +218,7 @@ function ChecklistItemRow({
 
   const isInline = item.itemType === 'value_input';
   const labelEl = (
-    <span className={`text-[11px] leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-700'} ${isInline ? 'shrink-0' : 'flex-1'}`}>
+    <span className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'} ${isInline ? 'shrink-0' : 'flex-1'}`}>
       {item.numberPrefix && (
         <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>
       )}
@@ -113,7 +257,11 @@ function ChecklistItemRow({
 
   // ── checkbox ────────────────────────────────────────────────────────────────
   if (item.itemType === 'checkbox') {
-    const checked = (answer as { itemType: 'checkbox'; checked: boolean } | undefined)?.checked ?? false;
+    const cbAnswer = answer as { itemType: 'checkbox'; checked: boolean; linkedValue?: string } | undefined;
+    const checked = cbAnswer?.checked ?? false;
+    const linkedValue = cbAnswer?.linkedValue ?? '';
+    const hasLinked = !!item.linkedValueLabel;
+
     if (isPrint) {
       return (
         <div className="flex items-start gap-2.5 py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
@@ -125,21 +273,43 @@ function ChecklistItemRow({
               : null}
           </span>
           {labelEl}
+          {hasLinked && checked && (
+            <span className="text-[11px] text-slate-600 shrink-0">
+              <span className="text-slate-400">{item.linkedValueLabel}: </span>
+              <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
+              {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
+            </span>
+          )}
         </div>
       );
     }
     return (
-      <label className={`flex items-start gap-2.5 py-1 px-2 rounded cursor-pointer hover:bg-slate-50 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-        style={{ paddingLeft: `${indent + 8}px` }}>
-        <input
-          type="checkbox"
-          className="mt-0.5 shrink-0 w-4 h-4 accent-slate-700 rounded"
-          checked={checked}
-          disabled={disabled}
-          onChange={e => onAnswer({ itemType: 'checkbox', checked: e.target.checked })}
-        />
-        {labelEl}
-      </label>
+      <div className="flex items-start gap-2.5 py-1 px-2" style={{ paddingLeft: `${indent + 8}px` }}>
+        <label className={`flex items-start gap-2.5 cursor-pointer hover:bg-slate-50 rounded text-slate-800 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+          <input
+            type="checkbox"
+            className="mt-0.5 shrink-0 w-4 h-4 accent-slate-700 rounded"
+            checked={checked}
+            disabled={disabled}
+            onChange={e => onAnswer({ itemType: 'checkbox', checked: e.target.checked, linkedValue })}
+          />
+          {labelEl}
+        </label>
+        {hasLinked && checked && (
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-[10px] text-slate-500">{item.linkedValueLabel}:</span>
+            <input
+              type="text"
+              className="text-xs bg-transparent border-b border-slate-300 outline-none w-16 text-center disabled:cursor-not-allowed"
+              value={linkedValue}
+              disabled={disabled}
+              placeholder="___"
+              onChange={e => onAnswer({ itemType: 'checkbox', checked: true, linkedValue: e.target.value })}
+            />
+            {item.linkedValueUnit && <span className="text-[10px] text-slate-400">{item.linkedValueUnit}</span>}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -253,14 +423,22 @@ export const CatalogChecklistView: React.FC<Props> = ({
       {/* Cuerpo — ítems del checklist */}
       <div className={`bg-white ${isPrint ? '' : 'divide-y divide-slate-50'}`}>
         {items.map(item => {
-          // visibleWhen: ocultar si el selector referenciado no tiene alguno de los valores esperados
+          // visibleWhen: ocultar según condición de selector o checkbox
           if (item.visibleWhen) {
-            const selectorAnswer = checklistData[item.visibleWhen.selectorItemId] as
-              { itemType: 'selector'; selected: string } | undefined;
-            const selectorValue = selectorAnswer?.selected ?? '';
-            // Soporte legacy (value: string) y nuevo (values: string[])
-            const allowed = (item.visibleWhen as any).values ?? [(item.visibleWhen as any).value];
-            if (!allowed.includes(selectorValue)) return null;
+            if ('checkboxItemId' in item.visibleWhen) {
+              // Condición de checkbox: visible cuando el estado del checkbox coincide con whenChecked
+              const cbAnswer = checklistData[item.visibleWhen.checkboxItemId] as
+                { itemType: 'checkbox'; checked: boolean } | undefined;
+              const isChecked = cbAnswer?.checked ?? false;
+              if (isChecked !== item.visibleWhen.whenChecked) return null;
+            } else {
+              // Condición de selector (legacy + nuevo)
+              const selectorAnswer = checklistData[item.visibleWhen.selectorItemId] as
+                { itemType: 'selector'; selected: string } | undefined;
+              const selectorValue = selectorAnswer?.selected ?? '';
+              const allowed = (item.visibleWhen as any).values ?? [(item.visibleWhen as any).value];
+              if (!allowed.includes(selectorValue)) return null;
+            }
           }
 
           const isNA = naSet.has(item.itemId);

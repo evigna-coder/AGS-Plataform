@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -58,31 +58,42 @@ export const LeadsList = () => {
   const [filters, setFilter, setFilters, _resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const debouncedSearch = useDebounce(filters.search, 300);
 
+  const unsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     usuariosService.getAll().then(setUsuarios);
   }, []);
 
-  useEffect(() => { loadLeads(); }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.prioridad]);
+  // Build Firestore query filters (stable ref via JSON key)
+  const queryFilters = useMemo(() => {
+    const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
+    return {
+      ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
+      ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
+      ...(filters.area ? { areaActual: filters.area as LeadArea } : {}),
+      ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
+    };
+  }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, usuario]);
 
-  const loadLeads = async () => {
-    try {
-      setLoading(true);
-      setLoadError(null);
-      const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
-      const data = await leadsService.getAll({
-        ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
-        ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
-        ...(filters.area ? { areaActual: filters.area as LeadArea } : {}),
-        ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
-      });
-      setLeads(data);
-    } catch (err) {
-      console.error('Error al cargar leads:', err);
-      setLoadError('Error al cargar los leads. Verifique su conexión e intente nuevamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Real-time subscription — auto-updates when any user writes
+  useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
+    unsubRef.current?.();
+    unsubRef.current = leadsService.subscribe(
+      queryFilters,
+      (data) => { setLeads(data); setLoading(false); },
+      (err) => { console.error('Error leads:', err); setLoadError('Error al cargar los leads.'); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [queryFilters]);
+
+  // Manual refresh (for post-mutation callbacks that need immediate reload)
+  const loadLeads = useCallback(async () => {
+    // With onSnapshot the data refreshes automatically,
+    // but we keep this for components that call onCreated/onDerived/etc.
+    // No-op: the listener already handles updates.
+  }, []);
 
   const leadsFiltered = useMemo(() => {
     let result = leads;

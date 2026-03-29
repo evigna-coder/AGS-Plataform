@@ -283,6 +283,7 @@ export const ImportChecklistPdfDialog = ({ onClose, onImport }: Props) => {
 
   const TYPE_LABELS: Record<ChecklistItemType, string> = {
     checkbox: '☑ Checkbox', value_input: '✏ Valor', pass_fail: '✓✗ Cumple/NC',
+    selector: '▾ Selector', embedded_table: '▦ Tabla',
   };
   const DEPTH_BG: Record<number, string> = {
     0: 'bg-slate-800 text-white', 1: 'bg-blue-100 text-blue-800',

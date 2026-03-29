@@ -48,14 +48,6 @@ export const ClienteNew = () => {
     try {
       setLoading(true);
       
-      // Helper para limpiar campos vacíos y evitar undefined en Firestore
-      const cleanValue = (value: any): any => {
-        if (value === '' || value === null || value === undefined) {
-          return null; // Firestore acepta null pero no undefined
-        }
-        return value;
-      };
-      
       const clienteData: any = {
         razonSocial: formData.razonSocial,
         pais: formData.pais,

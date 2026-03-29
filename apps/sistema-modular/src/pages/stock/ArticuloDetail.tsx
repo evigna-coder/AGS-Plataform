@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { articulosService, unidadesService, marcasService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -37,7 +37,6 @@ const Badge = ({ label, color }: { label: string; color: string }) => (
 
 export const ArticuloDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [articulo, setArticulo] = useState<Articulo | null>(null);
   const [marca, setMarca] = useState<Marca | null>(null);

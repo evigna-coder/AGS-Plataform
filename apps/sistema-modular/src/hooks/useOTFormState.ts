@@ -139,6 +139,7 @@ export function useOTFormState() {
     cierreAdmin: form.cierreAdmin,
     clienteId: cleanValue(form.clienteId), sistemaId: cleanValue(form.sistemaId),
     moduloId: cleanValue(form.moduloId),
+    leadId: form.leadId, presupuestoOrigenId: form.presupuestoOrigenId,
   }), [form]);
 
   /** Validate form and return field-level errors (empty = valid) */

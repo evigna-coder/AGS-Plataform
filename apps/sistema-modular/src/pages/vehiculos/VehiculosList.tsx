@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { vehiculosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -32,19 +32,19 @@ export const VehiculosList = () => {
   const debouncedSearch = useDebounce(filters.search, 300);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Vehiculo | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setItems(await vehiculosService.getAll());
-    } catch (err) {
-      console.error('Error cargando vehículos:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = vehiculosService.subscribe(
+      false,
+      (data) => { setItems(data); setLoading(false); },
+      (err) => { console.error('Error cargando vehículos:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  const loadData = useCallback(() => {}, []);
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return items;
@@ -58,7 +58,6 @@ export const VehiculosList = () => {
     if (!confirm(`Eliminar vehículo "${v.patente}"?`)) return;
     try {
       await vehiculosService.delete(v.id);
-      await loadData();
     } catch (err) {
       console.error('Error eliminando:', err);
     }

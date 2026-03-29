@@ -73,6 +73,18 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
               title="Ancho de la columna en mm (vacío = automático)"
             />
           </div>
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-medium text-slate-500">Alinear</label>
+            <select
+              value={d.align ?? 'center'}
+              onChange={e => setD({ ...d, align: e.target.value === 'center' ? null : e.target.value as 'left' | 'right' })}
+              className="border border-slate-300 rounded-lg px-1.5 py-1 text-xs"
+            >
+              <option value="left">Izq</option>
+              <option value="center">Centro</option>
+              <option value="right">Der</option>
+            </select>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
@@ -416,6 +428,14 @@ export const TableEditor = ({ table, onChange }: Props) => {
     }
   };
 
+  const moveColumn = (idx: number, dir: -1 | 1) => {
+    const cols = [...table.columns];
+    const target = idx + dir;
+    if (target < 0 || target >= cols.length) return;
+    [cols[idx], cols[target]] = [cols[target], cols[idx]];
+    upd('columns', cols);
+  };
+
   const saveRow = (row: TableCatalogRow) => {
     const exists = table.templateRows.some(r => r.rowId === row.rowId);
     upd('templateRows', exists
@@ -471,21 +491,30 @@ export const TableEditor = ({ table, onChange }: Props) => {
               {editingColIdx === i ? (
                 <ColumnForm col={col} onSave={saveColumn} onCancel={() => setEditingColIdx(null)} />
               ) : (
-                <div className="flex items-center justify-between p-2 border border-slate-200 rounded-lg">
-                  <span className="text-sm">
-                    <span className="font-bold text-slate-900">{col.label}</span>
-                    <span className="text-slate-500 ml-2 text-xs">
-                      {col.type}{col.unit ? ` (${col.unit})` : ''}{col.required ? ' *' : ''}
-                      {col.type === 'fixed_text' && col.fixedValue ? ` = "${col.fixedValue}"` : ''}
-                      {col.type === 'select_input' && col.options?.length ? ` [${col.options.join(', ')}]` : ''}
-                      {col.width ? ` · ${col.width}mm` : ''}
+                <div className="flex items-center gap-1">
+                  <div className="flex flex-col shrink-0">
+                    <button onClick={() => moveColumn(i, -1)} disabled={i === 0}
+                      className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Mover izquierda">◀</button>
+                    <button onClick={() => moveColumn(i, 1)} disabled={i === table.columns.length - 1}
+                      className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Mover derecha">▶</button>
+                  </div>
+                  <div className="flex-1 flex items-center justify-between p-2 border border-slate-200 rounded-lg">
+                    <span className="text-sm">
+                      <span className="font-bold text-slate-900">{col.label}</span>
+                      <span className="text-slate-500 ml-2 text-xs">
+                        {col.type}{col.unit ? ` (${col.unit})` : ''}{col.required ? ' *' : ''}
+                        {col.type === 'fixed_text' && col.fixedValue ? ` = "${col.fixedValue}"` : ''}
+                        {col.type === 'select_input' && col.options?.length ? ` [${col.options.join(', ')}]` : ''}
+                        {col.width ? ` · ${col.width}mm` : ''}
+                        {col.align && col.align !== 'center' ? ` · ${col.align === 'left' ? '⬌ izq' : '⮞ der'}` : ''}
+                      </span>
                     </span>
-                  </span>
-                  <div className="flex gap-3">
-                    <button onClick={() => { setAddingCol(false); setEditingColIdx(i); }}
-                      className="text-blue-600 text-xs font-bold">Editar</button>
-                    <button onClick={() => upd('columns', table.columns.filter((_, j) => j !== i))}
-                      className="text-red-600 text-xs font-bold">Eliminar</button>
+                    <div className="flex gap-3">
+                      <button onClick={() => { setAddingCol(false); setEditingColIdx(i); }}
+                        className="text-blue-600 text-xs font-bold">Editar</button>
+                      <button onClick={() => upd('columns', table.columns.filter((_, j) => j !== i))}
+                        className="text-red-600 text-xs font-bold">Eliminar</button>
+                    </div>
                   </div>
                 </div>
               )}

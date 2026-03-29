@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { tiposServicioService } from '../../services/firebaseService';
 import type { TipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -9,7 +8,6 @@ import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const TiposServicio = () => {
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [tipos, setTipos] = useState<TipoServicio[]>([]);
   const [showModal, setShowModal] = useState(false);

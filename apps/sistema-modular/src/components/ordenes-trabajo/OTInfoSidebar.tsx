@@ -45,6 +45,8 @@ export interface OTInfoSidebarProps {
   leadId?: string | null;
   presupuestoOrigenId?: string | null;
   presupuestoOrigenNumero?: string | null;
+  onCreateLeadFromOT?: () => void;
+  creatingLead?: boolean;
 }
 
 export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
@@ -61,6 +63,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   ordenCompra, fechaServicioAprox, ingenieroAsignadoId, ingenieroAsignadoNombre: _ian,
   ingenieros, onIngenieroChange, estadoAdmin: _ea, estadoAdminFecha: _eaf, estadoHistorial,
   leadId, presupuestoOrigenId, presupuestoOrigenNumero,
+  onCreateLeadFromOT, creatingLead,
 }) => {
   const { pathname } = useLocation();
   const totalHs = (Number(horasTrabajadas) || 0) + (Number(tiempoViaje) || 0);
@@ -223,29 +226,42 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
       </Card>
 
       {/* Origen / Trazabilidad */}
-      {(leadId || presupuestoOrigenId) && (
-        <Card compact>
-          <p className={sec}>Origen</p>
-          <div className="space-y-1.5">
-            {leadId && (
-              <div>
-                <span className={lbl}>Lead</span>
-                <Link to={`/leads/${leadId}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
-                  Ver lead origen →
-                </Link>
-              </div>
-            )}
-            {presupuestoOrigenId && (
-              <div>
-                <span className={lbl}>Presupuesto</span>
-                <Link to={`/presupuestos/${presupuestoOrigenId}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
-                  {presupuestoOrigenNumero || 'Ver presupuesto'} →
-                </Link>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
+      <Card compact>
+        <p className={sec}>Origen</p>
+        <div className="space-y-1.5">
+          {leadId && (
+            <div>
+              <span className={lbl}>Lead</span>
+              <Link to={`/leads/${leadId}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
+                Ver lead origen →
+              </Link>
+            </div>
+          )}
+          {presupuestoOrigenId && (
+            <div>
+              <span className={lbl}>Presupuesto</span>
+              <Link to={`/presupuestos/${presupuestoOrigenId}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:underline font-medium">
+                {presupuestoOrigenNumero || 'Ver presupuesto'} →
+              </Link>
+            </div>
+          )}
+          {!leadId && onCreateLeadFromOT && (
+            <div className="pt-1">
+              <button
+                onClick={onCreateLeadFromOT}
+                disabled={creatingLead}
+                className="w-full text-left text-[11px] font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
+              >
+                {creatingLead ? 'Creando lead...' : 'Crear lead — Presupuesto pendiente'}
+              </button>
+              <p className="text-[9px] text-slate-400 mt-1">Crea un lead vinculado con estado "en presupuesto" dirigido al área de ventas</p>
+            </div>
+          )}
+          {!leadId && !presupuestoOrigenId && !onCreateLeadFromOT && (
+            <p className="text-[10px] text-slate-400 italic">Sin lead ni presupuesto vinculado</p>
+          )}
+        </div>
+      </Card>
 
       {/* Budgets */}
       <Card compact>

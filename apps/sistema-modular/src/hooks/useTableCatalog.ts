@@ -50,22 +50,21 @@ export function useTableCatalog() {
     }
   }, []);
 
+  // Optimistic: actualiza status localmente y escribe a Firebase en background
   const publishTable = useCallback(async (id: string) => {
-    try {
-      await tableCatalogService.publish(id);
-    } catch (err) {
+    setTables(prev => prev.map(t => t.id === id ? { ...t, status: 'published' as const } : t));
+    tableCatalogService.publish(id).catch(err => {
       console.error('Error publicando tabla:', err);
-      throw err;
-    }
+      setTables(prev => prev.map(t => t.id === id ? { ...t, status: 'draft' as const } : t));
+    });
   }, []);
 
   const archiveTable = useCallback(async (id: string) => {
-    try {
-      await tableCatalogService.archive(id);
-    } catch (err) {
+    setTables(prev => prev.map(t => t.id === id ? { ...t, status: 'archived' as const } : t));
+    tableCatalogService.archive(id).catch(err => {
       console.error('Error archivando tabla:', err);
-      throw err;
-    }
+      setTables(prev => prev.map(t => t.id === id ? { ...t, status: 'draft' as const } : t));
+    });
   }, []);
 
   const cloneTable = useCallback(async (id: string, overrides?: { name?: string; sysType?: string; projectId?: string | null }) => {
@@ -86,22 +85,22 @@ export function useTableCatalog() {
     }
   }, []);
 
+  // Optimistic: quitar de la lista local y borrar en background
   const deleteTable = useCallback(async (id: string) => {
-    try {
-      await tableCatalogService.delete(id);
-    } catch (err) {
+    const backup = tables;
+    setTables(prev => prev.filter(t => t.id !== id));
+    tableCatalogService.delete(id).catch(err => {
       console.error('Error eliminando tabla:', err);
-      throw err;
-    }
-  }, []);
+      setTables(backup);
+    });
+  }, [tables]);
 
+  // Optimistic: actualizar projectId localmente y escribir en background
   const assignProject = useCallback(async (tableIds: string[], projectId: string | null) => {
-    try {
-      await tableCatalogService.assignProject(tableIds, projectId);
-    } catch (err) {
+    setTables(prev => prev.map(t => tableIds.includes(t.id) ? { ...t, projectId } : t));
+    tableCatalogService.assignProject(tableIds, projectId).catch(err => {
       console.error('Error asignando proyecto:', err);
-      throw err;
-    }
+    });
   }, []);
 
   return {

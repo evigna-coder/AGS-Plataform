@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { FichaPropiedad, HistorialFicha, DerivacionProveedor } from '@ags/shared';
-import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // --- Fichas Propiedad del Cliente ---
 
@@ -46,6 +46,33 @@ export const fichasService = {
     return items;
   },
 
+  subscribe(
+    filters: { clienteId?: string; estado?: string; activasOnly?: boolean } | undefined,
+    callback: (items: FichaPropiedad[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    let q = query(collection(db, 'fichasPropiedad'));
+    if (filters?.clienteId) {
+      q = query(q, where('clienteId', '==', filters.clienteId));
+    }
+    if (filters?.estado) {
+      q = query(q, where('estado', '==', filters.estado));
+    }
+    return onSnapshot(q, snap => {
+      let items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as FichaPropiedad[];
+      if (filters?.activasOnly) {
+        items = items.filter(f => f.estado !== 'entregado');
+      }
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      callback(items);
+    }, onError);
+  },
+
   async getById(id: string): Promise<FichaPropiedad | null> {
     const snap = await getDoc(doc(db, 'fichasPropiedad', id));
     if (!snap.exists()) return null;
@@ -67,8 +94,10 @@ export const fichasService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'fichasPropiedad', id), payload);
-    logAudit({ action: 'create', collection: 'fichas_propiedad', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(docRef('fichasPropiedad', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'fichas_propiedad', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -78,13 +107,17 @@ export const fichasService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'fichasPropiedad', id), payload);
-    logAudit({ action: 'update', collection: 'fichas_propiedad', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('fichasPropiedad', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'fichas_propiedad', documentId: id });
-    await deleteDoc(doc(db, 'fichasPropiedad', id));
+    const batch = createBatch();
+    batch.delete(docRef('fichasPropiedad', id));
+    batchAudit(batch, { action: 'delete', collection: 'fichas_propiedad', documentId: id });
+    await batch.commit();
   },
 
   async addHistorial(id: string, entry: Omit<HistorialFicha, 'id'>): Promise<void> {

@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta } from '@ags/shared';
-import { db, logAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
 import { leadsService } from './leadsService';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
@@ -85,6 +85,43 @@ export const presupuestosService = {
     return presupuestos;
   },
 
+  /** Real-time subscription for presupuestos. Returns unsubscribe function. */
+  subscribe(
+    filters: { clienteId?: string; estado?: Presupuesto['estado'] } | undefined,
+    callback: (presupuestos: Presupuesto[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q = query(collection(db, 'presupuestos'));
+    if (filters?.clienteId) q = query(q, where('clienteId', '==', filters.clienteId));
+    if (filters?.estado) q = query(q, where('estado', '==', filters.estado));
+
+    return onSnapshot(q, snap => {
+      const presupuestos = snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          createdAt: toISO(data.createdAt, ''),
+          updatedAt: toISO(data.updatedAt, ''),
+          validUntil: toISO(data.validUntil),
+          fechaEnvio: toISO(data.fechaEnvio),
+          proximoContacto: data.proximoContacto ?? null,
+          responsableId: data.responsableId ?? null,
+          responsableNombre: data.responsableNombre ?? null,
+        };
+      }) as Presupuesto[];
+      presupuestos.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      callback(presupuestos);
+    }, err => {
+      console.error('Presupuestos subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   // Obtener presupuesto por ID
   async getById(id: string) {
     const docRef = doc(db, 'presupuestos', id);
@@ -130,16 +167,18 @@ export const presupuestosService = {
       ...(presupuestoData.validUntil ? { validUntil: Timestamp.fromDate(new Date(presupuestoData.validUntil as any)) } : {}),
     };
     const payload = deepCleanForFirestore(raw);
-    const docRef = await addDoc(collection(db, 'presupuestos'), payload);
-    logAudit({ action: 'create', collection: 'presupuestos', documentId: docRef.id, after: payload as any });
+    const presRef = newDocRef('presupuestos');
+    const batch = createBatch();
+    batch.set(presRef, payload);
+    batchAudit(batch, { action: 'create', collection: 'presupuestos', documentId: presRef.id, after: payload as any });
+    await batch.commit();
 
-    console.log('✅ Presupuesto creado exitosamente con ID:', docRef.id);
-    return { id: docRef.id, numero };
+    console.log('✅ Presupuesto creado exitosamente con ID:', presRef.id);
+    return { id: presRef.id, numero };
   },
 
   // Actualizar presupuesto
   async update(id: string, data: Partial<Presupuesto>) {
-    const docRef = doc(db, 'presupuestos', id);
     // Convert date strings to Firestore Timestamps, then deep-clean
     const raw = {
       ...data,
@@ -149,9 +188,10 @@ export const presupuestosService = {
       ...((data as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((data as any).validUntil)) } : {}),
     };
     const cleanedData = deepCleanForFirestore(raw);
-
-    await updateDoc(docRef, cleanedData);
-    logAudit({ action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
+    const batch = createBatch();
+    batch.update(docRef('presupuestos', id), cleanedData);
+    batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
+    await batch.commit();
   },
 
   // Crear revisión de un presupuesto (anula el original)
@@ -262,17 +302,20 @@ export const presupuestosService = {
 
   // Eliminar presupuesto (baja lógica)
   async delete(id: string) {
-    logAudit({ action: 'delete', collection: 'presupuestos', documentId: id });
-    const docRef = doc(db, 'presupuestos', id);
-    await updateDoc(docRef, {
+    const batch = createBatch();
+    batch.update(docRef('presupuestos', id), {
       estado: 'borrador' as PresupuestoEstado,
       updatedAt: Timestamp.now(),
     });
+    batchAudit(batch, { action: 'delete', collection: 'presupuestos', documentId: id });
+    await batch.commit();
   },
 
   async hardDelete(id: string) {
-    logAudit({ action: 'delete', collection: 'presupuestos', documentId: id });
-    await deleteDoc(doc(db, 'presupuestos', id));
+    const batch = createBatch();
+    batch.delete(docRef('presupuestos', id));
+    batchAudit(batch, { action: 'delete', collection: 'presupuestos', documentId: id });
+    await batch.commit();
   },
 };
 
@@ -337,8 +380,10 @@ export const ordenesCompraService = {
     if (data.fechaRecepcion) payload.fechaRecepcion = Timestamp.fromDate(new Date(data.fechaRecepcion));
     if (data.fechaProforma) payload.fechaProforma = Timestamp.fromDate(new Date(data.fechaProforma));
     if (data.fechaEntregaEstimada) payload.fechaEntregaEstimada = Timestamp.fromDate(new Date(data.fechaEntregaEstimada));
-    await setDoc(doc(db, 'ordenes_compra', id), payload);
-    logAudit({ action: 'create', collection: 'ordenes_compra', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'ordenes_compra', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'ordenes_compra', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -347,13 +392,39 @@ export const ordenesCompraService = {
     if (data.fechaRecepcion) payload.fechaRecepcion = Timestamp.fromDate(new Date(data.fechaRecepcion));
     if (data.fechaProforma) payload.fechaProforma = Timestamp.fromDate(new Date(data.fechaProforma));
     if (data.fechaEntregaEstimada) payload.fechaEntregaEstimada = Timestamp.fromDate(new Date(data.fechaEntregaEstimada));
-    await updateDoc(doc(db, 'ordenes_compra', id), payload);
-    logAudit({ action: 'update', collection: 'ordenes_compra', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('ordenes_compra', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'ordenes_compra', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'ordenes_compra', documentId: id });
-    await deleteDoc(doc(db, 'ordenes_compra', id));
+    const batch = createBatch();
+    batch.delete(docRef('ordenes_compra', id));
+    batchAudit(batch, { action: 'delete', collection: 'ordenes_compra', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    filters: { estado?: string; tipo?: string; proveedorId?: string } | undefined,
+    callback: (items: OrdenCompra[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: any[] = [orderBy('createdAt', 'desc')];
+    if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
+    if (filters?.tipo) constraints.unshift(where('tipo', '==', filters.tipo));
+    if (filters?.proveedorId) constraints.unshift(where('proveedorId', '==', filters.proveedorId));
+    const q = query(collection(db, 'ordenes_compra'), ...constraints);
+    return onSnapshot(q, snap => {
+      callback(snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        fechaRecepcion: d.data().fechaRecepcion?.toDate?.()?.toISOString() ?? null,
+        fechaProforma: d.data().fechaProforma?.toDate?.()?.toISOString() ?? null,
+        fechaEntregaEstimada: d.data().fechaEntregaEstimada?.toDate?.()?.toISOString() ?? null,
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      })) as OrdenCompra[]);
+    }, err => { console.error('OC subscription error:', err); onError?.(err); });
   },
 };
 
@@ -399,27 +470,33 @@ export const categoriasPresupuestoService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
-    const docRef = await addDoc(collection(db, 'categorias_presupuesto'), payload);
-    logAudit({ action: 'create', collection: 'categorias_presupuesto', documentId: docRef.id, after: payload as any });
-    return docRef.id;
+    const ref = newDocRef('categorias_presupuesto');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'categorias_presupuesto', documentId: ref.id, after: payload as any });
+    await batch.commit();
+    return ref.id;
   },
 
   // Actualizar categoría
   async update(id: string, data: Partial<Omit<CategoriaPresupuesto, 'id' | 'createdAt' | 'updatedAt'>>) {
-    const docRef = doc(db, 'categorias_presupuesto', id);
     const payload = {
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
-    await updateDoc(docRef, payload);
-    logAudit({ action: 'update', collection: 'categorias_presupuesto', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('categorias_presupuesto', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'categorias_presupuesto', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   // Eliminar categoría
   async delete(id: string) {
-    logAudit({ action: 'delete', collection: 'categorias_presupuesto', documentId: id });
-    await deleteDoc(doc(db, 'categorias_presupuesto', id));
+    const batch = createBatch();
+    batch.delete(docRef('categorias_presupuesto', id));
+    batchAudit(batch, { action: 'delete', collection: 'categorias_presupuesto', documentId: id });
+    await batch.commit();
   },
 };
 
@@ -456,23 +533,29 @@ export const condicionesPagoService = {
       ...getCreateTrace(),
       activo: condicionData.activo !== undefined ? condicionData.activo : true,
     };
-    const docRef = await addDoc(collection(db, 'condiciones_pago'), payload);
-    logAudit({ action: 'create', collection: 'condiciones_pago', documentId: docRef.id, after: payload as any });
-    return docRef.id;
+    const ref = newDocRef('condiciones_pago');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'condiciones_pago', documentId: ref.id, after: payload as any });
+    await batch.commit();
+    return ref.id;
   },
 
   // Actualizar condición
   async update(id: string, data: Partial<Omit<CondicionPago, 'id'>>) {
-    const docRef = doc(db, 'condiciones_pago', id);
     const payload = { ...data, ...getUpdateTrace() };
-    await updateDoc(docRef, payload);
-    logAudit({ action: 'update', collection: 'condiciones_pago', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('condiciones_pago', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'condiciones_pago', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   // Eliminar condición
   async delete(id: string) {
-    logAudit({ action: 'delete', collection: 'condiciones_pago', documentId: id });
-    await deleteDoc(doc(db, 'condiciones_pago', id));
+    const batch = createBatch();
+    batch.delete(docRef('condiciones_pago', id));
+    batchAudit(batch, { action: 'delete', collection: 'condiciones_pago', documentId: id });
+    await batch.commit();
   },
 };
 
@@ -514,19 +597,26 @@ export const conceptosServicioService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    const docRef = await addDoc(collection(db, 'conceptos_servicio'), cleaned);
-    logAudit({ action: 'create', collection: 'conceptos_servicio', documentId: docRef.id, after: cleaned as any });
-    return docRef.id;
+    const ref = newDocRef('conceptos_servicio');
+    const batch = createBatch();
+    batch.set(ref, cleaned);
+    batchAudit(batch, { action: 'create', collection: 'conceptos_servicio', documentId: ref.id, after: cleaned as any });
+    await batch.commit();
+    return ref.id;
   },
 
   async update(id: string, data: Partial<Omit<ConceptoServicio, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const cleaned = cleanFirestoreData({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
-    await updateDoc(doc(db, 'conceptos_servicio', id), cleaned);
-    logAudit({ action: 'update', collection: 'conceptos_servicio', documentId: id, after: cleaned as any });
+    const batch = createBatch();
+    batch.update(docRef('conceptos_servicio', id), cleaned);
+    batchAudit(batch, { action: 'update', collection: 'conceptos_servicio', documentId: id, after: cleaned as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'conceptos_servicio', documentId: id });
-    await deleteDoc(doc(db, 'conceptos_servicio', id));
+    const batch = createBatch();
+    batch.delete(docRef('conceptos_servicio', id));
+    batchAudit(batch, { action: 'delete', collection: 'conceptos_servicio', documentId: id });
+    await batch.commit();
   },
 };

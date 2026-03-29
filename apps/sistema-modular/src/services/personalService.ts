@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteField, query, where, orderBy, Timestamp, setDoc, onSnapshot } from 'firebase/firestore';
 import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride } from '@ags/shared';
-import { db, logAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ========== INGENIEROS ==========
 
@@ -43,8 +43,10 @@ export const ingenierosService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'ingenieros', id), payload);
-    logAudit({ action: 'create', collection: 'ingenieros', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(docRef('ingenieros', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'ingenieros', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -54,13 +56,40 @@ export const ingenierosService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'ingenieros', id), payload);
-    logAudit({ action: 'update', collection: 'ingenieros', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('ingenieros', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'ingenieros', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'ingenieros', documentId: id });
-    await deleteDoc(doc(db, 'ingenieros', id));
+    const batch = createBatch();
+    batch.delete(docRef('ingenieros', id));
+    batchAudit(batch, { action: 'delete', collection: 'ingenieros', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (items: Ingeniero[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'ingenieros'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'ingenieros'));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Ingeniero[];
+      items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(items);
+    }, onError);
   },
 };
 
@@ -105,8 +134,10 @@ export const proveedoresService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'proveedores', id), payload);
-    logAudit({ action: 'create', collection: 'proveedores', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(docRef('proveedores', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'proveedores', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -116,13 +147,17 @@ export const proveedoresService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'proveedores', id), payload);
-    logAudit({ action: 'update', collection: 'proveedores', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('proveedores', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'proveedores', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'proveedores', documentId: id });
-    await deleteDoc(doc(db, 'proveedores', id));
+    const batch = createBatch();
+    batch.delete(docRef('proveedores', id));
+    batchAudit(batch, { action: 'delete', collection: 'proveedores', documentId: id });
+    await batch.commit();
   },
 
   async getInternacionales(): Promise<Proveedor[]> {
@@ -134,6 +169,29 @@ export const proveedoresService = {
       updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
     })) as Proveedor[];
   },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (items: Proveedor[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'proveedores'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'proveedores'));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Proveedor[];
+      items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(items);
+    }, onError);
+  },
 };
 
 // =============================================
@@ -142,10 +200,10 @@ export const proveedoresService = {
 
 export const usuariosService = {
   async upsertOnLogin(user: { uid: string; email: string; displayName: string; photoURL: string | null }): Promise<UsuarioAGS> {
-    const docRef = doc(db, 'usuarios', user.uid);
-    const existing = await getDoc(docRef);
+    const ref = doc(db, 'usuarios', user.uid);
+    const existing = await getDoc(ref);
     if (existing.exists()) {
-      await updateDoc(docRef, { lastLoginAt: Timestamp.now() });
+      await updateDoc(ref, { lastLoginAt: Timestamp.now() });
       const d = existing.data();
       return {
         id: existing.id,
@@ -169,7 +227,7 @@ export const usuariosService = {
       updatedAt: Timestamp.now(),
       lastLoginAt: Timestamp.now(),
     };
-    await setDoc(docRef, newUser);
+    await setDoc(ref, newUser);
     const now = new Date().toISOString();
     return { id: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL ?? null, role: null, status: 'pendiente', createdAt: now, updatedAt: now, lastLoginAt: now };
   },
@@ -213,5 +271,23 @@ export const usuariosService = {
 
   async updatePermissions(uid: string, permisos: UserPermissionsOverride | null): Promise<void> {
     await updateDoc(doc(db, 'usuarios', uid), { permisos: permisos ?? deleteField(), updatedAt: Timestamp.now() });
+  },
+
+  subscribe(
+    callback: (users: UsuarioAGS[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    const q = query(collection(db, 'usuarios'), orderBy('displayName', 'asc'));
+    return onSnapshot(q, snap => {
+      const users = snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        role: d.data().role ?? null, photoURL: d.data().photoURL ?? null,
+        permisos: d.data().permisos ?? null,
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? '',
+        updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? '',
+        lastLoginAt: d.data().lastLoginAt?.toDate?.()?.toISOString() ?? '',
+      })) as UsuarioAGS[];
+      callback(users);
+    }, onError);
   },
 };

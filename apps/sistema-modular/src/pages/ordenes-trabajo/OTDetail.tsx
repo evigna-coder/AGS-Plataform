@@ -150,6 +150,8 @@ export const OTDetail = () => {
             leadId={ot.leadId}
             presupuestoOrigenId={ot.presupuestoOrigenId}
             presupuestoOrigenNumero={ot.presupuestoOrigenNumero}
+            onCreateLeadFromOT={ot.handleCreateLeadFromOT}
+            creatingLead={ot.creatingLead}
           />
 
           {/* Main content */}

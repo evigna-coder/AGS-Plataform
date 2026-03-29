@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Asignacion } from '@ags/shared';
-import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 export const asignacionesService = {
   async getNextNumero(): Promise<string> {
@@ -64,8 +64,11 @@ export const asignacionesService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'asignaciones', id), payload);
-    logAudit({ action: 'create', collection: 'asignaciones', documentId: id, after: payload as any });
+    const ref = docRef('asignaciones', id);
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'asignaciones', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -75,8 +78,10 @@ export const asignacionesService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'asignaciones', id), payload);
-    logAudit({ action: 'update', collection: 'asignaciones', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('asignaciones', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'asignaciones', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async devolverItems(asignacionId: string, devoluciones: { itemId: string; cantidad: number }[]): Promise<void> {
@@ -140,7 +145,35 @@ export const asignacionesService = {
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'asignaciones', documentId: id });
-    await deleteDoc(doc(db, 'asignaciones', id));
+    const batch = createBatch();
+    batch.delete(docRef('asignaciones', id));
+    batchAudit(batch, { action: 'delete', collection: 'asignaciones', documentId: id });
+    await batch.commit();
+  },
+
+  /** Real-time subscription. Returns unsubscribe function. */
+  subscribe(
+    filters: { ingenieroId?: string; estado?: string; clienteId?: string } | undefined,
+    callback: (asignaciones: Asignacion[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: any[] = [];
+    if (filters?.ingenieroId) constraints.push(where('ingenieroId', '==', filters.ingenieroId));
+    if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
+    if (filters?.clienteId) constraints.push(where('clienteId', '==', filters.clienteId));
+    constraints.push(orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'asignaciones'), ...constraints);
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      })) as Asignacion[];
+      callback(items);
+    }, err => {
+      console.error('Asignaciones subscription error:', err);
+      onError?.(err);
+    });
   },
 };

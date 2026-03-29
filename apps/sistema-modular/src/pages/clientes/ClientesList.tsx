@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -28,6 +28,8 @@ export const ClientesList = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientosByCliente, setEstablecimientosByCliente] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const unsubClientesRef = useRef<(() => void) | null>(null);
+  const unsubEstRef = useRef<(() => void) | null>(null);
   const bgTasks = useBackgroundTasks();
   const hasCuitTask = !!bgTasks.getTask('bulk-cuit-validation');
   const [showCreate, setShowCreate] = useState(false);
@@ -50,35 +52,34 @@ export const ClientesList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  useEffect(() => { loadClientes(); }, []);
+  useEffect(() => {
+    unsubClientesRef.current?.();
+    unsubClientesRef.current = clientesService.subscribe(
+      false,
+      (data) => { setClientes(data); setLoading(false); },
+      (err) => { console.error('Clientes subscription error:', err); setLoading(false); },
+    );
+    unsubEstRef.current?.();
+    unsubEstRef.current = establecimientosService.subscribe(
+      (establecimientos) => {
+        const byCliente: Record<string, number> = {};
+        establecimientos.forEach((e) => {
+          byCliente[e.clienteCuit] = (byCliente[e.clienteCuit] ?? 0) + 1;
+        });
+        setEstablecimientosByCliente(byCliente);
+      },
+      (err) => { console.error('Establecimientos subscription error:', err); },
+    );
+    return () => { unsubClientesRef.current?.(); unsubEstRef.current?.(); };
+  }, []);
 
-  const loadClientes = async () => {
-    try {
-      setLoading(true);
-      const [data, establecimientos] = await Promise.all([
-        clientesService.getAll(),
-        establecimientosService.getAll(),
-      ]);
-      setClientes(data);
-      const byCliente: Record<string, number> = {};
-      establecimientos.forEach((e) => {
-        byCliente[e.clienteCuit] = (byCliente[e.clienteCuit] ?? 0) + 1;
-      });
-      setEstablecimientosByCliente(byCliente);
-    } catch (error) {
-      console.error('Error cargando clientes:', error);
-      alert('Error al cargar clientes');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadClientes = useCallback(() => {}, []);
 
   const handleDeactivate = async (cliente: Cliente) => {
     const action = cliente.activo ? 'desactivar' : 'reactivar';
     if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} "${cliente.razonSocial}"?`)) return;
     try {
       await clientesService.update(cliente.id, { activo: !cliente.activo });
-      await loadClientes();
     } catch (e) {
       console.error(`Error al ${action} cliente:`, e);
       alert(`Error al ${action} el cliente`);
@@ -116,7 +117,6 @@ export const ClientesList = () => {
         if (c) await clientesService.update(id, { activo: !c.activo });
       }
       setSelected(new Set());
-      await loadClientes();
     } catch (e) {
       console.error('Error en acción masiva:', e);
       alert('Error al procesar la acción masiva');

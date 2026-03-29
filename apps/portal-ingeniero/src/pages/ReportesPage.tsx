@@ -25,12 +25,12 @@ export default function ReportesPage() {
             onChange={e => setOtInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleLoad(); }}
             placeholder="N° OT..."
-            className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs w-28 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs w-28 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <button
             onClick={handleLoad}
             disabled={!otInput.trim()}
-            className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors"
+            className="text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors"
           >
             Cargar
           </button>

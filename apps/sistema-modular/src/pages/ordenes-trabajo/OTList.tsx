@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, usuariosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -362,8 +362,28 @@ export const OTList = () => {
     return result;
   }, [ordenes, filters.estadoAdmin, filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId, filters.fechaDesde, filters.fechaHasta, filters.soloFacturable, filters.soloContrato, filters.soloGarantia, debouncedBusquedaOT, debouncedBusquedaModulo, debouncedBusquedaEquipo, filters.sortField, filters.sortDir]);
 
+  const unsubRef = useRef<(() => void) | null>(null);
+
+  // Firestore query filters for OT subscription
+  const otQueryFilters = useMemo(() => {
+    const f: any = {};
+    if (filters.clienteId) f.clienteId = filters.clienteId;
+    if (filters.sistemaId) f.sistemaId = filters.sistemaId;
+    return Object.keys(f).length > 0 ? f : undefined;
+  }, [filters.clienteId, filters.sistemaId]);
+
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { loadOrdenes(); }, [filters.clienteId, filters.sistemaId]);
+
+  // Real-time OT subscription
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = ordenesTrabajoService.subscribe(
+      otQueryFilters,
+      (data) => { setOrdenes(data); setLoading(false); },
+      (err) => { console.error('Error OTs:', err); setLoading(false); },
+    );
+    return () => { unsubRef.current?.(); };
+  }, [otQueryFilters]);
 
   const loadData = async () => {
     try {
@@ -378,7 +398,6 @@ export const OTList = () => {
       setSistemas(sistemasData);
       setTiposServicioList(tiposData);
       setIngenierosList(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
-      await loadOrdenes();
     } catch {
       alert('Error al cargar los datos');
     } finally {
@@ -386,22 +405,8 @@ export const OTList = () => {
     }
   };
 
-  const loadOrdenes = async () => {
-    try {
-      setLoading(true);
-      const filtersToApply: any = {};
-      if (filters.clienteId) filtersToApply.clienteId = filters.clienteId;
-      if (filters.sistemaId) filtersToApply.sistemaId = filters.sistemaId;
-      const data = await ordenesTrabajoService.getAll(
-        Object.keys(filtersToApply).length > 0 ? filtersToApply : undefined
-      );
-      setOrdenes(data);
-    } catch {
-      console.error('Error cargando órdenes');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // No-op: onSnapshot handles real-time updates
+  const loadOrdenes = useCallback(async () => {}, []);
 
   const handleDelete = async (ot: WorkOrder) => {
     if (!window.confirm(`¿Eliminar OT-${ot.otNumber}?`)) return;

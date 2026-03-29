@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { minikitTemplatesService, articulosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,14 +14,19 @@ export const MinikitTemplatesPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MinikitTemplate | null>(null);
 
-  const reload = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try { setTemplates(await minikitTemplatesService.getAll(false)); }
-    catch (err) { console.error('Error cargando plantillas:', err); }
-    finally { if (!silent) setLoading(false); }
+  const unsubRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    unsubRef.current?.();
+    unsubRef.current = minikitTemplatesService.subscribe(
+      false,
+      (data) => { setTemplates(data); setLoading(false); },
+      (err) => { console.error('Error cargando plantillas:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  const reload = useCallback((_silent = false) => {}, []);
 
   const openCreate = () => { setEditingTemplate(null); setShowModal(true); };
   const openEdit = (t: MinikitTemplate) => { setEditingTemplate(t); setShowModal(true); };

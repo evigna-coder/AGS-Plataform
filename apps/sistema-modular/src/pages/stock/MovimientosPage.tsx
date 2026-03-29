@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { movimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -41,21 +41,21 @@ export const MovimientosPage = () => {
   const debouncedSearch = useDebounce(filters.search, 300);
   const [showCreate, setShowCreate] = useState(false);
 
-  const load = async () => {
-    try {
-      setLoading(true);
-      const queryFilters: { tipo?: string } = {};
-      if (filters.tipo) queryFilters.tipo = filters.tipo;
-      const data = await movimientosService.getAll(queryFilters);
-      setItems(data);
-    } catch (err) {
-      console.error('Error cargando movimientos:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => { load(); }, [filters.tipo]);
+  useEffect(() => {
+    unsubRef.current?.();
+    const queryFilters: { tipo?: string } = {};
+    if (filters.tipo) queryFilters.tipo = filters.tipo;
+    unsubRef.current = movimientosService.subscribe(
+      queryFilters,
+      (items) => { setItems(items); setLoading(false); },
+      (err) => { console.error('Error cargando movimientos:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
+  }, [filters.tipo]);
+
+  const load = useCallback(() => {}, []);
 
   const filtered = useMemo(() => debouncedSearch
     ? items.filter(m =>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { asignacionesService, ingenierosService } from '../../services/firebaseService';
 import { Card } from '../../components/ui/Card';
@@ -21,20 +21,20 @@ export const AsignacionesList = () => {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
 
+  const unsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [asg, ings] = await Promise.all([
-          asignacionesService.getAll(),
-          ingenierosService.getAll(true),
-        ]);
-        setItems(asg);
-        setIngenieros(ings);
-      } catch (err) { console.error('Error:', err); }
-      finally { setLoading(false); }
-    };
-    load();
+    // Reference data: one-shot load
+    ingenierosService.getAll(true).then(setIngenieros).catch(console.error);
+
+    // Main data: real-time subscription
+    unsubRef.current?.();
+    unsubRef.current = asignacionesService.subscribe(
+      undefined,
+      (items) => { setItems(items); setLoading(false); },
+      (err) => { console.error('Error:', err); setLoading(false); }
+    );
+    return () => { unsubRef.current?.(); };
   }, []);
 
   const filtered = items.filter(a => {

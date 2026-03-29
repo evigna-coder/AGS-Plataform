@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Dispositivo } from '@ags/shared';
-import { db, logAudit, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace } from './firebase';
 
 function tsToIso(ts: any): string {
   return ts?.toDate?.().toISOString() ?? '';
@@ -19,8 +19,11 @@ function docToDispositivo(d: any): Dispositivo {
 export const dispositivosService = {
   async create(data: Omit<Dispositivo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = { ...data, ...getCreateTrace(), activo: true, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
-    const ref = await addDoc(collection(db, 'dispositivos'), payload);
-    logAudit({ action: 'create', collection: 'dispositivos', documentId: ref.id, after: payload as any });
+    const ref = newDocRef('dispositivos');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'dispositivos', documentId: ref.id, after: payload as any });
+    await batch.commit();
     return ref.id;
   },
 
@@ -32,6 +35,19 @@ export const dispositivosService = {
     return items;
   },
 
+  subscribe(
+    activosOnly: boolean,
+    callback: (items: Dispositivo[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    return onSnapshot(collection(db, 'dispositivos'), snap => {
+      let items = snap.docs.map(docToDispositivo);
+      if (activosOnly) items = items.filter(d => d.activo);
+      items.sort((a, b) => `${a.marca} ${a.modelo}`.localeCompare(`${b.marca} ${b.modelo}`));
+      callback(items);
+    }, onError);
+  },
+
   async getById(id: string): Promise<Dispositivo | null> {
     const snap = await getDoc(doc(db, 'dispositivos', id));
     return snap.exists() ? docToDispositivo(snap) : null;
@@ -39,12 +55,16 @@ export const dispositivosService = {
 
   async update(id: string, data: Partial<Omit<Dispositivo, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const payload = { ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() };
-    await updateDoc(doc(db, 'dispositivos', id), payload);
-    logAudit({ action: 'update', collection: 'dispositivos', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('dispositivos', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'dispositivos', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'dispositivos', documentId: id });
-    await deleteDoc(doc(db, 'dispositivos', id));
+    const batch = createBatch();
+    batch.delete(docRef('dispositivos', id));
+    batchAudit(batch, { action: 'delete', collection: 'dispositivos', documentId: id });
+    await batch.commit();
   },
 };

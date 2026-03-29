@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fichasService, clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -29,21 +29,28 @@ export function FichasList() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const unsubFichasRef = useRef<(() => void) | null>(null);
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
+  // Load reference data (clientes) once
+  useEffect(() => {
+    clientesService.getAll().then(setClientes).catch(err => console.error('Error cargando clientes:', err));
+  }, []);
+
+  // Subscribe to fichas, re-subscribe when showEntregadas changes
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      fichasService.getAll({ activasOnly: !filters.showEntregadas }),
-      clientesService.getAll(),
-    ]).then(([f, c]) => {
-      setFichas(f);
-      setClientes(c);
-    }).finally(() => setLoading(false));
+    unsubFichasRef.current?.();
+    unsubFichasRef.current = fichasService.subscribe(
+      { activasOnly: !filters.showEntregadas },
+      (data) => { setFichas(data); setLoading(false); },
+      (err) => { console.error('Fichas subscription error:', err); setLoading(false); },
+    );
+    return () => { unsubFichasRef.current?.(); };
   }, [filters.showEntregadas]);
 
   const filtered = useMemo(() => {
@@ -185,12 +192,7 @@ export function FichasList() {
         )}
       </div>
 
-      <CreateFichaModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => {
-        Promise.all([
-          fichasService.getAll({ activasOnly: !filters.showEntregadas }),
-          clientesService.getAll(),
-        ]).then(([f, c]) => { setFichas(f); setClientes(c); });
-      }} />
+      <CreateFichaModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => {}} />
     </div>
   );
 }

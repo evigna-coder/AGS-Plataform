@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion } from '@ags/shared';
-import { db, logAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
 
 // Servicio para Tipos de Servicio (lista simple)
 export const tiposServicioService = {
@@ -43,27 +43,46 @@ export const tiposServicioService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
-    const docRef = await addDoc(collection(db, 'tipos_servicio'), payload);
-    logAudit({ action: 'create', collection: 'tipos_servicio', documentId: docRef.id, after: payload as any });
-    return docRef.id;
+    const ref = newDocRef('tipos_servicio');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, { action: 'create', collection: 'tipos_servicio', documentId: ref.id, after: payload as any });
+    await batch.commit();
+    return ref.id;
   },
 
   // Actualizar tipo de servicio
   async update(id: string, data: Partial<Omit<TipoServicio, 'id' | 'createdAt' | 'updatedAt'>>) {
-    const docRef = doc(db, 'tipos_servicio', id);
     const payload = {
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
-    await updateDoc(docRef, payload);
-    logAudit({ action: 'update', collection: 'tipos_servicio', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('tipos_servicio', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'tipos_servicio', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   // Eliminar tipo de servicio
   async delete(id: string) {
-    logAudit({ action: 'delete', collection: 'tipos_servicio', documentId: id });
-    await deleteDoc(doc(db, 'tipos_servicio', id));
+    const batch = createBatch();
+    batch.delete(docRef('tipos_servicio', id));
+    batchAudit(batch, { action: 'delete', collection: 'tipos_servicio', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(callback: (items: TipoServicio[]) => void, onError?: (err: Error) => void): () => void {
+    const q = query(collection(db, 'tipos_servicio'));
+    return onSnapshot(q, snap => {
+      const tipos = snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        createdAt: d.data().createdAt?.toDate().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate().toISOString(),
+      })) as TipoServicio[];
+      tipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      callback(tipos);
+    }, err => { console.error('TiposServicio subscription error:', err); onError?.(err); });
   },
 };
 
@@ -106,8 +125,10 @@ export const posicionesArancelariasService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    await setDoc(doc(db, 'posiciones_arancelarias', id), payload);
-    logAudit({ action: 'create', collection: 'posiciones_arancelarias', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'posiciones_arancelarias', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'posiciones_arancelarias', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -117,13 +138,17 @@ export const posicionesArancelariasService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    await updateDoc(doc(db, 'posiciones_arancelarias', id), payload);
-    logAudit({ action: 'update', collection: 'posiciones_arancelarias', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('posiciones_arancelarias', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'posiciones_arancelarias', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'posiciones_arancelarias', documentId: id });
-    await deleteDoc(doc(db, 'posiciones_arancelarias', id));
+    const batch = createBatch();
+    batch.delete(docRef('posiciones_arancelarias', id));
+    batchAudit(batch, { action: 'delete', collection: 'posiciones_arancelarias', documentId: id });
+    await batch.commit();
   },
 
   async getByCodigo(codigo: string): Promise<PosicionArancelaria | null> {
@@ -136,6 +161,28 @@ export const posicionesArancelariasService = {
       createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
       updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
     } as PosicionArancelaria;
+  },
+
+  subscribe(
+    activoOnly: boolean,
+    callback: (items: PosicionArancelaria[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let q;
+    if (activoOnly) {
+      q = query(collection(db, 'posiciones_arancelarias'), where('activo', '==', true));
+    } else {
+      q = query(collection(db, 'posiciones_arancelarias'));
+    }
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      })) as PosicionArancelaria[];
+      items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+      callback(items);
+    }, err => { console.error('PosicionesArancelarias subscription error:', err); onError?.(err); });
   },
 };
 
@@ -193,21 +240,47 @@ export const requerimientosService = {
       updatedAt: Timestamp.now(),
     };
     if (data.fechaAprobacion) payload.fechaAprobacion = Timestamp.fromDate(new Date(data.fechaAprobacion));
-    await setDoc(doc(db, 'requerimientos_compra', id), payload);
-    logAudit({ action: 'create', collection: 'requerimientos_compra', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'requerimientos_compra', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'requerimientos_compra', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
   async update(id: string, data: Partial<RequerimientoCompra>): Promise<void> {
     const payload: any = { ...cleanFirestoreData(data as any), ...getUpdateTrace(), updatedAt: Timestamp.now() };
     if (data.fechaAprobacion) payload.fechaAprobacion = Timestamp.fromDate(new Date(data.fechaAprobacion));
-    await updateDoc(doc(db, 'requerimientos_compra', id), payload);
-    logAudit({ action: 'update', collection: 'requerimientos_compra', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('requerimientos_compra', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'requerimientos_compra', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'requerimientos_compra', documentId: id });
-    await deleteDoc(doc(db, 'requerimientos_compra', id));
+    const batch = createBatch();
+    batch.delete(docRef('requerimientos_compra', id));
+    batchAudit(batch, { action: 'delete', collection: 'requerimientos_compra', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    filters: { estado?: string; origen?: string } | undefined,
+    callback: (items: RequerimientoCompra[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: any[] = [orderBy('createdAt', 'desc')];
+    if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
+    if (filters?.origen) constraints.unshift(where('origen', '==', filters.origen));
+    const q = query(collection(db, 'requerimientos_compra'), ...constraints);
+    return onSnapshot(q, snap => {
+      callback(snap.docs.map(d => ({
+        id: d.id, ...d.data(),
+        fechaSolicitud: d.data().fechaSolicitud?.toDate?.()?.toISOString() ?? d.data().fechaSolicitud,
+        fechaAprobacion: d.data().fechaAprobacion?.toDate?.()?.toISOString() ?? null,
+        createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+        updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      })) as RequerimientoCompra[]);
+    }, err => { console.error('Requerimientos subscription error:', err); onError?.(err); });
   },
 };
 
@@ -277,8 +350,10 @@ export const importacionesService = {
     for (const f of dateFields) {
       if (data[f]) payload[f] = Timestamp.fromDate(new Date(data[f]!));
     }
-    await setDoc(doc(db, 'importaciones', id), payload);
-    logAudit({ action: 'create', collection: 'importaciones', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.set(doc(db, 'importaciones', id), payload);
+    batchAudit(batch, { action: 'create', collection: 'importaciones', documentId: id, after: payload as any });
+    await batch.commit();
     return id;
   },
 
@@ -288,12 +363,41 @@ export const importacionesService = {
     for (const f of dateFields) {
       if ((data as any)[f]) payload[f] = Timestamp.fromDate(new Date((data as any)[f]));
     }
-    await updateDoc(doc(db, 'importaciones', id), payload);
-    logAudit({ action: 'update', collection: 'importaciones', documentId: id, after: payload as any });
+    const batch = createBatch();
+    batch.update(docRef('importaciones', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'importaciones', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async delete(id: string): Promise<void> {
-    logAudit({ action: 'delete', collection: 'importaciones', documentId: id });
-    await deleteDoc(doc(db, 'importaciones', id));
+    const batch = createBatch();
+    batch.delete(docRef('importaciones', id));
+    batchAudit(batch, { action: 'delete', collection: 'importaciones', documentId: id });
+    await batch.commit();
+  },
+
+  subscribe(
+    filters: { estado?: string } | undefined,
+    callback: (items: Importacion[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const constraints: any[] = [orderBy('createdAt', 'desc')];
+    if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
+    const q = query(collection(db, 'importaciones'), ...constraints);
+    return onSnapshot(q, snap => {
+      callback(snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id, ...data,
+          fechaEmbarque: data.fechaEmbarque?.toDate?.()?.toISOString() ?? null,
+          fechaEstimadaArribo: data.fechaEstimadaArribo?.toDate?.()?.toISOString() ?? null,
+          fechaArriboReal: data.fechaArriboReal?.toDate?.()?.toISOString() ?? null,
+          fechaDespacho: data.fechaDespacho?.toDate?.()?.toISOString() ?? null,
+          vepFechaPago: data.vepFechaPago?.toDate?.()?.toISOString() ?? null,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+        };
+      }) as Importacion[]);
+    }, err => { console.error('Importaciones subscription error:', err); onError?.(err); });
   },
 };

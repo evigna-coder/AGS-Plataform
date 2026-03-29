@@ -57,7 +57,7 @@ export default function BottomNav() {
             to={tab.to}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[10px] font-medium transition-colors ${
-                isActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                isActive ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'
               }`
             }
           >

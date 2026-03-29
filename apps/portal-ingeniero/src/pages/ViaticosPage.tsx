@@ -58,7 +58,7 @@ export default function ViaticosPage() {
 
   const handleSave = async () => {
     if (!concepto.trim() || !monto) return;
-    const data = { fecha, concepto: concepto.trim(), establecimiento: establecimiento.trim() || undefined, monto: parseFloat(monto), medioPago, notas: notas.trim() || undefined };
+    const data = { fecha, concepto: concepto.trim(), ...(establecimiento.trim() ? { establecimiento: establecimiento.trim() } : {}), monto: parseFloat(monto), medioPago, ...(notas.trim() ? { notas: notas.trim() } : {}) };
     if (editingGasto) {
       await editarGasto(editingGasto.id, data);
     } else {
@@ -201,31 +201,31 @@ export default function ViaticosPage() {
           <div>
             <label className="text-[11px] font-medium text-slate-500 mb-1 block">Fecha</label>
             <input type="date" value={fecha} onChange={e => setFecha(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-500 mb-1 block">Concepto</label>
             <input type="text" value={concepto} onChange={e => setConcepto(e.target.value)}
               placeholder="Ej: Almuerzo, Hotel, Nafta, Peaje..."
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-500 mb-1 block">Establecimiento</label>
             <input type="text" value={establecimiento} onChange={e => setEstablecimiento(e.target.value)}
               placeholder="Ej: Shell, McDonald's, Hotel Amerian..."
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-medium text-slate-500 mb-1 block">Monto ($)</label>
               <input type="number" value={monto} onChange={e => setMonto(e.target.value)}
                 placeholder="0" min="0" step="0.01"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
             <div>
               <label className="text-[11px] font-medium text-slate-500 mb-1 block">Medio de pago</label>
               <select value={medioPago} onChange={e => setMedioPago(e.target.value as MedioPago)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
                 <option value="efectivo">Efectivo</option>
                 <option value="tarjeta">Tarjeta</option>
               </select>
@@ -235,7 +235,7 @@ export default function ViaticosPage() {
             <label className="text-[11px] font-medium text-slate-500 mb-1 block">Notas (opcional)</label>
             <input type="text" value={notas} onChange={e => setNotas(e.target.value)}
               placeholder="Detalle adicional..."
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
         </div>
       </Modal>

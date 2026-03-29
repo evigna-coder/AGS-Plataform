@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import type { TableCatalogEntry, ChecklistItem, ChecklistItemType } from '@ags/shared';
 import { ImportChecklistPdfDialog } from './ImportChecklistPdfDialog';
+import { EmbeddedTableEditor } from './EmbeddedTableEditor';
 
 interface Props {
   entry: TableCatalogEntry;
@@ -22,6 +23,7 @@ const TYPE_LABELS: Record<ChecklistItemType, string> = {
   value_input: 'Campo valor',
   pass_fail: 'Cumple/No cumple',
   selector: 'Selector',
+  embedded_table: 'Tabla embebida',
 };
 
 const DEPTH_COLORS: Record<number, string> = {
@@ -57,10 +59,14 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
   const [d, setD] = useState<ChecklistItem>(item);
   const [optionInput, setOptionInput] = useState('');
 
-  // Selectores disponibles para visibleWhen (excluir el item actual)
+  // Selectores y checkboxes disponibles para visibleWhen (excluir el item actual)
   const availableSelectors = allItems.filter(
     it => it.itemType === 'selector' && it.itemId !== d.itemId && it.selectorOptions?.length
   );
+  const availableCheckboxes = allItems.filter(
+    it => it.itemType === 'checkbox' && it.itemId !== d.itemId && it.label.trim()
+  );
+  const hasConditionSources = availableSelectors.length > 0 || availableCheckboxes.length > 0;
 
   const addOption = () => {
     const val = optionInput.trim();
@@ -100,6 +106,8 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
               ...d,
               itemType: newType,
               selectorOptions: newType === 'selector' ? (d.selectorOptions ?? []) : null,
+              embeddedColumns: newType === 'embedded_table' ? (d.embeddedColumns ?? []) : null,
+              embeddedRows: newType === 'embedded_table' ? (d.embeddedRows ?? []) : null,
             });
           }}
           className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
@@ -108,6 +116,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
           <option value="value_input">Campo valor</option>
           <option value="pass_fail">Cumple / No cumple</option>
           <option value="selector">Selector</option>
+          <option value="embedded_table">Tabla informacional</option>
         </select>
         <select
           value={d.depth}
@@ -155,8 +164,52 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
         </div>
       )}
 
+      {/* Campo vinculado al checkbox */}
+      {d.itemType === 'checkbox' && (
+        <div className="space-y-1.5 pt-1 border-t border-slate-200">
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!d.linkedValueLabel}
+              onChange={e => {
+                if (e.target.checked) {
+                  setD({ ...d, linkedValueLabel: 'Cantidad', linkedValueUnit: null });
+                } else {
+                  setD({ ...d, linkedValueLabel: null, linkedValueUnit: null });
+                }
+              }}
+              className="accent-teal-600"
+            />
+            Al tildar, mostrar campo de valor
+          </label>
+          {d.linkedValueLabel && (
+            <div className="grid grid-cols-2 gap-2 pl-6">
+              <Input
+                placeholder="Etiqueta (ej: Cantidad)"
+                value={d.linkedValueLabel}
+                onChange={e => setD({ ...d, linkedValueLabel: e.target.value || null })}
+              />
+              <Input
+                placeholder="Unidad (ej: unid.)"
+                value={d.linkedValueUnit ?? ''}
+                onChange={e => setD({ ...d, linkedValueUnit: e.target.value || null })}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tabla informacional embebida */}
+      {d.itemType === 'embedded_table' && (
+        <EmbeddedTableEditor
+          columns={d.embeddedColumns ?? []}
+          rows={d.embeddedRows ?? []}
+          onChange={(cols, rows) => setD({ ...d, embeddedColumns: cols, embeddedRows: rows })}
+        />
+      )}
+
       {/* Condición de visibilidad */}
-      {availableSelectors.length > 0 && d.itemType !== 'selector' && (
+      {hasConditionSources && d.itemType !== 'selector' && (
         <div className="space-y-1.5 pt-1 border-t border-slate-200">
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
@@ -165,8 +218,14 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
                 checked={!!d.visibleWhen}
                 onChange={e => {
                   if (e.target.checked) {
-                    const first = availableSelectors[0];
-                    setD({ ...d, visibleWhen: { selectorItemId: first.itemId, values: [first.selectorOptions![0]] } });
+                    // Default: primer selector si hay, sino primer checkbox
+                    if (availableSelectors.length > 0) {
+                      const first = availableSelectors[0];
+                      setD({ ...d, visibleWhen: { selectorItemId: first.itemId, values: [first.selectorOptions![0]] } });
+                    } else {
+                      const first = availableCheckboxes[0];
+                      setD({ ...d, visibleWhen: { checkboxItemId: first.itemId, whenChecked: false } });
+                    }
                   } else {
                     setD({ ...d, visibleWhen: null });
                   }
@@ -177,47 +236,102 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
             </label>
           </div>
           {d.visibleWhen && (() => {
-            const selectedSelector = availableSelectors.find(s => s.itemId === d.visibleWhen!.selectorItemId);
-            const selectorOpts = selectedSelector?.selectorOptions ?? [];
-            const toggleValue = (val: string) => {
-              const current = d.visibleWhen!.values;
-              const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
-              if (next.length > 0) {
-                setD({ ...d, visibleWhen: { ...d.visibleWhen!, values: next } });
-              }
-            };
+            const isCheckboxCondition = 'checkboxItemId' in d.visibleWhen!;
+            const conditionType = isCheckboxCondition ? 'checkbox' : 'selector';
+
             return (
               <div className="pl-6 space-y-1.5">
-                <select
-                  value={d.visibleWhen.selectorItemId}
-                  onChange={e => {
-                    const sel = availableSelectors.find(s => s.itemId === e.target.value);
-                    setD({ ...d, visibleWhen: { selectorItemId: e.target.value, values: sel?.selectorOptions?.slice(0, 1) ?? [] } });
-                  }}
-                  className="text-[11px] border border-slate-300 rounded px-1.5 py-1 bg-white"
-                >
-                  {availableSelectors.map(s => (
-                    <option key={s.itemId} value={s.itemId}>{s.label || '(sin nombre)'}</option>
-                  ))}
-                </select>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectorOpts.map(opt => {
-                    const isSelected = d.visibleWhen!.values.includes(opt);
-                    return (
-                      <label key={opt} className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
-                        isSelected ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleValue(opt)}
-                          className="w-3 h-3 accent-teal-600"
-                        />
-                        {opt}
-                      </label>
-                    );
-                  })}
-                </div>
+                {/* Tipo de condición */}
+                {availableSelectors.length > 0 && availableCheckboxes.length > 0 && (
+                  <div className="flex gap-2">
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 cursor-pointer">
+                      <input type="radio" checked={conditionType === 'selector'} onChange={() => {
+                        const first = availableSelectors[0];
+                        setD({ ...d, visibleWhen: { selectorItemId: first.itemId, values: [first.selectorOptions![0]] } });
+                      }} className="accent-teal-600" />
+                      Según selector
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 cursor-pointer">
+                      <input type="radio" checked={conditionType === 'checkbox'} onChange={() => {
+                        const first = availableCheckboxes[0];
+                        setD({ ...d, visibleWhen: { checkboxItemId: first.itemId, whenChecked: false } });
+                      }} className="accent-teal-600" />
+                      Según checkbox
+                    </label>
+                  </div>
+                )}
+
+                {/* Selector condition */}
+                {conditionType === 'selector' && 'selectorItemId' in d.visibleWhen! && (() => {
+                  const vw = d.visibleWhen as { selectorItemId: string; values: string[] };
+                  const selectedSelector = availableSelectors.find(s => s.itemId === vw.selectorItemId);
+                  const selectorOpts = selectedSelector?.selectorOptions ?? [];
+                  const toggleValue = (val: string) => {
+                    const next = vw.values.includes(val) ? vw.values.filter(v => v !== val) : [...vw.values, val];
+                    if (next.length > 0) setD({ ...d, visibleWhen: { ...vw, values: next } });
+                  };
+                  return (
+                    <>
+                      <select
+                        value={vw.selectorItemId}
+                        onChange={e => {
+                          const sel = availableSelectors.find(s => s.itemId === e.target.value);
+                          setD({ ...d, visibleWhen: { selectorItemId: e.target.value, values: sel?.selectorOptions?.slice(0, 1) ?? [] } });
+                        }}
+                        className="text-[11px] border border-slate-300 rounded px-1.5 py-1 bg-white"
+                      >
+                        {availableSelectors.map(s => (
+                          <option key={s.itemId} value={s.itemId}>{s.label || '(sin nombre)'}</option>
+                        ))}
+                      </select>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectorOpts.map(opt => {
+                          const isSelected = vw.values.includes(opt);
+                          return (
+                            <label key={opt} className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
+                              isSelected ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                            }`}>
+                              <input type="checkbox" checked={isSelected} onChange={() => toggleValue(opt)} className="w-3 h-3 accent-teal-600" />
+                              {opt}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {/* Checkbox condition */}
+                {conditionType === 'checkbox' && 'checkboxItemId' in d.visibleWhen! && (() => {
+                  const vw = d.visibleWhen as { checkboxItemId: string; whenChecked: boolean };
+                  return (
+                    <>
+                      <select
+                        value={vw.checkboxItemId}
+                        onChange={e => setD({ ...d, visibleWhen: { ...vw, checkboxItemId: e.target.value } })}
+                        className="text-[11px] border border-slate-300 rounded px-1.5 py-1 bg-white"
+                      >
+                        {availableCheckboxes.map(cb => (
+                          <option key={cb.itemId} value={cb.itemId}>{cb.label || '(sin nombre)'}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <label className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
+                          !vw.whenChecked ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                        }`}>
+                          <input type="radio" checked={!vw.whenChecked} onChange={() => setD({ ...d, visibleWhen: { ...vw, whenChecked: false } })} className="accent-teal-600" />
+                          No tildado (visible si aplica)
+                        </label>
+                        <label className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
+                          vw.whenChecked ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                        }`}>
+                          <input type="radio" checked={vw.whenChecked} onChange={() => setD({ ...d, visibleWhen: { ...vw, whenChecked: true } })} className="accent-teal-600" />
+                          Tildado
+                        </label>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -236,7 +350,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
         </label>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button size="sm" onClick={() => onSave(d)} disabled={!d.label.trim()}>Guardar</Button>
+          <Button size="sm" onClick={() => onSave(d)} disabled={d.itemType !== 'embedded_table' && !d.label.trim()}>Guardar</Button>
         </div>
       </div>
     </div>
@@ -303,10 +417,10 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
     upd(next);
   };
 
-  // Resolver nombre del selector para mostrar condición visibleWhen
-  const getSelectorLabel = (itemId: string) => {
-    const sel = items.find(it => it.itemId === itemId);
-    return sel?.label || '???';
+  // Resolver nombre del ítem referenciado en visibleWhen
+  const getItemLabel = (itemId: string) => {
+    const it = items.find(i => i.itemId === itemId);
+    return it?.label || '???';
   };
 
   return (
@@ -350,9 +464,11 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                 {/* Left: badge + prefix + label — all shrinkable */}
                 <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden mr-2">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
-                    item.itemType === 'selector' ? 'bg-teal-600 text-white' : DEPTH_COLORS[item.depth]
+                    item.itemType === 'selector' ? 'bg-teal-600 text-white'
+                    : item.itemType === 'embedded_table' ? 'bg-blue-600 text-white'
+                    : DEPTH_COLORS[item.depth]
                   }`}>
-                    {item.itemType === 'selector' ? 'Selector' : DEPTH_LABELS[item.depth]}
+                    {item.itemType === 'selector' ? 'Selector' : item.itemType === 'embedded_table' ? 'Tabla' : DEPTH_LABELS[item.depth]}
                   </span>
                   {item.numberPrefix && (
                     <span className="text-xs font-mono text-slate-400 shrink-0 whitespace-nowrap max-w-[80px] truncate" title={item.numberPrefix}>
@@ -371,10 +487,23 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                       [{item.selectorOptions.join(', ')}]
                     </span>
                   )}
+                  {/* Info de tabla embebida */}
+                  {item.itemType === 'embedded_table' && item.embeddedColumns && (
+                    <span className="text-[10px] text-blue-500 shrink-0">
+                      {item.embeddedColumns.length} cols, {(item.embeddedRows ?? []).length} filas
+                    </span>
+                  )}
                   {/* Badge de condición */}
                   {item.visibleWhen && (
-                    <span className="text-[9px] text-teal-500 bg-teal-50 px-1.5 py-px rounded shrink-0" title={`Visible cuando "${getSelectorLabel(item.visibleWhen.selectorItemId)}" = ${item.visibleWhen.values.join(' | ')}`}>
-                      si {item.visibleWhen.values.join(' | ')}
+                    <span className="text-[9px] text-teal-500 bg-teal-50 px-1.5 py-px rounded shrink-0" title={
+                      'checkboxItemId' in item.visibleWhen
+                        ? `Visible cuando "${getItemLabel(item.visibleWhen.checkboxItemId)}" ${item.visibleWhen.whenChecked ? 'tildado' : 'no tildado'}`
+                        : `Visible cuando "${getItemLabel(item.visibleWhen.selectorItemId)}" = ${item.visibleWhen.values.join(' | ')}`
+                    }>
+                      {'checkboxItemId' in item.visibleWhen
+                        ? `si ${item.visibleWhen.whenChecked ? '✓' : '☐'} ${getItemLabel(item.visibleWhen.checkboxItemId).slice(0, 20)}`
+                        : `si ${item.visibleWhen.values.join(' | ')}`
+                      }
                     </span>
                   )}
                 </div>
@@ -384,6 +513,7 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                     <span className="text-[10px] text-slate-400">{TYPE_LABELS[item.itemType]}</span>
                   )}
                   {item.unit && <span className="text-[10px] text-blue-500">{item.unit}</span>}
+                  {item.linkedValueLabel && <span className="text-[10px] text-orange-500" title={`Al tildar: ${item.linkedValueLabel}${item.linkedValueUnit ? ` (${item.linkedValueUnit})` : ''}`}>+valor</span>}
                   {item.canBeNA && <span className="text-[10px] text-amber-600">N/A</span>}
                   <button onClick={() => moveItem(i, -1)} disabled={i === 0}
                     className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1">▲</button>

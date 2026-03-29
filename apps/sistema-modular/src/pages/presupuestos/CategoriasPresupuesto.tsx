@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { categoriasPresupuestoService } from '../../services/firebaseService';
 import type { CategoriaPresupuesto } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -8,7 +7,6 @@ import { Input } from '../../components/ui/Input';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const CategoriasPresupuesto = () => {
-  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
