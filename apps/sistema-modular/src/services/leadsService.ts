@@ -1,8 +1,42 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
-import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
+import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace } from './firebase';
+
+// ── Mapeo de estados: presupuesto → lead ──────────────────────────────
+const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
+  enviado: 'presupuesto_enviado',
+  en_seguimiento: 'presupuesto_enviado',
+  pendiente_oc: 'esperando_oc',
+  aceptado: 'esperando_oc',
+  autorizado: 'en_coordinacion',
+};
+
+const PRESUPUESTO_ESTADO_LABELS: Partial<Record<PresupuestoEstado, string>> = {
+  borrador: 'Borrador',
+  enviado: 'Enviado',
+  en_seguimiento: 'En seguimiento',
+  pendiente_oc: 'Pendiente OC',
+  aceptado: 'Aceptado',
+  autorizado: 'Autorizado',
+  rechazado: 'Rechazado',
+  vencido: 'Vencido',
+  anulado: 'Anulado',
+  pendiente_certificacion: 'Pend. certificación',
+  aguarda: 'Aguarda',
+};
+
+// ── Mapeo de estados: OT estadoAdmin → lead ───────────────────────────
+const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
+  CREADA: 'en_coordinacion',
+  ASIGNADA: 'en_coordinacion',
+  COORDINADA: 'en_coordinacion',
+  EN_CURSO: 'en_proceso',
+  CIERRE_TECNICO: 'en_proceso',
+  CIERRE_ADMINISTRATIVO: 'en_proceso',
+  FINALIZADO: 'finalizado',
+};
 
 function migrateLeadEstado(raw: string): LeadEstado {
   const migration: Record<string, LeadEstado> = {
@@ -247,6 +281,90 @@ export const leadsService = {
     }
 
     return uploaded;
+  },
+
+  /**
+   * Sincroniza el estado del lead cuando cambia el estado de un presupuesto vinculado.
+   * Se llama automáticamente desde presupuestosService.update().
+   */
+  async syncFromPresupuesto(leadId: string, presupuestoNumero: string, newEstado: PresupuestoEstado) {
+    const lead = await this.getById(leadId);
+    if (!lead || lead.estado === 'finalizado' || lead.estado === 'no_concretado') return;
+
+    const user = getCurrentUserTrace();
+    const nuevoEstadoLead = PRESUPUESTO_TO_LEAD_ESTADO[newEstado];
+    const estadoLabel = PRESUPUESTO_ESTADO_LABELS[newEstado] || newEstado;
+
+    const posta: Posta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      deUsuarioId: user?.uid ?? 'system',
+      deUsuarioNombre: user?.name ?? 'Sistema',
+      aUsuarioId: lead.asignadoA || '',
+      aUsuarioNombre: lead.asignadoNombre || '',
+      comentario: `Presupuesto ${presupuestoNumero} → ${estadoLabel}`,
+      estadoAnterior: lead.estado,
+      estadoNuevo: nuevoEstadoLead || lead.estado,
+    };
+
+    const updates: Record<string, any> = {
+      postas: arrayUnion(deepCleanForFirestore(posta)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    };
+    if (nuevoEstadoLead && nuevoEstadoLead !== lead.estado) {
+      updates.estado = nuevoEstadoLead;
+    }
+    // Presupuesto autorizado → mover lead a coordinación
+    if (newEstado === 'autorizado') {
+      updates.areaActual = 'agenda_coordinacion';
+      updates.accionPendiente = `Coordinar OT — Presupuesto ${presupuestoNumero} autorizado`;
+    }
+
+    const batch = createBatch();
+    batch.update(docRef('leads', leadId), updates);
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromPresupuesto', presupuestoNumero, newEstado } as any });
+    await batch.commit();
+  },
+
+  /**
+   * Sincroniza el estado del lead cuando cambia el estadoAdmin de una OT vinculada.
+   * Se llama automáticamente desde otService.update().
+   */
+  async syncFromOT(leadId: string, otNumber: string, newEstadoAdmin: OTEstadoAdmin) {
+    const lead = await this.getById(leadId);
+    if (!lead || lead.estado === 'finalizado' || lead.estado === 'no_concretado') return;
+
+    const nuevoEstadoLead = OT_TO_LEAD_ESTADO[newEstadoAdmin];
+    if (!nuevoEstadoLead || nuevoEstadoLead === lead.estado) return;
+
+    const user = getCurrentUserTrace();
+    const posta: Posta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      deUsuarioId: user?.uid ?? 'system',
+      deUsuarioNombre: user?.name ?? 'Sistema',
+      aUsuarioId: lead.asignadoA || '',
+      aUsuarioNombre: lead.asignadoNombre || '',
+      comentario: `OT-${otNumber} → ${newEstadoAdmin}`,
+      estadoAnterior: lead.estado,
+      estadoNuevo: nuevoEstadoLead,
+    };
+
+    const updates: Record<string, any> = {
+      postas: arrayUnion(deepCleanForFirestore(posta)),
+      estado: nuevoEstadoLead,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    };
+    if (newEstadoAdmin === 'FINALIZADO') {
+      updates.finalizadoAt = Timestamp.now();
+    }
+
+    const batch = createBatch();
+    batch.update(docRef('leads', leadId), updates);
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromOT', otNumber, newEstadoAdmin } as any });
+    await batch.commit();
   },
 
   async removeAdjunto(leadId: string, adjunto: AdjuntoLead, allAdjuntos: AdjuntoLead[]) {

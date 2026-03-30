@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ProtocolSelection, ChecklistItem, ChecklistItemAnswer } from '../types/tableCatalog';
 
 interface Props {
@@ -9,6 +10,13 @@ interface Props {
   onChangeResultado?: (tableId: string, value: ProtocolSelection['resultado']) => void;
   onToggleSection?: (tableId: string, itemId: string, isNA: boolean) => void;
   onRemove?: (tableId: string) => void;
+  /** Datos de la OT para inyectar en ítems con showDate / showSignatures */
+  signatureClient?: string | null;
+  signatureEngineer?: string | null;
+  aclaracionCliente?: string;
+  aclaracionEspecialista?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
 }
 
 const RESULTADO_COLORS = {
@@ -52,6 +60,12 @@ function ChecklistItemRow({
   readOnly,
   isPrint,
   onAnswer,
+  signatureClient,
+  signatureEngineer,
+  aclaracionCliente,
+  aclaracionEspecialista,
+  fechaInicio,
+  fechaFin,
 }: {
   item: ChecklistItem;
   answer: ChecklistItemAnswer | undefined;
@@ -59,6 +73,12 @@ function ChecklistItemRow({
   readOnly: boolean;
   isPrint: boolean;
   onAnswer: (a: ChecklistItemAnswer) => void;
+  signatureClient?: string | null;
+  signatureEngineer?: string | null;
+  aclaracionCliente?: string;
+  aclaracionEspecialista?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
 }) {
   const indent = item.depth * 16;
   const disabled = readOnly || isNA;
@@ -260,53 +280,161 @@ function ChecklistItemRow({
     const cbAnswer = answer as { itemType: 'checkbox'; checked: boolean; linkedValue?: string } | undefined;
     const checked = cbAnswer?.checked ?? false;
     const linkedValue = cbAnswer?.linkedValue ?? '';
+    const hasLabel = !!item.label;
     const hasLinked = !!item.linkedValueLabel;
+    const hasDate = !!item.showDate;
+    const hasSig = !!item.showSignatures;
+    const wantClient = item.showSignatures === 'both' || item.showSignatures === 'client';
+    const wantEngineer = item.showSignatures === 'both' || item.showSignatures === 'engineer';
 
+    // Formatear fecha en texto largo: "27 de marzo de 2026"
+    const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const fmtDate = (raw?: string) => {
+      if (!raw) return null;
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+    };
+
+    // Construir bloques de fecha según configuración
+    const dateBlocks: { label: string; value: string | null }[] = [];
+    if (hasDate) {
+      const customLabel = item.dateLabel;
+      if (item.showDate === 'inicio' || item.showDate === 'both') {
+        dateBlocks.push({
+          label: item.showDate === 'both' ? 'Fecha de realización' : (customLabel || 'Fecha de realización'),
+          value: fmtDate(fechaInicio),
+        });
+      }
+      if (item.showDate === 'fin' || item.showDate === 'both') {
+        dateBlocks.push({
+          label: item.showDate === 'both' ? 'Fecha de finalización' : (customLabel || 'Fecha de finalización'),
+          value: fmtDate(fechaFin),
+        });
+      }
+    }
+
+    // Bloque reutilizable de firma (mismo estilo que CatalogSignaturesView)
+    const sigBlock = (sig: string | null | undefined, name: string, roleLabel: string, print: boolean) => (
+      <div className="flex-1 flex flex-col items-center">
+        <div className={`h-32 w-full border-b ${print ? 'border-slate-900' : 'border-slate-400'} relative`}>
+          {sig && <img src={sig} className="absolute inset-0 w-full h-full object-contain object-bottom p-1" alt={roleLabel} />}
+        </div>
+        <p className={`font-bold text-[11px] mt-1 text-center leading-none ${print ? '' : 'text-slate-700'}`}>{name}</p>
+        <p className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">{roleLabel}</p>
+      </div>
+    );
+
+    // Bloque de fecha como columna alineada con firmas (misma estructura que sigBlock)
+    const dateColumn = (db: { label: string; value: string | null }, print: boolean) => {
+      const cleanLabel = db.label.replace(/:+$/, '');
+      return (
+        <div className="flex-1 flex flex-col items-center">
+          <div className={`h-32 w-full border-b ${print ? 'border-slate-900' : 'border-slate-400'} flex items-end justify-center pb-1`}>
+            <p className={`text-[11px] ${print ? 'text-slate-800' : 'text-slate-700'} text-center`}>
+              {db.value || (print ? '__ de ______ de ____' : '—')}
+            </p>
+          </div>
+          <p className={`font-bold text-[11px] mt-1 text-center leading-none ${print ? '' : 'text-slate-700'}`}>{cleanLabel}</p>
+        </div>
+      );
+    };
+
+    // ── Solo fecha/firmas (sin label) → renderizar como bloque alineado ──
+    if (!hasLabel && (hasDate || hasSig)) {
+      if (isPrint) {
+        return (
+          <div className="pt-5 pb-2 px-4">
+            <div className="flex items-start gap-10">
+              {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, true)}</React.Fragment>)}
+              {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', true)}
+              {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', true)}
+            </div>
+          </div>
+        );
+      }
+      // Modo edición — preview solo lectura
+      return (
+        <div className="pt-5 pb-1.5 px-4">
+          <div className="flex items-start gap-10">
+            {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, false)}</React.Fragment>)}
+            {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', false)}
+            {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', false)}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Checkbox con label (+ fecha/firmas opcionales debajo) ──
     if (isPrint) {
       return (
-        <div className="flex items-start gap-2.5 py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
-          <span className={`shrink-0 mt-px w-[14px] h-[14px] border-2 rounded-sm flex items-center justify-center ${
-            isNA ? 'border-slate-300 bg-slate-100' : checked ? 'border-slate-700 bg-slate-700' : 'border-slate-400 bg-white'
-          }`}>
-            {isNA ? <span className="text-[9px] text-slate-400 font-bold leading-none">—</span>
-              : checked ? <span className="text-[10px] text-white font-bold leading-none">✓</span>
-              : null}
-          </span>
-          {labelEl}
-          {hasLinked && checked && (
-            <span className="text-[11px] text-slate-600 shrink-0">
-              <span className="text-slate-400">{item.linkedValueLabel}: </span>
-              <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
-              {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
+        <div className="py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
+          <div className="flex items-start gap-2.5">
+            <span className={`shrink-0 mt-px w-[14px] h-[14px] border-2 rounded-sm flex items-center justify-center ${
+              isNA ? 'border-slate-300 bg-slate-100' : checked ? 'border-slate-700 bg-slate-700' : 'border-slate-400 bg-white'
+            }`}>
+              {isNA ? <span className="text-[9px] text-slate-400 font-bold leading-none">—</span>
+                : checked ? <span className="text-[10px] text-white font-bold leading-none">✓</span>
+                : null}
             </span>
+            {labelEl}
+            {hasLinked && checked && (
+              <span className="text-[11px] text-slate-600 shrink-0">
+                <span className="text-slate-400">{item.linkedValueLabel}: </span>
+                <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
+                {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
+              </span>
+            )}
+          </div>
+          {/* Fecha + firmas debajo, alineados en fila */}
+          {(hasDate || hasSig) && (
+            <div className="mt-5">
+              <div className="flex items-start gap-10">
+                {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, true)}</React.Fragment>)}
+                {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', true)}
+                {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', true)}
+              </div>
+            </div>
           )}
         </div>
       );
     }
     return (
-      <div className="flex items-start gap-2.5 py-1 px-2" style={{ paddingLeft: `${indent + 8}px` }}>
-        <label className={`flex items-start gap-2.5 cursor-pointer hover:bg-slate-50 rounded text-slate-800 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
-          <input
-            type="checkbox"
-            className="mt-0.5 shrink-0 w-4 h-4 accent-slate-700 rounded"
-            checked={checked}
-            disabled={disabled}
-            onChange={e => onAnswer({ itemType: 'checkbox', checked: e.target.checked, linkedValue })}
-          />
-          {labelEl}
-        </label>
-        {hasLinked && checked && (
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[10px] text-slate-500">{item.linkedValueLabel}:</span>
+      <div className="py-1 px-2" style={{ paddingLeft: `${indent + 8}px` }}>
+        <div className="flex items-start gap-2.5">
+          <label className={`flex items-start gap-2.5 cursor-pointer hover:bg-slate-50 rounded text-slate-800 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
             <input
-              type="text"
-              className="text-xs bg-transparent border-b border-slate-300 outline-none w-16 text-center disabled:cursor-not-allowed"
-              value={linkedValue}
+              type="checkbox"
+              className="mt-0.5 shrink-0 w-4 h-4 accent-slate-700 rounded"
+              checked={checked}
               disabled={disabled}
-              placeholder="___"
-              onChange={e => onAnswer({ itemType: 'checkbox', checked: true, linkedValue: e.target.value })}
+              onChange={e => onAnswer({ itemType: 'checkbox', checked: e.target.checked, linkedValue })}
             />
-            {item.linkedValueUnit && <span className="text-[10px] text-slate-400">{item.linkedValueUnit}</span>}
+            {labelEl}
+          </label>
+          {hasLinked && checked && (
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] text-slate-500">{item.linkedValueLabel}:</span>
+              <input
+                type="text"
+                className="text-xs bg-transparent border-b border-slate-300 outline-none w-16 text-center disabled:cursor-not-allowed"
+                value={linkedValue}
+                disabled={disabled}
+                placeholder="___"
+                onChange={e => onAnswer({ itemType: 'checkbox', checked: true, linkedValue: e.target.value })}
+              />
+              {item.linkedValueUnit && <span className="text-[10px] text-slate-400">{item.linkedValueUnit}</span>}
+            </div>
+          )}
+        </div>
+        {/* Fecha + firmas debajo, alineados en fila */}
+        {(hasDate || hasSig) && (
+          <div className="mt-5">
+            <div className="flex items-start gap-10">
+              {dateBlocks.map((db, i) => <React.Fragment key={`d${i}`}>{dateColumn(db, false)}</React.Fragment>)}
+              {wantClient && sigBlock(signatureClient, aclaracionCliente || 'Cliente', 'Firma del cliente', false)}
+              {wantEngineer && sigBlock(signatureEngineer, aclaracionEspecialista || 'Especialista AGS', 'Firma del ing. de soporte técnico', false)}
+            </div>
           </div>
         )}
       </div>
@@ -398,6 +526,12 @@ export const CatalogChecklistView: React.FC<Props> = ({
   onChangeResultado,
   onToggleSection,
   onRemove,
+  signatureClient,
+  signatureEngineer,
+  aclaracionCliente,
+  aclaracionEspecialista,
+  fechaInicio,
+  fechaFin,
 }) => {
   const { tableSnapshot, checklistData = {}, collapsedSections = [] } = selection;
   const items = tableSnapshot.checklistItems ?? [];
@@ -454,6 +588,9 @@ export const CatalogChecklistView: React.FC<Props> = ({
                 key={item.itemId} item={item} answer={answer}
                 isNA={isNA} readOnly={readOnly} isPrint={isPrint}
                 onAnswer={a => handleAnswer(item.itemId, a)}
+                signatureClient={signatureClient} signatureEngineer={signatureEngineer}
+                aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
+                fechaInicio={fechaInicio} fechaFin={fechaFin}
               />
             );
           }
@@ -477,6 +614,9 @@ export const CatalogChecklistView: React.FC<Props> = ({
                 item={item} answer={answer}
                 isNA={isNA} readOnly={readOnly} isPrint={isPrint}
                 onAnswer={a => handleAnswer(item.itemId, a)}
+                signatureClient={signatureClient} signatureEngineer={signatureEngineer}
+                aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
+                fechaInicio={fechaInicio} fechaFin={fechaFin}
               />
             </div>
           );

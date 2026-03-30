@@ -164,9 +164,10 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
         </div>
       )}
 
-      {/* Campo vinculado al checkbox */}
+      {/* Opciones extra del checkbox: valor vinculado, fecha, firmas */}
       {d.itemType === 'checkbox' && (
         <div className="space-y-1.5 pt-1 border-t border-slate-200">
+          {/* Campo vinculado */}
           <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
             <input
               type="checkbox"
@@ -194,6 +195,63 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
                 value={d.linkedValueUnit ?? ''}
                 onChange={e => setD({ ...d, linkedValueUnit: e.target.value || null })}
               />
+            </div>
+          )}
+
+          {/* Mostrar fecha de la OT */}
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!d.showDate}
+              onChange={e => {
+                setD({ ...d, showDate: e.target.checked ? 'inicio' : null, dateLabel: null });
+              }}
+              className="accent-teal-600"
+            />
+            Traer fecha de la OT
+          </label>
+          {d.showDate && (
+            <div className="pl-6 space-y-1.5">
+              <div className="flex gap-2">
+                {(['inicio', 'fin', 'both'] as const).map(mode => (
+                  <label key={mode} className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
+                    d.showDate === mode ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                  }`}>
+                    <input type="radio" checked={d.showDate === mode} onChange={() => setD({ ...d, showDate: mode })} className="accent-teal-600" />
+                    {mode === 'inicio' ? 'Realización' : mode === 'fin' ? 'Finalización' : 'Ambas'}
+                  </label>
+                ))}
+              </div>
+              <Input
+                placeholder="Etiqueta personalizada (ej: Fecha de calibración)"
+                value={d.dateLabel ?? ''}
+                onChange={e => setD({ ...d, dateLabel: e.target.value || null })}
+              />
+            </div>
+          )}
+
+          {/* Traer firmas de la OT */}
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!d.showSignatures}
+              onChange={e => {
+                setD({ ...d, showSignatures: e.target.checked ? 'both' : null });
+              }}
+              className="accent-teal-600"
+            />
+            Traer firmas de la OT
+          </label>
+          {d.showSignatures && (
+            <div className="flex gap-2 pl-6">
+              {(['both', 'engineer', 'client'] as const).map(mode => (
+                <label key={mode} className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
+                  d.showSignatures === mode ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                }`}>
+                  <input type="radio" checked={d.showSignatures === mode} onChange={() => setD({ ...d, showSignatures: mode })} className="accent-teal-600" />
+                  {mode === 'both' ? 'Ambas' : mode === 'engineer' ? 'Solo ingeniero' : 'Solo cliente'}
+                </label>
+              ))}
             </div>
           )}
         </div>
@@ -350,7 +408,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
         </label>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button size="sm" onClick={() => onSave(d)} disabled={d.itemType !== 'embedded_table' && !d.label.trim()}>Guardar</Button>
+          <Button size="sm" onClick={() => onSave(d)} disabled={d.itemType !== 'embedded_table' && !d.label.trim() && !d.showDate && !d.showSignatures}>Guardar</Button>
         </div>
       </div>
     </div>
@@ -479,7 +537,9 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                     className={`text-xs truncate ${item.depth === 0 ? 'font-bold text-slate-900 uppercase' : 'text-slate-700'}`}
                     title={item.label}
                   >
-                    {item.label || <span className="italic text-slate-400">(sin texto)</span>}
+                    {item.label || (item.showDate || item.showSignatures
+                      ? <span className="italic text-slate-400">(fecha/firma)</span>
+                      : <span className="italic text-slate-400">(sin texto)</span>)}
                   </span>
                   {/* Opciones del selector inline */}
                   {item.itemType === 'selector' && item.selectorOptions && item.selectorOptions.length > 0 && (
@@ -514,6 +574,8 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                   )}
                   {item.unit && <span className="text-[10px] text-blue-500">{item.unit}</span>}
                   {item.linkedValueLabel && <span className="text-[10px] text-orange-500" title={`Al tildar: ${item.linkedValueLabel}${item.linkedValueUnit ? ` (${item.linkedValueUnit})` : ''}`}>+valor</span>}
+                  {item.showDate && <span className="text-[10px] text-blue-500" title={item.dateLabel || (item.showDate === 'inicio' ? 'Fecha realización' : item.showDate === 'fin' ? 'Fecha finalización' : 'Ambas fechas')}>+fecha</span>}
+                  {item.showSignatures && <span className="text-[10px] text-purple-500" title={item.showSignatures === 'both' ? 'Firma ingeniero + cliente' : item.showSignatures === 'engineer' ? 'Solo firma ingeniero' : 'Solo firma cliente'}>+firma</span>}
                   {item.canBeNA && <span className="text-[10px] text-amber-600">N/A</span>}
                   <button onClick={() => moveItem(i, -1)} disabled={i === 0}
                     className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1">▲</button>

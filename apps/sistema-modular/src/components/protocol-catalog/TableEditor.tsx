@@ -548,45 +548,61 @@ export const TableEditor = ({ table, onChange }: Props) => {
               </Button>
             </div>
           </div>
-          {table.templateRows.map((row, i) => (
-            <div key={row.rowId}>
-              {selectedRow?.rowId === row.rowId ? (
-                <RowFormPanel row={selectedRow} columns={table.columns}
-                  totalRows={table.templateRows.length} rowIndex={i}
-                  onSave={saveRow}
-                  onDelete={() => { upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId)); setSelectedRow(null); }}
-                  onCancel={() => setSelectedRow(null)} />
-              ) : (
-                <div className="flex items-center gap-1">
-                  <div className="flex flex-col shrink-0">
-                    <button onClick={() => moveRow(i, -1)} disabled={i === 0}
-                      className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Subir">▲</button>
-                    <button onClick={() => moveRow(i, 1)} disabled={i === table.templateRows.length - 1}
-                      className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Bajar">▼</button>
+          <div className="max-h-[480px] overflow-y-auto space-y-2 pr-1">
+            {table.templateRows.map((row, i) => (
+              <div key={row.rowId}>
+                {selectedRow?.rowId === row.rowId ? (
+                  <RowFormPanel row={selectedRow} columns={table.columns}
+                    totalRows={table.templateRows.length} rowIndex={i}
+                    onSave={saveRow}
+                    onDelete={() => { upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId)); setSelectedRow(null); }}
+                    onCancel={() => setSelectedRow(null)} />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <div className="flex flex-col shrink-0">
+                      <button onClick={() => moveRow(i, -1)} disabled={i === 0}
+                        className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Subir">▲</button>
+                      <button onClick={() => moveRow(i, 1)} disabled={i === table.templateRows.length - 1}
+                        className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Bajar">▼</button>
+                    </div>
+                    <div onClick={() => setSelectedRow(row)}
+                      className="flex-1 flex items-center justify-between p-2 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-400">
+                      <span className="text-sm text-slate-700">
+                        {row.isTitle
+                          ? <span className="font-bold text-slate-500 uppercase text-xs">📌 {row.titleText || '(título vacío)'}</span>
+                          : row.isSelector
+                          ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
+                          : <>
+                              {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
+                              {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
+                            </>}
+                      </span>
+                      <span className="text-blue-600 text-xs font-bold">Editar</span>
+                    </div>
                   </div>
-                  <div onClick={() => setSelectedRow(row)}
-                    className="flex-1 flex items-center justify-between p-2 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-400">
-                    <span className="text-sm text-slate-700">
-                      {row.isTitle
-                        ? <span className="font-bold text-slate-500 uppercase text-xs">📌 {row.titleText || '(título vacío)'}</span>
-                        : row.isSelector
-                        ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
-                        : <>
-                            {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
-                            {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
-                          </>}
-                    </span>
-                    <span className="text-blue-600 text-xs font-bold">Editar</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          {selectedRow && !table.templateRows.some(r => r.rowId === selectedRow.rowId) && (
-            <RowFormPanel row={selectedRow} columns={table.columns}
-              totalRows={table.templateRows.length} rowIndex={table.templateRows.length}
-              onSave={saveRow} onCancel={() => setSelectedRow(null)} />
-          )}
+                )}
+              </div>
+            ))}
+            {selectedRow && !table.templateRows.some(r => r.rowId === selectedRow.rowId) && (
+              <RowFormPanel row={selectedRow} columns={table.columns}
+                totalRows={table.templateRows.length} rowIndex={table.templateRows.length}
+                onSave={saveRow} onCancel={() => setSelectedRow(null)} />
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button size="sm" variant="outline"
+              onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isTitle: true, titleText: '' })}>
+              + Título sección
+            </Button>
+            <Button size="sm" variant="outline"
+              onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isSelector: true, selectorLabel: '', selectorOptions: [] })}>
+              + Fila selector
+            </Button>
+            <Button size="sm"
+              onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {} })}>
+              + Fila
+            </Button>
+          </div>
         </div>
       )}
 

@@ -192,6 +192,18 @@ export const presupuestosService = {
     batch.update(docRef('presupuestos', id), cleanedData);
     batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
     await batch.commit();
+
+    // ── Auto-sync lead when presupuesto estado changes ──
+    if (data.estado) {
+      try {
+        const pres = await this.getById(id);
+        if (pres?.origenTipo === 'lead' && pres.origenId) {
+          await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, data.estado);
+        }
+      } catch (err) {
+        console.error('[presupuestosService] Error syncing lead from presupuesto:', err);
+      }
+    }
   },
 
   // Crear revisión de un presupuesto (anula el original)

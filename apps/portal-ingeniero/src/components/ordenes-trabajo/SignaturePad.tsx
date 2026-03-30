@@ -45,7 +45,19 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
 
     useImperativeHandle(ref, () => ({
       getDataURL() {
-        return canvasRef.current?.toDataURL('image/png') ?? '';
+        const canvas = canvasRef.current;
+        if (!canvas) return '';
+        // Exportar a resolución mínima de 800px de ancho para que no quede chica en reportes
+        const minW = 800;
+        if (canvas.width >= minW) return canvas.toDataURL('image/png');
+        const scale = minW / canvas.width;
+        const offscreen = document.createElement('canvas');
+        offscreen.width = minW;
+        offscreen.height = Math.round(canvas.height * scale);
+        const ctx = offscreen.getContext('2d');
+        if (!ctx) return canvas.toDataURL('image/png');
+        ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
+        return offscreen.toDataURL('image/png');
       },
       isEmpty() { return empty.current; },
       clear() {

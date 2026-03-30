@@ -1,18 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { presupuestosService, leadsService } from '../services/firebaseService';
-import { useAuth } from '../contexts/AuthContext';
-import type { Presupuesto, Cliente, Establecimiento, CategoriaPresupuesto, CondicionPago, ContactoEstablecimiento, ContactoCliente, LeadEstado, PresupuestoSeccionesVisibles } from '@ags/shared';
+import { presupuestosService } from '../services/firebaseService';
+import type { Presupuesto, Cliente, Establecimiento, CategoriaPresupuesto, CondicionPago, ContactoEstablecimiento, ContactoCliente, PresupuestoSeccionesVisibles } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import type { PresupuestoFormState, PresupuestoTotals } from './usePresupuestoEdit';
 
-/** Presupuesto estados that should generate a posta on the lead timeline */
-const LEAD_POSTA_MESSAGES: Partial<Record<Presupuesto['estado'], string>> = {
-  enviado: 'Presupuesto enviado',
-  aceptado: 'Presupuesto aceptado',
-  autorizado: 'Presupuesto autorizado',
-  rechazado: 'Presupuesto rechazado',
-};
+// NOTE: Lead sync is now handled automatically by presupuestosService.update()
+// via leadsService.syncFromPresupuesto(). No manual posta needed here.
 
 interface UsePresupuestoActionsParams {
   presupuestoId: string;
@@ -36,7 +30,6 @@ export function usePresupuestoActions({
   onClose, onUpdated,
 }: UsePresupuestoActionsParams) {
   const navigate = useNavigate();
-  const { usuario } = useAuth();
 
   const [showRevision, setShowRevision] = useState(false);
   const [revisionHistory, setRevisionHistory] = useState<Presupuesto[]>([]);
@@ -46,30 +39,10 @@ export function usePresupuestoActions({
   const [showCondiciones, setShowCondiciones] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const addLeadPosta = useCallback((newEstado: Presupuesto['estado']) => {
-    if (form.origenTipo !== 'lead' || !form.origenId || !usuario) return;
-    const message = LEAD_POSTA_MESSAGES[newEstado];
-    if (!message) return;
-    const posta = {
-      id: crypto.randomUUID(),
-      fecha: new Date().toISOString(),
-      deUsuarioId: usuario.id,
-      deUsuarioNombre: usuario.displayName,
-      aUsuarioId: usuario.id,
-      aUsuarioNombre: usuario.displayName,
-      comentario: `${message}: ${form.numero}`,
-      estadoAnterior: form.estado as LeadEstado,
-      estadoNuevo: form.estado as LeadEstado,
-    };
-    leadsService.agregarComentario(form.origenId, posta).catch(err =>
-      console.error('Error agregando posta al lead:', err)
-    );
-  }, [form.origenTipo, form.origenId, form.numero, form.estado, usuario]);
-
+  // Lead sync happens automatically via presupuestosService.update() → syncFromPresupuesto()
   const handleEstadoChange = useCallback((newEstado: Presupuesto['estado']) => {
     rawEstadoChange(newEstado);
-    addLeadPosta(newEstado);
-  }, [rawEstadoChange, addLeadPosta]);
+  }, [rawEstadoChange]);
 
   const sym = MONEDA_SIMBOLO[form.moneda] || '$';
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;

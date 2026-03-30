@@ -1,6 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, addDoc, runTransaction, onSnapshot } from 'firebase/firestore';
-import type { WorkOrder, CierreAdministrativo } from '@ags/shared';
+import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
+import { leadsService } from './leadsService';
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
@@ -219,6 +220,18 @@ export const ordenesTrabajoService = {
     batch.update(docRef('reportes', otNumber), cleanedData);
     batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData as any });
     await batch.commit();
+
+    // ── Auto-sync lead when OT estadoAdmin changes ──
+    if (data.estadoAdmin) {
+      try {
+        const ot = await this.getByOtNumber(otNumber);
+        if (ot?.leadId) {
+          await leadsService.syncFromOT(ot.leadId, otNumber, data.estadoAdmin as OTEstadoAdmin);
+        }
+      } catch (err) {
+        console.error('[otService] Error syncing lead from OT:', err);
+      }
+    }
   },
 
   async delete(otNumber: string) {

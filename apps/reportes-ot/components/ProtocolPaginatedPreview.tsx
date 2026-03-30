@@ -246,7 +246,11 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
             observaciones: isLast ? sel.observaciones : undefined,
           };
 
-          const node = <CatalogChecklistView selection={groupSel} readOnly isPrint onChangeData={() => {}} />;
+          const node = <CatalogChecklistView selection={groupSel} readOnly isPrint onChangeData={() => {}}
+            signatureClient={signatureClient} signatureEngineer={signatureEngineer}
+            aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
+            fechaInicio={fechaInicio} fechaFin={fechaFin}
+          />;
           items.push({
             key: groups.length > 1 ? `${sel.tableId}__g${g}` : sel.tableId,
             node,

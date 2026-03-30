@@ -226,9 +226,11 @@ export const OTNew = () => {
       
       await ordenesTrabajoService.create(otData);
 
-      // Vincular OT al lead de origen
+      // Vincular OT al lead de origen y actualizar estado
       if (leadIdFromUrl) {
         await leadsService.linkOT(leadIdFromUrl, formData.otNumber);
+        await leadsService.syncFromOT(leadIdFromUrl, formData.otNumber, 'CREADA').catch(err =>
+          console.error('Error syncing lead from OT creation:', err));
       }
 
       // Vincular OT al presupuesto de origen

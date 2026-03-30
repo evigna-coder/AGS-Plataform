@@ -132,6 +132,12 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onChangeResultado={handleCatalogResultado}
                 onToggleSection={handleToggleChecklistSection}
                 onRemove={handleRemoveCatalogTable}
+                signatureClient={signatureClient}
+                signatureEngineer={signatureEngineer}
+                aclaracionCliente={aclaracionCliente}
+                aclaracionEspecialista={aclaracionEspecialista}
+                fechaInicio={fechaInicio}
+                fechaFin={fechaFin}
               />
             ) : (
               <CatalogTableView

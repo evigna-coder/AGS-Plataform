@@ -57,7 +57,11 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
               ) : sel.tableSnapshot.tableType === 'text' ? (
                 <CatalogTextView selection={sel} readOnly />
               ) : sel.tableSnapshot.tableType === 'checklist' ? (
-                <CatalogChecklistView selection={sel} readOnly isPrint onChangeData={() => {}} />
+                <CatalogChecklistView selection={sel} readOnly isPrint onChangeData={() => {}}
+                  signatureClient={signatureClient} signatureEngineer={signatureEngineer}
+                  aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
+                  fechaInicio={fechaInicio} fechaFin={fechaFin}
+                />
               ) : (
                 <CatalogTableView selection={sel} readOnly isPrint onChangeData={() => {}} />
               )}

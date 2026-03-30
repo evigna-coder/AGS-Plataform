@@ -1090,6 +1090,14 @@ export interface ChecklistItem {
   linkedValueLabel?: string | null;
   /** Unidad del campo vinculado (ej. "unid.", "ml") */
   linkedValueUnit?: string | null;
+  /** Para checkbox: qué fecha de la OT mostrar junto al checkbox.
+   *  'inicio' = fecha realización; 'fin' = fecha finalización; 'both' = ambas; null/undefined = sin fecha */
+  showDate?: 'inicio' | 'fin' | 'both' | null;
+  /** Etiqueta personalizada para la fecha (ej. "Fecha de calibración"). Default según modo. */
+  dateLabel?: string | null;
+  /** Para checkbox: qué firmas mostrar junto al checkbox.
+   *  'both' = ingeniero + cliente; 'client' = solo cliente; 'engineer' = solo ingeniero; null/undefined = sin firmas */
+  showSignatures?: 'both' | 'client' | 'engineer' | null;
   /** Columnas de la tabla embebida (solo para itemType 'embedded_table').
    *  Si `options` está definido, la celda se renderiza como selector en vez de texto fijo. */
   embeddedColumns?: {
