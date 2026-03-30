@@ -58,15 +58,16 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
 
   setIsDrawing(false);
 
-  // 👇 CLAVE: si no hubo trazo real, NO hacer nada
+  // Si no hubo trazo real, NO hacer nada
   if (!hasSignature) return;
 
   const canvas = canvasRef.current;
   if (!canvas) return;
 
-  const dataUrl = trimCanvas(canvas).toDataURL('image/png');
-  savedSignatureRef.current = dataUrl; // Guardar firma actual
-  onEnd?.(dataUrl);
+  // Guardar canvas COMPLETO (sin recortar) para restaurar sin distorsión
+  savedSignatureRef.current = canvas.toDataURL('image/png');
+  // Notificar con versión recortada para uso externo
+  onEnd?.(trimCanvas(canvas).toDataURL('image/png'));
 };
   
   const initCanvas = () => {
@@ -99,16 +100,15 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
 
   useImperativeHandle(ref, () => ({
     getSignature: () => {
-      // Si hay firma guardada, devolverla; si no, intentar obtenerla del canvas
-      if (savedSignatureRef.current) {
-        return savedSignatureRef.current;
-      }
       if (!hasSignature) return null;
+      // Exportar siempre la versión recortada (sin whitespace) para el PDF
       const canvas = canvasRef.current;
       if (canvas) {
-        const dataUrl = trimCanvas(canvas).toDataURL('image/png');
-        savedSignatureRef.current = dataUrl; // Guardar para futuras referencias
-        return dataUrl;
+        return trimCanvas(canvas).toDataURL('image/png');
+      }
+      // Fallback: si el canvas no está disponible, recortar desde la versión guardada
+      if (savedSignatureRef.current) {
+        return savedSignatureRef.current;
       }
       return null;
     },
