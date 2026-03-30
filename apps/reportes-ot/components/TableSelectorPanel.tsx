@@ -126,13 +126,23 @@ export const TableSelectorPanel: React.FC<Props> = ({
       for (const row of table.templateRows) {
         if (row.isTitle) continue;
         filledData[row.rowId] = {};
+
+        // Filas selector: no pre-llenar con N/A (el técnico elige del dropdown)
+        if (row.isSelector) {
+          for (const col of table.columns) {
+            const v = row.cells?.[col.key];
+            filledData[row.rowId][col.key] = v != null ? String(v) : '';
+          }
+          continue;
+        }
+
         for (const col of table.columns) {
           const v = row.cells?.[col.key];
           if (v != null && String(v).trim()) {
             // Tiene valor de fábrica → usarlo
             filledData[row.rowId][col.key] = String(v);
-          } else if (nonEditableTypes.has(col.type)) {
-            // fixed_text, checkbox, pass_fail → vacío
+          } else if (nonEditableTypes.has(col.type) || col.type === 'select_input') {
+            // fixed_text, checkbox, pass_fail, select_input → vacío
             filledData[row.rowId][col.key] = '';
           } else {
             // Celda editable vacía → "N/A" por defecto

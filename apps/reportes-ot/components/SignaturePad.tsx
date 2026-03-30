@@ -187,6 +187,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   };
 
   const handleDown = (e: React.PointerEvent) => {
+    e.preventDefault(); // Prevenir double-tap-to-zoom en móvil
     setIsDrawing(true);
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
@@ -196,6 +197,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
 
   const handleMove = (e: React.PointerEvent) => {
     if (!isDrawing) return;
+    e.preventDefault();
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
     ctx?.lineTo(pos.x, pos.y);
@@ -226,14 +228,14 @@ const handleUp = () => {
   return (
     <div className="w-full">
       {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</label>}
-      <div className="relative border-2 border-slate-100 rounded-[28px] bg-white overflow-hidden group shadow-inner">
-        <canvas 
-        ref={canvasRef} 
-        onPointerDown={handleDown} 
-        onPointerMove={handleMove} 
-        onPointerUp={finishDrawing} 
-        onPointerLeave={finishDrawing} 
-        className="w-full h-[160px] block cursor-crosshair touch-none" 
+      <div className="relative border-2 border-slate-100 rounded-[28px] bg-white overflow-hidden group shadow-inner touch-none">
+        <canvas
+        ref={canvasRef}
+        onPointerDown={handleDown}
+        onPointerMove={handleMove}
+        onPointerUp={finishDrawing}
+        onPointerLeave={finishDrawing}
+        className="w-full h-[160px] block cursor-crosshair touch-none"
       />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
            {!hasSignature && !isDrawing && <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Firmar aquí</p>}
