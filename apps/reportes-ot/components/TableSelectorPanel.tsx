@@ -89,6 +89,9 @@ export const TableSelectorPanel: React.FC<Props> = ({
       const existing = existingSelections.find(s => s.tableId === table.id);
       if (existing) return existing; // preservar datos ya completados
 
+      // Tipos de columna que NO deben pre-llenarse con N/A
+      const nonEditableTypes = new Set(['fixed_text', 'checkbox', 'pass_fail']);
+
       // Para texto: solo snapshot, sin datos editables
       if (table.tableType === 'text') {
         return {
@@ -117,14 +120,24 @@ export const TableSelectorPanel: React.FC<Props> = ({
         };
       }
 
-      // Para tablas: pre-poblar filledData desde templateRows
+      // Para tablas: pre-poblar filledData desde templateRows.
+      // Celdas editables vacías arrancan con "N/A" por defecto.
       const filledData: Record<string, Record<string, string>> = {};
       for (const row of table.templateRows) {
         if (row.isTitle) continue;
         filledData[row.rowId] = {};
         for (const col of table.columns) {
           const v = row.cells?.[col.key];
-          filledData[row.rowId][col.key] = v != null ? String(v) : '';
+          if (v != null && String(v).trim()) {
+            // Tiene valor de fábrica → usarlo
+            filledData[row.rowId][col.key] = String(v);
+          } else if (nonEditableTypes.has(col.type)) {
+            // fixed_text, checkbox, pass_fail → vacío
+            filledData[row.rowId][col.key] = '';
+          } else {
+            // Celda editable vacía → "N/A" por defecto
+            filledData[row.rowId][col.key] = 'N/A';
+          }
         }
       }
       return {
