@@ -161,22 +161,27 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     if (canvas) {
       observer.observe(canvas);
     }
-    
+
+    // Prevenir zoom del navegador en el área de firma (touchstart/touchmove nativos con passive:false)
+    const preventZoom = (e: TouchEvent) => { e.preventDefault(); };
+    if (canvas) {
+      canvas.addEventListener('touchstart', preventZoom, { passive: false });
+      canvas.addEventListener('touchmove', preventZoom, { passive: false });
+    }
+
     // Manejar resize de forma que preserve la firma
     const handleResize = () => {
-      if (savedSignatureRef.current) {
-        initCanvas(); // initCanvas ya restaura savedSignatureRef.current
-      } else {
-        initCanvas();
-      }
+      initCanvas();
     };
-    
+
     window.addEventListener('resize', handleResize);
-    
+
     return () => {
       window.removeEventListener('resize', handleResize);
       if (canvas) {
         observer.unobserve(canvas);
+        canvas.removeEventListener('touchstart', preventZoom);
+        canvas.removeEventListener('touchmove', preventZoom);
       }
     };
   }, []);
