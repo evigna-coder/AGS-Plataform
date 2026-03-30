@@ -1098,6 +1098,8 @@ export interface ChecklistItem {
   /** Para checkbox: qué firmas mostrar junto al checkbox.
    *  'both' = ingeniero + cliente; 'client' = solo cliente; 'engineer' = solo ingeniero; null/undefined = sin firmas */
   showSignatures?: 'both' | 'client' | 'engineer' | null;
+  /** Si false, oculta el label/nombre del ítem en el protocolo impreso. Default true. */
+  showLabel?: boolean;
   /** Columnas de la tabla embebida (solo para itemType 'embedded_table').
    *  Si `options` está definido, la celda se renderiza como selector en vez de texto fijo. */
   embeddedColumns?: {

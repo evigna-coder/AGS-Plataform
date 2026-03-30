@@ -240,8 +240,9 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
             tableSnapshot: {
               ...sel.tableSnapshot,
               checklistItems: groups[g],
-              name: isFirst ? sel.tableSnapshot.name
-                : (sel.tableSnapshot.showTitle === false ? sel.tableSnapshot.name : `${sel.tableSnapshot.name} (cont.)`),
+              name: sel.tableSnapshot.name,
+              // Solo mostrar título en el primer grupo; continuaciones lo ocultan
+              ...(!isFirst ? { showTitle: false } : {}),
             },
             // Observaciones solo en el último grupo
             observaciones: isLast ? sel.observaciones : undefined,

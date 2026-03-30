@@ -128,7 +128,7 @@ function ChecklistItemRow({
 
     return (
       <div className={`py-2.5 ${isPrint ? '' : 'px-3'}`} style={{ paddingLeft: `${indent + 8}px` }}>
-        {item.label && (
+        {item.label && (item.showLabel !== false) && (
           <p className={`text-xs font-semibold mb-2 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
             {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
             {item.label}

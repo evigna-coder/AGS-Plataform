@@ -396,6 +396,18 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
         </div>
       )}
 
+      <div className="flex flex-col gap-2">
+        {d.label && (
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer">
+            <input
+              type="checkbox"
+              checked={d.showLabel === false}
+              onChange={e => setD({ ...d, showLabel: e.target.checked ? false : undefined })}
+              className="accent-blue-600"
+            />
+            Ocultar nombre en protocolo
+          </label>
+        )}
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer">
           <input
@@ -410,6 +422,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button size="sm" onClick={() => onSave(d)} disabled={d.itemType !== 'embedded_table' && !d.label.trim() && !d.showDate && !d.showSignatures}>Guardar</Button>
         </div>
+      </div>
       </div>
     </div>
   );
