@@ -115,7 +115,6 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     window.addEventListener('resize', handleResize);
 
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       window.removeEventListener('resize', handleResize);
       if (canvas) {
         observer.unobserve(canvas);
@@ -132,11 +131,6 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
 
   const handleDown = (e: React.PointerEvent) => {
     e.preventDefault();
-    // Cancelar guardado pendiente si el usuario vuelve a dibujar
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
     skipObserverUntilRef.current = Date.now() + 4000;
     drawingRef.current = true;
     const pos = getPos(e);
@@ -158,30 +152,20 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     }
   };
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const finishDrawing = () => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
-    // Bloquear observer mientras se espera el guardado
-    skipObserverUntilRef.current = Date.now() + 4000;
+    skipObserverUntilRef.current = Date.now() + 2000;
 
     if (!hasDrawnRef.current) return;
 
-    // Cancelar timer anterior si el usuario vuelve a dibujar rápido
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-    // Esperar 3 segundos antes de guardar/notificar para que el usuario termine de firmar
-    saveTimerRef.current = setTimeout(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      savedSignatureRef.current = canvas.toDataURL('image/png');
-      onEnd?.(canvas.toDataURL('image/png'));
-    }, 3000);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    savedSignatureRef.current = canvas.toDataURL('image/png');
+    onEnd?.(canvas.toDataURL('image/png'));
   };
 
   const clear = () => {
-    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
