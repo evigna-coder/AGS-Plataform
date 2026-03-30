@@ -187,6 +187,25 @@ export const ordenesTrabajoService = {
     return null;
   },
 
+  /** Real-time subscription to a single OT by otNumber. Returns unsubscribe function. */
+  subscribeByOtNumber(
+    otNumber: string,
+    callback: (ot: WorkOrder | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'reportes', otNumber), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback({
+        otNumber: snap.id,
+        ...snap.data(),
+        updatedAt: snap.data().updatedAt || new Date().toISOString(),
+      } as WorkOrder);
+    }, err => {
+      console.error('OT single subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   // Crear nueva OT (usa setDoc para controlar el ID)
   async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
     console.log('📝 Creando orden de trabajo:', otData.otNumber);

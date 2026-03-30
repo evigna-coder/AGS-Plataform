@@ -42,25 +42,28 @@ export const MinikitDetail = () => {
 
   const [template, setTemplate] = useState<MinikitTemplate | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadRelated = useCallback(async (mk: Minikit) => {
+    const allUnidades = await unidadesService.getAll({ activoOnly: true });
+    setUnidades(allUnidades.filter(u => u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === mk.id));
+    if (mk.templateId) {
+      const tmpl = await minikitTemplatesService.getById(mk.templateId);
+      setTemplate(tmpl);
+    } else { setTemplate(null); }
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
     setLoading(true);
-    try {
-      const [mk, allUnidades] = await Promise.all([
-        minikitsService.getById(id),
-        unidadesService.getAll({ activoOnly: true }),
-      ]);
+    const unsub = minikitsService.subscribeById(id, async (mk) => {
       setMinikit(mk);
-      setUnidades(allUnidades.filter(u => u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === id));
-      if (mk?.templateId) {
-        const tmpl = await minikitTemplatesService.getById(mk.templateId);
-        setTemplate(tmpl);
-      } else { setTemplate(null); }
-    } catch (err) { console.error('Error cargando minikit:', err); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { loadData(); }, [loadData]);
+      if (mk) await loadRelated(mk);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error cargando minikit:', err);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [id, loadRelated]);
 
   const openAsignar = async () => {
     try {
@@ -82,7 +85,6 @@ export const MinikitDetail = () => {
         asignadoA: { tipo: 'ingeniero', id: ing.id, nombre: ing.nombre, desde: new Date().toISOString() },
       });
       setShowAsignar(false);
-      loadData();
     } catch { alert('Error al asignar minikit'); }
     finally { setSaving(false); }
   };
@@ -92,7 +94,6 @@ export const MinikitDetail = () => {
     setSaving(true);
     try {
       await minikitsService.update(id, { estado: 'en_base', asignadoA: null });
-      loadData();
     } catch { alert('Error al devolver minikit'); }
     finally { setSaving(false); }
   };

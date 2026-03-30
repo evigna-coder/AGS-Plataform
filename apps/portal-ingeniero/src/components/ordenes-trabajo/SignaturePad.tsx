@@ -1,5 +1,39 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 
+/** Recorta el espacio en blanco alrededor de los trazos del canvas */
+function trimCanvas(canvas: HTMLCanvasElement, padding = 10): HTMLCanvasElement {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const { width, height } = canvas;
+  const imgData = ctx.getImageData(0, 0, width, height).data;
+  let top = height, left = width, bottom = 0, right = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = imgData[(y * width + x) * 4 + 3];
+      if (alpha > 0) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+  if (bottom <= top || right <= left) return canvas; // vacío
+  top = Math.max(0, top - padding);
+  left = Math.max(0, left - padding);
+  bottom = Math.min(height - 1, bottom + padding);
+  right = Math.min(width - 1, right + padding);
+  const trimW = right - left + 1;
+  const trimH = bottom - top + 1;
+  const trimmed = document.createElement('canvas');
+  trimmed.width = trimW;
+  trimmed.height = trimH;
+  const tCtx = trimmed.getContext('2d');
+  if (!tCtx) return canvas;
+  tCtx.drawImage(canvas, left, top, trimW, trimH, 0, 0, trimW, trimH);
+  return trimmed;
+}
+
 export interface SignaturePadHandle {
   getDataURL(): string;
   isEmpty(): boolean;
@@ -47,17 +81,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
       getDataURL() {
         const canvas = canvasRef.current;
         if (!canvas) return '';
-        // Exportar a resolución mínima de 800px de ancho para que no quede chica en reportes
-        const minW = 800;
-        if (canvas.width >= minW) return canvas.toDataURL('image/png');
-        const scale = minW / canvas.width;
-        const offscreen = document.createElement('canvas');
-        offscreen.width = minW;
-        offscreen.height = Math.round(canvas.height * scale);
-        const ctx = offscreen.getContext('2d');
-        if (!ctx) return canvas.toDataURL('image/png');
-        ctx.drawImage(canvas, 0, 0, offscreen.width, offscreen.height);
-        return offscreen.toDataURL('image/png');
+        return trimCanvas(canvas).toDataURL('image/png');
       },
       isEmpty() { return empty.current; },
       clear() {

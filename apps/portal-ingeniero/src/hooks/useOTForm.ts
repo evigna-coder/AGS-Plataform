@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { WorkOrder, Part } from '@ags/shared';
 import { otService } from '../services/firebaseService';
@@ -9,7 +9,9 @@ export function useOTForm(otNumber?: string) {
   const [saving, setSaving] = useState(false);
   const [ot, setOt] = useState<WorkOrder | null>(null);
   const hasInteracted = useRef(false);
+  const dirtyRef = useRef(false);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialLoadDone = useRef(false);
 
   const [reporteTecnico, setReporteTecnico] = useState('');
   const [problemaFallaInicial, setProblemaFallaInicial] = useState('');
@@ -24,7 +26,63 @@ export function useOTForm(otNumber?: string) {
   const [aclaracionCliente, setAclaracionCliente] = useState('');
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
 
-  useEffect(() => { if (otNumber) load(); }, [otNumber]);
+  /** Populate form fields from OT data */
+  const populateForm = useCallback((data: WorkOrder) => {
+    setOt(data);
+    setReporteTecnico(data.reporteTecnico || '');
+    setProblemaFallaInicial((data as WorkOrder & { problemaFallaInicial?: string }).problemaFallaInicial || '');
+    setAccionesTomar(data.accionesTomar || '');
+    setMaterialesParaServicio((data as WorkOrder & { materialesParaServicio?: string }).materialesParaServicio || '');
+    setHorasTrabajadas(data.horasTrabajadas || '');
+    setTiempoViaje(data.tiempoViaje || '');
+    setFechaInicio(data.fechaInicio || '');
+    setFechaFin(data.fechaFin || '');
+    setArticulos(data.articulos || []);
+    setAclaracionEspecialista(data.aclaracionEspecialista || '');
+    setAclaracionCliente(data.aclaracionCliente || '');
+    setStatus(data.status || 'BORRADOR');
+  }, []);
+
+  // Real-time subscription to OT document
+  useEffect(() => {
+    if (!otNumber) return;
+    setLoading(true);
+    initialLoadDone.current = false;
+
+    const unsub = otService.subscribeByOtNumber(
+      otNumber,
+      (data) => {
+        if (!data) {
+          // OT not found — redirect
+          navigate('/ordenes-trabajo');
+          return;
+        }
+
+        // Skip subscription updates while the user has unsaved edits
+        if (dirtyRef.current) {
+          // Still update the base OT object (for non-form fields like assigned engineer, etc.)
+          setOt(data);
+          return;
+        }
+
+        populateForm(data);
+
+        if (!initialLoadDone.current) {
+          initialLoadDone.current = true;
+          setLoading(false);
+        }
+      },
+      (err) => {
+        console.error('[OTForm] Subscription error:', err);
+        setLoading(false);
+      },
+    );
+
+    return () => {
+      unsub();
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+  }, [otNumber, navigate, populateForm]);
 
   // Autosave — debounce 2s
   useEffect(() => {
@@ -37,33 +95,10 @@ export function useOTForm(otNumber?: string) {
       horasTrabajadas, tiempoViaje, fechaInicio, fechaFin, articulos,
       aclaracionEspecialista, aclaracionCliente]);
 
-  async function load() {
-    if (!otNumber) return;
-    try {
-      setLoading(true);
-      const data = await otService.getByOtNumber(otNumber);
-      if (!data) { navigate('/ordenes-trabajo'); return; }
-      setOt(data);
-      setReporteTecnico(data.reporteTecnico || '');
-      setProblemaFallaInicial((data as WorkOrder & { problemaFallaInicial?: string }).problemaFallaInicial || '');
-      setAccionesTomar(data.accionesTomar || '');
-      setMaterialesParaServicio((data as WorkOrder & { materialesParaServicio?: string }).materialesParaServicio || '');
-      setHorasTrabajadas(data.horasTrabajadas || '');
-      setTiempoViaje(data.tiempoViaje || '');
-      setFechaInicio(data.fechaInicio || '');
-      setFechaFin(data.fechaFin || '');
-      setArticulos(data.articulos || []);
-      setAclaracionEspecialista(data.aclaracionEspecialista || '');
-      setAclaracionCliente(data.aclaracionCliente || '');
-      setStatus(data.status || 'BORRADOR');
-    } catch (err) {
-      console.error('[OTForm] Error cargando OT:', err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const touch = () => { if (!hasInteracted.current) hasInteracted.current = true; };
+  const touch = () => {
+    if (!hasInteracted.current) hasInteracted.current = true;
+    dirtyRef.current = true;
+  };
 
   async function save() {
     if (!otNumber) return;
@@ -83,6 +118,8 @@ export function useOTForm(otNumber?: string) {
         aclaracionCliente: aclaracionCliente || '',
         status,
       });
+      // Save succeeded — mark clean so subscription can update form again
+      dirtyRef.current = false;
     } catch (err) {
       console.error('[OTForm] Error guardando:', err);
     } finally {
@@ -108,7 +145,8 @@ export function useOTForm(otNumber?: string) {
         signatureEngineer: sigEngineer || null,
         signatureClient: sigClient || null,
       });
-      setStatus('FINALIZADO');
+      // Subscription will pick up the status change and update form
+      dirtyRef.current = false;
     } catch (err) {
       console.error('[OTForm] Error finalizando:', err);
       throw err;

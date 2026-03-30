@@ -8,6 +8,47 @@ import { createEmptyProtocolDataForTemplate } from '../data/sampleProtocol';
 import { getProtocolTemplateForServiceType } from '../utils/protocolSelector';
 import { logger } from '../utils/logger';
 
+/** Recorta whitespace de una firma base64. Devuelve la versión trimmed como dataURL. */
+function trimSignatureBase64(dataUrl: string, padding = 10): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d');
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, c.width, c.height).data;
+      let top = c.height, left = c.width, bottom = 0, right = 0;
+      for (let y = 0; y < c.height; y++) {
+        for (let x = 0; x < c.width; x++) {
+          if (imgData[(y * c.width + x) * 4 + 3] > 0) {
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+            if (x < left) left = x;
+            if (x > right) right = x;
+          }
+        }
+      }
+      if (bottom <= top || right <= left) { resolve(dataUrl); return; }
+      top = Math.max(0, top - padding);
+      left = Math.max(0, left - padding);
+      bottom = Math.min(c.height - 1, bottom + padding);
+      right = Math.min(c.width - 1, right + padding);
+      const tw = right - left + 1, th = bottom - top + 1;
+      const out = document.createElement('canvas');
+      out.width = tw; out.height = th;
+      const oCtx = out.getContext('2d');
+      if (!oCtx) { resolve(dataUrl); return; }
+      oCtx.drawImage(c, left, top, tw, th, 0, 0, tw, th);
+      resolve(out.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 interface DuplicateNewState {
   fechaInicio: string;
   fechaFin: string;
@@ -155,7 +196,8 @@ export const useOTManagement = (
       if (!currentUser?.uid) return;
       const firma = await firebase.getUserFirma(currentUser.uid);
       if (firma) {
-        setSignatureEngineer(firma.firmaBase64);
+        const trimmed = await trimSignatureBase64(firma.firmaBase64);
+        setSignatureEngineer(trimmed);
         setAclaracionEspecialista(firma.nombreAclaracion);
       }
     } catch (e) {

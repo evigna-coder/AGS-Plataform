@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { vehiculosService, serviciosVehiculoService, historialTallerService, registrosKmService } from '../../services/firebaseService';
 import { ServiciosPanel } from '../../components/vehiculos/ServiciosPanel';
@@ -18,28 +18,31 @@ export const VehiculoDetail = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('servicios');
 
-  const loadAll = async () => {
+  const loadSubcollections = useCallback(async () => {
     if (!id) return;
-    try {
-      setLoading(true);
-      const [v, s, h, km] = await Promise.all([
-        vehiculosService.getById(id),
-        serviciosVehiculoService.getAll(id),
-        historialTallerService.getAll(id),
-        registrosKmService.getAll(id),
-      ]);
-      setVehiculo(v);
-      setServicios(s);
-      setHistorial(h);
-      setRegistrosKm(km);
-    } catch (err) {
-      console.error('Error cargando vehículo:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const [s, h, km] = await Promise.all([
+      serviciosVehiculoService.getAll(id),
+      historialTallerService.getAll(id),
+      registrosKmService.getAll(id),
+    ]);
+    setServicios(s);
+    setHistorial(h);
+    setRegistrosKm(km);
+  }, [id]);
 
-  useEffect(() => { loadAll(); }, [id]);
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    const unsub = vehiculosService.subscribeById(id, async (v) => {
+      setVehiculo(v);
+      await loadSubcollections();
+      setLoading(false);
+    }, (err) => {
+      console.error('Error cargando vehiculo:', err);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [id, loadSubcollections]);
 
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
   if (!vehiculo) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Vehículo no encontrado</p></div>;
@@ -106,13 +109,13 @@ export const VehiculoDetail = () => {
       {/* Content */}
       <div className="flex-1 overflow-auto px-6 py-4">
         {tab === 'servicios' && (
-          <ServiciosPanel vehiculoId={vehiculo.id} servicios={servicios} criterios={vehiculo.criteriosServicio} kmActual={latestKm} onChanged={loadAll} />
+          <ServiciosPanel vehiculoId={vehiculo.id} servicios={servicios} criterios={vehiculo.criteriosServicio} kmActual={latestKm} onChanged={loadSubcollections} />
         )}
         {tab === 'historial' && (
-          <HistorialTallerPanel vehiculoId={vehiculo.id} historial={historial} onChanged={loadAll} />
+          <HistorialTallerPanel vehiculoId={vehiculo.id} historial={historial} onChanged={loadSubcollections} />
         )}
         {tab === 'km' && (
-          <RegistroKmPanel vehiculoId={vehiculo.id} registros={registrosKm} onChanged={loadAll} />
+          <RegistroKmPanel vehiculoId={vehiculo.id} registros={registrosKm} onChanged={loadSubcollections} />
         )}
       </div>
     </div>

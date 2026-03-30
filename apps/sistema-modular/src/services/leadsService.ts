@@ -160,6 +160,14 @@ export const leadsService = {
     return parseLeadDoc(snap);
   },
 
+  /** Real-time subscription to a single lead. Returns unsubscribe function. */
+  subscribeById(id: string, callback: (lead: Lead | null) => void, onError?: (err: Error) => void): () => void {
+    return onSnapshot(doc(db, 'leads', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback(parseLeadDoc(snap));
+    }, err => { console.error('Lead subscription error:', err); onError?.(err); });
+  },
+
   async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) {
     const payload = deepCleanForFirestore({
       ...data,

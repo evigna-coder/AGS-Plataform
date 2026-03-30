@@ -20,50 +20,76 @@ export const ClienteDetail = () => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>(null);
 
+  // Real-time subscription for the cliente document
   useEffect(() => {
-    if (id) loadCliente();
-  }, [id]);
-
-  const loadCliente = async () => {
     if (!id) return;
-    try {
-      setLoading(true);
-      const [clienteData, sistemasData, establecimientosData, categoriasData] = await Promise.all([
-        clientesService.getById(id),
-        sistemasService.getAll({ clienteCuit: id, activosOnly: false }),
-        establecimientosService.getByCliente(id),
-        categoriasEquipoService.getAll(),
-      ]);
+    setLoading(true);
+    const unsub = clientesService.subscribeById(id, (clienteData) => {
       if (clienteData) {
         setCliente(clienteData);
-        setEstablecimientos(establecimientosData);
-        setFormData({
-          razonSocial: clienteData.razonSocial,
-          cuit: clienteData.cuit || '',
-          pais: clienteData.pais,
-          direccionFiscal: clienteData.direccionFiscal ?? clienteData.direccion ?? '',
-          localidadFiscal: clienteData.localidadFiscal ?? clienteData.localidad ?? '',
-          provinciaFiscal: clienteData.provinciaFiscal ?? clienteData.provincia ?? '',
-          codigoPostalFiscal: clienteData.codigoPostalFiscal ?? clienteData.codigoPostal ?? '',
-          rubro: clienteData.rubro,
-          condicionIva: clienteData.condicionIva || '',
-          ingresosBrutos: clienteData.ingresosBrutos || '',
-          convenioMultilateral: clienteData.convenioMultilateral || false,
-          requiereTrazabilidad: clienteData.requiereTrazabilidad || false,
-          notas: clienteData.notas || '',
-          activo: clienteData.activo,
-        });
-        setSistemas(sistemasData);
-        setCategorias(categoriasData);
+        if (!editing) {
+          setFormData({
+            razonSocial: clienteData.razonSocial,
+            cuit: clienteData.cuit || '',
+            pais: clienteData.pais,
+            direccionFiscal: clienteData.direccionFiscal ?? clienteData.direccion ?? '',
+            localidadFiscal: clienteData.localidadFiscal ?? clienteData.localidad ?? '',
+            provinciaFiscal: clienteData.provinciaFiscal ?? clienteData.provincia ?? '',
+            codigoPostalFiscal: clienteData.codigoPostalFiscal ?? clienteData.codigoPostal ?? '',
+            rubro: clienteData.rubro,
+            condicionIva: clienteData.condicionIva || '',
+            ingresosBrutos: clienteData.ingresosBrutos || '',
+            convenioMultilateral: clienteData.convenioMultilateral || false,
+            requiereTrazabilidad: clienteData.requiereTrazabilidad || false,
+            notas: clienteData.notas || '',
+            activo: clienteData.activo,
+          });
+        }
       } else {
         alert('Cliente no encontrado');
         navigate('/clientes');
       }
-    } catch (error) {
-      console.error('Error cargando cliente:', error);
-      alert('Error al cargar el cliente');
-    } finally {
       setLoading(false);
+    }, (err) => {
+      console.error('Error cargando cliente:', err);
+      alert('Error al cargar el cliente');
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [id]);
+
+  // One-shot reference loads (sistemas, establecimientos, categorias)
+  useEffect(() => {
+    if (!id) return;
+    const loadRefs = async () => {
+      try {
+        const [sistemasData, establecimientosData, categoriasData] = await Promise.all([
+          sistemasService.getAll({ clienteCuit: id, activosOnly: false }),
+          establecimientosService.getByCliente(id),
+          categoriasEquipoService.getAll(),
+        ]);
+        setSistemas(sistemasData);
+        setEstablecimientos(establecimientosData);
+        setCategorias(categoriasData);
+      } catch (error) {
+        console.error('Error cargando referencias:', error);
+      }
+    };
+    loadRefs();
+  }, [id]);
+
+  const loadCliente = async () => {
+    // Kept for onRefresh callback in child components (triggers ref reload)
+    if (!id) return;
+    try {
+      const [sistemasData, establecimientosData] = await Promise.all([
+        sistemasService.getAll({ clienteCuit: id, activosOnly: false }),
+        establecimientosService.getByCliente(id),
+      ]);
+      setSistemas(sistemasData);
+      setEstablecimientos(establecimientosData);
+    } catch (error) {
+      console.error('Error recargando referencias:', error);
     }
   };
 
@@ -88,7 +114,7 @@ export const ClienteDetail = () => {
       if (formData.ingresosBrutos?.trim()) clienteData.ingresosBrutos = formData.ingresosBrutos.trim();
       if (formData.notas?.trim()) clienteData.notas = formData.notas.trim();
       await clientesService.update(id, clienteData);
-      setCliente(prev => prev ? { ...prev, ...clienteData } as Cliente : prev);
+      // Subscription will auto-update the cliente state
       setEditing(false);
     } catch (error) {
       console.error('Error guardando cliente:', error);
@@ -146,7 +172,7 @@ export const ClienteDetail = () => {
               </Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(false); loadCliente(); }}>
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
                   Cancelar
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>

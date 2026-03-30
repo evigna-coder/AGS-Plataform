@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import type { Lead, LeadEstado, UsuarioAGS, Posta } from '@ags/shared';
 import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS } from '@ags/shared';
@@ -35,63 +35,88 @@ export const LeadDetail = () => {
   const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string; estado: string }[]>([]);
   const [linkedOTs, setLinkedOTs] = useState<{ otNumber: string }[]>([]);
 
-  const load = useCallback(async (silent = false) => {
+  const unsubRef = useRef<(() => void) | null>(null);
+
+  // Load usuarios once
+  useEffect(() => {
+    usuariosService.getAll().then(setUsuarios).catch(console.error);
+  }, []);
+
+  // Real-time subscription for lead document
+  useEffect(() => {
     if (!id) return;
-    if (!silent) setLoading(true);
-    try {
-      const [data, usrs] = await Promise.all([
-        leadsService.getById(id),
-        usuariosService.getAll(),
-      ]);
+    setLoading(true);
+
+    unsubRef.current?.();
+    unsubRef.current = leadsService.subscribeById(id, (data) => {
       if (!data) {
         alert('Lead no encontrado');
         navigate('/leads');
         return;
       }
       setLead(data);
-      setUsuarios(usrs);
-
-      // Cargar módulo nombre
-      if (data.sistemaId && data.moduloId) {
-        const mod = await modulosService.getById(data.sistemaId, data.moduloId);
-        setModuloNombre(mod?.nombre || null);
-      } else {
-        setModuloNombre(null);
-      }
-
-      // Cargar entidades vinculadas
-      const presups: { id: string; numero: string; estado: string }[] = [];
-      for (const pId of data.presupuestosIds || []) {
-        const p = await presupuestosService.getById(pId);
-        if (p) presups.push({ id: p.id, numero: p.numero, estado: p.estado });
-      }
-      setLinkedPresupuestos(presups);
-
-      const ots: { otNumber: string }[] = [];
-      for (const otNum of data.otIds || []) {
-        const ot = await ordenesTrabajoService.getByOtNumber(otNum);
-        if (ot) ots.push({ otNumber: ot.otNumber });
-      }
-      setLinkedOTs(ots);
-    } catch (err) {
+      setLoading(false);
+    }, (err) => {
       console.error('Error al cargar lead:', err);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [id]);
+      setLoading(false);
+    });
 
-  useEffect(() => { load(); }, [load]);
+    return () => {
+      unsubRef.current?.();
+      unsubRef.current = null;
+    };
+  }, [id, navigate]);
+
+  // One-shot loads for linked entities (re-run when lead changes relevant fields)
+  const loadLinkedEntities = useCallback(async (data: Lead) => {
+    // Cargar módulo nombre
+    if (data.sistemaId && data.moduloId) {
+      const mod = await modulosService.getById(data.sistemaId, data.moduloId);
+      setModuloNombre(mod?.nombre || null);
+    } else {
+      setModuloNombre(null);
+    }
+
+    // Cargar presupuestos vinculados
+    const presups: { id: string; numero: string; estado: string }[] = [];
+    for (const pId of data.presupuestosIds || []) {
+      const p = await presupuestosService.getById(pId);
+      if (p) presups.push({ id: p.id, numero: p.numero, estado: p.estado });
+    }
+    setLinkedPresupuestos(presups);
+
+    // Cargar OTs vinculadas
+    const ots: { otNumber: string }[] = [];
+    for (const otNum of data.otIds || []) {
+      const ot = await ordenesTrabajoService.getByOtNumber(otNum);
+      if (ot) ots.push({ otNumber: ot.otNumber });
+    }
+    setLinkedOTs(ots);
+  }, []);
+
+  // Stable ref to track previous linked IDs so we only re-fetch when they change
+  const prevLinkedRef = useRef('');
+  useEffect(() => {
+    if (!lead) return;
+    const key = JSON.stringify({
+      sistemaId: lead.sistemaId,
+      moduloId: lead.moduloId,
+      presupuestosIds: lead.presupuestosIds,
+      otIds: lead.otIds,
+    });
+    if (key === prevLinkedRef.current) return;
+    prevLinkedRef.current = key;
+    loadLinkedEntities(lead);
+  }, [lead, loadLinkedEntities]);
 
   const handleEstadoChange = async (estado: LeadEstado) => {
     if (!lead) return;
     await leadsService.update(lead.id, { estado });
-    setLead(prev => prev ? { ...prev, estado } : prev);
   };
 
   const handleFieldUpdate = async (field: string, value: any) => {
     if (!lead) return;
     await leadsService.update(lead.id, { [field]: value });
-    setLead(prev => prev ? { ...prev, [field]: value } : prev);
   };
 
   const handleDelete = async () => {
@@ -129,7 +154,6 @@ export const LeadDetail = () => {
       estadoNuevo: lead.estado,
     };
     await leadsService.completarAccion(lead.id, posta);
-    await load(true);
   };
 
   const handleAgregarComentario = async () => {
@@ -148,7 +172,6 @@ export const LeadDetail = () => {
         estadoNuevo: lead.estado,
       });
       setComentario('');
-      await load(true);
     } catch {
       alert('Error al agregar observación');
     } finally {
@@ -236,7 +259,7 @@ export const LeadDetail = () => {
             <LeadAdjuntosSection
               leadId={lead.id}
               adjuntos={lead.adjuntos || []}
-              onUpdated={load}
+              onUpdated={() => {/* subscription auto-refreshes */}}
               readOnly={!isActive}
             />
 
@@ -307,12 +330,12 @@ export const LeadDetail = () => {
         </div>
       </div>
 
-      {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); load(true); }} />}
-      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); load(true); }} />}
+      {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); }} />}
+      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); }} />}
       <CreatePresupuestoModal
         open={showCrearPresupuesto}
         onClose={() => setShowCrearPresupuesto(false)}
-        onCreated={() => { setShowCrearPresupuesto(false); load(true); }}
+        onCreated={() => { setShowCrearPresupuesto(false); }}
         prefill={{
           clienteId: lead.clienteId || undefined,
           sistemaId: lead.sistemaId || undefined,

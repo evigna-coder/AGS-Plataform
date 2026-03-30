@@ -45,22 +45,31 @@ export const ArticuloDetail = () => {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async (silent = false) => {
+  const loadUnidades = useCallback(async () => {
     if (!id) return;
-    try {
-      if (!silent) setLoading(true);
-      const [art, units] = await Promise.all([articulosService.getById(id), unidadesService.getByArticulo(id)]);
+    const units = await unidadesService.getByArticulo(id);
+    setUnidades(units);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    const unsub = articulosService.subscribeById(id, async (art) => {
       setArticulo(art);
-      setUnidades(units);
       if (art?.marcaId) {
         const allMarcas = await marcasService.getAll();
         setMarca(allMarcas.find(m => m.id === art.marcaId) ?? null);
+      } else {
+        setMarca(null);
       }
-    } catch (e) { console.error('Error loading articulo:', e); }
-    finally { if (!silent) setLoading(false); }
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
+      await loadUnidades();
+      setLoading(false);
+    }, (err) => {
+      console.error('Error loading articulo:', err);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [id, loadUnidades]);
 
   const handleCreate = async (form: UnitFormData, refOptions: { id: string; label: string }[]) => {
     if (!articulo || !id) return;
@@ -77,7 +86,7 @@ export const ArticuloDetail = () => {
         observaciones: form.observaciones || null, activo: true,
       });
       setShowForm(false);
-      await load(true);
+      await loadUnidades();
     } catch (e) { console.error('Error creating unit:', e); alert('Error al crear unidad'); }
     finally { setSaving(false); }
   };

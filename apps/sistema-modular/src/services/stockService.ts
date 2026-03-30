@@ -210,6 +210,25 @@ export const articulosService = {
     await batch.commit();
   },
 
+  subscribeById(
+    id: string,
+    callback: (item: Articulo | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'articulos', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback({
+        id: snap.id,
+        ...snap.data(),
+        createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      } as Articulo);
+    }, err => {
+      console.error('articulos subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async deactivate(id: string): Promise<void> {
     await this.update(id, { activo: false });
   },
@@ -456,6 +475,25 @@ export const minikitsService = {
     batch.update(docRef('minikits', id), payload);
     batchAudit(batch, { action: 'update', collection: 'minikits', documentId: id, after: payload as any });
     await batch.commit();
+  },
+
+  subscribeById(
+    id: string,
+    callback: (item: Minikit | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'minikits', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback({
+        id: snap.id,
+        ...snap.data(),
+        createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      } as Minikit);
+    }, err => {
+      console.error('minikits subscription error:', err);
+      onError?.(err);
+    });
   },
 
   async delete(id: string): Promise<void> {
@@ -782,6 +820,27 @@ export const remitosService = {
     batch.update(docRef('remitos', id), payload);
     batchAudit(batch, { action: 'update', collection: 'remitos', documentId: id, after: payload as any });
     await batch.commit();
+  },
+
+  subscribeById(
+    id: string,
+    callback: (item: Remito | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'remitos', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback({
+        id: snap.id,
+        ...snap.data(),
+        createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        fechaSalida: snap.data().fechaSalida?.toDate?.().toISOString() ?? snap.data().fechaSalida ?? null,
+        fechaDevolucion: snap.data().fechaDevolucion?.toDate?.().toISOString() ?? snap.data().fechaDevolucion ?? null,
+      } as Remito);
+    }, err => {
+      console.error('remitos subscription error:', err);
+      onError?.(err);
+    });
   },
 
   async delete(id: string): Promise<void> {

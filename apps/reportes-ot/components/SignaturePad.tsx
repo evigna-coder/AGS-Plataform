@@ -1,6 +1,40 @@
 
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 
+/** Recorta el espacio en blanco alrededor de los trazos del canvas */
+function trimCanvas(canvas: HTMLCanvasElement, padding = 10): HTMLCanvasElement {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const { width, height } = canvas;
+  const imgData = ctx.getImageData(0, 0, width, height).data;
+  let top = height, left = width, bottom = 0, right = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = imgData[(y * width + x) * 4 + 3];
+      if (alpha > 0) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+  if (bottom <= top || right <= left) return canvas;
+  top = Math.max(0, top - padding);
+  left = Math.max(0, left - padding);
+  bottom = Math.min(height - 1, bottom + padding);
+  right = Math.min(width - 1, right + padding);
+  const trimW = right - left + 1;
+  const trimH = bottom - top + 1;
+  const trimmed = document.createElement('canvas');
+  trimmed.width = trimW;
+  trimmed.height = trimH;
+  const tCtx = trimmed.getContext('2d');
+  if (!tCtx) return canvas;
+  tCtx.drawImage(canvas, left, top, trimW, trimH, 0, 0, trimW, trimH);
+  return trimmed;
+}
+
 interface SignaturePadProps {
   label: string;
   onClear: () => void;
@@ -30,7 +64,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   const canvas = canvasRef.current;
   if (!canvas) return;
 
-  const dataUrl = canvas.toDataURL();
+  const dataUrl = trimCanvas(canvas).toDataURL('image/png');
   savedSignatureRef.current = dataUrl; // Guardar firma actual
   onEnd?.(dataUrl);
 };
@@ -72,7 +106,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
       if (!hasSignature) return null;
       const canvas = canvasRef.current;
       if (canvas) {
-        const dataUrl = canvas.toDataURL('image/png');
+        const dataUrl = trimCanvas(canvas).toDataURL('image/png');
         savedSignatureRef.current = dataUrl; // Guardar para futuras referencias
         return dataUrl;
       }

@@ -541,18 +541,25 @@ export const CatalogChecklistView: React.FC<Props> = ({
     onChangeData(selection.tableId, itemId, answer);
   };
 
+  const showTitle = tableSnapshot.showTitle ?? true;
+
   return (
     <div className={`border border-slate-200 rounded-xl overflow-hidden ${isPrint ? 'mb-4' : ''}`}>
       {/* Cabecera */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-800 tracking-tight">{tableSnapshot.name}</span>
+      {(showTitle || (!readOnly && !isPrint)) && (
+        <div className={`flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200 ${!showTitle && !isPrint ? 'py-1' : ''}`}>
+          {showTitle && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-slate-800 tracking-tight">{tableSnapshot.name}</span>
+            </div>
+          )}
+          {!showTitle && <div />}
+          {!readOnly && !isPrint && onRemove && (
+            <button onClick={() => onRemove(selection.tableId)}
+              className="text-slate-400 hover:text-slate-700 text-xs">× Quitar</button>
+          )}
         </div>
-        {!readOnly && !isPrint && onRemove && (
-          <button onClick={() => onRemove(selection.tableId)}
-            className="text-slate-400 hover:text-slate-700 text-xs">× Quitar</button>
-        )}
-      </div>
+      )}
 
       {/* Cuerpo — ítems del checklist */}
       <div className={`bg-white ${isPrint ? '' : 'divide-y divide-slate-50'}`}>

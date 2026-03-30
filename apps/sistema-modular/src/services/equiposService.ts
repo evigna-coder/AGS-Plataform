@@ -277,6 +277,22 @@ export const sistemasService = {
     return null;
   },
 
+  /** Real-time subscription to a single sistema. Returns unsubscribe function. */
+  subscribeById(id: string, callback: (sistema: Sistema | null) => void, onError?: (err: Error) => void): () => void {
+    return onSnapshot(doc(db, 'sistemas', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      const data = snap.data();
+      callback({
+        id: snap.id,
+        ...data,
+        ubicaciones: data.ubicaciones || [],
+        otIds: data.otIds || [],
+        createdAt: data.createdAt?.toDate().toISOString(),
+        updatedAt: data.updatedAt?.toDate().toISOString(),
+      } as Sistema);
+    }, err => { console.error('Sistema subscription error:', err); onError?.(err); });
+  },
+
   // Actualizar sistema
   async update(id: string, data: Partial<Omit<Sistema, 'id' | 'createdAt' | 'updatedAt'>>) {
     const payload = {

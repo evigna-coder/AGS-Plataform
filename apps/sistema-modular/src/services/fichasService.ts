@@ -84,6 +84,25 @@ export const fichasService = {
     } as FichaPropiedad;
   },
 
+  subscribeById(
+    id: string,
+    callback: (item: FichaPropiedad | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'fichasPropiedad', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback({
+        id: snap.id,
+        ...snap.data(),
+        createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      } as FichaPropiedad);
+    }, err => {
+      console.error('fichasPropiedad subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async create(data: Omit<FichaPropiedad, 'id' | 'numero' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const id = crypto.randomUUID();
     const numero = await this.getNextFichaNumber();

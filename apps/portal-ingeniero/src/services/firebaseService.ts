@@ -257,6 +257,21 @@ export const leadsService = {
     return parseLead(snap.id, snap.data() as Record<string, unknown>);
   },
 
+  /** Real-time subscription to a single lead by ID. Returns unsubscribe function. */
+  subscribeById(
+    id: string,
+    callback: (lead: Lead | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'leads', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback(parseLead(snap.id, snap.data() as Record<string, unknown>));
+    }, err => {
+      console.error('Lead subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<void> {
     await updateDoc(doc(db, 'leads', id), {
       ...cleanFirestoreData(data as Record<string, unknown>),
@@ -459,6 +474,45 @@ export const otService = {
       console.warn('No se pudo leer reportes/' + otNumber, err);
     }
     return null;
+  },
+
+  /** Real-time subscription to a single OT by otNumber.
+   *  Tries ordenes_trabajo first; falls back to reportes if not found.
+   *  Returns unsubscribe function. */
+  subscribeByOtNumber(
+    otNumber: string,
+    callback: (ot: WorkOrderWithPdf | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    let active = true;
+    let currentUnsub: (() => void) | null = null;
+
+    // Try ordenes_trabajo first (primary collection)
+    currentUnsub = onSnapshot(doc(db, 'ordenes_trabajo', otNumber), snap => {
+      if (!active) return;
+      if (snap.exists()) {
+        callback(toOT(snap.id, snap.data() as Record<string, unknown>));
+      } else {
+        // Not in ordenes_trabajo — fall back to reportes
+        if (currentUnsub) currentUnsub();
+        currentUnsub = onSnapshot(doc(db, 'reportes', otNumber), repSnap => {
+          if (!active) return;
+          if (!repSnap.exists()) { callback(null); return; }
+          callback(reporteToWorkOrder(repSnap.id, repSnap.data() as Record<string, unknown>));
+        }, err => {
+          console.error('OT reportes subscription error:', err);
+          onError?.(err);
+        });
+      }
+    }, err => {
+      console.error('OT ordenes_trabajo subscription error:', err);
+      onError?.(err);
+    });
+
+    return () => {
+      active = false;
+      if (currentUnsub) currentUnsub();
+    };
   },
 
   async update(otNumber: string, data: Partial<WorkOrder>): Promise<void> {

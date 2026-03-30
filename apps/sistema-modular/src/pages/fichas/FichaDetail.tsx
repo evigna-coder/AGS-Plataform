@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fichasService, loanersService, remitosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -24,15 +24,19 @@ export function FichaDetail() {
   const [selectedLoanerId, setSelectedLoanerId] = useState('');
   const [asigning, setAsigning] = useState(false);
 
-  const loadFicha = useCallback(async () => {
+  useEffect(() => {
     if (!id) return;
-    const f = await fichasService.getById(id);
-    if (!f) return navigate('/fichas');
-    setFicha(f);
-    setLoading(false);
+    setLoading(true);
+    const unsub = fichasService.subscribeById(id, (f) => {
+      if (!f) { navigate('/fichas'); return; }
+      setFicha(f);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error loading ficha:', err);
+      setLoading(false);
+    });
+    return () => unsub();
   }, [id, navigate]);
-
-  useEffect(() => { loadFicha(); }, [loadFicha]);
 
   const handleTransition = async (nuevoEstado: EstadoFicha, nota: string) => {
     if (!ficha) return;
@@ -43,7 +47,7 @@ export function FichaDetail() {
       nota,
       creadoPor: 'admin',
     });
-    await loadFicha();
+    // subscription auto-refreshes
   };
 
   const handleEntregarCliente = async () => {
@@ -71,7 +75,7 @@ export function FichaDetail() {
       nota: 'Entregado al cliente. Remito generado.',
       creadoPor: 'admin',
     });
-    await loadFicha();
+    // subscription auto-refreshes
   };
 
   const openLoanerPicker = async () => {
@@ -105,7 +109,7 @@ export function FichaDetail() {
       });
       setLoanerModalOpen(false);
       setSelectedLoanerId('');
-      await loadFicha();
+      // subscription auto-refreshes
     } finally {
       setAsigning(false);
     }
@@ -151,9 +155,9 @@ export function FichaDetail() {
           <div className="flex-1 space-y-4">
             <FichaLoanerLink ficha={ficha} />
             <FichaHistorialSection historial={ficha.historial} />
-            <FichaDerivacionSection ficha={ficha} onUpdate={loadFicha} />
-            <FichaRepuestosSection ficha={ficha} onUpdate={loadFicha} />
-            <FichaFotosSection ficha={ficha} readOnly={ficha.estado === 'entregado'} onUpdate={loadFicha} />
+            <FichaDerivacionSection ficha={ficha} onUpdate={() => { /* subscription auto-refreshes */ }} />
+            <FichaRepuestosSection ficha={ficha} onUpdate={() => { /* subscription auto-refreshes */ }} />
+            <FichaFotosSection ficha={ficha} readOnly={ficha.estado === 'entregado'} onUpdate={() => { /* subscription auto-refreshes */ }} />
           </div>
         </div>
       </div>

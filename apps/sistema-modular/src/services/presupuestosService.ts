@@ -143,6 +143,32 @@ export const presupuestosService = {
     return null;
   },
 
+  /** Real-time subscription to a single presupuesto by ID. Returns unsubscribe function. */
+  subscribeById(
+    id: string,
+    callback: (presupuesto: Presupuesto | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'presupuestos', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      const d = snap.data();
+      callback({
+        id: snap.id,
+        ...d,
+        createdAt: toISO(d.createdAt, ''),
+        updatedAt: toISO(d.updatedAt, ''),
+        validUntil: toISO(d.validUntil),
+        fechaEnvio: toISO(d.fechaEnvio),
+        proximoContacto: d.proximoContacto ?? null,
+        responsableId: d.responsableId ?? null,
+        responsableNombre: d.responsableNombre ?? null,
+      } as Presupuesto);
+    }, err => {
+      console.error('Presupuesto subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   // Crear presupuesto
   async create(presupuestoData: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> & { numero?: string }) {
     console.log('📝 Creando presupuesto...');

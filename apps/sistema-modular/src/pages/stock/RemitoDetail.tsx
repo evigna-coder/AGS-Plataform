@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { remitosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -36,21 +36,23 @@ export const RemitoDetail = () => {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
     if (!id) return;
-    try {
-      setLoading(true);
-      setRemito(await remitosService.getById(id));
-    } catch (e) { console.error('Error loading remito:', e); }
-    finally { setLoading(false); }
+    setLoading(true);
+    const unsub = remitosService.subscribeById(id, (data) => {
+      setRemito(data);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error loading remito:', err);
+      setLoading(false);
+    });
+    return () => unsub();
   }, [id]);
-
-  useEffect(() => { load(); }, [load]);
 
   const transition = async (estado: EstadoRemito, extra?: Partial<Remito>) => {
     if (!id || !remito) return;
     setActing(true);
-    try { await remitosService.update(id, { estado, ...extra }); await load(); }
+    try { await remitosService.update(id, { estado, ...extra }); }
     catch (e) { console.error('Error updating remito:', e); alert('Error al actualizar remito'); }
     finally { setActing(false); }
   };
@@ -61,7 +63,7 @@ export const RemitoDetail = () => {
       it.id === itemId ? { ...it, devuelto: !current, fechaDevolucion: !current ? new Date().toISOString() : null } : it,
     );
     setActing(true);
-    try { await remitosService.update(id, { items: updatedItems }); await load(); }
+    try { await remitosService.update(id, { items: updatedItems }); }
     catch (e) { console.error('Error toggling devuelto:', e); }
     finally { setActing(false); }
   };

@@ -31,19 +31,11 @@ export const EquipoDetail = () => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>(null);
 
-  useEffect(() => { if (id) loadData(); }, [id]);
-
-  const loadData = async (silent = false) => {
+  // Real-time subscription for the sistema document
+  useEffect(() => {
     if (!id) return;
-    try {
-      if (!silent) setLoading(true);
-      const [sistemaData, modulosData, cats, catsMod, clientesData] = await Promise.all([
-        sistemasService.getById(id),
-        modulosService.getBySistema(id),
-        categoriasEquipoService.getAll(),
-        categoriasModuloService.getAll(),
-        clientesService.getAll(true),
-      ]);
+    setLoading(true);
+    const unsub = sistemasService.subscribeById(id, async (sistemaData) => {
       if (!sistemaData) { alert('Sistema no encontrado'); navigate('/equipos'); return; }
 
       setSistema(sistemaData);
@@ -56,30 +48,63 @@ export const EquipoDetail = () => {
       const clienteCuit = est?.clienteCuit ?? sistemaData.clienteId ?? '';
       setEstablecimientos(clienteCuit ? await establecimientosService.getByCliente(clienteCuit) : []);
 
-      setFormData({
-        clienteId: clienteCuit,
-        establecimientoId: sistemaData.establecimientoId || '',
-        categoriaId: sistemaData.categoriaId,
-        nombre: sistemaData.nombre,
-        codigoInternoCliente: sistemaData.codigoInternoCliente,
-        software: sistemaData.software || '',
-        softwareRevision: sistemaData.softwareRevision || '',
-        sector: sistemaData.sector || '',
-        observaciones: sistemaData.observaciones || '',
-        configuracionGC: sistemaData.configuracionGC ?? {},
-        activo: sistemaData.activo,
-        agsVisibleId: sistemaData.agsVisibleId ?? null,
-        enContrato: sistemaData.enContrato ?? false,
-      });
-
-      setModulos(modulosData);
-      setCategorias(cats);
-      setCategoriasModulos(catsMod);
-      setClientes(clientesData);
-    } catch (error) {
-      console.error('Error cargando datos:', error);
+      if (!editing) {
+        setFormData({
+          clienteId: clienteCuit,
+          establecimientoId: sistemaData.establecimientoId || '',
+          categoriaId: sistemaData.categoriaId,
+          nombre: sistemaData.nombre,
+          codigoInternoCliente: sistemaData.codigoInternoCliente,
+          software: sistemaData.software || '',
+          softwareRevision: sistemaData.softwareRevision || '',
+          sector: sistemaData.sector || '',
+          observaciones: sistemaData.observaciones || '',
+          configuracionGC: sistemaData.configuracionGC ?? {},
+          activo: sistemaData.activo,
+          agsVisibleId: sistemaData.agsVisibleId ?? null,
+          enContrato: sistemaData.enContrato ?? false,
+        });
+      }
+      setLoading(false);
+    }, (err) => {
+      console.error('Error cargando datos:', err);
       alert('Error al cargar los datos');
-    } finally { if (!silent) setLoading(false); }
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [id]);
+
+  // One-shot reference loads (modulos, categorias, clientes)
+  useEffect(() => {
+    if (!id) return;
+    const loadRefs = async () => {
+      try {
+        const [modulosData, cats, catsMod, clientesData] = await Promise.all([
+          modulosService.getBySistema(id),
+          categoriasEquipoService.getAll(),
+          categoriasModuloService.getAll(),
+          clientesService.getAll(true),
+        ]);
+        setModulos(modulosData);
+        setCategorias(cats);
+        setCategoriasModulos(catsMod);
+        setClientes(clientesData);
+      } catch (error) {
+        console.error('Error cargando referencias:', error);
+      }
+    };
+    loadRefs();
+  }, [id]);
+
+  const loadData = async (_silent = false) => {
+    // Kept for onRefresh/silent reload of modulos after CRUD operations
+    if (!id) return;
+    try {
+      const modulosData = await modulosService.getBySistema(id);
+      setModulos(modulosData);
+    } catch (error) {
+      console.error('Error recargando modulos:', error);
+    }
   };
 
   const [saveMsg, setSaveMsg] = useState('');
@@ -91,16 +116,10 @@ export const EquipoDetail = () => {
       const { descripcion, ...dataToSave } = formData;
       await sistemasService.update(id, {
         ...dataToSave,
-        establecimientoId: formData.establecimientoId || undefined,
-        clienteId: formData.clienteId || undefined,
+        establecimientoId: formData.establecimientoId || null,
+        clienteId: formData.clienteId || null,
       });
-      // Actualizar estado local sin recargar de Firestore
-      setSistema(prev => prev ? { ...prev, ...dataToSave, establecimientoId: formData.establecimientoId || undefined, clienteId: formData.clienteId || undefined } as Sistema : prev);
-      // Actualizar establecimiento si cambió
-      if (formData.establecimientoId && formData.establecimientoId !== establecimiento?.id) {
-        const newEst = await establecimientosService.getById(formData.establecimientoId);
-        setEstablecimiento(newEst);
-      }
+      // Subscription will auto-update the sistema state
       setEditing(false);
       setSaveMsg('Guardado');
       setTimeout(() => setSaveMsg(''), 2000);
@@ -214,7 +233,7 @@ export const EquipoDetail = () => {
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(false); loadData(true); }}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
               </>
             )}

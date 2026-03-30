@@ -71,6 +71,22 @@ export const establecimientosService = {
     return null;
   },
 
+  /** Real-time subscription to a single establecimiento. Returns unsubscribe function. */
+  subscribeById(id: string, callback: (est: Establecimiento | null) => void, onError?: (err: Error) => void): () => void {
+    return onSnapshot(doc(db, 'establecimientos', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      const d = snap.data();
+      callback({
+        id: snap.id,
+        ...d,
+        clienteCuit: d.clienteCuit || d.clienteId || null,
+        ubicaciones: d.ubicaciones || [],
+        createdAt: d.createdAt?.toDate().toISOString(),
+        updatedAt: d.updatedAt?.toDate().toISOString(),
+      } as Establecimiento);
+    }, err => { console.error('Establecimiento subscription error:', err); onError?.(err); });
+  },
+
   async getByCliente(clienteCuit: string): Promise<Establecimiento[]> {
     // Buscar por clienteCuit Y por clienteId (campo legacy de migración)
     const [snap1, snap2] = await Promise.all([

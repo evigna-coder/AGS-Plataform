@@ -46,6 +46,20 @@ export const vehiculosService = {
     return snap.exists() ? docToVehiculo(snap) : null;
   },
 
+  subscribeById(
+    id: string,
+    callback: (item: Vehiculo | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'vehiculos', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback(docToVehiculo(snap));
+    }, err => {
+      console.error('vehiculos subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async update(id: string, data: Partial<Omit<Vehiculo, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const payload = { ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() };
     const batch = createBatch();

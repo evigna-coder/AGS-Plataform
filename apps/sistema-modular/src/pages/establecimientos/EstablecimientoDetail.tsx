@@ -74,57 +74,94 @@ export const EstablecimientoDetail = () => {
   const [showContactoModal, setShowContactoModal] = useState(false);
   const [editingContacto, setEditingContacto] = useState<ContactoEstablecimiento | null>(null);
   const [contactoForm, setContactoForm] = useState<ContactoFormData>(emptyContactoForm);
-  useEffect(() => { if (id) load(); }, [id]);
-
-  const load = async (silent = false) => {
+  // Real-time subscription for the establecimiento document
+  useEffect(() => {
     if (!id) return;
-    try {
-      if (!silent) setLoading(true);
-      const [estData, contactosData, condicionesData, sectoresCat] = await Promise.all([
-        establecimientosService.getById(id),
-        contactosEstablecimientoService.getByEstablecimiento(id),
-        condicionesPagoService.getAll(),
-        sectoresCatalogService.getAll(),
-      ]);
-      setSectorCatalog(sectoresCat);
+    setLoading(true);
+    const unsub = establecimientosService.subscribeById(id, (estData) => {
       if (estData) {
         setEst(estData);
-        setSectores(estData.sectores || []);
-        setFormData({
-          nombre: estData.nombre, direccion: estData.direccion,
-          localidad: estData.localidad, provincia: estData.provincia,
-          pais: estData.pais || '', codigoPostal: estData.codigoPostal || '',
-          lat: estData.lat || null, lng: estData.lng || null,
-          placeId: estData.placeId || '', tipo: estData.tipo || '',
-          condicionPagoId: estData.condicionPagoId ?? '',
-          tipoServicio: estData.tipoServicio || '',
-          infoPagos: estData.infoPagos || '',
-          pagaEnTiempo: estData.pagaEnTiempo ?? false,
-          sueleDemorarse: estData.sueleDemorarse ?? false,
-          activo: estData.activo,
-        });
-        setContactos(contactosData);
-        setCondicionesPago(condicionesData);
-        const clienteData = estData.clienteCuit ? await clientesService.getById(estData.clienteCuit) : null;
-        setCliente(clienteData || null);
-        // Cargar sistemas por establecimientoId, y también por clienteCuit para datos de migración sin establecimientoId
-        let sistemasData = await sistemasService.getAll({ establecimientoId: id });
-        if (sistemasData.length === 0 && estData.clienteCuit) {
-          // Fallback: buscar sistemas vinculados al cliente directamente (migración sin establecimientoId)
-          const allClienteSistemas = await sistemasService.getAll({ clienteCuit: estData.clienteCuit });
-          // Mostrar solo los que no tienen establecimientoId asignado (huérfanos)
-          sistemasData = allClienteSistemas.filter(s => !s.establecimientoId);
+        if (!editing) {
+          setSectores(estData.sectores || []);
+          setFormData({
+            nombre: estData.nombre, direccion: estData.direccion,
+            localidad: estData.localidad, provincia: estData.provincia,
+            pais: estData.pais || '', codigoPostal: estData.codigoPostal || '',
+            lat: estData.lat || null, lng: estData.lng || null,
+            placeId: estData.placeId || '', tipo: estData.tipo || '',
+            condicionPagoId: estData.condicionPagoId ?? '',
+            tipoServicio: estData.tipoServicio || '',
+            infoPagos: estData.infoPagos || '',
+            pagaEnTiempo: estData.pagaEnTiempo ?? false,
+            sueleDemorarse: estData.sueleDemorarse ?? false,
+            activo: estData.activo,
+          });
         }
-        setSistemas(sistemasData);
       } else {
         alert('Establecimiento no encontrado');
         navigate('/establecimientos');
       }
-    } catch (e) {
-      console.error(e);
+      setLoading(false);
+    }, (err) => {
+      console.error(err);
       alert('Error al cargar');
-    } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [id]);
+
+  // One-shot reference loads (contactos, condiciones, sectores catalog, cliente, sistemas)
+  useEffect(() => {
+    if (!id) return;
+    const loadRefs = async () => {
+      try {
+        const [contactosData, condicionesData, sectoresCat] = await Promise.all([
+          contactosEstablecimientoService.getByEstablecimiento(id),
+          condicionesPagoService.getAll(),
+          sectoresCatalogService.getAll(),
+        ]);
+        setContactos(contactosData);
+        setCondicionesPago(condicionesData);
+        setSectorCatalog(sectoresCat);
+      } catch (error) {
+        console.error('Error cargando referencias:', error);
+      }
+    };
+    loadRefs();
+  }, [id]);
+
+  // Load cliente and sistemas once est is available
+  useEffect(() => {
+    if (!id || !est) return;
+    const loadRelated = async () => {
+      try {
+        const clienteData = est.clienteCuit ? await clientesService.getById(est.clienteCuit) : null;
+        setCliente(clienteData || null);
+        let sistemasData = await sistemasService.getAll({ establecimientoId: id });
+        if (sistemasData.length === 0 && est.clienteCuit) {
+          const allClienteSistemas = await sistemasService.getAll({ clienteCuit: est.clienteCuit });
+          sistemasData = allClienteSistemas.filter(s => !s.establecimientoId);
+        }
+        setSistemas(sistemasData);
+      } catch (error) {
+        console.error('Error cargando cliente/sistemas:', error);
+      }
+    };
+    loadRelated();
+  }, [id, est?.clienteCuit]);
+
+  const load = async (_silent = false) => {
+    // Kept for onRefresh callbacks (reloads contactos and sistemas)
+    if (!id) return;
+    try {
+      const [contactosData, sistemasData] = await Promise.all([
+        contactosEstablecimientoService.getByEstablecimiento(id),
+        sistemasService.getAll({ establecimientoId: id }),
+      ]);
+      setContactos(contactosData);
+      if (sistemasData.length > 0) setSistemas(sistemasData);
+    } catch (error) {
+      console.error('Error recargando referencias:', error);
     }
   };
 
@@ -171,7 +208,7 @@ export const EstablecimientoDetail = () => {
         sectores,
       };
       await establecimientosService.update(id, updated);
-      setEst(prev => prev ? { ...prev, ...updated } as Establecimiento : prev);
+      // Subscription will auto-update the est state
       setEditing(false);
       setSaveMsg('Guardado');
       setTimeout(() => setSaveMsg(''), 2000);
@@ -238,7 +275,7 @@ export const EstablecimientoDetail = () => {
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(false); load(true); }}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? 'Guardando...' : 'Guardar'}
                 </Button>

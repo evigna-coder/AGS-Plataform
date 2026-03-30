@@ -77,6 +77,25 @@ export const loanersService = {
     } as Loaner;
   },
 
+  subscribeById(
+    id: string,
+    callback: (item: Loaner | null) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    return onSnapshot(doc(db, 'loaners', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      callback({
+        id: snap.id,
+        ...snap.data(),
+        createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+        updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+      } as Loaner);
+    }, err => {
+      console.error('loaners subscription error:', err);
+      onError?.(err);
+    });
+  },
+
   async create(data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const id = crypto.randomUUID();
     const codigo = await this.getNextLoanerCodigo();

@@ -114,6 +114,21 @@ export const clientesService = {
     return null;
   },
 
+  /** Real-time subscription to a single cliente. Returns unsubscribe function. */
+  subscribeById(id: string, callback: (cliente: Cliente | null) => void, onError?: (err: Error) => void): () => void {
+    return onSnapshot(doc(db, 'clientes', id), snap => {
+      if (!snap.exists()) { callback(null); return; }
+      const data = snap.data();
+      const { contactos: __, ...rest } = data;
+      callback({
+        id: snap.id,
+        ...rest,
+        createdAt: data.createdAt?.toDate().toISOString(),
+        updatedAt: data.updatedAt?.toDate().toISOString(),
+      } as Cliente);
+    }, err => { console.error('Cliente subscription error:', err); onError?.(err); });
+  },
+
   // Obtener cliente por CUIT (normaliza y llama getById)
   async getByCuit(cuit: string) {
     return this.getById(normalizeCuit(cuit));

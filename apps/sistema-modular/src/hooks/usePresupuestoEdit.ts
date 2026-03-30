@@ -76,6 +76,31 @@ const INITIAL_FORM: PresupuestoFormState = {
   version: undefined, presupuestoOrigenId: null, motivoAnulacion: null, anuladoPorId: null,
 };
 
+/** Map a Presupuesto document snapshot to the local form state shape. */
+function mapToFormState(p: Presupuesto): PresupuestoFormState {
+  return {
+    numero: p.numero, estado: p.estado,
+    tipo: p.tipo || 'servicio', moneda: p.moneda || 'USD',
+    origenTipo: p.origenTipo || null, origenId: p.origenId || null, origenRef: p.origenRef || null,
+    clienteId: p.clienteId, establecimientoId: p.establecimientoId || null,
+    sistemaId: p.sistemaId || null, contactoId: p.contactoId || null,
+    items: p.items || [], tipoCambio: p.tipoCambio, condicionPagoId: p.condicionPagoId,
+    notasTecnicas: p.notasTecnicas || '', notasAdministrativas: p.notasAdministrativas || '',
+    garantia: p.garantia || '', variacionTipoCambio: p.variacionTipoCambio || '',
+    condicionesComerciales: p.condicionesComerciales || '',
+    aceptacionPresupuesto: p.aceptacionPresupuesto || '',
+    seccionesVisibles: p.seccionesVisibles || { ...PRESUPUESTO_SECCIONES_DEFAULT },
+    validezDias: p.validezDias ?? 15,
+    validUntil: p.validUntil ? p.validUntil.split('T')[0] : '',
+    fechaEnvio: p.fechaEnvio ? p.fechaEnvio.split('T')[0] : '',
+    adjuntos: p.adjuntos || [], proximoContacto: p.proximoContacto || '',
+    responsableId: p.responsableId || '', responsableNombre: p.responsableNombre || '',
+    createdAt: p.createdAt || '', version: p.version,
+    presupuestoOrigenId: p.presupuestoOrigenId || null,
+    motivoAnulacion: p.motivoAnulacion || null, anuladoPorId: p.anuladoPorId || null,
+  };
+}
+
 export function usePresupuestoEdit(presupuestoId: string | null) {
   const [form, setFormState] = useState<PresupuestoFormState>(INITIAL_FORM);
   const [loading, setLoading] = useState(true);
@@ -93,90 +118,82 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
   const [clienteSistemas, setClienteSistemas] = useState<Sistema[]>([]);
 
   const dirty = useRef(false);
+  const initialLoadDone = useRef(false);
 
-  const load = useCallback(async () => {
+  // Real-time subscription for presupuesto + one-shot reference data
+  useEffect(() => {
     if (!presupuestoId) return;
-    try {
-      setLoading(true);
-      const [presupuestoData, categoriasData, condicionesData, conceptosData, usrs] = await Promise.all([
-        presupuestosService.getById(presupuestoId),
-        categoriasPresupuestoService.getAll(),
-        condicionesPagoService.getAll(),
-        conceptosServicioService.getAll(),
-        usuariosService.getAll(),
-      ]);
-      if (!presupuestoData) return;
+    setLoading(true);
+    initialLoadDone.current = false;
 
-      setFormState({
-        numero: presupuestoData.numero,
-        estado: presupuestoData.estado,
-        tipo: presupuestoData.tipo || 'servicio',
-        moneda: presupuestoData.moneda || 'USD',
-        origenTipo: presupuestoData.origenTipo || null,
-        origenId: presupuestoData.origenId || null,
-        origenRef: presupuestoData.origenRef || null,
-        clienteId: presupuestoData.clienteId,
-        establecimientoId: presupuestoData.establecimientoId || null,
-        sistemaId: presupuestoData.sistemaId || null,
-        contactoId: presupuestoData.contactoId || null,
-        items: presupuestoData.items || [],
-        tipoCambio: presupuestoData.tipoCambio,
-        condicionPagoId: presupuestoData.condicionPagoId,
-        notasTecnicas: presupuestoData.notasTecnicas || '',
-        notasAdministrativas: presupuestoData.notasAdministrativas || '',
-        garantia: presupuestoData.garantia || '',
-        variacionTipoCambio: presupuestoData.variacionTipoCambio || '',
-        condicionesComerciales: presupuestoData.condicionesComerciales || '',
-        aceptacionPresupuesto: presupuestoData.aceptacionPresupuesto || '',
-        seccionesVisibles: presupuestoData.seccionesVisibles || { ...PRESUPUESTO_SECCIONES_DEFAULT },
-        validezDias: presupuestoData.validezDias ?? 15,
-        validUntil: presupuestoData.validUntil ? presupuestoData.validUntil.split('T')[0] : '',
-        fechaEnvio: presupuestoData.fechaEnvio ? presupuestoData.fechaEnvio.split('T')[0] : '',
-        adjuntos: presupuestoData.adjuntos || [],
-        proximoContacto: presupuestoData.proximoContacto || '',
-        responsableId: presupuestoData.responsableId || '',
-        responsableNombre: presupuestoData.responsableNombre || '',
-        createdAt: presupuestoData.createdAt || '',
-        version: presupuestoData.version,
-        presupuestoOrigenId: presupuestoData.presupuestoOrigenId || null,
-        motivoAnulacion: presupuestoData.motivoAnulacion || null,
-        anuladoPorId: presupuestoData.anuladoPorId || null,
-      });
+    // One-shot: load catalogs + usuarios
+    const refDataPromise = Promise.all([
+      categoriasPresupuestoService.getAll(),
+      condicionesPagoService.getAll(),
+      conceptosServicioService.getAll(),
+      usuariosService.getAll(),
+    ]).then(([cats, conds, concepts, usrs]) => {
+      setCategoriasPresupuesto(cats);
+      setCondicionesPago(conds);
+      setConceptosServicio(concepts);
+      setUsuarios(usrs);
+    }).catch(err => console.error('Error cargando datos de referencia:', err));
 
-      if (presupuestoData.clienteId) {
-        const [clienteData, contactosData, sistemasData] = await Promise.all([
-          clientesService.getById(presupuestoData.clienteId),
-          contactosService.getByCliente(presupuestoData.clienteId).catch(() => []),
-          sistemasService.getAll({ clienteId: presupuestoData.clienteId }).catch(() => [] as Sistema[]),
+    // Helper: load related entities (cliente, establecimiento, sistema) once
+    const loadRelated = async (p: Presupuesto) => {
+      if (p.clienteId) {
+        const [c, ct, ss] = await Promise.all([
+          clientesService.getById(p.clienteId),
+          contactosService.getByCliente(p.clienteId).catch(() => []),
+          sistemasService.getAll({ clienteId: p.clienteId }).catch(() => [] as Sistema[]),
         ]);
-        setCliente(clienteData);
-        setContactos(contactosData);
-        setClienteSistemas(sistemasData);
+        setCliente(c); setContactos(ct); setClienteSistemas(ss);
       }
-      if (presupuestoData.establecimientoId) {
+      if (p.establecimientoId) {
         try {
           const { establecimientosService } = await import('../services/firebaseService');
-          const estabData = await establecimientosService.getById(presupuestoData.establecimientoId);
-          setEstablecimiento(estabData);
-        } catch { /* establecimiento optional */ }
+          setEstablecimiento(await establecimientosService.getById(p.establecimientoId));
+        } catch { /* optional */ }
       }
-      if (presupuestoData.sistemaId && !presupuestoData.sistemaId.startsWith('__')) {
-        const sistemaData = await sistemasService.getById(presupuestoData.sistemaId);
-        setSistema(sistemaData);
+      if (p.sistemaId && !p.sistemaId.startsWith('__')) {
+        setSistema(await sistemasService.getById(p.sistemaId));
       }
-      setCategoriasPresupuesto(categoriasData);
-      setCondicionesPago(condicionesData);
-      setConceptosServicio(conceptosData);
-      setUsuarios(usrs);
-      dirty.current = false;
-    } catch (error) {
-      console.error('Error cargando presupuesto:', error);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    // Real-time: subscribe to presupuesto document
+    const unsub = presupuestosService.subscribeById(
+      presupuestoId,
+      async (presupuestoData) => {
+        if (!presupuestoData) return;
+        const isFirst = !initialLoadDone.current;
+        // Skip snapshot when user has unsaved local edits (unless first load)
+        if (!isFirst && dirty.current) return;
+
+        setFormState(mapToFormState(presupuestoData));
+        dirty.current = false;
+
+        if (isFirst) {
+          initialLoadDone.current = true;
+          await Promise.all([refDataPromise, loadRelated(presupuestoData)]);
+          setLoading(false);
+        }
+      },
+      (err) => {
+        console.error('Error en suscripcion de presupuesto:', err);
+        setLoading(false);
+      },
+    );
+
+    return () => { unsub(); };
   }, [presupuestoId]);
 
-  useEffect(() => { load(); }, [load]);
+  // Manual reload (for consumers that call load() explicitly)
+  const load = useCallback(async () => {
+    if (!presupuestoId) return;
+    dirty.current = false;
+    initialLoadDone.current = false;
+    // The subscription will fire again and repopulate form state
+  }, [presupuestoId]);
 
   const setField = useCallback(<K extends keyof PresupuestoFormState>(field: K, value: PresupuestoFormState[K]) => {
     dirty.current = true;

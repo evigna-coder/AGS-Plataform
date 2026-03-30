@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
@@ -25,15 +25,19 @@ export function LoanerDetail() {
   const [extraccionOpen, setExtraccionOpen] = useState(false);
   const [ventaOpen, setVentaOpen] = useState(false);
 
-  const loadLoaner = useCallback(async () => {
+  useEffect(() => {
     if (!id) return;
-    const l = await loanersService.getById(id);
-    if (!l) return navigate('/loaners');
-    setLoaner(l);
-    setLoading(false);
+    setLoading(true);
+    const unsub = loanersService.subscribeById(id, (l) => {
+      if (!l) { navigate('/loaners'); return; }
+      setLoaner(l);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error loading loaner:', err);
+      setLoading(false);
+    });
+    return () => unsub();
   }, [id, navigate]);
-
-  useEffect(() => { loadLoaner(); }, [loadLoaner]);
 
   const prestamoActivo = loaner?.prestamos.find(p => p.estado === 'activo');
 
@@ -49,13 +53,13 @@ export function LoanerDetail() {
       fechaSalida: new Date().toISOString(),
       estado: 'activo',
     });
-    await loadLoaner();
+    // subscription auto-refreshes
   };
 
   const handleDevolucion = async (data: { fechaRetornoReal: string; condicionRetorno: string }) => {
     if (!loaner || !prestamoActivo) return;
     await loanersService.registrarDevolucion(loaner.id, prestamoActivo.id, data);
-    await loadLoaner();
+    // subscription auto-refreshes
   };
 
   const handleExtraccion = async (data: {
@@ -67,7 +71,7 @@ export function LoanerDetail() {
       fecha: new Date().toISOString(),
       ...data,
     });
-    await loadLoaner();
+    // subscription auto-refreshes
   };
 
   const handleVenta = async (data: {
@@ -79,13 +83,13 @@ export function LoanerDetail() {
       fecha: new Date().toISOString(),
       ...data,
     });
-    await loadLoaner();
+    // subscription auto-refreshes
   };
 
   const handleBaja = async () => {
     if (!loaner || !confirm('Dar de baja este loaner?')) return;
     await loanersService.update(loaner.id, { estado: 'baja', activo: false });
-    await loadLoaner();
+    // subscription auto-refreshes
   };
 
   if (loading || !loaner) {
