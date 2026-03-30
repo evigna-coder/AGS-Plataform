@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 
 /** Recorta el espacio en blanco alrededor de los trazos del canvas */
 function trimCanvas(canvas: HTMLCanvasElement, padding = 10): HTMLCanvasElement {
@@ -39,7 +39,7 @@ interface SignaturePadProps {
   label: string;
   onClear: () => void;
   initialValue?: string | null;
-  onEnd?: (dataUrl: string) => void; // 👈 NUEVO
+  onEnd?: (dataUrl: string) => void;
 }
 
 export interface SignaturePadHandle {
@@ -49,33 +49,18 @@ export interface SignaturePadHandle {
 
 const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label, onClear, initialValue, onEnd }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  // Usar refs para estado de dibujo (evita re-renders que causan layout shifts)
+  const drawingRef = useRef(false);
+  const hasDrawnRef = useRef(!!initialValue);
+  // State solo para UI que necesita re-render
   const [hasSignature, setHasSignature] = useState(!!initialValue);
-  const savedSignatureRef = useRef<string | null>(initialValue || null); // Guardar firma para restaurar después de scroll
+  const savedSignatureRef = useRef<string | null>(initialValue || null);
+  // Guard: prevenir que el IntersectionObserver interfiera durante/después del dibujo
+  const skipObserverUntilRef = useRef(0);
 
-   const finishDrawing = () => {
-  if (!isDrawing) return;
-
-  setIsDrawing(false);
-
-  // Si no hubo trazo real, NO hacer nada
-  if (!hasSignature) return;
-
-  const canvas = canvasRef.current;
-  if (!canvas) return;
-
-  // Guardar canvas COMPLETO (sin recortar) para restaurar sin distorsión
-  savedSignatureRef.current = canvas.toDataURL('image/png');
-  // Notificar con versión recortada para uso externo
-  onEnd?.(trimCanvas(canvas).toDataURL('image/png'));
-};
-  
-  const initCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const setupCtx = useCallback((canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+    if (!ctx) return null;
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * dpr;
@@ -85,98 +70,86 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     ctx.lineJoin = 'round';
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = '#0f172a';
+    return ctx;
+  }, []);
 
-    // Restaurar firma guardada (ya sea initialValue o la firma actual)
+  const restoreSignature = useCallback((canvas: HTMLCanvasElement, dataUrl: string) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    };
+    img.src = dataUrl;
+  }, []);
+
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setupCtx(canvas);
     const signatureToRestore = savedSignatureRef.current || initialValue;
     if (signatureToRestore) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, rect.width, rect.height);
-        setHasSignature(true);
-      };
-      img.src = signatureToRestore;
+      restoreSignature(canvas, signatureToRestore);
+      hasDrawnRef.current = true;
+      setHasSignature(true);
     }
-  };
+  }, [initialValue, setupCtx, restoreSignature]);
 
   useImperativeHandle(ref, () => ({
     getSignature: () => {
-      if (!hasSignature) return null;
-      // Exportar siempre la versión recortada (sin whitespace) para el PDF
+      if (!hasDrawnRef.current) return null;
       const canvas = canvasRef.current;
-      if (canvas) {
-        return trimCanvas(canvas).toDataURL('image/png');
-      }
-      // Fallback: si el canvas no está disponible, recortar desde la versión guardada
-      if (savedSignatureRef.current) {
-        return savedSignatureRef.current;
-      }
-      return null;
+      if (canvas) return trimCanvas(canvas).toDataURL('image/png');
+      return savedSignatureRef.current;
     },
     clear: () => {
-      const ctx = canvasRef.current?.getContext('2d');
-      ctx?.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-      savedSignatureRef.current = null; // Limpiar firma guardada
-      onClear();
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      savedSignatureRef.current = null;
+      hasDrawnRef.current = false;
       setHasSignature(false);
+      onClear();
     }
   }));
 
   useEffect(() => {
     initCanvas();
-    
-    // Observar cuando el canvas vuelve al viewport para restaurar la firma
+
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
+        // No restaurar si estamos dibujando o acabamos de terminar
+        if (Date.now() < skipObserverUntilRef.current) return;
+        if (drawingRef.current) return;
         if (entry.isIntersecting && savedSignatureRef.current) {
-          // Si el canvas vuelve al viewport y tenemos una firma guardada, restaurarla
           const canvas = canvasRef.current;
-          if (canvas && savedSignatureRef.current) {
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              // Reinicializar canvas con las dimensiones correctas
-              const dpr = window.devicePixelRatio || 1;
-              const rect = canvas.getBoundingClientRect();
-              canvas.width = rect.width * dpr;
-              canvas.height = rect.height * dpr;
-              ctx.scale(dpr, dpr);
-              ctx.lineCap = 'round';
-              ctx.lineJoin = 'round';
-              ctx.lineWidth = 2.5;
-              ctx.strokeStyle = '#0f172a';
-              
-              // Restaurar la firma guardada
-              const img = new Image();
-              img.onload = () => {
-                ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                setHasSignature(true);
-              };
-              img.src = savedSignatureRef.current;
-            }
-          }
+          if (!canvas) return;
+          setupCtx(canvas);
+          restoreSignature(canvas, savedSignatureRef.current);
         }
       });
     }, { threshold: 0.1 });
-    
+
     const canvas = canvasRef.current;
     if (canvas) {
       observer.observe(canvas);
     }
 
-    // Prevenir zoom del navegador en el área de firma (touchstart/touchmove nativos con passive:false)
+    // Prevenir zoom del navegador en el área de firma
     const preventZoom = (e: TouchEvent) => { e.preventDefault(); };
     if (canvas) {
       canvas.addEventListener('touchstart', preventZoom, { passive: false });
       canvas.addEventListener('touchmove', preventZoom, { passive: false });
     }
 
-    // Manejar resize de forma que preserve la firma
-    const handleResize = () => {
-      initCanvas();
-    };
-
+    const handleResize = () => initCanvas();
     window.addEventListener('resize', handleResize);
 
     return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       window.removeEventListener('resize', handleResize);
       if (canvas) {
         observer.unobserve(canvas);
@@ -184,7 +157,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
         canvas.removeEventListener('touchmove', preventZoom);
       }
     };
-  }, []);
+  }, [initCanvas, setupCtx, restoreSignature]);
 
   const getPos = (e: React.PointerEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -192,8 +165,14 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   };
 
   const handleDown = (e: React.PointerEvent) => {
-    e.preventDefault(); // Prevenir double-tap-to-zoom en móvil
-    setIsDrawing(true);
+    e.preventDefault();
+    // Cancelar guardado pendiente si el usuario vuelve a dibujar
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    skipObserverUntilRef.current = Date.now() + 4000;
+    drawingRef.current = true;
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
     ctx?.beginPath();
@@ -201,33 +180,51 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   };
 
   const handleMove = (e: React.PointerEvent) => {
-    if (!isDrawing) return;
+    if (!drawingRef.current) return;
     e.preventDefault();
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
     ctx?.lineTo(pos.x, pos.y);
     ctx?.stroke();
-    if (!hasSignature) {
+    if (!hasDrawnRef.current) {
+      hasDrawnRef.current = true;
       setHasSignature(true);
-    }
-    // Guardar firma actualizada mientras se dibuja (guardar inmediatamente para evitar pérdida al hacer scroll)
-    const canvas = canvasRef.current;
-    if (canvas && hasSignature) {
-      // Guardar inmediatamente para preservar la firma si el usuario hace scroll
-      savedSignatureRef.current = canvas.toDataURL();
     }
   };
 
-const handleUp = () => {
-  finishDrawing();
-};
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const finishDrawing = () => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    // Bloquear observer mientras se espera el guardado
+    skipObserverUntilRef.current = Date.now() + 4000;
+
+    if (!hasDrawnRef.current) return;
+
+    // Cancelar timer anterior si el usuario vuelve a dibujar rápido
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    // Esperar 3 segundos antes de guardar/notificar para que el usuario termine de firmar
+    saveTimerRef.current = setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      savedSignatureRef.current = canvas.toDataURL('image/png');
+      onEnd?.(trimCanvas(canvas).toDataURL('image/png'));
+    }, 3000);
+  };
 
   const clear = () => {
-    const ctx = canvasRef.current?.getContext('2d');
-    ctx?.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-    savedSignatureRef.current = null; // Limpiar firma guardada
-    onClear();
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    savedSignatureRef.current = null;
+    hasDrawnRef.current = false;
     setHasSignature(false);
+    onClear();
   };
 
   return (
@@ -235,15 +232,15 @@ const handleUp = () => {
       {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</label>}
       <div className="relative border-2 border-slate-100 rounded-[28px] bg-white overflow-hidden group shadow-inner touch-none">
         <canvas
-        ref={canvasRef}
-        onPointerDown={handleDown}
-        onPointerMove={handleMove}
-        onPointerUp={finishDrawing}
-        onPointerLeave={finishDrawing}
-        className="w-full h-[160px] block cursor-crosshair touch-none"
-      />
+          ref={canvasRef}
+          onPointerDown={handleDown}
+          onPointerMove={handleMove}
+          onPointerUp={finishDrawing}
+          onPointerLeave={finishDrawing}
+          className="w-full h-[160px] block cursor-crosshair touch-none"
+        />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-           {!hasSignature && !isDrawing && <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Firmar aquí</p>}
+          {!hasSignature && <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Firmar aquí</p>}
         </div>
         <button onClick={clear} className="absolute top-4 right-4 text-[9px] font-black text-slate-300 hover:text-red-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Limpiar</button>
       </div>
@@ -253,4 +250,3 @@ const handleUp = () => {
 });
 
 export default SignaturePad;
-
