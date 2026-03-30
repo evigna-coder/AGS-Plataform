@@ -262,7 +262,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
               <tr>
                 <th className="px-4 py-2 text-left w-32">Código</th>
                 <th className="px-4 py-2 text-left">Descripción</th>
-                <th className="px-4 py-2 text-center w-16">Cant.</th>
+                <th className="px-4 py-2 text-center w-20">Cant.</th>
                 <th className="px-4 py-2 text-left w-28">Origen</th>
                 <th className="w-10"></th>
               </tr>
@@ -294,7 +294,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
                   <td className="px-4 py-1.5">
                     <input
                       value={p.descripcion}
-                      maxLength={90}
+                      maxLength={130}
                       disabled={readOnly}
                       onChange={e => onUpdatePart(p.id, 'descripcion', e.target.value)}
                       className={`w-full outline-none

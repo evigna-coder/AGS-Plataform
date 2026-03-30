@@ -37,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
           {actions && <div className="ml-4 shrink-0">{actions}</div>}
         </div>
       )}
-      <div className={compact ? 'p-4' : 'p-6'}>{children}</div>
+      <div className={`${compact ? 'p-4' : 'p-6'} ${className.includes('flex-col') ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : ''}`}>{children}</div>
     </div>
   );
 };

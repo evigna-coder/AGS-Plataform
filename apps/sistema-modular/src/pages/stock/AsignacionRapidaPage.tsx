@@ -110,7 +110,7 @@ export const AsignacionRapidaPage = () => {
                 Ingenieros — arrastre items aquí
               </p>
 
-              <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
                 {ingenieros.map(ing => {
                   const group = cartByIngeniero[ing.id];
                   const count = group?.items.length ?? 0;
@@ -134,7 +134,7 @@ export const AsignacionRapidaPage = () => {
               </div>
 
               {/* Footer */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="shrink-0 space-y-2 pt-2 mt-2 border-t border-slate-100">
                 <Input inputSize="sm" label="Observaciones" value={observaciones}
                   onChange={e => setObservaciones(e.target.value)} placeholder="Notas opcionales..." />
                 <Button className="w-full" size="sm" onClick={handleConfirm}
