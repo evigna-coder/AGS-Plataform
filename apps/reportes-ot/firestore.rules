@@ -149,11 +149,10 @@ service cloud.firestore {
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt', 'pdfUrl', 'pdfGeneratedAt'])
                       )
                       ||
-                      // Caso 5: Permitir actualización completa cuando se finaliza (para desarrollo sin auth)
-                      // Esto permite actualizar todos los campos cuando se cambia a FINALIZADO
+                      // Caso 5: Permitir actualización completa cuando status es FINALIZADO (para desarrollo sin auth)
+                      // Cubre: finalizar reporte, regenerar PDF, re-guardar reporte ya finalizado
                       (
-                        ('status' in request.resource.data && request.resource.data.status == 'FINALIZADO')
-                        && isValidReportData()
+                        'status' in request.resource.data && request.resource.data.status == 'FINALIZADO'
                       )
                       ||
                       // Caso 6: Permitir crear documento nuevo cuando no existe (setDoc con merge: true)
