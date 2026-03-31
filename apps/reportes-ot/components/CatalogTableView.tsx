@@ -506,13 +506,27 @@ export const CatalogTableView: React.FC<Props> = ({
       const trimmed = factoryVal.trim();
       const hasContent = trimmed.length > 0 &&
         /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed);
-      // Si el valor de fábrica coincide con la unidad de la columna, es un placeholder de unidad,
-      // no un label fijo (ej. "°C" en columna con unit "°C")
-      const colUnit = (col.unit ?? col.label?.match(/\(\s*([^)]{1,15})\s*\)\s*$/)?.[1])?.trim();
-      const isJustUnit = colUnit ? trimmed === colUnit : false;
-      if (hasContent && !isJustUnit) {
-        if (isPrint) return <span className="text-[10px]">{factoryVal}</span>;
-        return <span className="text-[10px] text-slate-700 cursor-default">{factoryVal}</span>;
+      if (hasContent) {
+        // Para columnas text_input/number_input, verificar si el valor de fábrica
+        // varía entre filas. Si cada fila tiene un valor distinto, es un label (read-only).
+        // Si todas las filas tienen el mismo valor, es un placeholder/unidad (editable).
+        if (col.type === 'text_input' || col.type === 'number_input') {
+          const dataRows = table.templateRows.filter(r => !r.isTitle && !r.isSelector);
+          const allSame = dataRows.length > 0 && dataRows.every(r =>
+            (r.cells?.[col.key] ?? '').toString().trim() === trimmed
+          );
+          if (allSame) {
+            // Mismo valor en todas las filas → placeholder/unidad → editable
+            // (cae al renderDefaultCell más abajo)
+          } else {
+            // Valores distintos por fila → label descriptivo → read-only
+            if (isPrint) return <span className="text-[10px]">{factoryVal}</span>;
+            return <span className="text-[10px] text-slate-700 cursor-default">{factoryVal}</span>;
+          }
+        } else {
+          if (isPrint) return <span className="text-[10px]">{factoryVal}</span>;
+          return <span className="text-[10px] text-slate-700 cursor-default">{factoryVal}</span>;
+        }
       }
     }
 

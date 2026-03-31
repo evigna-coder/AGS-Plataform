@@ -230,7 +230,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
             }}
             readOnly={readOnly}
           />
-          {certificadosIngenieroSeleccionados.length > 0 && (
+          {(certificadosIngenieroSeleccionados ?? []).length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {certificadosIngenieroSeleccionados.map(cert => (
                 <span key={cert.id} className="inline-flex items-center gap-1 text-[10px] bg-teal-50 text-teal-700 border border-teal-200 rounded-full px-2 py-0.5">
