@@ -12,6 +12,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const [saving, setSaving] = useState(false);
 
   const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>('soporte');
+  const [motivoOtros, setMotivoOtros] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [clienteId, setClienteId] = useState('');
   const [razonSocial, setRazonSocial] = useState('');
@@ -98,17 +99,18 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         aUsuarioId: asignadoA || usuario.id,
         aUsuarioNombre: responsable?.displayName || usuario.displayName,
         comentario: descripcion.trim() || undefined,
-        estadoAnterior: 'nuevo' as const, estadoNuevo: 'nuevo' as const,
+        estadoAnterior: 'relevamiento_pendiente' as const, estadoNuevo: 'relevamiento_pendiente' as const,
       } : null;
 
       const leadId = await leadsService.create({
         clienteId: clienteId || null, contactoId: null,
         razonSocial: razonSocial.trim(), contacto: contacto.trim(),
         email: email.trim(), telefono: telefono.trim(),
-        motivoLlamado, motivoContacto: descripcion.trim(),
+        motivoLlamado, motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
+        motivoContacto: descripcion.trim(),
         descripcion: descripcion.trim() || null,
         sistemaId: sistemaId || null, moduloId: moduloId || null,
-        estado: 'nuevo', postas: initialPosta ? [initialPosta] : [],
+        estado: 'relevamiento_pendiente', postas: initialPosta ? [initialPosta] : [],
         asignadoA: asignadoA || null,
         asignadoNombre: usuarios.find(u => u.id === asignadoA)?.displayName || null,
         derivadoPor: null, areaActual: areaActual || null,
@@ -127,7 +129,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
 
   return {
     saving, errors, usuarios, fileRef, pendingFiles,
-    motivoLlamado, setMotivoLlamado, descripcion, setDescripcion,
+    motivoLlamado, setMotivoLlamado, motivoOtros, setMotivoOtros, descripcion, setDescripcion,
     clienteId, razonSocial, setRazonSocial, contacto, setContacto,
     email, setEmail, telefono, setTelefono,
     sistemaId, moduloId, setModuloId, modulos,

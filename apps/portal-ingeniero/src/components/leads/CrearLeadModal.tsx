@@ -4,8 +4,8 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_ESTADO_LABELS, LEAD_ESTADO_ORDER } from '@ags/shared';
-import type { MotivoLlamado, LeadArea, LeadEstado, Lead, ContactoCliente, Posta } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER } from '@ags/shared';
+import type { MotivoLlamado, TicketArea, TicketEstado, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -43,9 +43,9 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>('soporte');
-  const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
+  const [areaActual, setAreaActual] = useState<TicketArea | ''>('');
   const [asignadoId, setAsignadoId] = useState('');
-  const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>('pendiente_info');
+  const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>('relevamiento_pendiente');
   const [descripcion, setDescripcion] = useState('');
 
   useEffect(() => {
@@ -71,14 +71,10 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     ? clientes.filter(c => c.razonSocial.toLowerCase().includes(clienteSearch.toLowerCase())).slice(0, 8)
     : [];
 
-  const isIngeniero = areaActual === 'ingeniero_soporte';
-  const personList = isIngeniero
-    ? ingenieros.map(i => ({ id: i.id, label: i.nombre }))
-    : usuarios.map(u => ({ id: u.id, label: u.displayName }));
+  const personList = usuarios.map(u => ({ id: u.id, label: u.displayName }));
 
   const getAsignadoNombre = () => {
     if (!asignadoId) return null;
-    if (isIngeniero) return ingenieros.find(i => i.id === asignadoId)?.nombre ?? null;
     return usuarios.find(u => u.id === asignadoId)?.displayName ?? null;
   };
 
@@ -143,7 +139,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         areaActual: areaActual || null,
         accionPendiente: null,
         source: 'portal',
-      } as Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>);
+      } as Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>);
       onCreated();
       onClose();
       resetForm();
@@ -161,7 +157,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setMotivoLlamado('soporte');
     setAreaActual('');
     setAsignadoId('');
-    setNuevoEstado('pendiente_info');
+    setNuevoEstado('relevamiento_pendiente');
     setDescripcion('');
     setClienteSearch('');
     setContactos([]);
@@ -252,9 +248,9 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
       </div>
       <div>
         <label className={labelClass}>Estado inicial</label>
-        <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as LeadEstado)} className={selectClass}>
-          {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
-            <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
+        <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as TicketEstado)} className={selectClass}>
+          {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
+            <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
           ))}
         </select>
       </div>
@@ -265,18 +261,16 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     <>
       <div>
         <label className={labelClass}>Área destino *</label>
-        <select value={areaActual} onChange={e => setAreaActual(e.target.value as LeadArea | '')} className={selectClass}>
+        <select value={areaActual} onChange={e => setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
           <option value="">Seleccionar área...</option>
-          {LEAD_AREA_GROUPS.map(g => (
-            <optgroup key={g.label} label={g.label}>
-              {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
-            </optgroup>
+          {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
           ))}
         </select>
       </div>
       {areaActual && (
         <div>
-          <label className={labelClass}>Asignar a ({isIngeniero ? 'ingeniero' : 'usuario'})</label>
+          <label className={labelClass}>Asignar a (usuario)</label>
           <select value={asignadoId} onChange={e => setAsignadoId(e.target.value)} className={selectClass}>
             <option value="">Solo al área (sin persona específica)</option>
             {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}

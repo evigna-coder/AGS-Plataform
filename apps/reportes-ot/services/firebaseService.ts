@@ -3,7 +3,7 @@ import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, delet
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
-import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero } from '../types/instrumentos';
 import { deepCleanForFirestore } from '@ags/shared';
 
 const firebaseConfig = {
@@ -344,6 +344,44 @@ export class FirebaseService {
         } as InstrumentoPatronOption;
       }).sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando instrumentos:', e); return []; }
+  }
+
+  // ── Ingenieros ──
+
+  async getIngenieroByNombre(nombre: string): Promise<{ id: string; nombre: string } | null> {
+    try {
+      const q = query(collection(db, 'ingenieros'), where('nombre', '==', nombre), where('activo', '==', true));
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
+      const d = snap.docs[0];
+      return { id: d.id, nombre: d.data().nombre };
+    } catch { return null; }
+  }
+
+  // ── Certificados de ingeniero ──
+
+  async getCertificadosIngeniero(ingenieroId: string): Promise<CertificadoIngeniero[]> {
+    try {
+      const q = query(collection(db, 'certificadosIngeniero'), where('ingenieroId', '==', ingenieroId));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ingenieroId: data.ingenieroId,
+          ingenieroNombre: data.ingenieroNombre,
+          categoria: data.categoria,
+          descripcion: data.descripcion,
+          certificadoUrl: data.certificadoUrl,
+          certificadoNombre: data.certificadoNombre,
+          certificadoStoragePath: data.certificadoStoragePath,
+          fechaEmision: data.fechaEmision ?? null,
+          fechaVencimiento: data.fechaVencimiento ?? null,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+        } as CertificadoIngeniero;
+      }).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.descripcion.localeCompare(b.descripcion));
+    } catch (e) { console.error('Error cargando certificados ingeniero:', e); return []; }
   }
 
   // ── Adjuntos (fotos/archivos por OT) ──

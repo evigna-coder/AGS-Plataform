@@ -1,6 +1,7 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteField, query, where, orderBy, Timestamp, setDoc, onSnapshot } from 'firebase/firestore';
-import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc, onSnapshot } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
+import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ========== INGENIEROS ==========
 
@@ -289,5 +290,75 @@ export const usuariosService = {
       })) as UsuarioAGS[];
       callback(users);
     }, onError);
+  },
+};
+
+// ========== CERTIFICADOS INGENIERO ==========
+
+function parseCertificado(d: any, id: string): CertificadoIngeniero {
+  return {
+    id,
+    ingenieroId: d.ingenieroId ?? '',
+    ingenieroNombre: d.ingenieroNombre ?? '',
+    categoria: d.categoria ?? 'gc',
+    descripcion: d.descripcion ?? '',
+    certificadoUrl: d.certificadoUrl ?? '',
+    certificadoNombre: d.certificadoNombre ?? '',
+    certificadoStoragePath: d.certificadoStoragePath ?? '',
+    fechaEmision: d.fechaEmision ?? null,
+    fechaVencimiento: d.fechaVencimiento ?? null,
+    createdAt: d.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+  };
+}
+
+export const certificadosIngenieroService = {
+  async getByIngeniero(ingenieroId: string): Promise<CertificadoIngeniero[]> {
+    const q = query(collection(db, 'certificadosIngeniero'), where('ingenieroId', '==', ingenieroId));
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => parseCertificado(d.data(), d.id));
+    items.sort((a, b) => a.categoria.localeCompare(b.categoria) || a.descripcion.localeCompare(b.descripcion));
+    return items;
+  },
+
+  subscribeByIngeniero(
+    ingenieroId: string,
+    callback: (items: CertificadoIngeniero[]) => void,
+    onError?: (error: Error) => void,
+  ) {
+    const q = query(collection(db, 'certificadosIngeniero'), where('ingenieroId', '==', ingenieroId));
+    return onSnapshot(q, snap => {
+      const items = snap.docs.map(d => parseCertificado(d.data(), d.id));
+      items.sort((a, b) => a.categoria.localeCompare(b.categoria) || a.descripcion.localeCompare(b.descripcion));
+      callback(items);
+    }, onError);
+  },
+
+  async create(
+    data: Omit<CertificadoIngeniero, 'id' | 'certificadoUrl' | 'certificadoNombre' | 'certificadoStoragePath' | 'createdAt' | 'updatedAt'>,
+    file: File,
+  ): Promise<string> {
+    const id = crypto.randomUUID();
+    // Upload PDF to Storage
+    const path = `certificados-ingeniero/${data.ingenieroId}/${Date.now()}_${file.name}`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, file, { contentType: file.type || 'application/pdf' });
+    const url = await getDownloadURL(fileRef);
+
+    const payload = cleanFirestoreData({
+      ...data,
+      certificadoUrl: url,
+      certificadoNombre: file.name,
+      certificadoStoragePath: path,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, 'certificadosIngeniero', id), payload);
+    return id;
+  },
+
+  async delete(certId: string, storagePath: string): Promise<void> {
+    try { await deleteObject(storageRef(storage, storagePath)); } catch { /* file may not exist */ }
+    await deleteDoc(doc(db, 'certificadosIngeniero', certId));
   },
 };

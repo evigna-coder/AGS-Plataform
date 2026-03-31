@@ -294,7 +294,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
                   <td className="px-4 py-1.5">
                     <input
                       value={p.descripcion}
-                      maxLength={130}
+                      maxLength={120}
                       disabled={readOnly}
                       onChange={e => onUpdatePart(p.id, 'descripcion', e.target.value)}
                       className={`w-full outline-none

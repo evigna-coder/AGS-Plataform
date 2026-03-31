@@ -47,16 +47,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "presupuestos",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "clienteId",
           "order": "ASCENDING"
         },

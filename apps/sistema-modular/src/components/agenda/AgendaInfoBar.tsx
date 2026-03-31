@@ -55,21 +55,27 @@ export const AgendaInfoBar: FC<AgendaInfoBarProps> = ({
                         : 'text-teal-400 hover:text-teal-600 hover:bg-teal-100'
                     }`}
                   >
-                    {e.otNumber}
+                    {e.otNumber || e.titulo || '—'}
                   </button>
                 ))}
               </div>
             )}
 
-            <Link
-              to={`/ordenes-trabajo/${entry.otNumber}`}
-              className="text-[11px] font-semibold text-teal-700 hover:underline shrink-0"
-              title="Ver OT"
-            >
-              OT-{entry.otNumber}
-            </Link>
-            <span className="text-[11px] text-slate-600 truncate">{entry.clienteNombre}</span>
-            <span className="text-[11px] text-slate-500 truncate">{entry.tipoServicio}</span>
+            {entry.otNumber ? (
+              <Link
+                to={`/ordenes-trabajo/${entry.otNumber}`}
+                className="text-[11px] font-semibold text-teal-700 hover:underline shrink-0"
+                title="Ver OT"
+              >
+                OT-{entry.otNumber}
+              </Link>
+            ) : (
+              <span className="text-[11px] font-semibold text-slate-700 shrink-0">
+                {entry.titulo || 'Tarea'}
+              </span>
+            )}
+            {entry.clienteNombre && <span className="text-[11px] text-slate-600 truncate">{entry.clienteNombre}</span>}
+            {entry.tipoServicio && <span className="text-[11px] text-slate-500 truncate">{entry.tipoServicio}</span>}
             {entry.sistemaNombre && <span className="text-[11px] text-slate-400 truncate">{entry.sistemaNombre}</span>}
 
             {/* Estado dropdown */}

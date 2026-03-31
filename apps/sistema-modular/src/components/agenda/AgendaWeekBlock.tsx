@@ -1,10 +1,12 @@
-import { type FC, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Ingeniero, AgendaEntry, ZoomLevel } from '@ags/shared';
 import { AgendaGridRow } from './AgendaGridRow';
+import type { SelectionRange } from '../../utils/agendaDateUtils';
 import {
   buildWeekdayColumns,
   buildCellOccupationMap,
   formatDayHeader,
+  formatDateKey,
   formatWeekRange,
 } from '../../utils/agendaDateUtils';
 import { getISOWeek } from 'date-fns';
@@ -17,29 +19,35 @@ interface AgendaWeekBlockProps {
   zoom: ZoomLevel;
   borderless?: boolean;
   selectedCellKey: string | null;
-  onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4) => void;
+  selectionRange: SelectionRange | null;
+  onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => void;
   onEntryClick: (entries: AgendaEntry[], primary: AgendaEntry) => void;
   onWeekClick: (weekStart: Date) => void;
+  onCellContextMenu?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
+  feriados?: Set<string>;
+  onToggleFeriado?: (fecha: string) => void;
 }
 
 const ZOOM_SIZES: Record<ZoomLevel, { eng: string; cell: string; row: string }> = {
   week: { eng: '140px', cell: '24px', row: '26px' },
   '2weeks': { eng: '120px', cell: '14px', row: '22px' },
-  month: { eng: '80px', cell: '4px', row: '16px' },
+  month: { eng: '80px', cell: '16px', row: '16px' },
   '2months': { eng: '60px', cell: '3px', row: '10px' },
   year: { eng: '50px', cell: '2px', row: '6px' },
 };
 
-export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
-  weekStart, weekDays, ingenieros, entries, zoom, borderless, selectedCellKey,
-  onCellClick, onEntryClick, onWeekClick,
+export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
+  weekStart, weekDays, ingenieros, entries, zoom, borderless, selectedCellKey, selectionRange,
+  onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado,
 }) => {
   const columns = useMemo(() => buildWeekdayColumns(weekDays), [weekDays]);
   const sizes = ZOOM_SIZES[zoom];
   const showText = zoom === 'week' || zoom === '2weeks';
   const compact = zoom !== 'week' && zoom !== '2weeks';
 
-  const gridTemplate = `${sizes.eng} repeat(${columns.length}, minmax(${sizes.cell}, 1fr))`;
+  const gridTemplate = compact
+    ? `${sizes.eng} repeat(${columns.length}, ${sizes.cell})`
+    : `${sizes.eng} repeat(${columns.length}, minmax(${sizes.cell}, 1fr))`;
 
   const dayHeaders = useMemo(() => {
     if (borderless) return [];
@@ -73,9 +81,12 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
       showText={showText}
       compact={compact}
       selectedCellKey={selectedCellKey}
+      selectionRange={selectionRange}
       rowHeight={sizes.row}
+      feriados={feriados}
       onCellClick={onCellClick}
       onEntryClick={onEntryClick}
+      onCellContextMenu={onCellContextMenu}
     />
   ));
 
@@ -121,14 +132,17 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
             <div className="bg-slate-50 border-r border-b border-slate-100" />
             {dayHeaders.map(dh => {
               const info = formatDayHeader(dh.date);
+              const dk = formatDateKey(dh.date);
+              const isFeriado = feriados?.has(dk);
               return (
                 <div
                   key={dh.colStart}
-                  className={`text-center border-b border-slate-100 border-r border-r-slate-300 select-none ${dh.isToday ? 'bg-teal-50' : 'bg-slate-50'}`}
+                  className={`text-center border-b border-slate-100 border-r border-r-slate-300 select-none ${isFeriado ? 'bg-red-100' : dh.isToday ? 'bg-teal-50' : 'bg-slate-50'}`}
                   style={{ gridColumn: `span ${dh.span}` }}
+                  onContextMenu={(e) => { e.preventDefault(); onToggleFeriado?.(dk); }}
                 >
-                  <span className={`text-[7px] font-semibold ${dh.isToday ? 'text-teal-600' : 'text-slate-400'}`}>
-                    {info.dayNumber}
+                  <span className={`text-[7px] ${isFeriado ? 'text-red-500' : dh.isToday ? 'text-teal-600' : 'text-slate-400'}`}>
+                    <span className="uppercase">{info.dayName}</span> <span className="font-semibold">{info.dayNumber}</span>
                   </span>
                 </div>
               );
@@ -141,16 +155,19 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
             </div>
             {dayHeaders.map(dh => {
               const info = formatDayHeader(dh.date);
+              const dk = formatDateKey(dh.date);
+              const isFeriado = feriados?.has(dk);
               return (
                 <div
                   key={dh.colStart}
                   className={`text-center border-b border-slate-200 border-r-2 border-r-slate-300 py-0.5 select-none
-                    ${dh.isToday ? 'bg-teal-50 border-b-2 border-b-teal-400' : 'bg-slate-50'}
+                    ${isFeriado ? 'bg-red-100 border-b-2 border-b-red-400' : dh.isToday ? 'bg-teal-50 border-b-2 border-b-teal-400' : 'bg-slate-50'}
                   `}
                   style={{ gridColumn: `span ${dh.span}` }}
+                  onContextMenu={(e) => { e.preventDefault(); onToggleFeriado?.(dk); }}
                 >
-                  <span className="text-[8px] text-slate-400 uppercase">{info.dayName}</span>
-                  <span className={`text-[10px] font-semibold ml-0.5 ${dh.isToday ? 'text-teal-600' : 'text-slate-600'}`}>
+                  <span className={`text-[8px] ${isFeriado ? 'text-red-500' : 'text-slate-400'} uppercase`}>{info.dayName}</span>
+                  <span className={`text-[10px] font-semibold ml-0.5 ${isFeriado ? 'text-red-600' : dh.isToday ? 'text-teal-600' : 'text-slate-600'}`}>
                     {info.dayNumber}
                   </span>
                 </div>
@@ -163,4 +180,4 @@ export const AgendaWeekBlock: FC<AgendaWeekBlockProps> = ({
       </div>
     </div>
   );
-};
+});

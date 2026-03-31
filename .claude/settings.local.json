@@ -67,7 +67,26 @@
       "Bash(sed -i \"s/useParams, useNavigate, Link/useParams, Link/\" pages/stock/RemitoDetail.tsx)",
       "Bash(xargs sed:*)",
       "Bash(echo \"Done td text-left -> text-center\")",
-      "Bash(echo \"Done td text-right -> text-center\")"
+      "Bash(echo \"Done td text-right -> text-center\")",
+      "Bash(pnpm --filter @ags/shared build)",
+      "Bash(pnpm --filter sistema-modular build)",
+      "Bash(grep -r \"uploadBytes\\\\|storage.*ref\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src' --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"certificado\\\\|attachment\\\\|adjunto\" '/c/Users/Evigna/Desktop/Ags plataform/apps/portal-ingeniero/src' --include=*.ts --include=*.tsx)",
+      "Bash(grep -r getActiveInstrumentos '/c/Users/Evigna/Desktop/Ags plataform' --include=*.ts --include=*.tsx)",
+      "Bash(grep -l \"detail\\\\|Detail\" /c/Users/Evigna/Desktop/'Ags plataform'/apps/sistema-modular/src/pages/stock/*.tsx)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(firebase firestore:rules:get)",
+      "Bash(firebase firestore:rules:list)",
+      "Bash(find 'c:\\\\Users\\\\Evigna\\\\Desktop\\\\Ags plataform' -type f \\\\\\(-name *lead* -o -name *Lead* \\\\\\))",
+      "Bash(rm \"apps/portal-ingeniero/src/pages/LeadsPage.tsx\")",
+      "Bash(rm \"apps/portal-ingeniero/src/pages/LeadDetailPage.tsx\")",
+      "Bash(rm \"apps/portal-ingeniero/src/hooks/useLeadDetail.ts\")",
+      "Bash(rm \"apps/portal-ingeniero/src/hooks/useLeadList.ts\")",
+      "Bash(mkdir -p components/tickets pages/tickets)",
+      "Bash(cp components/leads/CrearLeadModal.tsx components/tickets/CrearTicketModal.tsx)",
+      "Bash(cp components/leads/DerivarLeadModal.tsx components/tickets/DerivarTicketModal.tsx)",
+      "Bash(cp components/leads/FinalizarLeadModal.tsx components/tickets/FinalizarTicketModal.tsx)",
+      "Bash(cp components/leads/LeadAdjuntosField.tsx components/tickets/TicketAdjuntosField.tsx)"
     ]
   }
 }

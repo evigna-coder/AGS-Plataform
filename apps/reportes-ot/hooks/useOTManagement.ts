@@ -186,7 +186,8 @@ export const useOTManagement = (
     setProtocolTemplateId,
     setProtocolData,
     setProtocolSelections,
-    setInstrumentosSeleccionados
+    setInstrumentosSeleccionados,
+    setCertificadosIngenieroSeleccionados
   } = setters;
 
   /** Pre-carga la firma del usuario autenticado si el reporte no tiene firma */
@@ -270,6 +271,8 @@ export const useOTManagement = (
         setProtocolSelections(data.protocolSelections || []);
         // Instrumentos/patrones seleccionados
         setInstrumentosSeleccionados(data.instrumentosSeleccionados || []);
+        // Certificados de ingeniero seleccionados
+        setCertificadosIngenieroSeleccionados(data.certificadosIngenieroSeleccionados || []);
         // Plantilla esperada según tipo de servicio; si no hay protocolo para este tipo, limpiar
         const expectedTemplate = getProtocolTemplateForServiceType(data.tipoServicio ?? null);
         if (!expectedTemplate) {

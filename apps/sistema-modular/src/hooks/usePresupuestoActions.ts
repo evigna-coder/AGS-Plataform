@@ -6,7 +6,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import type { PresupuestoFormState, PresupuestoTotals } from './usePresupuestoEdit';
 
 // NOTE: Lead sync is now handled automatically by presupuestosService.update()
-// via leadsService.syncFromPresupuesto(). No manual posta needed here.
+// via ticketsService.syncFromPresupuesto(). No manual posta needed here.
 
 interface UsePresupuestoActionsParams {
   presupuestoId: string;

@@ -367,110 +367,85 @@ export interface Sistema {
   enContrato?: boolean;
 }
 
-// --- Motivo del llamado (Leads) ---
-export type MotivoLlamado = 'ventas' | 'soporte' | 'insumos' | 'administracion' | 'capacitacion';
+// --- Motivo del llamado (Tickets) ---
+export type MotivoLlamado = 'soporte' | 'ventas_insumos' | 'ventas_equipos' | 'administracion' | 'otros';
 
 export const MOTIVO_LLAMADO_LABELS: Record<MotivoLlamado, string> = {
-  ventas: 'Ventas',
   soporte: 'Soporte',
-  insumos: 'Insumos',
+  ventas_insumos: 'Ventas de insumos',
+  ventas_equipos: 'Ventas de equipos',
   administracion: 'Administración',
-  capacitacion: 'Capacitación',
+  otros: 'Otros',
 };
 
 export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
-  ventas: 'bg-green-100 text-green-700',
   soporte: 'bg-blue-100 text-blue-700',
-  insumos: 'bg-orange-100 text-orange-700',
+  ventas_insumos: 'bg-green-100 text-green-700',
+  ventas_equipos: 'bg-emerald-100 text-emerald-700',
   administracion: 'bg-violet-100 text-violet-700',
-  capacitacion: 'bg-teal-100 text-teal-700',
+  otros: 'bg-slate-100 text-slate-700',
 };
 
-// --- Áreas destino (Leads) ---
-export type LeadArea =
-  | 'presupuesto_ventas'
-  | 'agenda_coordinacion'
-  | 'materiales_comex'
-  | 'ingeniero_soporte'
-  | 'facturacion'
-  | 'pago_proveedores';
+// --- Áreas destino (Tickets) ---
+export type TicketArea = 'soporte' | 'administracion' | 'ventas';
 
-export const LEAD_AREA_LABELS: Record<LeadArea, string> = {
-  presupuesto_ventas: 'Presupuestos y ventas',
-  agenda_coordinacion: 'Agenda y coordinación',
-  materiales_comex: 'Materiales y comercio exterior',
-  ingeniero_soporte: 'Ingeniero de soporte',
-  facturacion: 'Facturación',
-  pago_proveedores: 'Pago a proveedores',
+export const TICKET_AREA_LABELS: Record<TicketArea, string> = {
+  soporte: 'Soporte',
+  administracion: 'Administración',
+  ventas: 'Ventas',
 };
 
-export const LEAD_AREA_COLORS: Record<LeadArea, string> = {
-  presupuesto_ventas: 'bg-teal-100 text-teal-700',
-  agenda_coordinacion: 'bg-cyan-100 text-cyan-700',
-  materiales_comex: 'bg-amber-100 text-amber-700',
-  ingeniero_soporte: 'bg-teal-100 text-teal-700',
-  facturacion: 'bg-emerald-100 text-emerald-700',
-  pago_proveedores: 'bg-rose-100 text-rose-700',
+export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
+  soporte: 'bg-blue-100 text-blue-700',
+  administracion: 'bg-violet-100 text-violet-700',
+  ventas: 'bg-green-100 text-green-700',
 };
 
 // --- Prioridad ---
-export type LeadPrioridad = 'alta' | 'media' | 'baja';
+export type TicketPrioridad = 'alta' | 'media' | 'baja';
 
-export const LEAD_PRIORIDAD_LABELS: Record<LeadPrioridad, string> = {
+export const TICKET_PRIORIDAD_LABELS: Record<TicketPrioridad, string> = {
   alta: 'Alta',
   media: 'Media',
   baja: 'Baja',
 };
 
-export const LEAD_PRIORIDAD_COLORS: Record<LeadPrioridad, string> = {
+export const TICKET_PRIORIDAD_COLORS: Record<TicketPrioridad, string> = {
   alta: 'bg-red-100 text-red-700',
   media: 'bg-amber-100 text-amber-700',
   baja: 'bg-emerald-100 text-emerald-700',
 };
 
-/** Agrupación visual de áreas para selectores */
-export const LEAD_AREA_GROUPS: { label: string; areas: LeadArea[] }[] = [
-  { label: 'Soporte', areas: ['presupuesto_ventas', 'agenda_coordinacion', 'materiales_comex', 'ingeniero_soporte'] },
-  { label: 'Administración', areas: ['facturacion', 'pago_proveedores'] },
-];
-
-/** Mapeo de UserRole → áreas de lead que ese rol puede gestionar */
-export const ROLE_LEAD_AREAS: Record<UserRole, LeadArea[]> = {
-  admin: [], // admin tiene acceso total, no necesita mapeo
-  admin_soporte: ['presupuesto_ventas', 'agenda_coordinacion', 'materiales_comex', 'ingeniero_soporte'],
-  ingeniero_soporte: ['ingeniero_soporte'],
-  admin_contable: ['facturacion', 'pago_proveedores'],
-  administracion: ['facturacion', 'pago_proveedores'],
+/** Mapeo de UserRole → áreas de ticket que ese rol puede gestionar */
+export const ROLE_TICKET_AREAS: Record<UserRole, TicketArea[]> = {
+  admin: [],
+  admin_soporte: ['soporte', 'ventas'],
+  ingeniero_soporte: ['soporte'],
+  admin_contable: ['administracion'],
+  administracion: ['administracion'],
 };
 
 /**
- * Determina si un usuario puede modificar/derivar un lead.
- * Reglas:
- * 1. Admin siempre puede.
- * 2. Si el lead está asignado a un usuario específico, solo ese usuario puede.
- * 3. Si el lead tiene área pero no usuario asignado, cualquier usuario del sector puede.
- * 4. Si el lead no tiene ni usuario ni área, cualquiera puede (lead nuevo sin asignar).
+ * Determina si un usuario puede modificar/derivar un ticket.
  */
-export function canUserModifyLead(
-  lead: { asignadoA: string | null; areaActual?: LeadArea | null },
+export function canUserModifyTicket(
+  ticket: { asignadoA: string | null; areaActual?: TicketArea | null },
   user: { id: string; role: UserRole | null },
 ): boolean {
-  // Admin siempre puede
   if (user.role === 'admin') return true;
-  // Si está asignado a un usuario específico, solo ese usuario
-  if (lead.asignadoA) return lead.asignadoA === user.id;
-  // Si tiene área pero no usuario, verificar si el rol del usuario cubre esa área
-  if (lead.areaActual && user.role) {
-    const areasDelRol = ROLE_LEAD_AREAS[user.role] ?? [];
-    return areasDelRol.includes(lead.areaActual);
+  if (ticket.asignadoA) return ticket.asignadoA === user.id;
+  if (ticket.areaActual && user.role) {
+    const areasDelRol = ROLE_TICKET_AREAS[user.role] ?? [];
+    return areasDelRol.includes(ticket.areaActual);
   }
-  // Sin asignar a nadie — cualquiera puede
   return true;
 }
 
-// --- Estados del Lead ---
-export type LeadEstado =
+// --- Estados del Ticket ---
+export type TicketEstado =
   | 'nuevo'
+  | 'relevamiento_pendiente'
+  | 'presupuesto_pendiente'
   | 'pendiente_info'
   | 'en_presupuesto'
   | 'presupuesto_enviado'
@@ -482,8 +457,10 @@ export type LeadEstado =
   | 'finalizado'
   | 'no_concretado';
 
-export const LEAD_ESTADO_LABELS: Record<LeadEstado, string> = {
+export const TICKET_ESTADO_LABELS: Record<TicketEstado, string> = {
   nuevo: 'Nuevo',
+  relevamiento_pendiente: 'Relevamiento pendiente',
+  presupuesto_pendiente: 'Presupuesto pendiente',
   pendiente_info: 'Pendiente info',
   en_presupuesto: 'En presupuesto',
   presupuesto_enviado: 'Presupuesto enviado',
@@ -496,8 +473,10 @@ export const LEAD_ESTADO_LABELS: Record<LeadEstado, string> = {
   no_concretado: 'No concretado',
 };
 
-export const LEAD_ESTADO_COLORS: Record<LeadEstado, string> = {
+export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
   nuevo: 'bg-blue-100 text-blue-800',
+  relevamiento_pendiente: 'bg-indigo-100 text-indigo-800',
+  presupuesto_pendiente: 'bg-purple-100 text-purple-800',
   pendiente_info: 'bg-amber-100 text-amber-800',
   en_presupuesto: 'bg-teal-100 text-teal-800',
   presupuesto_enviado: 'bg-violet-100 text-violet-800',
@@ -511,8 +490,9 @@ export const LEAD_ESTADO_COLORS: Record<LeadEstado, string> = {
 };
 
 /** Orden para tabs y filtros */
-export const LEAD_ESTADO_ORDER: LeadEstado[] = [
-  'nuevo', 'pendiente_info', 'en_presupuesto', 'presupuesto_enviado',
+export const TICKET_ESTADO_ORDER: TicketEstado[] = [
+  'nuevo', 'relevamiento_pendiente', 'presupuesto_pendiente',
+  'pendiente_info', 'en_presupuesto', 'presupuesto_enviado',
   'esperando_oc', 'espera_importacion', 'pendiente_entrega',
   'en_coordinacion', 'en_proceso', 'finalizado', 'no_concretado',
 ];
@@ -523,14 +503,28 @@ export interface Posta {
   fecha: string; // ISO
   deUsuarioId: string;
   deUsuarioNombre: string;
-  aUsuarioId: string;       // '' si se asigna solo a área
-  aUsuarioNombre: string;   // '' si se asigna solo a área
-  aArea?: LeadArea;         // área destino
+  aUsuarioId: string;
+  aUsuarioNombre: string;
+  aArea?: TicketArea;
   comentario?: string;
-  estadoAnterior: LeadEstado;
-  estadoNuevo: LeadEstado;
-  accionRequerida?: string; // ej: "Averiguar N° parte", "Enviar presupuesto"
+  estadoAnterior: TicketEstado;
+  estadoNuevo: TicketEstado;
+  accionRequerida?: string;
 }
+
+// --- Backward compat aliases (will be removed eventually) ---
+/** @deprecated Use TicketArea */ export type LeadArea = TicketArea;
+/** @deprecated Use TicketEstado */ export type LeadEstado = TicketEstado;
+/** @deprecated Use TicketPrioridad */ export type LeadPrioridad = TicketPrioridad;
+/** @deprecated */ export const LEAD_AREA_LABELS = TICKET_AREA_LABELS;
+/** @deprecated */ export const LEAD_AREA_COLORS = TICKET_AREA_COLORS;
+/** @deprecated */ export const LEAD_PRIORIDAD_LABELS = TICKET_PRIORIDAD_LABELS;
+/** @deprecated */ export const LEAD_PRIORIDAD_COLORS = TICKET_PRIORIDAD_COLORS;
+/** @deprecated */ export const LEAD_ESTADO_LABELS = TICKET_ESTADO_LABELS;
+/** @deprecated */ export const LEAD_ESTADO_COLORS = TICKET_ESTADO_COLORS;
+/** @deprecated */ export const LEAD_ESTADO_ORDER = TICKET_ESTADO_ORDER;
+/** @deprecated */ export const ROLE_LEAD_AREAS = ROLE_TICKET_AREAS;
+/** @deprecated */ export const canUserModifyLead = canUserModifyTicket;
 
 
 // --- Tipos de Servicio (lista simple, sin categorías) ---
@@ -544,8 +538,8 @@ export interface TipoServicio {
   updatedAt: string;
 }
 
-// --- Adjunto Lead ---
-export interface AdjuntoLead {
+// --- Adjunto Ticket ---
+export interface AdjuntoTicket {
   id: string;
   nombre: string;
   url: string;
@@ -554,10 +548,10 @@ export interface AdjuntoLead {
   fechaCarga: string;
 }
 
-export const LEAD_MAX_ADJUNTOS = 10;
+export const TICKET_MAX_ADJUNTOS = 10;
 
-// --- Lead refinado ---
-export interface Lead {
+// --- Ticket ---
+export interface Ticket {
   id: string;
   clienteId: string | null;
   contactoId: string | null;
@@ -566,33 +560,36 @@ export interface Lead {
   email: string;
   telefono: string;
   motivoLlamado: MotivoLlamado;
+  motivoOtros?: string | null;
   motivoContacto: string;
-  sistemaId: string | null; // FK sistemas (equipo involucrado si aplica)
-  moduloId?: string | null; // FK módulo dentro del sistema
-  estado: LeadEstado;
+  sistemaId: string | null;
+  moduloId?: string | null;
+  estado: TicketEstado;
   postas: Posta[];
   asignadoA: string | null;
   asignadoNombre?: string | null;
   derivadoPor: string | null;
-  areaActual?: LeadArea | null;        // área donde está el lead actualmente
-  accionPendiente?: string | null;     // qué falta hacer (derivado de última posta)
+  areaActual?: TicketArea | null;
+  accionPendiente?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
   finalizadoAt?: string | null;
   descripcion?: string | null;
-  prioridad?: LeadPrioridad | null;
+  prioridad?: TicketPrioridad | null;
   proximoContacto?: string | null;
   valorEstimado?: number | null;
   presupuestosIds?: string[];
   otIds?: string[];
-  /** Archivos adjuntos (fotos, documentos) — máximo 10 */
-  adjuntos?: AdjuntoLead[];
-  /** Origen del lead: qr = sticker QR, portal = portal cliente, manual = creado manualmente */
+  adjuntos?: AdjuntoTicket[];
   source?: 'qr' | 'portal' | 'manual' | null;
-  /** ID AGS visible del sistema cuando el lead viene de un QR */
   sistemaAgsVisibleId?: string | null;
 }
+
+// --- Backward compat aliases ---
+/** @deprecated Use AdjuntoTicket */ export type AdjuntoLead = AdjuntoTicket;
+/** @deprecated Use TICKET_MAX_ADJUNTOS */ export const LEAD_MAX_ADJUNTOS = TICKET_MAX_ADJUNTOS;
+/** @deprecated Use Ticket */ export type Lead = Ticket;
 
 // --- Usuario (catálogo postas) ---
 export interface UsuarioPosta {
@@ -1416,6 +1413,22 @@ export interface Ingeniero {
   activo: boolean;
   /** Firebase UID — vincula este ingeniero con su cuenta de Google (UsuarioAGS) */
   usuarioId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Certificado profesional de un ingeniero (PDF adjunto por categoría) */
+export interface CertificadoIngeniero {
+  id: string;
+  ingenieroId: string;
+  ingenieroNombre: string;
+  categoria: CategoriaPatron;
+  descripcion: string;
+  certificadoUrl: string;
+  certificadoNombre: string;
+  certificadoStoragePath: string;
+  fechaEmision: string | null;
+  fechaVencimiento: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2638,6 +2651,7 @@ export interface AgendaEntry {
   establecimientoNombre: string | null;
   estadoAgenda: EstadoAgenda;
   notas: string | null;
+  titulo: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;

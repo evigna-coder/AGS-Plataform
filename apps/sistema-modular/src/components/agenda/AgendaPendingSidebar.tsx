@@ -15,10 +15,11 @@ interface AgendaPendingSidebarProps {
   selectedOTs: Set<string>;
   onToggleSelect?: (otNumber: string) => void;
   onCopyOT?: (ot: WorkOrder) => void;
+  width?: number;
 }
 
 export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
-  pendingOTs, selectedOTs, onToggleSelect, onCopyOT,
+  pendingOTs, selectedOTs, onToggleSelect, onCopyOT, width = 256,
 }) => {
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('');
@@ -45,7 +46,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
   const selCount = selectedOTs.size;
 
   return (
-    <div className="w-64 shrink-0 bg-white border border-slate-200 rounded-lg flex flex-col overflow-hidden">
+    <div className="shrink-0 bg-white border border-slate-200 rounded-lg flex flex-col overflow-hidden" style={{ width }}>
       <div className="px-3 py-2 border-b border-slate-200">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-slate-700">A programar</h3>

@@ -170,9 +170,15 @@ function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlamado {
 function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
   if (!raw) return null;
   const migration: Record<string, LeadArea> = {
-    presupuesto: 'presupuesto_ventas',
-    contrato: 'presupuesto_ventas',
-    venta_insumos: 'presupuesto_ventas',
+    presupuesto: 'ventas',
+    contrato: 'ventas',
+    venta_insumos: 'ventas',
+    presupuesto_ventas: 'ventas',
+    agenda_coordinacion: 'soporte',
+    materiales_comex: 'soporte',
+    ingeniero_soporte: 'soporte',
+    facturacion: 'administracion',
+    pago_proveedores: 'administracion',
   };
   return migration[raw] || (raw as LeadArea);
 }
@@ -614,6 +620,7 @@ function parseAgendaEntry(id: string, data: Record<string, unknown>): AgendaEntr
     establecimientoNombre: (data.establecimientoNombre as string) ?? null,
     estadoAgenda: (data.estadoAgenda as AgendaEntry['estadoAgenda']) ?? 'pendiente',
     notas: (data.notas as string) ?? null,
+    titulo: (data.titulo as string) ?? null,
     createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
     updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
   };

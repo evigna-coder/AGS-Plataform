@@ -1,6 +1,7 @@
-import { type FC, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Ingeniero, AgendaEntry } from '@ags/shared';
-import type { GridColumn, CellOccupation } from '../../utils/agendaDateUtils';
+import type { GridColumn, CellOccupation, SelectionRange } from '../../utils/agendaDateUtils';
+import { isCellInRange } from '../../utils/agendaDateUtils';
 import { AgendaGridCell } from './AgendaGridCell';
 
 interface AgendaGridRowProps {
@@ -10,23 +11,28 @@ interface AgendaGridRowProps {
   showText: boolean;
   compact: boolean;
   selectedCellKey: string | null;
+  selectionRange: SelectionRange | null;
+  feriados?: Set<string>;
   rowHeight: string;
-  onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4) => void;
+  onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => void;
   onEntryClick: (entries: AgendaEntry[], primary: AgendaEntry) => void;
+  onCellContextMenu?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
 }
 
-export const AgendaGridRow: FC<AgendaGridRowProps> = ({
+export const AgendaGridRow = memo<AgendaGridRowProps>(({
   ingeniero,
   columns,
   occupation,
   showText,
   compact,
   selectedCellKey,
+  selectionRange,
+  feriados,
   rowHeight,
   onCellClick,
   onEntryClick,
+  onCellContextMenu,
 }) => {
-  // Utilization: occupied quarters / total quarters
   const utilPct = useMemo(() => {
     if (compact) return null;
     let occupied = 0;
@@ -43,7 +49,6 @@ export const AgendaGridRow: FC<AgendaGridRowProps> = ({
 
   return (
     <>
-      {/* Engineer name + utilization */}
       <div
         className={`bg-white border-r border-r-slate-200 flex items-center px-1 truncate ${compact ? 'border-b border-b-slate-200' : 'border-b-2 border-b-slate-200'}`}
         style={{ height: rowHeight }}
@@ -55,32 +60,44 @@ export const AgendaGridRow: FC<AgendaGridRowProps> = ({
         )}
       </div>
 
-      {/* Calendar cells */}
       {columns.map((col, idx) => {
         const occs = occupation.get(idx) || [];
         const primary = occs[0];
+        const entry = primary?.entry;
+        const cellKey = `${ingeniero.id}:${col.dateKey}:${col.quarter}`;
         return (
           <AgendaGridCell
             key={idx}
             ingenieroId={ingeniero.id}
             fecha={col.dateKey}
             quarter={col.quarter}
-            entry={primary?.entry}
+            entryId={entry?.id}
+            entryOtNumber={entry?.otNumber}
+            entryTitulo={entry?.titulo}
+            entryEstado={entry?.estadoAgenda}
+            entryClienteNombre={entry?.clienteNombre}
+            entryTipoServicio={entry?.tipoServicio}
+            entrySistemaNombre={entry?.sistemaNombre}
+            entryNotas={entry?.notas}
+            entryRef={entry}
             isStart={primary?.isStart}
             isEnd={primary?.isEnd}
             entryCount={occs.length}
             isToday={col.isToday}
+            isFeriado={feriados?.has(col.dateKey)}
             showText={showText}
             compact={compact}
-            selectedCellKey={selectedCellKey}
+            isSelected={selectedCellKey === cellKey}
+            inSelectionRange={isCellInRange(ingeniero.id, col.dateKey, col.quarter, selectionRange)}
             rowHeight={rowHeight}
-            onClick={() => {
+            onClick={(e?: React.MouseEvent) => {
               if (occs.length > 0) onEntryClick(occs.map(o => o.entry), occs[0].entry);
-              else onCellClick(ingeniero.id, col.dateKey, col.quarter);
+              else onCellClick(ingeniero.id, col.dateKey, col.quarter, e?.shiftKey);
             }}
+            onContextMenu={onCellContextMenu ? (e) => onCellContextMenu(ingeniero.id, col.dateKey, col.quarter, e) : undefined}
           />
         );
       })}
     </>
   );
-};
+});

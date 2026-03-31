@@ -54,14 +54,14 @@ export default function LeadDetailPage() {
 
   const handleEstadoChange = async (estado: LeadEstado) => {
     if (!lead) return;
-    await leadsService.update(lead.id, { estado });
-    await load();
+    setLead(prev => prev ? { ...prev, estado } : prev);
+    leadsService.update(lead.id, { estado }).catch(err => console.error('Error updating estado:', err));
   };
 
   const handleFieldUpdate = async (field: string, value: any) => {
     if (!lead) return;
-    await leadsService.update(lead.id, { [field]: value });
-    await load();
+    setLead(prev => prev ? { ...prev, [field]: value } : prev);
+    leadsService.update(lead.id, { [field]: value }).catch(err => console.error('Error updating field:', err));
   };
 
   const handleDelete = async () => {

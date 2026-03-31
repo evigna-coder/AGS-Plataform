@@ -376,6 +376,16 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // ========== FERIADOS ==========
+    match /feriados/{fecha} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== CERTIFICADOS INGENIERO ==========
+    match /certificadosIngeniero/{certId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // ========== ADJUNTOS ==========
     match /adjuntos/{adjuntoId} {
       allow read, write: if true; // Temporal para desarrollo
@@ -383,6 +393,11 @@ service cloud.firestore {
 
     // ========== CONCEPTOS DE SERVICIO ==========
     match /conceptos_servicio/{conceptoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== CALIFICACIÓN DE PROVEEDORES ==========
+    match /calificaciones_proveedor/{calificacionId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 

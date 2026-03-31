@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Ingeniero, AgendaEntry } from '@ags/shared';
 import { isWeekend } from 'date-fns';
-import { formatDateKey, findEntriesAtCell, type SelectedCell } from '../utils/agendaDateUtils';
+import { formatDateKey, findEntriesAtCell, type SelectedCell, type SelectionRange } from '../utils/agendaDateUtils';
 
 export interface AgendaKeyboardCallbacks {
   onCopy?: () => void;
@@ -16,6 +16,8 @@ export function useAgendaKeyboard(
   visibleDays: Date[],
   entries: AgendaEntry[],
   callbacks?: AgendaKeyboardCallbacks,
+  selectionRange?: SelectionRange | null,
+  setSelectionRange?: (range: SelectionRange | null) => void,
 ) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -44,14 +46,35 @@ export function useAgendaKeyboard(
         return;
       }
 
+      // Escape → clear selection
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (selectionRange) {
+          setSelectionRange?.(null);
+        } else {
+          setSelectedCell(null);
+        }
+        return;
+      }
+
       const weekdayKeys = visibleDays.filter(d => !isWeekend(d)).map(d => formatDateKey(d));
       const engIdx = ingenieros.findIndex(i => i.id === selectedCell.ingenieroId);
       const dateIdx = weekdayKeys.indexOf(selectedCell.fecha);
       if (engIdx === -1 || dateIdx === -1) return;
 
-      let ne = engIdx;
-      let nd = dateIdx;
-      let nq = selectedCell.quarter;
+      const isArrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key);
+      if (!isArrow) return;
+
+      e.preventDefault();
+
+      // Determine current end position (from range or from anchor)
+      const rangeEnd = selectionRange
+        ? { fecha: selectionRange.endFecha, quarter: selectionRange.endQuarter }
+        : { fecha: selectedCell.fecha, quarter: selectedCell.quarter };
+
+      const endDateIdx = weekdayKeys.indexOf(rangeEnd.fecha);
+      let nd = endDateIdx === -1 ? dateIdx : endDateIdx;
+      let nq = rangeEnd.quarter;
 
       switch (e.key) {
         case 'ArrowLeft':
@@ -65,36 +88,57 @@ export function useAgendaKeyboard(
           else return;
           break;
         case 'ArrowUp':
-          if (ne > 0) ne--;
-          else return;
-          break;
-        case 'ArrowDown':
-          if (ne < ingenieros.length - 1) ne++;
-          else return;
-          break;
-        case 'Escape':
-          e.preventDefault();
-          setSelectedCell(null);
+          // Up/Down don't extend selection range (different engineer)
+          if (!e.shiftKey) {
+            const ne = engIdx > 0 ? engIdx - 1 : engIdx;
+            if (ne === engIdx) return;
+            const ing = ingenieros[ne];
+            const found = findEntriesAtCell(entries, ing.id, selectedCell.fecha, selectedCell.quarter);
+            setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha: selectedCell.fecha, quarter: selectedCell.quarter, entry: found[0] || null, allEntries: found });
+            setSelectionRange?.(null);
+          }
           return;
-        default:
+        case 'ArrowDown':
+          if (!e.shiftKey) {
+            const ne = engIdx < ingenieros.length - 1 ? engIdx + 1 : engIdx;
+            if (ne === engIdx) return;
+            const ing = ingenieros[ne];
+            const found = findEntriesAtCell(entries, ing.id, selectedCell.fecha, selectedCell.quarter);
+            setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha: selectedCell.fecha, quarter: selectedCell.quarter, entry: found[0] || null, allEntries: found });
+            setSelectionRange?.(null);
+          }
           return;
       }
 
-      e.preventDefault();
-      const ing = ingenieros[ne];
       const fecha = weekdayKeys[nd];
-      const found = findEntriesAtCell(entries, ing.id, fecha, nq);
-      setSelectedCell({
-        ingenieroId: ing.id,
-        ingenieroNombre: ing.nombre,
-        fecha,
-        quarter: nq,
-        entry: found[0] || null,
-        allEntries: found,
-      });
+
+      if (e.shiftKey && setSelectionRange) {
+        // Shift+Arrow: extend selection range
+        setSelectionRange({
+          ingenieroId: selectedCell.ingenieroId,
+          ingenieroNombre: selectedCell.ingenieroNombre,
+          startFecha: selectedCell.fecha,
+          startQuarter: selectedCell.quarter,
+          endFecha: fecha,
+          endQuarter: nq,
+        });
+      } else {
+        // Normal arrow: move anchor, clear range
+        const ing = ingenieros[engIdx];
+        const found = findEntriesAtCell(entries, ing.id, fecha, nq);
+        setSelectedCell({
+          ingenieroId: ing.id,
+          ingenieroNombre: ing.nombre,
+          fecha,
+          quarter: nq,
+          entry: found[0] || null,
+          allEntries: found,
+        });
+        setSelectionRange?.(null);
+      }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedCell, setSelectedCell, ingenieros, visibleDays, entries, callbacks]);
+  }, [selectedCell, setSelectedCell, ingenieros, visibleDays, entries, callbacks, selectionRange, setSelectionRange]);
 }

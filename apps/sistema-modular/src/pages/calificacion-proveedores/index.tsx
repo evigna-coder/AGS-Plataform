@@ -1,0 +1,1 @@
+export { CalificacionesList } from './CalificacionesList';

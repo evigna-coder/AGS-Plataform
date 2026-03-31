@@ -7,7 +7,7 @@ import { FirebaseService } from '../services/firebaseService';
 import { UseReportFormReturn } from './useReportForm';
 import { SignaturePadHandle } from '../components/SignaturePad';
 import { getPDFOptions } from '../utils/pdfOptions';
-import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero } from '../types/instrumentos';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -57,6 +57,7 @@ export const usePDFGeneration = (
   validateBeforeClientConfirm: () => boolean,
   showAlert: (options: { title?: string; message: string; type?: 'info' | 'warning' | 'error' | 'success'; onConfirm?: () => void; confirmText?: string }) => void,
   instrumentosSeleccionados: InstrumentoPatronOption[] = [],
+  certificadosIngenieroSeleccionados: CertificadoIngeniero[] = [],
   adjuntos: AdjuntoMeta[] = [],
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -290,23 +291,6 @@ export const usePDFGeneration = (
         }
       };
 
-      // ── Certificados: descargar y renderizar PDFs de instrumentos ──
-      const certUrls = instrumentosSeleccionados
-        .map(i => i.certificadoUrl)
-        .filter((url): url is string => !!url);
-
-      if (certUrls.length > 0) {
-        console.log(`[PDF][CERTS] Descargando ${certUrls.length} certificado(s)…`);
-        for (const url of certUrls) {
-          try {
-            const blob = await firebase.downloadStorageBlob(url);
-            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERTS');
-          } catch (err) {
-            console.warn('[PDF][CERTS] Error descargando certificado:', err);
-          }
-        }
-      }
-
       // ── Adjuntos PDF: descargar y renderizar archivos adjuntos PDF ──
       const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
       if (pdfAdjuntos.length > 0) {
@@ -363,7 +347,41 @@ export const usePDFGeneration = (
         }
       }
 
-      // ── Merge: Hoja 1 + Protocolos + Certificados + Adjuntos PDF + Fotos ──
+      // ── Certificados ingeniero: descargar y renderizar PDFs ──
+      const certIngUrls = certificadosIngenieroSeleccionados
+        .map(c => c.certificadoUrl)
+        .filter((url): url is string => !!url);
+
+      if (certIngUrls.length > 0) {
+        console.log(`[PDF][CERT-ING] Descargando ${certIngUrls.length} certificado(s) de ingeniero…`);
+        for (const url of certIngUrls) {
+          try {
+            const blob = await firebase.downloadStorageBlob(url);
+            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERT-ING');
+          } catch (err) {
+            console.warn('[PDF][CERT-ING] Error descargando certificado:', err);
+          }
+        }
+      }
+
+      // ── Certificados instrumentos/patrones: descargar y renderizar PDFs ──
+      const certInstUrls = instrumentosSeleccionados
+        .map(i => i.certificadoUrl)
+        .filter((url): url is string => !!url);
+
+      if (certInstUrls.length > 0) {
+        console.log(`[PDF][CERT-INST] Descargando ${certInstUrls.length} certificado(s) de instrumentos…`);
+        for (const url of certInstUrls) {
+          try {
+            const blob = await firebase.downloadStorageBlob(url);
+            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERT-INST');
+          } catch (err) {
+            console.warn('[PDF][CERT-INST] Error descargando certificado:', err);
+          }
+        }
+      }
+
+      // ── Merge: Hoja 1 + Protocolos + Adjuntos + Fotos + Certs Ingeniero + Certs Instrumentos ──
       const mergedPdf = await PDFDocument.create();
       for (const partBlob of pdfParts) {
         try {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Lead, LeadEstado, LeadArea, LeadPrioridad, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_ESTADO_ORDER, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -33,15 +33,11 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   // Reset destinatario when area changes
   useEffect(() => { setDestinatarioId(''); }, [areaDestino]);
 
-  const isIngeniero = areaDestino === 'ingeniero_soporte';
-  const personList = isIngeniero
-    ? ingenieros.map(i => ({ id: i.id, label: i.nombre }))
-    : usuarios.map(u => ({ id: u.id, label: `${u.displayName} (${u.role})` }));
+  const personList = usuarios.map(u => ({ id: u.id, label: `${u.displayName} (${u.role})` }));
 
   const getDestinatarioNombre = () => {
     if (!destinatarioId) return '';
-    if (isIngeniero) return ingenieros.find(i => i.id === destinatarioId)?.nombre ?? '';
-    return usuarios.find(u => u.id === destinatarioId)?.displayName ?? '';
+    return personList.find(p => p.id === destinatarioId)?.label ?? '';
   };
 
   const handleSubmit = async () => {
@@ -88,21 +84,19 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as LeadArea | '')}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Sin área específica</option>
-            {LEAD_AREA_GROUPS.map(g => (
-              <optgroup key={g.label} label={g.label}>
-                {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
-              </optgroup>
+            {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </div>
 
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">
-            Derivar a ({isIngeniero ? 'ingeniero' : 'usuario'})
+            Derivar a (usuario)
           </label>
           <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-            <option value="">Sin asignar {isIngeniero ? 'ingeniero' : 'usuario'} específico</option>
+            <option value="">Sin asignar usuario específico</option>
             {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </div>
@@ -111,8 +105,8 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Nuevo estado</label>
           <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as LeadEstado)}
             className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-            {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
-              <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
+            {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
+              <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
             ))}
           </select>
         </div>
@@ -123,7 +117,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
             <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad | '')}
               className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               <option value="">Sin definir</option>
-              {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div>

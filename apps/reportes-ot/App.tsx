@@ -166,6 +166,9 @@ const App: React.FC = () => {
             fechaInicio={app.fechaInicio} fechaFin={app.fechaFin}
             instrumentosSeleccionados={app.instrumentosSeleccionados}
             setInstrumentosSeleccionados={app.setInstrumentosSeleccionados}
+            aclaracionEspecialistaName={app.aclaracionEspecialista}
+            certificadosIngenieroSeleccionados={app.certificadosIngenieroSeleccionados}
+            setCertificadosIngenieroSeleccionados={app.setCertificadosIngenieroSeleccionados}
             markUserInteracted={app.markUserInteracted}
           />
         ),

@@ -1,5 +1,5 @@
-import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_GROUPS, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
-import type { MotivoLlamado, LeadArea, LeadPrioridad } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
+import type { MotivoLlamado, TicketArea, TicketPrioridad } from '@ags/shared';
 import { useCrearLeadForm } from '../../hooks/useCrearLeadForm';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -29,13 +29,21 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
             {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
+        {h.motivoLlamado === 'otros' && (
+          <div>
+            <label className={labelClass}>Especificar motivo *</label>
+            <input type="text" value={h.motivoOtros} onChange={e => h.setMotivoOtros(e.target.value)}
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="Describir el motivo..." />
+          </div>
+        )}
 
         {/* Prioridad + Próximo contacto */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Prioridad</label>
-            <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as LeadPrioridad)} className={selectClass}>
-              {Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
+              {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div>
@@ -92,12 +100,10 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
         {/* Área destino */}
         <div>
           <label className={labelClass}>Área destino (opcional)</label>
-          <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as LeadArea | '')} className={selectClass}>
+          <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
             <option value="">Sin área específica</option>
-            {LEAD_AREA_GROUPS.map(g => (
-              <optgroup key={g.label} label={g.label}>
-                {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
-              </optgroup>
+            {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </div>

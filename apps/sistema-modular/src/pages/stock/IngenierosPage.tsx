@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { Ingeniero, AreaIngeniero, UsuarioAGS } from '@ags/shared';
+import { IngenieroCertificados } from '../../components/IngenieroCertificados';
 
 const AREA_LABELS: Record<AreaIngeniero, string> = {
   campo: 'Campo',
@@ -37,6 +38,7 @@ export const IngenierosPage = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
 
   const unsubRef = useRef<(() => void) | null>(null);
@@ -186,7 +188,8 @@ export const IngenierosPage = () => {
           <div className="bg-white">
             <div className="divide-y divide-slate-50">
               {items.map(ing => (
-                <div key={ing.id} className={`flex items-center justify-between py-2 px-2 ${!ing.activo ? 'opacity-50' : ''}`}>
+                <div key={ing.id} className={`py-2 px-2 ${!ing.activo ? 'opacity-50' : ''}`}>
+                <div className="flex items-center justify-between">
                   {editingId === ing.id ? (
                     <div className="flex-1 mr-4 space-y-1.5">
                       <div className="grid grid-cols-2 gap-2">
@@ -233,6 +236,10 @@ export const IngenierosPage = () => {
                   )}
                   {editingId !== ing.id && (
                     <div className="flex gap-2 shrink-0">
+                      <button onClick={() => setExpandedId(v => v === ing.id ? null : ing.id)}
+                        className={`font-medium text-[11px] hover:underline ${expandedId === ing.id ? 'text-teal-700 underline' : 'text-slate-500'}`}>
+                        Certificados
+                      </button>
                       <Link to={`/stock/ingenieros/${ing.id}/inventario`} className="text-blue-600 hover:underline font-medium text-[11px]">Inventario</Link>
                       <button onClick={() => startEdit(ing)} className="text-teal-600 hover:underline font-medium text-[11px]">Editar</button>
                       <button onClick={() => handleToggle(ing)}
@@ -242,6 +249,10 @@ export const IngenierosPage = () => {
                       <button onClick={() => handleDelete(ing)} className="text-red-600 hover:underline font-medium text-[11px]">Eliminar</button>
                     </div>
                   )}
+                </div>
+                {expandedId === ing.id && (
+                  <IngenieroCertificados ingenieroId={ing.id} ingenieroNombre={ing.nombre} />
+                )}
                 </div>
               ))}
             </div>

@@ -265,12 +265,36 @@ const EditForm: React.FC<EditFormProps> = ({
       </div>
       <div>
         <label className={lbl}>Nombre *</label>
-        <Input
-          inputSize="sm"
-          value={formData.nombre}
-          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-          required
-        />
+        {(() => {
+          const selCat = categorias.find(c => c.id === formData.categoriaId);
+          const catModelos = selCat?.modelos?.filter(Boolean) ?? [];
+          if (catModelos.length > 0) {
+            const modeloOptions = [
+              ...catModelos.map(m => ({ value: typeof m === 'string' ? m : (m as any).nombre, label: typeof m === 'string' ? m : (m as any).nombre })),
+              { value: '__otro__', label: 'Otro (ingresar manualmente)' },
+            ];
+            const isCustom = formData.nombre && !catModelos.includes(formData.nombre) && formData.nombre !== '__otro__';
+            return (
+              <>
+                <SearchableSelect
+                  value={isCustom ? '__otro__' : formData.nombre}
+                  onChange={(v) => setFormData({ ...formData, nombre: v === '__otro__' ? '' : v })}
+                  options={modeloOptions}
+                  placeholder="Seleccionar modelo..."
+                />
+                {(formData.nombre === '' && isCustom) || (isCustom) ? (
+                  <Input inputSize="sm" className="mt-1" value={formData.nombre}
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    placeholder="Nombre manual..." />
+                ) : null}
+              </>
+            );
+          }
+          return (
+            <Input inputSize="sm" value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} required />
+          );
+        })()}
       </div>
       <div>
         <label className={lbl}>Codigo Interno Cliente</label>

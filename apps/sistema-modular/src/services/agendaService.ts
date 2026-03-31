@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
 import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
@@ -21,6 +21,7 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     establecimientoNombre: data.establecimientoNombre ?? null,
     estadoAgenda: data.estadoAgenda,
     notas: data.notas ?? null,
+    titulo: data.titulo ?? null,
     createdAt: data.createdAt?.toDate?.()?.toISOString() ?? '',
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? '',
     createdBy: data.createdBy ?? null,
@@ -72,7 +73,6 @@ export const agendaService = {
 
   async update(id: string, data: Partial<AgendaEntry>): Promise<void> {
     const docRef = doc(db, 'agendaEntries', id);
-    const beforeSnap = await getDoc(docRef);
     const payload = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
@@ -83,19 +83,34 @@ export const agendaService = {
     await updateDoc(docRef, payload);
     logAudit({
       action: 'update', collection: 'agendaEntries', documentId: id,
-      before: beforeSnap.exists() ? (beforeSnap.data() as Record<string, unknown>) : null,
       after: payload as Record<string, unknown>,
     });
   },
 
   async delete(id: string): Promise<void> {
     const docRef = doc(db, 'agendaEntries', id);
-    const beforeSnap = await getDoc(docRef);
-    logAudit({
-      action: 'delete', collection: 'agendaEntries', documentId: id,
-      before: beforeSnap.exists() ? (beforeSnap.data() as Record<string, unknown>) : null,
-    });
     await deleteDoc(docRef);
+    logAudit({ action: 'delete', collection: 'agendaEntries', documentId: id });
+  },
+};
+
+// ── Feriados Service ──
+
+export const feriadosService = {
+  subscribe(callback: (fechas: Set<string>) => void): () => void {
+    return onSnapshot(collection(db, 'feriados'), (snap) => {
+      const fechas = new Set<string>();
+      snap.docs.forEach(d => fechas.add(d.id));
+      callback(fechas);
+    });
+  },
+
+  async add(fecha: string): Promise<void> {
+    await setDoc(doc(db, 'feriados', fecha), { fecha, createdAt: Timestamp.now() });
+  },
+
+  async remove(fecha: string): Promise<void> {
+    await deleteDoc(doc(db, 'feriados', fecha));
   },
 };
 

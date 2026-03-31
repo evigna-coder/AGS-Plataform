@@ -231,7 +231,7 @@ function renderDefaultCell(
         placeholder={placeholder}
         onChange={handleChange}
         onFocus={selectAll}
-        className="w-full text-[10px] border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5"
+        className="w-full text-[10px] text-center border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5"
       />
     );
   }
@@ -246,7 +246,7 @@ function renderDefaultCell(
         placeholder={placeholder}
         onChange={handleChange}
         onFocus={selectAll}
-        className="flex-1 min-w-0 text-[10px] bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300"
+        className="flex-1 min-w-0 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300"
       />
       <span className="text-[10px] text-slate-400 select-none shrink-0 pointer-events-none">
         {effectiveUnit}
@@ -439,7 +439,7 @@ export const CatalogTableView: React.FC<Props> = ({
               placeholder="Especificación del cliente..."
               onChange={(e) => handleCellChange(rowId, col.key, e.target.value)}
               onFocus={e => e.target.select()}
-              className="flex-1 min-w-0 text-[10px] bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-blue-300"
+              className="flex-1 min-w-0 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-blue-300"
             />
             {col.unit && (
               <span className="text-[10px] text-blue-400 select-none shrink-0 pointer-events-none">

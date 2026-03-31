@@ -3,22 +3,22 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import type { Lead, Posta, LeadEstado, LeadArea } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_ORDER, LEAD_AREA_LABELS, LEAD_AREA_GROUPS } from '@ags/shared';
+import type { Ticket, Posta, TicketEstado, TicketArea } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS } from '@ags/shared';
 
 interface Props {
-  lead: Lead;
+  lead: Ticket;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
+export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) {
   const { usuario } = useAuth();
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
   const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
-  const [nuevoEstado, setNuevoEstado] = useState<LeadEstado>(lead.estado);
-  const [areaDestino, setAreaDestino] = useState<LeadArea | ''>(lead.areaActual || '');
+  const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>(lead.estado);
+  const [areaDestino, setAreaDestino] = useState<TicketArea | ''>(lead.areaActual || '');
   const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
   const [saving, setSaving] = useState(false);
@@ -31,15 +31,11 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
   // Reset destinatario when area changes
   useEffect(() => { setDestinatarioId(''); }, [areaDestino]);
 
-  const isIngeniero = areaDestino === 'ingeniero_soporte';
-  const personList = isIngeniero
-    ? ingenieros.map(i => ({ id: i.id, label: i.nombre }))
-    : usuarios.map(u => ({ id: u.id, label: u.displayName }));
+  const personList = usuarios.map(u => ({ id: u.id, label: u.displayName }));
 
   const getDestinatarioNombre = () => {
     if (!destinatarioId) return '';
-    if (isIngeniero) return ingenieros.find(i => i.id === destinatarioId)?.nombre ?? '';
-    return usuarios.find(u => u.id === destinatarioId)?.displayName ?? '';
+    return personList.find(p => p.id === destinatarioId)?.label ?? '';
   };
 
   const handleSubmit = async () => {
@@ -68,33 +64,31 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
   };
 
   return (
-    <Modal open={true} title="Derivar Lead" onClose={onClose}>
+    <Modal open={true} title="Derivar Ticket" onClose={onClose}>
       <div className="space-y-3">
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Área destino</label>
           <select
             value={areaDestino}
-            onChange={e => setAreaDestino(e.target.value as LeadArea | '')}
+            onChange={e => setAreaDestino(e.target.value as TicketArea | '')}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Sin área específica</option>
-            {LEAD_AREA_GROUPS.map(g => (
-              <optgroup key={g.label} label={g.label}>
-                {g.areas.map(a => <option key={a} value={a}>{LEAD_AREA_LABELS[a]}</option>)}
-              </optgroup>
+            {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
             ))}
           </select>
         </div>
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">
-            Derivar a ({isIngeniero ? 'ingeniero' : 'usuario'})
+            Derivar a (usuario)
           </label>
           <select
             value={destinatarioId}
             onChange={e => setDestinatarioId(e.target.value)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="">Sin asignar {isIngeniero ? 'ingeniero' : 'usuario'}</option>
+            <option value="">Sin asignar usuario</option>
             {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </div>
@@ -102,11 +96,11 @@ export default function DerivarLeadModal({ lead, onClose, onSuccess }: Props) {
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Nuevo estado</label>
           <select
             value={nuevoEstado}
-            onChange={e => setNuevoEstado(e.target.value as LeadEstado)}
+            onChange={e => setNuevoEstado(e.target.value as TicketEstado)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            {LEAD_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
-              <option key={e} value={e}>{LEAD_ESTADO_LABELS[e]}</option>
+            {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
+              <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
             ))}
           </select>
         </div>

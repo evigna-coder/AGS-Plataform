@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AgendaEntry, AgendaNota, Ingeniero, WorkOrder, ZoomLevel } from '@ags/shared';
-import { ingenierosService, agendaService, agendaNotasService, ordenesTrabajoService } from '../services/firebaseService';
+import { ingenierosService, agendaService, agendaNotasService, feriadosService, ordenesTrabajoService } from '../services/firebaseService';
 import {
   getMonday,
   getVisibleDays,
@@ -25,6 +25,7 @@ export interface UseAgendaReturn {
   entries: AgendaEntry[];
   notas: AgendaNota[];
   pendingOTs: WorkOrder[];
+  feriados: Set<string>;
   loading: boolean;
   // CRUD
   createEntry: (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => Promise<string>;
@@ -32,6 +33,7 @@ export interface UseAgendaReturn {
   deleteEntry: (id: string) => Promise<void>;
   upsertNota: (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }) => Promise<void>;
   deleteNota: (id: string) => Promise<void>;
+  toggleFeriado: (fecha: string) => Promise<void>;
 }
 
 export function useAgenda(): UseAgendaReturn {
@@ -40,7 +42,7 @@ export function useAgenda(): UseAgendaReturn {
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [notas, setNotas] = useState<AgendaNota[]>([]);
-  const [pendingOTs, setPendingOTs] = useState<WorkOrder[]>([]);
+  const [feriados, setFeriados] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const visibleDays = useMemo(() => getVisibleDays(anchor, zoomLevel), [anchor, zoomLevel]);
@@ -73,28 +75,29 @@ export function useAgenda(): UseAgendaReturn {
     return unsubscribe;
   }, [rangeStart, rangeEnd]);
 
-  // Load pending OTs (OTs without agenda entries)
+  // Real-time feriados subscription (global, no range filter)
   useEffect(() => {
-    loadPendingOTs();
-  }, [entries]);
+    return feriadosService.subscribe(setFeriados);
+  }, []);
 
-  async function loadPendingOTs() {
-    try {
-      const allOTs = await ordenesTrabajoService.getAll();
-      const assignedOTNumbers = new Set(
-        entries.filter(e => e.estadoAgenda !== 'cancelado').map(e => e.otNumber)
-      );
-      // Show OTs that are not yet finalized and don't have active agenda entries
-      const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
-      const pending = allOTs.filter(
-        ot => !assignedOTNumbers.has(ot.otNumber) &&
-          (ot.status === 'BORRADOR' || PENDING_ESTADOS.includes(ot.estadoAdmin || ''))
-      );
-      setPendingOTs(pending);
-    } catch (err) {
-      console.error('Error loading pending OTs:', err);
-    }
-  }
+  // Load all candidate OTs once
+  const [allCandidateOTs, setAllCandidateOTs] = useState<WorkOrder[]>([]);
+  useEffect(() => {
+    const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
+    ordenesTrabajoService.getAll().then(allOTs => {
+      setAllCandidateOTs(allOTs.filter(
+        ot => ot.status === 'BORRADOR' || PENDING_ESTADOS.includes(ot.estadoAdmin || '')
+      ));
+    }).catch(err => console.error('Error loading OTs:', err));
+  }, []);
+
+  // Derive pending OTs from candidates minus assigned (no Firestore re-read)
+  const pendingOTs = useMemo(() => {
+    const assignedOTNumbers = new Set(
+      entries.filter(e => e.estadoAgenda !== 'cancelado').map(e => e.otNumber)
+    );
+    return allCandidateOTs.filter(ot => !assignedOTNumbers.has(ot.otNumber));
+  }, [allCandidateOTs, entries]);
 
   // Navigation
   const goToPrev = useCallback(() => setAnchor(prev => navigatePrev(prev, zoomLevel)), [zoomLevel]);
@@ -102,17 +105,29 @@ export function useAgenda(): UseAgendaReturn {
   const goToToday = useCallback(() => setAnchor(getMonday(new Date())), []);
   const goToDate = useCallback((date: Date) => setAnchor(getMonday(date)), []);
 
-  // CRUD
+  // CRUD with optimistic updates
   const createEntry = useCallback(async (data: Omit<AgendaEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'createdByName' | 'updatedBy' | 'updatedByName'>) => {
-    return agendaService.create(data);
+    const tempId = `temp-${Date.now()}`;
+    const now = new Date().toISOString();
+    const optimistic: AgendaEntry = { ...data, id: tempId, createdAt: now, updatedAt: now, createdBy: null, createdByName: null, updatedBy: null, updatedByName: null };
+    setEntries(prev => [...prev, optimistic]);
+    const realId = await agendaService.create(data);
+    // Replace temp entry with real ID (snapshot will arrive shortly but this avoids flicker)
+    setEntries(prev => prev.map(e => e.id === tempId ? { ...e, id: realId } : e));
+    return realId;
   }, []);
 
   const updateEntry = useCallback(async (id: string, data: Partial<AgendaEntry>) => {
-    await agendaService.update(id, data);
+    // Optimistic: apply changes immediately
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, ...data, updatedAt: new Date().toISOString() } : e));
+    // Fire to Firestore (don't block UI)
+    agendaService.update(id, data).catch(err => console.error('Error updating entry:', err));
   }, []);
 
   const deleteEntry = useCallback(async (id: string) => {
-    await agendaService.delete(id);
+    // Optimistic: remove immediately
+    setEntries(prev => prev.filter(e => e.id !== id));
+    agendaService.delete(id).catch(err => console.error('Error deleting entry:', err));
   }, []);
 
   const upsertNota = useCallback(async (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }) => {
@@ -123,10 +138,26 @@ export function useAgenda(): UseAgendaReturn {
     await agendaNotasService.delete(id);
   }, []);
 
+  const toggleFeriado = useCallback(async (fecha: string) => {
+    const isCurrentlyFeriado = feriados.has(fecha);
+    // Optimistic
+    setFeriados(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyFeriado) next.delete(fecha); else next.add(fecha);
+      return next;
+    });
+    // Fire-and-forget
+    if (isCurrentlyFeriado) {
+      feriadosService.remove(fecha).catch(err => console.error('Error removing feriado:', err));
+    } else {
+      feriadosService.add(fecha).catch(err => console.error('Error adding feriado:', err));
+    }
+  }, [feriados]);
+
   return {
     anchor, zoomLevel, visibleDays,
     setZoomLevel, goToPrev, goToNext, goToToday, goToDate,
-    ingenieros, entries, notas, pendingOTs, loading,
-    createEntry, updateEntry, deleteEntry, upsertNota, deleteNota,
+    ingenieros, entries, notas, pendingOTs, feriados, loading,
+    createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
   };
 }

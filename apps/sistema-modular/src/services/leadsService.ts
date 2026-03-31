@@ -52,16 +52,26 @@ function migrateLeadEstado(raw: string): LeadEstado {
 
 function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlamado {
   if (!raw) return 'soporte';
-  if (raw === 'otros') return 'soporte';
-  return raw as MotivoLlamado;
+  const migration: Record<string, MotivoLlamado> = {
+    ventas: 'ventas_insumos',
+    insumos: 'ventas_insumos',
+    capacitacion: 'otros',
+  };
+  return migration[raw] || (raw as MotivoLlamado);
 }
 
 function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
   if (!raw) return null;
   const migration: Record<string, LeadArea> = {
-    presupuesto: 'presupuesto_ventas',
-    contrato: 'presupuesto_ventas',
-    venta_insumos: 'presupuesto_ventas',
+    presupuesto: 'ventas',
+    contrato: 'ventas',
+    venta_insumos: 'ventas',
+    presupuesto_ventas: 'ventas',
+    agenda_coordinacion: 'soporte',
+    materiales_comex: 'soporte',
+    ingeniero_soporte: 'soporte',
+    facturacion: 'administracion',
+    pago_proveedores: 'administracion',
   };
   return migration[raw] || (raw as LeadArea);
 }

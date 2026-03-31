@@ -44,6 +44,7 @@ export const navigation: NavItem[] = [
       { name: 'Marcas', path: '/stock/marcas' },
     ],
   },
+  { name: 'Calif. Proveedores', path: '/calificacion-proveedores', icon: '⭐', modulo: 'calificacion-proveedores' },
   { name: 'Usuarios', path: '/usuarios', icon: '👤', modulo: 'usuarios' },
   { name: 'Agenda', path: '/agenda', icon: '📅', modulo: 'agenda' },
   { name: 'Facturacion', path: '/facturacion', icon: '💰', modulo: 'facturacion' },

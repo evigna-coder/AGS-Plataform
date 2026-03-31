@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FirebaseService } from '../services/firebaseService';
 import { TableSelectorPanel } from './TableSelectorPanel';
 import { CatalogTableView } from './CatalogTableView';
@@ -6,10 +6,11 @@ import { CatalogChecklistView } from './CatalogChecklistView';
 import { CatalogTextView } from './CatalogTextView';
 import { CatalogSignaturesView } from './CatalogSignaturesView';
 import { InstrumentoSelectorPanel } from './InstrumentoSelectorPanel';
+import { CertificadoIngenieroSelectorPanel } from './CertificadoIngenieroSelectorPanel';
 import ProtocolView from './ProtocolView';
 import { isProtocolTestMode } from '../utils/protocolSelector';
 import type { ProtocolSelection, TableCatalogEntry, ChecklistItemAnswer } from '../types/tableCatalog';
-import type { InstrumentoPatronOption } from '../types/instrumentos';
+import type { InstrumentoPatronOption, CertificadoIngeniero } from '../types/instrumentos';
 
 interface ProtocolSectionProps {
   isPreviewMode: boolean;
@@ -48,6 +49,10 @@ interface ProtocolSectionProps {
   // Instrumentos
   instrumentosSeleccionados: InstrumentoPatronOption[];
   setInstrumentosSeleccionados: (v: InstrumentoPatronOption[]) => void;
+  // Certificados ingeniero
+  aclaracionEspecialistaName: string;
+  certificadosIngenieroSeleccionados: CertificadoIngeniero[];
+  setCertificadosIngenieroSeleccionados: (v: CertificadoIngeniero[]) => void;
   // Marker
   markUserInteracted: () => void;
 }
@@ -63,8 +68,18 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin,
   instrumentosSeleccionados, setInstrumentosSeleccionados,
+  aclaracionEspecialistaName, certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados,
   markUserInteracted,
 }) => {
+  // Resolve ingeniero ID from name for certificate selector
+  const [resolvedIngenieroId, setResolvedIngenieroId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!aclaracionEspecialistaName) { setResolvedIngenieroId(null); return; }
+    firebase.getIngenieroByNombre(aclaracionEspecialistaName).then(ing => {
+      setResolvedIngenieroId(ing?.id ?? null);
+    });
+  }, [aclaracionEspecialistaName, firebase]);
+
   return (
     <div
       className={
@@ -187,6 +202,44 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                       setInstrumentosSeleccionados(instrumentosSeleccionados.filter(i => i.id !== inst.id));
                       markUserInteracted();
                     }} className="text-indigo-400 hover:text-indigo-600 ml-0.5">×</button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Certificados de ingeniero: visible cuando hay tablas seleccionadas */}
+      {protocolSelections.length > 0 && (
+        <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-sm font-medium text-slate-700">Certificados del ingeniero</span>
+          </div>
+          <CertificadoIngenieroSelectorPanel
+            firebase={firebase}
+            ingenieroId={resolvedIngenieroId}
+            ingenieroNombre={aclaracionEspecialistaName}
+            selected={certificadosIngenieroSeleccionados}
+            onApply={(sel) => {
+              setCertificadosIngenieroSeleccionados(sel);
+              markUserInteracted();
+            }}
+            readOnly={readOnly}
+          />
+          {certificadosIngenieroSeleccionados.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {certificadosIngenieroSeleccionados.map(cert => (
+                <span key={cert.id} className="inline-flex items-center gap-1 text-[10px] bg-teal-50 text-teal-700 border border-teal-200 rounded-full px-2 py-0.5">
+                  {cert.descripcion}
+                  {!readOnly && (
+                    <button onClick={() => {
+                      setCertificadosIngenieroSeleccionados(certificadosIngenieroSeleccionados.filter(c => c.id !== cert.id));
+                      markUserInteracted();
+                    }} className="text-teal-400 hover:text-teal-600 ml-0.5">×</button>
                   )}
                 </span>
               ))}

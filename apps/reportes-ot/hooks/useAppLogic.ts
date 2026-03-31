@@ -63,7 +63,7 @@ export function useAppLogic(
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados
+    instrumentosSeleccionados, certificadosIngenieroSeleccionados
   } = formState;
 
   /** Plantilla actual: por id guardado o por tipo de servicio (para fallback) */
@@ -179,7 +179,7 @@ export function useAppLogic(
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
-    setProtocolSelections, setInstrumentosSeleccionados
+    setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados
   } = setters;
 
   // Handlers para tablas dinámicas del catálogo
@@ -433,6 +433,7 @@ export function useAppLogic(
     validateBeforeClientConfirm,
     modal.showAlert,
     instrumentosSeleccionados,
+    certificadosIngenieroSeleccionados,
     adjuntos,
   );
   const {
@@ -800,7 +801,7 @@ export function useAppLogic(
     signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados,
+    instrumentosSeleccionados, certificadosIngenieroSeleccionados,
     // Protocol
     protocolTemplate,
     // Date display
@@ -822,7 +823,7 @@ export function useAppLogic(
     setReporteTecnico, setAccionesTomar,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
-    setProtocolSelections, setInstrumentosSeleccionados,
+    setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados,
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
     handleCatalogToggleClientSpec, handleRemoveCatalogTable,

@@ -168,15 +168,15 @@ export const InstrumentosListPage = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table className="w-full table-fixed">
               <colgroup>
-                <col />
-                <col style={{ width: 80 }} />
-                <col style={{ width: '14%' }} />
-                <col style={{ width: 80 }} />
-                <col style={{ width: '12%' }} />
                 <col style={{ width: '10%' }} />
-                <col style={{ width: 78 }} />
                 <col style={{ width: 80 }} />
-                <col style={{ width: 120 }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 110 }} />
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { Part, type ProtocolData } from '../types';
 import type { ProtocolSelection } from '../types/tableCatalog';
-import type { InstrumentoPatronOption } from '../types/instrumentos';
+import type { InstrumentoPatronOption, CertificadoIngeniero } from '../types/instrumentos';
 
 export interface ReportFormState {
   // OT y estado general
@@ -61,6 +61,9 @@ export interface ReportFormState {
 
   // Instrumentos/patrones utilizados
   instrumentosSeleccionados: InstrumentoPatronOption[];
+
+  // Certificados de ingeniero seleccionados
+  certificadosIngenieroSeleccionados: CertificadoIngeniero[];
 }
 
 export interface ReportState {
@@ -99,6 +102,7 @@ export interface ReportState {
   protocolData: ProtocolData | null;
   protocolSelections: ProtocolSelection[];
   instrumentosSeleccionados: InstrumentoPatronOption[];
+  certificadosIngenieroSeleccionados: CertificadoIngeniero[];
 }
 
 export interface UseReportFormReturn {
@@ -145,6 +149,7 @@ export interface UseReportFormReturn {
     setProtocolData: (value: ProtocolData | null) => void;
     setProtocolSelections: (value: ProtocolSelection[]) => void;
     setInstrumentosSeleccionados: (value: InstrumentoPatronOption[]) => void;
+    setCertificadosIngenieroSeleccionados: (value: CertificadoIngeniero[]) => void;
   };
 
   // Computed
@@ -196,6 +201,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [protocolData, setProtocolData] = useState<ProtocolData | null>(null);
   const [protocolSelections, setProtocolSelections] = useState<ProtocolSelection[]>([]);
   const [instrumentosSeleccionados, setInstrumentosSeleccionados] = useState<InstrumentoPatronOption[]>([]);
+  const [certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados] = useState<CertificadoIngeniero[]>([]);
   const [otInput, setOtInput] = useState(initialOtNumber);
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
@@ -223,7 +229,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados
+    instrumentosSeleccionados, certificadosIngenieroSeleccionados
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, direccion, localidad, provincia, sistema,
@@ -232,7 +238,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados
+    instrumentosSeleccionados, certificadosIngenieroSeleccionados
   ]);
 
   const formState: ReportFormState = {
@@ -273,7 +279,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     protocolTemplateId,
     protocolData,
     protocolSelections,
-    instrumentosSeleccionados
+    instrumentosSeleccionados,
+    certificadosIngenieroSeleccionados
   };
 
   return {
@@ -316,7 +323,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setProtocolTemplateId,
       setProtocolData,
       setProtocolSelections,
-      setInstrumentosSeleccionados
+      setInstrumentosSeleccionados,
+      setCertificadosIngenieroSeleccionados
     },
     readOnly,
     reportState,

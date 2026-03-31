@@ -72,10 +72,11 @@ export function getVisibleRange(anchor: Date, zoom: ZoomLevel): [Date, Date] {
       // Show 4 weeks to fill screen
       return [monday, endOfWeek(addWeeks(monday, 3), { weekStartsOn: 1 })];
     case 'month': {
-      // Show 2 months to maximize visible weeks
-      const ms = startOfMonth(anchor);
-      const nextMonthEnd = endOfMonth(addDays(endOfMonth(anchor), 1));
-      return [getMonday(ms), endOfWeek(nextMonthEnd, { weekStartsOn: 1 })];
+      // Show full year
+      const y = anchor.getFullYear();
+      const yearStart = new Date(y, 0, 1);
+      const yearEnd = new Date(y, 11, 31);
+      return [getMonday(yearStart), endOfWeek(yearEnd, { weekStartsOn: 1 })];
     }
     case '2months': {
       // Show ~3 months
@@ -249,7 +250,7 @@ export function navigatePrev(anchor: Date, zoom: ZoomLevel): Date {
   switch (zoom) {
     case 'week': return subWeeks(anchor, 1);
     case '2weeks': return subWeeks(anchor, 4);
-    case 'month': return startOfMonth(subWeeks(anchor, 8));
+    case 'month': return new Date(anchor.getFullYear() - 1, 0, 1);
     case '2months': return startOfMonth(subWeeks(anchor, 12));
     case 'year': return new Date(anchor.getFullYear() - 1, 0, 1);
   }
@@ -260,7 +261,7 @@ export function navigateNext(anchor: Date, zoom: ZoomLevel): Date {
   switch (zoom) {
     case 'week': return addWeeks(anchor, 1);
     case '2weeks': return addWeeks(anchor, 4);
-    case 'month': return startOfMonth(addWeeks(anchor, 9));
+    case 'month': return new Date(anchor.getFullYear() + 1, 0, 1);
     case '2months': return startOfMonth(addWeeks(anchor, 13));
     case 'year': return new Date(anchor.getFullYear() + 1, 0, 1);
   }
@@ -289,9 +290,40 @@ export function findEntriesAtCell(
   });
 }
 
+/** Range of selected cells for multi-select (same engineer, contiguous quarters). */
+export interface SelectionRange {
+  ingenieroId: string;
+  ingenieroNombre: string;
+  startFecha: string;
+  startQuarter: 1 | 2 | 3 | 4;
+  endFecha: string;
+  endQuarter: 1 | 2 | 3 | 4;
+}
+
+/** Normalize a selection range so start <= end. */
+export function normalizeRange(r: SelectionRange): SelectionRange {
+  const startKey = `${r.startFecha}:${r.startQuarter}`;
+  const endKey = `${r.endFecha}:${r.endQuarter}`;
+  if (startKey <= endKey) return r;
+  return { ...r, startFecha: r.endFecha, startQuarter: r.endQuarter, endFecha: r.startFecha, endQuarter: r.startQuarter };
+}
+
+/** Check if a cell (ingeniero + fecha + quarter) is within a selection range. */
+export function isCellInRange(
+  ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4,
+  range: SelectionRange | null,
+): boolean {
+  if (!range || ingenieroId !== range.ingenieroId) return false;
+  const n = normalizeRange(range);
+  const cellKey = `${fecha}:${quarter}`;
+  const startKey = `${n.startFecha}:${n.startQuarter}`;
+  const endKey = `${n.endFecha}:${n.endQuarter}`;
+  return cellKey >= startKey && cellKey <= endKey;
+}
+
 /** Format range label for display. */
 export function formatRangeLabel(anchor: Date, zoom: ZoomLevel): string {
-  if (zoom === 'year') return `${anchor.getFullYear()}`;
+  if (zoom === 'year' || zoom === 'month') return `${anchor.getFullYear()}`;
   const [rangeStart, rangeEnd] = getVisibleRange(anchor, zoom);
   if (zoom === 'week') return formatWeekRange(anchor);
   return `${format(rangeStart, 'd MMM', { locale: es })} - ${format(rangeEnd, 'd MMM yyyy', { locale: es })}`;

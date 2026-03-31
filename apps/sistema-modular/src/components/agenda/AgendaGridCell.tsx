@@ -1,8 +1,7 @@
-import { type FC, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { ESTADO_AGENDA_LABELS } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
-// CSS utility no longer needed — we use DragOverlay instead of transforming the source cell
 
 const CELL_BG: Record<EstadoAgenda, string> = {
   pendiente: 'bg-slate-300',
@@ -26,51 +25,56 @@ interface AgendaGridCellProps {
   ingenieroId: string;
   fecha: string;
   quarter: 1 | 2 | 3 | 4;
-  entry?: AgendaEntry;
+  entryId?: string;
+  entryOtNumber?: string;
+  entryTitulo?: string | null;
+  entryEstado?: EstadoAgenda;
+  entryClienteNombre?: string;
+  entryTipoServicio?: string;
+  entrySistemaNombre?: string | null;
+  entryNotas?: string | null;
   isStart?: boolean;
   isEnd?: boolean;
   entryCount?: number;
   isToday?: boolean;
+  isFeriado?: boolean;
   showText?: boolean;
   compact?: boolean;
-  selectedCellKey: string | null;
+  isSelected?: boolean;
+  inSelectionRange?: boolean;
   rowHeight: string;
-  onClick?: () => void;
+  // Entry object only needed for draggable data — passed by ref, not compared in memo
+  entryRef?: AgendaEntry;
+  onClick?: (e?: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
-export const AgendaGridCell: FC<AgendaGridCellProps> = ({
-  ingenieroId,
-  fecha,
-  quarter,
-  entry,
-  isStart,
-  isEnd,
-  entryCount = 0,
-  isToday,
-  showText,
-  compact,
-  selectedCellKey,
-  rowHeight,
-  onClick,
+/** Lightweight cell — only re-renders when its own data changes. */
+export const AgendaGridCell = memo<AgendaGridCellProps>(({
+  ingenieroId, fecha, quarter,
+  entryId, entryOtNumber, entryTitulo, entryEstado, entryClienteNombre,
+  entryTipoServicio, entrySistemaNombre, entryNotas,
+  isStart, isEnd, entryCount = 0,
+  isToday, isFeriado, showText, compact, isSelected, inSelectionRange, rowHeight,
+  entryRef, onClick, onContextMenu,
 }) => {
+  const hasEntry = !!entryId;
   const droppableId = `cell:${ingenieroId}:${fecha}:${quarter}`;
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id: droppableId });
 
   // Only the start cell of an entry is draggable
-  const draggableId = entry && isStart ? `entry:${entry.id}` : `noop:${droppableId}`;
+  const draggableId = hasEntry && isStart ? `entry:${entryId}` : `noop:${droppableId}`;
   const { setNodeRef: setDragRef, attributes, listeners, isDragging } = useDraggable({
     id: draggableId,
-    data: { type: 'entry', entry },
-    disabled: !entry || !isStart,
+    data: { type: 'entry', entry: entryRef },
+    disabled: !hasEntry || !isStart,
   });
 
-  const isSelected = selectedCellKey === `${ingenieroId}:${fecha}:${quarter}`;
   const hasMultiple = entryCount > 1;
-
-  const cancelled = entry?.estadoAgenda === 'cancelado';
-  const bg = entry ? CELL_BG[entry.estadoAgenda] : '';
-  const text = entry ? CELL_TEXT[entry.estadoAgenda] : '';
-  const rounded = entry
+  const cancelled = entryEstado === 'cancelado';
+  const bg = entryEstado ? CELL_BG[entryEstado] : '';
+  const text = entryEstado ? CELL_TEXT[entryEstado] : '';
+  const rounded = hasEntry
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';
 
@@ -79,7 +83,6 @@ export const AgendaGridCell: FC<AgendaGridCellProps> = ({
     ? `${isDayEnd ? 'border-r border-r-slate-300' : 'border-r border-slate-100/30'} border-b border-b-slate-200`
     : `${isDayEnd ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-100/50'} border-b-2 border-b-slate-200`;
 
-  // Merge refs for combined draggable+droppable
   const setNodeRef = useCallback((node: HTMLElement | null) => {
     setDropRef(node);
     setDragRef(node);
@@ -88,33 +91,52 @@ export const AgendaGridCell: FC<AgendaGridCellProps> = ({
   return (
     <div
       ref={setNodeRef}
-      {...(entry && isStart ? { ...listeners, ...attributes } : {})}
+      {...(hasEntry && isStart ? { ...listeners, ...attributes } : {})}
       className={`${borderClass} cursor-pointer transition-colors relative
-        ${entry ? bg : 'hover:bg-slate-50'}
+        ${hasEntry ? bg : isFeriado ? 'bg-red-50' : 'hover:bg-slate-50'}
         ${rounded}
-        ${isToday && !entry ? 'bg-teal-50/40' : ''}
+        ${isToday && !hasEntry && !isFeriado ? 'bg-teal-50/40' : ''}
         ${cancelled ? 'opacity-40' : ''}
         ${isSelected ? 'ring-2 ring-inset ring-teal-500 z-10' : ''}
-        ${isOver && !isSelected ? 'ring-2 ring-inset ring-teal-400 bg-teal-50/60' : ''}
+        ${inSelectionRange && !isSelected ? 'bg-teal-100/60 ring-1 ring-inset ring-teal-300' : ''}
+        ${isOver && !isSelected && !inSelectionRange ? 'ring-2 ring-inset ring-teal-400 bg-teal-50/60' : ''}
         ${isDragging ? 'opacity-30' : ''}
-        ${entry && isStart ? 'cursor-grab active:cursor-grabbing' : ''}
+        ${hasEntry && isStart ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
       style={{ height: rowHeight }}
-      onClick={onClick}
-      title={entry ? `OT-${entry.otNumber}\n${entry.clienteNombre}\n${entry.tipoServicio}${entry.sistemaNombre ? `\n${entry.sistemaNombre}` : ''}\n${ESTADO_AGENDA_LABELS[entry.estadoAgenda]}${entry.notas ? `\n${entry.notas}` : ''}${hasMultiple ? `\n(+${entryCount - 1} más)` : ''}` : undefined}
+      onClick={(e) => onClick?.(e)}
+      onContextMenu={onContextMenu}
+      title={hasEntry ? `${entryOtNumber ? `OT-${entryOtNumber}` : entryTitulo || 'Tarea'}\n${entryClienteNombre || ''}${entryTipoServicio ? `\n${entryTipoServicio}` : ''}${entrySistemaNombre ? `\n${entrySistemaNombre}` : ''}\n${ESTADO_AGENDA_LABELS[entryEstado!]}${entryNotas ? `\n${entryNotas}` : ''}${hasMultiple ? `\n(+${entryCount - 1} más)` : ''}` : undefined}
     >
-      {isStart && entry && showText && (
+      {isStart && hasEntry && showText && (
         <span
           className={`text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''}`}
           style={{ lineHeight: rowHeight }}
         >
-          {entry.otNumber}
+          {entryOtNumber || entryTitulo || '—'}
         </span>
       )}
-      {/* Multiple entries indicator — small dot at bottom-right */}
       {hasMultiple && !compact && (
         <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />
       )}
     </div>
   );
-};
+}, (prev, next) => {
+  // Custom comparator — only re-render when visual data changes
+  return (
+    prev.entryId === next.entryId &&
+    prev.entryOtNumber === next.entryOtNumber &&
+    prev.entryEstado === next.entryEstado &&
+    prev.entryTitulo === next.entryTitulo &&
+    prev.isStart === next.isStart &&
+    prev.isEnd === next.isEnd &&
+    prev.entryCount === next.entryCount &&
+    prev.isToday === next.isToday &&
+    prev.isFeriado === next.isFeriado &&
+    prev.isSelected === next.isSelected &&
+    prev.inSelectionRange === next.inSelectionRange &&
+    prev.compact === next.compact &&
+    prev.showText === next.showText &&
+    prev.rowHeight === next.rowHeight
+  );
+});
