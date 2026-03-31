@@ -1037,8 +1037,9 @@ export interface TableCatalogRule {
   valueIfFail: string;
   /** For 'compute': key of the second operand column. */
   operandColumn?: string | null;
-  /** For 'compute': arithmetic operator to apply. targetColumn = sourceColumn {op} operandColumn */
-  computeOperator?: '+' | '-' | '*' | '/' | null;
+  /** For 'compute': arithmetic operator to apply. targetColumn = sourceColumn {op} operandColumn.
+   *  'abs_diff': targetColumn = |sourceColumn - operandColumn/constant| (valor absoluto de la diferencia) */
+  computeOperator?: '+' | '-' | '*' | '/' | 'abs_diff' | null;
 }
 
 // --- Checklist types (para tableType: 'checklist') ---

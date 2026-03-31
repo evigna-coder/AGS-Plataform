@@ -182,6 +182,7 @@ const App: React.FC = () => {
             <ObservationsBillingSection
               readOnly={app.readOnly}
               accionesTomar={app.accionesTomar} setAccionesTomar={app.setAccionesTomar}
+              accionesInternaOnly={app.accionesInternaOnly} setAccionesInternaOnly={app.setAccionesInternaOnly}
               budgets={app.budgets}
               onAddBudget={app.addBudget} onUpdateBudget={app.updateBudget} onRemoveBudget={app.removeBudget}
               esFacturable={app.esFacturable} setEsFacturable={app.setEsFacturable}
@@ -390,6 +391,7 @@ const App: React.FC = () => {
           <ObservationsBillingSection
             readOnly={app.readOnly}
             accionesTomar={app.accionesTomar} setAccionesTomar={app.setAccionesTomar}
+            accionesInternaOnly={app.accionesInternaOnly} setAccionesInternaOnly={app.setAccionesInternaOnly}
             budgets={app.budgets}
             onAddBudget={app.addBudget} onUpdateBudget={app.updateBudget} onRemoveBudget={app.removeBudget}
             esFacturable={app.esFacturable} setEsFacturable={app.setEsFacturable}
@@ -462,7 +464,7 @@ const App: React.FC = () => {
             horaInicio={app.horaInicio} horaFin={app.horaFin}
             horasTrabajadas={app.horasTrabajadas} tiempoViaje={app.tiempoViaje}
             tipoServicio={app.tipoServicio} reporteTecnico={app.reporteTecnico}
-            articulos={app.articulos} accionesTomar={app.accionesTomar}
+            articulos={app.articulos} accionesTomar={app.accionesTomar} accionesInternaOnly={app.accionesInternaOnly}
             budgets={app.budgets}
             esFacturable={app.esFacturable} tieneContrato={app.tieneContrato} esGarantia={app.esGarantia}
             signatureClient={app.signatureClient} signatureEngineer={app.signatureEngineer}

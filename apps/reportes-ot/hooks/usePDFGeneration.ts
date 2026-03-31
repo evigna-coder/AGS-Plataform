@@ -482,6 +482,23 @@ export const usePDFGeneration = (
       console.log("Guardado OK");
       console.log("Reporte guardado correctamente");
 
+      // Crear ticket interno si las acciones son solo para AGS
+      if (finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
+        try {
+          await firebase.createTicketFromAcciones({
+            otNumber,
+            razonSocial: finalizedData.razonSocial || '',
+            sistema: finalizedData.sistema || '',
+            moduloModelo: finalizedData.moduloModelo || '',
+            codigoInternoCliente: finalizedData.codigoInternoCliente || '',
+            accionesTomar: finalizedData.accionesTomar,
+          });
+          console.log("✅ Ticket interno creado desde acciones a tomar");
+        } catch (e) {
+          console.warn("⚠️ No se pudo crear ticket interno:", e);
+        }
+      }
+
       // Marcar bloqueo de edición (igual que en confirmClientAndFinalize)
       setClientConfirmed(true);
       setSignatureClient(clientSignature);
@@ -572,6 +589,23 @@ export const usePDFGeneration = (
       await firebase.saveReport(otNumber, finalizedData);
       saveSuccess = true;
       console.log("Reporte guardado exitosamente en Firestore");
+
+      // Crear ticket interno si las acciones son solo para AGS
+      if (finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
+        try {
+          await firebase.createTicketFromAcciones({
+            otNumber,
+            razonSocial: finalizedData.razonSocial || '',
+            sistema: finalizedData.sistema || '',
+            moduloModelo: finalizedData.moduloModelo || '',
+            codigoInternoCliente: finalizedData.codigoInternoCliente || '',
+            accionesTomar: finalizedData.accionesTomar,
+          });
+          console.log("✅ Ticket interno creado desde acciones a tomar");
+        } catch (e) {
+          console.warn("⚠️ No se pudo crear ticket interno:", e);
+        }
+      }
 
       // Marcar bloqueo de edición solo si el guardado fue exitoso
       setClientConfirmed(true);

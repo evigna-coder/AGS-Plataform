@@ -4,6 +4,8 @@ interface ObservationsBillingSectionProps {
   readOnly: boolean;
   accionesTomar: string;
   setAccionesTomar: (v: string) => void;
+  accionesInternaOnly: boolean;
+  setAccionesInternaOnly: (v: boolean) => void;
   budgets: string[];
   onAddBudget: () => void;
   onUpdateBudget: (index: number, value: string) => void;
@@ -19,6 +21,7 @@ interface ObservationsBillingSectionProps {
 export const ObservationsBillingSection: React.FC<ObservationsBillingSectionProps> = ({
   readOnly,
   accionesTomar, setAccionesTomar,
+  accionesInternaOnly, setAccionesInternaOnly,
   budgets, onAddBudget, onUpdateBudget, onRemoveBudget,
   esFacturable, setEsFacturable,
   tieneContrato, setTieneContrato,
@@ -27,7 +30,24 @@ export const ObservationsBillingSection: React.FC<ObservationsBillingSectionProp
   return (
     <div className="no-print grid grid-cols-1 md:grid-cols-12 gap-6 mb-8 items-start">
       <div className="md:col-span-8">
-        <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">OBSERVACIONES / ACCIONES A TOMAR</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[10px] font-black text-slate-400 uppercase">OBSERVACIONES / ACCIONES A TOMAR</label>
+          <label className={`flex items-center gap-1.5 text-[10px] font-bold ${
+            readOnly ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer text-amber-700'
+          }`}>
+            <input
+              type="checkbox"
+              checked={accionesInternaOnly}
+              onChange={e => {
+                if (readOnly) return;
+                setAccionesInternaOnly(e.target.checked);
+              }}
+              disabled={readOnly}
+              className="accent-amber-600 w-3.5 h-3.5"
+            />
+            Solo AGS (no imprime en reporte)
+          </label>
+        </div>
         <textarea
           value={accionesTomar}
           onChange={e => {

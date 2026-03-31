@@ -134,7 +134,7 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
   };
   const isCompute = d.operator === 'compute';
   const isVsSpec = d.operator === 'vs_spec';
-  const computeOps: NonNullable<TableCatalogRule['computeOperator']>[] = ['+', '-', '*', '/'];
+  const computeOps: NonNullable<TableCatalogRule['computeOperator']>[] = ['+', '-', '*', '/', 'abs_diff'];
 
   // Auto-detectar columnas al abrir si están vacías
   useEffect(() => {
@@ -153,7 +153,8 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
 
   const handleSave = () => {
     if (isVsSpec && (!d.sourceColumn || !d.specColumn || !d.targetColumn)) return;
-    if (isCompute && (!d.sourceColumn || !d.operandColumn || !d.targetColumn)) return;
+    if (isCompute && (!d.sourceColumn || !d.targetColumn)) return;
+    if (isCompute && !d.operandColumn && (d.factoryThreshold == null || d.factoryThreshold === '')) return;
     onSave(d);
   };
 
@@ -186,16 +187,30 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operación</label>
               <select value={d.computeOperator ?? '-'} onChange={e => setD({ ...d, computeOperator: e.target.value as TableCatalogRule['computeOperator'] })}
                 className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold">
-                {computeOps.map(op => <option key={op} value={op}>{op === '+' ? '+ (suma)' : op === '-' ? '- (resta)' : op === '*' ? '× (multiplica)' : '÷ (divide)'}</option>)}
+                {computeOps.map(op => <option key={op} value={op}>{op === '+' ? '+ (suma)' : op === '-' ? '− (resta)' : op === '*' ? '× (multiplica)' : op === '/' ? '÷ (divide)' : '|A−B| (desvío absoluto)'}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Columna B</label>
-              <select value={d.operandColumn ?? ''} onChange={e => setD({ ...d, operandColumn: e.target.value })}
-                className={`w-full border rounded-lg px-2 py-1.5 text-sm ${!d.operandColumn ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}>
-                <option value="">Seleccionar…</option>
-                {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Operando B</label>
+              <div className="flex gap-1.5 mb-1">
+                <button type="button" onClick={() => setD({ ...d, operandColumn: '', factoryThreshold: '' })}
+                  className={`text-[10px] px-2 py-0.5 rounded ${!d.operandColumn && d.operandColumn !== undefined ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  Constante
+                </button>
+                <button type="button" onClick={() => setD({ ...d, operandColumn: columns[0]?.key ?? '', factoryThreshold: '' })}
+                  className={`text-[10px] px-2 py-0.5 rounded ${d.operandColumn ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  Columna
+                </button>
+              </div>
+              {d.operandColumn ? (
+                <select value={d.operandColumn} onChange={e => setD({ ...d, operandColumn: e.target.value })}
+                  className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+                  {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+              ) : (
+                <Input placeholder="ej: 40" value={String(d.factoryThreshold ?? '')}
+                  onChange={e => setD({ ...d, factoryThreshold: e.target.value, operandColumn: null })} />
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -213,9 +228,11 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
                 onChange={e => setD({ ...d, unit: e.target.value || null })} />
             </div>
           </div>
-          {d.sourceColumn && d.operandColumn && d.targetColumn && (
+          {d.sourceColumn && (d.operandColumn || d.factoryThreshold) && d.targetColumn && (
             <p className="text-[10px] text-purple-600 bg-purple-100 rounded px-2 py-1">
-              {columns.find(c => c.key === d.targetColumn)?.label} = {columns.find(c => c.key === d.sourceColumn)?.label} {d.computeOperator ?? '-'} {columns.find(c => c.key === d.operandColumn)?.label}
+              {columns.find(c => c.key === d.targetColumn)?.label} = {d.computeOperator === 'abs_diff' ? '|' : ''}
+              {columns.find(c => c.key === d.sourceColumn)?.label} {d.computeOperator === 'abs_diff' ? '−' : d.computeOperator ?? '−'} {d.operandColumn ? columns.find(c => c.key === d.operandColumn)?.label : d.factoryThreshold}
+              {d.computeOperator === 'abs_diff' ? '|' : ''}
             </p>
           )}
         </div>

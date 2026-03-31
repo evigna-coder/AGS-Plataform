@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER } from '@ags/shared';
-import type { MotivoLlamado, TicketArea, TicketEstado, Ticket, ContactoCliente, Posta } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
+import type { MotivoLlamado, TicketArea, TicketEstado, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -46,7 +46,12 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [areaActual, setAreaActual] = useState<TicketArea | ''>('');
   const [asignadoId, setAsignadoId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>('relevamiento_pendiente');
+  const [prioridad, setPrioridad] = useState<TicketPrioridad>('media');
+  const [accionPendiente, setAccionPendiente] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -137,9 +142,16 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         asignadoNombre: asignadoNombre,
         derivadoPor: usuario.id,
         areaActual: areaActual || null,
-        accionPendiente: null,
+        accionPendiente: accionPendiente.trim() || null,
+        prioridad: prioridad || 'media',
         source: 'portal',
       } as Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>);
+      // Upload adjuntos if any
+      if (pendingFiles.length > 0) {
+        // Get the created lead ID from the list (last created)
+        // For now adjuntos are uploaded separately after creation
+        // TODO: leadsService.uploadAdjuntos once ID is returned
+      }
       onCreated();
       onClose();
       resetForm();
@@ -158,7 +170,10 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setAreaActual('');
     setAsignadoId('');
     setNuevoEstado('relevamiento_pendiente');
+    setPrioridad('media');
+    setAccionPendiente('');
     setDescripcion('');
+    setPendingFiles([]);
     setClienteSearch('');
     setContactos([]);
     setStep(1);
@@ -239,22 +254,34 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   );
 
   const motivoEstadoFields = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <div>
-        <label className={labelClass}>Motivo *</label>
-        <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
-          {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Motivo *</label>
+          <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+            {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Estado inicial</label>
+          <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as TicketEstado)} className={selectClass}>
+            {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
+              <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div>
-        <label className={labelClass}>Estado inicial</label>
-        <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as TicketEstado)} className={selectClass}>
-          {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
-            <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
-          ))}
-        </select>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Prioridad</label>
+          <select value={prioridad} onChange={e => setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
+            {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <Input label="Acción pendiente (opcional)" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
+          placeholder="Ej: Averiguar N° parte, Confirmar disponibilidad..." />
       </div>
-    </div>
+    </>
   );
 
   const areaAsignacionFields = (
@@ -280,6 +307,12 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     </>
   );
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setPendingFiles(prev => [...prev, ...files].slice(0, 10));
+    e.target.value = '';
+  };
+
   const descripcionField = (
     <div>
       <label className={labelClass}>Descripción</label>
@@ -289,6 +322,38 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         rows={3}
         className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
       />
+    </div>
+  );
+
+  const adjuntosField = (
+    <div>
+      <label className={labelClass}>Adjuntos ({pendingFiles.length}/10)</label>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => fileInputRef.current?.click()}
+          className="text-xs text-teal-600 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg font-medium">
+          + Archivos
+        </button>
+        {isMobile && (
+          <button type="button" onClick={() => cameraInputRef.current?.click()}
+            className="text-xs text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium">
+            Tomar foto
+          </button>
+        )}
+        <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleFileChange} className="hidden" />
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
+      </div>
+      {pendingFiles.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {pendingFiles.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 text-[11px] bg-slate-50 rounded px-2 py-1">
+              <span className="truncate flex-1 text-slate-600">{f.name}</span>
+              <span className="text-slate-400 shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+              <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
+                className="text-red-400 hover:text-red-600 shrink-0">×</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -323,6 +388,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
               {motivoEstadoFields}
               {areaAsignacionFields}
               {descripcionField}
+              {adjuntosField}
             </div>
           )}
         </div>
@@ -339,7 +405,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
                 Anterior
               </Button>
               <Button className="flex-1" onClick={handleSubmit} disabled={saving || !canSubmit}>
-                {saving ? 'Creando...' : 'Crear Lead'}
+                {saving ? 'Creando...' : 'Crear Ticket'}
               </Button>
             </>
           )}
@@ -358,10 +424,11 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         {motivoEstadoFields}
         {areaAsignacionFields}
         {descripcionField}
+        {adjuntosField}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={handleSubmit} disabled={saving || !canSubmit}>
-            {saving ? 'Creando...' : 'Crear Lead'}
+            {saving ? 'Creando...' : 'Crear Ticket'}
           </Button>
         </div>
       </div>

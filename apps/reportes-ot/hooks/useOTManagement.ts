@@ -75,6 +75,7 @@ interface DuplicateNewState {
   emailPrincipal: string;
   budgets: string[];
   accionesTomar: string;
+  accionesInternaOnly: boolean;
   reporteTecnico: string;
   protocolTemplateId: string | null;
   protocolData: ProtocolData | null;
@@ -142,6 +143,7 @@ export const useOTManagement = (
     emailPrincipal,
     reporteTecnico,
     accionesTomar,
+    accionesInternaOnly,
     articulos,
     protocolTemplateId,
     protocolData,
@@ -178,6 +180,7 @@ export const useOTManagement = (
     setTiempoViaje,
     setReporteTecnico,
     setAccionesTomar,
+    setAccionesInternaOnly,
     setArticulos,
     setSignatureEngineer,
     setSignatureClient,
@@ -257,6 +260,7 @@ export const useOTManagement = (
         setTiempoViaje(data.tiempoViaje || '');
         setReporteTecnico(data.reporteTecnico || '');
         setAccionesTomar(data.accionesTomar || '');
+        setAccionesInternaOnly(data.accionesInternaOnly !== false); // default true
         const articulosData = (data.articulos || []).map((p: Part) => ({
           ...p,
           id: p.id || uid()
@@ -386,6 +390,7 @@ export const useOTManagement = (
     setTiempoViaje('');
     setReporteTecnico('');
     setAccionesTomar('');
+    setAccionesInternaOnly(true);
     setArticulos([]);
     setEmailPrincipal('');
     setSignatureEngineer(null);
@@ -476,6 +481,7 @@ export const useOTManagement = (
       emailPrincipal: options.copyClientEquipment ? emailPrincipal : '',
       budgets: options.copyBudgets ? [...budgets] : [''],
       accionesTomar: options.copyObservations ? accionesTomar : '',
+      accionesInternaOnly: options.copyObservations ? accionesInternaOnly : true,
       reporteTecnico: options.copyReportTecnico ? reporteTecnico : '',
       protocolTemplateId: dupProtocolTemplateId,
       protocolData: dupProtocolData,
@@ -515,6 +521,7 @@ export const useOTManagement = (
     setTiempoViaje(newState.tiempoViaje);
     setReporteTecnico(newState.reporteTecnico);
     setAccionesTomar(newState.accionesTomar);
+    setAccionesInternaOnly(newState.accionesInternaOnly);
     setArticulos(newState.articulos);
     setEmailPrincipal(newState.emailPrincipal);
     setSignatureEngineer(null);

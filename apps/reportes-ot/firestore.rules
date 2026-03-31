@@ -67,6 +67,7 @@ service cloud.firestore {
              && (!('tiempoViaje' in data) || data.tiempoViaje == null || data.tiempoViaje is string)
              && (!('reporteTecnico' in data) || data.reporteTecnico == null || (data.reporteTecnico is string && isValidStringSize(data.reporteTecnico, 50000)))
              && (!('accionesTomar' in data) || data.accionesTomar == null || data.accionesTomar is string)
+             && (!('accionesInternaOnly' in data) || data.accionesInternaOnly == null || data.accionesInternaOnly is bool)
              && (!('articulos' in data) || data.articulos == null || (data.articulos is list && data.articulos.size() <= 100))
              && (!('emailPrincipal' in data) || data.emailPrincipal == null || data.emailPrincipal is string)
              && (!('signatureEngineer' in data) || data.signatureEngineer == null || (data.signatureEngineer is string && isValidStringSize(data.signatureEngineer, 100000)))
@@ -141,12 +142,11 @@ service cloud.firestore {
                         && (!('status' in request.resource.data) || request.resource.data.status == 'BORRADOR' || request.resource.data.status == 'FINALIZADO')
                       )
                       ||
-                      // Caso 4: Actualización de metadata en FINALIZADO (solo updatedAt)
+                      // Caso 4: Actualización de metadata en FINALIZADO (updatedAt, pdfUrl, pdfGeneratedAt)
                       (
                         'status' in resource.data
                         && resource.data.status == 'FINALIZADO'
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
-                        && request.resource.data.updatedAt is string
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt', 'pdfUrl', 'pdfGeneratedAt'])
                       )
                       ||
                       // Caso 5: Permitir actualización completa cuando se finaliza (para desarrollo sin auth)
@@ -403,6 +403,11 @@ service cloud.firestore {
 
     // ========== COUNTERS (OT number generation) ==========
     match /_counters/{counterId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ========== TICKETS INTERNOS ==========
+    match /ticketsInternos/{ticketId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 

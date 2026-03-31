@@ -61,7 +61,7 @@ export function useAppLogic(
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
-    accionesTomar, articulos, signatureEngineer, aclaracionEspecialista,
+    accionesTomar, accionesInternaOnly, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, certificadosIngenieroSeleccionados
   } = formState;
@@ -176,7 +176,7 @@ export function useAppLogic(
     setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
     setEmailPrincipal, setSistema, setModuloModelo, setModuloMarca, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
-    setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar,
+    setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar, setAccionesInternaOnly,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
     setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados
@@ -797,7 +797,7 @@ export function useAppLogic(
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje,
-    reporteTecnico, accionesTomar, articulos,
+    reporteTecnico, accionesTomar, accionesInternaOnly, articulos,
     signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
@@ -820,7 +820,7 @@ export function useAppLogic(
     setEmailPrincipal, setSistema, setModuloModelo, setModuloMarca, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje,
-    setReporteTecnico, setAccionesTomar,
+    setReporteTecnico, setAccionesTomar, setAccionesInternaOnly,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
     setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados,

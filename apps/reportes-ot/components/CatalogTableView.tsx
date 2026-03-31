@@ -288,7 +288,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
   // Extraer reglas compute (operaciones aritméticas entre columnas)
   // Nota: computeOperator puede ser null en reglas legacy — se trata como resta por defecto
-  const computeRules = (table.validationRules ?? []).filter(r => r.operator === 'compute' && r.operandColumn);
+  const computeRules = (table.validationRules ?? []).filter(r => r.operator === 'compute' && (r.operandColumn || r.factoryThreshold != null));
 
   /** Valor de fábrica para cualquier columna y fila (del template) */
   const getFactoryValue = (rowId: string, colKey: string): string => {
@@ -329,16 +329,18 @@ export const CatalogTableView: React.FC<Props> = ({
     const computed = new Map<string, string>();
     for (const rule of computeRules) {
       const isSourceChange = changedColKey === rule.sourceColumn;
-      const isOperandChange = changedColKey === rule.operandColumn;
+      const isOperandChange = rule.operandColumn ? changedColKey === rule.operandColumn : false;
       if (!isSourceChange && !isOperandChange) continue;
 
       const rawA = isSourceChange ? changedValue : (selection.filledData[rowId]?.[rule.sourceColumn] ?? '');
-      const rawB = isOperandChange ? changedValue : (selection.filledData[rowId]?.[rule.operandColumn!] ?? '');
+      // Operando B: otra columna o constante (factoryThreshold)
+      const rawB = rule.operandColumn
+        ? (isOperandChange ? changedValue : (selection.filledData[rowId]?.[rule.operandColumn] ?? ''))
+        : String(rule.factoryThreshold ?? '');
       const a = parseFloat(rawA.replace(',', '.'));
       const b = parseFloat(rawB.replace(',', '.'));
 
       if (isNaN(a) || isNaN(b)) {
-        // Si algún operando está vacío, limpiar el resultado computado
         onChangeData(selection.tableId, rowId, rule.targetColumn, '');
         computed.set(rule.targetColumn, '');
         continue;
@@ -350,11 +352,11 @@ export const CatalogTableView: React.FC<Props> = ({
         case '-': result = a - b; break;
         case '*': result = a * b; break;
         case '/': result = b !== 0 ? a / b : NaN; break;
+        case 'abs_diff': result = Math.abs(a - b); break;
         default: result = a - b; break;
       }
       if (isNaN(result)) continue;
 
-      // Round to reasonable precision to avoid floating point noise
       const rounded = Math.round(result * 1e6) / 1e6;
       const strResult = String(rounded);
       onChangeData(selection.tableId, rowId, rule.targetColumn, strResult);

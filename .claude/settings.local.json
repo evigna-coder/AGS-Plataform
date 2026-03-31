@@ -98,7 +98,8 @@
       "Bash(sed -i 's/Derivar Lead/Derivar Ticket/g; s/Derivar Ticket/Derivar Ticket/g' apps/portal-ingeniero/src/components/leads/DerivarLeadModal.tsx)",
       "Bash(sed -i 's/Eliminar este lead/Eliminar este ticket/g' apps/portal-ingeniero/src/pages/LeadDetailPage.tsx)",
       "Bash(grep -n \"col.type !== ''text_input''\" apps/reportes-ot/components/CatalogTableView.tsx)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(pnpm --filter reportes-ot build)"
     ]
   }
 }

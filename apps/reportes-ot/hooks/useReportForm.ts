@@ -44,6 +44,7 @@ export interface ReportFormState {
   // Reporte
   reporteTecnico: string;
   accionesTomar: string;
+  accionesInternaOnly: boolean;
   articulos: Part[];
 
   // Firmas
@@ -92,6 +93,7 @@ export interface ReportState {
   tiempoViaje: string;
   reporteTecnico: string;
   accionesTomar: string;
+  accionesInternaOnly: boolean;
   articulos: Part[];
   emailPrincipal: string;
   signatureEngineer: string | null;
@@ -140,6 +142,7 @@ export interface UseReportFormReturn {
     setTiempoViaje: (value: string) => void;
     setReporteTecnico: (value: string) => void;
     setAccionesTomar: (value: string) => void;
+    setAccionesInternaOnly: (value: boolean) => void;
     setArticulos: (value: Part[]) => void;
     setSignatureEngineer: (value: string | null) => void;
     setAclaracionEspecialista: (value: string) => void;
@@ -191,6 +194,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [tiempoViaje, setTiempoViaje] = useState('');
   const [reporteTecnico, setReporteTecnico] = useState('');
   const [accionesTomar, setAccionesTomar] = useState('');
+  const [accionesInternaOnly, setAccionesInternaOnly] = useState(true);
   const [articulos, setArticulos] = useState<Part[]>([]);
   const [emailPrincipal, setEmailPrincipal] = useState('');
   const [signatureEngineer, setSignatureEngineer] = useState<string | null>(null);
@@ -226,7 +230,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     razonSocial, contacto, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
-    accionesTomar, articulos, emailPrincipal, signatureEngineer,
+    accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, certificadosIngenieroSeleccionados
@@ -235,7 +239,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     razonSocial, contacto, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
-    accionesTomar, articulos, emailPrincipal, signatureEngineer,
+    accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, certificadosIngenieroSeleccionados
@@ -271,6 +275,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     tiempoViaje,
     reporteTecnico,
     accionesTomar,
+    accionesInternaOnly,
     articulos,
     signatureEngineer,
     aclaracionEspecialista,
@@ -315,6 +320,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setTiempoViaje,
       setReporteTecnico,
       setAccionesTomar,
+      setAccionesInternaOnly,
       setArticulos,
       setSignatureEngineer,
       setAclaracionEspecialista,

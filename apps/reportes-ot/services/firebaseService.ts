@@ -472,6 +472,32 @@ export class FirebaseService {
     }
   }
 
+  /**
+   * Crea un ticket interno a partir de las acciones a tomar del reporte.
+   * Se crea al finalizar el reporte cuando accionesInternaOnly es true.
+   */
+  async createTicketFromAcciones(data: {
+    otNumber: string;
+    razonSocial: string;
+    sistema: string;
+    moduloModelo: string;
+    codigoInternoCliente: string;
+    accionesTomar: string;
+  }): Promise<string> {
+    const docRef = await addDoc(collection(db, 'ticketsInternos'), {
+      otNumber: data.otNumber,
+      razonSocial: data.razonSocial,
+      sistema: data.sistema,
+      moduloModelo: data.moduloModelo,
+      codigoInternoCliente: data.codigoInternoCliente,
+      observacion: data.accionesTomar,
+      dirigidoA: 'soporte',
+      estado: 'pendiente',
+      createdAt: new Date().toISOString(),
+    });
+    return docRef.id;
+  }
+
   /** Descarga un archivo de Storage como Blob usando el SDK (sin CORS issues). */
   async downloadStorageBlob(url: string): Promise<Blob> {
     // Extraer el path del archivo de la URL de Firebase Storage

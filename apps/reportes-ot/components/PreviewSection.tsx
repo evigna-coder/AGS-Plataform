@@ -75,6 +75,7 @@ interface PreviewSectionProps {
   reporteTecnico: string;
   articulos: Part[];
   accionesTomar: string;
+  accionesInternaOnly: boolean;
   budgets: string[];
   esFacturable: boolean;
   tieneContrato: boolean;
@@ -101,7 +102,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
     otNumber, razonSocial, contacto, fullDireccion,
     sistema, codigoInternoCliente, moduloModelo, moduloDescripcion, moduloMarca, moduloSerie,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje,
-    tipoServicio, reporteTecnico, articulos, accionesTomar, budgets,
+    tipoServicio, reporteTecnico, articulos, accionesTomar, accionesInternaOnly, budgets,
     esFacturable, tieneContrato, esGarantia,
     signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
     protocolSelections, instrumentosSeleccionados, allPublishedTables, allProjects,
@@ -252,7 +253,11 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
               <div className="grid grid-cols-12 gap-3 mb-2">
                 <div className="col-span-8 border border-slate-200 p-2.5 rounded-lg bg-white">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase mb-1 border-b border-slate-200 pb-0.5">OBSERVACIONES / ACCIONES A TOMAR</h4>
-                  <p className="text-[11px] italic text-slate-700 leading-tight">{accionesTomar || "Sin observaciones pendientes."}</p>
+                  <p className="text-[11px] italic text-slate-700 leading-tight">
+                    {accionesInternaOnly
+                      ? "Sin observaciones pendientes."
+                      : (accionesTomar || "Sin observaciones pendientes.")}
+                  </p>
                 </div>
                 <div className="col-span-4 border border-slate-200 p-2.5 rounded-lg bg-white flex flex-col">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase mb-1 border-b border-slate-200 pb-0.5">Facturación</h4>
