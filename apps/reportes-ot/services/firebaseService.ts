@@ -473,7 +473,7 @@ export class FirebaseService {
   }
 
   /**
-   * Crea un ticket interno a partir de las acciones a tomar del reporte.
+   * Crea un ticket (lead) interno a partir de las acciones a tomar del reporte.
    * Se crea al finalizar el reporte cuando accionesInternaOnly es true.
    */
   async createTicketFromAcciones(data: {
@@ -484,16 +484,31 @@ export class FirebaseService {
     codigoInternoCliente: string;
     accionesTomar: string;
   }): Promise<string> {
-    const docRef = await addDoc(collection(db, 'ticketsInternos'), {
-      otNumber: data.otNumber,
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'leads'), {
       razonSocial: data.razonSocial,
-      sistema: data.sistema,
-      moduloModelo: data.moduloModelo,
-      codigoInternoCliente: data.codigoInternoCliente,
-      observacion: data.accionesTomar,
-      dirigidoA: 'soporte',
-      estado: 'pendiente',
-      createdAt: new Date().toISOString(),
+      contacto: '',
+      email: '',
+      telefono: '',
+      motivoLlamado: 'soporte',
+      motivoContacto: `[OT ${data.otNumber}] ${data.sistema} - ${data.moduloModelo}`,
+      descripcion: data.accionesTomar,
+      estado: 'pendiente_info',
+      areaActual: 'soporte',
+      asignadoA: null,
+      asignadoNombre: null,
+      derivadoPor: null,
+      prioridad: null,
+      clienteId: null,
+      contactoId: null,
+      sistemaId: null,
+      postas: [],
+      otIds: [data.otNumber],
+      presupuestosIds: [],
+      adjuntos: [],
+      source: 'manual',
+      createdAt: now,
+      updatedAt: now,
     });
     return docRef.id;
   }
