@@ -274,10 +274,10 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Prioridad</label>
+          <label className={labelClass}>Próximo contacto</label>
           <select value={prioridad} onChange={e => setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
-            {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v} — {TICKET_PRIORIDAD_DIAS[k as TicketPrioridad]}d</option>
+            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+              <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
             ))}
           </select>
         </div>

@@ -37,7 +37,7 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate, mod
               {Object.entries(LEAD_ESTADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </InfoRow>
-          <InfoRow label="Prioridad">
+          <InfoRow label="Próximo contacto">
             <select value={lead.prioridad || ''} onChange={e => {
               const p = e.target.value as TicketPrioridad | '';
               if (!p) { onFieldUpdate?.('prioridad', null); return; }
@@ -48,8 +48,8 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate, mod
             }}
               className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               <option value="">Sin definir</option>
-              {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v} — {TICKET_PRIORIDAD_DIAS[k as TicketPrioridad]}d</option>
+              {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+                <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
               ))}
             </select>
           </InfoRow>

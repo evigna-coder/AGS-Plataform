@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
+import type { TicketPrioridad } from '@ags/shared';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -21,8 +22,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const [areaDestino, setAreaDestino] = useState<LeadArea | ''>(lead.areaActual || '');
   const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
-  const [prioridad, setPrioridad] = useState<LeadPrioridad | ''>(lead.prioridad || '');
-  const [proximoContacto, setProximoContacto] = useState(lead.proximoContacto || '');
+  const [prioridad, setPrioridad] = useState<TicketPrioridad>(lead.prioridad as TicketPrioridad || 'normal');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -52,19 +52,20 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         deUsuarioNombre: usuario.displayName,
         aUsuarioId: destinatarioId || '',
         aUsuarioNombre: destNombre,
-        aArea: areaDestino || undefined,
-        comentario: comentario.trim() || undefined,
         estadoAnterior: lead.estado,
         estadoNuevo: nuevoEstado,
-        accionRequerida: accionRequerida.trim() || undefined,
+        ...(areaDestino ? { aArea: areaDestino } : {}),
+        ...(comentario.trim() ? { comentario: comentario.trim() } : {}),
+        ...(accionRequerida.trim() ? { accionRequerida: accionRequerida.trim() } : {}),
       };
       await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null, {
-        prioridad: prioridad || null,
-        proximoContacto: proximoContacto || null,
+        prioridad,
+        proximoContacto: (() => { const d = new Date(); d.setDate(d.getDate() + TICKET_PRIORIDAD_DIAS[prioridad]); return d.toISOString().split('T')[0]; })(),
       });
       onDerived();
-    } catch {
-      alert('Error al derivar el lead');
+    } catch (err: any) {
+      console.error('Error derivando ticket:', err);
+      alert(`Error al derivar: ${err?.message || 'Error desconocido'}`);
     } finally {
       setSaving(false);
     }
@@ -111,20 +112,14 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Prioridad</label>
-            <select value={prioridad} onChange={e => setPrioridad(e.target.value as LeadPrioridad | '')}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-              <option value="">Sin definir</option>
-              {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
-            <input type="date" value={proximoContacto} onChange={e => setProximoContacto(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          </div>
+        <div>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
+          <select value={prioridad} onChange={e => setPrioridad(e.target.value as TicketPrioridad)}
+            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+              <option key={k} value={k}>{dias <= 4 ? `${dias * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+            ))}
+          </select>
         </div>
 
         <div>

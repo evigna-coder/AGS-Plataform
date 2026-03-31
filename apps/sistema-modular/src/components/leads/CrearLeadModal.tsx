@@ -38,12 +38,12 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
           </div>
         )}
 
-        {/* Prioridad */}
+        {/* Próximo contacto (define prioridad) */}
         <div>
-          <label className={labelClass}>Prioridad</label>
+          <label className={labelClass}>Próximo contacto</label>
           <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
-            {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v} — {TICKET_PRIORIDAD_DIAS[k as TicketPrioridad]} días</option>
+            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+              <option key={k} value={k}>{dias <= 4 ? `${dias * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
             ))}
           </select>
         </div>
