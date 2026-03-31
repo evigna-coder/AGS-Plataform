@@ -4,7 +4,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketEstado, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
 interface Props {
@@ -46,7 +46,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [areaActual, setAreaActual] = useState<TicketArea | ''>('');
   const [asignadoId, setAsignadoId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>('relevamiento_pendiente');
-  const [prioridad, setPrioridad] = useState<TicketPrioridad>('media');
+  const [prioridad, setPrioridad] = useState<TicketPrioridad>('normal');
   const [accionPendiente, setAccionPendiente] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -143,7 +143,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         derivadoPor: usuario.id,
         areaActual: areaActual || null,
         accionPendiente: accionPendiente.trim() || null,
-        prioridad: prioridad || 'media',
+        prioridad: prioridad || 'normal',
+        proximoContacto: (() => { const d = new Date(); d.setDate(d.getDate() + (TICKET_PRIORIDAD_DIAS[prioridad] ?? 7)); return d.toISOString().split('T')[0]; })(),
         source: 'portal',
       } as Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>);
       // Upload adjuntos if any
@@ -170,7 +171,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setAreaActual('');
     setAsignadoId('');
     setNuevoEstado('relevamiento_pendiente');
-    setPrioridad('media');
+    setPrioridad('normal');
     setAccionPendiente('');
     setDescripcion('');
     setPendingFiles([]);
@@ -275,7 +276,9 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         <div>
           <label className={labelClass}>Prioridad</label>
           <select value={prioridad} onChange={e => setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
-            {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v} — {TICKET_PRIORIDAD_DIAS[k as TicketPrioridad]}d</option>
+            ))}
           </select>
         </div>
         <Input label="Acción pendiente (opcional)" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}

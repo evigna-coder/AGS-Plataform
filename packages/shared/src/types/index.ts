@@ -402,18 +402,31 @@ export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
 };
 
 // --- Prioridad ---
-export type TicketPrioridad = 'alta' | 'media' | 'baja';
+export type TicketPrioridad = 'urgente' | 'alta' | 'normal' | 'baja' | 'muy_baja';
 
 export const TICKET_PRIORIDAD_LABELS: Record<TicketPrioridad, string> = {
+  urgente: 'Urgente',
   alta: 'Alta',
-  media: 'Media',
+  normal: 'Normal',
   baja: 'Baja',
+  muy_baja: 'Muy baja',
 };
 
 export const TICKET_PRIORIDAD_COLORS: Record<TicketPrioridad, string> = {
+  urgente: 'bg-red-200 text-red-800',
   alta: 'bg-red-100 text-red-700',
-  media: 'bg-amber-100 text-amber-700',
+  normal: 'bg-amber-100 text-amber-700',
   baja: 'bg-emerald-100 text-emerald-700',
+  muy_baja: 'bg-slate-100 text-slate-600',
+};
+
+/** Días de próximo contacto según prioridad */
+export const TICKET_PRIORIDAD_DIAS: Record<TicketPrioridad, number> = {
+  urgente: 2,
+  alta: 4,
+  normal: 7,
+  baja: 15,
+  muy_baja: 30,
 };
 
 /** Mapeo de UserRole → áreas de ticket que ese rol puede gestionar */
@@ -516,6 +529,7 @@ export interface Posta {
 /** @deprecated Use TicketArea */ export type LeadArea = TicketArea;
 /** @deprecated Use TicketEstado */ export type LeadEstado = TicketEstado;
 /** @deprecated Use TicketPrioridad */ export type LeadPrioridad = TicketPrioridad;
+/** @deprecated */ export const LEAD_PRIORIDAD_LABELS_LEGACY = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 /** @deprecated */ export const LEAD_AREA_LABELS = TICKET_AREA_LABELS;
 /** @deprecated */ export const LEAD_AREA_COLORS = TICKET_AREA_COLORS;
 /** @deprecated */ export const LEAD_PRIORIDAD_LABELS = TICKET_PRIORIDAD_LABELS;

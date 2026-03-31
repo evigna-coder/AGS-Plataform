@@ -105,7 +105,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? '',
     createdBy: data.createdBy ?? null,
     finalizadoAt: data.finalizadoAt?.toDate?.()?.toISOString() ?? null,
-    prioridad: data.prioridad ?? null,
+    prioridad: data.prioridad === 'media' ? 'normal' : (data.prioridad ?? null),
     proximoContacto: data.proximoContacto ?? null,
     valorEstimado: data.valorEstimado ?? null,
   };

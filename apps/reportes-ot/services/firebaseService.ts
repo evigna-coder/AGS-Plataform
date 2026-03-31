@@ -479,6 +479,7 @@ export class FirebaseService {
   async createTicketFromAcciones(data: {
     otNumber: string;
     razonSocial: string;
+    contacto: string;
     sistema: string;
     moduloModelo: string;
     codigoInternoCliente: string;
@@ -487,7 +488,7 @@ export class FirebaseService {
     const now = new Date().toISOString();
     const docRef = await addDoc(collection(db, 'leads'), {
       razonSocial: data.razonSocial,
-      contacto: '',
+      contacto: data.contacto,
       email: '',
       telefono: '',
       motivoLlamado: 'soporte',

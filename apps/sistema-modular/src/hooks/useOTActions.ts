@@ -121,7 +121,7 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
         presupuestosIds: [],
         otIds: [otNumber],
         adjuntos: [],
-        prioridad: 'media',
+        prioridad: 'normal',
         proximoContacto: null,
         valorEstimado: null,
         finalizadoAt: null,

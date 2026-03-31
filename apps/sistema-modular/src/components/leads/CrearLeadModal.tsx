@@ -1,4 +1,4 @@
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketPrioridad } from '@ags/shared';
 import { useCrearLeadForm } from '../../hooks/useCrearLeadForm';
 import { Modal } from '../ui/Modal';
@@ -38,24 +38,14 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
           </div>
         )}
 
-        {/* Prioridad + Próximo contacto */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Prioridad</label>
-            <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
-              {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Próximo contacto (días)</label>
-            <input type="number" min="1" value={h.diasProximoContacto}
-              onChange={e => h.setDiasProximoContacto(e.target.value)} className={selectClass} placeholder="Ej: 10" />
-            {h.diasProximoContacto && parseInt(h.diasProximoContacto) > 0 && (
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                {(() => { const d = new Date(); d.setDate(d.getDate() + parseInt(h.diasProximoContacto)); return d.toLocaleDateString('es-AR'); })()}
-              </span>
-            )}
-          </div>
+        {/* Prioridad */}
+        <div>
+          <label className={labelClass}>Prioridad</label>
+          <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
+            {Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v} — {TICKET_PRIORIDAD_DIAS[k as TicketPrioridad]} días</option>
+            ))}
+          </select>
         </div>
 
         {/* Cliente */}

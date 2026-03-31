@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
+import { LEAD_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -25,7 +25,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const [asignadoA, setAsignadoA] = useState('');
   const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
   const [accionPendiente, setAccionPendiente] = useState('');
-  const [prioridad, setPrioridad] = useState<LeadPrioridad>('media');
+  const [prioridad, setPrioridad] = useState<LeadPrioridad>('normal');
   const [diasProximoContacto, setDiasProximoContacto] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -67,8 +67,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const sistemasFiltrados = clienteId ? sistemas.filter(s => s.clienteId === clienteId) : sistemas;
 
   const calcProximoContacto = (): string | null => {
-    const dias = parseInt(diasProximoContacto);
-    if (isNaN(dias) || dias <= 0) return null;
+    const dias = TICKET_PRIORIDAD_DIAS[prioridad] ?? 7;
     const date = new Date();
     date.setDate(date.getDate() + dias);
     return date.toISOString().split('T')[0];
@@ -115,7 +114,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         asignadoNombre: usuarios.find(u => u.id === asignadoA)?.displayName || null,
         derivadoPor: null, areaActual: areaActual || null,
         accionPendiente: accionPendiente.trim() || null,
-        prioridad: prioridad || 'media',
+        prioridad: prioridad || 'normal',
         proximoContacto: calcProximoContacto(),
         valorEstimado: null, createdBy: usuario?.id,
         finalizadoAt: null, presupuestosIds: [], otIds: [],

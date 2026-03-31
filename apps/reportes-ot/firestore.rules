@@ -146,7 +146,7 @@ service cloud.firestore {
                       (
                         'status' in resource.data
                         && resource.data.status == 'FINALIZADO'
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt', 'pdfUrl', 'pdfGeneratedAt'])
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt', 'pdfUrl', 'pdfGeneratedAt', 'protocolPdfUrl'])
                       )
                       ||
                       // Caso 5: Permitir actualización completa cuando status es FINALIZADO (para desarrollo sin auth)

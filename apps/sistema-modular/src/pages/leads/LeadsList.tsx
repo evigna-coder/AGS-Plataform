@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import type { Lead, LeadEstado, LeadArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
@@ -31,6 +31,7 @@ type SortDir = 'asc' | 'desc';
 const PRIORIDAD_ORDER: Record<string, number> = { alta: 0, media: 1, baja: 2 };
 
 export const LeadsList = () => {
+  const navigate = useNavigate();
   const { usuario } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -272,7 +273,8 @@ export const LeadsList = () => {
                   const daysOpen = getDaysOpen(lead.createdAt);
                   const daysUntil = getDaysUntilContacto(lead.proximoContacto);
                   return (
-                    <tr key={lead.id} className={`hover:bg-slate-50 transition-colors ${getRowStyle(lead)}`}>
+                    <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
+                      onClick={() => navigate(`/leads/${lead.id}`)}>
                       <td className="px-3 py-2 overflow-hidden">
                         <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
                           {lead.razonSocial}

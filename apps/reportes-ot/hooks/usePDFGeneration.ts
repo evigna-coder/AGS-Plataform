@@ -31,17 +31,30 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 const A4_POINTS = { width: 595.28, height: 841.89 };
 
 
+interface GeneratedPDFs {
+  reportBlob: Blob;
+  reportFilename: string;
+  protocolBlob: Blob | null;
+  protocolFilename: string | null;
+}
+
+/** Sanitiza un string para uso como nombre de archivo */
+function sanitizeFilename(s: string): string {
+  return s.replace(/[/\\:*?"<>|]/g, '_').trim();
+}
+
 export interface UsePDFGenerationReturn {
   // Funciones
   generatePDFBlob: () => Promise<Blob>;
+  generatePDFs: () => Promise<GeneratedPDFs>;
   handleFinalSubmit: () => Promise<void>;
   confirmClientAndFinalize: () => Promise<void>;
-  
+
   // Estados
   isGenerating: boolean;
   isPreviewMode: boolean;
   pdfBlob: Blob | null;
-  
+
   // Setters para estados que necesitan ser controlados externamente
   setIsPreviewMode: (value: boolean) => void;
   setPdfBlob: (blob: Blob | null) => void;
@@ -83,11 +96,83 @@ export const usePDFGeneration = (
     setStatus
   } = setters;
 
-  // Función para generar PDF como Blob (Hoja 1 + anexo protocolo si existe)
-  const generatePDFBlob = async (): Promise<Blob> => {
+  // ── Helper: precargar imágenes dentro de un contenedor ──
+  const preloadFromContainer = (container: HTMLElement | null) => {
+    if (!container) return Promise.resolve();
+    return Promise.all(Array.from(container.querySelectorAll('img')).map(img =>
+      new Promise(resolve => {
+        if (img.complete) resolve(null);
+        else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
+      })
+    ));
+  };
+
+  // ── Helper: renderizar un PDF externo a páginas A4 JPEG ──
+  const renderExternalPdfToBlob = async (pdfBytes: ArrayBuffer, label: string): Promise<Blob | null> => {
+    try {
+      const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      const externalDoc = await PDFDocument.create();
+
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const pdfPage = await pdfDoc.getPage(i);
+        const viewport = pdfPage.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d')!;
+        await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+
+        const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const jpgBytes = dataUrlToUint8Array(jpgDataUrl);
+        const jpg = await externalDoc.embedJpg(jpgBytes);
+
+        const page = externalDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+        const imgAspect = canvas.width / canvas.height;
+        const pageAspect = A4_POINTS.width / A4_POINTS.height;
+        let drawW: number, drawH: number, drawX: number, drawY: number;
+        if (imgAspect > pageAspect) {
+          drawW = A4_POINTS.width;
+          drawH = A4_POINTS.width / imgAspect;
+          drawX = 0;
+          drawY = A4_POINTS.height - drawH;
+        } else {
+          drawH = A4_POINTS.height;
+          drawW = A4_POINTS.height * imgAspect;
+          drawX = (A4_POINTS.width - drawW) / 2;
+          drawY = 0;
+        }
+        page.drawImage(jpg, { x: drawX, y: drawY, width: drawW, height: drawH });
+      }
+
+      const numPagesRendered = pdfDoc.numPages;
+      pdfDoc.destroy();
+      console.log(`[PDF][${label}] ${numPagesRendered} página(s) renderizadas OK`);
+      return new Blob([await externalDoc.save()], { type: 'application/pdf' });
+    } catch (err) {
+      console.warn(`[PDF][${label}] Error renderizando PDF:`, err);
+      return null;
+    }
+  };
+
+  // ── Merge helper: combina array de blobs en un solo PDF ──
+  const mergePdfBlobs = async (blobs: Blob[]): Promise<Blob> => {
+    const mergedPdf = await PDFDocument.create();
+    for (const partBlob of blobs) {
+      try {
+        const partDoc = await PDFDocument.load(await partBlob.arrayBuffer());
+        const pages = await mergedPdf.copyPages(partDoc, partDoc.getPageIndices());
+        pages.forEach(p => mergedPdf.addPage(p));
+      } catch (err) {
+        console.warn('[PDF][MERGE] Error cargando parte del PDF, omitiendo:', err);
+      }
+    }
+    return new Blob([await mergedPdf.save()], { type: 'application/pdf' });
+  };
+
+  // ── Generar Hoja 1 (reporte de servicio) como Blob ──
+  const generateReportBlob = async (): Promise<Blob> => {
     const element = document.getElementById('pdf-container');
     if (!element) {
-      // Si estamos en modo móvil, redirigir primero a la vista principal
       if (isModoFirma) {
         const url = new URL(window.location.href);
         url.searchParams.delete('modo');
@@ -97,305 +182,304 @@ export const usePDFGeneration = (
       throw new Error("No se encontró el contenedor para PDF. Por favor, recargue la página.");
     }
 
-    // Asegurar que el elemento esté visible
     element.style.display = 'block';
     element.style.margin = '0 auto';
     element.style.width = '210mm';
-    
-    // Pre-cargar imágenes (especialmente el logo) para mejor calidad
+
     const images = element.querySelectorAll('img');
-    await Promise.all(Array.from(images).map(img => {
-      return new Promise((resolve) => {
-        if (img.complete) {
-          resolve(null);
-        } else {
-          img.onload = () => resolve(null);
-          img.onerror = () => resolve(null); // Continuar aunque falle
-        }
-      });
-    }));
+    await Promise.all(Array.from(images).map(img =>
+      new Promise(resolve => {
+        if (img.complete) resolve(null);
+        else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
+      })
+    ));
 
-    const opt = getPDFOptions(otNumber, element, true); // includeBackgroundColor = true
+    const opt = getPDFOptions(otNumber, element, true);
     console.log("Generando PDF Hoja 1…");
-    const blobHoja1 = await html2pdf().set(opt).from(element).outputPdf('blob');
+    return await html2pdf().set(opt).from(element).outputPdf('blob');
+  };
 
-    // ── Anexos: tablas/protocolos + fotos ──
+  // ── Generar páginas de protocolo como Blob ──
+  const generateProtocolPagesBlob = async (): Promise<Blob | null> => {
     const tablasPdf = document.getElementById('pdf-container-tablas-pdf');
-    const fotosPdf = document.getElementById('pdf-container-fotos-pdf');
-
-    // Precargar imágenes de los contenedores ocultos
-    const preloadFromContainer = (container: HTMLElement | null) => {
-      if (!container) return Promise.resolve();
-      return Promise.all(Array.from(container.querySelectorAll('img')).map(img =>
-        new Promise(resolve => {
-          if (img.complete) resolve(null);
-          else { img.onload = () => resolve(null); img.onerror = () => resolve(null); }
-        })
-      ));
-    };
-
     const hasTablas = tablasPdf && tablasPdf.children.length > 0;
+    if (!hasTablas) return null;
+
+    console.log("[PDF][TABLAS] Generando PDF de protocolos…");
+    const protocolPages = document.querySelectorAll<HTMLElement>('[data-protocol-page]');
+
+    if (protocolPages.length > 0) {
+      const measureDivs = document.querySelectorAll<HTMLElement>('[data-measurement-div]');
+      measureDivs.forEach(div => { div.style.display = 'none'; });
+
+      window.scrollTo(0, 0);
+      await nextTwoFrames();
+      await preloadFromContainer(document.getElementById('pdf-preview-tablas'));
+
+      const protocolPdfDoc = await PDFDocument.create();
+
+      for (const pageEl of Array.from(protocolPages)) {
+        const clone = pageEl.cloneNode(true) as HTMLElement;
+        clone.style.position = 'fixed';
+        clone.style.top = '0';
+        clone.style.left = '-9999px';
+        clone.style.zIndex = '99999';
+        clone.style.margin = '0';
+
+        clone.querySelectorAll('.overflow-hidden, .truncate').forEach(el => {
+          (el as HTMLElement).style.setProperty('overflow', 'visible', 'important');
+        });
+
+        document.body.appendChild(clone);
+        await nextFrame();
+
+        try {
+          const canvas = await html2canvas(clone, {
+            scale: Math.max(window.devicePixelRatio * 2, 5),
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+          });
+
+          const pngData = canvas.toDataURL('image/png');
+          const pngBytes = dataUrlToUint8Array(pngData);
+          const png = await protocolPdfDoc.embedPng(pngBytes);
+          const page = protocolPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+          page.drawImage(png, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
+        } finally {
+          clone.remove();
+        }
+      }
+
+      measureDivs.forEach(div => { div.style.display = ''; });
+
+      console.log(`[PDF][TABLAS] ${protocolPages.length} página(s) de protocolo generadas OK`);
+      return new Blob([await protocolPdfDoc.save()], { type: 'application/pdf' });
+
+    } else {
+      console.warn("[PDF][TABLAS] No se encontraron [data-protocol-page], usando fallback html2pdf");
+      const tablasTarget = tablasPdf!;
+      const savedStyleTablas = tablasTarget.getAttribute('style') || '';
+      Object.assign(tablasTarget.style, {
+        position: 'absolute', top: '0', left: '0',
+        width: '210mm', transform: 'none', zIndex: '99999',
+        opacity: '1', pointerEvents: 'none', background: 'white',
+      });
+
+      await nextTwoFrames();
+      await preloadFromContainer(tablasTarget);
+
+      try {
+        const optTablas = getPDFOptions(otNumber, tablasTarget, true, true);
+        return await html2pdf().set(optTablas).from(tablasTarget).outputPdf('blob');
+      } finally {
+        tablasTarget.setAttribute('style', savedStyleTablas);
+      }
+    }
+  };
+
+  // ── Generar páginas de fotos como Blob ──
+  const generateFotoPagesBlob = async (): Promise<Blob | null> => {
+    const fotosPdf = document.getElementById('pdf-container-fotos-pdf');
     const fotoPages = fotosPdf
       ? Array.from(fotosPdf.querySelectorAll<HTMLElement>('.protocol-page'))
       : [];
+    if (fotoPages.length === 0 || !fotosPdf) return null;
 
-    if (!hasTablas && fotoPages.length === 0) {
-      console.log("Sin páginas de anexo, sólo Hoja 1");
-      return blobHoja1;
+    console.log(`[PDF][FOTOS] ${fotoPages.length} página(s) de fotos`);
+
+    const savedStyleFotos = fotosPdf.getAttribute('style') || '';
+    Object.assign(fotosPdf.style, {
+      position: 'absolute', top: '0', left: '0',
+      width: '210mm', transform: 'none', zIndex: '99999',
+      opacity: '1', pointerEvents: 'none', background: 'white',
+    });
+
+    await nextTwoFrames();
+    await preloadFromContainer(fotosPdf);
+
+    try {
+      const fotosPdfDoc = await PDFDocument.create();
+      for (const pageEl of fotoPages) {
+        const canvas = await html2canvas(pageEl, {
+          scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false,
+        });
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const jpgBytes = dataUrlToUint8Array(dataUrl);
+        const jpg = await fotosPdfDoc.embedJpg(jpgBytes);
+        const page = fotosPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
+        page.drawImage(jpg, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
+      }
+      console.log("[PDF][FOTOS] PDF de fotos generado OK");
+      return new Blob([await fotosPdfDoc.save()], { type: 'application/pdf' });
+    } finally {
+      fotosPdf.setAttribute('style', savedStyleFotos);
     }
+  };
+
+  // ── Generar blobs de adjuntos PDF ──
+  const generateAdjuntosBlobs = async (): Promise<Blob[]> => {
+    const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
+    const blobs: Blob[] = [];
+    if (pdfAdjuntos.length > 0) {
+      console.log(`[PDF][ADJUNTOS] Descargando ${pdfAdjuntos.length} adjunto(s) PDF…`);
+      for (const adj of pdfAdjuntos) {
+        try {
+          const blob = await firebase.downloadStorageBlob(adj.url);
+          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'ADJUNTOS');
+          if (rendered) blobs.push(rendered);
+        } catch (err) {
+          console.warn(`[PDF][ADJUNTOS] Error descargando ${adj.fileName}:`, err);
+        }
+      }
+    }
+    return blobs;
+  };
+
+  // ── Generar blobs de certificados de ingeniero ──
+  const generateCertIngBlobs = async (): Promise<Blob[]> => {
+    const certIngUrls = certificadosIngenieroSeleccionados
+      .map(c => c.certificadoUrl)
+      .filter((url): url is string => !!url);
+    const blobs: Blob[] = [];
+    if (certIngUrls.length > 0) {
+      console.log(`[PDF][CERT-ING] Descargando ${certIngUrls.length} certificado(s) de ingeniero…`);
+      for (const url of certIngUrls) {
+        try {
+          const blob = await firebase.downloadStorageBlob(url);
+          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-ING');
+          if (rendered) blobs.push(rendered);
+        } catch (err) {
+          console.warn('[PDF][CERT-ING] Error descargando certificado:', err);
+        }
+      }
+    }
+    return blobs;
+  };
+
+  // ── Generar blobs de certificados de instrumentos ──
+  const generateCertInstBlobs = async (): Promise<Blob[]> => {
+    const certUrls = instrumentosSeleccionados
+      .filter(i => i.tipo === 'instrumento')
+      .map(i => i.certificadoUrl)
+      .filter((url): url is string => !!url);
+    const blobs: Blob[] = [];
+    if (certUrls.length > 0) {
+      console.log(`[PDF][CERT-INST] Descargando ${certUrls.length} certificado(s) de instrumentos…`);
+      for (const url of certUrls) {
+        try {
+          const blob = await firebase.downloadStorageBlob(url);
+          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-INST');
+          if (rendered) blobs.push(rendered);
+        } catch (err) {
+          console.warn('[PDF][CERT-INST] Error descargando certificado:', err);
+        }
+      }
+    }
+    return blobs;
+  };
+
+  // ── Generar blobs de certificados de patrones ──
+  const generateCertPatronBlobs = async (): Promise<Blob[]> => {
+    const certUrls = instrumentosSeleccionados
+      .filter(i => i.tipo === 'patron')
+      .map(i => i.certificadoUrl)
+      .filter((url): url is string => !!url);
+    const blobs: Blob[] = [];
+    if (certUrls.length > 0) {
+      console.log(`[PDF][CERT-PATRON] Descargando ${certUrls.length} certificado(s) de patrones…`);
+      for (const url of certUrls) {
+        try {
+          const blob = await firebase.downloadStorageBlob(url);
+          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-PATRON');
+          if (rendered) blobs.push(rendered);
+        } catch (err) {
+          console.warn('[PDF][CERT-PATRON] Error descargando certificado:', err);
+        }
+      }
+    }
+    return blobs;
+  };
+
+  /**
+   * Genera 1 o 2 PDFs según haya protocolo o no.
+   * - Sin protocolo: 1 PDF con todo (Hoja 1 + fotos + adjuntos + certs)
+   * - Con protocolo: 2 PDFs separados (reporte solo + protocolo con anexos)
+   */
+  const generatePDFs = async (): Promise<GeneratedPDFs> => {
+    const { sistema, codigoInternoCliente, protocolSelections } = formState;
+    const hasProtocol = protocolSelections && protocolSelections.length > 0;
 
     document.body.classList.add('pdf-generating');
 
     try {
       await nextTwoFrames();
-      await Promise.all([preloadFromContainer(tablasPdf), preloadFromContainer(fotosPdf)]);
+      await Promise.all([
+        preloadFromContainer(document.getElementById('pdf-container-tablas-pdf')),
+        preloadFromContainer(document.getElementById('pdf-container-fotos-pdf')),
+      ]);
 
-      const pdfParts: Blob[] = [blobHoja1];
+      // Siempre generar Hoja 1
+      const reportBlob = await generateReportBlob();
 
-      // ── Tablas/Protocolos: captura per-page de ProtocolPaginatedPreview ──
-      if (hasTablas) {
-        console.log("[PDF][TABLAS] Generando PDF de protocolos…");
+      // Generar todas las partes de anexo
+      const protocolBlob = await generateProtocolPagesBlob();
+      const fotosBlob = await generateFotoPagesBlob();
+      const adjuntosBlobs = await generateAdjuntosBlobs();
+      const certIngBlobs = await generateCertIngBlobs();
+      const certInstBlobs = await generateCertInstBlobs();
+      const certPatronBlobs = await generateCertPatronBlobs();
 
-        // Buscar páginas A4 individuales renderizadas por ProtocolPaginatedPreview
-        const protocolPages = document.querySelectorAll<HTMLElement>('[data-protocol-page]');
+      // Colectar todos los anexos en orden
+      const annexParts: Blob[] = [];
+      if (protocolBlob) annexParts.push(protocolBlob);
+      if (fotosBlob) annexParts.push(fotosBlob);
+      annexParts.push(...adjuntosBlobs);
+      annexParts.push(...certIngBlobs);
+      annexParts.push(...certInstBlobs);
+      annexParts.push(...certPatronBlobs);
 
-        if (protocolPages.length > 0) {
-          // Ocultar divs de medición para que no interfieran con la captura
-          const measureDivs = document.querySelectorAll<HTMLElement>('[data-measurement-div]');
-          measureDivs.forEach(div => { div.style.display = 'none'; });
+      if (hasProtocol && protocolBlob) {
+        // 2 archivos separados
+        const reportFilename = `Reporte de servicio N° ${sanitizeFilename(otNumber)}.pdf`;
+        const idPart = codigoInternoCliente ? ` ID ${sanitizeFilename(codigoInternoCliente)}` : '';
+        const sysPart = sistema ? ` - ${sanitizeFilename(sistema)}` : '';
+        const protocolFilename = `Protocolo de servicio N° ${sanitizeFilename(otNumber)}${idPart}${sysPart}.pdf`;
 
-          window.scrollTo(0, 0);
-          await nextTwoFrames();
-          await preloadFromContainer(document.getElementById('pdf-preview-tablas'));
+        // Protocolo: protocolo + fotos + adjuntos + certs (sin Hoja 1)
+        const protocolMerged = await mergePdfBlobs(annexParts);
 
-          const protocolPdfDoc = await PDFDocument.create();
-
-          for (const pageEl of Array.from(protocolPages)) {
-            // Clone page into body at (0,0) for accurate html2canvas capture.
-            // This avoids scroll offset, parent flex gap, and overflow clipping
-            // bugs that occur when capturing elements deep in the DOM tree.
-            const clone = pageEl.cloneNode(true) as HTMLElement;
-            clone.style.position = 'fixed';
-            clone.style.top = '0';
-            clone.style.left = '-9999px';
-            clone.style.zIndex = '99999';
-            clone.style.margin = '0';
-
-            // Fix html2canvas clipping: remove overflow:hidden from card
-            // containers and truncated text. html2canvas mis-renders the
-            // clip region when overflow:hidden + border-radius are combined,
-            // cutting ~2 px off the top of title bars.
-            clone.querySelectorAll('.overflow-hidden, .truncate').forEach(el => {
-              (el as HTMLElement).style.setProperty('overflow', 'visible', 'important');
-            });
-
-            document.body.appendChild(clone);
-            await nextFrame();
-
-            try {
-              const canvas = await html2canvas(clone, {
-                scale: Math.max(window.devicePixelRatio * 2, 5),
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-              });
-
-              const pngData = canvas.toDataURL('image/png');
-              const pngBytes = dataUrlToUint8Array(pngData);
-              const png = await protocolPdfDoc.embedPng(pngBytes);
-              const page = protocolPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
-              page.drawImage(png, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
-            } finally {
-              clone.remove();
-            }
-          }
-
-          // Restaurar measurement divs
-          measureDivs.forEach(div => { div.style.display = ''; });
-
-          pdfParts.push(new Blob([await protocolPdfDoc.save()], { type: 'application/pdf' }));
-          console.log(`[PDF][TABLAS] ${protocolPages.length} página(s) de protocolo generadas OK`);
-
-        } else {
-          // Fallback: html2pdf sobre contenedor oculto (sin ProtocolPaginatedPreview)
-          console.warn("[PDF][TABLAS] No se encontraron [data-protocol-page], usando fallback html2pdf");
-          const tablasTarget = tablasPdf!;
-          const savedStyleTablas = tablasTarget.getAttribute('style') || '';
-          Object.assign(tablasTarget.style, {
-            position: 'absolute', top: '0', left: '0',
-            width: '210mm', transform: 'none', zIndex: '99999',
-            opacity: '1', pointerEvents: 'none', background: 'white',
-          });
-
-          await nextTwoFrames();
-          await preloadFromContainer(tablasTarget);
-
-          try {
-            const optTablas = getPDFOptions(otNumber, tablasTarget, true, true);
-            const blobTablas: Blob = await html2pdf().set(optTablas).from(tablasTarget).outputPdf('blob');
-            pdfParts.push(blobTablas);
-          } finally {
-            tablasTarget.setAttribute('style', savedStyleTablas);
-          }
+        console.log(`[PDF] Generados 2 archivos: "${reportFilename}" + "${protocolFilename}"`);
+        return {
+          reportBlob,
+          reportFilename,
+          protocolBlob: protocolMerged,
+          protocolFilename,
+        };
+      } else {
+        // 1 solo archivo con todo
+        const filename = `${otNumber}_Reporte_AGS.pdf`;
+        if (annexParts.length > 0) {
+          const allParts = [reportBlob, ...annexParts];
+          const merged = await mergePdfBlobs(allParts);
+          console.log(`[PDF] Generado 1 archivo: "${filename}"`);
+          return { reportBlob: merged, reportFilename: filename, protocolBlob: null, protocolFilename: null };
         }
+        console.log(`[PDF] Generado 1 archivo (solo Hoja 1): "${filename}"`);
+        return { reportBlob, reportFilename: filename, protocolBlob: null, protocolFilename: null };
       }
-
-      // ── Helper: renderizar un PDF externo (posiblemente encriptado) a páginas A4 JPEG ──
-      // Usa pdfjs-dist (motor de Firefox) que maneja cualquier PDF incluyendo encriptados.
-      // Renderiza cada página a canvas, la comprime como JPEG y la embebe en A4 via pdf-lib.
-      const renderExternalPdfToPages = async (pdfBytes: ArrayBuffer, label: string): Promise<void> => {
-        try {
-          const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
-          const externalDoc = await PDFDocument.create();
-
-          for (let i = 1; i <= pdfDoc.numPages; i++) {
-            const pdfPage = await pdfDoc.getPage(i);
-            const viewport = pdfPage.getViewport({ scale: 2 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d')!;
-            await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-
-            const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            const jpgBytes = dataUrlToUint8Array(jpgDataUrl);
-            const jpg = await externalDoc.embedJpg(jpgBytes);
-
-            // Forzar A4 y escalar la imagen para que quepa manteniendo proporción
-            const page = externalDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
-            const imgAspect = canvas.width / canvas.height;
-            const pageAspect = A4_POINTS.width / A4_POINTS.height;
-            let drawW: number, drawH: number, drawX: number, drawY: number;
-            if (imgAspect > pageAspect) {
-              // Imagen más ancha que A4 → ajustar por ancho
-              drawW = A4_POINTS.width;
-              drawH = A4_POINTS.width / imgAspect;
-              drawX = 0;
-              drawY = A4_POINTS.height - drawH; // Alinear arriba
-            } else {
-              // Imagen más alta que A4 → ajustar por alto
-              drawH = A4_POINTS.height;
-              drawW = A4_POINTS.height * imgAspect;
-              drawX = (A4_POINTS.width - drawW) / 2; // Centrar horizontalmente
-              drawY = 0;
-            }
-            page.drawImage(jpg, { x: drawX, y: drawY, width: drawW, height: drawH });
-          }
-
-          const numPagesRendered = pdfDoc.numPages;
-          pdfDoc.destroy();
-          pdfParts.push(new Blob([await externalDoc.save()], { type: 'application/pdf' }));
-          console.log(`[PDF][${label}] ${numPagesRendered} página(s) renderizadas OK`);
-        } catch (err) {
-          console.warn(`[PDF][${label}] Error renderizando PDF:`, err);
-        }
-      };
-
-      // ── Adjuntos PDF: descargar y renderizar archivos adjuntos PDF ──
-      const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
-      if (pdfAdjuntos.length > 0) {
-        console.log(`[PDF][ADJUNTOS] Descargando ${pdfAdjuntos.length} adjunto(s) PDF…`);
-        for (const adj of pdfAdjuntos) {
-          try {
-            const blob = await firebase.downloadStorageBlob(adj.url);
-            await renderExternalPdfToPages(await blob.arrayBuffer(), 'ADJUNTOS');
-          } catch (err) {
-            console.warn(`[PDF][ADJUNTOS] Error descargando ${adj.fileName}:`, err);
-          }
-        }
-      }
-
-      // ── Fotos: html2canvas directo sobre el contenedor original ──
-      if (fotoPages.length > 0 && fotosPdf) {
-        console.log(`[PDF][FOTOS] ${fotoPages.length} página(s) de fotos`);
-
-        const savedStyleFotos = fotosPdf.getAttribute('style') || '';
-        Object.assign(fotosPdf.style, {
-          position: 'absolute',
-          top: '0',
-          left: '0',
-          width: '210mm',
-          transform: 'none',
-          zIndex: '99999',
-          opacity: '1',
-          pointerEvents: 'none',
-          background: 'white',
-        });
-
-        await nextTwoFrames();
-        await preloadFromContainer(fotosPdf);
-
-        try {
-          const fotosPdfDoc = await PDFDocument.create();
-          for (const pageEl of fotoPages) {
-            const canvas = await html2canvas(pageEl, {
-              scale: 2,
-              backgroundColor: '#ffffff',
-              useCORS: true,
-              logging: false,
-            });
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-            const jpgBytes = dataUrlToUint8Array(dataUrl);
-            const jpg = await fotosPdfDoc.embedJpg(jpgBytes);
-            const page = fotosPdfDoc.addPage([A4_POINTS.width, A4_POINTS.height]);
-            page.drawImage(jpg, { x: 0, y: 0, width: A4_POINTS.width, height: A4_POINTS.height });
-          }
-          pdfParts.push(new Blob([await fotosPdfDoc.save()], { type: 'application/pdf' }));
-          console.log("[PDF][FOTOS] PDF de fotos generado OK");
-        } finally {
-          fotosPdf.setAttribute('style', savedStyleFotos);
-        }
-      }
-
-      // ── Certificados ingeniero: descargar y renderizar PDFs ──
-      const certIngUrls = certificadosIngenieroSeleccionados
-        .map(c => c.certificadoUrl)
-        .filter((url): url is string => !!url);
-
-      if (certIngUrls.length > 0) {
-        console.log(`[PDF][CERT-ING] Descargando ${certIngUrls.length} certificado(s) de ingeniero…`);
-        for (const url of certIngUrls) {
-          try {
-            const blob = await firebase.downloadStorageBlob(url);
-            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERT-ING');
-          } catch (err) {
-            console.warn('[PDF][CERT-ING] Error descargando certificado:', err);
-          }
-        }
-      }
-
-      // ── Certificados instrumentos/patrones: descargar y renderizar PDFs ──
-      const certInstUrls = instrumentosSeleccionados
-        .map(i => i.certificadoUrl)
-        .filter((url): url is string => !!url);
-
-      if (certInstUrls.length > 0) {
-        console.log(`[PDF][CERT-INST] Descargando ${certInstUrls.length} certificado(s) de instrumentos…`);
-        for (const url of certInstUrls) {
-          try {
-            const blob = await firebase.downloadStorageBlob(url);
-            await renderExternalPdfToPages(await blob.arrayBuffer(), 'CERT-INST');
-          } catch (err) {
-            console.warn('[PDF][CERT-INST] Error descargando certificado:', err);
-          }
-        }
-      }
-
-      // ── Merge: Hoja 1 + Protocolos + Adjuntos + Fotos + Certs Ingeniero + Certs Instrumentos ──
-      const mergedPdf = await PDFDocument.create();
-      for (const partBlob of pdfParts) {
-        try {
-          const partDoc = await PDFDocument.load(await partBlob.arrayBuffer());
-          const pages = await mergedPdf.copyPages(partDoc, partDoc.getPageIndices());
-          pages.forEach(p => mergedPdf.addPage(p));
-        } catch (err) {
-          console.warn('[PDF][MERGE] Error cargando parte del PDF, omitiendo:', err);
-        }
-      }
-      return new Blob([await mergedPdf.save()], { type: 'application/pdf' });
     } finally {
       document.body.classList.remove('pdf-generating');
     }
+  };
+
+  // Backward-compatible: genera un solo blob con todo mergeado
+  const generatePDFBlob = async (): Promise<Blob> => {
+    const result = await generatePDFs();
+    if (result.protocolBlob) {
+      return await mergePdfBlobs([result.reportBlob, result.protocolBlob]);
+    }
+    return result.reportBlob;
   };
 
   // Helper para detectar si es móvil
@@ -488,6 +572,7 @@ export const usePDFGeneration = (
           await firebase.createTicketFromAcciones({
             otNumber,
             razonSocial: finalizedData.razonSocial || '',
+            contacto: finalizedData.contacto || '',
             sistema: finalizedData.sistema || '',
             moduloModelo: finalizedData.moduloModelo || '',
             codigoInternoCliente: finalizedData.codigoInternoCliente || '',
@@ -519,20 +604,32 @@ export const usePDFGeneration = (
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
-        const generatedBlob = await generatePDFBlob();
-        setPdfBlob(generatedBlob);
+        const result = await generatePDFs();
+        setPdfBlob(result.reportBlob);
 
-        // Subir PDF a Firebase Storage (no bloquea el flujo)
+        // Subir PDF(s) a Firebase Storage
         try {
-          const pdfUrl = await firebase.uploadReportBlob(otNumber, generatedBlob, filename);
-          await firebase.saveReport(otNumber, { pdfUrl, pdfGeneratedAt: new Date().toISOString() });
-          console.log('✅ PDF subido a Storage:', pdfUrl);
+          const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
+          const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
+
+          if (result.protocolBlob && result.protocolFilename) {
+            const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
+            storageData.protocolPdfUrl = protocolPdfUrl;
+            console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
+          }
+
+          await firebase.saveReport(otNumber, storageData);
+          console.log('✅ PDF(s) subido(s) a Storage');
         } catch (uploadErr) {
           console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
         }
 
-        downloadPDF(generatedBlob, filename);
+        // Descargar archivo(s)
+        downloadPDF(result.reportBlob, result.reportFilename);
+        if (result.protocolBlob && result.protocolFilename) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          downloadPDF(result.protocolBlob, result.protocolFilename);
+        }
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         showAlert({
@@ -596,6 +693,7 @@ export const usePDFGeneration = (
           await firebase.createTicketFromAcciones({
             otNumber,
             razonSocial: finalizedData.razonSocial || '',
+            contacto: finalizedData.contacto || '',
             sistema: finalizedData.sistema || '',
             moduloModelo: finalizedData.moduloModelo || '',
             codigoInternoCliente: finalizedData.codigoInternoCliente || '',
@@ -638,23 +736,35 @@ export const usePDFGeneration = (
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 800));
 
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
-        console.log("Generando PDF (Hoja 1 + anexo si hay protocolo)...");
-        const generatedBlob = await generatePDFBlob();
-        setPdfBlob(generatedBlob);
+        console.log("Generando PDF(s)...");
+        const result = await generatePDFs();
+        setPdfBlob(result.reportBlob);
 
-        // Subir PDF a Firebase Storage (no bloquea el flujo)
+        // Subir PDF(s) a Firebase Storage
         try {
-          const pdfUrl = await firebase.uploadReportBlob(otNumber, generatedBlob, filename);
-          await firebase.saveReport(otNumber, { pdfUrl, pdfGeneratedAt: new Date().toISOString() });
-          console.log('✅ PDF subido a Storage:', pdfUrl);
+          const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
+          const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
+
+          if (result.protocolBlob && result.protocolFilename) {
+            const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
+            storageData.protocolPdfUrl = protocolPdfUrl;
+            console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
+          }
+
+          await firebase.saveReport(otNumber, storageData);
+          console.log('✅ PDF(s) subido(s) a Storage');
         } catch (uploadErr) {
           console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
         }
 
-        downloadPDF(generatedBlob, filename);
+        // Descargar archivo(s)
+        downloadPDF(result.reportBlob, result.reportFilename);
+        if (result.protocolBlob && result.protocolFilename) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          downloadPDF(result.protocolBlob, result.protocolFilename);
+        }
 
-        console.log("PDF generado exitosamente");
+        console.log("PDF(s) generado(s) exitosamente");
         
         showAlert({
           title: 'Éxito',
@@ -678,6 +788,7 @@ export const usePDFGeneration = (
 
   return {
     generatePDFBlob,
+    generatePDFs,
     handleFinalSubmit,
     confirmClientAndFinalize,
     isGenerating,
