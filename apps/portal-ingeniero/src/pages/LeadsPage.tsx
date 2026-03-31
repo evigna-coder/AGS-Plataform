@@ -122,9 +122,9 @@ export default function LeadsPage() {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Leads / Consultas" count={leadsFiltered.length}
+      <PageHeader title="Tickets" count={leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
-        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
+        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
         <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
           filters={filters} onFiltersChange={setFilters} usuarios={usuarios} />
       </PageHeader>
@@ -134,7 +134,7 @@ export default function LeadsPage() {
           <Card><div className="text-center py-12">
             <p className="text-slate-400">No se encontraron leads</p>
             <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-              Crear primer lead
+              Crear primer ticket
             </button>
           </div></Card>
         ) : (

@@ -65,7 +65,7 @@ export default function LeadDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!lead || !confirm('Eliminar este lead?')) return;
+    if (!lead || !confirm('Eliminar este ticket?')) return;
     await leadsService.delete(lead.id);
     navigate('/leads');
   };

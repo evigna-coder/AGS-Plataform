@@ -213,7 +213,7 @@ export const LeadsList = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Leads / Consultas" count={leadsFiltered.length}
+      <PageHeader title="Tickets" count={leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
         <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}

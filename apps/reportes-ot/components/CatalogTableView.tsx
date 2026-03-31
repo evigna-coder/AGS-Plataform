@@ -503,10 +503,14 @@ export const CatalogTableView: React.FC<Props> = ({
 
     if (!isSpecialCol) {
       const factoryVal = getFactoryValue(rowId, col.key);
-      // Solo aplicar si el valor tiene contenido alfanumérico real (no solo símbolos)
-      const hasContent = factoryVal.trim().length > 0 &&
-        /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(factoryVal.trim());
-      if (hasContent) {
+      const trimmed = factoryVal.trim();
+      const hasContent = trimmed.length > 0 &&
+        /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed);
+      // Si el valor de fábrica coincide con la unidad de la columna, es un placeholder de unidad,
+      // no un label fijo (ej. "°C" en columna con unit "°C")
+      const colUnit = (col.unit ?? col.label?.match(/\(\s*([^)]{1,15})\s*\)\s*$/)?.[1])?.trim();
+      const isJustUnit = colUnit ? trimmed === colUnit : false;
+      if (hasContent && !isJustUnit) {
         if (isPrint) return <span className="text-[10px]">{factoryVal}</span>;
         return <span className="text-[10px] text-slate-700 cursor-default">{factoryVal}</span>;
       }

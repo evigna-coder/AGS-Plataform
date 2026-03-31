@@ -86,7 +86,19 @@
       "Bash(cp components/leads/CrearLeadModal.tsx components/tickets/CrearTicketModal.tsx)",
       "Bash(cp components/leads/DerivarLeadModal.tsx components/tickets/DerivarTicketModal.tsx)",
       "Bash(cp components/leads/FinalizarLeadModal.tsx components/tickets/FinalizarTicketModal.tsx)",
-      "Bash(cp components/leads/LeadAdjuntosField.tsx components/tickets/TicketAdjuntosField.tsx)"
+      "Bash(cp components/leads/LeadAdjuntosField.tsx components/tickets/TicketAdjuntosField.tsx)",
+      "Bash(sed -i \"s/name: ''Leads''/name: ''Tickets''/g\" apps/sistema-modular/src/components/layout/navigation.ts)",
+      "Bash(sed -i \"s/label: ''Leads''/label: ''Tickets''/g\" apps/sistema-modular/src/contexts/TabsContext.tsx)",
+      "Bash(sed -i 's/title=\"\"Leads \\\\/ Consultas\"\"/title=\"\"Tickets\"\"/g' apps/sistema-modular/src/pages/leads/LeadsList.tsx)",
+      "Bash(sed -i 's/title=\"\"Nuevo Lead\"\"/title=\"\"Nuevo Ticket\"\"/g; s/subtitle=\"\"Registrar nueva consulta\"\"/subtitle=\"\"Registrar nueva consulta o pedido\"\"/g' apps/sistema-modular/src/components/leads/CrearLeadModal.tsx)",
+      "Bash(sed -i 's/title=\"\"Derivar lead\"\"/title=\"\"Derivar Ticket\"\"/g' apps/sistema-modular/src/components/leads/DerivarLeadModal.tsx)",
+      "Bash(sed -i \"s/label: ''Leads''/label: ''Tickets''/g\" apps/portal-ingeniero/src/components/layout/BottomNav.tsx apps/portal-ingeniero/src/components/layout/Sidebar.tsx apps/portal-ingeniero/src/utils/constants.ts)",
+      "Bash(sed -i \"s/Nuevo Lead/Nuevo Ticket/g\" apps/portal-ingeniero/src/components/leads/CrearLeadModal.tsx)",
+      "Bash(sed -i 's/title=\"\"Finalizar Lead\"\"/title=\"\"Finalizar Ticket\"\"/g' apps/portal-ingeniero/src/components/leads/FinalizarLeadModal.tsx)",
+      "Bash(sed -i 's/Derivar Lead/Derivar Ticket/g; s/Derivar Ticket/Derivar Ticket/g' apps/portal-ingeniero/src/components/leads/DerivarLeadModal.tsx)",
+      "Bash(sed -i 's/Eliminar este lead/Eliminar este ticket/g' apps/portal-ingeniero/src/pages/LeadDetailPage.tsx)",
+      "Bash(grep -n \"col.type !== ''text_input''\" apps/reportes-ot/components/CatalogTableView.tsx)",
+      "Bash(netstat -ano)"
     ]
   }
 }

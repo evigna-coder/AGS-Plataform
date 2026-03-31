@@ -47,7 +47,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
   };
 
   return (
-    <Modal open title="Finalizar lead" onClose={onClose}>
+    <Modal open title="Finalizar Ticket" onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Lead</label>

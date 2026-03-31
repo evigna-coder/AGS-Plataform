@@ -47,7 +47,7 @@ const NAV_META: Record<string, { label: string; icon: string }> = {
   '/establecimientos': { label: 'Establecimientos', icon: '🏭' },
   '/equipos': { label: 'Equipos', icon: '⚙️' },
   '/ordenes-trabajo': { label: 'Ordenes de Trabajo', icon: '📝' },
-  '/leads': { label: 'Leads', icon: '👥' },
+  '/leads': { label: 'Tickets', icon: '👥' },
   '/presupuestos': { label: 'Presupuestos', icon: '📋' },
   '/table-catalog': { label: 'Biblioteca Tablas', icon: '📐' },
   '/instrumentos': { label: 'Instrumentos', icon: '🔬' },

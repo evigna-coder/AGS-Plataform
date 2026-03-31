@@ -20,7 +20,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
   const h = useCrearLeadForm(onClose, onCreated);
 
   return (
-    <Modal open title="Nuevo Lead" subtitle="Registrar nueva consulta" onClose={onClose}>
+    <Modal open title="Nuevo Ticket" subtitle="Registrar nueva consulta o pedido" onClose={onClose}>
       <div className="space-y-3">
         {/* Motivo */}
         <div>

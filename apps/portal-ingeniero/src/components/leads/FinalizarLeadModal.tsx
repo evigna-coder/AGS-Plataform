@@ -45,7 +45,7 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
   };
 
   return (
-    <Modal open={true} title="Finalizar Lead" onClose={onClose}>
+    <Modal open={true} title="Finalizar Ticket" onClose={onClose}>
       <div className="space-y-3">
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Resultado *</label>

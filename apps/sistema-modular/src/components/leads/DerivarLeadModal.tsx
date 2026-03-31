@@ -71,7 +71,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   };
 
   return (
-    <Modal open title="Derivar lead" onClose={onClose}>
+    <Modal open title="Derivar Ticket" onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Lead</label>

@@ -216,8 +216,21 @@ function ChecklistItemRow({
                     );
                   }
 
-                  // Texto normal
-                  return <td key={col.key} className={tdBase}>{cellVal || '\u00A0'}</td>;
+                  // Texto normal — editable
+                  if (isPrint || readOnly || disabled) {
+                    return <td key={col.key} className={tdBase}>{cellVal || '\u00A0'}</td>;
+                  }
+                  return (
+                    <td key={col.key} className="px-1 py-1 border border-slate-300">
+                      <input
+                        type="text"
+                        value={cellVal}
+                        onChange={e => updateTableCell(ri, col.key, e.target.value)}
+                        onFocus={e => e.target.select()}
+                        className="w-full text-xs text-center bg-white border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      />
+                    </td>
+                  );
                 })}
               </tr>
             ))}

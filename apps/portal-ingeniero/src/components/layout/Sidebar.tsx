@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { to: '/ordenes-trabajo', label: 'Mis OTs' },
   { to: '/historial', label: 'Historial' },
   { to: '/agenda', label: 'Agenda' },
-  { to: '/leads', label: 'Leads' },
+  { to: '/leads', label: 'Tickets' },
   { to: '/reportes', label: 'Reportes' },
   { to: '/viaticos', label: 'Viáticos' },
   { to: '/perfil', label: 'Perfil' },

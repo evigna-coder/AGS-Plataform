@@ -15,7 +15,7 @@ export const NAV_ITEMS = [
   { to: '/ordenes-trabajo', label: 'Órdenes de Trabajo', mobileTab: true },
   { to: '/equipos', label: 'Equipos', mobileTab: true },
   { to: '/agenda', label: 'Agenda', mobileTab: true },
-  { to: '/leads', label: 'Leads', mobileTab: false },
+  { to: '/leads', label: 'Tickets', mobileTab: false },
   { to: '/clientes', label: 'Clientes', mobileTab: false },
   { to: '/perfil', label: 'Perfil', mobileTab: false },
 ] as const;

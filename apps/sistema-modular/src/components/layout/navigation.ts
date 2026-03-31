@@ -13,7 +13,7 @@ export const navigation: NavItem[] = [
   { name: 'Establecimientos', path: '/establecimientos', icon: '🏭', modulo: 'establecimientos' },
   { name: 'Equipos', path: '/equipos', icon: '⚙️', modulo: 'equipos' },
   { name: 'Ordenes de Trabajo', path: '/ordenes-trabajo', icon: '📝', modulo: 'ordenes-trabajo' },
-  { name: 'Leads', path: '/leads', icon: '👥', modulo: 'leads' },
+  { name: 'Tickets', path: '/leads', icon: '👥', modulo: 'leads' },
   { name: 'Presupuestos', path: '/presupuestos', icon: '📋', modulo: 'presupuestos' },
   { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐', modulo: 'table-catalog' },
   { name: 'Ingreso Empresas', path: '/ingreso-empresas', icon: '🪪', modulo: 'ingreso-empresas' },

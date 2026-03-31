@@ -299,7 +299,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
           <button onClick={onClose} className="text-sm text-slate-500">Cancelar</button>
-          <h3 className="text-sm font-semibold text-slate-900">Nuevo Lead</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Nuevo Ticket</h3>
           <span className="text-xs text-slate-400">{step}/2</span>
         </div>
 
@@ -350,7 +350,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
 
   /* ---- Desktop: modal normal ---- */
   return (
-    <Modal open={open} title="Nuevo Lead" onClose={onClose}>
+    <Modal open={open} title="Nuevo Ticket" onClose={onClose}>
       <div className="space-y-3">
         {clienteField}
         {contactoField}
