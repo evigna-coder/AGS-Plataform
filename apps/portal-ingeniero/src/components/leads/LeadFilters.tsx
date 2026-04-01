@@ -20,13 +20,14 @@ export interface LeadFiltersState {
   responsable: string;
   soloMios: boolean;
   misCreados: boolean;
+  mostrarFinalizados: boolean;
   fechaDesde: string;
   fechaHasta: string;
 }
 
 export const INITIAL_FILTERS: LeadFiltersState = {
   motivo: '', area: '', prioridad: '', responsable: '',
-  soloMios: false, misCreados: false, fechaDesde: '', fechaHasta: '',
+  soloMios: false, misCreados: false, mostrarFinalizados: false, fechaDesde: '', fechaHasta: '',
 };
 
 interface LeadFiltersProps {
@@ -68,6 +69,10 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={filters.misCreados} onChange={e => set({ misCreados: e.target.checked, soloMios: false })} className="rounded border-slate-300" />
             Mis creados
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+            <input type="checkbox" checked={filters.mostrarFinalizados} onChange={e => set({ mostrarFinalizados: e.target.checked })} className="rounded border-slate-300" />
+            Finalizados
           </label>
         </div>
       </div>

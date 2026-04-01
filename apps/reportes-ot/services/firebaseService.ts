@@ -494,7 +494,7 @@ export class FirebaseService {
       motivoLlamado: 'soporte',
       motivoContacto: `[OT ${data.otNumber}] ${data.sistema} - ${data.moduloModelo}`,
       descripcion: data.accionesTomar,
-      estado: 'relevamiento_pendiente',
+      estado: 'nuevo',
       areaActual: 'admin_soporte',
       asignadoA: 'cmele@agsanalitica.com',
       asignadoNombre: 'Cynthia Mele',

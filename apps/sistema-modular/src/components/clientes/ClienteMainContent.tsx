@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Cliente, Sistema, CategoriaEquipo, Establecimiento, ModuloSistema } from '@ags/shared';
-import { modulosService } from '../../services/firebaseService';
+import { modulosService, sistemasService } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
@@ -194,9 +194,22 @@ export const ClienteMainContent = ({
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Sistemas / Equipos</h3>
           <div className="flex gap-2">
             {selectedSistemaIds.size > 0 && (
-              <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => setShowMoveModal(true)}>
-                Mover {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
-              </Button>
+              <>
+                <Button variant="outline" size="sm" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => setShowMoveModal(true)}>
+                  Mover {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={async () => {
+                  const count = selectedSistemaIds.size;
+                  if (!confirm(`¿Desactivar ${count} sistema${count > 1 ? 's' : ''}?`)) return;
+                  for (const sId of selectedSistemaIds) {
+                    await sistemasService.deactivate(sId);
+                  }
+                  setSelectedSistemaIds(new Set());
+                  onRefresh?.();
+                }}>
+                  Desactivar {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+                </Button>
+              </>
             )}
             <Link to={`/equipos/nuevo?cliente=${clienteId}`} state={{ from: pathname }}>
               <Button variant="outline" size="sm">+ Agregar</Button>

@@ -566,8 +566,9 @@ export const usePDFGeneration = (
       console.log("Guardado OK");
       console.log("Reporte guardado correctamente");
 
-      // Crear ticket interno si las acciones son solo para AGS
-      if (finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
+      // Crear ticket interno si las acciones son solo para AGS (solo en primera finalización, no al regenerar)
+      const wasAlreadyFinalized = formState.status === 'FINALIZADO';
+      if (!wasAlreadyFinalized && finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
         try {
           await firebase.createTicketFromAcciones({
             otNumber,
@@ -687,8 +688,9 @@ export const usePDFGeneration = (
       saveSuccess = true;
       console.log("Reporte guardado exitosamente en Firestore");
 
-      // Crear ticket interno si las acciones son solo para AGS
-      if (finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
+      // Crear ticket interno si las acciones son solo para AGS (solo en primera finalización, no al regenerar)
+      const wasAlreadyFinalized = formState.status === 'FINALIZADO';
+      if (!wasAlreadyFinalized && finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
         try {
           await firebase.createTicketFromAcciones({
             otNumber,

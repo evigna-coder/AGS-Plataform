@@ -70,6 +70,10 @@ export default function LeadsPage() {
 
   const leadsFiltered = useMemo(() => {
     let result = leads;
+    // Ocultar finalizados salvo que el checkbox esté tildado
+    if (!filters.mostrarFinalizados) {
+      result = result.filter(l => l.estado !== 'finalizado');
+    }
     if (filters.misCreados && usuario) {
       result = result.filter(l => l.createdBy === usuario.id || l.derivadoPor === usuario.id);
     }
@@ -88,7 +92,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, usuario, filters.misCreados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, filters.misCreados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns();
 
