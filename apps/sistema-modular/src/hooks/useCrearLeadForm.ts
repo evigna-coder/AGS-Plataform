@@ -97,8 +97,8 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         deUsuarioId: usuario.id, deUsuarioNombre: usuario.displayName,
         aUsuarioId: asignadoA || usuario.id,
         aUsuarioNombre: responsable?.displayName || usuario.displayName,
-        comentario: descripcion.trim() || undefined,
         estadoAnterior: 'relevamiento_pendiente' as const, estadoNuevo: 'relevamiento_pendiente' as const,
+        ...(descripcion.trim() ? { comentario: descripcion.trim() } : {}),
       } : null;
 
       const leadId = await leadsService.create({

@@ -75,7 +75,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
     <Modal open title="Derivar Ticket" onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Lead</label>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Ticket</label>
           <p className="text-xs text-slate-700 font-medium">{lead.razonSocial}</p>
           <p className="text-[10px] text-slate-500">{lead.contacto}</p>
         </div>

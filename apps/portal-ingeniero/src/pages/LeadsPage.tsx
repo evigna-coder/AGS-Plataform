@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Lead, LeadEstado } from '@ags/shared';
 import {
-  LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
-  LEAD_AREA_LABELS, LEAD_AREA_COLORS,
+  TICKET_ESTADO_LABELS, TICKET_ESTADO_COLORS,
+  TICKET_AREA_LABELS, TICKET_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
-  LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
+  TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
   canUserModifyLead,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
@@ -151,8 +151,8 @@ export default function LeadsPage() {
                     className={`block bg-white rounded-xl border border-slate-200 p-3 active:bg-slate-50 ${getRowStyle(lead)}`}>
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <span className="text-sm font-semibold text-slate-800 truncate">{lead.razonSocial}</span>
-                      <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
-                        {LEAD_ESTADO_LABELS[lead.estado]}
+                      <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_ESTADO_COLORS[lead.estado]}`}>
+                        {TICKET_ESTADO_LABELS[lead.estado]}
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mb-2">{lead.contacto}</div>
@@ -164,13 +164,13 @@ export default function LeadsPage() {
                         {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                       </span>
                       {lead.areaActual && (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
-                          {LEAD_AREA_LABELS[lead.areaActual]}
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_AREA_COLORS[lead.areaActual]}`}>
+                          {TICKET_AREA_LABELS[lead.areaActual]}
                         </span>
                       )}
                       {lead.prioridad && (
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
-                          {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_PRIORIDAD_COLORS[lead.prioridad]}`}>
+                          {TICKET_PRIORIDAD_LABELS[lead.prioridad]}
                         </span>
                       )}
                       <span className="ml-auto text-[10px] text-slate-400">
@@ -247,20 +247,20 @@ export default function LeadsPage() {
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
                           {lead.prioridad ? (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
-                              {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_PRIORIDAD_COLORS[lead.prioridad]}`}>
+                              {TICKET_PRIORIDAD_LABELS[lead.prioridad]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
-                            {LEAD_ESTADO_LABELS[lead.estado]}
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_ESTADO_COLORS[lead.estado]}`}>
+                            {TICKET_ESTADO_LABELS[lead.estado]}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
                           {lead.areaActual ? (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
-                              {LEAD_AREA_LABELS[lead.areaActual]}
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_AREA_COLORS[lead.areaActual]}`}>
+                              {TICKET_AREA_LABELS[lead.areaActual]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>

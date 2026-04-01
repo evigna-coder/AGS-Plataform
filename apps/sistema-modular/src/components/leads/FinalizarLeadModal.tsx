@@ -33,14 +33,14 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
         deUsuarioNombre: usuario.displayName,
         aUsuarioId: usuario.id,
         aUsuarioNombre: usuario.displayName,
-        comentario: comentario.trim() || undefined,
         estadoAnterior: lead.estado,
         estadoNuevo: estadoFinal as LeadEstado,
+        ...(comentario.trim() ? { comentario: comentario.trim() } : {}),
       };
       await leadsService.finalizar(lead.id, posta);
       onFinalized();
     } catch {
-      alert('Error al finalizar el lead');
+      alert('Error al finalizar el ticket');
     } finally {
       setSaving(false);
     }
@@ -50,7 +50,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
     <Modal open title="Finalizar Ticket" onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Lead</label>
+          <label className="text-[11px] font-medium text-slate-400 mb-1 block">Ticket</label>
           <p className="text-xs text-slate-700 font-medium">{lead.razonSocial}</p>
         </div>
 

@@ -50,7 +50,7 @@ export const LeadDetail = () => {
     unsubRef.current?.();
     unsubRef.current = leadsService.subscribeById(id, (data) => {
       if (!data) {
-        alert('Lead no encontrado');
+        alert('Ticket no encontrado');
         navigate('/leads');
         return;
       }
@@ -111,16 +111,16 @@ export const LeadDetail = () => {
 
   const handleEstadoChange = async (estado: LeadEstado) => {
     if (!lead) return;
-    await leadsService.update(lead.id, { estado });
+    leadsService.update(lead.id, { estado }).catch(err => console.error('Error updating estado:', err));
   };
 
   const handleFieldUpdate = async (field: string, value: any) => {
     if (!lead) return;
-    await leadsService.update(lead.id, { [field]: value });
+    leadsService.update(lead.id, { [field]: value }).catch(err => console.error('Error updating field:', err));
   };
 
   const handleDelete = async () => {
-    if (!lead || !confirm('Eliminar este lead?')) return;
+    if (!lead || !confirm('Eliminar este ticket?')) return;
     await leadsService.delete(lead.id);
     navigate('/leads');
   };
@@ -179,7 +179,7 @@ export const LeadDetail = () => {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando lead...</p></div>;
+  if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando ticket...</p></div>;
   if (!lead) return null;
 
   const isActive = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';

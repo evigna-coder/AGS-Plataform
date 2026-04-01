@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Lead, LeadEstado } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import type { TicketPrioridad } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { getDaysOpen, getDaysSinceLastActivity, getDaysUntilContacto, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
@@ -29,7 +29,7 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate }: L
           <InfoRow label="Estado">
             <select value={lead.estado} onChange={e => onEstadoChange(e.target.value as LeadEstado)}
               className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-              {Object.entries(LEAD_ESTADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(TICKET_ESTADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </InfoRow>
           <InfoRow label="Próximo contacto">
@@ -58,8 +58,8 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate }: L
           </InfoRow>
           {lead.areaActual && (
             <InfoRow label="Área">
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
-                {LEAD_AREA_LABELS[lead.areaActual]}
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_AREA_COLORS[lead.areaActual]}`}>
+                {TICKET_AREA_LABELS[lead.areaActual]}
               </span>
             </InfoRow>
           )}

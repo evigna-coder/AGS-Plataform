@@ -49,6 +49,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [prioridad, setPrioridad] = useState<TicketPrioridad>('normal');
   const [accionPendiente, setAccionPendiente] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [motivoOtros, setMotivoOtros] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -131,6 +132,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         email: email.trim(),
         telefono: telefono.trim(),
         motivoLlamado,
+        motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
         motivoContacto: '',
         descripcion: descripcion.trim() || null,
         clienteId: clienteId || null,
@@ -173,6 +175,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setNuevoEstado('relevamiento_pendiente');
     setPrioridad('normal');
     setAccionPendiente('');
+    setMotivoOtros('');
     setDescripcion('');
     setPendingFiles([]);
     setClienteSearch('');
@@ -262,6 +265,10 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
           <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
             {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          {motivoLlamado === 'otros' && (
+            <Input className="mt-1" value={motivoOtros} onChange={e => setMotivoOtros(e.target.value)}
+              placeholder="Describir el motivo..." />
+          )}
         </div>
         <div>
           <label className={labelClass}>Estado inicial</label>

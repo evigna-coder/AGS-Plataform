@@ -99,7 +99,19 @@
       "Bash(sed -i 's/Eliminar este lead/Eliminar este ticket/g' apps/portal-ingeniero/src/pages/LeadDetailPage.tsx)",
       "Bash(grep -n \"col.type !== ''text_input''\" apps/reportes-ot/components/CatalogTableView.tsx)",
       "Bash(netstat -ano)",
-      "Bash(pnpm --filter reportes-ot build)"
+      "Bash(pnpm --filter reportes-ot build)",
+      "Bash(find '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src' -name *agenda* -o -name *Agenda*)",
+      "Bash(grep -r \"Crear Lead\\\\|Derivar Lead\\\\|Finalizar Lead\\\\|Lead\\\\|''''Lead''''\" /c/Users/Evigna/Desktop/Ags plataform/apps/portal-ingeniero/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -n '>Lead<\\\\|>lead<' \"/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src/components/leads\"/*.tsx)",
+      "Bash(grep -rn \"LEAD_AREA\\\\|LEAD_PRIORIDAD\\\\|LEAD_ESTADO\" '/c/Users/Evigna/Desktop/Ags plataform/apps/sistema-modular/src' --include=*.tsx --include=*.ts)",
+      "Bash(grep -rn 'type Lead' /c/Users/Evigna/Desktop/Ags plataform/apps/portal-ingeniero/src --include=*.ts --include=*.tsx)",
+      "Bash(done)",
+      "Bash(sed -i \"s/Lead no encontrado/Ticket no encontrado/g; s/Eliminar este lead/Eliminar este ticket/g; s/Cargando lead/Cargando ticket/g\" apps/sistema-modular/src/pages/leads/LeadDetail.tsx)",
+      "Bash(sed -i \"s/''Crear Lead''/''Crear Ticket''/g; s/Crear Lead/Crear Ticket/g\" apps/sistema-modular/src/components/leads/CrearLeadModal.tsx)",
+      "Bash(sed -i \"s/>Lead</>Ticket</g; s/Error al derivar el lead/Error al derivar el ticket/g\" apps/sistema-modular/src/components/leads/DerivarLeadModal.tsx)",
+      "Bash(sed -i \"s/>Lead</>Ticket</g; s/Error al finalizar el lead/Error al finalizar el ticket/g\" apps/sistema-modular/src/components/leads/FinalizarLeadModal.tsx)",
+      "Bash(for f:*)",
+      "Bash(do sed:*)"
     ]
   }
 }

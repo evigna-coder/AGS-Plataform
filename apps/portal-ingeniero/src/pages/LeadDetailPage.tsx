@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Lead, LeadEstado, Posta } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_ESTADO_COLORS } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -84,14 +84,14 @@ export default function LeadDetailPage() {
       estadoNuevo: lead.estado,
     };
     await leadsService.completarAccion(lead.id, posta);
-    await load();
+    setLead(prev => prev ? { ...prev, accionPendiente: null, postas: [...(prev.postas || []), posta] } : prev);
   };
 
   const handleAgregarComentario = async () => {
     if (!lead || !usuario || !comentario.trim()) return;
     setEnviandoComentario(true);
     try {
-      await leadsService.agregarComentario(lead.id, {
+      const newPosta: Posta = {
         id: crypto.randomUUID(),
         fecha: new Date().toISOString(),
         deUsuarioId: usuario.id,
@@ -101,9 +101,10 @@ export default function LeadDetailPage() {
         comentario: comentario.trim(),
         estadoAnterior: lead.estado,
         estadoNuevo: lead.estado,
-      });
+      };
+      await leadsService.agregarComentario(lead.id, newPosta);
       setComentario('');
-      await load();
+      setLead(prev => prev ? { ...prev, postas: [...(prev.postas || []), newPosta] } : prev);
     } catch {
       alert('Error al agregar observación');
     } finally {
@@ -129,8 +130,8 @@ export default function LeadDetailPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-slate-900 tracking-tight">{lead.razonSocial}</h2>
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
-                  {LEAD_ESTADO_LABELS[lead.estado]}
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_ESTADO_COLORS[lead.estado]}`}>
+                  {TICKET_ESTADO_LABELS[lead.estado]}
                 </span>
               </div>
               <p className="text-xs text-slate-400">{lead.contacto}{lead.email ? ` · ${lead.email}` : ''}</p>

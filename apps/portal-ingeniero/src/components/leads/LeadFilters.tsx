@@ -1,5 +1,5 @@
 import type { LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado } from '@ags/shared';
-import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
 const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
@@ -93,13 +93,13 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
         <div className="min-w-[100px]">
           <SearchableSelect size="sm" value={filters.prioridad}
             onChange={v => set({ prioridad: v as LeadPrioridad | '' })}
-            options={[{ value: '', label: 'Prioridad: Todas' }, ...Object.entries(LEAD_PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+            options={[{ value: '', label: 'Prioridad: Todas' }, ...Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
             placeholder="Prioridad" />
         </div>
         <div className="min-w-[110px]">
           <SearchableSelect size="sm" value={filters.area}
             onChange={v => set({ area: v as LeadArea | '' })}
-            options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(LEAD_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+            options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(TICKET_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
             placeholder="Área" />
         </div>
         {!filters.soloMios && !filters.misCreados && (
