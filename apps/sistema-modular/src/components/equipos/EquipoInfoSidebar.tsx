@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
 import { esGaseoso } from '@ags/shared';
@@ -218,6 +218,9 @@ const EditForm: React.FC<EditFormProps> = ({
   sectorCatalog,
 }) => {
   const [generating, setGenerating] = useState(false);
+  const clienteOpts = useMemo(() => clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` })), [clientes]);
+  const estOpts = useMemo(() => establecimientos.map(e => ({ value: e.id, label: e.nombre })), [establecimientos]);
+  const catOpts = useMemo(() => categorias.map(cat => ({ value: cat.id, label: cat.nombre })), [categorias]);
 
   async function handleGenerateId() {
     setGenerating(true);
@@ -240,7 +243,7 @@ const EditForm: React.FC<EditFormProps> = ({
             const list = value ? await loadEstablecimientos(value) : [];
             setEstablecimientos(list);
           }}
-          options={clientes.map(c => ({ value: c.id, label: `${c.razonSocial}${c.cuit ? ` (${c.cuit})` : ''}` }))}
+          options={clienteOpts}
           placeholder="Seleccionar..."
         />
       </div>
@@ -249,7 +252,7 @@ const EditForm: React.FC<EditFormProps> = ({
         <SearchableSelect
           value={formData.establecimientoId}
           onChange={(value) => setFormData({ ...formData, establecimientoId: value })}
-          options={establecimientos.map(e => ({ value: e.id, label: e.nombre }))}
+          options={estOpts}
           placeholder={formData.clienteId ? 'Seleccionar...' : 'Primero seleccione cliente'}
         />
       </div>
@@ -258,7 +261,7 @@ const EditForm: React.FC<EditFormProps> = ({
         <SearchableSelect
           value={formData.categoriaId}
           onChange={(value) => setFormData({ ...formData, categoriaId: value })}
-          options={categorias.map(cat => ({ value: cat.id, label: cat.nombre }))}
+          options={catOpts}
           placeholder="Seleccionar..."
           required
         />

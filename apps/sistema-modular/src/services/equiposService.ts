@@ -2,6 +2,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, T
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
 import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit } from './firebase';
 import { establecimientosService } from './establecimientosService';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Categorias Equipo
 export const categoriasEquipoService = {
@@ -18,13 +19,16 @@ export const categoriasEquipoService = {
     batch.set(ref, payload);
     batchAudit(batch, { action: 'create', collection: 'categorias_equipo', documentId: ref.id, after: payload as any });
     await batch.commit();
+    invalidateCache("categorias_equipo");
     console.log('Categoria creada exitosamente con ID:', ref.id);
     return ref.id;
   },
 
   // Obtener todas las categorias
   async getAll() {
-    console.log('Cargando categorias desde Firestore...');
+    const cached = getCached<CategoriaEquipo[]>('categorias_equipo');
+    if (cached) return cached;
+
     const q = query(collection(db, 'categorias_equipo'));
     const querySnapshot = await getDocs(q);
     const categorias = querySnapshot.docs.map(doc => ({
@@ -32,15 +36,12 @@ export const categoriasEquipoService = {
       ...doc.data(),
     })) as CategoriaEquipo[];
 
-    // Normalizar modelos para categorias viejas
     for (const c of categorias) {
       if (!Array.isArray(c.modelos)) c.modelos = [];
     }
 
-    // Ordenar en memoria mientras se construyen los indices
     categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-    console.log(`${categorias.length} categorias cargadas`);
+    setCache('categorias_equipo', categorias);
     return categorias;
   },
 
@@ -65,6 +66,7 @@ export const categoriasEquipoService = {
     batch.update(docRef('categorias_equipo', id), payload);
     batchAudit(batch, { action: 'update', collection: 'categorias_equipo', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache("categorias_equipo");
   },
 
   // Eliminar categoria
@@ -73,6 +75,7 @@ export const categoriasEquipoService = {
     batch.delete(docRef('categorias_equipo', id));
     batchAudit(batch, { action: 'delete', collection: 'categorias_equipo', documentId: id });
     await batch.commit();
+    invalidateCache("categorias_equipo");
   },
 
   /** Real-time subscription. Returns unsubscribe function. */

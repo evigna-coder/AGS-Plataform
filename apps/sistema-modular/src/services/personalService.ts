@@ -1,12 +1,17 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc, onSnapshot } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ========== INGENIEROS ==========
 
 export const ingenierosService = {
   async getAll(activoOnly: boolean = true): Promise<Ingeniero[]> {
+    const cacheKey = `ingenieros:${activoOnly}`;
+    const cached = getCached<Ingeniero[]>(cacheKey);
+    if (cached) return cached;
+
     let q;
     if (activoOnly) {
       q = query(collection(db, 'ingenieros'), where('activo', '==', true));
@@ -21,6 +26,7 @@ export const ingenierosService = {
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     })) as Ingeniero[];
     items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -48,6 +54,7 @@ export const ingenierosService = {
     batch.set(docRef('ingenieros', id), payload);
     batchAudit(batch, { action: 'create', collection: 'ingenieros', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('ingenieros');
     return id;
   },
 
@@ -61,6 +68,7 @@ export const ingenierosService = {
     batch.update(docRef('ingenieros', id), payload);
     batchAudit(batch, { action: 'update', collection: 'ingenieros', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('ingenieros');
   },
 
   async delete(id: string): Promise<void> {
@@ -68,6 +76,7 @@ export const ingenierosService = {
     batch.delete(docRef('ingenieros', id));
     batchAudit(batch, { action: 'delete', collection: 'ingenieros', documentId: id });
     await batch.commit();
+    invalidateCache('ingenieros');
   },
 
   subscribe(
@@ -98,6 +107,10 @@ export const ingenierosService = {
 
 export const proveedoresService = {
   async getAll(activoOnly: boolean = true): Promise<Proveedor[]> {
+    const cacheKey = `proveedores:${activoOnly}`;
+    const cached = getCached<Proveedor[]>(cacheKey);
+    if (cached) return cached;
+
     let q;
     if (activoOnly) {
       q = query(collection(db, 'proveedores'), where('activo', '==', true));
@@ -112,6 +125,7 @@ export const proveedoresService = {
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     })) as Proveedor[];
     items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    setCache(cacheKey, items);
     return items;
   },
 
@@ -246,9 +260,12 @@ export const usuariosService = {
   },
 
   async getAll(): Promise<UsuarioAGS[]> {
+    const cached = getCached<UsuarioAGS[]>('usuarios');
+    if (cached) return cached;
+
     const q = query(collection(db, 'usuarios'), orderBy('displayName', 'asc'));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({
+    const items = snap.docs.map(d => ({
       id: d.id, ...d.data(),
       role: d.data().role ?? null, photoURL: d.data().photoURL ?? null,
       permisos: d.data().permisos ?? null,
@@ -256,6 +273,8 @@ export const usuariosService = {
       updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? '',
       lastLoginAt: d.data().lastLoginAt?.toDate?.()?.toISOString() ?? '',
     })) as UsuarioAGS[];
+    setCache('usuarios', items);
+    return items;
   },
 
   async updateRole(uid: string, role: UserRole): Promise<void> {

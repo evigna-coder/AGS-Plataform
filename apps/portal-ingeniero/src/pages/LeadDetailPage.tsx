@@ -64,11 +64,6 @@ export default function LeadDetailPage() {
     leadsService.update(lead.id, { [field]: value }).catch(err => console.error('Error updating field:', err));
   };
 
-  const handleDelete = async () => {
-    if (!lead || !confirm('Eliminar este ticket?')) return;
-    await leadsService.delete(lead.id);
-    navigate('/leads');
-  };
 
   const handleCompletarAccion = async () => {
     if (!lead || !usuario || !lead.accionPendiente) return;
@@ -144,7 +139,6 @@ export default function LeadDetailPage() {
                 <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => setShowFinalizar(true)}>Finalizar</Button>
               </>
             )}
-            <Button size="sm" variant="ghost" onClick={handleDelete}>Eliminar</Button>
           </div>
         </div>
       </div>

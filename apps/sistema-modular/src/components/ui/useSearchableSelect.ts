@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useDeferredValue } from 'react';
 
 export interface SearchableSelectOption {
   value: string;
@@ -33,27 +33,42 @@ export function useSearchableSelect({
   const selectedOption = options.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : '';
 
-  // Filter options based on search term
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+  // Defer search so filtering doesn't block the input from accepting keystrokes
+  const deferredSearch = useDeferredValue(searchTerm);
+  const deferredLower = deferredSearch.toLowerCase();
+  const filteredOptions = useMemo(() =>
+    deferredLower ? options.filter(opt => opt.label.toLowerCase().includes(deferredLower)) : options,
+    [options, deferredLower]
   );
 
   // In creatable mode, add "Create: X" option if no exact match
   const trimmedSearch = searchTerm.trim();
-  const showCreateOption = creatable && trimmedSearch &&
-    !filteredOptions.some(opt => opt.label.toLowerCase() === trimmedSearch.toLowerCase());
-  const createOption: SearchableSelectOption | null = showCreateOption
-    ? { value: `__create__:${trimmedSearch}`, label: `${createLabel}: "${trimmedSearch}"` }
-    : null;
+  const allOptions = useMemo(() => {
+    const showCreate = creatable && trimmedSearch &&
+      !filteredOptions.some(opt => opt.label.toLowerCase() === trimmedSearch.toLowerCase());
+    const createOpt: SearchableSelectOption | null = showCreate
+      ? { value: `__create__:${trimmedSearch}`, label: `${createLabel}: "${trimmedSearch}"` }
+      : null;
+    return createOpt ? [...filteredOptions, createOpt] : filteredOptions;
+  }, [filteredOptions, creatable, trimmedSearch, createLabel]);
 
-  // All options including the create option (for keyboard navigation)
-  const allOptions = createOption ? [...filteredOptions, createOption] : filteredOptions;
+  const createOption = allOptions.length > 0 && allOptions[allOptions.length - 1].value.startsWith('__create__:')
+    ? allOptions[allOptions.length - 1] : null;
 
-  // Reset search when dropdown closes
+  // Limit rendered options to avoid DOM thrashing with large lists
+  const MAX_VISIBLE = 50;
+  const totalCount = allOptions.length;
+  const visibleOptions = useMemo(() =>
+    allOptions.length > MAX_VISIBLE ? allOptions.slice(0, MAX_VISIBLE) : allOptions,
+    [allOptions]
+  );
+
+  // Reset search when dropdown closes — also clear the uncontrolled input
   useEffect(() => {
     if (!isOpen) {
       setSearchTerm('');
       setHighlightedIndex(-1);
+      if (inputRef.current) inputRef.current.value = '';
     }
   }, [isOpen]);
 
@@ -118,6 +133,7 @@ export function useSearchableSelect({
     }
     setIsOpen(false);
     setSearchTerm('');
+    if (inputRef.current) inputRef.current.value = '';
     // Return focus to container only if user hasn't moved focus to another field
     requestAnimationFrame(() => {
       const active = document.activeElement;
@@ -216,6 +232,8 @@ export function useSearchableSelect({
     listRef,
     displayValue,
     allOptions,
+    visibleOptions,
+    totalCount,
     handleSelect,
     handleKeyDown,
     handleInputKeyDown,

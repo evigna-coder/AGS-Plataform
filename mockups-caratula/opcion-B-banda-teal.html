@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Opcion B - Banda Teal</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #e5e7eb; display: flex; justify-content: center; padding: 40px 0; font-family: 'Inter', sans-serif; }
+  .page {
+    width: 210mm; height: 297mm;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+
+  .header-band {
+    background: linear-gradient(135deg, #0D6E6E 0%, #0a5a5a 100%);
+    padding: 50px 50px 45px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header-band::after {
+    content: '';
+    position: absolute; top: 0; right: 0;
+    width: 300px; height: 100%;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.04) 100%);
+  }
+  .header-logo {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .header-logo-text {
+    font-size: 28px; font-weight: 700; color: #fff;
+    letter-spacing: -1px;
+  }
+  .header-logo-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: rgba(255,255,255,0.6);
+    letter-spacing: 4px; text-transform: uppercase;
+  }
+  .header-divider {
+    width: 50px; height: 2px; background: rgba(255,255,255,0.3);
+    margin-bottom: 24px;
+  }
+  .header-titulo {
+    font-family: 'Newsreader', serif;
+    font-size: 28px; font-weight: 600;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .header-titulo span {
+    display: block;
+    font-size: 22px; font-weight: 400;
+    color: rgba(255,255,255,0.75);
+    margin-top: 4px;
+  }
+
+  .content {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 50px;
+  }
+
+  .equipo-nombre {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px; font-weight: 500;
+    color: #334155;
+    text-align: center;
+    line-height: 1.5;
+    margin-bottom: 50px;
+  }
+
+  .datos-card {
+    width: 440px;
+    border-left: 3px solid #0D6E6E;
+    background: #f8fafc;
+    border-radius: 0 8px 8px 0;
+    overflow: hidden;
+  }
+  .datos-fila {
+    display: flex;
+    padding: 12px 18px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .datos-fila:last-child { border-bottom: none; }
+  .datos-label {
+    width: 130px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #0D6E6E;
+    display: flex; align-items: center;
+  }
+  .datos-valor {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; color: #334155;
+    display: flex; align-items: center;
+  }
+  .datos-valor.id {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; color: #0D6E6E;
+    font-size: 12px;
+  }
+
+  .footer {
+    border-top: 1px solid #e2e8f0;
+    padding: 8px 30px;
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; color: #94a3b8;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="header-band">
+      <div class="header-logo">
+        <div>
+          <div class="header-logo-text">AGS</div>
+          <div class="header-logo-sub">Analitica</div>
+        </div>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-titulo">
+        Calificacion Operacional
+        <span>Verificacion de Funcionamiento</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="equipo-nombre">
+        HPLC Hewlett Packard / Agilent Technologies<br>
+        Series 1100 / 1120 / 1200 / 1220 / 1260 Infinity
+      </div>
+
+      <div class="datos-card">
+        <div class="datos-fila">
+          <div class="datos-label">Fecha</div>
+          <div class="datos-valor">09/06/2025</div>
+        </div>
+        <div class="datos-fila">
+          <div class="datos-label">Modelo</div>
+          <div class="datos-valor">1260 Infinity II</div>
+          <div class="datos-valor id">AGS-EQ-1043</div>
+        </div>
+        <div class="datos-fila">
+          <div class="datos-label">N&#176; de Serie</div>
+          <div class="datos-valor">DEABC12345</div>
+        </div>
+        <div class="datos-fila">
+          <div class="datos-label">Realizado por</div>
+          <div class="datos-valor">Ing. Juan Perez</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Archivo: QP7.0506.09</span>
+      <span>Formulario: QP7.0506</span>
+      <span>Rev: 09</span>
+      <span>Fecha: 09/06/2025</span>
+    </div>
+  </div>
+</body>
+</html>

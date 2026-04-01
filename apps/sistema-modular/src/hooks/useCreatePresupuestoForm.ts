@@ -165,7 +165,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
           deUsuarioId: usuario.id, deUsuarioNombre: usuario.displayName,
           aUsuarioId: usuario.id, aUsuarioNombre: usuario.displayName,
           comentario: `Presupuesto creado: ${numero}`,
-          estadoAnterior: 'en_presupuesto', estadoNuevo: 'en_presupuesto',
+          estadoAnterior: 'presupuesto_pendiente', estadoNuevo: 'presupuesto_pendiente',
         };
         await leadsService.agregarComentario(form.origenId, posta).catch(err => console.error('Error agregando posta al lead:', err));
         await leadsService.linkPresupuesto(form.origenId, presupuestoId).catch(err => console.error('Error vinculando presupuesto al lead:', err));

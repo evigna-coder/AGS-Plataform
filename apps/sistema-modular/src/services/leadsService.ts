@@ -32,18 +32,21 @@ const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
   CREADA: 'en_coordinacion',
   ASIGNADA: 'en_coordinacion',
   COORDINADA: 'en_coordinacion',
-  EN_CURSO: 'en_proceso',
-  CIERRE_TECNICO: 'en_proceso',
-  CIERRE_ADMINISTRATIVO: 'en_proceso',
+  EN_CURSO: 'en_seguimiento',
+  CIERRE_TECNICO: 'en_seguimiento',
+  CIERRE_ADMINISTRATIVO: 'en_seguimiento',
   FINALIZADO: 'finalizado',
 };
 
 function migrateLeadEstado(raw: string): LeadEstado {
   const migration: Record<string, LeadEstado> = {
-    contactado: 'pendiente_info',
-    en_revision: 'pendiente_info',
-    derivado: 'pendiente_info',
-    presupuestado: 'en_presupuesto',
+    contactado: 'en_seguimiento',
+    en_revision: 'en_seguimiento',
+    derivado: 'en_seguimiento',
+    presupuestado: 'presupuesto_pendiente',
+    pendiente_info: 'en_seguimiento',
+    en_presupuesto: 'presupuesto_pendiente',
+    en_proceso: 'en_seguimiento',
     convertido: 'finalizado',
     perdido: 'no_concretado',
   };
@@ -67,9 +70,10 @@ function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
     contrato: 'ventas',
     venta_insumos: 'ventas',
     presupuesto_ventas: 'ventas',
-    agenda_coordinacion: 'soporte',
-    materiales_comex: 'soporte',
-    ingeniero_soporte: 'soporte',
+    soporte: 'admin_soporte',
+    agenda_coordinacion: 'admin_soporte',
+    materiales_comex: 'admin_soporte',
+    ingeniero_soporte: 'ing_soporte',
     facturacion: 'administracion',
     pago_proveedores: 'administracion',
   };

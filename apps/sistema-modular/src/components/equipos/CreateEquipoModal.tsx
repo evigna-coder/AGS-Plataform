@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -61,6 +61,10 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
   }, [form.clienteId, establecimientos]);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const clienteOptions = useMemo(() => clientes.map(c => ({ value: c.id, label: c.razonSocial })), [clientes]);
+  const estOptions = useMemo(() => estFiltrados.map(e => ({ value: e.id, label: `${e.nombre} — ${e.localidad}` })), [estFiltrados]);
+  const catOptions = useMemo(() => categorias.map(c => ({ value: c.id, label: c.nombre })), [categorias]);
 
   const selectedCategoria = categorias.find(c => c.id === form.categoriaId);
   const hasModelos = selectedCategoria && Array.isArray(selectedCategoria.modelos) && selectedCategoria.modelos.length > 0;
@@ -128,7 +132,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
           <label className={lbl}>Cliente *</label>
           <SearchableSelect value={form.clienteId}
             onChange={v => { set('clienteId', v); set('establecimientoId', ''); }}
-            options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+            options={clienteOptions}
             placeholder="Seleccionar cliente..." />
         </div>
 
@@ -137,7 +141,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
             <label className={lbl}>Establecimiento *</label>
             <SearchableSelect value={form.establecimientoId}
               onChange={v => { set('establecimientoId', v); set('sector', ''); }}
-              options={estFiltrados.map(e => ({ value: e.id, label: `${e.nombre} — ${e.localidad}` }))}
+              options={estOptions}
               placeholder="Seleccionar establecimiento..." />
           </div>
         )}
@@ -168,7 +172,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
           <label className={lbl}>Categoria *</label>
           <SearchableSelect value={form.categoriaId}
             onChange={v => { set('categoriaId', v); set('nombre', ''); set('nombreManual', ''); }}
-            options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
+            options={catOptions}
             placeholder="Seleccionar categoria..." />
         </div>
 

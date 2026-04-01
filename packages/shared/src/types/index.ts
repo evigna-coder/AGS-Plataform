@@ -387,16 +387,18 @@ export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
 };
 
 // --- Áreas destino (Tickets) ---
-export type TicketArea = 'soporte' | 'administracion' | 'ventas';
+export type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas';
 
 export const TICKET_AREA_LABELS: Record<TicketArea, string> = {
-  soporte: 'Soporte',
+  admin_soporte: 'Administración de soporte',
+  ing_soporte: 'Ing. de soporte',
   administracion: 'Administración',
   ventas: 'Ventas',
 };
 
 export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
-  soporte: 'bg-blue-100 text-blue-700',
+  admin_soporte: 'bg-blue-100 text-blue-700',
+  ing_soporte: 'bg-teal-100 text-teal-700',
   administracion: 'bg-violet-100 text-violet-700',
   ventas: 'bg-green-100 text-green-700',
 };
@@ -432,8 +434,9 @@ export const TICKET_PRIORIDAD_DIAS: Record<TicketPrioridad, number> = {
 /** Mapeo de UserRole → áreas de ticket que ese rol puede gestionar */
 export const ROLE_TICKET_AREAS: Record<UserRole, TicketArea[]> = {
   admin: [],
-  admin_soporte: ['soporte', 'ventas'],
-  ingeniero_soporte: ['soporte'],
+  admin_soporte: ['admin_soporte'],
+  admin_ing_soporte: ['ing_soporte'],
+  ingeniero_soporte: ['ing_soporte'],
   admin_contable: ['administracion'],
   administracion: ['administracion'],
 };
@@ -459,14 +462,12 @@ export type TicketEstado =
   | 'nuevo'
   | 'relevamiento_pendiente'
   | 'presupuesto_pendiente'
-  | 'pendiente_info'
-  | 'en_presupuesto'
+  | 'en_seguimiento'
   | 'presupuesto_enviado'
   | 'esperando_oc'
   | 'espera_importacion'
   | 'pendiente_entrega'
   | 'en_coordinacion'
-  | 'en_proceso'
   | 'finalizado'
   | 'no_concretado';
 
@@ -474,14 +475,12 @@ export const TICKET_ESTADO_LABELS: Record<TicketEstado, string> = {
   nuevo: 'Nuevo',
   relevamiento_pendiente: 'Relevamiento pendiente',
   presupuesto_pendiente: 'Presupuesto pendiente',
-  pendiente_info: 'Pendiente info',
-  en_presupuesto: 'En presupuesto',
+  en_seguimiento: 'En seguimiento',
   presupuesto_enviado: 'Presupuesto enviado',
   esperando_oc: 'Esperando OC',
   espera_importacion: 'Espera importación',
   pendiente_entrega: 'Pendiente entrega',
   en_coordinacion: 'En coordinación',
-  en_proceso: 'En proceso',
   finalizado: 'Finalizado',
   no_concretado: 'No concretado',
 };
@@ -490,14 +489,12 @@ export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
   nuevo: 'bg-blue-100 text-blue-800',
   relevamiento_pendiente: 'bg-indigo-100 text-indigo-800',
   presupuesto_pendiente: 'bg-purple-100 text-purple-800',
-  pendiente_info: 'bg-amber-100 text-amber-800',
-  en_presupuesto: 'bg-teal-100 text-teal-800',
+  en_seguimiento: 'bg-sky-100 text-sky-800',
   presupuesto_enviado: 'bg-violet-100 text-violet-800',
   esperando_oc: 'bg-orange-100 text-orange-800',
   espera_importacion: 'bg-yellow-100 text-yellow-800',
   pendiente_entrega: 'bg-lime-100 text-lime-800',
   en_coordinacion: 'bg-cyan-100 text-cyan-800',
-  en_proceso: 'bg-sky-100 text-sky-800',
   finalizado: 'bg-emerald-100 text-emerald-800',
   no_concretado: 'bg-red-100 text-red-600',
 };
@@ -505,9 +502,9 @@ export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
 /** Orden para tabs y filtros */
 export const TICKET_ESTADO_ORDER: TicketEstado[] = [
   'nuevo', 'relevamiento_pendiente', 'presupuesto_pendiente',
-  'pendiente_info', 'en_presupuesto', 'presupuesto_enviado',
+  'en_seguimiento', 'presupuesto_enviado',
   'esperando_oc', 'espera_importacion', 'pendiente_entrega',
-  'en_coordinacion', 'en_proceso', 'finalizado', 'no_concretado',
+  'en_coordinacion', 'finalizado', 'no_concretado',
 ];
 
 // --- Posta (derivación) ---
@@ -1150,7 +1147,7 @@ export interface TableCatalogEntry {
   description?: string | null;
   sysType: string;
   isDefault: boolean;
-  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text' | 'signatures';
+  tableType: 'validation' | 'informational' | 'instruments' | 'checklist' | 'text' | 'signatures' | 'cover';
   columns: TableCatalogColumn[];
   templateRows: TableCatalogRow[];
   validationRules: TableCatalogRule[];
@@ -2234,7 +2231,7 @@ export interface Importacion {
 // --- Autenticacion y Roles ---
 // =============================================
 
-export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'admin_contable' | 'administracion';
+export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'admin_ing_soporte' | 'admin_contable' | 'administracion';
 export type UserStatus = 'pendiente' | 'activo' | 'deshabilitado';
 
 // ── Ingreso a Empresas ──────────────────────────────────────────────────
@@ -2467,6 +2464,10 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
     modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
   },
+  admin_ing_soporte: {
+    apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
+  },
   admin_contable: {
     apps: ['sistema-modular'],
     modulos: ['leads', 'presupuestos', 'stock', 'facturacion'],
@@ -2574,6 +2575,7 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   ingeniero_soporte: 'Ingeniero de Soporte',
   admin_soporte: 'Admin de Soporte',
+  admin_ing_soporte: 'Admin Ing. de Soporte',
   admin_contable: 'Admin Contable',
   administracion: 'Administración',
 };
@@ -2594,6 +2596,8 @@ export const USER_STATUS_COLORS: Record<UserStatus, string> = {
 export interface UserPermissionsOverride {
   apps?: AppId[];
   modulos?: ModuloId[];
+  /** Áreas de ticket que este usuario puede ver (además de sus propios tickets) */
+  ticketAreasVisibles?: TicketArea[];
 }
 
 export interface UsuarioAGS {

@@ -205,7 +205,7 @@ const FILTER_SCHEMA = {
 export const OTList = () => {
   const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
 
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns();
+  const { tableRef, colWidths, onResizeStart } = useResizableColumns('ot-list');
   const [ordenes, setOrdenes] = useState<WorkOrder[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);

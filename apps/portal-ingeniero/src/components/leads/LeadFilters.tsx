@@ -5,12 +5,12 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'nuevo', label: 'Nuevo' },
-  { value: 'pendiente_info', label: 'Pend. info' },
-  { value: 'en_presupuesto', label: 'Presupuesto' },
+  { value: 'relevamiento_pendiente', label: 'Relevamiento' },
+  { value: 'presupuesto_pendiente', label: 'Presupuesto pend.' },
+  { value: 'en_seguimiento', label: 'En seguimiento' },
   { value: 'en_coordinacion', label: 'Coordinación' },
-  { value: 'en_proceso', label: 'En proceso' },
-  { value: 'finalizado', label: 'Finalizado' },
   { value: 'no_concretado', label: 'No concretado' },
+  { value: 'finalizado', label: 'Finalizado' },
 ];
 
 export interface LeadFiltersState {

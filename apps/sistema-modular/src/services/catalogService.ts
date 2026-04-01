@@ -2,6 +2,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, o
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca } from '@ags/shared';
 import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // --- Biblioteca de Tablas (/tableCatalog) ---
 
@@ -341,6 +342,10 @@ export const instrumentosService = {
 
 export const marcasService = {
   async getAll(activoOnly: boolean = true): Promise<Marca[]> {
+    const cacheKey = `marcas:${activoOnly}`;
+    const cached = getCached<Marca[]>(cacheKey);
+    if (cached) return cached;
+
     let q;
     if (activoOnly) {
       q = query(collection(db, 'marcas'), where('activo', '==', true));
@@ -355,6 +360,7 @@ export const marcasService = {
       updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
     })) as Marca[];
     marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    setCache(cacheKey, marcas);
     return marcas;
   },
 
@@ -430,6 +436,9 @@ const DEFAULT_SECTORES = [
 
 export const sectoresCatalogService = {
   async getAll(): Promise<SectorCatalog[]> {
+    const cached = getCached<SectorCatalog[]>('sectores');
+    if (cached) return cached;
+
     const snap = await getDocs(collection(db, 'catalogoSectores'));
     const existing = snap.docs.map(d => ({ id: d.id, nombre: (d.data().nombre || '') as string }));
     // Auto-seed defaults on first access
@@ -441,7 +450,9 @@ export const sectoresCatalogService = {
       }
       return seeded.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
-    return existing.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const sorted = existing.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    setCache('sectores', sorted);
+    return sorted;
   },
 
   async create(nombre: string): Promise<string> {

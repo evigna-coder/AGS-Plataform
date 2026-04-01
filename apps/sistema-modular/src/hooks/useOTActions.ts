@@ -111,7 +111,7 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
         descripcion: `Presupuesto pendiente para ${form.razonSocial || 'cliente'} originado en OT-${otNumber}. Sistema: ${form.sistemaNombre || 'N/A'}. Tipo de servicio: ${form.tipoServicio || 'N/A'}.`,
         sistemaId: form.sistemaId || null,
         moduloId: form.moduloId || null,
-        estado: 'en_presupuesto',
+        estado: 'presupuesto_pendiente',
         postas: [],
         asignadoA: null,
         asignadoNombre: null,

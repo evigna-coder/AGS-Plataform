@@ -1,6 +1,7 @@
 import { collection, getDocs, doc, getDoc, deleteDoc, query, Timestamp, onSnapshot, addDoc, updateDoc } from 'firebase/firestore';
 import type { Cliente, ContactoCliente } from '@ags/shared';
 import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef } from './firebase';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
 export const clientesService = {
@@ -25,13 +26,16 @@ export const clientesService = {
     batch.set(doc(db, 'clientes', id), payload);
     batchAudit(batch, { action: 'create', collection: 'clientes', documentId: id, after: payload as any });
     await batch.commit();
-    console.log('✅ Cliente creado exitosamente con ID:', id);
+    invalidateCache('clientes');
     return id;
   },
 
   // Obtener todos los clientes (activos por defecto)
   async getAll(activosOnly: boolean = false) {
-    console.log('📥 Cargando clientes desde Firestore...');
+    const cacheKey = `clientes:${activosOnly}`;
+    const cached = getCached<Cliente[]>(cacheKey);
+    if (cached) return cached;
+
     const q = query(collection(db, 'clientes'));
     const querySnapshot = await getDocs(q);
     let clientes = querySnapshot.docs.map((docSnap) => {
@@ -52,7 +56,7 @@ export const clientesService = {
 
     clientes.sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
 
-    console.log(`✅ ${clientes.length} clientes cargados`);
+    setCache(cacheKey, clientes);
     return clientes;
   },
 
@@ -145,6 +149,7 @@ export const clientesService = {
     batch.update(firestoreDocRef('clientes', id), payload);
     batchAudit(batch, { action: 'update', collection: 'clientes', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('clientes');
   },
 
   // Baja lógica (marcar como inactivo)

@@ -8,6 +8,7 @@ import {
   LEAD_AREA_LABELS, LEAD_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
+  ROLE_TICKET_AREAS,
   canUserModifyLead,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../../services/firebaseService';
@@ -96,10 +97,32 @@ export const LeadsList = () => {
     // No-op: the listener already handles updates.
   }, []);
 
+  const isAdmin = usuario?.role === 'admin';
+  // Areas this user can see beyond their own tickets (from role mapping)
+  const extraAreas = useMemo(() => {
+    if (!usuario || isAdmin) return null;
+    const roleAreas = ROLE_TICKET_AREAS[usuario.role as keyof typeof ROLE_TICKET_AREAS] ?? [];
+    return roleAreas.length > 0 ? new Set(roleAreas) : null;
+  }, [usuario, isAdmin]);
+
   const leadsFiltered = useMemo(() => {
     let result = leads;
+
+    // Visibility by role
+    if (!isAdmin && usuario) {
+      result = result.filter(l =>
+        l.asignadoA === usuario.id ||
+        l.createdBy === usuario.id ||
+        (extraAreas && l.areaActual && extraAreas.has(l.areaActual))
+      );
+    }
+
+    // Ocultar finalizados por defecto (solo mostrar si se filtra explícitamente)
+    if (!filters.estadoFilter || filters.estadoFilter !== 'finalizado') {
+      result = result.filter(l => l.estado !== 'finalizado');
+    }
     if (filters.misCreados && usuario) {
-      result = result.filter(l => l.createdBy === usuario.id || l.derivadoPor === usuario.id);
+      result = result.filter(l => l.createdBy === usuario.id);
     }
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
@@ -125,7 +148,7 @@ export const LeadsList = () => {
         case 'razonSocial': cmp = a.razonSocial.localeCompare(b.razonSocial); break;
         case 'contacto': cmp = a.contacto.localeCompare(b.contacto); break;
         case 'motivoLlamado': cmp = a.motivoLlamado.localeCompare(b.motivoLlamado); break;
-        case 'prioridad': cmp = (PRIORIDAD_ORDER[a.prioridad || 'media'] ?? 2) - (PRIORIDAD_ORDER[b.prioridad || 'media'] ?? 2); break;
+        case 'prioridad': cmp = (PRIORIDAD_ORDER[a.prioridad || 'normal'] ?? 2) - (PRIORIDAD_ORDER[b.prioridad || 'normal'] ?? 2); break;
         case 'estado': cmp = a.estado.localeCompare(b.estado); break;
         case 'areaActual': cmp = (a.areaActual || '').localeCompare(b.areaActual || ''); break;
         case 'asignadoA': cmp = getResponsableNombre(a.asignadoA).localeCompare(getResponsableNombre(b.asignadoA)); break;
@@ -147,7 +170,7 @@ export const LeadsList = () => {
     return <span className="text-teal-500 ml-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns();
+  const { tableRef, colWidths, onResizeStart } = useResizableColumns('tickets-list');
 
   const pipelineTotal = useMemo(() =>
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
@@ -216,7 +239,7 @@ export const LeadsList = () => {
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Tickets" count={leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
-        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Lead</Button>}>
+        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
         <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
           estadoFilter={filters.estadoFilter as LeadEstado | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
           filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}
@@ -226,9 +249,9 @@ export const LeadsList = () => {
       <div className="flex-1 min-h-0 px-5 pb-4">
         {leadsFiltered.length === 0 ? (
           <Card><div className="text-center py-12">
-            <p className="text-slate-400">No se encontraron leads</p>
+            <p className="text-slate-400">No se encontraron tickets</p>
             <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
-              Crear primer lead
+              Crear primer ticket
             </button>
           </div></Card>
         ) : (
@@ -275,60 +298,63 @@ export const LeadsList = () => {
                   return (
                     <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                       onClick={() => navigate(`/leads/${lead.id}`)}>
-                      <td className="px-3 py-2 overflow-hidden">
-                        <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
+                      <td className="px-3 py-2 overflow-hidden text-left">
+                        <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}
+                          onClick={e => e.stopPropagation()}>
                           {lead.razonSocial}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden" title={lead.contacto}>
+                      <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden text-center" title={lead.contacto}>
                         {lead.contacto}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                           {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
                         {lead.prioridad ? (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
                             {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
                           {LEAD_ESTADO_LABELS[lead.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
                         {lead.areaActual ? (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
                             {LEAD_AREA_LABELS[lead.areaActual]}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-500 truncate overflow-hidden" title={getResponsableNombre(lead.asignadoA)}>
+                      <td className="px-3 py-2 text-xs text-slate-500 truncate overflow-hidden text-center" title={getResponsableNombre(lead.asignadoA)}>
                         {getResponsableNombre(lead.asignadoA)}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
                         <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
                         {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
                         {daysUntil !== null ? (
                           <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
                             {getContactoStatusText(daysUntil)}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 overflow-hidden">
-                        <span className="text-[10px] text-slate-500 line-clamp-2" title={lead.descripcion || lead.motivoContacto || ''}>
-                          {lead.descripcion || lead.motivoContacto || '—'}
+                      <td className="px-3 py-2 overflow-hidden text-left">
+                        <span className="text-[10px] text-slate-500 truncate block" title={lead.descripcion || lead.motivoContacto || ''}>
+                          {((lead.descripcion || lead.motivoContacto || '—').length > 30
+                            ? (lead.descripcion || lead.motivoContacto || '').slice(0, 30) + '...'
+                            : lead.descripcion || lead.motivoContacto || '—')}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap overflow-hidden">
-                        <div className="flex items-center justify-end gap-1">
-                          {!isClosed && canModify && (
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                          {!isClosed && (
                             <>
                               <button onClick={() => setQuickNoteLead(lead)} title="Nota rápida"
                                 className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
@@ -346,10 +372,6 @@ export const LeadsList = () => {
                               </button>
                             </>
                           )}
-                          <Link to={`/leads/${lead.id}`}
-                            className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50">
-                            Ver
-                          </Link>
                         </div>
                       </td>
                     </tr>

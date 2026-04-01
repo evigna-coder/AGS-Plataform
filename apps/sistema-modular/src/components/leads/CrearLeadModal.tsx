@@ -1,5 +1,6 @@
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
-import type { MotivoLlamado, TicketArea, TicketPrioridad } from '@ags/shared';
+import { useMemo } from 'react';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, TICKET_ESTADO_ORDER, TICKET_ESTADO_LABELS } from '@ags/shared';
+import type { MotivoLlamado, TicketArea, TicketPrioridad, TicketEstado } from '@ags/shared';
 import { useCrearLeadForm } from '../../hooks/useCrearLeadForm';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -19,36 +20,19 @@ const labelClass = 'text-[11px] font-medium text-slate-400 mb-1 block';
 export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
   const h = useCrearLeadForm(onClose, onCreated);
 
+  const sistemaOptions = useMemo(() =>
+    h.sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` })),
+    [h.sistemasFiltrados]
+  );
+  const moduloOptions = useMemo(() =>
+    h.modulos.map(m => ({ value: m.id, label: m.nombre })),
+    [h.modulos]
+  );
+
   return (
     <Modal open title="Nuevo Ticket" subtitle="Registrar nueva consulta o pedido" onClose={onClose}>
       <div className="space-y-3">
-        {/* Motivo */}
-        <div>
-          <label className={labelClass}>Motivo *</label>
-          <select value={h.motivoLlamado} onChange={e => h.setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
-            {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-        {h.motivoLlamado === 'otros' && (
-          <div>
-            <label className={labelClass}>Especificar motivo *</label>
-            <input type="text" value={h.motivoOtros} onChange={e => h.setMotivoOtros(e.target.value)}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              placeholder="Describir el motivo..." />
-          </div>
-        )}
-
-        {/* Próximo contacto (define prioridad) */}
-        <div>
-          <label className={labelClass}>Próximo contacto</label>
-          <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
-            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
-              <option key={k} value={k}>{dias <= 4 ? `${dias * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Cliente */}
+        {/* Bloque 1: Cliente + Contacto */}
         <LeadClienteField
           clienteId={h.clienteId} razonSocial={h.razonSocial} setRazonSocial={h.setRazonSocial}
           setClienteSearch={h.setClienteSearch}
@@ -56,12 +40,8 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
           filteredClientes={h.filteredClientes}
           onSelect={h.handleSelectCliente} onClear={h.handleClearCliente}
           error={h.errors.razonSocial} />
-
-        {/* Contacto + Email + Teléfono */}
-        <div>
-          <Input inputSize="sm" label="Contacto *" value={h.contacto}
-            onChange={e => h.setContacto(e.target.value)} error={h.errors.contacto} placeholder="Persona de contacto" />
-        </div>
+        <Input inputSize="sm" label="Contacto *" value={h.contacto}
+          onChange={e => h.setContacto(e.target.value)} error={h.errors.contacto} placeholder="Persona de contacto" />
         <div className="grid grid-cols-2 gap-3">
           <Input inputSize="sm" label="Email" type="email" value={h.email}
             onChange={e => h.setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
@@ -69,45 +49,80 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
             onChange={e => h.setTelefono(e.target.value)} placeholder="011 1234 5678" />
         </div>
 
-        {/* Sistema/Equipo */}
+        {/* Bloque 2: Motivo + Estado inicial */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Motivo *</label>
+            <select value={h.motivoLlamado} onChange={e => h.setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+              {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Estado inicial</label>
+            <select value={h.estadoInicial} onChange={e => h.setEstadoInicial(e.target.value as TicketEstado)} className={selectClass}>
+              {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
+                <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {h.motivoLlamado === 'otros' && (
+          <Input inputSize="sm" label="Especificar motivo *" value={h.motivoOtros}
+            onChange={e => h.setMotivoOtros(e.target.value)} placeholder="Describir el motivo..." />
+        )}
+
+        {/* Bloque 2b: Próximo contacto + Acción pendiente */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Próximo contacto</label>
+            <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
+              {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+                <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+              ))}
+            </select>
+          </div>
+          <Input inputSize="sm" label="Acción pendiente (opcional)" value={h.accionPendiente}
+            onChange={e => h.setAccionPendiente(e.target.value)}
+            placeholder="Ej: Averiguar N° parte, Confirmar..." />
+        </div>
+
+        {/* Bloque 3: Área + Asignación */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Área destino</label>
+            <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
+              <option value="">Sin área específica</option>
+              {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Asignar a</label>
+            <select value={h.asignadoA} onChange={e => h.setAsignadoA(e.target.value)} className={selectClass}>
+              <option value="">Sin asignar</option>
+              {h.usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Bloque 4: Sistema/Equipo (si hay cliente) */}
         {h.clienteId && h.sistemasFiltrados.length > 0 && (
           <div>
             <label className={labelClass}>Sistema/Equipo (opcional)</label>
             <SearchableSelect value={h.sistemaId} onChange={h.handleSistemaChange}
-              options={h.sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` }))}
-              placeholder="Buscar sistema..." />
+              options={sistemaOptions} placeholder="Buscar sistema..." />
           </div>
         )}
         {h.sistemaId && h.modulos.length > 0 && (
           <div>
             <label className={labelClass}>Módulo (opcional)</label>
             <SearchableSelect value={h.moduloId} onChange={h.setModuloId}
-              options={h.modulos.map(m => ({ value: m.id, label: m.nombre }))}
-              placeholder="Buscar módulo..." />
+              options={moduloOptions} placeholder="Buscar módulo..." />
           </div>
         )}
 
-        {/* Área destino */}
-        <div>
-          <label className={labelClass}>Área destino (opcional)</label>
-          <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
-            <option value="">Sin área específica</option>
-            {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Asignar a */}
-        <div>
-          <label className={labelClass}>Asignar a (opcional)</label>
-          <select value={h.asignadoA} onChange={e => h.setAsignadoA(e.target.value)} className={selectClass}>
-            <option value="">Sin asignar</option>
-            {h.usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName} ({u.role})</option>)}
-          </select>
-        </div>
-
-        {/* Descripción */}
+        {/* Bloque 5: Descripción */}
         <div>
           <label className={labelClass}>Descripción</label>
           <textarea value={h.descripcion} onChange={e => h.setDescripcion(e.target.value)} rows={2}
@@ -115,15 +130,7 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
             placeholder="Detalle de la consulta o solicitud..." />
         </div>
 
-        {/* Acción pendiente */}
-        <div>
-          <label className={labelClass}>Acción pendiente (opcional)</label>
-          <input type="text" value={h.accionPendiente} onChange={e => h.setAccionPendiente(e.target.value)}
-            className={selectClass}
-            placeholder="Ej: Averiguar N° de parte, Confirmar disponibilidad..." />
-        </div>
-
-        {/* Adjuntos */}
+        {/* Bloque 6: Adjuntos */}
         <LeadAdjuntosField
           pendingFiles={h.pendingFiles} fileRef={h.fileRef}
           onFileChange={h.handleFileChange} onRemove={h.removeFile} />

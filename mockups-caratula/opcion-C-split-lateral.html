@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Opcion C - Split Lateral</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #e5e7eb; display: flex; justify-content: center; padding: 40px 0; font-family: 'Inter', sans-serif; }
+  .page {
+    width: 210mm; height: 297mm;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+  }
+
+  /* Sidebar izquierdo */
+  .sidebar {
+    width: 200px;
+    background: #f8fafc;
+    border-right: 2px solid #0D6E6E;
+    display: flex; flex-direction: column;
+    padding: 50px 24px 40px;
+  }
+  .sidebar-logo {
+    margin-bottom: 40px;
+  }
+  .sidebar-logo-text {
+    font-size: 24px; font-weight: 700; color: #0D6E6E;
+    letter-spacing: -1px;
+  }
+  .sidebar-logo-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; color: #94a3b8;
+    letter-spacing: 3px; text-transform: uppercase;
+  }
+  .sidebar-divider {
+    width: 30px; height: 2px; background: #0D6E6E;
+    margin-bottom: 30px;
+    opacity: 0.4;
+  }
+
+  .sidebar-field {
+    margin-bottom: 20px;
+  }
+  .sidebar-field-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #0D6E6E;
+    margin-bottom: 5px;
+  }
+  .sidebar-field-value {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px; color: #334155;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .sidebar-field-value.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500; color: #0D6E6E;
+    font-size: 11px;
+  }
+
+  /* Contenido derecho */
+  .right {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding: 60px 50px;
+  }
+
+  .titulo-principal {
+    font-family: 'Newsreader', serif;
+    font-size: 32px; font-weight: 600;
+    color: #1e293b;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .titulo-secundario {
+    font-family: 'Newsreader', serif;
+    font-size: 22px; font-weight: 400;
+    color: #64748b;
+    line-height: 1.3;
+    margin-bottom: 40px;
+  }
+
+  .equipo-bar {
+    border-left: 3px solid #0D6E6E;
+    padding: 12px 18px;
+    background: #f0fdfa;
+    border-radius: 0 6px 6px 0;
+  }
+  .equipo-bar p {
+    font-size: 15px; color: #475569;
+    line-height: 1.5;
+  }
+  .equipo-bar p strong {
+    font-weight: 500; color: #334155;
+  }
+
+  .footer {
+    border-top: 1px solid #e2e8f0;
+    padding: 8px 30px;
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; color: #94a3b8;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="main">
+      <div class="sidebar">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-text">AGS</div>
+          <div class="sidebar-logo-sub">Analitica</div>
+        </div>
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-field">
+          <div class="sidebar-field-label">Fecha</div>
+          <div class="sidebar-field-value">09/06/2025</div>
+        </div>
+        <div class="sidebar-field">
+          <div class="sidebar-field-label">Modelo</div>
+          <div class="sidebar-field-value">1260 Infinity II</div>
+        </div>
+        <div class="sidebar-field">
+          <div class="sidebar-field-label">ID</div>
+          <div class="sidebar-field-value mono">AGS-EQ-1043</div>
+        </div>
+        <div class="sidebar-field">
+          <div class="sidebar-field-label">N&#176; de Serie</div>
+          <div class="sidebar-field-value">DEABC12345</div>
+        </div>
+        <div class="sidebar-field">
+          <div class="sidebar-field-label">Realizado por</div>
+          <div class="sidebar-field-value">Ing. Juan Perez</div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="titulo-principal">
+          Calificacion<br>Operacional
+        </div>
+        <div class="titulo-secundario">
+          Verificacion de<br>Funcionamiento
+        </div>
+        <div class="equipo-bar">
+          <p><strong>HPLC Hewlett Packard / Agilent Technologies</strong><br>
+          Series 1100 / 1120 / 1200 / 1220 / 1260 Infinity</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Archivo: QP7.0506.09</span>
+      <span>Formulario: QP7.0506</span>
+      <span>Rev: 09</span>
+      <span>Fecha: 09/06/2025</span>
+    </div>
+  </div>
+</body>
+</html>

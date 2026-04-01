@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Opcion A - Clasica Modernizada</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #e5e7eb; display: flex; justify-content: center; padding: 40px 0; font-family: 'Inter', sans-serif; }
+  .page {
+    width: 210mm; height: 297mm;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0;
+  }
+
+  .content {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start;
+    padding: 60px 50px 40px;
+    width: 100%;
+  }
+
+  .logo-area {
+    margin-bottom: 40px;
+  }
+  .logo-area img { height: 110px; }
+  .logo-placeholder {
+    width: 180px; height: 110px;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 6px;
+  }
+  .logo-icon {
+    font-size: 48px; color: #0D6E6E; font-weight: 700;
+    font-family: 'Inter', sans-serif; letter-spacing: -2px;
+  }
+  .logo-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #64748b; letter-spacing: 4px; text-transform: uppercase;
+  }
+
+  .divider {
+    width: 80px; height: 2px; background: #0D6E6E; margin: 0 auto 36px;
+  }
+
+  .titulo-servicio {
+    font-family: 'Newsreader', serif;
+    font-size: 26px; font-weight: 600;
+    color: #1e293b;
+    text-align: center;
+    line-height: 1.35;
+    margin-bottom: 28px;
+  }
+
+  .divider-dotted {
+    width: 200px; height: 1px;
+    border-bottom: 1px dashed #cbd5e1;
+    margin: 0 auto 28px;
+  }
+
+  .titulo-equipo {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px; font-weight: 500;
+    color: #475569;
+    text-align: center;
+    line-height: 1.5;
+    margin-bottom: 60px;
+  }
+
+  .datos-tabla {
+    width: 420px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .datos-fila {
+    display: flex;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .datos-fila:last-child { border-bottom: none; }
+  .datos-label {
+    width: 140px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #64748b;
+    background: #f8fafc;
+    display: flex; align-items: center;
+  }
+  .datos-valor {
+    flex: 1;
+    padding: 10px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; color: #334155;
+    display: flex; align-items: center;
+  }
+  .datos-valor.id {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500; color: #0D6E6E;
+  }
+
+  .footer {
+    width: 100%;
+    border-top: 1px solid #e2e8f0;
+    padding: 8px 30px;
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; color: #94a3b8;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="content">
+      <div class="logo-area">
+        <div class="logo-placeholder">
+          <div class="logo-icon">AGS</div>
+          <div class="logo-sub">Analitica</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="titulo-servicio">
+        Calificacion Operacional /<br>
+        Verificacion de Funcionamiento
+      </div>
+
+      <div class="divider-dotted"></div>
+
+      <div class="titulo-equipo">
+        HPLC Hewlett Packard / Agilent Technologies<br>
+        Series 1100 / 1120 / 1200 / 1220 / 1260 Infinity
+      </div>
+
+      <div class="datos-tabla">
+        <div class="datos-fila">
+          <div class="datos-label">Fecha</div>
+          <div class="datos-valor">09/06/2025</div>
+        </div>
+        <div class="datos-fila">
+          <div class="datos-label">Modelo</div>
+          <div class="datos-valor">1260 Infinity II</div>
+          <div class="datos-valor id">AGS-EQ-1043</div>
+        </div>
+        <div class="datos-fila">
+          <div class="datos-label">N&#176; de Serie</div>
+          <div class="datos-valor">DEABC12345</div>
+        </div>
+        <div class="datos-fila">
+          <div class="datos-label">Realizado por</div>
+          <div class="datos-valor">Ing. Juan Perez</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Archivo: QP7.0506.09 CalifOperacion HPLC 1100-1200-1260 Inf.doc</span>
+      <span>Formulario: QP7.0506</span>
+      <span>Rev: 09</span>
+      <span>Fecha: 09/06/2025</span>
+    </div>
+  </div>
+</body>
+</html>

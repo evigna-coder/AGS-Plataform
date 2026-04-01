@@ -28,8 +28,16 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
     return m ? parseFloat(m[0].replace(',', '.')) : NaN;
   };
 
+  // Rango con operadores: "≥ -1.0 ≤+5.0°C" | ">= -1.0 <= 5.0"
+  const dualMatch = s.match(/[≥>]=?\s*([+-]?\d+[.,]?\d*)\s*[≤<]=?\s*([+-]?\d+[.,]?\d*)/);
+  if (dualMatch) {
+    const min = parseFloat(dualMatch[1].replace(',', '.'));
+    const max = parseFloat(dualMatch[2].replace(',', '.'));
+    return numR >= min && numR <= max ? 'PASS' : 'FAIL';
+  }
+
   // Rango: "95.0 – 105.0" | "95 - 105"
-  const rangeMatch = s.match(/(\d+[.,]?\d*)\s*[–\-]\s*(\d+[.,]?\d*)/);
+  const rangeMatch = s.match(/(-?\d+[.,]?\d*)\s*[–\-]\s*(-?\d+[.,]?\d*)/);
   if (rangeMatch) {
     const min = parseFloat(rangeMatch[1].replace(',', '.'));
     const max = parseFloat(rangeMatch[2].replace(',', '.'));
@@ -506,8 +514,10 @@ export const CatalogTableView: React.FC<Props> = ({
     if (!isSpecialCol) {
       const factoryVal = getFactoryValue(rowId, col.key);
       const trimmed = factoryVal.trim();
+      const effUnit = (col.unit ?? col.label?.match(/\(\s*([^)]{1,15})\s*\)\s*$/)?.[1])?.trim();
+      const isJustUnit = effUnit && trimmed === effUnit;
       const hasContent = trimmed.length > 0 &&
-        /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed);
+        /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed) && !isJustUnit;
       if (hasContent) {
         // Para columnas text_input/number_input, verificar si el valor de fábrica
         // varía entre filas. Si cada fila tiene un valor distinto, es un label (read-only).

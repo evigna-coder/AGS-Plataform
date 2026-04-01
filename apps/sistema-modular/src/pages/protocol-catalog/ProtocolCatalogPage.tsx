@@ -21,7 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const TABLE_TYPE_LABELS: Record<string, string> = {
   validation: 'Validación', informational: 'Informacional', instruments: 'Instrumentos',
-  checklist: 'Checklist', text: 'Texto', signatures: 'Firmas',
+  checklist: 'Checklist', text: 'Texto', signatures: 'Firmas', cover: 'Carátula',
 };
 
 /** Lee el projectId guardado: "undefined" | "null" | "uuid-string" */

@@ -111,7 +111,16 @@
       "Bash(sed -i \"s/>Lead</>Ticket</g; s/Error al derivar el lead/Error al derivar el ticket/g\" apps/sistema-modular/src/components/leads/DerivarLeadModal.tsx)",
       "Bash(sed -i \"s/>Lead</>Ticket</g; s/Error al finalizar el lead/Error al finalizar el ticket/g\" apps/sistema-modular/src/components/leads/FinalizarLeadModal.tsx)",
       "Bash(for f:*)",
-      "Bash(do sed:*)"
+      "Bash(do sed:*)",
+      "Bash(sed -i '21s/await batch.commit\\(\\);/await batch.commit\\(\\);\\\\n    invalidateCache\\(\"\"categorias_equipo\"\"\\);/' apps/sistema-modular/src/services/equiposService.ts)",
+      "Bash(sed -i '68s/await batch.commit\\(\\);/await batch.commit\\(\\);\\\\n    invalidateCache\\(\"\"categorias_equipo\"\"\\);/' apps/sistema-modular/src/services/equiposService.ts)",
+      "Bash(sed -i '77s/await batch.commit\\(\\);/await batch.commit\\(\\);\\\\n    invalidateCache\\(\"\"categorias_equipo\"\"\\);/' apps/sistema-modular/src/services/equiposService.ts)",
+      "Bash(sed -i \"s/'en_presupuesto'/'presupuesto_pendiente'/g\" apps/sistema-modular/src/hooks/useCreatePresupuestoForm.ts apps/sistema-modular/src/hooks/useOTActions.ts apps/sistema-modular/src/hooks/usePresupuestoEdit.ts)",
+      "Bash(sed -i \"s/'en_proceso'/'en_seguimiento'/g\" apps/sistema-modular/src/hooks/usePresupuestoEdit.ts apps/sistema-modular/src/services/leadsService.ts)",
+      "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('equipos-list'\\)/\" apps/sistema-modular/src/pages/equipos/EquiposList.tsx)",
+      "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('establecimientos-list'\\)/\" apps/sistema-modular/src/pages/establecimientos/EstablecimientosList.tsx)",
+      "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('clientes-list'\\)/\" apps/sistema-modular/src/pages/clientes/ClientesList.tsx)",
+      "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('ot-list'\\)/\" apps/sistema-modular/src/pages/ordenes-trabajo/OTList.tsx)"
     ]
   }
 }

@@ -174,9 +174,10 @@ function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
     contrato: 'ventas',
     venta_insumos: 'ventas',
     presupuesto_ventas: 'ventas',
-    agenda_coordinacion: 'soporte',
-    materiales_comex: 'soporte',
-    ingeniero_soporte: 'soporte',
+    soporte: 'admin_soporte',
+    agenda_coordinacion: 'admin_soporte',
+    materiales_comex: 'admin_soporte',
+    ingeniero_soporte: 'ing_soporte',
     facturacion: 'administracion',
     pago_proveedores: 'administracion',
   };

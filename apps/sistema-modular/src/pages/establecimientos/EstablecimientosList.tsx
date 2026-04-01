@@ -28,7 +28,10 @@ export const EstablecimientosList = () => {
     sortDir: { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
-  const debouncedSearch = useDebounce(filters.search, 300);
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const debouncedSearch = useDebounce(localSearch, 300);
+  useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
+  useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
 
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -41,7 +44,7 @@ export const EstablecimientosList = () => {
   const [showBulkAddress, setShowBulkAddress] = useState(hasAddressTask);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns();
+  const { tableRef, colWidths, onResizeStart } = useResizableColumns('establecimientos-list');
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
@@ -168,8 +171,8 @@ export const EstablecimientosList = () => {
           <input
             type="text"
             placeholder="Buscar por nombre, dirección, localidad, cliente..."
-            value={filters.search}
-            onChange={e => setFilter('search', e.target.value)}
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
           <div className="min-w-[130px]">

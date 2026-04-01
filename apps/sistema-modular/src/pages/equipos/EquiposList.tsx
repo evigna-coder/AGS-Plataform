@@ -52,7 +52,7 @@ export const EquiposList = () => {
   const [reassignEstId, setReassignEstId] = useState('');
   const [reassignSector, setReassignSector] = useState('');
   const [reassigning, setReassigning] = useState(false);
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns();
+  const { tableRef, colWidths, onResizeStart } = useResizableColumns('equipos-list');
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);

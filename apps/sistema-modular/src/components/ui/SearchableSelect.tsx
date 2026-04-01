@@ -44,6 +44,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     listRef,
     displayValue,
     allOptions,
+    visibleOptions,
+    totalCount,
     handleSelect,
     handleKeyDown,
     handleInputKeyDown,
@@ -69,23 +71,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         aria-haspopup="listbox"
         tabIndex={disabled ? -1 : 0}
       >
-        {isOpen ? (
-          <input
-            ref={(el) => {
-              inputRef.current = el;
-              if (el && document.activeElement !== el) el.focus();
-            }}
-            autoFocus
-            type="text"
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full bg-transparent outline-none"
-            placeholder={placeholder}
-            disabled={disabled}
-          />
-        ) : (
+        {/* Uncontrolled input — browser manages text natively, no keystrokes lost */}
+        <input
+          ref={inputRef}
+          type="text"
+          defaultValue=""
+          onChange={(e) => handleSearchChange(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full bg-transparent outline-none ${isOpen ? '' : 'absolute opacity-0 pointer-events-none'}`}
+          placeholder={placeholder}
+          disabled={disabled}
+          tabIndex={isOpen ? 0 : -1}
+        />
+        {!isOpen && (
           <span className={displayValue ? 'text-slate-900' : 'text-slate-400'}>
             {displayValue || placeholder}
           </span>
@@ -113,7 +112,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           {allOptions.length === 0 ? (
             <li className="px-2.5 py-1.5 text-xs text-slate-400 italic">{emptyMessage}</li>
           ) : (
-            allOptions.map((option, index) => {
+            <>
+            {visibleOptions.map((option, index) => {
               const isCreate = option.value.startsWith('__create__:');
               return (
                 <li
@@ -138,7 +138,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   {option.label}
                 </li>
               );
-            })
+            })}
+            {totalCount > visibleOptions.length && (
+              <li className="px-2.5 py-1.5 text-[10px] text-slate-400 italic border-t border-slate-100">
+                +{totalCount - visibleOptions.length} más — escribí para filtrar
+              </li>
+            )}
+            </>
           )}
         </ul>,
         document.body

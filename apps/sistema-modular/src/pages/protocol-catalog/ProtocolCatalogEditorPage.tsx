@@ -241,6 +241,7 @@ export const TableCatalogEditorPage = () => {
                 <option value="checklist">Checklist</option>
                 <option value="text">Texto</option>
                 <option value="signatures">Firmas</option>
+                <option value="cover">Carátula</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -279,7 +280,7 @@ export const TableCatalogEditorPage = () => {
                   Vincular con tabla siguiente
                 </label>
               </div>
-              {!['checklist', 'text', 'signatures'].includes(entry.tableType) && (
+              {!['checklist', 'text', 'signatures', 'cover'].includes(entry.tableType) && (
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
                   <input type="checkbox" checked={entry.allowExtraRows ?? false}
                     onChange={e => setMeta('allowExtraRows', e.target.checked)} />
@@ -406,7 +407,20 @@ export const TableCatalogEditorPage = () => {
 
         {/* Editor panel — tabla, checklist o texto según tipo */}
         <div className="col-span-2 min-w-0">
-          {entry.tableType === 'text' ? (
+          {entry.tableType === 'cover' ? (
+            <Card>
+              <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Carátula del Protocolo</h3>
+              <p className="text-xs text-slate-400 mb-4">
+                El <strong>nombre</strong> de la tabla se usa como título principal de la carátula (ej. "Calificación Operacional / Verificación de Funcionamiento").
+                La <strong>descripción</strong> se muestra como subtítulo. Los datos del equipo, fecha, OT e ingeniero se completan automáticamente desde el reporte.
+              </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-500 space-y-1">
+                <p><strong>Título:</strong> {entry.name || '(nombre de la tabla)'}</p>
+                <p><strong>Subtítulo:</strong> {entry.description || '(descripción de la tabla)'}</p>
+                <p className="text-slate-400 mt-2">Campos auto-completados: Fecha, Orden de Servicio, Modelo, ID Equipo, N° de Serie, Realizado por</p>
+              </div>
+            </Card>
+          ) : entry.tableType === 'text' ? (
             <Card>
               <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Contenido de texto</h3>
               <div className="flex items-center gap-4 mb-3">
@@ -497,7 +511,7 @@ export const TableCatalogEditorPage = () => {
       </div>
 
       {/* Vista previa (solo para tipos tabla; no aplica a checklist ni texto) */}
-      {!['checklist', 'text', 'signatures'].includes(entry.tableType) && <div className="border border-slate-200 rounded-xl overflow-hidden">
+      {!['checklist', 'text', 'signatures', 'cover'].includes(entry.tableType) && <div className="border border-slate-200 rounded-xl overflow-hidden">
         <button
           onClick={() => setShowPreview(v => !v)}
           className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"

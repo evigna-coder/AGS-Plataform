@@ -169,6 +169,14 @@ const App: React.FC = () => {
             aclaracionEspecialistaName={app.aclaracionEspecialista}
             certificadosIngenieroSeleccionados={app.certificadosIngenieroSeleccionados}
             setCertificadosIngenieroSeleccionados={app.setCertificadosIngenieroSeleccionados}
+            coverData={{
+              otNumber: app.otNumber,
+              sistemaNombre: app.sistema,
+              agsVisibleId: app.codigoInternoCliente,
+              numeroSerie: app.moduloSerie,
+              ingenieroNombre: app.aclaracionEspecialista,
+              logoSrc: '/logo-ags-cropped.svg',
+            }}
             markUserInteracted={app.markUserInteracted}
           />
         ),
@@ -442,6 +450,14 @@ const App: React.FC = () => {
         aclaracionEspecialistaName={app.aclaracionEspecialista}
         certificadosIngenieroSeleccionados={app.certificadosIngenieroSeleccionados}
         setCertificadosIngenieroSeleccionados={app.setCertificadosIngenieroSeleccionados}
+        coverData={{
+          otNumber: app.otNumber,
+          sistemaNombre: app.sistema,
+          agsVisibleId: app.codigoInternoCliente,
+          numeroSerie: app.moduloSerie,
+          ingenieroNombre: app.aclaracionEspecialista,
+          logoSrc: '/logo-ags-cropped.svg',
+        }}
         markUserInteracted={app.markUserInteracted}
       />
 

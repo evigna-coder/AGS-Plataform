@@ -92,6 +92,19 @@ export const TableSelectorPanel: React.FC<Props> = ({
       // Tipos de columna que NO deben pre-llenarse con N/A
       const nonEditableTypes = new Set(['fixed_text', 'checkbox', 'pass_fail']);
 
+      // Para carátula: solo snapshot, sin datos editables
+      if (table.tableType === 'cover' || table.tableType === 'signatures') {
+        return {
+          tableId: table.id,
+          tableName: table.name,
+          tableSnapshot: table,
+          filledData: {},
+          observaciones: null,
+          resultado: 'CONFORME' as const,
+          seleccionadoAt: new Date().toISOString(),
+        };
+      }
+
       // Para texto: solo snapshot, sin datos editables
       if (table.tableType === 'text') {
         return {
@@ -138,8 +151,12 @@ export const TableSelectorPanel: React.FC<Props> = ({
 
         for (const col of table.columns) {
           const v = row.cells?.[col.key];
-          if (v != null && String(v).trim()) {
-            // Tiene valor de fábrica → usarlo
+          const strVal = v != null ? String(v).trim() : '';
+          // Si el valor de fábrica es solo la unidad de la columna, tratarlo como vacío
+          const effectiveUnit = (col.unit ?? col.label?.match(/\(\s*([^)]{1,15})\s*\)\s*$/)?.[1])?.trim();
+          const isJustUnit = effectiveUnit && strVal === effectiveUnit;
+          if (strVal && !isJustUnit) {
+            // Tiene valor de fábrica real → usarlo
             filledData[row.rowId][col.key] = String(v);
           } else if (nonEditableTypes.has(col.type) || col.type === 'select_input') {
             // fixed_text, checkbox, pass_fail, select_input → vacío

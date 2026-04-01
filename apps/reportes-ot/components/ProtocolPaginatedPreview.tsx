@@ -3,6 +3,7 @@ import { CatalogTableView } from './CatalogTableView';
 import { CatalogTextView } from './CatalogTextView';
 import { CatalogChecklistView } from './CatalogChecklistView';
 import { CatalogSignaturesView } from './CatalogSignaturesView';
+import { CatalogCoverView } from './CatalogCoverView';
 
 /* ── Constantes A4 ── */
 const A4_WIDTH_MM = 210;
@@ -75,6 +76,8 @@ interface ContentItem {
   glueWithPrev?: boolean;
   measuredHeight?: number;
   sliceOffset?: number;
+  /** Si es una carátula (página completa sin header/footer) */
+  isCover?: boolean;
   /** Título del protocolo (viene del tableSnapshot.headerTitle) */
   headerTitle?: string | null;
   /** Número QF del protocolo (viene del tableSnapshot.footerQF) */
@@ -83,6 +86,7 @@ interface ContentItem {
 
 interface PageDef {
   items: ContentItem[];
+  isCover?: boolean;
 }
 
 interface Props {
@@ -227,6 +231,21 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       const headerTitle = sel.tableSnapshot.headerTitle || live?.headerTitle || project?.headerTitle || null;
       const footerQF = sel.tableSnapshot.footerQF || live?.footerQF || project?.footerQF || null;
 
+      // Carátulas: página completa sin header/footer
+      if (sel.tableSnapshot.tableType === 'cover') {
+        const node = <CatalogCoverView
+          selection={sel} isPrint
+          otNumber={meta.otNumber}
+          fechaInicio={meta.fechaInicio}
+          sistemaNombre={meta.sistema}
+          numeroSerie={meta.moduloSerie}
+          ingenieroNombre={aclaracionEspecialista}
+          logoSrc={meta.logoSrc}
+        />;
+        items.push({ key: sel.tableId, node, isCover: true, headerTitle, footerQF });
+        continue;
+      }
+
       if (sel.tableSnapshot.tableType === 'checklist') {
         // Dividir checklist por cabeceras (depth 0) para page-break inteligente
         const checklistItems = sel.tableSnapshot.checklistItems ?? [];
@@ -313,6 +332,17 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       for (let i = 0; i < contentItems.length; i++) {
         const item = contentItems[i];
         const itemHeight = heights[i] || 200;
+
+        // Covers get their own full page (no header/footer)
+        if (item.isCover) {
+          if (currentPageItems.length > 0) {
+            pagesResult.push({ items: [...currentPageItems] });
+            currentPageItems = [];
+            currentHeight = 0;
+          }
+          pagesResult.push({ items: [item], isCover: true });
+          continue;
+        }
 
         if (item.glueWithPrev && currentPageItems.length > 0) {
           if (currentHeight + itemHeight <= CONTENT_HEIGHT_PX) {
@@ -437,6 +467,32 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         const pageTitle = getPageHeaderTitle(page, protocolWideTitle);
         const pageQF = getPageFooterQF(page) || protocolWideQF;
 
+        // Cover pages: full page, no header/footer
+        if (page.isCover) {
+          return (
+            <div
+              key={pageIdx}
+              data-protocol-page
+              data-cover-page
+              className="bg-white shadow-lg shrink-0 flex flex-col mx-auto"
+              style={{
+                width: `${A4_WIDTH_MM}mm`,
+                height: `${A4_HEIGHT_MM}mm`,
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+                pageBreakAfter: 'always',
+                breakAfter: 'page',
+              }}
+            >
+              {page.items[0]?.node}
+            </div>
+          );
+        }
+
+        // Calculate page number excluding cover pages
+        const contentPageIdx = pages.slice(0, pageIdx).filter(p => !p.isCover).length + 1;
+        const totalContentPages = pages.filter(p => !p.isCover).length;
+
         return (
           <div
             key={pageIdx}
@@ -482,7 +538,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
               })}
             </div>
 
-            <PageFooter meta={meta} pageNum={pageIdx + 1} totalPages={pages.length} qfNumber={pageQF} />
+            <PageFooter meta={meta} pageNum={contentPageIdx} totalPages={totalContentPages} qfNumber={pageQF} />
           </div>
         );
       })}

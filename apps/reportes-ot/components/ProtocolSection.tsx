@@ -5,6 +5,7 @@ import { CatalogTableView } from './CatalogTableView';
 import { CatalogChecklistView } from './CatalogChecklistView';
 import { CatalogTextView } from './CatalogTextView';
 import { CatalogSignaturesView } from './CatalogSignaturesView';
+import { CatalogCoverView } from './CatalogCoverView';
 import { InstrumentoSelectorPanel } from './InstrumentoSelectorPanel';
 import { CertificadoIngenieroSelectorPanel } from './CertificadoIngenieroSelectorPanel';
 import ProtocolView from './ProtocolView';
@@ -53,6 +54,15 @@ interface ProtocolSectionProps {
   aclaracionEspecialistaName: string;
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
   setCertificadosIngenieroSeleccionados: (v: CertificadoIngeniero[]) => void;
+  // Cover page data (auto-populated from OT)
+  coverData?: {
+    otNumber?: string;
+    sistemaNombre?: string;
+    agsVisibleId?: string;
+    numeroSerie?: string;
+    ingenieroNombre?: string;
+    logoSrc?: string;
+  };
   // Marker
   markUserInteracted: () => void;
 }
@@ -69,6 +79,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   fechaInicio, fechaFin,
   instrumentosSeleccionados, setInstrumentosSeleccionados,
   aclaracionEspecialistaName, certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados,
+  coverData,
   markUserInteracted,
 }) => {
   // Resolve ingeniero ID from name for certificate selector
@@ -116,7 +127,20 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
       {protocolSelections.length > 0 && (
         <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
           {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel =>
-            sel.tableSnapshot.tableType === 'signatures' ? (
+            sel.tableSnapshot.tableType === 'cover' ? (
+              <CatalogCoverView
+                key={sel.tableId}
+                selection={sel}
+                isPrint={false}
+                otNumber={coverData?.otNumber}
+                fechaInicio={fechaInicio}
+                sistemaNombre={coverData?.sistemaNombre || sistema}
+                agsVisibleId={coverData?.agsVisibleId}
+                numeroSerie={coverData?.numeroSerie}
+                ingenieroNombre={coverData?.ingenieroNombre || aclaracionEspecialista}
+                logoSrc={coverData?.logoSrc}
+              />
+            ) : sel.tableSnapshot.tableType === 'signatures' ? (
               <CatalogSignaturesView
                 key={sel.tableId}
                 selection={sel}

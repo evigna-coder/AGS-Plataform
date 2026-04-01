@@ -6,13 +6,13 @@ import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], LeadEstado>> = {
-  borrador: 'en_presupuesto',
+  borrador: 'presupuesto_pendiente',
   enviado: 'presupuesto_enviado',
   en_seguimiento: 'presupuesto_enviado',
   pendiente_oc: 'esperando_oc',
   aceptado: 'esperando_oc',
   autorizado: 'en_coordinacion',
-  pendiente_certificacion: 'en_proceso',
+  pendiente_certificacion: 'en_seguimiento',
   rechazado: 'no_concretado',
 };
 

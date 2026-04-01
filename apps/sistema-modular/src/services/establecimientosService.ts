@@ -1,6 +1,7 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef } from './firebase';
+import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)
 export const contactosEstablecimientoService = {
@@ -50,7 +51,7 @@ export const establecimientosService = {
     batch.set(estRef, payload);
     batchAudit(batch, { action: 'create', collection: 'establecimientos', documentId: estRef.id, after: payload as any });
     await batch.commit();
-    console.log('✅ Establecimiento creado con ID:', estRef.id);
+    invalidateCache('establecimientos');
     return estRef.id;
   },
 
@@ -113,6 +114,9 @@ export const establecimientosService = {
   },
 
   async getAll(): Promise<Establecimiento[]> {
+    const cached = getCached<Establecimiento[]>('establecimientos');
+    if (cached) return cached;
+
     const snapshot = await getDocs(collection(db, 'establecimientos'));
     const list = snapshot.docs.map(docSnap => {
       const d = docSnap.data();
@@ -126,6 +130,7 @@ export const establecimientosService = {
       } as Establecimiento;
     });
     list.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    setCache('establecimientos', list);
     return list;
   },
 
@@ -165,6 +170,7 @@ export const establecimientosService = {
     batch.update(firestoreDocRef('establecimientos', id), payload);
     batchAudit(batch, { action: 'update', collection: 'establecimientos', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('establecimientos');
   },
 
   async delete(id: string) {
@@ -172,6 +178,7 @@ export const establecimientosService = {
     batch.delete(firestoreDocRef('establecimientos', id));
     batchAudit(batch, { action: 'delete', collection: 'establecimientos', documentId: id });
     await batch.commit();
+    invalidateCache('establecimientos');
   },
 
   async deactivate(id: string) {

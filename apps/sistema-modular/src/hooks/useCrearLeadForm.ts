@@ -26,6 +26,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
   const [accionPendiente, setAccionPendiente] = useState('');
   const [prioridad, setPrioridad] = useState<LeadPrioridad>('normal');
+  const [estadoInicial, setEstadoInicial] = useState<import('@ags/shared').TicketEstado>('relevamiento_pendiente');
   const [diasProximoContacto, setDiasProximoContacto] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -97,7 +98,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         deUsuarioId: usuario.id, deUsuarioNombre: usuario.displayName,
         aUsuarioId: asignadoA || usuario.id,
         aUsuarioNombre: responsable?.displayName || usuario.displayName,
-        estadoAnterior: 'relevamiento_pendiente' as const, estadoNuevo: 'relevamiento_pendiente' as const,
+        estadoAnterior: estadoInicial, estadoNuevo: estadoInicial,
         ...(descripcion.trim() ? { comentario: descripcion.trim() } : {}),
       } : null;
 
@@ -109,7 +110,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         motivoContacto: descripcion.trim(),
         descripcion: descripcion.trim() || null,
         sistemaId: sistemaId || null, moduloId: moduloId || null,
-        estado: 'relevamiento_pendiente', postas: initialPosta ? [initialPosta] : [],
+        estado: estadoInicial, postas: initialPosta ? [initialPosta] : [],
         asignadoA: asignadoA || null,
         asignadoNombre: usuarios.find(u => u.id === asignadoA)?.displayName || null,
         derivadoPor: null, areaActual: areaActual || null,
@@ -133,7 +134,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
     email, setEmail, telefono, setTelefono,
     sistemaId, moduloId, setModuloId, modulos,
     asignadoA, setAsignadoA, areaActual, setAreaActual,
-    accionPendiente, setAccionPendiente, prioridad, setPrioridad,
+    accionPendiente, setAccionPendiente, prioridad, setPrioridad, estadoInicial, setEstadoInicial,
     diasProximoContacto, setDiasProximoContacto,
     clienteSearch, setClienteSearch, showClienteDropdown, setShowClienteDropdown,
     filteredClientes, sistemasFiltrados,
