@@ -179,8 +179,15 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
 
   return (
     <div className="w-full">
-      {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</label>}
-      <div className="relative border-2 border-slate-100 rounded-[28px] bg-white overflow-hidden group shadow-inner touch-none">
+      <div className="flex items-center justify-between mb-2">
+        {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>}
+        {hasSignature && (
+          <button onClick={clear} className="text-[9px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors px-2 py-1">
+            Limpiar firma
+          </button>
+        )}
+      </div>
+      <div className="relative border-2 border-slate-100 rounded-[28px] bg-white overflow-hidden shadow-inner touch-none">
         <canvas
           ref={canvasRef}
           onPointerDown={handleDown}
@@ -189,10 +196,11 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
           onPointerLeave={finishDrawing}
           className="w-full h-[160px] block cursor-crosshair touch-none"
         />
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-          {!hasSignature && <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Firmar aquí</p>}
-        </div>
-        <button onClick={clear} className="absolute top-4 right-4 text-[9px] font-black text-slate-300 hover:text-red-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Limpiar</button>
+        {!hasSignature && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Firmar aquí</p>
+          </div>
+        )}
       </div>
       {!hasSignature && <p className="text-[9px] text-orange-500 font-bold uppercase mt-2 italic tracking-tight">REQUERIDO PARA EL REPORTE FINAL</p>}
     </div>

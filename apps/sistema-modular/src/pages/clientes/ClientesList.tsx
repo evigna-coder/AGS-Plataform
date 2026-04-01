@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react';
 import { Link } from 'react-router-dom';
 import { clientesService, establecimientosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -100,10 +100,10 @@ export const ClientesList = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selected.size === filtered.length) {
+    if (selected.size === deferredFiltered.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filtered.map(c => c.id)));
+      setSelected(new Set(deferredFiltered.map(c => c.id)));
     }
   };
 
@@ -144,6 +144,9 @@ export const ClientesList = () => {
     }
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [clientes, debouncedSearch, filters.estadoTab, filters.sortField, filters.sortDir]);
+
+  // Defer table rendering so onSnapshot re-renders don't block the search input
+  const deferredFiltered = useDeferredValue(filtered);
 
   // Determine bulk action label based on selected clients' state
   const bulkLabel = useMemo(() => {
@@ -201,7 +204,7 @@ export const ClientesList = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {filtered.length === 0 ? (
+        {deferredFiltered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron clientes</p>
@@ -221,7 +224,7 @@ export const ClientesList = () => {
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-3 py-2 w-8">
-                    <input type="checkbox" checked={selected.size > 0 && selected.size === filtered.length}
+                    <input type="checkbox" checked={selected.size > 0 && selected.size === deferredFiltered.length}
                       onChange={toggleSelectAll} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                   </th>
                   <SortableHeader label="Razón Social" field="razonSocial" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
@@ -237,7 +240,7 @@ export const ClientesList = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((cliente) => (
+                {deferredFiltered.map((cliente) => (
                   <tr key={cliente.id} className={`hover:bg-slate-50 transition-colors ${selected.has(cliente.id) ? 'bg-teal-50' : ''}`}>
                     <td className="px-3 py-2 w-8">
                       <input type="checkbox" checked={selected.has(cliente.id)}

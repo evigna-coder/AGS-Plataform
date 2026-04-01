@@ -200,14 +200,14 @@ export const ClienteMainContent = ({
                 </Button>
                 <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={async () => {
                   const count = selectedSistemaIds.size;
-                  if (!confirm(`¿Desactivar ${count} sistema${count > 1 ? 's' : ''}?`)) return;
+                  if (!confirm(`¿Eliminar ${count} sistema${count > 1 ? 's' : ''} permanentemente? Esta acción no se puede deshacer.`)) return;
                   for (const sId of selectedSistemaIds) {
-                    await sistemasService.deactivate(sId);
+                    await sistemasService.delete(sId);
                   }
                   setSelectedSistemaIds(new Set());
                   onRefresh?.();
                 }}>
-                  Desactivar {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
+                  Eliminar {selectedSistemaIds.size > 1 ? `(${selectedSistemaIds.size})` : ''}
                 </Button>
               </>
             )}
