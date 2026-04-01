@@ -256,7 +256,7 @@ export default function LeadDetailPage() {
       </div>
 
       {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onSuccess={() => { setShowDerivar(false); load(); }} />}
-      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onSuccess={() => { setShowFinalizar(false); load(); }} />}
+      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onSuccess={() => { setShowFinalizar(false); navigate('/leads'); }} />}
     </div>
   );
 }

@@ -206,6 +206,7 @@ export const leadsService = {
     };
     if (area !== undefined) data.areaActual = area || null;
     if (accionRequerida !== undefined) data.accionPendiente = accionRequerida || null;
+    if (posta.comentario) data.descripcion = posta.comentario;
     if (extras?.prioridad !== undefined) data.prioridad = extras.prioridad;
     if (extras?.proximoContacto !== undefined) data.proximoContacto = extras.proximoContacto || null;
     const batch = createBatch();

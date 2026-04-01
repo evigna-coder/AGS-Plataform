@@ -325,7 +325,7 @@ export const LeadDetail = () => {
       </div>
 
       {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); }} />}
-      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); }} />}
+      {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); navigate('/leads'); }} />}
       <CreatePresupuestoModal
         open={showCrearPresupuesto}
         onClose={() => setShowCrearPresupuesto(false)}

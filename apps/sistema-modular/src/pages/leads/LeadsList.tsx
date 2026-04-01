@@ -54,6 +54,7 @@ export const LeadsList = () => {
     responsable: { type: 'string' as const, default: '' },
     soloMios: { type: 'boolean' as const, default: false },
     misCreados: { type: 'boolean' as const, default: false },
+    mostrarFinalizados: { type: 'boolean' as const, default: false },
     prioridad: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
     fechaHasta: { type: 'string' as const, default: '' },
@@ -118,8 +119,8 @@ export const LeadsList = () => {
       );
     }
 
-    // Ocultar finalizados por defecto (solo mostrar si se filtra explícitamente)
-    if (!filters.estadoFilter || filters.estadoFilter !== 'finalizado') {
+    // Ocultar finalizados salvo que el checkbox esté tildado
+    if (!filters.mostrarFinalizados) {
       result = result.filter(l => l.estado !== 'finalizado');
     }
     if (filters.misCreados && usuario) {
@@ -138,7 +139,7 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, usuario, filters.misCreados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+  }, [leads, usuario, filters.misCreados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
 
   const leadsSorted = useMemo(() => {
     const sorted = [...leadsFiltered];
@@ -206,9 +207,10 @@ export const LeadsList = () => {
     responsable: filters.responsable,
     soloMios: filters.soloMios,
     misCreados: filters.misCreados,
+    mostrarFinalizados: filters.mostrarFinalizados,
     fechaDesde: filters.fechaDesde,
     fechaHasta: filters.fechaHasta,
-  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.misCreados, filters.fechaDesde, filters.fechaHasta]);
+  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.misCreados, filters.mostrarFinalizados, filters.fechaDesde, filters.fechaHasta]);
 
   const handleLeadFiltersChange = (f: LeadFiltersState) => {
     setFilters({
@@ -218,6 +220,7 @@ export const LeadsList = () => {
       responsable: f.responsable,
       soloMios: f.soloMios,
       misCreados: f.misCreados,
+      mostrarFinalizados: f.mostrarFinalizados,
       fechaDesde: f.fechaDesde,
       fechaHasta: f.fechaHasta,
     });
