@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import type { Ticket, Posta, TicketEstado, TicketArea } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS, getUserTicketAreas } from '@ags/shared';
 
 interface Props {
   lead: Ticket;
@@ -31,7 +31,14 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
   // Reset destinatario when area changes
   useEffect(() => { setDestinatarioId(''); }, [areaDestino]);
 
-  const personList = usuarios.map(u => ({ id: u.id, label: u.displayName }));
+  const personList = useMemo(() => {
+    if (!areaDestino) return usuarios.map(u => ({ id: u.id, label: u.displayName }));
+    return usuarios.filter(u => {
+      if ((u as any).role === 'admin') return true;
+      const areas = getUserTicketAreas(u as any);
+      return areas.includes(areaDestino as TicketArea);
+    }).map(u => ({ id: u.id, label: u.displayName }));
+  }, [usuarios, areaDestino]);
 
   const getDestinatarioNombre = () => {
     if (!destinatarioId) return '';

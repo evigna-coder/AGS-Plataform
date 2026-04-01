@@ -437,22 +437,43 @@ export const ROLE_TICKET_AREAS: Record<UserRole, TicketArea[]> = {
   admin_soporte: ['admin_soporte'],
   admin_ing_soporte: ['ing_soporte'],
   ingeniero_soporte: ['ing_soporte'],
+  ventas: ['ventas'],
   admin_contable: ['administracion'],
   administracion: ['administracion'],
 };
+
+/** Obtiene todas las áreas de ticket que un usuario puede ver (desde rol principal + roles adicionales) */
+export function getUserTicketAreas(user: { role: UserRole | null; roles?: UserRole[] }): TicketArea[] {
+  const areas = new Set<TicketArea>();
+  if (user.role) {
+    for (const a of ROLE_TICKET_AREAS[user.role] ?? []) areas.add(a);
+  }
+  if (user.roles) {
+    for (const r of user.roles) {
+      for (const a of ROLE_TICKET_AREAS[r] ?? []) areas.add(a);
+    }
+  }
+  return Array.from(areas);
+}
+
+/** Verifica si un usuario tiene un rol específico (principal o adicional) */
+export function userHasRole(user: { role: UserRole | null; roles?: UserRole[] }, targetRole: UserRole): boolean {
+  if (user.role === targetRole) return true;
+  return user.roles?.includes(targetRole) ?? false;
+}
 
 /**
  * Determina si un usuario puede modificar/derivar un ticket.
  */
 export function canUserModifyTicket(
   ticket: { asignadoA: string | null; areaActual?: TicketArea | null },
-  user: { id: string; role: UserRole | null },
+  user: { id: string; role: UserRole | null; roles?: UserRole[] },
 ): boolean {
-  if (user.role === 'admin') return true;
+  if (userHasRole(user, 'admin')) return true;
   if (ticket.asignadoA) return ticket.asignadoA === user.id;
-  if (ticket.areaActual && user.role) {
-    const areasDelRol = ROLE_TICKET_AREAS[user.role] ?? [];
-    return areasDelRol.includes(ticket.areaActual);
+  if (ticket.areaActual) {
+    const areas = getUserTicketAreas(user);
+    return areas.includes(ticket.areaActual);
   }
   return true;
 }
@@ -2231,7 +2252,7 @@ export interface Importacion {
 // --- Autenticacion y Roles ---
 // =============================================
 
-export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'admin_ing_soporte' | 'admin_contable' | 'administracion';
+export type UserRole = 'admin' | 'ingeniero_soporte' | 'admin_soporte' | 'admin_ing_soporte' | 'admin_contable' | 'administracion' | 'ventas';
 export type UserStatus = 'pendiente' | 'activo' | 'deshabilitado';
 
 // ── Ingreso a Empresas ──────────────────────────────────────────────────
@@ -2468,6 +2489,10 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
     modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
   },
+  ventas: {
+    apps: ['sistema-modular'],
+    modulos: ['clientes', 'establecimientos', 'leads', 'presupuestos'],
+  },
   admin_contable: {
     apps: ['sistema-modular'],
     modulos: ['leads', 'presupuestos', 'stock', 'facturacion'],
@@ -2576,6 +2601,7 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   ingeniero_soporte: 'Ingeniero de Soporte',
   admin_soporte: 'Admin de Soporte',
   admin_ing_soporte: 'Admin Ing. de Soporte',
+  ventas: 'Ventas',
   admin_contable: 'Admin Contable',
   administracion: 'Administración',
 };
@@ -2606,6 +2632,8 @@ export interface UsuarioAGS {
   displayName: string;
   photoURL: string | null;
   role: UserRole | null;
+  /** Roles adicionales (permite multi-rol) */
+  roles?: UserRole[];
   status: UserStatus;
   /** Permisos personalizados (override de los defaults del rol) */
   permisos?: UserPermissionsOverride | null;

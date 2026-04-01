@@ -10,7 +10,7 @@ import {
   ROLE_DEFAULTS, MODULO_LABELS, APP_LABELS, getUserPermissions,
 } from '@ags/shared';
 
-const ROLES: UserRole[] = ['admin', 'ingeniero_soporte', 'admin_soporte', 'admin_contable', 'administracion'];
+const ROLES: UserRole[] = ['admin', 'ingeniero_soporte', 'admin_soporte', 'admin_ing_soporte', 'ventas', 'admin_contable', 'administracion'];
 const ALL_MODULOS = Object.keys(MODULO_LABELS) as ModuloId[];
 const ALL_APPS = Object.keys(APP_LABELS) as AppId[];
 
@@ -194,6 +194,7 @@ function EditUserModal({ usuario, onClose, onSaved }: {
   onSaved: () => void;
 }) {
   const [role, setRole] = useState<UserRole>(usuario.role ?? 'ingeniero_soporte');
+  const [extraRoles, setExtraRoles] = useState<UserRole[]>(usuario.roles ?? []);
   const roleDefaults = ROLE_DEFAULTS[role];
   const effective = getUserPermissions({ ...usuario, role });
 
@@ -231,6 +232,11 @@ function EditUserModal({ usuario, onClose, onSaved }: {
       // Guardar rol si cambió
       if (role !== usuario.role) {
         await usuariosService.updateRole(usuario.id, role);
+      }
+      // Guardar roles adicionales
+      const rolesChanged = JSON.stringify(extraRoles) !== JSON.stringify(usuario.roles ?? []);
+      if (rolesChanged) {
+        await usuariosService.updateRoles(usuario.id, extraRoles);
       }
       // Guardar permisos
       const permisos: UserPermissionsOverride | null = useCustom ? { apps, modulos } : null;
@@ -302,6 +308,22 @@ function EditUserModal({ usuario, onClose, onSaved }: {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Roles adicionales */}
+        <div>
+          <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1.5 block">Roles adicionales</label>
+          <div className="flex flex-wrap gap-2">
+            {ROLES.filter(r => r !== role && r !== 'admin').map(r => (
+              <label key={r} className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={extraRoles.includes(r)}
+                  onChange={() => setExtraRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])}
+                  className="w-3 h-3 accent-teal-600" />
+                {USER_ROLE_LABELS[r]}
+              </label>
+            ))}
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">Permite al usuario aparecer en las áreas de derivación de estos roles.</p>
         </div>
 
         {/* Permisos — oculto para admin */}

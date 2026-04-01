@@ -8,7 +8,8 @@ import {
   LEAD_AREA_LABELS, LEAD_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
-  ROLE_TICKET_AREAS,
+  getUserTicketAreas,
+  userHasRole,
   canUserModifyLead,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../../services/firebaseService';
@@ -97,12 +98,12 @@ export const LeadsList = () => {
     // No-op: the listener already handles updates.
   }, []);
 
-  const isAdmin = usuario?.role === 'admin';
-  // Areas this user can see beyond their own tickets (from role mapping)
+  const isAdmin = usuario ? userHasRole(usuario, 'admin') : false;
+  // Areas this user can see beyond their own tickets (from all roles)
   const extraAreas = useMemo(() => {
     if (!usuario || isAdmin) return null;
-    const roleAreas = ROLE_TICKET_AREAS[usuario.role as keyof typeof ROLE_TICKET_AREAS] ?? [];
-    return roleAreas.length > 0 ? new Set(roleAreas) : null;
+    const areas = getUserTicketAreas(usuario);
+    return areas.length > 0 ? new Set(areas) : null;
   }, [usuario, isAdmin]);
 
   const leadsFiltered = useMemo(() => {

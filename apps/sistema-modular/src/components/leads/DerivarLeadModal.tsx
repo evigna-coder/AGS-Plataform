@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import type { Lead, LeadEstado, LeadArea, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
-import type { TicketPrioridad } from '@ags/shared';
+import { useState, useEffect, useMemo } from 'react';
+import type { Lead, LeadEstado, LeadArea, TicketArea, TicketPrioridad, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -33,7 +32,16 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   // Reset destinatario when area changes
   useEffect(() => { setDestinatarioId(''); }, [areaDestino]);
 
-  const personList = usuarios.map(u => ({ id: u.id, label: `${u.displayName} (${u.role})` }));
+  const personList = useMemo(() => {
+    if (!areaDestino) return usuarios.map(u => ({ id: u.id, label: u.displayName }));
+    return usuarios
+      .filter(u => {
+        if (u.role === 'admin') return true;
+        const areas = getUserTicketAreas(u);
+        return areas.includes(areaDestino as TicketArea);
+      })
+      .map(u => ({ id: u.id, label: u.displayName }));
+  }, [usuarios, areaDestino]);
 
   const getDestinatarioNombre = () => {
     if (!destinatarioId) return '';

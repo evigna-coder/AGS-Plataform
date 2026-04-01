@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, TICKET_ESTADO_ORDER, TICKET_ESTADO_LABELS } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, TICKET_ESTADO_ORDER, TICKET_ESTADO_LABELS, getUserTicketAreas } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketPrioridad, TicketEstado } from '@ags/shared';
 import { useCrearLeadForm } from '../../hooks/useCrearLeadForm';
 import { Modal } from '../ui/Modal';
@@ -101,7 +101,14 @@ export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
             <label className={labelClass}>Asignar a</label>
             <select value={h.asignadoA} onChange={e => h.setAsignadoA(e.target.value)} className={selectClass}>
               <option value="">Sin asignar</option>
-              {h.usuarios.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+              {h.usuarios
+                .filter(u => {
+                  if (!h.areaActual) return true;
+                  if (u.role === 'admin') return true;
+                  const areas = getUserTicketAreas(u);
+                  return areas.includes(h.areaActual as TicketArea);
+                })
+                .map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
             </select>
           </div>
         </div>

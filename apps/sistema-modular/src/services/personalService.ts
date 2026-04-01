@@ -267,7 +267,8 @@ export const usuariosService = {
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({
       id: d.id, ...d.data(),
-      role: d.data().role ?? null, photoURL: d.data().photoURL ?? null,
+      role: d.data().role ?? null, roles: d.data().roles ?? [],
+      photoURL: d.data().photoURL ?? null,
       permisos: d.data().permisos ?? null,
       createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? '',
       updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? '',
@@ -279,6 +280,12 @@ export const usuariosService = {
 
   async updateRole(uid: string, role: UserRole): Promise<void> {
     await updateDoc(doc(db, 'usuarios', uid), { role, updatedAt: Timestamp.now() });
+    invalidateCache('usuarios');
+  },
+
+  async updateRoles(uid: string, roles: UserRole[]): Promise<void> {
+    await updateDoc(doc(db, 'usuarios', uid), { roles, updatedAt: Timestamp.now() });
+    invalidateCache('usuarios');
   },
 
   async updateStatus(uid: string, status: UserStatus): Promise<void> {

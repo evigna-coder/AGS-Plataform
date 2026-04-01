@@ -218,13 +218,16 @@ export const sistemasService = {
     batch.set(ref, payload);
     batchAudit(batch, { action: 'create', collection: 'sistemas', documentId: ref.id, after: payload as any });
     await batch.commit();
-    console.log('Sistema creado exitosamente con ID:', ref.id);
+    invalidateCache('sistemas');
     return ref.id;
   },
 
   // Obtener todos los sistemas. Filtros: establecimientoId, clienteCuit (resuelve a establecimientos del cliente), activosOnly.
   async getAll(filters?: { establecimientoId?: string; clienteCuit?: string; clienteId?: string; activosOnly?: boolean }) {
-    console.log('Cargando sistemas desde Firestore...');
+    const cacheKey = `sistemas:${JSON.stringify(filters || {})}`;
+    const cached = getCached<Sistema[]>(cacheKey);
+    if (cached) return cached;
+
     let q;
     if (filters?.establecimientoId) {
       q = query(collection(db, 'sistemas'), where('establecimientoId', '==', filters.establecimientoId));
@@ -258,7 +261,7 @@ export const sistemasService = {
       sistemas = sistemas.filter(s => s.activo === true);
     }
     sistemas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    console.log(`${sistemas.length} sistemas cargados`);
+    setCache(cacheKey, sistemas);
     return sistemas;
   },
 
@@ -307,6 +310,7 @@ export const sistemasService = {
     batch.update(docRef('sistemas', id), payload);
     batchAudit(batch, { action: 'update', collection: 'sistemas', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('sistemas');
   },
 
   // Baja logica

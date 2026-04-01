@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketEstado, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
 interface Props {
@@ -77,7 +77,14 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     ? clientes.filter(c => c.razonSocial.toLowerCase().includes(clienteSearch.toLowerCase())).slice(0, 8)
     : [];
 
-  const personList = usuarios.map(u => ({ id: u.id, label: u.displayName }));
+  const personList = useMemo(() => {
+    if (!areaActual) return usuarios.map(u => ({ id: u.id, label: u.displayName }));
+    return usuarios.filter(u => {
+      if ((u as any).role === 'admin') return true;
+      const areas = getUserTicketAreas(u as any);
+      return areas.includes(areaActual as TicketArea);
+    }).map(u => ({ id: u.id, label: u.displayName }));
+  }, [usuarios, areaActual]);
 
   const getAsignadoNombre = () => {
     if (!asignadoId) return null;
