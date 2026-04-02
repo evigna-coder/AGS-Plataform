@@ -1,5 +1,5 @@
 import { useCallback, MutableRefObject } from 'react';
-import type { Cliente, Sistema, ModuloSistema, ContactoCliente, Part, OTEstadoAdmin, UsuarioAGS } from '@ags/shared';
+import type { Cliente, Sistema, ModuloSistema, ContactoCliente, Part, OTEstadoAdmin, Ingeniero } from '@ags/shared';
 import { OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTFormState } from './useOTFormState';
 
@@ -14,7 +14,7 @@ interface Params {
   contactos: ContactoCliente[];
   sistemasFiltrados: Sistema[];
   modulosFiltrados: ModuloSistema[];
-  ingenieros: UsuarioAGS[];
+  ingenieros: Ingeniero[];
 }
 
 export function useOTFieldHandlers({ form, setField, setFields, markInteracted, validate, dirtyRef, clientes, contactos, sistemasFiltrados, modulosFiltrados, ingenieros }: Params) {
@@ -62,7 +62,7 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
   const handleIngenieroChange = useCallback((uid: string) => {
     const u = ingenieros.find(i => i.id === uid);
     dirty();
-    setFields({ ingenieroAsignadoId: u?.id ?? null, ingenieroAsignadoNombre: u?.displayName ?? null });
+    setFields({ ingenieroAsignadoId: u?.usuarioId ?? u?.id ?? null, ingenieroAsignadoNombre: u?.nombre ?? null });
     markInteracted();
   }, [ingenieros, setFields, markInteracted]);
 

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, presupuestosService, usuariosService } from '../services/firebaseService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, UsuarioAGS } from '@ags/shared';
+import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioService, modulosService, contactosService, presupuestosService } from '../services/firebaseService';
+import { ingenierosService } from '../services/personalService';
+import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero } from '@ags/shared';
 import { useOTFormState } from './useOTFormState';
 import { useOTFieldHandlers } from './useOTFieldHandlers';
 import { useOTActions } from './useOTActions';
@@ -26,7 +27,7 @@ export function useOTDetail(otNumber?: string) {
   const [modulosFiltrados, setModulosFiltrados] = useState<ModuloSistema[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
-  const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
+  const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
 
   // UI
   const [loading, setLoading] = useState(true);
@@ -80,11 +81,11 @@ export function useOTDetail(otNumber?: string) {
       }
       if (otNumber && !otNumber.includes('.')) { setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber)); }
 
-      const [tiposData, clientesData, sistemasData, usersData] = await Promise.all([
-        tiposServicioService.getAll(), clientesService.getAll(true), sistemasService.getAll(), usuariosService.getAll(),
+      const [tiposData, clientesData, sistemasData, ingsData] = await Promise.all([
+        tiposServicioService.getAll(), clientesService.getAll(true), sistemasService.getAll(), ingenierosService.getAll(true),
       ]);
       setTiposServicio(tiposData); setClientes(clientesData); setSistemas(sistemasData);
-      setIngenieros(usersData.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
+      setIngenieros(ingsData);
 
       if (ot.clienteId) {
         setSistemasFiltrados(sistemasData.filter(s => s.clienteId === ot.clienteId));

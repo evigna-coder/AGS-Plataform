@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { Part, StockSelection, UsuarioAGS } from '@ags/shared';
-import { usuariosService } from '../../services/firebaseService';
+import type { Part, StockSelection, Ingeniero } from '@ags/shared';
+import { ingenierosService } from '../../services/personalService';
 
 interface Props {
   articulos: Part[];
@@ -10,12 +10,10 @@ interface Props {
 }
 
 export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, onChange, disabled }) => {
-  const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
+  const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
 
   useEffect(() => {
-    usuariosService.getAll().then(users => {
-      setIngenieros(users.filter(u => u.role === 'ingeniero_soporte' && u.status === 'activo'));
-    });
+    ingenierosService.getAll(true).then(setIngenieros);
   }, []);
 
   const getSelection = (partId: string) => selections.find(s => s.partId === partId);
@@ -72,7 +70,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                           if (!e.target.value) { removeSelection(part.id); return; }
                           const [tipo, id] = e.target.value.split(':');
                           const nombre = tipo === 'ingeniero'
-                            ? ingenieros.find(i => i.id === id)?.displayName || id
+                            ? ingenieros.find(i => i.id === id)?.nombre || id
                             : `Posicion ${id}`;
                           updateSelection(part, tipo as 'posicion' | 'ingeniero', id, nombre);
                         }}
@@ -81,7 +79,7 @@ export const CierreStockSelector: React.FC<Props> = ({ articulos, selections, on
                         <option value="">Sin asignar</option>
                         <optgroup label="Ingeniero">
                           {ingenieros.map(ing => (
-                            <option key={ing.id} value={`ingeniero:${ing.id}`}>{ing.displayName}</option>
+                            <option key={ing.id} value={`ingeniero:${ing.id}`}>{ing.nombre}</option>
                           ))}
                         </optgroup>
                       </select>

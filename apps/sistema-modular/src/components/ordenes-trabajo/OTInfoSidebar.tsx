@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, UsuarioAGS, OTEstadoHistorial } from '@ags/shared';
+import type { Cliente, Sistema, TipoServicio, ModuloSistema, ContactoCliente, Ingeniero, OTEstadoHistorial } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -37,7 +37,7 @@ export interface OTInfoSidebarProps {
   fechaServicioAprox: string;
   ingenieroAsignadoId: string | null;
   ingenieroAsignadoNombre: string | null;
-  ingenieros: UsuarioAGS[];
+  ingenieros: Ingeniero[];
   onIngenieroChange: (uid: string) => void;
   estadoAdmin: string;
   estadoAdminFecha: string;
@@ -176,7 +176,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
             <select value={ingenieroAsignadoId || ''} onChange={e => onIngenieroChange(e.target.value)}
               disabled={roTecnico} className={inp}>
               <option value="">Sin asignar</option>
-              {ingenieros.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
+              {ingenieros.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
           </div>
           <div>

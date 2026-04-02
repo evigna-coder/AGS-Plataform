@@ -155,7 +155,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
               onChange={v => h.set('ingenieroId', v)}
               options={[
                 { value: '', label: 'Sin asignar' },
-                ...h.ingenieros.map(u => ({ value: u.id, label: u.displayName || u.email })),
+                ...h.ingenieros.map(u => ({ value: u.id, label: u.nombre })),
               ]}
               placeholder="Seleccionar ingeniero..." />
           </div>

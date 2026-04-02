@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
   ordenesTrabajoService, clientesService, establecimientosService, sistemasService,
-  tiposServicioService, contactosService, modulosService, usuariosService, presupuestosService,
+  tiposServicioService, contactosService, modulosService, presupuestosService,
   contratosService,
 } from '../services/firebaseService';
-import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS, WorkOrder, Presupuesto, Contrato } from '@ags/shared';
+import { ingenierosService } from '../services/personalService';
+import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, Contrato } from '@ags/shared';
 
 export interface CreateOTFormState {
   clienteId: string;
@@ -42,7 +43,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
-  const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
+  const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [establecimientosFiltrados, setEstablecimientosFiltrados] = useState<Establecimiento[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
   const [presupuestosCliente, setPresupuestosCliente] = useState<Presupuesto[]>([]);
@@ -61,12 +62,12 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     setLoadError('');
     const loadCatalogos = async () => {
       try {
-        const [c, est, s, ts, u] = await Promise.all([
+        const [c, est, s, ts, ings] = await Promise.all([
           clientesService.getAll(true), establecimientosService.getAll(),
-          sistemasService.getAll(), tiposServicioService.getAll(), usuariosService.getAll(),
+          sistemasService.getAll(), tiposServicioService.getAll(), ingenierosService.getAll(true),
         ]);
         setClientes(c); setEstablecimientos(est); setSistemas(s); setTiposServicio(ts);
-        setIngenieros(u.filter(usr => usr.role === 'ingeniero_soporte' && usr.status === 'activo'));
+        setIngenieros(ings);
       } catch (err) {
         console.error('Error cargando catálogos para OT:', err);
         setLoadError('Error al cargar datos. Verifique la conexión e intente nuevamente.');
@@ -200,8 +201,8 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         clienteId: form.clienteId,
         sistemaId: form.sistemaId || undefined,
         moduloId: form.moduloId || undefined,
-        ingenieroAsignadoId: ingeniero?.id ?? null,
-        ingenieroAsignadoNombre: ingeniero?.displayName ?? null,
+        ingenieroAsignadoId: ingeniero?.usuarioId ?? ingeniero?.id ?? null,
+        ingenieroAsignadoNombre: ingeniero?.nombre ?? null,
         problemaFallaInicial: form.problemaFallaInicial || '',
         contratoId: form.contratoId || null,
         comentarioFacturacion: form.comentarioFacturacion || null,
