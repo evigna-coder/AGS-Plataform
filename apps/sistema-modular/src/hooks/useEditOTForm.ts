@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   ordenesTrabajoService, clientesService, sistemasService,
-  tiposServicioService, contactosService, modulosService, usuariosService,
+  tiposServicioService, contactosService, modulosService,
 } from '../services/firebaseService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS, OTEstadoAdmin } from '@ags/shared';
+import { ingenierosService } from '../services/personalService';
+import type { WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, OTEstadoAdmin } from '@ags/shared';
 
 export interface EditOTFormState {
   clienteId: string;
@@ -37,7 +38,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
-  const [ingenieros, setIngenieros] = useState<UsuarioAGS[]>([]);
+  const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
   const [otOriginal, setOtOriginal] = useState<WorkOrder | null>(null);
   const [form, setForm] = useState<EditOTFormState>(INITIAL_FORM);
@@ -54,14 +55,14 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       clientesService.getAll(true),
       sistemasService.getAll(),
       tiposServicioService.getAll(),
-      usuariosService.getAll(),
-    ]).then(async ([ot, c, s, ts, u]) => {
+      ingenierosService.getAll(true),
+    ]).then(async ([ot, c, s, ts, ings]) => {
       if (!ot) { alert('OT no encontrada'); onClose(); return; }
       setOtOriginal(ot);
       setClientes(c);
       setSistemas(s);
       setTiposServicio(ts);
-      setIngenieros(u.filter(usr => usr.role === 'ingeniero_soporte' && usr.status === 'activo'));
+      setIngenieros(ings);
 
       if (ot.clienteId) {
         setSistemasFiltrados(s.filter(si => si.clienteId === ot.clienteId));
@@ -163,8 +164,8 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         clienteId: form.clienteId,
         sistemaId: form.sistemaId || null,
         moduloId: form.moduloId || null,
-        ingenieroAsignadoId: ingeniero?.id ?? null,
-        ingenieroAsignadoNombre: ingeniero?.displayName ?? null,
+        ingenieroAsignadoId: ingeniero?.usuarioId ?? ingeniero?.id ?? null,
+        ingenieroAsignadoNombre: ingeniero?.nombre ?? null,
         budgets: form.presupuestos.filter(b => b.trim() !== ''),
         ordenCompra: form.ordenCompra || null,
         fechaServicioAprox: form.fechaServicioAprox || null,

@@ -1,6 +1,6 @@
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS } from '@ags/shared';
+import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero } from '@ags/shared';
 import type { EditOTFormState } from '../../hooks/useEditOTForm';
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-0.5';
@@ -15,7 +15,7 @@ interface Props {
   sistemasFiltrados: Sistema[];
   modulos: ModuloSistema[];
   contactos: ContactoCliente[];
-  ingenieros: UsuarioAGS[];
+  ingenieros: Ingeniero[];
 }
 
 export const EditOTFormFields: React.FC<Props> = ({
@@ -91,7 +91,7 @@ export const EditOTFormFields: React.FC<Props> = ({
           className={`${selectClass}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId ? ' ring-1 ring-amber-400 border-amber-400' : ''}`} disabled={readOnly}>
           <option value="">Sin asignar</option>
           {ingenieros.map(u => (
-            <option key={u.id} value={u.id}>{u.displayName}</option>
+            <option key={u.id} value={u.usuarioId || u.id}>{u.nombre}</option>
           ))}
         </select>
       </div>
