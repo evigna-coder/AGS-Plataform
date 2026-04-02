@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { presupuestosService, clientesService, sistemasService, leadsService, ordenesTrabajoService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../services/firebaseService';
 import { establecimientosService, contactosEstablecimientoService } from '../services/establecimientosService';
 import { useAuth } from '../contexts/AuthContext';
-import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta } from '@ags/shared';
+import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket } from '@ags/shared';
 
 export interface PresupuestoFormState {
   clienteId: string;
@@ -31,8 +31,10 @@ export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
 
 interface Prefill {
   clienteId?: string;
+  establecimientoId?: string;
   sistemaId?: string;
   moduloId?: string;
+  contactoNombre?: string;
   origenTipo?: OrigenPresupuesto;
   origenId?: string;
   origenRef?: string;
@@ -73,6 +75,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [items, setItems] = useState<PresupuestoItem[]>([]);
   const [prefilled, setPrefilled] = useState(false);
   const [leadOptions, setLeadOptions] = useState<{ value: string; label: string }[]>([]);
+  const [leadsCache, setLeadsCache] = useState<Ticket[]>([]);
   const [otOptions, setOtOptions] = useState<{ value: string; label: string }[]>([]);
   const [showCrearLead, setShowCrearLead] = useState(false);
 
@@ -91,15 +94,22 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   useEffect(() => {
     if (!open || !prefill || prefilled) return;
     setPrefilled(true);
+    // Derive establecimientoId from sistema if not provided
+    let estId = prefill.establecimientoId || '';
+    if (!estId && prefill.sistemaId && sistemas.length > 0) {
+      const sis = sistemas.find(s => s.id === prefill.sistemaId);
+      if (sis) estId = sis.establecimientoId;
+    }
     setForm(prev => ({
       ...prev,
       clienteId: prefill.clienteId || prev.clienteId,
+      establecimientoId: estId || prev.establecimientoId,
       sistemaId: prefill.sistemaId || prev.sistemaId,
       origenTipo: prefill.origenTipo || prev.origenTipo,
       origenId: prefill.origenId || prev.origenId,
       origenRef: prefill.origenRef || prev.origenRef,
     }));
-  }, [open, prefill, prefilled]);
+  }, [open, prefill, prefilled, sistemas]);
 
   // Load establecimientos
   useEffect(() => {
@@ -119,15 +129,47 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     } else { setContactos([]); setSistemasFiltrados([]); }
   }, [form.establecimientoId, form.clienteId, sistemas]);
 
-  // Load lead/OT options
+  // Auto-match contacto by name from prefill
   useEffect(() => {
-    if (form.origenTipo === 'lead' && leadOptions.length === 0)
-      leadsService.getAll().then(leads => setLeadOptions(leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado').map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` }))));
+    if (!prefill?.contactoNombre || contactos.length === 0 || form.contactoId) return;
+    const nombre = prefill.contactoNombre.toLowerCase();
+    const match = contactos.find(c => c.nombre.toLowerCase() === nombre);
+    if (match) setForm(prev => ({ ...prev, contactoId: match.id }));
+  }, [contactos, prefill?.contactoNombre]);
+
+  // Load lead/OT options (cache full leads for auto-fill)
+  useEffect(() => {
+    if (form.origenTipo === 'lead' && leadsCache.length === 0)
+      leadsService.getAll().then(leads => {
+        const activos = leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+        setLeadsCache(activos);
+      });
     if (form.origenTipo === 'ot' && otOptions.length === 0)
       ordenesTrabajoService.getAll().then(ots => setOtOptions(ots.slice(0, 50).map(ot => ({ value: ot.otNumber, label: `OT-${ot.otNumber} — ${ot.razonSocial || ''}` }))));
   }, [form.origenTipo]);
 
-  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); };
+  // Build lead options filtered by selected cliente
+  useEffect(() => {
+    const filtered = form.clienteId
+      ? leadsCache.filter(l => l.clienteId === form.clienteId)
+      : leadsCache;
+    setLeadOptions(filtered.map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` })));
+  }, [leadsCache, form.clienteId]);
+
+  // Auto-fill cliente/sistema from selected lead
+  useEffect(() => {
+    if (form.origenTipo !== 'lead' || !form.origenId || leadsCache.length === 0) return;
+    const lead = leadsCache.find(l => l.id === form.origenId);
+    if (!lead) return;
+    setForm(prev => {
+      const changes: Partial<PresupuestoFormState> = { origenRef: lead.razonSocial };
+      if (lead.clienteId && !prev.clienteId) changes.clienteId = lead.clienteId;
+      if (lead.sistemaId && !prev.sistemaId) changes.sistemaId = lead.sistemaId;
+      return { ...prev, ...changes };
+    });
+  }, [form.origenId, leadsCache]);
+
+  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setLeadsCache([]); };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
@@ -181,8 +223,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
 
   const reloadLeads = async (leadId?: string) => {
     const leads = await leadsService.getAll();
-    setLeadOptions(leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado')
-      .map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` })));
+    const activos = leads.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+    setLeadsCache(activos);
     if (leadId) setForm(prev => ({ ...prev, origenId: leadId }));
   };
 

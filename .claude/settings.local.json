@@ -120,7 +120,8 @@
       "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('equipos-list'\\)/\" apps/sistema-modular/src/pages/equipos/EquiposList.tsx)",
       "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('establecimientos-list'\\)/\" apps/sistema-modular/src/pages/establecimientos/EstablecimientosList.tsx)",
       "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('clientes-list'\\)/\" apps/sistema-modular/src/pages/clientes/ClientesList.tsx)",
-      "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('ot-list'\\)/\" apps/sistema-modular/src/pages/ordenes-trabajo/OTList.tsx)"
+      "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('ot-list'\\)/\" apps/sistema-modular/src/pages/ordenes-trabajo/OTList.tsx)",
+      "Bash(node -e ':*)"
     ]
   }
 }

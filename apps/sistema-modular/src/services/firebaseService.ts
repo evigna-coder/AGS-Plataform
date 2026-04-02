@@ -20,3 +20,4 @@ export * from './asignacionesService';
 export * from './ingresoEmpresasService';
 export * from './vehiculosService';
 export * from './dispositivosService';
+export * from './facturacionService';

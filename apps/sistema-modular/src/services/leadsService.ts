@@ -7,24 +7,16 @@ import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, cre
 // ── Mapeo de estados: presupuesto → lead ──────────────────────────────
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
   enviado: 'presupuesto_enviado',
-  en_seguimiento: 'presupuesto_enviado',
-  pendiente_oc: 'esperando_oc',
-  aceptado: 'esperando_oc',
-  autorizado: 'en_coordinacion',
+  aceptado: 'en_coordinacion',
+  finalizado: 'finalizado',
 };
 
 const PRESUPUESTO_ESTADO_LABELS: Partial<Record<PresupuestoEstado, string>> = {
   borrador: 'Borrador',
   enviado: 'Enviado',
-  en_seguimiento: 'En seguimiento',
-  pendiente_oc: 'Pendiente OC',
   aceptado: 'Aceptado',
-  autorizado: 'Autorizado',
-  rechazado: 'Rechazado',
-  vencido: 'Vencido',
   anulado: 'Anulado',
-  pendiente_certificacion: 'Pend. certificación',
-  aguarda: 'Aguarda',
+  finalizado: 'Finalizado',
 };
 
 // ── Mapeo de estados: OT estadoAdmin → lead ───────────────────────────
@@ -338,10 +330,10 @@ export const leadsService = {
     if (nuevoEstadoLead && nuevoEstadoLead !== lead.estado) {
       updates.estado = nuevoEstadoLead;
     }
-    // Presupuesto autorizado → mover lead a coordinación
-    if (newEstado === 'autorizado') {
+    // Presupuesto aceptado → mover lead a coordinación
+    if (newEstado === 'aceptado') {
       updates.areaActual = 'agenda_coordinacion';
-      updates.accionPendiente = `Coordinar OT — Presupuesto ${presupuestoNumero} autorizado`;
+      updates.accionPendiente = `Coordinar OT — Presupuesto ${presupuestoNumero} aceptado`;
     }
 
     const batch = createBatch();

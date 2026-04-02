@@ -21,6 +21,7 @@ import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
 import { UsuariosList } from '../../pages/usuarios';
 import { ImportacionDatos } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
+import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -146,7 +147,8 @@ function AppRoutes() {
       {/* Agenda */}
       <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><AgendaPage /></ProtectedRoute>} />
       {/* Facturacion */}
-      <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'administracion']}><div className="text-center py-12"><p className="text-slate-400">Facturacion - Proximamente</p></div></ProtectedRoute>} />
+      <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionList /></ProtectedRoute>} />
+      <Route path="/facturacion/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionDetail /></ProtectedRoute>} />
       {/* Admin */}
       <Route path="/admin/importar" element={<ProtectedRoute allowedRoles={['admin']}><ImportacionDatos /></ProtectedRoute>} />
     </Routes>

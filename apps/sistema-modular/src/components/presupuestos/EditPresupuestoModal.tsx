@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { PresupuestoItemsTable } from './PresupuestoItemsTable';
@@ -9,6 +9,8 @@ import { PresupuestoHeaderBar } from './PresupuestoHeaderBar';
 import { PresupuestoMetadataStrip } from './PresupuestoMetadataStrip';
 import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
 import { CreateRevisionModal } from './CreateRevisionModal';
+import { SolicitarFacturaModal } from './SolicitarFacturaModal';
+import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
 import { usePresupuestoEdit } from '../../hooks/usePresupuestoEdit';
 import { usePresupuestoSistemas } from '../../hooks/usePresupuestoSistemas';
 import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
@@ -22,7 +24,11 @@ interface Props {
   onMinimize?: () => void;
 }
 
+const FACTURACION_STATES = ['aceptado'];
+
 export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onClose, onUpdated, onMinimize }) => {
+  const [showSolicitarFactura, setShowSolicitarFactura] = useState(false);
+  const [showEnviarEmail, setShowEnviarEmail] = useState(false);
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
@@ -82,7 +88,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           onClose={onClose}
           onPreviewPDF={actions.handlePreviewPDF}
           onDownloadPDF={actions.handleDownloadPDF}
-          onEnviar={actions.handleEnviar}
+          onEnviar={() => setShowEnviarEmail(true)}
           onDelete={actions.handleDelete}
         />
 
@@ -184,6 +190,11 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             )}
           </div>
           <div className="flex gap-2">
+            {FACTURACION_STATES.includes(form.estado) && (
+              <Button variant="ghost" size="sm" onClick={() => setShowSolicitarFactura(true)}>
+                Solicitar facturacion
+              </Button>
+            )}
             {form.estado !== 'anulado' && (
               <Button variant="ghost" size="sm" onClick={() => actions.setShowRevision(true)}>
                 Crear revisión
@@ -204,6 +215,35 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
         onClose={() => actions.setShowRevision(false)}
         onCreated={actions.handleRevisionCreated}
       />
+      {showSolicitarFactura && (
+        <SolicitarFacturaModal
+          open={showSolicitarFactura}
+          presupuesto={{ id: presupuestoId, numero: form.numero, clienteId: form.clienteId, moneda: form.moneda, items: form.items } as Presupuesto}
+          clienteNombre={cliente?.razonSocial || ''}
+          condicionPagoNombre={condicionesPago.find(c => c.id === form.condicionPagoId)?.nombre || 'No especificada'}
+          onClose={() => setShowSolicitarFactura(false)}
+          onCreated={() => { setShowSolicitarFactura(false); onUpdated?.(); }}
+        />
+      )}
+      {showEnviarEmail && (
+        <EnviarPresupuestoModal
+          open={showEnviarEmail}
+          onClose={() => setShowEnviarEmail(false)}
+          onSent={async () => {
+            setShowEnviarEmail(false);
+            // Mark as enviado if still borrador
+            if (form.estado === 'borrador') {
+              actions.handleEstadoChange('enviado');
+              await actions.handleSave();
+            }
+            onUpdated?.();
+          }}
+          pdfParams={actions.buildPDFParams()}
+          defaultTo={contactos.find(c => c.id === form.contactoId)?.email || ''}
+          defaultContactoNombre={contactos.find(c => c.id === form.contactoId)?.nombre || ''}
+          presupuestoNumero={form.numero}
+        />
+      )}
     </>
   );
 };

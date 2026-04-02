@@ -10,6 +10,8 @@ interface Props {
   onChangeResultado?: (tableId: string, value: ProtocolSelection['resultado']) => void;
   onToggleSection?: (tableId: string, itemId: string, isNA: boolean) => void;
   onRemove?: (tableId: string) => void;
+  onDuplicateSection?: (sectionItemId: string) => void;
+  onRemoveSection?: (sectionItemId: string) => void;
   /** Datos de la OT para inyectar en ítems con showDate / showSignatures */
   signatureClient?: string | null;
   signatureEngineer?: string | null;
@@ -60,6 +62,10 @@ function ChecklistItemRow({
   readOnly,
   isPrint,
   onAnswer,
+  onCheckAll,
+  allCheckedForSection,
+  onDuplicateSection,
+  onRemoveSection,
   signatureClient,
   signatureEngineer,
   aclaracionCliente,
@@ -73,6 +79,10 @@ function ChecklistItemRow({
   readOnly: boolean;
   isPrint: boolean;
   onAnswer: (a: ChecklistItemAnswer) => void;
+  onCheckAll?: (sectionItemId: string, check: boolean) => void;
+  allCheckedForSection?: (sectionItemId: string) => boolean;
+  onDuplicateSection?: (sectionItemId: string) => void;
+  onRemoveSection?: (sectionItemId: string) => void;
   signatureClient?: string | null;
   signatureEngineer?: string | null;
   aclaracionCliente?: string;
@@ -240,11 +250,47 @@ function ChecklistItemRow({
     );
   }
 
-  // Cabeceras (depth 0): divider sin control de respuesta
+  // Cabeceras (depth 0): divider con acciones
   if (item.depth === 0) {
     return (
-      <div className="w-full bg-slate-50 border-y border-slate-200 text-[10px] font-bold text-slate-800 tracking-wide px-3 py-1.5 mt-2">
-        {item.label}
+      <div className="w-full bg-slate-50 border-y border-slate-200 flex items-center justify-between px-3 py-1.5 mt-2">
+        <span className="text-[10px] font-bold text-slate-800 tracking-wide">{item.label}</span>
+        {!isPrint && !readOnly && (
+          <div className="flex items-center gap-3">
+            {onCheckAll && (() => {
+              const allDone = allCheckedForSection?.(item.itemId) ?? false;
+              return (
+                <button
+                  type="button"
+                  onClick={() => onCheckAll(item.itemId, !allDone)}
+                  className={`text-[9px] font-semibold uppercase tracking-wide transition-colors ${allDone ? 'text-red-400 hover:text-red-600' : 'text-teal-600 hover:text-teal-800'}`}
+                >
+                  {allDone ? 'Destildar todas' : 'Tildar todas'}
+                </button>
+              );
+            })()}
+            {onDuplicateSection && (
+              <button
+                type="button"
+                onClick={() => onDuplicateSection(item.itemId)}
+                className="text-[9px] font-semibold text-slate-400 hover:text-teal-600 transition-colors"
+                title="Duplicar sección"
+              >
+                + Duplicar
+              </button>
+            )}
+            {onRemoveSection && item.itemId.includes('_dup_') && (
+              <button
+                type="button"
+                onClick={() => onRemoveSection(item.itemId)}
+                className="text-[9px] font-semibold text-slate-400 hover:text-red-500 transition-colors"
+                title="Quitar sección duplicada"
+              >
+                × Quitar
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -539,6 +585,8 @@ export const CatalogChecklistView: React.FC<Props> = ({
   onChangeResultado,
   onToggleSection,
   onRemove,
+  onDuplicateSection,
+  onRemoveSection,
   signatureClient,
   signatureEngineer,
   aclaracionCliente,
@@ -552,6 +600,38 @@ export const CatalogChecklistView: React.FC<Props> = ({
 
   const handleAnswer = (itemId: string, answer: ChecklistItemAnswer) => {
     onChangeData(selection.tableId, itemId, answer);
+  };
+
+  /** Obtener los items checkbox de una sección */
+  const getSectionCheckboxes = (sectionItemId: string) => {
+    const sectionIdx = items.findIndex(i => i.itemId === sectionItemId);
+    if (sectionIdx === -1) return [];
+    const result: ChecklistItem[] = [];
+    for (let i = sectionIdx + 1; i < items.length; i++) {
+      if (items[i].depth === 0) break;
+      if (naSet.has(items[i].itemId)) continue;
+      if (items[i].itemType === 'checkbox') result.push(items[i]);
+    }
+    return result;
+  };
+
+  /** Verificar si todas las checkboxes de una sección están tildadas */
+  const isAllChecked = (sectionItemId: string): boolean => {
+    const cbs = getSectionCheckboxes(sectionItemId);
+    if (cbs.length === 0) return false;
+    return cbs.every(cb => {
+      const a = checklistData[cb.itemId] as { itemType: 'checkbox'; checked: boolean } | undefined;
+      return a?.checked === true;
+    });
+  };
+
+  /** Tildar/destildar todas las checkboxes de una sección */
+  const handleCheckAll = (sectionItemId: string, check: boolean) => {
+    const cbs = getSectionCheckboxes(sectionItemId);
+    for (const cb of cbs) {
+      const existing = checklistData[cb.itemId] as { itemType: 'checkbox'; checked: boolean; linkedValue?: string } | undefined;
+      onChangeData(selection.tableId, cb.itemId, { itemType: 'checkbox', checked: check, linkedValue: existing?.linkedValue ?? '' });
+    }
   };
 
   const showTitle = tableSnapshot.showTitle ?? true;
@@ -608,6 +688,10 @@ export const CatalogChecklistView: React.FC<Props> = ({
                 key={item.itemId} item={item} answer={answer}
                 isNA={isNA} readOnly={readOnly} isPrint={isPrint}
                 onAnswer={a => handleAnswer(item.itemId, a)}
+                onCheckAll={handleCheckAll}
+                allCheckedForSection={isAllChecked}
+                onDuplicateSection={onDuplicateSection}
+                onRemoveSection={onRemoveSection}
                 signatureClient={signatureClient} signatureEngineer={signatureEngineer}
                 aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
                 fechaInicio={fechaInicio} fechaFin={fechaFin}
@@ -616,7 +700,7 @@ export const CatalogChecklistView: React.FC<Props> = ({
           }
 
           return (
-            <div key={item.itemId} className="relative">
+            <div key={item.itemId} className={`relative ${item.depth >= 3 ? 'border-l-2 border-slate-200 ml-[32px]' : ''}`}>
               {showNAToggle && (
                 <div className="absolute right-2 top-1 z-10">
                   <label className="flex items-center gap-1 text-[9px] text-slate-400 cursor-pointer select-none">

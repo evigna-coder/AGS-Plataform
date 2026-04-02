@@ -219,6 +219,105 @@ export function useAppLogic(
     setProtocolSelections(protocolSelections.filter(s => s.tableId !== tableId));
   };
 
+  /** Duplicar una sección completa (depth-0 header + hijos) dentro de un checklist */
+  const handleDuplicateSection = (tableId: string, sectionItemId: string) => {
+    setProtocolSelections(prev => prev.map(sel => {
+      if (sel.tableId !== tableId) return sel;
+      const items = sel.tableSnapshot.checklistItems ?? [];
+      const sectionIdx = items.findIndex(i => i.itemId === sectionItemId);
+      if (sectionIdx === -1) return sel;
+
+      // Find section range: from this depth-0 to next depth-0
+      let endIdx = items.length;
+      for (let i = sectionIdx + 1; i < items.length; i++) {
+        if (items[i].depth === 0) { endIdx = i; break; }
+      }
+      const sectionItems = items.slice(sectionIdx, endIdx);
+
+      // Clone with new IDs, mapping old→new for visibleWhen references
+      const suffix = `_dup_${Date.now()}`;
+      const idMap = new Map<string, string>();
+      const cloned = sectionItems.map(item => {
+        const newId = item.itemId + suffix;
+        idMap.set(item.itemId, newId);
+        return { ...item, itemId: newId };
+      });
+      // Fix visibleWhen references in cloned items
+      for (const item of cloned) {
+        if (item.visibleWhen) {
+          if ('selectorItemId' in item.visibleWhen) {
+            const newRef = idMap.get(item.visibleWhen.selectorItemId);
+            if (newRef) item.visibleWhen = { ...item.visibleWhen, selectorItemId: newRef };
+          }
+          if ('checkboxItemId' in item.visibleWhen) {
+            const newRef = idMap.get((item.visibleWhen as any).checkboxItemId);
+            if (newRef) item.visibleWhen = { ...(item.visibleWhen as any), checkboxItemId: newRef };
+          }
+        }
+      }
+
+      // Insert cloned section after original
+      const newItems = [...items];
+      newItems.splice(endIdx, 0, ...cloned);
+
+      return {
+        ...sel,
+        tableSnapshot: { ...sel.tableSnapshot, checklistItems: newItems },
+      };
+    }));
+  };
+
+  /** Quitar una sección duplicada de un checklist */
+  const handleRemoveSection = (tableId: string, sectionItemId: string) => {
+    setProtocolSelections(prev => prev.map(sel => {
+      if (sel.tableId !== tableId) return sel;
+      const items = sel.tableSnapshot.checklistItems ?? [];
+      const sectionIdx = items.findIndex(i => i.itemId === sectionItemId);
+      if (sectionIdx === -1) return sel;
+
+      let endIdx = items.length;
+      for (let i = sectionIdx + 1; i < items.length; i++) {
+        if (items[i].depth === 0) { endIdx = i; break; }
+      }
+
+      const newItems = [...items];
+      newItems.splice(sectionIdx, endIdx - sectionIdx);
+
+      // Limpiar checklistData de los items eliminados
+      const removedIds = new Set(items.slice(sectionIdx, endIdx).map(i => i.itemId));
+      const newChecklistData = { ...sel.checklistData };
+      for (const id of removedIds) delete newChecklistData[id];
+
+      return {
+        ...sel,
+        tableSnapshot: { ...sel.tableSnapshot, checklistItems: newItems },
+        checklistData: newChecklistData,
+      };
+    }));
+  };
+
+  const handleDuplicateTable = (tableId: string) => {
+    setProtocolSelections(prev => {
+      const source = prev.find(s => s.tableId === tableId);
+      if (!source) return prev;
+      const dupeId = `${source.tableId}__dup_${Date.now()}`;
+      const dupe: typeof source = {
+        ...source,
+        tableId: dupeId,
+        tableName: `${source.tableName} (copia)`,
+        filledData: JSON.parse(JSON.stringify(source.filledData)),
+        observaciones: null,
+        resultado: 'PENDIENTE',
+        seleccionadoAt: new Date().toISOString(),
+      };
+      // Insert the duplicate right after the source
+      const idx = prev.findIndex(s => s.tableId === tableId);
+      const next = [...prev];
+      next.splice(idx + 1, 0, dupe);
+      return next;
+    });
+  };
+
   const handleAddRow = (tableId: string) => {
     setProtocolSelections(prev =>
       prev.map(s => {
@@ -826,7 +925,7 @@ export function useAppLogic(
     setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados,
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
-    handleCatalogToggleClientSpec, handleRemoveCatalogTable,
+    handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
     handleAddRow, handleRemoveRow, handleHeaderDataChange,
     handleChecklistAnswer, handleToggleChecklistSection,
     // Refs

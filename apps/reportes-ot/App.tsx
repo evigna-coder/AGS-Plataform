@@ -157,6 +157,9 @@ const App: React.FC = () => {
             handleCatalogResultado={app.handleCatalogResultado}
             handleCatalogToggleClientSpec={app.handleCatalogToggleClientSpec}
             handleRemoveCatalogTable={app.handleRemoveCatalogTable}
+            handleDuplicateTable={app.handleDuplicateTable}
+            handleDuplicateSection={app.handleDuplicateSection}
+            handleRemoveSection={app.handleRemoveSection}
             handleAddRow={app.handleAddRow} handleRemoveRow={app.handleRemoveRow}
             handleHeaderDataChange={app.handleHeaderDataChange}
             handleChecklistAnswer={app.handleChecklistAnswer}
@@ -438,6 +441,9 @@ const App: React.FC = () => {
         handleCatalogResultado={app.handleCatalogResultado}
         handleCatalogToggleClientSpec={app.handleCatalogToggleClientSpec}
         handleRemoveCatalogTable={app.handleRemoveCatalogTable}
+            handleDuplicateTable={app.handleDuplicateTable}
+            handleDuplicateSection={app.handleDuplicateSection}
+            handleRemoveSection={app.handleRemoveSection}
         handleAddRow={app.handleAddRow} handleRemoveRow={app.handleRemoveRow}
         handleHeaderDataChange={app.handleHeaderDataChange}
         handleChecklistAnswer={app.handleChecklistAnswer}

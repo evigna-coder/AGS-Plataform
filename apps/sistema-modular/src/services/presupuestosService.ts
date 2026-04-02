@@ -1,5 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta } from '@ags/shared';
+import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
 import { leadsService } from './leadsService';
 
@@ -10,6 +11,11 @@ function toISO(val: any, fallback: string | null = null): string | null {
   if (typeof val?.toDate === 'function') return val.toDate().toISOString();
   if (typeof val?.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
   return fallback;
+}
+
+/** Migrate legacy presupuesto estado to simplified states */
+function migrateEstado(estado: string): PresupuestoEstado {
+  return PRESUPUESTO_ESTADO_MIGRATION[estado] || 'borrador';
 }
 
 // Servicio para Presupuestos
@@ -64,6 +70,7 @@ export const presupuestosService = {
       return {
         id: doc.id,
         ...d,
+        estado: migrateEstado(d.estado),
         createdAt: toISO(d.createdAt, ''),
         updatedAt: toISO(d.updatedAt, ''),
         validUntil: toISO(d.validUntil),
@@ -101,6 +108,7 @@ export const presupuestosService = {
         return {
           id: d.id,
           ...data,
+          estado: migrateEstado(data.estado),
           createdAt: toISO(data.createdAt, ''),
           updatedAt: toISO(data.updatedAt, ''),
           validUntil: toISO(data.validUntil),
@@ -131,6 +139,7 @@ export const presupuestosService = {
       return {
         id: docSnap.id,
         ...d,
+        estado: migrateEstado(d.estado),
         createdAt: toISO(d.createdAt, ''),
         updatedAt: toISO(d.updatedAt, ''),
         validUntil: toISO(d.validUntil),
@@ -155,6 +164,7 @@ export const presupuestosService = {
       callback({
         id: snap.id,
         ...d,
+        estado: migrateEstado(d.estado),
         createdAt: toISO(d.createdAt, ''),
         updatedAt: toISO(d.updatedAt, ''),
         validUntil: toISO(d.validUntil),
@@ -322,6 +332,7 @@ export const presupuestosService = {
         family.push({
           id: d.id,
           ...data,
+          estado: migrateEstado(data.estado),
           createdAt: toISO(data.createdAt, ''),
           updatedAt: toISO(data.updatedAt, ''),
           validUntil: toISO(data.validUntil),

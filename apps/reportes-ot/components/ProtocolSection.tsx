@@ -35,6 +35,9 @@ interface ProtocolSectionProps {
   handleCatalogResultado: (tableId: string, resultado: ProtocolSelection['resultado']) => void;
   handleCatalogToggleClientSpec: (tableId: string, enabled: boolean) => void;
   handleRemoveCatalogTable: (tableId: string) => void;
+  handleDuplicateTable: (tableId: string) => void;
+  handleDuplicateSection: (tableId: string, sectionItemId: string) => void;
+  handleRemoveSection: (tableId: string, sectionItemId: string) => void;
   handleAddRow: (tableId: string) => void;
   handleRemoveRow: (tableId: string, rowId: string) => void;
   handleHeaderDataChange: (tableId: string, fieldId: string, value: string) => void;
@@ -72,7 +75,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   protocolTemplate, protocolData, setProtocolData,
   protocolSelections, setProtocolSelections, suggestedTables, setSuggestedTables,
   handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
-  handleCatalogToggleClientSpec, handleRemoveCatalogTable,
+  handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
   handleAddRow, handleRemoveRow, handleHeaderDataChange,
   handleChecklistAnswer, handleToggleChecklistSection,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
@@ -171,6 +174,8 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onChangeResultado={handleCatalogResultado}
                 onToggleSection={handleToggleChecklistSection}
                 onRemove={handleRemoveCatalogTable}
+                onDuplicateSection={(sectionId) => handleDuplicateSection(sel.tableId, sectionId)}
+                onRemoveSection={(sectionId) => handleRemoveSection(sel.tableId, sectionId)}
                 signatureClient={signatureClient}
                 signatureEngineer={signatureEngineer}
                 aclaracionCliente={aclaracionCliente}
@@ -189,6 +194,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onChangeResultado={handleCatalogResultado}
                 onToggleClientSpec={handleCatalogToggleClientSpec}
                 onRemove={handleRemoveCatalogTable}
+                onDuplicate={handleDuplicateTable}
                 onAddRow={handleAddRow}
                 onRemoveRow={handleRemoveRow}
                 onChangeHeaderData={handleHeaderDataChange}

@@ -14,8 +14,10 @@ interface Props {
   onCreated?: () => void;
   prefill?: {
     clienteId?: string;
+    establecimientoId?: string;
     sistemaId?: string;
     moduloId?: string;
+    contactoNombre?: string;
     origenTipo?: OrigenPresupuesto;
     origenId?: string;
     origenRef?: string;

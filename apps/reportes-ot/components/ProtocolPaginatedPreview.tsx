@@ -64,10 +64,12 @@ interface ProtocolMeta {
   razonSocial: string;
   sistema: string;
   moduloSerie: string;
+  codigoInternoCliente: string;
   fechaInicio: string;
   tipoServicio: string;
   logoSrc: string;
   isoLogoSrc: string;
+  ingenieroNombre: string;
 }
 
 interface ContentItem {
@@ -238,8 +240,9 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
           otNumber={meta.otNumber}
           fechaInicio={meta.fechaInicio}
           sistemaNombre={meta.sistema}
+          agsVisibleId={meta.codigoInternoCliente}
           numeroSerie={meta.moduloSerie}
-          ingenieroNombre={aclaracionEspecialista}
+          ingenieroNombre={meta.ingenieroNombre || aclaracionEspecialista}
           logoSrc={meta.logoSrc}
         />;
         items.push({ key: sel.tableId, node, isCover: true, headerTitle, footerQF });

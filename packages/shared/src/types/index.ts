@@ -675,42 +675,40 @@ export const ORIGEN_PRESUPUESTO_LABELS: Record<OrigenPresupuesto, string> = {
 export type PresupuestoEstado =
   | 'borrador'
   | 'enviado'
-  | 'en_seguimiento'
-  | 'pendiente_oc'
   | 'aceptado'
-  | 'autorizado'
-  | 'pendiente_certificacion'
-  | 'rechazado'
-  | 'vencido'
-  | 'aguarda'
-  | 'anulado';
+  | 'anulado'
+  | 'finalizado';
 
 export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   borrador: 'Borrador',
   enviado: 'Enviado',
-  en_seguimiento: 'En seguimiento',
-  pendiente_oc: 'Pendiente OC',
   aceptado: 'Aceptado',
-  autorizado: 'Autorizado',
-  pendiente_certificacion: 'Pend. certificación',
-  rechazado: 'Rechazado',
-  vencido: 'Vencido',
-  aguarda: 'Aguarda',
   anulado: 'Anulado',
+  finalizado: 'Finalizado',
 };
 
 export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   borrador: 'bg-slate-100 text-slate-700',
   enviado: 'bg-blue-100 text-blue-700',
-  en_seguimiento: 'bg-yellow-100 text-yellow-700',
-  pendiente_oc: 'bg-orange-100 text-orange-700',
   aceptado: 'bg-emerald-100 text-emerald-700',
-  autorizado: 'bg-green-100 text-green-700',
-  pendiente_certificacion: 'bg-purple-100 text-purple-700',
-  rechazado: 'bg-red-100 text-red-700',
-  vencido: 'bg-rose-100 text-rose-600',
-  aguarda: 'bg-red-100 text-red-700',
   anulado: 'bg-slate-200 text-slate-500',
+  finalizado: 'bg-teal-100 text-teal-700',
+};
+
+/** Mapeo de estados legacy a nuevos estados simplificados */
+export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {
+  borrador: 'borrador',
+  enviado: 'enviado',
+  en_seguimiento: 'enviado',
+  pendiente_oc: 'enviado',
+  aguarda: 'enviado',
+  aceptado: 'aceptado',
+  autorizado: 'aceptado',
+  pendiente_certificacion: 'aceptado',
+  rechazado: 'anulado',
+  vencido: 'anulado',
+  anulado: 'anulado',
+  finalizado: 'finalizado',
 };
 
 // --- Item de Presupuesto ---
@@ -966,6 +964,8 @@ export interface Presupuesto {
   anuladoPorId?: string | null; // ID de la revisión que reemplazó a este presupuesto
   // --- OT vinculada ---
   otVinculadaNumber?: string | null;
+  // --- Facturación ---
+  facturacionEstado?: 'pendiente' | 'parcial' | 'completa' | null;
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
@@ -973,6 +973,63 @@ export interface Presupuesto {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+}
+
+// --- Facturación ---
+
+export type SolicitudFacturacionEstado = 'pendiente' | 'facturada' | 'cobrada' | 'anulada';
+
+export const SOLICITUD_FACTURACION_ESTADO_LABELS: Record<SolicitudFacturacionEstado, string> = {
+  pendiente: 'Pendiente',
+  facturada: 'Facturada',
+  cobrada: 'Cobrada',
+  anulada: 'Anulada',
+};
+
+export const SOLICITUD_FACTURACION_ESTADO_COLORS: Record<SolicitudFacturacionEstado, string> = {
+  pendiente: 'bg-amber-100 text-amber-700',
+  facturada: 'bg-blue-100 text-blue-700',
+  cobrada: 'bg-emerald-100 text-emerald-700',
+  anulada: 'bg-slate-200 text-slate-500',
+};
+
+export interface FacturaItem {
+  id: string;
+  presupuestoItemId: string;
+  descripcion: string;
+  cantidad: number;
+  cantidadTotal: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface SolicitudFacturacion {
+  id: string;
+  presupuestoId: string;
+  presupuestoNumero: string;
+  clienteId: string;
+  clienteNombre: string;
+  condicionPago: string;
+  items: FacturaItem[];
+  montoTotal: number;
+  moneda: MonedaPresupuesto;
+  estado: SolicitudFacturacionEstado;
+  observaciones?: string | null;
+  // Datos de la factura emitida (carga admin/contable)
+  numeroFactura?: string | null;
+  fechaFactura?: string | null;
+  tipoComprobante?: string | null;
+  puntoVenta?: string | null;
+  cae?: string | null;
+  fechaVencimientoCae?: string | null;
+  fechaCobro?: string | null;
+  // Audit
+  solicitadoPor?: string | null;
+  solicitadoPorNombre?: string | null;
+  facturadoPor?: string | null;
+  facturadoPorNombre?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface QuoteItem {
@@ -1102,7 +1159,7 @@ export interface ChecklistItem {
    * 2 = sub-sección (ej. "3.1 Bomba")
    * 3 = sub-sub-sección (ej. "3.2.a Inyector manual")
    */
-  depth: 0 | 1 | 2 | 3;
+  depth: 0 | 1 | 2 | 3 | 4;
   /** Si true, el técnico puede marcar esta sección como "No Aplica" */
   canBeNA?: boolean;
   /** Prefijo numérico visible (ej. "3.2.a") */

@@ -99,6 +99,7 @@ interface Props {
   onChangeResultado?: (tableId: string, value: ProtocolSelection['resultado']) => void;
   onToggleClientSpec?: (tableId: string, enabled: boolean) => void;
   onRemove?: (tableId: string) => void;
+  onDuplicate?: (tableId: string) => void;
   onAddRow?: (tableId: string) => void;
   onRemoveRow?: (tableId: string, rowId: string) => void;
   onChangeHeaderData?: (tableId: string, fieldId: string, value: string) => void;
@@ -271,6 +272,7 @@ export const CatalogTableView: React.FC<Props> = ({
   onChangeObservaciones,
   onToggleClientSpec,
   onRemove,
+  onDuplicate,
   onAddRow,
   onRemoveRow,
   onChangeHeaderData,
@@ -578,6 +580,19 @@ export const CatalogTableView: React.FC<Props> = ({
                 Especificaciones ampliadas por el cliente
               </span>
             </label>
+          )}
+
+          {/* Botón duplicar (solo validation) */}
+          {!isPrint && !readOnly && onDuplicate && table.tableType === 'validation' && (
+            <button
+              onClick={() => onDuplicate(selection.tableId)}
+              className="text-slate-400 hover:text-teal-600 transition-colors p-1"
+              title="Duplicar tabla"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           )}
 
           {/* Botón quitar */}

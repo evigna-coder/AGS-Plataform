@@ -59,10 +59,12 @@ export const PresupuestoHeaderBar: React.FC<Props> = ({
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
           </Button>
-          {estado === 'borrador' && (
-            <Button variant="outline" size="sm" onClick={onEnviar}>Enviar</Button>
+          {estado !== 'anulado' && estado !== 'finalizado' && (
+            <Button variant="outline" size="sm" onClick={onEnviar}>
+              {estado === 'borrador' ? 'Enviar' : 'Reenviar'}
+            </Button>
           )}
-          {['autorizado', 'aceptado', 'pendiente_oc'].includes(estado) && (
+          {estado === 'aceptado' && (
             <Button variant="outline" size="sm" onClick={() => { onClose(); navigate(`/ordenes-trabajo/nuevo?presupuestoId=${presupuestoId}`); }}>Crear OT</Button>
           )}
           <Button variant="ghost" size="sm" onClick={onDelete} disabled={deleting} title="Eliminar presupuesto"

@@ -496,7 +496,7 @@ export class FirebaseService {
       descripcion: data.accionesTomar,
       estado: 'nuevo',
       areaActual: 'admin_soporte',
-      asignadoA: 'cmele@agsanalitica.com',
+      asignadoA: '0svj4gY3hcNHtgcbtJv47fUew192',
       asignadoNombre: 'Cynthia Mele',
       derivadoPor: null,
       prioridad: 'urgente',

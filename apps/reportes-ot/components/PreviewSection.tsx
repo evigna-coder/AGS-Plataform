@@ -305,10 +305,12 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
               razonSocial,
               sistema,
               moduloSerie,
+              codigoInternoCliente,
               fechaInicio,
               tipoServicio,
               logoSrc: LOGO_SRC,
               isoLogoSrc: ISO_LOGO_SRC,
+              ingenieroNombre: aclaracionEspecialista,
             }}
             signatureClient={signatureClient}
             signatureEngineer={signatureEngineer}

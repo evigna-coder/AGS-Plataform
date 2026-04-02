@@ -71,8 +71,8 @@ export function usePresupuestoActions({
   };
 
   const handleSuggestAutorizado = () => {
-    if (form.estado !== 'autorizado' && confirm('Se adjuntó una orden de compra. ¿Cambiar estado a "Autorizado"?')) {
-      handleEstadoChange('autorizado');
+    if (form.estado !== 'aceptado' && confirm('Se adjuntó una orden de compra. ¿Cambiar estado a "Aceptado"?')) {
+      handleEstadoChange('aceptado');
     }
   };
 
@@ -204,5 +204,6 @@ export function usePresupuestoActions({
     handleSeccionToggle, handleCondicionValueChange,
     // Helpers
     fmtMoney,
+    buildPDFParams,
   };
 }

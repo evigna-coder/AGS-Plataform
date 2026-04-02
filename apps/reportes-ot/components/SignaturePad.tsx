@@ -194,7 +194,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
           onPointerMove={handleMove}
           onPointerUp={finishDrawing}
           onPointerLeave={finishDrawing}
-          className="w-full h-[160px] block cursor-crosshair touch-none"
+          className="w-full h-[120px] block cursor-crosshair touch-none"
         />
         {!hasSignature && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">

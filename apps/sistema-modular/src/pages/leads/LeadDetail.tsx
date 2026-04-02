@@ -333,6 +333,8 @@ export const LeadDetail = () => {
         prefill={{
           clienteId: lead.clienteId || undefined,
           sistemaId: lead.sistemaId || undefined,
+          moduloId: lead.moduloId || undefined,
+          contactoNombre: lead.contacto || undefined,
           origenTipo: 'lead',
           origenId: lead.id,
           origenRef: lead.razonSocial,

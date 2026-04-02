@@ -47,7 +47,7 @@ export const CatalogCoverView: React.FC<Props> = ({
 
   const datos = [
     { label: 'Fecha', value: formatFecha(fechaInicio) },
-    { label: 'Orden de Servicio', value: otNumber ? `OT-${otNumber}` : '—', mono: true },
+    { label: 'Orden de Servicio', value: otNumber || '—', mono: true },
     { label: 'Modelo', value: equipoDisplay },
     { label: 'ID Equipo', value: agsVisibleId || '—', mono: true },
     { label: 'N° de Serie', value: numeroSerie || '—' },

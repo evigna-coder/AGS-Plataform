@@ -18,7 +18,7 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-const ACTIVE_PIPELINE_STATES = ['enviado', 'en_seguimiento', 'pendiente_oc', 'aceptado'];
+const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado'];
 
 export const PresupuestosList = () => {
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
@@ -141,7 +141,7 @@ export const PresupuestosList = () => {
 
   const getRowStyle = (p: Presupuesto) => {
     if (isAnulado(p)) return 'opacity-50';
-    if (p.estado === 'rechazado' || p.estado === 'vencido') return 'opacity-60';
+    if (p.estado === 'anulado' || p.estado === 'finalizado') return 'opacity-60';
     if (isExpired(p) && ACTIVE_PIPELINE_STATES.includes(p.estado)) return 'border-l-2 border-red-300 bg-red-50/50';
     if (needsFollowUp(p)) return 'border-l-2 border-amber-300 bg-amber-50/30';
     return '';

@@ -16,6 +16,7 @@ const DEPTH_LABELS: Record<number, string> = {
   1: 'Sección',
   2: 'Sub-sección',
   3: 'Sub-sub-sección',
+  4: 'Detalle (nivel 4)',
 };
 
 const TYPE_LABELS: Record<ChecklistItemType, string> = {
@@ -127,6 +128,7 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
           <option value={1}>1 — Sección</option>
           <option value={2}>2 — Sub-sección</option>
           <option value={3}>3 — Sub-sub-sección</option>
+          <option value={4}>4 — Detalle</option>
         </select>
         {d.itemType === 'value_input' ? (
           <Input

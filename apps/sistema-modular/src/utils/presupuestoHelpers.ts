@@ -70,7 +70,7 @@ export function isExpired(p: Presupuesto): boolean {
 
 /** Whether the presupuesto needs follow-up (sent >7d without activity, or contacto overdue). */
 export function needsFollowUp(p: Presupuesto): boolean {
-  const ACTIVE_STATES = ['enviado', 'en_seguimiento', 'pendiente_oc', 'aceptado'];
+  const ACTIVE_STATES = ['enviado', 'aceptado'];
   if (!ACTIVE_STATES.includes(p.estado)) return false;
   const daysSent = getDaysSinceEnvio(p.fechaEnvio);
   if (daysSent !== null && daysSent > 7) return true;
