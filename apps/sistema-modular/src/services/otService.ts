@@ -3,6 +3,7 @@ import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin } from '@ags/shared
 import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
+import { agendaService } from './agendaService';
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
@@ -225,6 +226,16 @@ export const ordenesTrabajoService = {
     batchAudit(batch, { action: 'create', collection: 'ordenes_trabajo', documentId: otData.otNumber, after: cleanedData as any });
     await batch.commit();
     console.log('✅ Orden de trabajo creada exitosamente');
+
+    // Auto-create agenda entry if engineer + date assigned
+    if (otData.ingenieroAsignadoId && otData.fechaServicioAprox && !otData.otNumber.includes('.')) {
+      try {
+        await agendaService.autoCreateFromOT(otData as any);
+      } catch (err) {
+        console.error('[otService] Error auto-creating agenda entry:', err);
+      }
+    }
+
     return otData.otNumber;
   },
 
@@ -256,6 +267,24 @@ export const ordenesTrabajoService = {
         }
       } catch (err) {
         console.error('[otService] Error syncing lead from OT:', err);
+      }
+    }
+
+    // ── Auto-sync agenda when engineer or date changes ──
+    if (data.ingenieroAsignadoId !== undefined || data.fechaServicioAprox !== undefined) {
+      try {
+        await agendaService.syncFromOT(otNumber, {
+          ingenieroId: data.ingenieroAsignadoId as string | null | undefined,
+          ingenieroNombre: data.ingenieroAsignadoNombre as string | null | undefined,
+          fechaServicioAprox: data.fechaServicioAprox as string | undefined,
+        });
+        // If engineer+date now present but no entry existed, auto-create
+        if (data.ingenieroAsignadoId && data.fechaServicioAprox) {
+          const ot = await this.getByOtNumber(otNumber);
+          if (ot) await agendaService.autoCreateFromOT(ot as any);
+        }
+      } catch (err) {
+        console.error('[otService] Error syncing agenda:', err);
       }
     }
   },

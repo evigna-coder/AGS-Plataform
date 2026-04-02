@@ -92,6 +92,74 @@ export const agendaService = {
     await deleteDoc(docRef);
     logAudit({ action: 'delete', collection: 'agendaEntries', documentId: id });
   },
+
+  /** Auto-create agenda entry from OT when engineer + date are assigned */
+  async autoCreateFromOT(ot: {
+    otNumber: string;
+    ingenieroAsignadoId?: string | null;
+    ingenieroAsignadoNombre?: string | null;
+    fechaServicioAprox?: string;
+    razonSocial: string;
+    tipoServicio: string;
+    sistema?: string;
+  }): Promise<string | null> {
+    if (!ot.ingenieroAsignadoId || !ot.fechaServicioAprox) return null;
+
+    // Check if entry already exists for this OT
+    const existing = await this.getByOtNumber(ot.otNumber);
+    const active = existing.filter(e => e.estadoAgenda !== 'cancelado');
+    if (active.length > 0) return active[0].id;
+
+    return this.create({
+      fechaInicio: ot.fechaServicioAprox,
+      fechaFin: ot.fechaServicioAprox,
+      quarterStart: 1,
+      quarterEnd: 1,
+      ingenieroId: ot.ingenieroAsignadoId,
+      ingenieroNombre: ot.ingenieroAsignadoNombre || '',
+      otNumber: ot.otNumber,
+      clienteNombre: ot.razonSocial,
+      tipoServicio: ot.tipoServicio,
+      sistemaNombre: ot.sistema || null,
+      establecimientoNombre: null,
+      estadoAgenda: 'tentativo',
+      notas: null,
+      titulo: null,
+    });
+  },
+
+  /** Sync existing agenda entry when OT engineer or date changes */
+  async syncFromOT(otNumber: string, changes: {
+    ingenieroId?: string | null;
+    ingenieroNombre?: string | null;
+    fechaServicioAprox?: string;
+  }): Promise<void> {
+    const existing = await this.getByOtNumber(otNumber);
+    const active = existing.filter(e => e.estadoAgenda !== 'cancelado');
+    if (active.length === 0) return;
+
+    const entry = active[0];
+    const updates: Partial<AgendaEntry> = {};
+
+    if (changes.ingenieroId !== undefined) {
+      if (changes.ingenieroId === null) {
+        // Engineer removed → delete agenda entry
+        await this.delete(entry.id);
+        return;
+      }
+      updates.ingenieroId = changes.ingenieroId;
+      if (changes.ingenieroNombre !== undefined) updates.ingenieroNombre = changes.ingenieroNombre || '';
+    }
+
+    if (changes.fechaServicioAprox) {
+      updates.fechaInicio = changes.fechaServicioAprox;
+      updates.fechaFin = changes.fechaServicioAprox;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.update(entry.id, updates);
+    }
+  },
 };
 
 // ── Feriados Service ──
