@@ -22,6 +22,7 @@ import { UsuariosList } from '../../pages/usuarios';
 import { ImportacionDatos } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
+import { ContratosList, ContratoDetail } from '../../pages/contratos';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -149,6 +150,9 @@ function AppRoutes() {
       {/* Facturacion */}
       <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionList /></ProtectedRoute>} />
       <Route path="/facturacion/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><FacturacionDetail /></ProtectedRoute>} />
+      {/* Contratos */}
+      <Route path="/contratos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratosList /></ProtectedRoute>} />
+      <Route path="/contratos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratoDetail /></ProtectedRoute>} />
       {/* Admin */}
       <Route path="/admin/importar" element={<ProtectedRoute allowedRoles={['admin']}><ImportacionDatos /></ProtectedRoute>} />
     </Routes>

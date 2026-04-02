@@ -21,3 +21,4 @@ export * from './ingresoEmpresasService';
 export * from './vehiculosService';
 export * from './dispositivosService';
 export * from './facturacionService';
+export * from './contratosService';

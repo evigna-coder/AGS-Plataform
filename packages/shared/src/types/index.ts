@@ -2525,6 +2525,7 @@ export type ModuloId =
   | 'vehiculos'
   | 'agenda'
   | 'facturacion'
+  | 'contratos'
   | 'usuarios'
   | 'admin';
 
@@ -2532,7 +2533,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'facturacion', 'usuarios', 'admin'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'facturacion', 'contratos', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -2540,11 +2541,11 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'contratos'],
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'contratos'],
   },
   ventas: {
     apps: ['sistema-modular'],
@@ -2580,6 +2581,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/vehiculos': 'vehiculos',
   '/agenda': 'agenda',
   '/facturacion': 'facturacion',
+  '/contratos': 'contratos',
   '/usuarios': 'usuarios',
   '/admin': 'admin',
 };
@@ -2602,6 +2604,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'vehiculos': 'Vehículos',
   'agenda': 'Agenda',
   'facturacion': 'Facturación',
+  'contratos': 'Contratos',
   'usuarios': 'Usuarios',
   'admin': 'Administración',
 };
@@ -2964,4 +2967,59 @@ export interface ServiceReport {
   accionesTomar: string;
   esFacturable: boolean;
   tieneContrato: boolean;
+}
+
+// --- Contratos de Servicio ---
+
+export type TipoLimiteContrato = 'visitas' | 'horas' | 'ilimitado';
+export type EstadoContrato = 'activo' | 'vencido' | 'suspendido' | 'cancelado';
+
+export const ESTADO_CONTRATO_LABELS: Record<EstadoContrato, string> = {
+  activo: 'Activo',
+  vencido: 'Vencido',
+  suspendido: 'Suspendido',
+  cancelado: 'Cancelado',
+};
+
+export const ESTADO_CONTRATO_COLORS: Record<EstadoContrato, string> = {
+  activo: 'bg-emerald-100 text-emerald-700',
+  vencido: 'bg-red-100 text-red-700',
+  suspendido: 'bg-amber-100 text-amber-700',
+  cancelado: 'bg-slate-200 text-slate-500',
+};
+
+export const TIPO_LIMITE_CONTRATO_LABELS: Record<TipoLimiteContrato, string> = {
+  visitas: 'Por visitas',
+  horas: 'Por horas',
+  ilimitado: 'Ilimitado',
+};
+
+export interface ServicioContrato {
+  tipoServicioId: string;
+  tipoServicioNombre: string;
+  entregables?: string[] | null;
+}
+
+export interface Contrato {
+  id: string;
+  numero: string;
+  clienteId: string;
+  clienteNombre: string;
+  sistemaIds: string[];
+  presupuestoId: string | null;
+  presupuestoNumero: string | null;
+  fechaInicio: string;
+  fechaFin: string;
+  estado: EstadoContrato;
+  serviciosIncluidos: ServicioContrato[];
+  tipoLimite: TipoLimiteContrato;
+  maxVisitas: number | null;
+  visitasUsadas: number;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
 }
