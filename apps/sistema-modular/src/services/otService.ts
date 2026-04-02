@@ -2,6 +2,7 @@ import { collection, getDocs, doc, getDoc, query, where, Timestamp, addDoc, runT
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore } from './firebase';
 import { leadsService } from './leadsService';
+import { presupuestosService } from './presupuestosService';
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
@@ -247,8 +248,35 @@ export const ordenesTrabajoService = {
         if (ot?.leadId) {
           await leadsService.syncFromOT(ot.leadId, otNumber, data.estadoAdmin as OTEstadoAdmin);
         }
+        // Sync presupuesto estado
+        if (ot && data.estadoAdmin === 'FINALIZADO') {
+          await this._syncPresupuestoOnFinalize(ot).catch(err =>
+            console.error('[otService] Error syncing presupuesto:', err)
+          );
+        }
       } catch (err) {
         console.error('[otService] Error syncing lead from OT:', err);
+      }
+    }
+  },
+
+  /** Check if all OTs for a presupuesto are finalized, and update presupuesto accordingly */
+  async _syncPresupuestoOnFinalize(ot: WorkOrder): Promise<void> {
+    const budgetNumbers = ot.budgets || [];
+    if (budgetNumbers.length === 0) return;
+    // For each linked presupuesto, check if all OTs are finalized
+    const allPresupuestos = await presupuestosService.getAll();
+    for (const budgetNum of budgetNumbers) {
+      const pres = allPresupuestos.find(p => p.numero === budgetNum);
+      if (!pres || pres.estado === 'finalizado' || pres.estado === 'anulado') continue;
+      // Find all OTs that reference this presupuesto
+      const allOTs = await this.getAll();
+      const otsForPres = allOTs.filter(o =>
+        !o.otNumber.includes('.') && (o.budgets || []).includes(budgetNum)
+      );
+      const allFinalized = otsForPres.every(o => o.estadoAdmin === 'FINALIZADO');
+      if (allFinalized) {
+        await presupuestosService.update(pres.id, { estado: 'finalizado' } as any);
       }
     }
   },

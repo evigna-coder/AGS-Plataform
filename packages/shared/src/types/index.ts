@@ -491,6 +491,10 @@ export type TicketEstado =
   | 'espera_importacion'
   | 'pendiente_entrega'
   | 'en_coordinacion'
+  | 'ot_creada'
+  | 'ot_coordinada'
+  | 'ot_realizada'
+  | 'pendiente_facturacion'
   | 'finalizado'
   | 'no_concretado';
 
@@ -504,6 +508,10 @@ export const TICKET_ESTADO_LABELS: Record<TicketEstado, string> = {
   espera_importacion: 'Espera importación',
   pendiente_entrega: 'Pendiente entrega',
   en_coordinacion: 'En coordinación',
+  ot_creada: 'OT creada',
+  ot_coordinada: 'OT coordinada',
+  ot_realizada: 'OT realizada',
+  pendiente_facturacion: 'Pend. facturación',
   finalizado: 'Finalizado',
   no_concretado: 'No concretado',
 };
@@ -518,6 +526,10 @@ export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
   espera_importacion: 'bg-yellow-100 text-yellow-800',
   pendiente_entrega: 'bg-lime-100 text-lime-800',
   en_coordinacion: 'bg-cyan-100 text-cyan-800',
+  ot_creada: 'bg-teal-100 text-teal-800',
+  ot_coordinada: 'bg-teal-200 text-teal-900',
+  ot_realizada: 'bg-green-100 text-green-800',
+  pendiente_facturacion: 'bg-amber-100 text-amber-800',
   finalizado: 'bg-emerald-100 text-emerald-800',
   no_concretado: 'bg-red-100 text-red-600',
 };
@@ -527,7 +539,8 @@ export const TICKET_ESTADO_ORDER: TicketEstado[] = [
   'nuevo', 'relevamiento_pendiente', 'presupuesto_pendiente',
   'en_seguimiento', 'presupuesto_enviado',
   'esperando_oc', 'espera_importacion', 'pendiente_entrega',
-  'en_coordinacion', 'finalizado', 'no_concretado',
+  'en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada',
+  'pendiente_facturacion', 'finalizado', 'no_concretado',
 ];
 
 // --- Posta (derivación) ---
@@ -678,6 +691,7 @@ export type PresupuestoEstado =
   | 'borrador'
   | 'enviado'
   | 'aceptado'
+  | 'en_ejecucion'
   | 'anulado'
   | 'finalizado';
 
@@ -685,6 +699,7 @@ export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   borrador: 'Borrador',
   enviado: 'Enviado',
   aceptado: 'Aceptado',
+  en_ejecucion: 'En ejecución',
   anulado: 'Anulado',
   finalizado: 'Finalizado',
 };
@@ -693,6 +708,7 @@ export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   borrador: 'bg-slate-100 text-slate-700',
   enviado: 'bg-blue-100 text-blue-700',
   aceptado: 'bg-emerald-100 text-emerald-700',
+  en_ejecucion: 'bg-cyan-100 text-cyan-700',
   anulado: 'bg-slate-200 text-slate-500',
   finalizado: 'bg-teal-100 text-teal-700',
 };
@@ -709,6 +725,7 @@ export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {
   pendiente_certificacion: 'aceptado',
   rechazado: 'anulado',
   vencido: 'anulado',
+  en_ejecucion: 'en_ejecucion',
   anulado: 'anulado',
   finalizado: 'finalizado',
 };

@@ -21,12 +21,12 @@ const PRESUPUESTO_ESTADO_LABELS: Partial<Record<PresupuestoEstado, string>> = {
 
 // ── Mapeo de estados: OT estadoAdmin → lead ───────────────────────────
 const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
-  CREADA: 'en_coordinacion',
-  ASIGNADA: 'en_coordinacion',
-  COORDINADA: 'en_coordinacion',
-  EN_CURSO: 'en_seguimiento',
-  CIERRE_TECNICO: 'en_seguimiento',
-  CIERRE_ADMINISTRATIVO: 'en_seguimiento',
+  CREADA: 'ot_creada',
+  ASIGNADA: 'ot_creada',
+  COORDINADA: 'ot_coordinada',
+  EN_CURSO: 'ot_coordinada',
+  CIERRE_TECNICO: 'ot_realizada',
+  CIERRE_ADMINISTRATIVO: 'pendiente_facturacion',
   FINALIZADO: 'finalizado',
 };
 

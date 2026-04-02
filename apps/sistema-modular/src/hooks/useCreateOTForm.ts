@@ -223,9 +223,9 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         );
       }
 
-      // Link presupuesto
+      // Link presupuesto and set en_ejecucion
       if (form.presupuestoId) {
-        await presupuestosService.update(form.presupuestoId, { otVinculadaNumber: otNum } as any).catch(err =>
+        await presupuestosService.update(form.presupuestoId, { otVinculadaNumber: otNum, estado: 'en_ejecucion' } as any).catch(err =>
           console.error('Error vinculando presupuesto:', err)
         );
       }

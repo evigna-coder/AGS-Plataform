@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { presupuestosService, clientesService, usuariosService } from '../../services/firebaseService';
+import { presupuestosService, clientesService, usuariosService, facturacionService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import type { Presupuesto, Cliente, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
+import type { Presupuesto, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -13,12 +13,13 @@ import { CreateRevisionModal } from '../../components/presupuestos/CreateRevisio
 import { ConceptosServicioModal } from '../../components/presupuestos/ConceptosServicioModal';
 import { CategoriasPresupuestoModal } from '../../components/presupuestos/CategoriasPresupuestoModal';
 import { CondicionesPagoModal } from '../../components/presupuestos/CondicionesPagoModal';
+import { PresupuestoDashboard } from '../../components/presupuestos/PresupuestoDashboard';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado'];
+const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion'];
 
 export const PresupuestosList = () => {
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
@@ -30,6 +31,7 @@ export const PresupuestosList = () => {
   const [showConceptos, setShowConceptos] = useState(false);
   const [showCategorias, setShowCategorias] = useState(false);
   const [showCondiciones, setShowCondiciones] = useState(false);
+  const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
   const floatingPres = useFloatingPresupuesto();
 
   const FILTER_SCHEMA = useMemo(() => ({
@@ -52,6 +54,7 @@ export const PresupuestosList = () => {
   };
 
   const unsubRef = useRef<(() => void) | null>(null);
+  const unsubSolRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // Load reference data
@@ -70,7 +73,12 @@ export const PresupuestosList = () => {
       (data) => { setPresupuestos(data); setLoading(false); },
       (err) => { console.error('Error presupuestos:', err); setLoading(false); },
     );
-    return () => { unsubRef.current?.(); };
+    // Real-time subscription for solicitudes facturacion (dashboard)
+    unsubSolRef.current = facturacionService.subscribe(
+      undefined,
+      (data) => setSolicitudes(data),
+    );
+    return () => { unsubRef.current?.(); unsubSolRef.current?.(); };
   }, []);
 
   // No-op: onSnapshot handles real-time updates. Kept for callback compatibility.
@@ -202,6 +210,8 @@ export const PresupuestosList = () => {
           )}
         </div>
       </PageHeader>
+
+      <PresupuestoDashboard presupuestos={presupuestos} solicitudes={solicitudes} />
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {presupuestosFiltrados.length === 0 ? (
