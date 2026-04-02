@@ -200,8 +200,7 @@ export const useOTManagement = (
       if (!currentUser?.uid) return;
       const firma = await firebase.getUserFirma(currentUser.uid);
       if (firma) {
-        const trimmed = await trimSignatureBase64(firma.firmaBase64);
-        setSignatureEngineer(trimmed);
+        setSignatureEngineer(firma.firmaBase64);
         setAclaracionEspecialista(firma.nombreAclaracion);
       }
     } catch (e) {

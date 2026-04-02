@@ -224,24 +224,47 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Audit Log (trazabilidad de acciones)
-    match /audit_log/{logId} {
-      allow create: if true;           // Cualquier usuario autenticado puede escribir
-      allow read: if true;             // Temporal para desarrollo
-      allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
-    }
-
-    // Catálogo de Sectores (predefinidos + creados por usuario)
-    match /catalogoSectores/{sectorId} {
+    // Contratos de servicio
+    match /contratos/{contratoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Asignaciones de stock a ingenieros
+    // Solicitudes de facturación
+    match /solicitudesFacturacion/{solicitudId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Counters atómicos (OT number, contrato number, etc.)
+    match /_counters/{counterId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Feriados (calendario)
+    match /feriados/{feriadoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Mail queue (envío de emails via Cloud Functions)
+    match /mailQueue/{mailId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Email templates
+    match /emailTemplates/{templateId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Asignaciones de stock
     match /asignaciones/{asignacionId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Dispositivos (celulares, computadoras, tablets)
+    // Ingreso a empresas
+    match /ingreso_empresas/{ingresoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Dispositivos
     match /dispositivos/{dispositivoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
@@ -251,9 +274,26 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Plantillas de Minikit
+    // Minikit templates
     match /minikitTemplates/{templateId} {
       allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Calificaciones de proveedores
+    match /calificaciones_proveedores/{calificacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Catálogo de sectores (contactos de establecimientos)
+    match /catalogoSectores/{sectorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Audit Log (trazabilidad de acciones)
+    match /audit_log/{logId} {
+      allow create: if true;           // Cualquier usuario autenticado puede escribir
+      allow read: if true;             // Temporal para desarrollo
+      allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
     }
 
     // Bloquear acceso a cualquier otra colección

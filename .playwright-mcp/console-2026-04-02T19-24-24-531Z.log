@@ -1,0 +1,9 @@
+[     394ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/node_modules/.vite/deps/react-dom_client.js?v=3e6a280e:20102
+[     396ms] [LOG] %c✅ Variables de entorno de Firebase cargadas correctamente color: green; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:45
+[     396ms] [LOG] %c📋 Project ID: agssop-e7353 color: blue; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:46
+[     397ms] [LOG] %c✅ Firebase inicializado con caché local persistente color: green; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:63
+[     415ms] [LOG] [ENV CHECK] development AIzaSyBBylObMr3GiLEA7iKRdIymIbtWo8VKBVI @ http://localhost:3001/src/main.tsx:6
+[  145341ms] [LOG] 📥 Cargando tipos de servicio... @ http://localhost:3001/src/services/importacionesService.ts:5
+[  145343ms] [LOG] 📥 Cargando tipos de servicio... @ http://localhost:3001/src/services/importacionesService.ts:5
+[  149677ms] [LOG] ✅ 6 tipos de servicio cargados @ http://localhost:3001/src/services/importacionesService.ts:14
+[  149678ms] [LOG] ✅ 6 tipos de servicio cargados @ http://localhost:3001/src/services/importacionesService.ts:14

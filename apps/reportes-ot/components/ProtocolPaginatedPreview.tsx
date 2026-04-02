@@ -131,17 +131,13 @@ const PageHeader: React.FC<{ meta: ProtocolMeta; protocolTitle?: string }> = ({ 
 
   return (
     <div style={{ height: `${HEADER_HEIGHT_MM}mm`, flexShrink: 0 }}>
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <img src={meta.logoSrc} alt="AGS Analítica" style={{ width: '100px', height: 'auto', display: 'block', flexShrink: 0 }} />
-        <div className="flex-1 flex justify-center items-center px-4" style={{ minHeight: '32px' }}>
-          <p className="text-[10px] text-slate-700 font-semibold tracking-tight leading-snug text-center" style={{ maxWidth: '340px' }}>{title}</p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-[9px] text-slate-400 font-medium leading-none">Reporte de servicio</p>
-          <p className="text-[13px] font-bold text-indigo-700 leading-tight">N° {otNum}</p>
+        <div className="flex-1 flex justify-center items-center px-4">
+          <p className="text-[15px] text-slate-700 font-semibold tracking-tight leading-snug text-center" style={{ maxWidth: '400px' }}>{title}</p>
         </div>
       </div>
-      <div className="h-[2px] bg-indigo-600 mt-2" />
+      <div className="mt-2" style={{ height: '0.5px', backgroundColor: '#1e3a8a' }} />
     </div>
   );
 };

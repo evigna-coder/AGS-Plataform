@@ -1,0 +1,11 @@
+[    8445ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/node_modules/.vite/deps/react-dom_client.js?v=3e6a280e:20102
+[    8460ms] [LOG] %c✅ Variables de entorno de Firebase cargadas correctamente color: green; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:45
+[    8463ms] [LOG] %c📋 Project ID: agssop-e7353 color: blue; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:46
+[    8485ms] [LOG] %c✅ Firebase inicializado con caché local persistente color: green; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:63
+[    8669ms] [LOG] [ENV CHECK] development AIzaSyBBylObMr3GiLEA7iKRdIymIbtWo8VKBVI @ http://localhost:3001/src/main.tsx:6
+[   34410ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ http://localhost:3001/node_modules/.vite/deps/firebase_auth.js?v=3554937f:7082
+[   34414ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ http://localhost:3001/node_modules/.vite/deps/firebase_auth.js?v=3554937f:7082
+[   50492ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ http://localhost:3001/node_modules/.vite/deps/firebase_auth.js?v=3554937f:7082
+[   50492ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ http://localhost:3001/node_modules/.vite/deps/firebase_auth.js?v=3554937f:7082
+[   53883ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.close call. @ http://localhost:3001/node_modules/.vite/deps/firebase_auth.js?v=3554937f:7548
+[   53883ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.close call. @ http://localhost:3001/node_modules/.vite/deps/firebase_auth.js?v=3554937f:7548

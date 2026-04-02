@@ -1,0 +1,149 @@
+- generic [ref=e6]:
+  - banner [ref=e7]:
+    - generic [ref=e8]:
+      - button "Colapsar menu" [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+      - generic [ref=e12]: AGS
+      - generic [ref=e13]: "|"
+      - generic [ref=e14]: Sistema Modular
+    - generic [ref=e15]:
+      - generic [ref=e16]: Esteban Vigna
+      - button "Salir" [ref=e17] [cursor=pointer]
+  - generic [ref=e19] [cursor=pointer]:
+    - generic [ref=e20]: 📝
+    - generic [ref=e21]: Ordenes de Trabajo
+  - generic [ref=e22]:
+    - complementary [ref=e23]:
+      - navigation [ref=e24]:
+        - generic [ref=e25]:
+          - link "🏢 Clientes" [ref=e26] [cursor=pointer]:
+            - /url: /clientes
+            - generic [ref=e27]: 🏢
+            - generic [ref=e28]: Clientes
+          - button "Abrir en nueva pestana" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+        - generic [ref=e32]:
+          - link "🏭 Establecimientos" [ref=e33] [cursor=pointer]:
+            - /url: /establecimientos
+            - generic [ref=e34]: 🏭
+            - generic [ref=e35]: Establecimientos
+          - button "Abrir en nueva pestana" [ref=e36] [cursor=pointer]:
+            - img [ref=e37]
+        - generic [ref=e39]:
+          - link "⚙️ Equipos" [ref=e40] [cursor=pointer]:
+            - /url: /equipos
+            - generic [ref=e41]: ⚙️
+            - generic [ref=e42]: Equipos
+          - button "Abrir en nueva pestana" [ref=e43] [cursor=pointer]:
+            - img [ref=e44]
+        - generic [ref=e46]:
+          - link "📝 Ordenes de Trabajo" [active] [ref=e47] [cursor=pointer]:
+            - /url: /ordenes-trabajo
+            - generic [ref=e48]: 📝
+            - generic [ref=e49]: Ordenes de Trabajo
+          - button "Abrir en nueva pestana" [ref=e50] [cursor=pointer]:
+            - img [ref=e51]
+        - generic [ref=e53]:
+          - link "👥 Tickets" [ref=e54] [cursor=pointer]:
+            - /url: /leads
+            - generic [ref=e55]: 👥
+            - generic [ref=e56]: Tickets
+          - button "Abrir en nueva pestana" [ref=e57] [cursor=pointer]:
+            - img [ref=e58]
+        - generic [ref=e60]:
+          - link "📋 Presupuestos" [ref=e61] [cursor=pointer]:
+            - /url: /presupuestos
+            - generic [ref=e62]: 📋
+            - generic [ref=e63]: Presupuestos
+          - button "Abrir en nueva pestana" [ref=e64] [cursor=pointer]:
+            - img [ref=e65]
+        - generic [ref=e67]:
+          - link "📐 Biblioteca Tablas" [ref=e68] [cursor=pointer]:
+            - /url: /table-catalog
+            - generic [ref=e69]: 📐
+            - generic [ref=e70]: Biblioteca Tablas
+          - button "Abrir en nueva pestana" [ref=e71] [cursor=pointer]:
+            - img [ref=e72]
+        - generic [ref=e74]:
+          - link "🪪 Ingreso Empresas" [ref=e75] [cursor=pointer]:
+            - /url: /ingreso-empresas
+            - generic [ref=e76]: 🪪
+            - generic [ref=e77]: Ingreso Empresas
+          - button "Abrir en nueva pestana" [ref=e78] [cursor=pointer]:
+            - img [ref=e79]
+        - generic [ref=e81]:
+          - link "📱 Dispositivos" [ref=e82] [cursor=pointer]:
+            - /url: /dispositivos
+            - generic [ref=e83]: 📱
+            - generic [ref=e84]: Dispositivos
+          - button "Abrir en nueva pestana" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+        - generic [ref=e88]:
+          - link "🚗 Vehículos" [ref=e89] [cursor=pointer]:
+            - /url: /vehiculos
+            - generic [ref=e90]: 🚗
+            - generic [ref=e91]: Vehículos
+          - button "Abrir en nueva pestana" [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+        - generic [ref=e95]:
+          - link "🔬 Instrumentos" [ref=e96] [cursor=pointer]:
+            - /url: /instrumentos
+            - generic [ref=e97]: 🔬
+            - generic [ref=e98]: Instrumentos
+          - button "Abrir en nueva pestana" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+        - generic [ref=e102]:
+          - link "🔧 Fichas Propiedad" [ref=e103] [cursor=pointer]:
+            - /url: /fichas
+            - generic [ref=e104]: 🔧
+            - generic [ref=e105]: Fichas Propiedad
+          - button "Abrir en nueva pestana" [ref=e106] [cursor=pointer]:
+            - img [ref=e107]
+        - generic [ref=e109]:
+          - link "🔄 Loaners" [ref=e110] [cursor=pointer]:
+            - /url: /loaners
+            - generic [ref=e111]: 🔄
+            - generic [ref=e112]: Loaners
+          - button "Abrir en nueva pestana" [ref=e113] [cursor=pointer]:
+            - img [ref=e114]
+        - button "📦 Stock ▾" [ref=e117] [cursor=pointer]:
+          - generic [ref=e118]: 📦
+          - generic [ref=e119]: Stock
+          - generic [ref=e120]: ▾
+        - generic [ref=e121]:
+          - link "👤 Usuarios" [ref=e122] [cursor=pointer]:
+            - /url: /usuarios
+            - generic [ref=e123]: 👤
+            - generic [ref=e124]: Usuarios
+          - button "Abrir en nueva pestana" [ref=e125] [cursor=pointer]:
+            - img [ref=e126]
+        - generic [ref=e128]:
+          - link "📅 Agenda" [ref=e129] [cursor=pointer]:
+            - /url: /agenda
+            - generic [ref=e130]: 📅
+            - generic [ref=e131]: Agenda
+          - button "Abrir en nueva pestana" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+        - generic [ref=e135]:
+          - link "📑 Contratos" [ref=e136] [cursor=pointer]:
+            - /url: /contratos
+            - generic [ref=e137]: 📑
+            - generic [ref=e138]: Contratos
+          - button "Abrir en nueva pestana" [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+        - generic [ref=e142]:
+          - link "💰 Facturacion" [ref=e143] [cursor=pointer]:
+            - /url: /facturacion
+            - generic [ref=e144]: 💰
+            - generic [ref=e145]: Facturacion
+          - button "Abrir en nueva pestana" [ref=e146] [cursor=pointer]:
+            - img [ref=e147]
+        - generic [ref=e149]:
+          - link "📥 Importar Datos" [ref=e150] [cursor=pointer]:
+            - /url: /admin/importar
+            - generic [ref=e151]: 📥
+            - generic [ref=e152]: Importar Datos
+          - button "Abrir en nueva pestana" [ref=e153] [cursor=pointer]:
+            - img [ref=e154]
+    - main [ref=e156]:
+      - paragraph [ref=e7576]: Cargando órdenes de trabajo...

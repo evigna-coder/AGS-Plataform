@@ -43,9 +43,18 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
     const img = new Image();
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      // Dibujar la firma en su tamaño original, centrada en el canvas
+      const imgW = img.naturalWidth / dpr;
+      const imgH = img.naturalHeight / dpr;
+      const scale = Math.min(rect.width / imgW, rect.height / imgH, 1);
+      const w = imgW * scale;
+      const h = imgH * scale;
+      const x = (rect.width - w) / 2;
+      const y = (rect.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
     };
     img.src = dataUrl;
   }, []);

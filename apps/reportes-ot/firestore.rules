@@ -3,212 +3,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Función auxiliar para validar formato de OT (5 dígitos + opcional .NN)
-    function isValidOT(ot) {
-      return ot.matches('\\d{5}(?:\\.\\d{2})?');
-    }
-    
-    // Función auxiliar para validar que un string no exceda un tamaño máximo
-    function isValidStringSize(value, maxSize) {
-      return value is string && value.size() <= maxSize;
-    }
-    
-    // Función auxiliar para validar estructura de Part (artículo)
-    function isValidPart(part) {
-      return part.keys().hasAll(['id', 'codigo', 'descripcion', 'cantidad', 'origen'])
-             && part.id is string
-             && part.codigo is string
-             && part.descripcion is string
-             && part.cantidad is int
-             && part.origen is string
-             && (part.nroSerie == null || part.nroSerie is string);
-    }
-    
-    // Función auxiliar para validar que es una actualización de firma (solo campos de firma)
-    function isSignatureUpdate() {
-      let allowedFields = ['signatureClient', 'signedAt', 'signedFrom'];
-      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      return changedKeys.hasOnly(allowedFields)
-             && (!changedKeys.hasAny(['signatureClient']) 
-                 || request.resource.data.signatureClient is string 
-                 || request.resource.data.signatureClient == null)
-             && (!changedKeys.hasAny(['signedAt']) 
-                 || request.resource.data.signedAt is number)
-             && (!changedKeys.hasAny(['signedFrom']) 
-                 || request.resource.data.signedFrom is string);
-    }
-    
-    // Función auxiliar para validar estructura completa del documento
-    // Usa validaciones permisivas que solo verifican campos presentes
-    function isValidReportData() {
-      let data = request.resource.data;
-      
-      // Validar campos requeridos y tipos básicos
-      // Solo validar campos que están presentes en el documento
-      return ('otNumber' in data ? (data.otNumber is string && data.otNumber.size() > 0 && isValidOT(data.otNumber)) : true)
-             && (!('budgets' in data) || data.budgets == null || data.budgets is list)
-             && (!('tipoServicio' in data) || data.tipoServicio == null || data.tipoServicio is string)
-             && (!('esFacturable' in data) || data.esFacturable == null || data.esFacturable is bool)
-             && (!('tieneContrato' in data) || data.tieneContrato == null || data.tieneContrato is bool)
-             && (!('esGarantia' in data) || data.esGarantia == null || data.esGarantia is bool)
-             && (!('razonSocial' in data) || data.razonSocial == null || data.razonSocial is string)
-             && (!('contacto' in data) || data.contacto == null || data.contacto is string)
-             && (!('direccion' in data) || data.direccion == null || data.direccion is string)
-             && (!('localidad' in data) || data.localidad == null || data.localidad is string)
-             && (!('provincia' in data) || data.provincia == null || data.provincia is string)
-             && (!('sistema' in data) || data.sistema == null || data.sistema is string)
-             && (!('moduloModelo' in data) || data.moduloModelo == null || data.moduloModelo is string)
-             && (!('moduloDescripcion' in data) || data.moduloDescripcion == null || data.moduloDescripcion is string)
-             && (!('moduloSerie' in data) || data.moduloSerie == null || data.moduloSerie is string)
-             && (!('codigoInternoCliente' in data) || data.codigoInternoCliente == null || data.codigoInternoCliente is string)
-             && (!('fechaInicio' in data) || data.fechaInicio == null || data.fechaInicio is string)
-             && (!('fechaFin' in data) || data.fechaFin == null || data.fechaFin is string)
-             && (!('horasTrabajadas' in data) || data.horasTrabajadas == null || data.horasTrabajadas is string)
-             && (!('tiempoViaje' in data) || data.tiempoViaje == null || data.tiempoViaje is string)
-             && (!('reporteTecnico' in data) || data.reporteTecnico == null || (data.reporteTecnico is string && isValidStringSize(data.reporteTecnico, 50000)))
-             && (!('accionesTomar' in data) || data.accionesTomar == null || data.accionesTomar is string)
-             && (!('accionesInternaOnly' in data) || data.accionesInternaOnly == null || data.accionesInternaOnly is bool)
-             && (!('articulos' in data) || data.articulos == null || (data.articulos is list && data.articulos.size() <= 100))
-             && (!('emailPrincipal' in data) || data.emailPrincipal == null || data.emailPrincipal is string)
-             && (!('signatureEngineer' in data) || data.signatureEngineer == null || (data.signatureEngineer is string && isValidStringSize(data.signatureEngineer, 100000)))
-             && (!('aclaracionEspecialista' in data) || data.aclaracionEspecialista == null || data.aclaracionEspecialista is string)
-             && (!('signatureClient' in data) || data.signatureClient == null || (data.signatureClient is string && isValidStringSize(data.signatureClient, 100000)))
-             && (!('aclaracionCliente' in data) || data.aclaracionCliente == null || data.aclaracionCliente is string)
-             && (!('status' in data) || data.status == null || (data.status is string && data.status in ['BORRADOR', 'FINALIZADO']))
-             && (!('updatedAt' in data) || data.updatedAt == null || data.updatedAt is string)
-             && (!('signedAt' in data) || data.signedAt == null || data.signedAt is number)
-             && (!('signedFrom' in data) || data.signedFrom == null || data.signedFrom is string);
-    }
-    
-    // Colección de reportes
-    match /reportes/{ot} {
-      
-      // Validar formato de OT en el ID del documento
-      function isValidOTDocument() {
-        return isValidOT(ot);
+    // Colección de Leads
+    match /leads/{leadId} {
+      // Validación básica de estructura
+      function isValidLead() {
+        let data = request.resource.data;
+        return data.razonSocial is string
+               && data.contacto is string
+               && data.email is string
+               && data.telefono is string
+               && data.estado is string
+               && data.estado in ['nuevo', 'contactado', 'presupuestado', 'convertido', 'perdido'];
       }
       
-      // Permitir lectura (modo temporal sin auth)
-      // En el futuro, cuando se implemente autenticación, descomentar:
-      // allow read: if request.auth != null && isValidOTDocument();
-      // Permitir lectura de documentos individuales y queries de la colección (para desarrollo)
-      allow read: if isValidOTDocument() || true; // Temporal: permitir queries para generar números de OT
-      
-      // Permitir creación de documentos
-      // En el futuro, cuando se implemente autenticación, descomentar:
-      // allow create: if request.auth != null 
-      //               && isValidOTDocument()
-      //               && isValidReportData()
-      //               && request.resource.data.status == 'BORRADOR';
-      // Validación simplificada: permitir crear con BORRADOR o FINALIZADO
-      // (FINALIZADO se permite para casos donde se finaliza directamente sin crear borrador primero)
-      allow create: if isValidOTDocument()
-                    && (!('status' in request.resource.data) 
-                        || request.resource.data.status == null 
-                        || request.resource.data.status == 'BORRADOR'
-                        || request.resource.data.status == 'FINALIZADO')
-                    && (!('otNumber' in request.resource.data) || (request.resource.data.otNumber is string && isValidOT(request.resource.data.otNumber)));
-      
-      // Permitir actualización de documentos
-      // setDoc con merge: true siempre se trata como update si el documento existe
-      allow update: if isValidOTDocument()
-                    && (
-                      // Caso 1: Actualización de firma anónima (solo campos de firma)
-                      (isSignatureUpdate())
-                      ||
-                      // Caso 2: Cambio de status de BORRADOR a FINALIZADO (permitir)
-                      (
-                        ('status' in resource.data && resource.data.status == 'BORRADOR')
-                        && ('status' in request.resource.data && request.resource.data.status == 'FINALIZADO')
-                      )
-                      ||
-                      // Caso 2b: Cambio a FINALIZADO cuando el documento no tiene status (nuevo documento)
-                      (
-                        !('status' in resource.data)
-                        && ('status' in request.resource.data && request.resource.data.status == 'FINALIZADO')
-                      )
-                      ||
-                      // Caso 3: Actualización normal - permitir si NO está FINALIZADO
-                      // (permite actualizar documentos sin status o con status BORRADOR)
-                      (
-                        // Solo bloquear si el documento está explícitamente en FINALIZADO
-                        !('status' in resource.data) || resource.data.status != 'FINALIZADO'
-                      )
-                      ||
-                      // Caso 3b: Crear documento nuevo si no existe (setDoc con merge: true cuando el documento no existe)
-                      (
-                        !resource.exists()
-                        && isValidReportData()
-                        && (!('status' in request.resource.data) || request.resource.data.status == 'BORRADOR' || request.resource.data.status == 'FINALIZADO')
-                      )
-                      ||
-                      // Caso 4: Actualización de metadata en FINALIZADO (updatedAt, pdfUrl, pdfGeneratedAt)
-                      (
-                        'status' in resource.data
-                        && resource.data.status == 'FINALIZADO'
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt', 'pdfUrl', 'pdfGeneratedAt', 'protocolPdfUrl'])
-                      )
-                      ||
-                      // Caso 5: Permitir actualización completa cuando status es FINALIZADO (para desarrollo sin auth)
-                      // Cubre: finalizar reporte, regenerar PDF, re-guardar reporte ya finalizado
-                      (
-                        'status' in request.resource.data && request.resource.data.status == 'FINALIZADO'
-                      )
-                      ||
-                      // Caso 6: Permitir crear documento nuevo cuando no existe (setDoc con merge: true)
-                      // Esto maneja el caso donde setDoc con merge: true se trata como update si el documento no existe
-                      (
-                        !resource.exists()
-                        && isValidReportData()
-                        && (!('status' in request.resource.data) || request.resource.data.status == 'BORRADOR' || request.resource.data.status == 'FINALIZADO')
-                      )
-                    );
-      
-      // En el futuro, cuando se implemente autenticación, descomentar y usar:
-      // allow update: if request.auth != null
-      //               && isValidOTDocument()
-      //               && (
-      //                 // Actualización de firma (cualquier usuario autenticado)
-      //                 (isSignatureUpdate())
-      //                 ||
-      //                 // Actualización normal (solo técnicos y admins)
-      //                 (
-      //                   (request.auth.token.role == 'technician' || request.auth.token.role == 'admin')
-      //                   && resource.data.status == 'BORRADOR'
-      //                   && isValidReportData()
-      //                   && (
-      //                     (request.resource.data.status == 'BORRADOR' && resource.data.status == 'BORRADOR')
-      //                     || (request.resource.data.status == 'FINALIZADO' && resource.data.status == 'BORRADOR')
-      //                   )
-      //                 )
-      //               );
-      
-      // No permitir eliminación (por seguridad)
-      allow delete: if false;
+      // Permitir lectura y escritura (modo desarrollo sin auth)
+      // TODO: Implementar autenticación y cambiar a:
+      // allow read, write: if request.auth != null && isValidLead();
+      allow read, write: if true; // ⚠️ Solo para desarrollo
     }
     
-    // ========== SISTEMA MODULAR ==========
+    // Colección de Presupuestos (futuro)
+    match /quotes/{quoteId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
     
+    // Colección de Inventario/Stock (futuro)
+    match /inventory/{itemId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Agenda (futuro)
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    
+    // Colección de Facturas (futuro)
+    match /invoices/{invoiceId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Colección de Clientes
     match /clientes/{clienteId} {
-      allow read, write: if true; // Temporal para desarrollo - luego: request.auth != null
-      
-      // Subcolección: Contactos del cliente
+      allow read, write: if true; // Temporal para desarrollo
       match /contactos/{contactoId} {
-        allow read, write: if true; // Temporal para desarrollo
+        allow read, write: if true; // Temporal para desarrollo (legacy; contactos nuevos en establecimientos)
       }
     }
-    
-    // Colección de Categorías Equipo
-    match /categorias_equipo/{categoriaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Categorías Módulo
-    match /categorias_modulo/{categoriaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
+
     // Colección de Establecimientos (sedes/plantas por cliente)
     match /establecimientos/{establecimientoId} {
       allow read, write: if true; // Temporal para desarrollo
@@ -216,216 +57,241 @@ service cloud.firestore {
         allow read, write: if true; // Temporal para desarrollo
       }
     }
-    
+
     // Colección de Sistemas (equipos)
     match /sistemas/{sistemaId} {
       allow read, write: if true; // Temporal para desarrollo
-      
-      // Subcolección: Módulos del sistema
       match /modulos/{moduloId} {
         allow read, write: if true; // Temporal para desarrollo
       }
     }
-    
-    // Colección de Leads (Sistema Modular)
-    match /leads/{leadId} {
+
+    // Catálogos y otras colecciones del sistema modular
+    match /categorias_equipo/{categoriaId} {
       allow read, write: if true; // Temporal para desarrollo
     }
-    
-    // Colección de Presupuestos
+    match /categorias_modulo/{categoriaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
     match /presupuestos/{presupuestoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
-    
-    // Colección de Órdenes de Compra
-    match /ordenes_compra/{ocId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Categorías de Presupuesto
     match /categorias_presupuesto/{categoriaId} {
       allow read, write: if true; // Temporal para desarrollo
     }
-    
-    // Colección de Condiciones de Pago
     match /condiciones_pago/{condicionId} {
       allow read, write: if true; // Temporal para desarrollo
     }
-    
-    // Colección de Presupuestos (Sistema Modular - futuro - mantener por compatibilidad)
-    match /quotes/{quoteId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Inventario/Stock (Sistema Modular - futuro)
-    match /inventory/{itemId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Agenda (Sistema Modular - futuro)
-    match /appointments/{appointmentId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Facturas (Sistema Modular - futuro)
-    match /invoices/{invoiceId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Tipos de Servicio (lista simple)
     match /tipos_servicio/{tipoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
-    
+    match /ordenes_compra/{ocId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+    match /reportes/{document=**} {
+      allow read, write: if true; // Temporal para desarrollo (OTs)
+    }
+
+    // Catálogo de Protocolos legacy (mantenido por compatibilidad)
+    match /protocolCatalog/{catalogId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Biblioteca de Tablas individuales (admin sistema-modular; técnicos en reportes-ot solo leen publicadas)
+    match /tableCatalog/{tableId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Proyectos de Tablas (agrupan tablas del catálogo)
+    match /tableProjects/{projectId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Usuarios AGS (roles: admin / tecnico / readonly)
+    match /usuarios/{uid} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Adjuntos (metadata; binario en Firebase Storage)
+    match /adjuntos/{adjuntoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Instrumentos y Patrones (certificados de calibración)
+    match /instrumentos/{instrumentoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Marcas (catálogo compartido)
+    match /marcas/{marcaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // ── Stock Module ──
+
+    // Ingenieros (catálogo de técnicos)
+    match /ingenieros/{ingenieroId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Proveedores
+    match /proveedores/{proveedorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Posiciones de stock (ubicaciones físicas)
+    match /posicionesStock/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Artículos (catálogo de parts)
+    match /articulos/{articuloId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Unidades (instancias físicas de artículos)
+    match /unidades/{unidadId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Minikits
+    match /minikits/{minikitId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Movimientos de stock (log de auditoría)
+    match /movimientosStock/{movimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Remitos (despachos digitales)
+    match /remitos/{remitoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Conceptos de servicio (catálogo de precios para presupuestos)
+    match /conceptos_servicio/{conceptoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Fichas propiedad del cliente
+    match /fichasPropiedad/{fichaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Loaners (equipos de préstamo)
+    match /loaners/{loanerId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Posiciones Arancelarias (catálogo de tratamientos)
+    match /posiciones_arancelarias/{posicionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Requerimientos de Compra
+    match /requerimientos_compra/{requerimientoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Importaciones (comercio exterior)
+    match /importaciones/{importacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Agenda Entries (asignaciones de servicio)
+    match /agendaEntries/{entryId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Agenda Notas (notas por dia por ingeniero)
+    match /agendaNotas/{notaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Postas (derivaciones workflow entre usuarios)
+    match /postas/{postaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Viáticos (gastos de ingenieros — períodos mensuales)
     match /viaticos/{viaticoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Colección de Usuarios
-    match /usuarios/{usuarioId} {
+    // Órdenes de Trabajo
+    match /ordenes_trabajo/{otId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Colección de Loaners (equipos en préstamo)
-    match /loaners/{loanerId} {
+    // Contratos de servicio
+    match /contratos/{contratoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // ========== CATÁLOGO DE TABLAS / PROTOCOLOS ==========
-    match /tableCatalog/{tableId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /tableProjects/{projectId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /protocolCatalog/{protocolId} {
+    // Solicitudes de facturación
+    match /solicitudesFacturacion/{solicitudId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // ========== INSTRUMENTOS Y MARCAS ==========
-    match /instrumentos/{instrumentoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /marcas/{marcaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /catalogoSectores/{sectorId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== AGENDA ==========
-    match /agendaEntries/{entryId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /agendaNotas/{notaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== IMPORTACIONES ==========
-    match /posiciones_arancelarias/{posicionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /requerimientos_compra/{requerimientoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /importaciones/{importacionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== FICHAS DE PROPIEDAD ==========
-    match /fichasPropiedad/{fichaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== STOCK ==========
-    match /posicionesStock/{posicionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /articulos/{articuloId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /unidades/{unidadId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /minikits/{minikitId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /movimientosStock/{movimientoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /remitos/{remitoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /minikitTemplates/{templateId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /asignaciones/{asignacionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /dispositivos/{dispositivoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== PERSONAL ==========
-    match /ingenieros/{ingenieroId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /proveedores/{proveedorId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== FERIADOS ==========
-    match /feriados/{fecha} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== CERTIFICADOS INGENIERO ==========
-    match /certificadosIngeniero/{certId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== ADJUNTOS ==========
-    match /adjuntos/{adjuntoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== CONCEPTOS DE SERVICIO ==========
-    match /conceptos_servicio/{conceptoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== CALIFICACIÓN DE PROVEEDORES ==========
-    match /calificaciones_proveedor/{calificacionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // ========== COUNTERS (OT number generation) ==========
+    // Counters atómicos (OT number, contrato number, etc.)
     match /_counters/{counterId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // ========== TICKETS INTERNOS ==========
-    match /ticketsInternos/{ticketId} {
+    // Feriados (calendario)
+    match /feriados/{feriadoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // ========== AUDIT / MAIL ==========
-    match /audit_log/{logId} {
-      allow read: if true;
-      allow write: if true; // Temporal para desarrollo
-    }
+    // Mail queue (envío de emails via Cloud Functions)
     match /mailQueue/{mailId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
-    // ========== MFA / WebAuthn ==========
-    // Solo Cloud Functions (Admin SDK) escriben aquí. Cliente no debe acceder.
-    match /mfa/{document=**} {
-      allow read, write: if false;
+    // Email templates
+    match /emailTemplates/{templateId} {
+      allow read, write: if true; // Temporal para desarrollo
     }
 
-    // Bloquear acceso a cualquier otra colección no definida
+    // Asignaciones de stock
+    match /asignaciones/{asignacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Ingreso a empresas
+    match /ingreso_empresas/{ingresoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Dispositivos
+    match /dispositivos/{dispositivoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Vehículos
+    match /vehiculos/{vehiculoId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Minikit templates
+    match /minikitTemplates/{templateId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Calificaciones de proveedores
+    match /calificaciones_proveedores/{calificacionId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Audit Log (trazabilidad de acciones)
+    match /audit_log/{logId} {
+      allow create: if true;           // Cualquier usuario autenticado puede escribir
+      allow read: if true;             // Temporal para desarrollo
+      allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
+    }
+
+    // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;
     }

@@ -78,88 +78,121 @@ export const CatalogCoverView: React.FC<Props> = ({
     );
   }
 
-  // Vista PDF — página completa A4
+  // Vista PDF — página completa A4 con fondo agua diagonal
   return (
     <div style={{
       width: '100%',
       height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '25mm 20mm',
+      position: 'relative',
       fontFamily: 'Inter, sans-serif',
       boxSizing: 'border-box',
+      overflow: 'hidden',
     }}>
-      {/* Logo centrado */}
-      {logoSrc && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '22mm' }}>
-          <img src={logoSrc} alt="AGS Analítica" style={{ width: 160, height: 'auto' }} />
-        </div>
-      )}
+      {/* Fondo degradé diagonal desde esquina inferior derecha */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(30deg, rgba(13,110,110,0.13) 0%, rgba(14,165,233,0.06) 35%, rgba(255,255,255,0) 60%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Halo radial decorativo esquina inferior derecha */}
+      <div style={{
+        position: 'absolute',
+        bottom: -50,
+        right: -50,
+        width: 400,
+        height: 400,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, rgba(14,165,233,0) 70%)',
+        pointerEvents: 'none',
+      }} />
 
-      {/* Título */}
-      <div style={{ textAlign: 'center', marginBottom: '16mm' }}>
-        <p style={{
-          fontFamily: 'Newsreader, serif',
-          fontSize: 36,
-          fontWeight: 600,
-          color: '#1e293b',
-          lineHeight: 1.2,
-          marginBottom: 6,
-        }}>{titulo}</p>
-        {subtitulo && (
+      {/* Contenido */}
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '25mm 20mm',
+        height: '100%',
+        boxSizing: 'border-box',
+      }}>
+        {/* Logo centrado */}
+        {logoSrc && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '22mm' }}>
+            <img src={logoSrc} alt="AGS Analítica" style={{ width: 160, height: 'auto' }} />
+          </div>
+        )}
+
+        {/* Título */}
+        <div style={{ textAlign: 'center', marginBottom: '16mm' }}>
           <p style={{
             fontFamily: 'Newsreader, serif',
-            fontSize: 20,
-            fontWeight: 400,
-            color: '#64748b',
-            lineHeight: 1.3,
-          }}>{subtitulo}</p>
-        )}
-      </div>
-
-      {/* Separador */}
-      <div style={{ width: 60, height: 2, background: '#1e293b', margin: '0 auto 16mm' }} />
-
-      {/* Equipo (ocupa el espacio flexible) */}
-      <div style={{ textAlign: 'center', flex: 1 }}>
-        <p style={{
-          fontSize: 16,
-          color: '#334155',
-          lineHeight: 1.6,
-          fontWeight: 500,
-        }}>{equipoDisplay}</p>
-      </div>
-
-      {/* Datos — grilla 2 columnas */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px 36px',
-        maxWidth: 460,
-        margin: '0 auto',
-        width: '100%',
-      }}>
-        {datos.map(d => (
-          <div key={d.label}>
+            fontSize: 36,
+            fontWeight: 600,
+            color: '#1e293b',
+            lineHeight: 1.2,
+            marginBottom: 6,
+          }}>{titulo}</p>
+          {subtitulo && (
             <p style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 8,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: 1.5,
-              color: '#94a3b8',
-              marginBottom: 3,
-            }}>{d.label}</p>
-            <p style={{
-              fontFamily: d.mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
-              fontSize: d.mono ? 12 : 13,
-              fontWeight: d.mono ? 500 : 400,
-              color: '#1e293b',
-              paddingBottom: 6,
-              borderBottom: '1px solid #e2e8f0',
-            }}>{d.value}</p>
-          </div>
-        ))}
+              fontFamily: 'Newsreader, serif',
+              fontSize: 20,
+              fontWeight: 400,
+              color: '#64748b',
+              lineHeight: 1.3,
+            }}>{subtitulo}</p>
+          )}
+        </div>
+
+        {/* Separador degradé teal → celeste */}
+        <div style={{
+          width: 60,
+          height: 2,
+          background: 'linear-gradient(90deg, #0D6E6E, #0EA5E9)',
+          margin: '0 auto 16mm',
+        }} />
+
+        {/* Equipo (ocupa el espacio flexible) */}
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <p style={{
+            fontSize: 16,
+            color: '#334155',
+            lineHeight: 1.6,
+            fontWeight: 500,
+          }}>{equipoDisplay}</p>
+        </div>
+
+        {/* Datos — grilla 2 columnas */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '16px 36px',
+          maxWidth: 460,
+          margin: '0 auto',
+          width: '100%',
+        }}>
+          {datos.map(d => (
+            <div key={d.label}>
+              <p style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 8,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 1.5,
+                color: '#64748b',
+                marginBottom: 3,
+              }}>{d.label}</p>
+              <p style={{
+                fontFamily: d.mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
+                fontSize: d.mono ? 12 : 13,
+                fontWeight: d.mono ? 500 : 400,
+                color: '#1e293b',
+                paddingBottom: 6,
+                borderBottom: '1px solid #e2e8f0',
+              }}>{d.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

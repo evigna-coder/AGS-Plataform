@@ -121,7 +121,19 @@
       "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('establecimientos-list'\\)/\" apps/sistema-modular/src/pages/establecimientos/EstablecimientosList.tsx)",
       "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('clientes-list'\\)/\" apps/sistema-modular/src/pages/clientes/ClientesList.tsx)",
       "Bash(sed -i \"s/useResizableColumns\\(\\)/useResizableColumns\\('ot-list'\\)/\" apps/sistema-modular/src/pages/ordenes-trabajo/OTList.tsx)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(npx @anthropic-ai/claude-code config list)",
+      "Read(//c/Users/Evigna/.claude/**)",
+      "Bash(npx @playwright/mcp@latest --help)",
+      "Bash(npx @playwright/mcp@latest --version)",
+      "Bash(npx @playwright/mcp --version)",
+      "Bash(npx @playwright/mcp --help)",
+      "Bash(where playwright-mcp:*)",
+      "Bash(npm root:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //PID 30516)"
     ]
   }
 }
