@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { OTInfoSidebar } from '../../components/ordenes-trabajo/OTInfoSidebar';
 import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSection';
 import { OTItemsSection } from '../../components/ordenes-trabajo/OTItemsSection';
 import { OTCierreAdminSection } from '../../components/ordenes-trabajo/OTCierreAdminSection';
+import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
 import { useOTDetail } from '../../hooks/useOTDetail';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTEstadoAdmin } from '@ags/shared';
@@ -23,6 +25,7 @@ export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
   const goBack = useNavigateBack();
   const ot = useOTDetail(otNumber);
+  const [showCrearLead, setShowCrearLead] = useState(false);
 
   if (ot.loading) {
     return (
@@ -150,8 +153,8 @@ export const OTDetail = () => {
             leadId={ot.leadId}
             presupuestoOrigenId={ot.presupuestoOrigenId}
             presupuestoOrigenNumero={ot.presupuestoOrigenNumero}
-            onCreateLeadFromOT={ot.handleCreateLeadFromOT}
-            creatingLead={ot.creatingLead}
+            onCreateLeadFromOT={() => setShowCrearLead(true)}
+            creatingLead={false}
           />
 
           {/* Main content */}
@@ -203,6 +206,26 @@ export const OTDetail = () => {
           </div>
         </div>
       </div>
+      {showCrearLead && (
+        <CrearLeadModal
+          onClose={() => setShowCrearLead(false)}
+          onCreated={async (leadId) => {
+            setShowCrearLead(false);
+            if (leadId) {
+              ot.handleFieldChange('leadId', leadId);
+            }
+          }}
+          prefill={{
+            clienteId: ot.clienteId || undefined,
+            razonSocial: ot.cliente?.razonSocial,
+            contacto: ot.contacto || undefined,
+            email: ot.emailPrincipal || undefined,
+            sistemaId: ot.sistemaId || undefined,
+            moduloId: ot.moduloId || undefined,
+            motivoContacto: ot.problemaFallaInicial || undefined,
+          }}
+        />
+      )}
     </div>
   );
 };

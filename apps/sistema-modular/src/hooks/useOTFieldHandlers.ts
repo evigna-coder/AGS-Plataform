@@ -60,7 +60,7 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
   }, [modulosFiltrados, setFields, markInteracted]);
 
   const handleIngenieroChange = useCallback((uid: string) => {
-    const u = ingenieros.find(i => i.id === uid);
+    const u = ingenieros.find(i => (i.usuarioId || i.id) === uid);
     dirty();
     setFields({ ingenieroAsignadoId: u?.usuarioId ?? u?.id ?? null, ingenieroAsignadoNombre: u?.nombre ?? null });
     markInteracted();

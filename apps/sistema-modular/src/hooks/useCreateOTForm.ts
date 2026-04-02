@@ -157,7 +157,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     const modulo = modulos.find(m => m.id === form.moduloId);
     const tipoServ = tiposServicio.find(t => t.id === form.tipoServicioId);
     const contacto = contactos.find(c => c.id === form.contactoId);
-    const ingeniero = ingenieros.find(u => u.id === form.ingenieroId);
+    const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId);
 
     if (!cliente || !tipoServ) { alert('Datos incompletos'); return; }
 

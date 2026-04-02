@@ -176,7 +176,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
             <select value={ingenieroAsignadoId || ''} onChange={e => onIngenieroChange(e.target.value)}
               disabled={roTecnico} className={inp}>
               <option value="">Sin asignar</option>
-              {ingenieros.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+              {ingenieros.map(u => <option key={u.id} value={u.usuarioId || u.id}>{u.nombre}</option>)}
             </select>
           </div>
           <div>
