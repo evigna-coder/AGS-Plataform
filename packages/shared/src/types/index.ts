@@ -102,16 +102,29 @@ export interface WorkOrder {
 }
 
 /** Datos del cierre administrativo de la OT */
+export interface StockSelection {
+  partId: string;
+  partCodigo: string;
+  partDescripcion: string;
+  cantidad: number;
+  origenTipo: 'posicion' | 'ingeniero';
+  origenId: string;
+  origenNombre: string;
+  unidadStockId?: string | null;
+}
+
 export interface CierreAdministrativo {
   horasConfirmadas: boolean;
-  horasLabAjustadas?: string;       // Hs laboratorio ajustadas (si difieren del reporte)
-  horasViajeAjustadas?: string;     // Hs viaje ajustadas
+  horasLabAjustadas?: string;
+  horasViajeAjustadas?: string;
   partesConfirmadas: boolean;
   stockDeducido: boolean;
+  stockSelections?: StockSelection[] | null;
+  solicitudFacturacionId?: string | null;
   notasCierre?: string;
-  avisoAdminEnviado: boolean;       // Se envió mail a administración para facturación
-  avisoAdminFecha?: string;         // Fecha ISO del envío del aviso
-  fechaCierreAdmin?: string;        // ISO date de cuando se cerró administrativamente
+  avisoAdminEnviado: boolean;
+  avisoAdminFecha?: string;
+  fechaCierreAdmin?: string;
 }
 
 export interface Part {
@@ -1034,6 +1047,7 @@ export interface SolicitudFacturacion {
   moneda: MonedaPresupuesto;
   estado: SolicitudFacturacionEstado;
   observaciones?: string | null;
+  otNumbers?: string[] | null;
   // Datos de la factura emitida (carga admin/contable)
   numeroFactura?: string | null;
   fechaFactura?: string | null;

@@ -194,6 +194,10 @@ export const OTDetail = () => {
                 razonSocial={ot.cliente?.razonSocial}
                 tipoServicio={ot.tipoServicio}
                 ingenieroNombre={ot.ingenieroAsignadoNombre}
+                otNumber={otNumber}
+                budgets={ot.budgets}
+                clienteId={ot.clienteId}
+                clienteNombre={ot.cliente?.razonSocial}
               />
             )}
           </div>

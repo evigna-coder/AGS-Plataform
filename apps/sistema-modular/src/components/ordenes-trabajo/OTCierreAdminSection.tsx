@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { CierreAdministrativo, Part } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { CierreStockSelector } from './CierreStockSelector';
+import { CierrePDFPreview } from './CierrePDFPreview';
+import { CierreFacturacionWizard } from './CierreFacturacionWizard';
 
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
@@ -21,12 +24,17 @@ interface Props {
   razonSocial?: string;
   tipoServicio?: string;
   ingenieroNombre?: string | null;
+  otNumber?: string;
+  budgets?: string[];
+  clienteId?: string;
+  clienteNombre?: string;
 }
 
 export const OTCierreAdminSection: React.FC<Props> = ({
   cierreAdmin, onChange, onConfirmarCierre, onReabrirOT,
   horasTrabajadas, tiempoViaje, articulos, readOnly, estadoAdmin,
   razonSocial, tipoServicio, ingenieroNombre,
+  otNumber, budgets, clienteId, clienteNombre,
 }) => {
   const isClosed = estadoAdmin === 'FINALIZADO';
   const disabled = readOnly || isClosed;
@@ -145,6 +153,30 @@ export const OTCierreAdminSection: React.FC<Props> = ({
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
           />
         </div>
+
+        {/* Stock origin selector */}
+        {articulos.length > 0 && (
+          <CierreStockSelector
+            articulos={articulos}
+            selections={cierreAdmin.stockSelections || []}
+            onChange={sels => onChange('stockSelections', sels)}
+            disabled={disabled}
+          />
+        )}
+
+        {/* PDF Preview */}
+        {otNumber && <CierrePDFPreview otNumber={otNumber} />}
+
+        {/* Facturacion wizard */}
+        {otNumber && budgets && budgets.length > 0 && clienteId && (
+          <CierreFacturacionWizard
+            otNumber={otNumber}
+            budgets={budgets}
+            clienteId={clienteId}
+            clienteNombre={clienteNombre || ''}
+            onSolicitudCreated={id => onChange('solicitudFacturacionId', id)}
+          />
+        )}
 
         {/* Aviso a administración */}
         {cierreAdmin.avisoAdminEnviado && (
