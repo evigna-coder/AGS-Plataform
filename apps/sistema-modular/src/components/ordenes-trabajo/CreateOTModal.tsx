@@ -2,8 +2,9 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { useCreateOTForm } from '../../hooks/useCreateOTForm';
-import { MONEDA_PRESUPUESTO_LABELS } from '@ags/shared';
+import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -17,9 +18,12 @@ const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs
 export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const h = useCreateOTForm(open, onClose, onCreated);
 
+  const selectedContrato = h.contratosCliente.find(c => c.id === h.form.contratoId);
+
   return (
+    <>
     <Modal open={open} onClose={h.handleClose} maxWidth="lg" title="Nueva orden de trabajo"
-      subtitle="El número de OT se asigna automáticamente al confirmar"
+      subtitle="El numero de OT se asigna automaticamente al confirmar"
       footer={<>
         <Button variant="outline" size="sm" onClick={h.handleClose}>Cancelar</Button>
         <Button size="sm" onClick={h.handleSave} disabled={h.saving}>
@@ -53,6 +57,35 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
             placeholder="Seleccionar cliente..." />
         </div>
 
+        {/* Contrato (visible when client has active contracts) */}
+        {h.contratosCliente.length > 0 && (
+          <div>
+            <label className={lbl}>Contrato de servicio</label>
+            <SearchableSelect value={h.form.contratoId}
+              onChange={v => h.set('contratoId', v)}
+              options={[
+                { value: '', label: 'Sin contrato (per incident)' },
+                ...h.contratosCliente.map(c => ({
+                  value: c.id,
+                  label: `${c.numero} — ${TIPO_LIMITE_CONTRATO_LABELS[c.tipoLimite]}${c.maxVisitas ? ` (${c.visitasUsadas}/${c.maxVisitas})` : ''}`,
+                })),
+              ]}
+              placeholder="Seleccionar contrato..." />
+            {selectedContrato && (
+              <div className="mt-1 flex items-center gap-2 text-[10px]">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
+                  {selectedContrato.tipoLimite === 'visitas' && selectedContrato.maxVisitas
+                    ? `${selectedContrato.maxVisitas - selectedContrato.visitasUsadas} visitas restantes`
+                    : 'Ilimitado'}
+                </span>
+                <span className="text-slate-400">
+                  Vigencia: {selectedContrato.fechaInicio} — {selectedContrato.fechaFin}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Establecimiento */}
         <div>
           <label className={lbl}>Establecimiento</label>
@@ -85,11 +118,11 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
               placeholder={h.form.clienteId ? 'Seleccionar...' : 'Seleccione cliente primero'} />
           </div>
           <div>
-            <label className={lbl}>Módulo</label>
+            <label className={lbl}>Modulo</label>
             <SearchableSelect value={h.form.moduloId}
               onChange={v => h.set('moduloId', v)}
               options={[
-                { value: '', label: h.modulos.length === 0 ? 'Sin módulos' : 'Sistema completo' },
+                { value: '', label: h.modulos.length === 0 ? 'Sin modulos' : 'Sistema completo' },
                 ...h.modulos.map(m => ({
                   value: m.id,
                   label: `${m.nombre}${m.descripcion ? ` — ${m.descripcion}` : ''}${m.serie ? ` (${m.serie})` : ''}`,
@@ -131,7 +164,9 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
         {/* Presupuesto + OC + Fecha servicio */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className={lbl}>Presupuesto</label>
+            <label className={lbl}>
+              Presupuesto {h.presupuestoRequerido ? <span className="text-red-500">*</span> : <span className="text-slate-300">(opcional)</span>}
+            </label>
             <SearchableSelect value={h.form.presupuestoId}
               onChange={h.handlePresupuestoChange}
               options={[
@@ -157,15 +192,57 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
           </div>
         </div>
 
+        {/* Lead link */}
+        <div className="flex items-center gap-2">
+          <label className={lbl}>Lead vinculado</label>
+          {h.form.leadId ? (
+            <span className="text-[11px] text-teal-600 font-medium">{h.form.leadId}</span>
+          ) : (
+            <button type="button" onClick={() => h.setShowCrearLead(true)}
+              className="px-2 py-1 text-[11px] font-medium text-teal-600 border border-teal-300 rounded-md hover:bg-teal-50">
+              + Crear Lead
+            </button>
+          )}
+        </div>
+
         {/* Falla inicial */}
         <div>
           <label className={lbl}>Problema / Falla inicial</label>
           <textarea value={h.form.problemaFallaInicial}
             onChange={e => h.set('problemaFallaInicial', e.target.value)}
-            rows={2} placeholder="Descripción del problema o motivo de la OT..."
+            rows={2} placeholder="Descripcion del problema o motivo de la OT..."
             className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400" />
+        </div>
+
+        {/* Materiales + Comentario facturación */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={lbl}>Materiales para servicio</label>
+            <textarea value={h.form.materialesParaServicio}
+              onChange={e => h.set('materialesParaServicio', e.target.value)}
+              rows={2} placeholder="Materiales necesarios..."
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400" />
+          </div>
+          <div>
+            <label className={lbl}>Comentario para facturacion</label>
+            <textarea value={h.form.comentarioFacturacion}
+              onChange={e => h.set('comentarioFacturacion', e.target.value)}
+              rows={2} placeholder="Notas para el area de facturacion..."
+              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400" />
+          </div>
         </div>
       </div>
     </Modal>
+
+    {h.showCrearLead && (
+      <CrearLeadModal
+        onClose={() => h.setShowCrearLead(false)}
+        onCreated={async (leadId) => {
+          h.setShowCrearLead(false);
+          if (leadId) h.set('leadId', leadId);
+        }}
+      />
+    )}
+    </>
   );
 };

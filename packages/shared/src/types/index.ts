@@ -87,6 +87,8 @@ export interface WorkOrder {
   fechaAsignacion?: string;
   fechaCierre?: string;
   materialesParaServicio?: string;
+  comentarioFacturacion?: string | null;
+  contratoId?: string | null;
   problemaFallaInicial?: string;
   ingenieroAsignadoId?: string | null;
   ingenieroAsignadoNombre?: string | null;

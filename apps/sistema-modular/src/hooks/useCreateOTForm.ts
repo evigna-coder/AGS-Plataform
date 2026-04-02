@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   ordenesTrabajoService, clientesService, establecimientosService, sistemasService,
   tiposServicioService, contactosService, modulosService, usuariosService, presupuestosService,
+  contratosService,
 } from '../services/firebaseService';
-import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS, WorkOrder, Presupuesto } from '@ags/shared';
+import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, UsuarioAGS, WorkOrder, Presupuesto, Contrato } from '@ags/shared';
 
 export interface CreateOTFormState {
   clienteId: string;
@@ -18,13 +19,18 @@ export interface CreateOTFormState {
   ordenCompra: string;
   fechaServicioAprox: string;
   problemaFallaInicial: string;
+  contratoId: string;
+  comentarioFacturacion: string;
+  materialesParaServicio: string;
+  leadId: string;
 }
 
 const INITIAL_FORM: CreateOTFormState = {
   clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '',
   tipoServicioId: '', contactoId: '', ingenieroId: '',
   presupuestoId: '', presupuestoNumero: '', ordenCompra: '', fechaServicioAprox: '',
-  problemaFallaInicial: '',
+  problemaFallaInicial: '', contratoId: '', comentarioFacturacion: '',
+  materialesParaServicio: '', leadId: '',
 };
 
 export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: () => void) {
@@ -40,9 +46,14 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const [establecimientosFiltrados, setEstablecimientosFiltrados] = useState<Establecimiento[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
   const [presupuestosCliente, setPresupuestosCliente] = useState<Presupuesto[]>([]);
+  const [contratosCliente, setContratosCliente] = useState<Contrato[]>([]);
+  const [showCrearLead, setShowCrearLead] = useState(false);
   const [form, setForm] = useState<CreateOTFormState>(INITIAL_FORM);
 
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const hasContrato = form.contratoId !== '';
+  const presupuestoRequerido = !hasContrato;
 
   // Load catalogs
   useEffect(() => {
@@ -64,7 +75,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     loadCatalogos();
   }, [open]);
 
-  // Cascade: client -> establecimientos + contactos + presupuestos
+  // Cascade: client -> establecimientos + contactos + presupuestos + contratos
   useEffect(() => {
     if (form.clienteId) {
       setEstablecimientosFiltrados(establecimientos.filter(e => e.clienteCuit === form.clienteId));
@@ -72,11 +83,14 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       presupuestosService.getAll({ clienteId: form.clienteId }).then(pres => {
         setPresupuestosCliente(pres.filter(p => p.estado !== 'anulado'));
       }).catch(() => setPresupuestosCliente([]));
+      contratosService.getActiveForCliente(form.clienteId).then(setContratosCliente).catch(() => setContratosCliente([]));
     } else {
       setEstablecimientosFiltrados([]); setContactos([]); setPresupuestosCliente([]);
+      setContratosCliente([]);
     }
     set('establecimientoId', ''); set('sistemaId', ''); set('moduloId', '');
-    set('contactoId', ''); set('presupuestoId', ''); set('presupuestoNumero', ''); set('ordenCompra', '');
+    set('contactoId', ''); set('presupuestoId', ''); set('presupuestoNumero', '');
+    set('ordenCompra', ''); set('contratoId', '');
   }, [form.clienteId, establecimientos]);
 
   // Cascade: establecimiento -> sistemas
@@ -114,12 +128,27 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const handleClose = () => {
     onClose();
     setForm(INITIAL_FORM);
-    setModulos([]); setContactos([]); setPresupuestosCliente([]); setLoadError('');
+    setModulos([]); setContactos([]); setPresupuestosCliente([]);
+    setContratosCliente([]); setLoadError('');
   };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Seleccione un cliente'); return; }
     if (!form.tipoServicioId) { alert('Seleccione un tipo de servicio'); return; }
+    if (presupuestoRequerido && !form.presupuestoId) {
+      alert('Debe seleccionar un presupuesto (cliente sin contrato activo)');
+      return;
+    }
+
+    // Contract validation
+    if (form.contratoId) {
+      const tipoServ = tiposServicio.find(t => t.id === form.tipoServicioId);
+      const validation = await contratosService.validateOTCreation(form.contratoId, tipoServ?.nombre);
+      if (!validation.allowed) {
+        alert(`No se puede crear OT: ${validation.reason}`);
+        return;
+      }
+    }
 
     const cliente = clientes.find(c => c.id === form.clienteId);
     const establecimiento = establecimientosFiltrados.find(e => e.id === form.establecimientoId);
@@ -146,7 +175,9 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         budgets: form.presupuestoNumero ? [form.presupuestoNumero] : [],
         ordenCompra: form.ordenCompra || '',
         tipoServicio: tipoServ.nombre,
-        esFacturable: true, tieneContrato: false, esGarantia: false,
+        esFacturable: true,
+        tieneContrato: hasContrato,
+        esGarantia: false,
         razonSocial: cliente.razonSocial,
         contacto: contacto?.nombre ?? '',
         direccion: establecimiento?.direccion ?? '',
@@ -172,6 +203,10 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         ingenieroAsignadoId: ingeniero?.id ?? null,
         ingenieroAsignadoNombre: ingeniero?.displayName ?? null,
         problemaFallaInicial: form.problemaFallaInicial || '',
+        contratoId: form.contratoId || null,
+        comentarioFacturacion: form.comentarioFacturacion || null,
+        materialesParaServicio: form.materialesParaServicio || '',
+        leadId: form.leadId || undefined,
       };
       await ordenesTrabajoService.create(otData);
       await ordenesTrabajoService.create({
@@ -180,6 +215,21 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         fechaInicio: new Date().toISOString().split('T')[0],
         fechaFin: new Date().toISOString().split('T')[0],
       });
+
+      // Increment contract visits
+      if (form.contratoId) {
+        await contratosService.incrementVisitas(form.contratoId).catch(err =>
+          console.error('Error incrementando visitas contrato:', err)
+        );
+      }
+
+      // Link presupuesto
+      if (form.presupuestoId) {
+        await presupuestosService.update(form.presupuestoId, { otVinculadaNumber: otNum } as any).catch(err =>
+          console.error('Error vinculando presupuesto:', err)
+        );
+      }
+
       handleClose();
       onCreated();
     } catch (err) {
@@ -193,5 +243,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     saving, loadError, form, set, handleClose, handleSave, handlePresupuestoChange,
     clientes, establecimientosFiltrados, sistemasFiltrados, tiposServicio,
     contactos, modulos, ingenieros, presupuestosCliente,
+    contratosCliente, hasContrato, presupuestoRequerido,
+    showCrearLead, setShowCrearLead,
   };
 }
