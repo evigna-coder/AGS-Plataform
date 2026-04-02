@@ -4,7 +4,18 @@ import { LEAD_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
-export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: string) => void) {
+export interface LeadPrefill {
+  clienteId?: string;
+  razonSocial?: string;
+  contacto?: string;
+  email?: string;
+  telefono?: string;
+  sistemaId?: string;
+  moduloId?: string;
+  motivoContacto?: string;
+}
+
+export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: string) => void, prefill?: LeadPrefill) {
   const { usuario } = useAuth();
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -41,6 +52,16 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
     ]).then(([u, c, s]) => {
       setUsuarios(u.filter(x => x.status === 'activo'));
       setClientes(c); setSistemas(s);
+      // Apply prefill after data loads
+      if (prefill) {
+        if (prefill.clienteId) { setClienteId(prefill.clienteId); setRazonSocial(prefill.razonSocial || c.find(cl => cl.id === prefill.clienteId)?.razonSocial || ''); }
+        if (prefill.contacto) setContacto(prefill.contacto);
+        if (prefill.email) setEmail(prefill.email);
+        if (prefill.telefono) setTelefono(prefill.telefono);
+        if (prefill.sistemaId) setSistemaId(prefill.sistemaId);
+        if (prefill.moduloId) setModuloId(prefill.moduloId);
+        if (prefill.motivoContacto) setDescripcion(prefill.motivoContacto);
+      }
     });
   }, []);
 

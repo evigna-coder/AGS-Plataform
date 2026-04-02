@@ -241,6 +241,15 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => 
           h.setShowCrearLead(false);
           if (leadId) h.set('leadId', leadId);
         }}
+        prefill={{
+          clienteId: h.form.clienteId || undefined,
+          razonSocial: h.clientes.find(c => c.id === h.form.clienteId)?.razonSocial,
+          contacto: h.contactos.find(c => c.id === h.form.contactoId)?.nombre,
+          email: h.contactos.find(c => c.id === h.form.contactoId)?.email || undefined,
+          sistemaId: h.form.sistemaId || undefined,
+          moduloId: h.form.moduloId || undefined,
+          motivoContacto: h.form.problemaFallaInicial || undefined,
+        }}
       />
     )}
     </>

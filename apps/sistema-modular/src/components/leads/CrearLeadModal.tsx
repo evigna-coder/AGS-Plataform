@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, TICKET_ESTADO_ORDER, TICKET_ESTADO_LABELS, getUserTicketAreas } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketPrioridad, TicketEstado } from '@ags/shared';
-import { useCrearLeadForm } from '../../hooks/useCrearLeadForm';
+import { useCrearLeadForm, type LeadPrefill } from '../../hooks/useCrearLeadForm';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -12,13 +12,14 @@ import { LeadAdjuntosField } from './LeadAdjuntosField';
 interface CrearLeadModalProps {
   onClose: () => void;
   onCreated?: (leadId?: string) => void;
+  prefill?: LeadPrefill;
 }
 
 const selectClass = 'w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500';
 const labelClass = 'text-[11px] font-medium text-slate-400 mb-1 block';
 
-export const CrearLeadModal = ({ onClose, onCreated }: CrearLeadModalProps) => {
-  const h = useCrearLeadForm(onClose, onCreated);
+export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalProps) => {
+  const h = useCrearLeadForm(onClose, onCreated, prefill);
 
   const sistemaOptions = useMemo(() =>
     h.sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` })),
