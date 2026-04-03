@@ -180,43 +180,72 @@ const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: nu
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━ INSTRUMENTOS TABLE ━━━━━━━━━━━━━━━━━━━━ */
-const InstrumentosTable: React.FC<{ instrumentos: any[] }> = ({ instrumentos }) => (
-  <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
-    <div className="flex items-center px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-      <p className="font-semibold text-xs text-slate-900">Instrumentos y Patrones Utilizados</p>
+const InstrumentosTable: React.FC<{ instrumentos: any[] }> = ({ instrumentos }) => {
+  const insts = instrumentos.filter((i: any) => i.tipo !== 'patron');
+  const patrones = instrumentos.filter((i: any) => i.tipo === 'patron');
+  const fmtDate = (v: string | null | undefined) =>
+    v ? new Date(v).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  return (
+    <div className="space-y-3">
+      {insts.length > 0 && (
+        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+          <div className="flex items-center px-3 py-1.5 bg-slate-50 border-b border-slate-200">
+            <p className="font-semibold text-xs text-slate-900">Instrumentos Utilizados</p>
+          </div>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-100 border-b border-slate-200">
+                {['Identificación', 'Marca', 'Modelo', 'Nº Serie', 'Certificado', 'Vencimiento'].map(h => (
+                  <th key={h} className="px-2 py-1 text-[10px] font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200 last:border-r-0">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {insts.map((inst: any, idx: number) => (
+                <tr key={inst.id} className={idx % 2 ? 'bg-slate-50/50' : ''}>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.nombre}</td>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.marca || '—'}</td>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.modelo || '—'}</td>
+                  <td className="px-2 py-1 text-[10px] font-mono border-r border-slate-100">{inst.serie || '—'}</td>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
+                  <td className="px-2 py-1 text-[10px]">{fmtDate(inst.certificadoVencimiento)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {patrones.length > 0 && (
+        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+          <div className="flex items-center px-3 py-1.5 bg-slate-50 border-b border-slate-200">
+            <p className="font-semibold text-xs text-slate-900">Patrones Utilizados</p>
+          </div>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-100 border-b border-slate-200">
+                {['Artículo', 'Marca', 'Descripción', 'Lote', 'Certificado', 'Vencimiento'].map(h => (
+                  <th key={h} className="px-2 py-1 text-[10px] font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200 last:border-r-0">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {patrones.map((inst: any, idx: number) => (
+                <tr key={inst.id} className={idx % 2 ? 'bg-slate-50/50' : ''}>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.modelo || '—'}</td>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.marca || '—'}</td>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.nombre}</td>
+                  <td className="px-2 py-1 text-[10px] font-mono border-r border-slate-100">{inst.lote || '—'}</td>
+                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
+                  <td className="px-2 py-1 text-[10px]">{fmtDate(inst.certificadoVencimiento)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
-    <table className="w-full text-left border-collapse">
-      <thead>
-        <tr className="bg-slate-100 border-b border-slate-200">
-          {['Identificación', 'Tipo', 'Marca', 'Modelo', 'Nº Serie', 'Certificado', 'Vencimiento'].map(h => (
-            <th key={h} className="px-2 py-1 text-[10px] font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200 last:border-r-0">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {instrumentos.map((inst: any, idx: number) => (
-          <tr key={inst.id} className={idx % 2 ? 'bg-slate-50/50' : ''}>
-            <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.nombre}</td>
-            <td className="px-2 py-1 text-[10px] border-r border-slate-100">
-              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${inst.tipo === 'patron' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                {inst.tipo === 'patron' ? 'Patrón' : 'Instrumento'}
-              </span>
-            </td>
-            <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.marca || '—'}</td>
-            <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.modelo || '—'}</td>
-            <td className="px-2 py-1 text-[10px] font-mono border-r border-slate-100">{inst.serie || '—'}</td>
-            <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
-            <td className="px-2 py-1 text-[10px]">
-              {inst.certificadoVencimiento
-                ? new Date(inst.certificadoVencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                : '—'}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+  );
+};
 
 /* ━━━━━━━━━━━━━━━━━━━━ MAIN PAGINATED COMPONENT ━━━━━━━━━━━━━━━━━━━━ */
 export const ProtocolPaginatedPreview: React.FC<Props> = ({

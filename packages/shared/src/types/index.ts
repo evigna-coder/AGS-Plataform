@@ -1339,6 +1339,12 @@ export interface TableCatalogEntry {
   headerTitle?: string | null;
   /** Número de formulario de calidad para el footer (ej. "QF-AGS-012 Rev.01"). */
   footerQF?: string | null;
+  /**
+   * Modo de visualización compacto: la tabla se renderiza igual que la tabla de instrumentos
+   * (text-[10px], px-2 py-1, inputs inline sin borde prominente). Ideal para tablas manuales
+   * como "Solventes" que deben verse igual que las tablas auto-generadas.
+   */
+  compactDisplay?: boolean;
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';
@@ -2893,6 +2899,8 @@ export interface InstrumentoPatronOption {
   marca: string;
   modelo: string;
   serie: string;
+  /** Solo patrones: número de lote (en lugar de serie) */
+  lote?: string | null;
   categorias: string[];
   certificadoEmisor?: string | null;
   certificadoVencimiento?: string | null;

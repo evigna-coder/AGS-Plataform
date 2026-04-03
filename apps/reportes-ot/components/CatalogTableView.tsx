@@ -134,6 +134,7 @@ function renderDefaultCell(
   readOnly: boolean,
   isPrint: boolean,
   onChange: (rowId: string, colKey: string, value: string) => void,
+  compact = false,
 ): React.ReactNode {
   const rawValue = filledData[rowId]?.[col.key] ?? '';
 
@@ -244,14 +245,18 @@ function renderDefaultCell(
         placeholder={placeholder}
         onChange={handleChange}
         onFocus={selectAll}
-        className="w-full text-[10px] text-center border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5"
+        className={compact
+          ? 'w-full text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300 px-0 py-0'
+          : 'w-full text-[10px] text-center border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5'}
       />
     );
   }
 
   // Input con unidad fija integrada: parece un solo campo, la unidad no es editable
   return (
-    <div className={`flex items-center border border-slate-300 rounded bg-white px-1 py-0.5 gap-0.5 focus-within:ring-1 focus-within:ring-blue-500 ${readOnly ? 'bg-slate-50' : ''}`}>
+    <div className={compact
+      ? `flex items-center gap-0.5 ${readOnly ? '' : ''}`
+      : `flex items-center border border-slate-300 rounded bg-white px-1 py-0.5 gap-0.5 focus-within:ring-1 focus-within:ring-blue-500 ${readOnly ? 'bg-slate-50' : ''}`}>
       <input
         type="text"
         value={displayValue}
@@ -284,6 +289,7 @@ export const CatalogTableView: React.FC<Props> = ({
   liveTemplateRows,
 }) => {
   const table = selection.tableSnapshot;
+  const compact = table.compactDisplay ?? false;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
 
   // Extraer TODAS las reglas vs_spec (soporta múltiples, ej. FRONT y BACK con conclusiones separadas)
@@ -580,16 +586,16 @@ export const CatalogTableView: React.FC<Props> = ({
     // Para la columna Resultado, inyectar la unidad detectada de la especificación de esta fila
     const rowUnit = allResultadoColKeys.has(col.key) && !col.unit ? getRowResultUnit(rowId) : null;
     const colForRender = rowUnit ? { ...col, unit: rowUnit } : col;
-    return renderDefaultCell(colForRender, rowId, selection.filledData, readOnly, isPrint, handleCellChange);
+    return renderDefaultCell(colForRender, rowId, selection.filledData, readOnly, isPrint, handleCellChange, compact);
   };
 
   return (
     <div className={`mb-6 ${isPrint ? 'rounded-xl border border-slate-200 overflow-hidden' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
 
       {/* Encabezado de tabla */}
-      <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'bg-slate-800 text-white' : 'bg-slate-50 border-b border-slate-200'}`}>
+      <div className={`flex items-center justify-between px-3 gap-3 ${compact ? 'py-1.5' : 'py-2'} ${isPrint ? 'bg-slate-800 text-white' : 'bg-slate-50 border-b border-slate-200'}`}>
         <div className="min-w-0">
-          <p className={`font-semibold truncate ${isPrint ? 'text-xs font-bold uppercase tracking-wide text-white' : 'text-sm text-slate-900'}`}>
+          <p className={`font-semibold truncate ${isPrint ? 'text-xs font-bold uppercase tracking-wide text-white' : compact ? 'text-xs text-slate-900' : 'text-sm text-slate-900'}`}>
             {table.name}
           </p>
           {table.description && !isPrint && (
@@ -684,7 +690,7 @@ export const CatalogTableView: React.FC<Props> = ({
               {table.columns.map(col => (
                 <th
                   key={col.key}
-                  className={`px-2 py-1.5 font-semibold ${col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center'} ${isPrint ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap' : 'text-xs text-slate-600 border-r border-slate-200'}`}
+                  className={`px-2 font-semibold ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} ${col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center'} ${isPrint ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap' : 'text-slate-600 border-r border-slate-200'}`}
                   style={col.width ? { width: `${col.width}mm` } : undefined}
                 >
                   {col.label || null}
@@ -866,7 +872,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         key={col.key}
                         rowSpan={isSpanning ? colSpan : undefined}
                         className={[
-                          'px-2 py-1.5 align-middle',
+                          `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
                           isPrint
                             ? `text-[9px] border border-slate-300${groupStyle}`
                             : `text-xs border-r border-slate-100 border-b border-b-slate-100${groupStyle}${isGroupCell && !isLabelCol ? ' border-r-2 border-r-slate-300' : ''}`,

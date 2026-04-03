@@ -26,6 +26,53 @@ interface Props {
   readOnly?: boolean;
 }
 
+function ItemRow({ inst, checked, onToggle }: { inst: InstrumentoPatronOption; checked: boolean; onToggle: () => void }) {
+  const estado = estadoCert(inst.certificadoVencimiento);
+  const badge = ESTADO_BADGE[estado];
+  const isPatron = inst.tipo === 'patron';
+  return (
+    <label
+      className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+        checked ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
+      />
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-medium ${checked ? 'text-indigo-900' : 'text-slate-800'}`}>
+          {inst.nombre}
+        </p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          {inst.marca && (
+            <span className="text-[10px] text-slate-500">{inst.marca}</span>
+          )}
+          {inst.modelo && (
+            <span className="text-[10px] text-slate-400 font-mono">
+              {isPatron ? `Cód: ${inst.modelo}` : `Mod: ${inst.modelo}`}
+            </span>
+          )}
+          {isPatron ? (
+            inst.lote && (
+              <span className="text-[10px] text-slate-400 font-mono">Lote: {inst.lote}</span>
+            )
+          ) : (
+            inst.serie && (
+              <span className="text-[10px] text-slate-400 font-mono">S/N: {inst.serie}</span>
+            )
+          )}
+          <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${badge.cls}`}>
+            {badge.label}
+          </span>
+        </div>
+      </div>
+    </label>
+  );
+}
+
 export const InstrumentoSelectorPanel: React.FC<Props> = ({ firebase, selected, onApply, readOnly }) => {
   const [open, setOpen] = useState(false);
   const [available, setAvailable] = useState<InstrumentoPatronOption[]>([]);
@@ -65,7 +112,17 @@ export const InstrumentoSelectorPanel: React.FC<Props> = ({ firebase, selected, 
     setOpen(false);
   };
 
+  const instrumentos = available.filter(i => i.tipo === 'instrumento');
+  const patrones = available.filter(i => i.tipo === 'patron');
+
+  const nInstrumentos = selected.filter(i => i.tipo === 'instrumento').length;
+  const nPatrones = selected.filter(i => i.tipo === 'patron').length;
+
   if (!open) {
+    const parts: string[] = [];
+    if (nInstrumentos > 0) parts.push(`${nInstrumentos} instrumento${nInstrumentos !== 1 ? 's' : ''}`);
+    if (nPatrones > 0) parts.push(`${nPatrones} patrón${nPatrones !== 1 ? 'es' : ''}`);
+
     return (
       <button
         onClick={handleOpen}
@@ -75,10 +132,7 @@ export const InstrumentoSelectorPanel: React.FC<Props> = ({ firebase, selected, 
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
-        {selected.length > 0
-          ? `Editar instrumentos (${selected.length})`
-          : 'Seleccionar instrumentos / patrones'
-        }
+        {parts.length > 0 ? `Editar (${parts.join(', ')})` : 'Seleccionar instrumentos / patrones'}
       </button>
     );
   }
@@ -99,56 +153,49 @@ export const InstrumentoSelectorPanel: React.FC<Props> = ({ firebase, selected, 
       </div>
 
       {/* Lista */}
-      <div className="px-4 py-3 max-h-72 overflow-y-auto">
+      <div className="px-4 py-3 max-h-80 overflow-y-auto">
         {loading ? (
-          <p className="text-xs text-slate-400 text-center py-4">Cargando instrumentos...</p>
+          <p className="text-xs text-slate-400 text-center py-4">Cargando...</p>
         ) : available.length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-4">
             No hay instrumentos/patrones activos registrados.
           </p>
         ) : (
-          <div className="space-y-1.5">
-            {available.map(inst => {
-              const isChecked = checked.has(inst.id);
-              const estado = estadoCert(inst.certificadoVencimiento);
-              const badge = ESTADO_BADGE[estado];
-              return (
-                <label
-                  key={inst.id}
-                  className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    isChecked ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => toggle(inst.id)}
-                    className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium ${isChecked ? 'text-indigo-900' : 'text-slate-800'}`}>
-                      {inst.nombre}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${
-                        inst.tipo === 'patron' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {inst.tipo === 'patron' ? 'Patrón' : 'Instrumento'}
-                      </span>
-                      {inst.marca && (
-                        <span className="text-[10px] text-slate-500">{inst.marca} {inst.modelo}</span>
-                      )}
-                      {inst.serie && (
-                        <span className="text-[10px] text-slate-400 font-mono">S/N: {inst.serie}</span>
-                      )}
-                      <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${badge.cls}`}>
-                        {badge.label}
-                      </span>
-                    </div>
-                  </div>
-                </label>
-              );
-            })}
+          <div className="space-y-4">
+            {instrumentos.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Instrumentos
+                </p>
+                <div className="space-y-1.5">
+                  {instrumentos.map(inst => (
+                    <ItemRow
+                      key={inst.id}
+                      inst={inst}
+                      checked={checked.has(inst.id)}
+                      onToggle={() => toggle(inst.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {patrones.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wider mb-2">
+                  Patrones
+                </p>
+                <div className="space-y-1.5">
+                  {patrones.map(inst => (
+                    <ItemRow
+                      key={inst.id}
+                      inst={inst}
+                      checked={checked.has(inst.id)}
+                      onToggle={() => toggle(inst.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

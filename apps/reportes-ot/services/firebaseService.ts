@@ -368,6 +368,7 @@ export class FirebaseService {
           marca: data.marca,
           modelo: data.modelo,
           serie: data.serie,
+          lote: data.lote ?? null,
           categorias: data.categorias ?? [],
           certificadoEmisor: data.certificadoEmisor ?? null,
           certificadoVencimiento: data.certificadoVencimiento ?? null,
@@ -387,6 +388,16 @@ export class FirebaseService {
       const d = snap.docs[0];
       return { id: d.id, nombre: d.data().nombre };
     } catch { return null; }
+  }
+
+  async getActiveIngenieros(): Promise<{ id: string; nombre: string }[]> {
+    try {
+      const q = query(collection(db, 'ingenieros'), where('activo', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs
+        .map(d => ({ id: d.id, nombre: d.data().nombre as string }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    } catch { return []; }
   }
 
   async getIngenieroByEmail(email: string): Promise<{ id: string; nombre: string } | null> {

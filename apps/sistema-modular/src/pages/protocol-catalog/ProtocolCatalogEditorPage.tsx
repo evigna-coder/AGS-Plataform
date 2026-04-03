@@ -287,6 +287,13 @@ export const TableCatalogEditorPage = () => {
                   Permitir agregar filas extra en protocolo
                 </label>
               )}
+              {!['checklist', 'text', 'signatures', 'cover'].includes(entry.tableType) && (
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer" title="Renderiza la tabla con el mismo estilo compacto que las tablas de Instrumentos y Patrones (texto más pequeño, celdas compactas, inputs inline).">
+                  <input type="checkbox" checked={entry.compactDisplay ?? false}
+                    onChange={e => setMeta('compactDisplay', e.target.checked)} />
+                  Modo compacto (estilo Instrumentos/Patrones)
+                </label>
+              )}
             </div>
 
             {/* Header / Footer del protocolo */}

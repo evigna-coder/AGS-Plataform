@@ -67,17 +67,16 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
               )}
             </div>
           ))}
-          {instrumentosSeleccionados.length > 0 && (
+          {instrumentosSeleccionados.filter(i => i.tipo !== 'patron').length > 0 && (
             <div className="mb-6 rounded-xl border border-slate-200 bg-white" style={{ breakInside: 'avoid' }}>
               <div className="flex items-center px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-t-xl">
-                <p className="font-semibold text-sm text-slate-900">Instrumentos y Patrones Utilizados</p>
+                <p className="font-semibold text-sm text-slate-900">Instrumentos Utilizados</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200">
                       <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Identificación</th>
-                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Tipo</th>
                       <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Marca</th>
                       <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Modelo</th>
                       <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Nº Serie</th>
@@ -86,17 +85,49 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {instrumentosSeleccionados.map((inst, idx) => (
-                      <tr key={inst.id} className={`${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`}>
+                    {instrumentosSeleccionados.filter(i => i.tipo !== 'patron').map((inst, idx) => (
+                      <tr key={inst.id} className={idx % 2 === 0 ? '' : 'bg-slate-50/50'}>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.nombre}</td>
-                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${inst.tipo === 'patron' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {inst.tipo === 'patron' ? 'Patrón' : 'Instrumento'}
-                          </span>
-                        </td>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.marca || '—'}</td>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.modelo || '—'}</td>
                         <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{inst.serie || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs">
+                          {inst.certificadoVencimiento
+                            ? new Date(inst.certificadoVencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {instrumentosSeleccionados.filter(i => i.tipo === 'patron').length > 0 && (
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white" style={{ breakInside: 'avoid' }}>
+              <div className="flex items-center px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-t-xl">
+                <p className="font-semibold text-sm text-slate-900">Patrones Utilizados</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200">
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Artículo</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Marca</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Descripción</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Lote</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200">Certificado</th>
+                      <th className="px-2 py-1.5 text-xs font-semibold text-slate-600 whitespace-nowrap">Vencimiento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {instrumentosSeleccionados.filter(i => i.tipo === 'patron').map((inst, idx) => (
+                      <tr key={inst.id} className={idx % 2 === 0 ? '' : 'bg-slate-50/50'}>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.modelo || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.marca || '—'}</td>
+                        <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.nombre}</td>
+                        <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{inst.lote || '—'}</td>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
                         <td className="px-2 py-1.5 text-xs">
                           {inst.certificadoVencimiento

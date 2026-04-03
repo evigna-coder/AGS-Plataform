@@ -108,6 +108,16 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
     return allPublishedTables?.find(t => t.id === tableId)?.templateRows;
   };
 
+  // Admin bypass: when resolvedIngenieroId is null, allow manual selection
+  const [allIngenieros, setAllIngenieros] = useState<{ id: string; nombre: string }[]>([]);
+  const [manualIngenieroId, setManualIngenieroId] = useState<string | null>(null);
+  useEffect(() => {
+    if (resolvedIngenieroId === null && protocolSelections.length > 0) {
+      firebase.getActiveIngenieros().then(setAllIngenieros);
+    }
+  }, [resolvedIngenieroId, protocolSelections.length, firebase]);
+
+  const effectiveIngenieroId = resolvedIngenieroId ?? manualIngenieroId;
 
   return (
     <div
@@ -239,19 +249,43 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
             }}
             readOnly={readOnly}
           />
-          {instrumentosSeleccionados.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {instrumentosSeleccionados.map(inst => (
-                <span key={inst.id} className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
-                  {inst.nombre}
-                  {!readOnly && (
-                    <button onClick={() => {
-                      setInstrumentosSeleccionados(instrumentosSeleccionados.filter(i => i.id !== inst.id));
-                      markUserInteracted();
-                    }} className="text-indigo-400 hover:text-indigo-600 ml-0.5">×</button>
-                  )}
-                </span>
-              ))}
+          {/* Instrumentos seleccionados */}
+          {instrumentosSeleccionados.filter(i => i.tipo === 'instrumento').length > 0 && (
+            <div className="mt-2">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Instrumentos</p>
+              <div className="flex flex-wrap gap-1.5">
+                {instrumentosSeleccionados.filter(i => i.tipo === 'instrumento').map(inst => (
+                  <span key={inst.id} className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
+                    {inst.nombre}
+                    {!readOnly && (
+                      <button onClick={() => {
+                        setInstrumentosSeleccionados(instrumentosSeleccionados.filter(i => i.id !== inst.id));
+                        markUserInteracted();
+                      }} className="text-indigo-400 hover:text-indigo-600 ml-0.5">×</button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Patrones seleccionados */}
+          {instrumentosSeleccionados.filter(i => i.tipo === 'patron').length > 0 && (
+            <div className="mt-2">
+              <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider mb-1">Patrones</p>
+              <div className="flex flex-wrap gap-1.5">
+                {instrumentosSeleccionados.filter(i => i.tipo === 'patron').map(inst => (
+                  <span key={inst.id} className="inline-flex items-center gap-1 text-[10px] bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2 py-0.5">
+                    {inst.nombre}
+                    {inst.lote && <span className="text-purple-400 font-mono">·{inst.lote}</span>}
+                    {!readOnly && (
+                      <button onClick={() => {
+                        setInstrumentosSeleccionados(instrumentosSeleccionados.filter(i => i.id !== inst.id));
+                        markUserInteracted();
+                      }} className="text-purple-400 hover:text-purple-600 ml-0.5">×</button>
+                    )}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -265,10 +299,22 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span className="text-sm font-medium text-slate-700">Certificados del ingeniero</span>
+            {resolvedIngenieroId === null && allIngenieros.length > 0 && (
+              <select
+                value={manualIngenieroId ?? ''}
+                onChange={e => setManualIngenieroId(e.target.value || null)}
+                className="ml-2 border border-slate-300 rounded px-2 py-0.5 text-xs bg-white text-slate-700"
+              >
+                <option value="">Seleccionar ingeniero...</option>
+                {allIngenieros.map(ing => (
+                  <option key={ing.id} value={ing.id}>{ing.nombre}</option>
+                ))}
+              </select>
+            )}
           </div>
           <CertificadoIngenieroSelectorPanel
             firebase={firebase}
-            ingenieroId={resolvedIngenieroId}
+            ingenieroId={effectiveIngenieroId}
             ingenieroNombre={aclaracionEspecialistaName}
             selected={certificadosIngenieroSeleccionados}
             onApply={(sel) => {
