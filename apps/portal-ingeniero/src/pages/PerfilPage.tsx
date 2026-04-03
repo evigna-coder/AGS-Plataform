@@ -111,7 +111,7 @@ export default function PerfilPage() {
             ) : savedFirma && !editing ? (
               /* Preview saved signature */
               <div className="space-y-2">
-                <div className="h-40 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center p-2">
+                <div className="h-64 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center p-2">
                   <img src={savedFirma} alt="Firma" className="max-h-full max-w-full object-contain" />
                 </div>
                 <p className="text-xs font-semibold text-slate-700 text-center">{nombreAclaracion}</p>
@@ -119,7 +119,7 @@ export default function PerfilPage() {
             ) : (
               /* Drawing mode */
               <div className="space-y-3">
-                <SignaturePad ref={padRef} />
+                <SignaturePad ref={padRef} height="h-64" />
                 <div className="flex justify-end">
                   <Button variant="ghost" size="sm" onClick={handleClear}>
                     Limpiar

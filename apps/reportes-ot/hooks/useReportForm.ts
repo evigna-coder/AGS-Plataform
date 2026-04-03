@@ -107,6 +107,7 @@ export interface ReportState {
   protocolSelections: ProtocolSelection[];
   instrumentosSeleccionados: InstrumentoPatronOption[];
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
+  resolvedIngenieroId: string | null;
 }
 
 export interface UseReportFormReturn {
@@ -156,6 +157,7 @@ export interface UseReportFormReturn {
     setProtocolSelections: (value: ProtocolSelection[]) => void;
     setInstrumentosSeleccionados: (value: InstrumentoPatronOption[]) => void;
     setCertificadosIngenieroSeleccionados: (value: CertificadoIngeniero[]) => void;
+    setResolvedIngenieroId: (value: string | null) => void;
   };
 
   // Computed
@@ -210,6 +212,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [protocolSelections, setProtocolSelections] = useState<ProtocolSelection[]>([]);
   const [instrumentosSeleccionados, setInstrumentosSeleccionados] = useState<InstrumentoPatronOption[]>([]);
   const [certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados] = useState<CertificadoIngeniero[]>([]);
+  const [resolvedIngenieroId, setResolvedIngenieroId] = useState<string | null>(null);
   const [otInput, setOtInput] = useState(initialOtNumber);
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
@@ -237,7 +240,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados, certificadosIngenieroSeleccionados
+    instrumentosSeleccionados, certificadosIngenieroSeleccionados, resolvedIngenieroId
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
@@ -246,7 +249,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados, certificadosIngenieroSeleccionados
+    instrumentosSeleccionados, certificadosIngenieroSeleccionados, resolvedIngenieroId
   ]);
 
   const formState: ReportFormState = {
@@ -290,7 +293,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     protocolData,
     protocolSelections,
     instrumentosSeleccionados,
-    certificadosIngenieroSeleccionados
+    certificadosIngenieroSeleccionados,
+    resolvedIngenieroId
   };
 
   return {
@@ -336,7 +340,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setProtocolData,
       setProtocolSelections,
       setInstrumentosSeleccionados,
-      setCertificadosIngenieroSeleccionados
+      setCertificadosIngenieroSeleccionados,
+      setResolvedIngenieroId
     },
     readOnly,
     reportState,

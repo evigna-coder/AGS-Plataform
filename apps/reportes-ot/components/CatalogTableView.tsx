@@ -649,9 +649,11 @@ export const CatalogTableView: React.FC<Props> = ({
             const value = selection.headerData?.[hf.fieldId] ?? '';
             return (
               <div key={hf.fieldId} className="flex items-center gap-2">
-                <span className={`font-semibold ${isPrint ? 'text-[9px]' : 'text-xs text-slate-700'}`}>
-                  {hf.label}:
-                </span>
+                {hf.label?.trim() && (
+                  <span className={`font-semibold ${isPrint ? 'text-[9px]' : 'text-xs text-slate-700'}`}>
+                    {hf.label}:
+                  </span>
+                )}
                 {isPrint ? (
                   <span className="text-[9px]">{value || '—'}</span>
                 ) : readOnly ? (

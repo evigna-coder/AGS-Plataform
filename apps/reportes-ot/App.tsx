@@ -170,6 +170,7 @@ const App: React.FC = () => {
             instrumentosSeleccionados={app.instrumentosSeleccionados}
             setInstrumentosSeleccionados={app.setInstrumentosSeleccionados}
             aclaracionEspecialistaName={app.aclaracionEspecialista}
+            resolvedIngenieroId={app.resolvedIngenieroId}
             certificadosIngenieroSeleccionados={app.certificadosIngenieroSeleccionados}
             setCertificadosIngenieroSeleccionados={app.setCertificadosIngenieroSeleccionados}
             coverData={{
@@ -468,6 +469,7 @@ const App: React.FC = () => {
         instrumentosSeleccionados={app.instrumentosSeleccionados}
         setInstrumentosSeleccionados={app.setInstrumentosSeleccionados}
         aclaracionEspecialistaName={app.aclaracionEspecialista}
+        resolvedIngenieroId={app.resolvedIngenieroId}
         certificadosIngenieroSeleccionados={app.certificadosIngenieroSeleccionados}
         setCertificadosIngenieroSeleccionados={app.setCertificadosIngenieroSeleccionados}
         coverData={{

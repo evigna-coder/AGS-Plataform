@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { AgendaEntry } from '@ags/shared';
-import { ESTADO_AGENDA_COLORS } from '@ags/shared';
+import { ESTADO_AGENDA_COLORS, ESTADO_AGENDA_LABELS } from '@ags/shared';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 
@@ -27,18 +27,51 @@ function isToday(dateStr: string): boolean {
   return formatDate(new Date()) === dateStr;
 }
 
-// Small chip shown inside each grid cell
-function EntryChip({ entry }: { entry: AgendaEntry }) {
+const BORDER_COLOR: Record<string, string> = {
+  pendiente:   'border-l-slate-400',
+  tentativo:   'border-l-amber-400',
+  confirmado:  'border-l-blue-500',
+  en_progreso: 'border-l-teal-500',
+  completado:  'border-l-emerald-500',
+  cancelado:   'border-l-red-400',
+};
+
+// Mini card shown inside each grid cell — matches AgendaEntryCard design, compact
+function EntryCard({ entry }: { entry: AgendaEntry }) {
   const statusColor = ESTADO_AGENDA_COLORS[entry.estadoAgenda] ?? 'bg-slate-100 text-slate-600';
+  const borderColor = BORDER_COLOR[entry.estadoAgenda] ?? 'border-l-slate-400';
+  const details = [entry.tipoServicio, entry.sistemaNombre, entry.equipoModelo].filter(Boolean).join(' · ');
+  const titleAttr = [
+    entry.otNumber ? `OT-${entry.otNumber}` : null,
+    entry.clienteNombre,
+    details,
+    entry.equipoAgsId,
+    ESTADO_AGENDA_LABELS[entry.estadoAgenda],
+    entry.notas,
+  ].filter(Boolean).join('\n');
+
   return (
     <Link
       to={`/ordenes-trabajo/${entry.otNumber}`}
-      className={`block rounded px-1.5 py-1 text-[10px] font-semibold leading-tight hover:opacity-80 transition-opacity ${statusColor}`}
-      title={`${entry.clienteNombre}${entry.sistemaNombre ? ` · ${entry.sistemaNombre}` : ''}`}
+      className={`block bg-white rounded border border-slate-200 border-l-4 ${borderColor} px-1.5 py-1 hover:shadow-sm transition-shadow`}
+      title={titleAttr}
     >
-      <span className="truncate block">OT-{entry.otNumber}</span>
+      <div className="flex items-start justify-between gap-1 mb-0.5">
+        <span className="text-[10px] font-bold text-teal-600 leading-tight truncate">
+          OT-{entry.otNumber}
+        </span>
+        <span className={`text-[8px] font-semibold px-1 py-px rounded-full shrink-0 leading-tight ${statusColor}`}>
+          {ESTADO_AGENDA_LABELS[entry.estadoAgenda]}
+        </span>
+      </div>
       {entry.clienteNombre && (
-        <span className="font-normal opacity-80 truncate block">{entry.clienteNombre}</span>
+        <p className="text-[10px] text-slate-700 font-medium leading-tight truncate">{entry.clienteNombre}</p>
+      )}
+      {details && (
+        <p className="text-[9px] text-slate-400 leading-tight truncate mt-0.5">{details}</p>
+      )}
+      {entry.equipoAgsId && (
+        <p className="text-[9px] font-mono text-slate-400 leading-tight truncate">{entry.equipoAgsId}</p>
       )}
     </Link>
   );
@@ -151,9 +184,9 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
                       return (
                         <div
                           key={dk}
-                          className={`border-l border-slate-100 px-1 py-1 space-y-1 min-h-[36px] ${isToday(dk) ? 'bg-teal-50/40' : ''}`}
+                          className={`border-l border-slate-100 px-1 py-1 space-y-1 min-h-[52px] ${isToday(dk) ? 'bg-teal-50/40' : ''}`}
                         >
-                          {cellEntries.map(e => <EntryChip key={e.id} entry={e} />)}
+                          {cellEntries.map(e => <EntryCard key={e.id} entry={e} />)}
                         </div>
                       );
                     })}

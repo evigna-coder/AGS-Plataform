@@ -43,10 +43,12 @@ export interface SignaturePadHandle {
 interface SignaturePadProps {
   disabled?: boolean;
   className?: string;
+  /** Clase de altura Tailwind. Default: 'h-40' */
+  height?: string;
 }
 
 export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
-  ({ disabled = false, className = '' }, ref) => {
+  ({ disabled = false, className = '', height = 'h-40' }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const drawing = useRef(false);
     const empty = useRef(true);
@@ -124,7 +126,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
     return (
       <canvas
         ref={canvasRef}
-        className={`w-full h-40 border border-slate-300 rounded-xl bg-white touch-none ${
+        className={`w-full ${height} border border-slate-300 rounded-xl bg-white touch-none ${
           disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-crosshair'
         } ${className}`}
         onMouseDown={start}

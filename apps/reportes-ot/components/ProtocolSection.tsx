@@ -55,6 +55,7 @@ interface ProtocolSectionProps {
   setInstrumentosSeleccionados: (v: InstrumentoPatronOption[]) => void;
   // Certificados ingeniero
   aclaracionEspecialistaName: string;
+  resolvedIngenieroId: string | null;
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
   setCertificadosIngenieroSeleccionados: (v: CertificadoIngeniero[]) => void;
   // Cover page data (auto-populated from OT)
@@ -85,7 +86,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin,
   instrumentosSeleccionados, setInstrumentosSeleccionados,
-  aclaracionEspecialistaName, certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados,
+  aclaracionEspecialistaName, resolvedIngenieroId, certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados,
   coverData,
   markUserInteracted,
   variables,
@@ -107,14 +108,6 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
     return allPublishedTables?.find(t => t.id === tableId)?.templateRows;
   };
 
-  // Resolve ingeniero ID from name for certificate selector
-  const [resolvedIngenieroId, setResolvedIngenieroId] = useState<string | null>(null);
-  useEffect(() => {
-    if (!aclaracionEspecialistaName) { setResolvedIngenieroId(null); return; }
-    firebase.getIngenieroByNombre(aclaracionEspecialistaName).then(ing => {
-      setResolvedIngenieroId(ing?.id ?? null);
-    });
-  }, [aclaracionEspecialistaName, firebase]);
 
   return (
     <div

@@ -28,7 +28,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
   // dateLabel may contain either a short label ("Fecha") or a full text paragraph with placeholders
   const rawDateLabel = table.dateLabel ?? '';
   const isTextParagraph = /\{fecha/i.test(rawDateLabel);
-  const dateLabelShort = isTextParagraph ? 'Fecha' : (rawDateLabel || 'Fecha');
+  const dateLabelShort = isTextParagraph ? 'Fecha de inicio' : (rawDateLabel || 'Fecha de inicio');
   const showTitle = table.showTitle ?? true;
 
   const showClient = signatureMode === 'both' || signatureMode === 'client';
@@ -95,10 +95,10 @@ export const CatalogSignaturesView: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Right: signatures */}
-        <div className="shrink-0 flex flex-col gap-4" style={{ width: '40%' }}>
+        {/* Right: signatures side by side */}
+        <div className="shrink-0 flex flex-row gap-6" style={{ width: '55%' }}>
           {showClient && (
-            <div className="flex flex-col items-center">
+            <div className="flex-1 flex flex-col items-center">
               <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                 {signatureClient && (
                   <img src={signatureClient} className="max-h-full max-w-full object-contain" alt="Firma Cliente" />
@@ -114,7 +114,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
           )}
 
           {showEngineer && (
-            <div className="flex flex-col items-center">
+            <div className="flex-1 flex flex-col items-center">
               <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                 {signatureEngineer && (
                   <img src={signatureEngineer} className="max-h-full max-w-full object-contain" alt="Firma Técnico" />

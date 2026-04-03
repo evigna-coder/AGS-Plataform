@@ -191,7 +191,8 @@ export const useOTManagement = (
     setProtocolData,
     setProtocolSelections,
     setInstrumentosSeleccionados,
-    setCertificadosIngenieroSeleccionados
+    setCertificadosIngenieroSeleccionados,
+    setResolvedIngenieroId
   } = setters;
 
   /** Pre-carga la firma del usuario autenticado si el reporte no tiene firma */
@@ -199,11 +200,15 @@ export const useOTManagement = (
     try {
       const currentUser = auth.currentUser;
       if (!currentUser?.uid) return;
-      const firma = await firebase.getUserFirma(currentUser.uid);
+      const [firma, ingeniero] = await Promise.all([
+        firebase.getUserFirma(currentUser.uid),
+        firebase.getIngenieroByUsuarioId(currentUser.uid),
+      ]);
       if (firma) {
         setSignatureEngineer(firma.firmaBase64);
         setAclaracionEspecialista(firma.nombreAclaracion);
       }
+      setResolvedIngenieroId(ingeniero?.id ?? null);
     } catch (e) {
       logger.warn('No se pudo pre-cargar firma del ingeniero:', e);
     }
