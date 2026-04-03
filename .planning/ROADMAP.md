@@ -18,7 +18,7 @@
 **Plans:** 7 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Type extensions: UnidadStock reservation fields + getOrCreateReservasPosition helper
+- [x] 01-01-PLAN.md — Type extensions: UnidadStock reservation fields + getOrCreateReservasPosition helper
 - [ ] 01-02-PLAN.md — reservasService (reservar/liberar) + useReservaStock hook
 - [ ] 01-03-PLAN.md — Auto-req trigger in presupuestosService + useGenerarRequerimientos hook
 - [ ] 01-04-PLAN.md — UnidadesList aggregated columns + PresupuestoDetail reservation/req buttons
