@@ -13,6 +13,44 @@ const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', 
 const ESTADO_COLORS: Record<EstadoUnidad, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', baja: 'bg-red-100 text-red-700' };
 const UBICACION_LABELS: Record<string, string> = { posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente', proveedor: 'Proveedor', transito: 'En transito' };
 
+// ---- Aggregated table subcomponent ----
+interface AggRow { articuloId: string; codigo: string; descripcion: string; disponible: number; reservado: number; asignado: number; total: number; }
+
+const UnidadesAggregatedTable = ({ rows }: { rows: AggRow[] }) => {
+  const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
+  if (rows.length === 0) return (
+    <Card><div className="text-center py-12"><p className="text-slate-400">No hay unidades cargadas</p></div></Card>
+  );
+  return (
+    <div className="bg-white overflow-x-auto">
+      <table className="w-full">
+        <thead className="sticky top-0 z-10">
+          <tr className="bg-slate-50 border-b border-slate-200">
+            <th className={thClass}>Código</th>
+            <th className={thClass}>Descripción</th>
+            <th className={thClass + ' text-right'}>Disponible</th>
+            <th className={thClass + ' text-right'}>Reservado</th>
+            <th className={thClass + ' text-right'}>Asignado</th>
+            <th className={thClass + ' text-right'}>Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map(row => (
+            <tr key={row.articuloId} className="hover:bg-slate-50 transition-colors">
+              <td className="px-3 py-2 text-[10px] font-mono text-slate-500 whitespace-nowrap">{row.codigo}</td>
+              <td className="px-3 py-2 text-xs text-slate-700 truncate max-w-[220px]">{row.descripcion}</td>
+              <td className="px-3 py-2 text-sm font-semibold text-teal-700 text-right">{row.disponible}</td>
+              <td className="px-3 py-2 text-sm font-semibold text-amber-600 text-right">{row.reservado}</td>
+              <td className="px-3 py-2 text-sm font-medium text-slate-500 text-right">{row.asignado}</td>
+              <td className="px-3 py-2 text-sm font-bold text-slate-800 text-right">{row.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 export const UnidadesList = () => {
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
@@ -21,6 +59,7 @@ export const UnidadesList = () => {
     showInactive: { type: 'boolean' as const, default: false },
   }), []);
   const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+  const [groupByArticulo, setGroupByArticulo] = useState(false);
 
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +80,6 @@ export const UnidadesList = () => {
     return () => { unsubRef.current?.(); };
   }, [filters.estado, filters.condicion, filters.showInactive]);
 
-
   const filtered = useMemo(() => {
     if (!debouncedSearch) return unidades;
     const term = debouncedSearch.toLowerCase();
@@ -50,6 +88,18 @@ export const UnidadesList = () => {
       u.articuloDescripcion.toLowerCase().includes(term)
     );
   }, [unidades, debouncedSearch]);
+
+  const aggregated = useMemo((): AggRow[] => {
+    const byArticulo = new Map<string, { articuloId: string; codigo: string; descripcion: string; disponible: number; reservado: number; asignado: number }>();
+    unidades.forEach(u => {
+      const prev = byArticulo.get(u.articuloId) ?? { articuloId: u.articuloId, codigo: u.articuloCodigo, descripcion: u.articuloDescripcion, disponible: 0, reservado: 0, asignado: 0 };
+      if (u.estado === 'disponible') prev.disponible++;
+      else if (u.estado === 'reservado') prev.reservado++;
+      else if (u.estado === 'asignado') prev.asignado++;
+      byArticulo.set(u.articuloId, prev);
+    });
+    return [...byArticulo.values()].map(row => ({ ...row, total: row.disponible + row.reservado + row.asignado }));
+  }, [unidades]);
 
   if (loading && unidades.length === 0) {
     return (
@@ -64,7 +114,7 @@ export const UnidadesList = () => {
       <PageHeader
         title="Unidades de stock"
         subtitle="Inventario de unidades individuales"
-        count={filtered.length}
+        count={groupByArticulo ? aggregated.length : filtered.length}
       >
         <div className="flex items-center gap-3 flex-wrap">
           <input
@@ -103,11 +153,21 @@ export const UnidadesList = () => {
             />
             Mostrar inactivos
           </label>
+          <button
+            onClick={() => setGroupByArticulo(v => !v)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+              groupByArticulo ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+            }`}
+          >
+            Vista por artículo
+          </button>
         </div>
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {filtered.length === 0 ? (
+        {groupByArticulo ? (
+          <UnidadesAggregatedTable rows={aggregated} />
+        ) : filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron unidades</p>
@@ -115,49 +175,49 @@ export const UnidadesList = () => {
           </Card>
         ) : (
           <div className="bg-white overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map(u => (
+                  <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-2">
+                      <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">
+                        {u.articuloCodigo}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-xs text-slate-900">{u.articuloDescripcion}</td>
+                    <td className="px-4 py-2 text-xs text-slate-600 font-mono">{u.nroSerie ?? '-'}</td>
+                    <td className="px-4 py-2 text-xs text-slate-600">{u.nroLote ?? '-'}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CONDICION_COLORS[u.condicion]}`}>
+                        {CONDICION_LABELS[u.condicion]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>
+                        {ESTADO_LABELS[u.estado]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-xs text-slate-600">
+                      {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
+                      {u.ubicacion.referenciaNombre && (
+                        <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filtered.map(u => (
-                    <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-2">
-                        <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">
-                          {u.articuloCodigo}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2 text-xs text-slate-900">{u.articuloDescripcion}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600 font-mono">{u.nroSerie ?? '-'}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600">{u.nroLote ?? '-'}</td>
-                      <td className="px-4 py-2">
-                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CONDICION_COLORS[u.condicion]}`}>
-                          {CONDICION_LABELS[u.condicion]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>
-                          {ESTADO_LABELS[u.estado]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-xs text-slate-600">
-                        {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
-                        {u.ubicacion.referenciaNombre && (
-                          <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
