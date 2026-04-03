@@ -3,6 +3,8 @@ import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto,
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
 import { leadsService } from './leadsService';
+import { articulosService, unidadesService, reservasService } from './stockService';
+import { requerimientosService } from './importacionesService';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -235,6 +237,73 @@ export const presupuestosService = {
         const pres = await this.getById(id);
         if (pres?.origenTipo === 'lead' && pres.origenId) {
           await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, data.estado);
+        }
+        // ── Auto-generate requerimientos AND reserve stock when presupuesto is accepted ──
+        if (data.estado === 'aceptado') {
+          const itemsConStock = pres?.items?.filter(i => i.stockArticuloId) ?? [];
+          for (const item of itemsConStock) {
+            try {
+              const articulo = await articulosService.getById(item.stockArticuloId!).catch(() => null);
+              const unidades = await unidadesService.getAll({ articuloId: item.stockArticuloId!, estado: 'disponible' }).catch(() => []);
+              const qtyDisponible = unidades.length;
+              const stockMinimo = articulo?.stockMinimo ?? 0;
+              const qtyResultante = qtyDisponible - item.cantidad;
+
+              // --- Auto-req: create requirement if stock will fall below minimum ---
+              const existingReqs = await requerimientosService.getAll({
+                presupuestoId: id,
+                articuloId: item.stockArticuloId!,
+              }).catch(() => []);
+
+              if (existingReqs.length === 0 && qtyResultante < stockMinimo) {
+                const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible);
+                await requerimientosService.create({
+                  articuloId: item.stockArticuloId ?? null,
+                  articuloCodigo: articulo?.codigo ?? null,
+                  articuloDescripcion: articulo?.descripcion ?? item.descripcion,
+                  cantidad: qtyReq,
+                  unidadMedida: articulo?.unidadMedida ?? 'unidad',
+                  motivo: `Auto-generado por presupuesto ${pres!.numero} (aceptado)`,
+                  origen: 'presupuesto',
+                  origenRef: id,
+                  estado: 'pendiente',
+                  presupuestoId: id,
+                  presupuestoNumero: pres!.numero ?? null,
+                  proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
+                  proveedorSugeridoNombre: null,
+                  ordenCompraId: null,
+                  ordenCompraNumero: null,
+                  solicitadoPor: 'Sistema',
+                  fechaSolicitud: new Date().toISOString(),
+                  fechaAprobacion: null,
+                  urgencia: 'media',
+                  notas: null,
+                });
+              }
+
+              // --- Auto-reserva: reserve available units up to item.cantidad ---
+              const unidadesAReservar = unidades.slice(0, item.cantidad);
+              for (const unidad of unidadesAReservar) {
+                try {
+                  await reservasService.reservar({
+                    unidadId: unidad.id,
+                    unidad,
+                    presupuestoId: id,
+                    presupuestoNumero: pres!.numero ?? '',
+                    clienteId: pres!.clienteId ?? '',
+                    clienteNombre: pres!.clienteId ?? '',
+                    solicitadoPorNombre: 'Sistema',
+                  });
+                } catch (reservaErr) {
+                  console.error(`[presupuestosService] Error auto-reserva for unidad ${unidad.id}:`, reservaErr);
+                  // Don't throw — continue; don't block the estado update
+                }
+              }
+            } catch (itemErr) {
+              console.error(`[presupuestosService] Error processing item ${item.stockArticuloId}:`, itemErr);
+              // Don't throw — continue with other items; don't block the estado update
+            }
+          }
         }
       } catch (err) {
         console.error('[presupuestosService] Error syncing lead from presupuesto:', err);

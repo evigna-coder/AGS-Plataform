@@ -200,10 +200,12 @@ export const requerimientosService = {
     return `REQ-${String(maxNum + 1).padStart(4, '0')}`;
   },
 
-  async getAll(filters?: { estado?: string; origen?: string }): Promise<RequerimientoCompra[]> {
+  async getAll(filters?: { estado?: string; origen?: string; presupuestoId?: string; articuloId?: string }): Promise<RequerimientoCompra[]> {
     const constraints: any[] = [orderBy('createdAt', 'desc')];
     if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
     if (filters?.origen) constraints.unshift(where('origen', '==', filters.origen));
+    if (filters?.presupuestoId) constraints.unshift(where('presupuestoId', '==', filters.presupuestoId));
+    if (filters?.articuloId) constraints.unshift(where('articuloId', '==', filters.articuloId));
     const q = query(collection(db, 'requerimientos_compra'), ...constraints);
     const snap = await getDocs(q);
     return snap.docs.map(d => ({
