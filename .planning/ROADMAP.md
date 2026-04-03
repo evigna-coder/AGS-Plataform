@@ -15,7 +15,7 @@
 
 **Out of scope:** Comex/DUAs, portal proveedor, stock por OT
 
-**Plans:** 3/7 plans executed
+**Plans:** 4/7 plans executed
 
 Plans:
 - [x] 01-01-PLAN.md — Type extensions: UnidadStock reservation fields + getOrCreateReservasPosition helper
@@ -23,7 +23,7 @@ Plans:
 - [x] 01-03-PLAN.md — Auto-req trigger in presupuestosService + useGenerarRequerimientos hook
 - [ ] 01-04-PLAN.md — UnidadesList aggregated columns + PresupuestoDetail reservation/req buttons
 - [ ] 01-05-PLAN.md — RequerimientosList: useUrlFilters migration + checkboxes + inline edit + Generar OC
-- [ ] 01-06-PLAN.md — OCEditor: accept location.state.prefill for pre-populated items
+- [x] 01-06-PLAN.md — OCEditor: accept location.state.prefill for pre-populated items
 - [ ] 01-07-PLAN.md — handleReponer in useInventarioIngeniero + AjusteStockModal with mandatory justificación
 
 ### Phase 2: Comex — Importaciones y Despachos
