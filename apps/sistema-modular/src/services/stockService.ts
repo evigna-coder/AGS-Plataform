@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, EstadoUnidad, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
@@ -124,6 +124,28 @@ export const posicionesStockService = {
     });
   },
 };
+
+/**
+ * Returns the "RESERVAS" PosicionStock document, creating it if it doesn't exist.
+ * The Reservas position has a well-known code 'RESERVAS' so it can be found reliably.
+ */
+export async function getOrCreateReservasPosition(): Promise<PosicionStock> {
+  const all = await posicionesStockService.getAll(false); // include inactive
+  const existing = all.find(p => p.codigo === 'RESERVAS');
+  if (existing) return existing;
+  // Create it if missing — safe to run multiple times (idempotent by code lookup)
+  const id = await posicionesStockService.create({
+    codigo: 'RESERVAS',
+    nombre: 'Reservas',
+    descripcion: 'Posición de reserva para unidades asignadas a presupuestos',
+    tipo: 'deposito',
+    parentId: null,
+    activo: true,
+  });
+  const created = await posicionesStockService.getById(id);
+  if (!created) throw new Error('Failed to create Reservas position');
+  return created;
+}
 
 // ========== ARTICULOS (catalogo de partes) ==========
 
@@ -884,5 +906,237 @@ export const remitosService = {
       console.error('remitos subscribe error:', err);
       onError?.(err);
     });
+  },
+};
+
+// ========== RESERVAS DE STOCK ==========
+
+export const reservasService = {
+  /**
+   * Reserves a specific UnidadStock for a presupuesto.
+   * Physically moves the unit to the RESERVAS position and sets estado='reservado'.
+   * Creates an immutable MovimientoStock of type 'transferencia'.
+   * NEVER writes undefined — all optional fields use null.
+   */
+  async reservar(params: {
+    unidadId: string;
+    unidad: UnidadStock;
+    presupuestoId: string;
+    presupuestoNumero: string;
+    clienteId: string;
+    clienteNombre: string;
+    solicitadoPorNombre: string;
+  }): Promise<void> {
+    const posReservas = await getOrCreateReservasPosition();
+    const nuevaUbicacion = {
+      tipo: 'posicion' as TipoOrigenDestino,
+      referenciaId: posReservas.id,
+      referenciaNombre: posReservas.nombre,
+    };
+    const now = Timestamp.now();
+
+    const unitPayload = deepCleanForFirestore({
+      estado: 'reservado' as EstadoUnidad,
+      ubicacion: { tipo: 'posicion', referenciaId: posReservas.id, referenciaNombre: posReservas.nombre },
+      reservadoParaPresupuestoId: params.presupuestoId,
+      reservadoParaPresupuestoNumero: params.presupuestoNumero,
+      reservadoParaClienteId: params.clienteId,
+      reservadoParaClienteNombre: params.clienteNombre,
+      ...getUpdateTrace(),
+      updatedAt: now.toDate().toISOString(),
+    });
+
+    const movId = crypto.randomUUID();
+    const movPayload = deepCleanForFirestore({
+      tipo: 'transferencia' as TipoMovimiento,
+      unidadId: params.unidadId,
+      articuloId: params.unidad.articuloId,
+      articuloCodigo: params.unidad.articuloCodigo,
+      articuloDescripcion: params.unidad.articuloDescripcion,
+      cantidad: 1,
+      origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+      origenId: params.unidad.ubicacion.referenciaId,
+      origenNombre: params.unidad.ubicacion.referenciaNombre,
+      destinoTipo: 'posicion' as TipoOrigenDestino,
+      destinoId: posReservas.id,
+      destinoNombre: posReservas.nombre,
+      motivo: `Reservado para presupuesto ${params.presupuestoNumero} — ${params.clienteNombre}`,
+      creadoPor: params.solicitadoPorNombre,
+      ...getCreateTrace(),
+      createdAt: now,
+    });
+
+    const batch = createBatch();
+    batch.update(docRef('unidades', params.unidadId), unitPayload);
+    batch.set(doc(db, 'movimientosStock', movId), movPayload);
+    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: params.unidadId, after: unitPayload as any });
+    await batch.commit();
+  },
+
+  /**
+   * Releases a reserved UnidadStock back to disponible.
+   * Moves unit back to its original position (or a default depot if unknown).
+   * Creates an immutable MovimientoStock of type 'transferencia'.
+   */
+  async liberar(params: {
+    unidadId: string;
+    unidad: UnidadStock;
+    motivo: string;
+    solicitadoPorNombre: string;
+    destino?: { tipo: 'posicion' | 'minikit' | 'ingeniero'; referenciaId: string; referenciaNombre: string };
+  }): Promise<void> {
+    const now = Timestamp.now();
+    const unitPayload = deepCleanForFirestore({
+      estado: 'disponible' as EstadoUnidad,
+      reservadoParaPresupuestoId: null,
+      reservadoParaPresupuestoNumero: null,
+      reservadoParaClienteId: null,
+      reservadoParaClienteNombre: null,
+      ...(params.destino ? { ubicacion: params.destino } : {}),
+      ...getUpdateTrace(),
+      updatedAt: now.toDate().toISOString(),
+    });
+
+    const movId = crypto.randomUUID();
+    const movPayload = deepCleanForFirestore({
+      tipo: 'transferencia' as TipoMovimiento,
+      unidadId: params.unidadId,
+      articuloId: params.unidad.articuloId,
+      articuloCodigo: params.unidad.articuloCodigo,
+      articuloDescripcion: params.unidad.articuloDescripcion,
+      cantidad: 1,
+      origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+      origenId: params.unidad.ubicacion.referenciaId,
+      origenNombre: params.unidad.ubicacion.referenciaNombre,
+      destinoTipo: (params.destino?.tipo ?? params.unidad.ubicacion.tipo) as TipoOrigenDestino,
+      destinoId: params.destino?.referenciaId ?? params.unidad.ubicacion.referenciaId,
+      destinoNombre: params.destino?.referenciaNombre ?? params.unidad.ubicacion.referenciaNombre,
+      motivo: params.motivo,
+      creadoPor: params.solicitadoPorNombre,
+      ...getCreateTrace(),
+      createdAt: now,
+    });
+
+    const batch = createBatch();
+    batch.update(docRef('unidades', params.unidadId), unitPayload);
+    batch.set(doc(db, 'movimientosStock', movId), movPayload);
+    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: params.unidadId, after: unitPayload as any });
+    await batch.commit();
+  },
+};
+
+// ========== RESERVAS ==========
+
+export const reservasService = {
+  /**
+   * Reserves a specific UnidadStock for a presupuesto.
+   * Physically moves the unit to the RESERVAS position and sets estado='reservado'.
+   * Creates an immutable MovimientoStock of type 'transferencia'.
+   * NEVER writes undefined — all optional fields use null.
+   */
+  async reservar(params: {
+    unidadId: string;
+    unidad: UnidadStock;
+    presupuestoId: string;
+    presupuestoNumero: string;
+    clienteId: string;
+    clienteNombre: string;
+    solicitadoPorNombre: string;
+  }): Promise<void> {
+    const posReservas = await getOrCreateReservasPosition();
+    const nuevaUbicacion: UbicacionStock = {
+      tipo: 'posicion',
+      referenciaId: posReservas.id,
+      referenciaNombre: posReservas.nombre,
+    };
+    const now = Timestamp.now();
+
+    const unitPayload = deepCleanForFirestore({
+      estado: 'reservado' as EstadoUnidad,
+      ubicacion: nuevaUbicacion,
+      reservadoParaPresupuestoId: params.presupuestoId,
+      reservadoParaPresupuestoNumero: params.presupuestoNumero,
+      reservadoParaClienteId: params.clienteId,
+      reservadoParaClienteNombre: params.clienteNombre,
+      ...getUpdateTrace(),
+      updatedAt: now.toDate().toISOString(),
+    });
+
+    const movId = crypto.randomUUID();
+    const movPayload = deepCleanForFirestore({
+      tipo: 'transferencia' as TipoMovimiento,
+      articuloId: params.unidad.articuloId,
+      articuloCodigo: params.unidad.articuloCodigo,
+      articuloDescripcion: params.unidad.articuloDescripcion,
+      unidadId: params.unidadId,
+      origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+      origenId: params.unidad.ubicacion.referenciaId,
+      origenNombre: params.unidad.ubicacion.referenciaNombre,
+      destinoTipo: 'posicion' as TipoOrigenDestino,
+      destinoId: posReservas.id,
+      destinoNombre: posReservas.nombre,
+      cantidad: 1,
+      motivo: `Reservado para presupuesto ${params.presupuestoNumero} \u2014 ${params.clienteNombre}`,
+      creadoPor: params.solicitadoPorNombre,
+      ...getCreateTrace(),
+      createdAt: now,
+    });
+
+    const batch = createBatch();
+    batch.update(docRef('unidades_stock', params.unidadId), unitPayload);
+    batch.set(doc(db, 'movimientosStock', movId), movPayload);
+    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: params.unidadId, after: unitPayload as any });
+    await batch.commit();
+  },
+
+  /**
+   * Releases a reserved UnidadStock back to disponible.
+   * Optionally moves unit to a specified destination; otherwise keeps current location.
+   * Creates an immutable MovimientoStock of type 'transferencia'.
+   */
+  async liberar(params: {
+    unidadId: string;
+    unidad: UnidadStock;
+    motivo: string;
+    solicitadoPorNombre: string;
+    destino?: { tipo: UbicacionStock['tipo']; referenciaId: string; referenciaNombre: string };
+  }): Promise<void> {
+    const now = Timestamp.now();
+    const unitPayload = deepCleanForFirestore({
+      estado: 'disponible' as EstadoUnidad,
+      reservadoParaPresupuestoId: null,
+      reservadoParaPresupuestoNumero: null,
+      reservadoParaClienteId: null,
+      reservadoParaClienteNombre: null,
+      ...(params.destino ? { ubicacion: params.destino } : {}),
+      ...getUpdateTrace(),
+      updatedAt: now.toDate().toISOString(),
+    });
+
+    const movId = crypto.randomUUID();
+    const movPayload = deepCleanForFirestore({
+      tipo: 'transferencia' as TipoMovimiento,
+      articuloId: params.unidad.articuloId,
+      articuloCodigo: params.unidad.articuloCodigo,
+      articuloDescripcion: params.unidad.articuloDescripcion,
+      unidadId: params.unidadId,
+      origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+      origenId: params.unidad.ubicacion.referenciaId,
+      origenNombre: params.unidad.ubicacion.referenciaNombre,
+      destinoTipo: (params.destino?.tipo ?? params.unidad.ubicacion.tipo) as TipoOrigenDestino,
+      destinoId: params.destino?.referenciaId ?? params.unidad.ubicacion.referenciaId,
+      destinoNombre: params.destino?.referenciaNombre ?? params.unidad.ubicacion.referenciaNombre,
+      cantidad: 1,
+      motivo: params.motivo,
+      creadoPor: params.solicitadoPorNombre,
+      ...getCreateTrace(),
+      createdAt: now,
+    });
+
+    const batch = createBatch();
+    batch.update(docRef('unidades_stock', params.unidadId), unitPayload);
+    batch.set(doc(db, 'movimientosStock', movId), movPayload);
+    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: params.unidadId, after: unitPayload as any });
+    await batch.commit();
   },
 };
