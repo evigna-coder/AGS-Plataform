@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ordenesCompraService, proveedoresService } from '../../services/firebaseService';
 import type { ItemOC, TipoOC, Proveedor } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -12,6 +12,7 @@ type Moneda = 'ARS' | 'USD' | 'EUR';
 export const OCEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const goBack = useNavigateBack();
   const isEdit = !!id;
 
@@ -51,6 +52,18 @@ export const OCEditor = () => {
         setFechaEntregaEstimada(oc.fechaEntregaEstimada ? oc.fechaEntregaEstimada.split('T')[0] : '');
         setNotas(oc.notas || '');
         setItems(oc.items || []);
+      } else {
+        // Check for pre-populated data from navigation state (e.g., from Generar OC flow)
+        type PrefillState = { prefill?: { proveedorId?: string; proveedorNombre?: string; items?: ItemOC[] } };
+        const prefill = (location.state as PrefillState | null)?.prefill;
+        if (prefill) {
+          if (prefill.proveedorId) {
+            setProveedorId(prefill.proveedorId);
+            const prov = provData.find(p => p.id === prefill.proveedorId);
+            setProveedorNombre(prov?.nombre ?? prefill.proveedorNombre ?? '');
+          }
+          if (prefill.items && prefill.items.length > 0) setItems(prefill.items);
+        }
       }
     } catch (err) {
       console.error('Error cargando datos:', err);
@@ -62,28 +75,21 @@ export const OCEditor = () => {
 
   const handleProveedorChange = (provId: string) => {
     setProveedorId(provId);
-    const prov = proveedores.find(p => p.id === provId);
-    setProveedorNombre(prov?.nombre || '');
+    setProveedorNombre(proveedores.find(p => p.id === provId)?.nombre || '');
   };
 
   const addItem = () => {
-    setItems(prev => [...prev, {
-      id: crypto.randomUUID(), descripcion: '', cantidad: 1, cantidadRecibida: 0,
-      unidadMedida: 'unidad', precioUnitario: null, moneda: null, notas: null,
-      articuloId: null, articuloCodigo: null, requerimientoId: null,
-    }]);
+    setItems(prev => [...prev, { id: crypto.randomUUID(), descripcion: '', cantidad: 1, cantidadRecibida: 0,
+      unidadMedida: 'unidad', precioUnitario: null, moneda: null, notas: null, articuloId: null, articuloCodigo: null, requerimientoId: null }]);
   };
 
-  const updateItem = (itemId: string, field: keyof ItemOC, value: any) => {
+  const updateItem = (itemId: string, field: keyof ItemOC, value: any) =>
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, [field]: value } : i));
-  };
-
-  const removeItem = (itemId: string) => {
+  const removeItem = (itemId: string) =>
     setItems(prev => prev.filter(i => i.id !== itemId));
-  };
 
   const calcSubtotal = () => items.reduce((s, i) => s + (i.cantidad * (i.precioUnitario || 0)), 0);
-  const calcTotal = () => calcSubtotal();
+  const calcTotal = calcSubtotal;
 
   const handleSave = async () => {
     if (!proveedorId) { alert('Seleccione un proveedor'); return; }
@@ -92,16 +98,11 @@ export const OCEditor = () => {
     try {
       const payload = {
         tipo, proveedorId, proveedorNombre, moneda, items,
-        subtotal: calcSubtotal(), impuestos: null, total: calcTotal(),
-        estado: 'borrador' as const,
-        proformaNumero: proformaNumero || null,
-        fechaProforma: fechaProforma || null,
-        condicionesPago: condicionesPago || null,
-        fechaEntregaEstimada: fechaEntregaEstimada || null,
-        notas: notas || null,
-        proformaUrl: null, proformaNombre: null,
-        presupuestoIds: [], fechaRecepcion: null, importacionId: null,
-        archivoUrl: null, archivoNombre: null,
+        subtotal: calcSubtotal(), impuestos: null, total: calcTotal(), estado: 'borrador' as const,
+        proformaNumero: proformaNumero || null, fechaProforma: fechaProforma || null,
+        condicionesPago: condicionesPago || null, fechaEntregaEstimada: fechaEntregaEstimada || null,
+        notas: notas || null, proformaUrl: null, proformaNombre: null,
+        presupuestoIds: [], fechaRecepcion: null, importacionId: null, archivoUrl: null, archivoNombre: null,
       };
       if (isEdit) {
         await ordenesCompraService.update(id!, payload);
