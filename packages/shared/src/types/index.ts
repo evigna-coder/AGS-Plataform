@@ -2800,6 +2800,8 @@ export interface AgendaEntry {
   tipoServicio: string;
   sistemaNombre: string | null;
   establecimientoNombre: string | null;
+  equipoModelo?: string | null;  // e.g. "HPLC 1100"
+  equipoAgsId?: string | null;   // equipo visible ID (AGS-XXXX)
   estadoAgenda: EstadoAgenda;
   notas: string | null;
   titulo: string | null;

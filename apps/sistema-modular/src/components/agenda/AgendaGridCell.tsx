@@ -62,12 +62,20 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   const droppableId = `cell:${ingenieroId}:${fecha}:${quarter}`;
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id: droppableId });
 
-  // Only the start cell of an entry is draggable
+  // Only the start cell of an entry is draggable (for moving)
   const draggableId = hasEntry && isStart ? `entry:${entryId}` : `noop:${droppableId}`;
   const { setNodeRef: setDragRef, attributes, listeners, isDragging } = useDraggable({
     id: draggableId,
     data: { type: 'entry', entry: entryRef },
     disabled: !hasEntry || !isStart,
+  });
+
+  // Resize handle — only the END cell of an entry (non-compact)
+  const resizeId = `resize:${ingenieroId}:${fecha}:${quarter}`;
+  const { setNodeRef: setResizeRef, listeners: resizeListeners, attributes: resizeAttrs, isDragging: isResizing } = useDraggable({
+    id: resizeId,
+    data: { type: 'resize' },
+    disabled: !hasEntry || !isEnd || !!compact,
   });
 
   const hasMultiple = entryCount > 1;
@@ -122,6 +130,20 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
       )}
       {hasMultiple && !compact && (
         <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />
+      )}
+      {/* Resize handle — right edge of the last cell of an entry */}
+      {hasEntry && isEnd && !compact && (
+        <div
+          ref={setResizeRef}
+          {...resizeListeners}
+          {...resizeAttrs}
+          className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize z-20 flex items-center justify-center group
+            ${isResizing ? 'bg-teal-600/40' : 'hover:bg-teal-400/50'}`}
+          onClick={e => e.stopPropagation()}
+          title="Arrastrar para cambiar duración"
+        >
+          <span className="w-0.5 h-3 rounded bg-current opacity-50 group-hover:opacity-100" />
+        </div>
       )}
     </div>
   );

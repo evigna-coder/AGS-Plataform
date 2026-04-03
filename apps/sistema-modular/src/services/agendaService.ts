@@ -19,6 +19,8 @@ function parseAgendaEntry(d: import('firebase/firestore').DocumentSnapshot): Age
     tipoServicio: data.tipoServicio,
     sistemaNombre: data.sistemaNombre ?? null,
     establecimientoNombre: data.establecimientoNombre ?? null,
+    equipoModelo: data.equipoModelo ?? null,
+    equipoAgsId: data.equipoAgsId ?? null,
     estadoAgenda: data.estadoAgenda,
     notas: data.notas ?? null,
     titulo: data.titulo ?? null,

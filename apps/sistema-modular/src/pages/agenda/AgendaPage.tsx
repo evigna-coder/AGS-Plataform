@@ -109,35 +109,56 @@ export const AgendaPage: FC = () => {
     const quarterEnd = nr ? nr.endQuarter : cell.quarter;
 
     if (cb.type === 'entry' && cb.entry) {
-      createEntry({
-        fechaInicio, fechaFin, quarterStart, quarterEnd,
-        ingenieroId: cell.ingenieroId,
-        ingenieroNombre: ingeniero.nombre,
-        otNumber: cb.entry.otNumber,
-        clienteNombre: cb.entry.clienteNombre,
-        tipoServicio: cb.entry.tipoServicio,
-        sistemaNombre: cb.entry.sistemaNombre,
-        establecimientoNombre: cb.entry.establecimientoNombre,
-        estadoAgenda: 'tentativo',
-        notas: null,
-        titulo: cb.entry.titulo || null,
-      });
+      const existing = cb.entry.otNumber
+        ? entries.find(e => e.otNumber === cb.entry!.otNumber && e.ingenieroId === cell.ingenieroId)
+        : null;
+      if (existing) {
+        const newEnd = fechaFin > existing.fechaFin ? fechaFin : existing.fechaFin;
+        updateEntry(existing.id, {
+          fechaFin: newEnd,
+          quarterEnd: newEnd === fechaFin ? quarterEnd : existing.quarterEnd,
+        });
+      } else {
+        createEntry({
+          fechaInicio, fechaFin, quarterStart, quarterEnd,
+          ingenieroId: cell.ingenieroId,
+          ingenieroNombre: ingeniero.nombre,
+          otNumber: cb.entry.otNumber,
+          clienteNombre: cb.entry.clienteNombre,
+          tipoServicio: cb.entry.tipoServicio,
+          sistemaNombre: cb.entry.sistemaNombre,
+          establecimientoNombre: cb.entry.establecimientoNombre,
+          estadoAgenda: 'tentativo',
+          notas: null,
+          titulo: cb.entry.titulo || null,
+        });
+      }
     } else if (cb.type === 'pending' && cb.ot) {
-      createEntry({
-        fechaInicio, fechaFin, quarterStart, quarterEnd,
-        ingenieroId: cell.ingenieroId,
-        ingenieroNombre: ingeniero.nombre,
-        otNumber: cb.ot.otNumber,
-        clienteNombre: cb.ot.razonSocial,
-        tipoServicio: cb.ot.tipoServicio,
-        sistemaNombre: cb.ot.sistema || null,
-        establecimientoNombre: null,
-        estadoAgenda: 'tentativo',
-        notas: null,
-        titulo: null,
-      });
+      const existing = entries.find(e => e.otNumber === cb.ot!.otNumber && e.ingenieroId === cell.ingenieroId);
+      if (existing) {
+        const newEnd = fechaFin > existing.fechaFin ? fechaFin : existing.fechaFin;
+        updateEntry(existing.id, {
+          fechaFin: newEnd,
+          quarterEnd: newEnd === fechaFin ? quarterEnd : existing.quarterEnd,
+        });
+      } else {
+        createEntry({
+          fechaInicio, fechaFin, quarterStart, quarterEnd,
+          ingenieroId: cell.ingenieroId,
+          ingenieroNombre: ingeniero.nombre,
+          otNumber: cb.ot.otNumber,
+          clienteNombre: cb.ot.razonSocial,
+          tipoServicio: cb.ot.tipoServicio,
+          sistemaNombre: cb.ot.sistema || null,
+          establecimientoNombre: null,
+          equipoModelo: cb.ot.moduloModelo || null,
+          estadoAgenda: 'tentativo',
+          notas: null,
+          titulo: null,
+        });
+      }
     }
-  }, [ingenieros, createEntry]);
+  }, [ingenieros, entries, createEntry, updateEntry]);
 
   const handleKeyDelete = useCallback(() => {
     const cell = selectedCellRef.current;
@@ -254,29 +275,51 @@ export const AgendaPage: FC = () => {
     const targetIngeniero = ingenieros.find(i => i.id === targetIngenieroId);
     if (!targetIngeniero) return;
 
-    // ── Pending OT(s) → create entries for all selected ──
+    // ── Resize handle → extend fechaFin/quarterEnd ──
+    if (activeId.startsWith('resize:')) {
+      const [, srcIngId, srcFecha, srcQStr] = activeId.split(':');
+      const srcQuarter = parseInt(srcQStr) as 1 | 2 | 3 | 4;
+      const entriesToResize = findEntriesAtCell(entries, srcIngId, srcFecha, srcQuarter);
+      for (const entry of entriesToResize) {
+        if (targetFecha < entry.fechaInicio) continue; // can't resize before start
+        updateEntry(entry.id, { fechaFin: targetFecha, quarterEnd: targetQuarter });
+      }
+      return;
+    }
+
+    // ── Pending OT(s) → create entries (extend if same OT already assigned) ──
     if (activeId.startsWith('pending:')) {
       const selected = selectedPendingOTsRef.current;
       const otsToAssign = pendingOTs.filter(o => selected.has(o.otNumber));
       if (otsToAssign.length === 0) return;
 
       for (const ot of otsToAssign) {
-        createEntry({
-          fechaInicio: targetFecha,
-          fechaFin: targetFecha,
-          quarterStart: targetQuarter,
-          quarterEnd: targetQuarter,
-          ingenieroId: targetIngenieroId,
-          ingenieroNombre: targetIngeniero.nombre,
-          otNumber: ot.otNumber,
-          clienteNombre: ot.razonSocial,
-          tipoServicio: ot.tipoServicio,
-          sistemaNombre: ot.sistema || null,
-          establecimientoNombre: null,
-          estadoAgenda: 'tentativo',
-          notas: null,
-          titulo: null,
-        });
+        const existing = entries.find(e => e.otNumber === ot.otNumber && e.ingenieroId === targetIngenieroId);
+        if (existing) {
+          const newEnd = targetFecha > existing.fechaFin ? targetFecha : existing.fechaFin;
+          updateEntry(existing.id, {
+            fechaFin: newEnd,
+            quarterEnd: newEnd === targetFecha ? targetQuarter : existing.quarterEnd,
+          });
+        } else {
+          createEntry({
+            fechaInicio: targetFecha,
+            fechaFin: targetFecha,
+            quarterStart: targetQuarter,
+            quarterEnd: targetQuarter,
+            ingenieroId: targetIngenieroId,
+            ingenieroNombre: targetIngeniero.nombre,
+            otNumber: ot.otNumber,
+            clienteNombre: ot.razonSocial,
+            tipoServicio: ot.tipoServicio,
+            sistemaNombre: ot.sistema || null,
+            establecimientoNombre: null,
+            equipoModelo: ot.moduloModelo || null,
+            estadoAgenda: 'tentativo',
+            notas: null,
+            titulo: null,
+          });
+        }
       }
       setSelectedPendingOTs(new Set());
       return;

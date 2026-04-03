@@ -46,12 +46,24 @@ export default function AgendaEntryCard({ entry, showEngineer }: Props) {
         </Link>
         <p className="text-xs text-slate-800 font-medium mt-0.5">{entry.clienteNombre}</p>
       </div>
-      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+      <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
         {entry.tipoServicio && <span>{entry.tipoServicio}</span>}
         {entry.sistemaNombre && (
           <>
             <span className="text-slate-300">·</span>
             <span>{entry.sistemaNombre}</span>
+          </>
+        )}
+        {entry.equipoModelo && (
+          <>
+            <span className="text-slate-300">·</span>
+            <span>{entry.equipoModelo}</span>
+          </>
+        )}
+        {entry.equipoAgsId && (
+          <>
+            <span className="text-slate-300">·</span>
+            <span className="font-mono text-[10px]">{entry.equipoAgsId}</span>
           </>
         )}
       </div>

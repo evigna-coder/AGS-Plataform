@@ -622,6 +622,8 @@ function parseAgendaEntry(id: string, data: Record<string, unknown>): AgendaEntr
     tipoServicio: (data.tipoServicio as string) ?? '',
     sistemaNombre: (data.sistemaNombre as string) ?? null,
     establecimientoNombre: (data.establecimientoNombre as string) ?? null,
+    equipoModelo: (data.equipoModelo as string) ?? null,
+    equipoAgsId: (data.equipoAgsId as string) ?? null,
     estadoAgenda: (data.estadoAgenda as AgendaEntry['estadoAgenda']) ?? 'pendiente',
     notas: (data.notas as string) ?? null,
     titulo: (data.titulo as string) ?? null,
