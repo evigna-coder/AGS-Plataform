@@ -2319,6 +2319,21 @@ export interface GastoImportacion {
   comprobante?: string | null;
 }
 
+export interface ItemImportacion {
+  id: string;                                    // uuid local, not FK to another collection
+  itemOCId: string;                              // ItemOC.id de origen
+  articuloId?: string | null;                    // desnormalizado de ItemOC.articuloId
+  articuloCodigo?: string | null;                // desnormalizado de ItemOC.articuloCodigo
+  descripcion: string;                           // ItemOC.descripcion
+  cantidadPedida: number;                        // cantidad solicitada en este embarque
+  cantidadRecibida?: number | null;              // se completa al ingresar al stock
+  unidadMedida: string;
+  precioUnitario?: number | null;                // ItemOC.precioUnitario
+  moneda?: 'ARS' | 'USD' | 'EUR' | null;        // ItemOC.moneda
+  costoUnitarioConGastos?: number | null;        // calculado al ingresar stock
+  requerimientoId?: string | null;               // ItemOC.requerimientoId para cierre automático
+}
+
 export interface Importacion {
   id: string;
   numero: string; // IMP-0001
@@ -2352,6 +2367,11 @@ export interface Importacion {
   costoTotalARS?: number | null;
   // Documentos
   documentos: DocumentoImportacion[];
+  // Recepción
+  numeroGuia?: string | null;          // número de guía aérea/marítima
+  items?: ItemImportacion[] | null;    // ítems de este embarque (subconjunto de la OC)
+  fechaRecepcion?: string | null;      // ISO string — obligatoria para transición a 'recibido'
+  stockIngresado?: boolean | null;     // true cuando el alta de stock ya fue ejecutada
   // Audit
   notas?: string | null;
   createdAt: string;
