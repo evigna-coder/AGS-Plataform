@@ -202,7 +202,7 @@ export const useOTManagement = (
       if (!currentUser?.uid) return;
       const [firma, ingeniero] = await Promise.all([
         firebase.getUserFirma(currentUser.uid),
-        firebase.getIngenieroByUsuarioId(currentUser.uid),
+        currentUser.email ? firebase.getIngenieroByEmail(currentUser.email) : Promise.resolve(null),
       ]);
       if (firma) {
         setSignatureEngineer(firma.firmaBase64);

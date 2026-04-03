@@ -389,9 +389,9 @@ export class FirebaseService {
     } catch { return null; }
   }
 
-  async getIngenieroByUsuarioId(usuarioId: string): Promise<{ id: string; nombre: string } | null> {
+  async getIngenieroByEmail(email: string): Promise<{ id: string; nombre: string } | null> {
     try {
-      const q = query(collection(db, 'ingenieros'), where('usuarioId', '==', usuarioId), where('activo', '==', true));
+      const q = query(collection(db, 'ingenieros'), where('email', '==', email), where('activo', '==', true));
       const snap = await getDocs(q);
       if (snap.empty) return null;
       const d = snap.docs[0];
