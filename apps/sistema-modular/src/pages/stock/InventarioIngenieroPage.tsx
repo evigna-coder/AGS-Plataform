@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CrearRemitoDesdeInventarioModal } from '../../components/stock/CrearRemitoDesdeInventarioModal';
+import { InventarioItemRow } from './InventarioItemRow';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useInventarioIngeniero, type InventarioItem } from '../../hooks/useInventarioIngeniero';
+import { posicionesStockService } from '../../services/stockService';
+import type { PosicionStock } from '@ags/shared';
 
 export const InventarioIngenieroPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,8 +17,15 @@ export const InventarioIngenieroPage = () => {
   const {
     ingeniero, ingenieros, clientes, unidades,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
+    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir, handleReponer,
   } = useInventarioIngeniero(id);
+
+  const [depositos, setDepositos] = useState<PosicionStock[]>([]);
+  useEffect(() => {
+    posicionesStockService.getAll(true)
+      .then(all => setDepositos(all.filter(p => p.codigo !== 'RESERVAS' && p.tipo !== 'reserva')))
+      .catch(() => setDepositos([]));
+  }, []);
 
   const [tab, setTab] = useState<'temporales' | 'permanentes'>('temporales');
   const [actionModal, setActionModal] = useState<{ item: InventarioItem; action: 'cliente' | 'transferir' } | null>(null);
@@ -110,8 +120,10 @@ export const InventarioIngenieroPage = () => {
           <Card compact>
             <div className="space-y-1">
               {visibleItems.map(item => (
-                <ItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                <InventarioItemRow key={`${item.asignacionId}-${item.id}`} item={item} saving={saving}
+                  depositos={depositos}
                   onDevolver={handleDevolver} onConsumir={handleConsumir}
+                  onReponer={handleReponer}
                   onReasignarCliente={() => { setActionModal({ item, action: 'cliente' }); setActionValue(item.clienteId || ''); }}
                   onTransferir={() => { setActionModal({ item, action: 'transferir' }); setActionValue(''); }}
                 />
@@ -135,7 +147,7 @@ export const InventarioIngenieroPage = () => {
       {/* Action Modal */}
       <Modal open={!!actionModal} onClose={() => { setActionModal(null); setActionValue(''); }}
         title={actionModal?.action === 'cliente' ? 'Reasignar cliente' : 'Transferir a IST'}
-        subtitle={actionModal ? `${getItemCodigo(actionModal.item)} — ${getItemDesc(actionModal.item)}` : ''}
+        subtitle={actionModal ? `${actionModal.item.articuloCodigo ?? actionModal.item.minikitCodigo ?? ''} — ${actionModal.item.articuloDescripcion ?? actionModal.item.instrumentoNombre ?? ''}` : ''}
         maxWidth="sm"
         footer={
           <div className="flex justify-end gap-2">
@@ -161,58 +173,3 @@ export const InventarioIngenieroPage = () => {
     </div>
   );
 };
-
-// ── Item row with actions ──
-
-const ItemRow = ({ item, saving, onDevolver, onConsumir, onReasignarCliente, onTransferir }: {
-  item: InventarioItem; saving: boolean;
-  onDevolver: (item: InventarioItem) => void;
-  onConsumir: (item: InventarioItem) => void;
-  onReasignarCliente: () => void;
-  onTransferir: () => void;
-}) => {
-  const codigo = getItemCodigo(item);
-  const desc = getItemDesc(item);
-  const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
-  const canAct = remaining > 0;
-
-  return (
-    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span className="font-mono text-[11px] text-teal-700 font-semibold shrink-0">{codigo}</span>
-        <span className="text-xs text-slate-700 truncate">{desc}</span>
-        <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded shrink-0">{item.tipo}</span>
-        {item.permanente && <span className="text-[10px] bg-purple-50 text-purple-700 px-1 py-0.5 rounded shrink-0">Perm</span>}
-        {item.clienteNombre && <span className="text-[10px] text-slate-400 shrink-0">→ {item.clienteNombre}</span>}
-        <Link to={`/stock/asignaciones/${item.asignacionId}`} className="text-teal-500 hover:underline font-mono text-[10px] shrink-0 ml-auto">
-          {item.asignacionNumero}
-        </Link>
-      </div>
-      {canAct && (
-        <div className="flex gap-1 shrink-0 ml-3">
-          <ActionBtn label="Devolver" onClick={() => onDevolver(item)} disabled={saving} />
-          {!item.permanente && <ActionBtn label="Consumir" onClick={() => onConsumir(item)} disabled={saving} />}
-          <ActionBtn label="Cliente" onClick={onReasignarCliente} disabled={saving} />
-          <ActionBtn label="Transferir" onClick={onTransferir} disabled={saving} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-const ActionBtn = ({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) => (
-  <button onClick={onClick} disabled={disabled}
-    className="px-2 py-0.5 text-[10px] font-medium rounded border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 transition-colors">
-    {label}
-  </button>
-);
-
-// ── Helpers ──
-
-function getItemCodigo(item: InventarioItem): string {
-  return item.articuloCodigo || item.minikitCodigo || item.loanerCodigo || item.vehiculoPatente || '';
-}
-
-function getItemDesc(item: InventarioItem): string {
-  return item.articuloDescripcion || item.instrumentoNombre || item.dispositivoDescripcion || item.minikitCodigo || '';
-}

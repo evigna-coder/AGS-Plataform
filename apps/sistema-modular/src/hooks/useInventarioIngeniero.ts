@@ -3,6 +3,7 @@ import {
   ingenierosService, asignacionesService, unidadesService, clientesService,
   instrumentosService, dispositivosService, vehiculosService, minikitsService,
 } from '../services/firebaseService';
+import { movimientosService } from '../services/stockService';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
 
 export interface InventarioItem extends ItemAsignacion {
@@ -140,9 +141,46 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
     finally { setSaving(false); }
   };
 
+  // ── Reponer minikit desde depósito: crea MovimientoStock tipo 'transferencia' ──
+  const handleReponer = useCallback(async (
+    item: InventarioItem,
+    cantidad: number,
+    depotPosicionId: string,
+    depotPosicionNombre: string,
+  ): Promise<boolean> => {
+    if (cantidad <= 0) {
+      console.warn('[handleReponer] cantidad must be > 0');
+      return false;
+    }
+    try {
+      await movimientosService.create({
+        tipo: 'transferencia',
+        unidadId: item.unidadId ?? '',
+        articuloId: item.articuloId ?? '',
+        articuloCodigo: item.articuloCodigo ?? '',
+        articuloDescripcion: item.articuloDescripcion ?? '',
+        cantidad,
+        origenTipo: 'posicion',
+        origenId: depotPosicionId,
+        origenNombre: depotPosicionNombre,
+        destinoTipo: 'minikit',
+        destinoId: item.minikitId ?? '',
+        destinoNombre: item.minikitCodigo ?? 'Minikit',
+        remitoId: null,
+        otNumber: null,
+        motivo: `Reposición de minikit: ${cantidad} unidades de ${item.articuloCodigo ?? item.articuloDescripcion}`,
+        creadoPor: 'Admin',
+      });
+      return true;
+    } catch (err) {
+      console.error('[useInventarioIngeniero] handleReponer:', err);
+      return false;
+    }
+  }, []);
+
   return {
     ingeniero, ingenieros, clientes, unidades,
     loading, saving, allItems, temporales, permanentes,
-    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir,
+    handleDevolver, handleConsumir, handleReasignarCliente, handleTransferir, handleReponer,
   };
 }
