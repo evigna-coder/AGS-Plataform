@@ -1,6 +1,19 @@
-import { collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
 import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+
+/** Resolve a sistema's agsVisibleId (cached per-process). */
+const _agsIdCache = new Map<string, string | null>();
+async function _resolveAgsId(sistemaId: string | undefined | null): Promise<string | null> {
+  if (!sistemaId) return null;
+  if (_agsIdCache.has(sistemaId)) return _agsIdCache.get(sistemaId)!;
+  try {
+    const snap = await getDoc(doc(db, 'sistemas', sistemaId));
+    const agsId = snap.exists() ? (snap.data().agsVisibleId ?? null) : null;
+    _agsIdCache.set(sistemaId, agsId);
+    return agsId;
+  } catch { return null; }
+}
 
 // ── Agenda Service ──
 
@@ -104,6 +117,8 @@ export const agendaService = {
     razonSocial: string;
     tipoServicio: string;
     sistema?: string;
+    moduloModelo?: string;
+    sistemaId?: string | null;
   }): Promise<string | null> {
     if (!ot.ingenieroAsignadoId || !ot.fechaServicioAprox) return null;
 
@@ -111,6 +126,8 @@ export const agendaService = {
     const existing = await this.getByOtNumber(ot.otNumber);
     const active = existing.filter(e => e.estadoAgenda !== 'cancelado');
     if (active.length > 0) return active[0].id;
+
+    const equipoAgsId = await _resolveAgsId(ot.sistemaId);
 
     return this.create({
       fechaInicio: ot.fechaServicioAprox,
@@ -124,6 +141,8 @@ export const agendaService = {
       tipoServicio: ot.tipoServicio,
       sistemaNombre: ot.sistema || null,
       establecimientoNombre: null,
+      equipoModelo: ot.moduloModelo || null,
+      equipoAgsId,
       estadoAgenda: 'tentativo',
       notas: null,
       titulo: null,

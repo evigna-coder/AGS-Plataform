@@ -1104,6 +1104,8 @@ export interface TableCatalogColumn {
   width?: number | null;
   /** Alineación del texto en la columna. Por defecto 'center'. */
   align?: 'left' | 'center' | 'right' | null;
+  /** Cuando es true, la columna actúa como etiqueta fija: las filas con valor vacío muestran celda en blanco. */
+  isLabelColumn?: boolean;
 }
 
 export interface TableCatalogRow {

@@ -424,8 +424,10 @@ export const CatalogTableView: React.FC<Props> = ({
   const renderTableCell = (col: TableCatalogColumn, rowId: string): React.ReactNode => {
     const rawValue = selection.filledData[rowId]?.[col.key] ?? '';
 
-    // ── Primera columna vacía en tabla multi-columna → celda de etiqueta en blanco ──
-    if (table.columns.length >= 2 && table.columns[0]?.key === col.key) {
+    // ── Columna de etiqueta fija: celdas sin valor de template quedan en blanco ──
+    // Solo cuando el admin marcó isLabelColumn=true en esta columna, y no es fila extra
+    const isExtraRow = rowId.startsWith('extra_');
+    if (!isExtraRow && col.isLabelColumn) {
       const labelVal = String(table.templateRows.find(r => r.rowId === rowId)?.cells[col.key] ?? '').trim();
       if (!labelVal) return <span />;
     }

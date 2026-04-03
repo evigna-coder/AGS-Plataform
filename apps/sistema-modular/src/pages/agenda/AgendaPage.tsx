@@ -17,6 +17,7 @@ const snapToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) =
   };
 };
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
+import { sistemasService } from '../../services/firebaseService';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
 import { AgendaHeader } from '../../components/agenda/AgendaHeader';
@@ -24,6 +25,21 @@ import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
+
+/** In-memory cache for sistemaId → agsVisibleId lookups within a session. */
+const agsIdCache = new Map<string, string | null>();
+async function resolveEquipoAgsId(sistemaId: string | undefined | null): Promise<string | null> {
+  if (!sistemaId) return null;
+  if (agsIdCache.has(sistemaId)) return agsIdCache.get(sistemaId)!;
+  try {
+    const sistema = await sistemasService.getById(sistemaId);
+    const agsId = sistema?.agsVisibleId ?? null;
+    agsIdCache.set(sistemaId, agsId);
+    return agsId;
+  } catch {
+    return null;
+  }
+}
 
 /** Advance a date by `n` weekdays (skip weekends). */
 function addWeekdays(date: Date, n: number): Date {
@@ -142,19 +158,23 @@ export const AgendaPage: FC = () => {
           quarterEnd: newEnd === fechaFin ? quarterEnd : existing.quarterEnd,
         });
       } else {
-        createEntry({
-          fechaInicio, fechaFin, quarterStart, quarterEnd,
-          ingenieroId: cell.ingenieroId,
-          ingenieroNombre: ingeniero.nombre,
-          otNumber: cb.ot.otNumber,
-          clienteNombre: cb.ot.razonSocial,
-          tipoServicio: cb.ot.tipoServicio,
-          sistemaNombre: cb.ot.sistema || null,
-          establecimientoNombre: null,
-          equipoModelo: cb.ot.moduloModelo || null,
-          estadoAgenda: 'tentativo',
-          notas: null,
-          titulo: null,
+        const ot = cb.ot;
+        resolveEquipoAgsId(ot.sistemaId).then(equipoAgsId => {
+          createEntry({
+            fechaInicio, fechaFin, quarterStart, quarterEnd,
+            ingenieroId: cell.ingenieroId,
+            ingenieroNombre: ingeniero.nombre,
+            otNumber: ot.otNumber,
+            clienteNombre: ot.razonSocial,
+            tipoServicio: ot.tipoServicio,
+            sistemaNombre: ot.sistema || null,
+            establecimientoNombre: null,
+            equipoModelo: ot.moduloModelo || null,
+            equipoAgsId,
+            estadoAgenda: 'tentativo',
+            notas: null,
+            titulo: null,
+          });
         });
       }
     }
@@ -302,22 +322,25 @@ export const AgendaPage: FC = () => {
             quarterEnd: newEnd === targetFecha ? targetQuarter : existing.quarterEnd,
           });
         } else {
-          createEntry({
-            fechaInicio: targetFecha,
-            fechaFin: targetFecha,
-            quarterStart: targetQuarter,
-            quarterEnd: targetQuarter,
-            ingenieroId: targetIngenieroId,
-            ingenieroNombre: targetIngeniero.nombre,
-            otNumber: ot.otNumber,
-            clienteNombre: ot.razonSocial,
-            tipoServicio: ot.tipoServicio,
-            sistemaNombre: ot.sistema || null,
-            establecimientoNombre: null,
-            equipoModelo: ot.moduloModelo || null,
-            estadoAgenda: 'tentativo',
-            notas: null,
-            titulo: null,
+          resolveEquipoAgsId(ot.sistemaId).then(equipoAgsId => {
+            createEntry({
+              fechaInicio: targetFecha,
+              fechaFin: targetFecha,
+              quarterStart: targetQuarter,
+              quarterEnd: targetQuarter,
+              ingenieroId: targetIngenieroId,
+              ingenieroNombre: targetIngeniero.nombre,
+              otNumber: ot.otNumber,
+              clienteNombre: ot.razonSocial,
+              tipoServicio: ot.tipoServicio,
+              sistemaNombre: ot.sistema || null,
+              establecimientoNombre: null,
+              equipoModelo: ot.moduloModelo || null,
+              equipoAgsId,
+              estadoAgenda: 'tentativo',
+              notas: null,
+              titulo: null,
+            });
           });
         }
       }

@@ -61,6 +61,10 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
             <input type="checkbox" checked={d.required} onChange={e => setD({ ...d, required: e.target.checked })} />
             Obligatorio
           </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="Las filas sin valor de template quedan en blanco (sin input). Útil para columnas de etiqueta fija.">
+            <input type="checkbox" checked={!!d.isLabelColumn} onChange={e => setD({ ...d, isLabelColumn: e.target.checked || undefined })} />
+            Etiqueta fija
+          </label>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Ancho (mm)</label>
             <input
