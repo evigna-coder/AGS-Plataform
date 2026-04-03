@@ -31,11 +31,11 @@ Plans:
 
 **Requirements:** COMEX-01, COMEX-02, COMEX-03, COMEX-04, COMEX-05, COMEX-06, COMEX-07, COMEX-08
 
-**Plans:** 1/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
-- [ ] 02-01-PLAN.md — Type extensions: ItemImportacion + Importacion fields + dateFields fix + calcularProrrateo.ts
-- [ ] 02-02-PLAN.md — OCDetail "Crear Importación" button + ImportacionEditor fromOC prefill with item selector
+- [x] 02-01-PLAN.md — Type extensions: ItemImportacion + Importacion fields + dateFields fix + calcularProrrateo.ts
+- [x] 02-02-PLAN.md — OCDetail "Crear Importación" button + ImportacionEditor fromOC prefill with item selector
 - [x] 02-03-PLAN.md — ImportacionesList: migrate filters to useUrlFilters + ETA vencida badge
 - [ ] 02-04-PLAN.md — ImportacionStatusTransition field validation per state + numeroGuia in aduana + ImportacionItemsSection
 - [ ] 02-05-PLAN.md — ImportacionGastosSection prorrateo preview with calcularCostoConGastos
