@@ -46,7 +46,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
   const selCount = selectedOTs.size;
 
   return (
-    <div className="shrink-0 bg-white border border-slate-200 rounded-lg flex flex-col overflow-hidden" style={{ width }}>
+    <div className="h-full bg-white border border-slate-200 rounded-lg flex flex-col overflow-hidden" style={{ width }}>
       <div className="px-3 py-2 border-b border-slate-200">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-slate-700">A programar</h3>
@@ -57,6 +57,11 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
           )}
         </div>
         <p className="text-[10px] text-slate-400 mt-0.5">{pendingOTs.length} OTs sin asignar</p>
+        {selCount > 0 && (
+          <p className="text-[9px] text-teal-600 mt-1">
+            Arrastrá a la celda destino, o presioná <kbd className="bg-slate-100 px-1 rounded text-slate-600">Ctrl+V</kbd> en la celda seleccionada
+          </p>
+        )}
 
         {/* Estado filter pills */}
         {Object.keys(estadoCounts).length > 1 && (

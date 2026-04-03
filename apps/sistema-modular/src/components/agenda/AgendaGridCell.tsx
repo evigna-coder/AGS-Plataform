@@ -104,6 +104,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         ${hasEntry && isStart ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
       style={{ height: rowHeight }}
+      {...(isSelected ? { 'data-agenda-selected': 'true' } : {})}
       onClick={(e) => onClick?.(e)}
       onContextMenu={onContextMenu}
       title={hasEntry ? `${entryOtNumber ? `OT-${entryOtNumber}` : entryTitulo || 'Tarea'}\n${entryClienteNombre || ''}${entryTipoServicio ? `\n${entryTipoServicio}` : ''}${entrySistemaNombre ? `\n${entrySistemaNombre}` : ''}\n${ESTADO_AGENDA_LABELS[entryEstado!]}${entryNotas ? `\n${entryNotas}` : ''}${hasMultiple ? `\n(+${entryCount - 1} más)` : ''}` : undefined}
@@ -115,6 +116,9 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
         >
           {entryOtNumber || entryTitulo || '—'}
         </span>
+      )}
+      {isOver && !hasEntry && (
+        <span className="absolute inset-0 flex items-center justify-center text-teal-500 text-[10px] font-bold pointer-events-none select-none">+</span>
       )}
       {hasMultiple && !compact && (
         <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />

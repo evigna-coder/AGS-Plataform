@@ -81,6 +81,26 @@ export const ordenesTrabajoService = {
     return nextItemNumber;
   },
 
+  /** Obtener solo OTs activas/pendientes (para agenda sidebar). Mucho más rápido que getAll(). */
+  async getPending(): Promise<WorkOrder[]> {
+    const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
+    const [byEstado, byBorrador] = await Promise.all([
+      getDocs(query(collection(db, 'reportes'), where('estadoAdmin', 'in', PENDING_ESTADOS))),
+      getDocs(query(collection(db, 'reportes'), where('status', '==', 'BORRADOR'))),
+    ]);
+    const seen = new Set<string>();
+    const results: WorkOrder[] = [];
+    for (const snap of [byEstado, byBorrador]) {
+      for (const d of snap.docs) {
+        if (!seen.has(d.id)) {
+          seen.add(d.id);
+          results.push({ otNumber: d.id, ...d.data(), updatedAt: d.data().updatedAt || new Date().toISOString() } as WorkOrder);
+        }
+      }
+    }
+    return results;
+  },
+
   // Obtener todas las OTs (con filtros opcionales)
   async getAll(filters?: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] }) {
     console.log('📥 Cargando órdenes de trabajo desde Firestore...');

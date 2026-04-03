@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import type { TableCatalogColumn, TableCatalogRow } from '@ags/shared';
+import type { TableCatalogColumn, TableCatalogRow, TableHeaderField } from '@ags/shared';
 
 type RowMode = 'data' | 'title' | 'selector';
 
@@ -10,12 +10,14 @@ interface Props {
   columns: TableCatalogColumn[];
   totalRows: number;
   rowIndex: number;
+  /** Campos de encabezado de la tabla (para configurar visibilidad condicional) */
+  headerFields?: TableHeaderField[];
   onSave: (row: TableCatalogRow) => void;
   onDelete?: () => void;
   onCancel: () => void;
 }
 
-export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDelete, onCancel }: Props) => {
+export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields = [], onSave, onDelete, onCancel }: Props) => {
   const [cells, setCells] = useState<Record<string, string | number | boolean | null>>(row.cells);
   const initialMode: RowMode = row.isSelector ? 'selector' : row.isTitle ? 'title' : 'data';
   const [mode, setMode] = useState<RowMode>(initialMode);
@@ -36,6 +38,16 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
   };
   const [columnSpans, setColumnSpans] = useState<Record<string, number>>(initColumnSpans);
 
+  // Variable binding
+  const [variable, setVariable] = useState(row.variable ?? '');
+
+  // Visibilidad condicional por header field
+  const [visFieldId, setVisFieldId] = useState(row.visibleWhenSelector?.headerFieldId ?? '');
+  const [visSelValues, setVisSelValues] = useState<string[]>(row.visibleWhenSelector?.values ?? []);
+
+  const toggleVisValue = (val: string) =>
+    setVisSelValues(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+
   const handleChange = (key: string, value: string | boolean | null) => {
     setCells(prev => ({ ...prev, [key]: value === '' ? null : value }));
   };
@@ -54,10 +66,16 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
         if (val > 1) cleanSpans[key] = val;
       }
       const hasSpans = Object.keys(cleanSpans).length > 0;
+      // Visibilidad condicional
+      const visWhen = visFieldId && visSelValues.length > 0
+        ? { headerFieldId: visFieldId, values: visSelValues }
+        : null;
       onSave({
         ...row, cells, isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
         rowSpan: undefined, spanColumns: undefined,
         columnSpans: hasSpans ? cleanSpans : undefined,
+        visibleWhenSelector: visWhen,
+        variable: variable || null,
       });
     }
   };
@@ -181,13 +199,48 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
         </p>
       ) : (
         <div className="space-y-3">
+          {/* Variable binding */}
+          <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 space-y-1.5">
+            <p className="text-[10px] font-bold text-violet-700 uppercase">Variable del reporte</p>
+            <p className="text-[10px] text-violet-600">Cuando se asigna una variable, la columna de valor se auto-rellena con datos del reporte (cliente, OT, ingeniero, etc.).</p>
+            <select
+              value={variable}
+              onChange={e => setVariable(e.target.value)}
+              className="w-full border border-violet-300 rounded-lg px-2 py-1.5 text-sm bg-white"
+            >
+              <option value="">Sin variable (valor manual)</option>
+              <optgroup label="Cliente">
+                <option value="cliente.razonSocial">Razón social</option>
+                <option value="cliente.direccionCompleta">Dirección completa</option>
+                <option value="cliente.sector">Sector / Área</option>
+                <option value="cliente.contacto">Contacto</option>
+              </optgroup>
+              <optgroup label="Orden de Trabajo">
+                <option value="ot.numero">Número de OT</option>
+              </optgroup>
+              <optgroup label="Ingeniero">
+                <option value="ingeniero.nombre">Nombre y apellido</option>
+              </optgroup>
+              <optgroup label="AGS ANALITICA">
+                <option value="ags.empresa">Razón social</option>
+                <option value="ags.direccion">Dirección</option>
+                <option value="ags.telefono">Teléfono</option>
+                <option value="ags.email">Email</option>
+                <option value="ags.web">Sitio web</option>
+              </optgroup>
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            {columns.map(col => (
+            {columns.map((col, colIdx) => (
               <div key={col.key}>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
                   {col.label}
                   {col.required ? ' *' : ''}
                   {col.unit ? ` (${col.unit})` : ''}
+                  {colIdx === 0 && columns.length >= 2 && (
+                    <span className="ml-1 text-[9px] font-normal text-slate-400 normal-case">(vacío = sin etiqueta)</span>
+                  )}
                 </label>
                 {col.type === 'pass_fail' ? (
                   <select
@@ -234,6 +287,46 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, onSave, onDele
                 )}
               </div>
             ))}
+          </div>
+
+          {/* Visibilidad condicional por header field */}
+          <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 space-y-2">
+            <p className="text-[10px] font-bold text-teal-700 uppercase">Visible solo si...</p>
+            {headerFields.length === 0 ? (
+              <p className="text-[10px] text-teal-600 italic">Primero agregá un <strong>campo de encabezado</strong> a la tabla (pestaña "Encabezado") para habilitar visibilidad condicional.</p>
+            ) : (
+              <>
+                <p className="text-[10px] text-teal-600">Esta fila solo se muestra cuando el campo de encabezado elegido tiene alguno de los valores indicados.</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Campo de encabezado</label>
+                    <select
+                      value={visFieldId}
+                      onChange={e => { setVisFieldId(e.target.value); setVisSelValues([]); }}
+                      className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                    >
+                      <option value="">Sin condición (siempre visible)</option>
+                      {headerFields.map(hf => (
+                        <option key={hf.fieldId} value={hf.fieldId}>{hf.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {visFieldId && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Visible cuando el valor es...</label>
+                      <div className="flex flex-wrap gap-2">
+                        {(headerFields.find(h => h.fieldId === visFieldId)?.options ?? []).map(opt => (
+                          <label key={opt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium cursor-pointer transition-colors ${visSelValues.includes(opt) ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
+                            <input type="checkbox" checked={visSelValues.includes(opt)} onChange={() => toggleVisValue(opt)} className="sr-only" />
+                            {opt}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Column-level span config */}

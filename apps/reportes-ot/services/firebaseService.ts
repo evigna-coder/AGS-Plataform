@@ -232,6 +232,37 @@ export class FirebaseService {
   }
 
   /**
+   * Busca el sector del sistema en ordenes_trabajo (fallback para OTs sin sector en reportes).
+   */
+  async getSectorFromOrdenesTrabajo(otNumber: string): Promise<string> {
+    try {
+      const q = query(collection(db, 'ordenes_trabajo'), where('otNumber', '==', otNumber));
+      const snap = await getDocs(q);
+      if (snap.empty) return '';
+      const data = snap.docs[0].data();
+      if (data.sector) return data.sector as string;
+      // Si tiene sistemaId, buscar el sector en el sistema
+      if (data.sistemaId) {
+        const sistemaSnap = await getDoc(doc(db, 'sistemas', data.sistemaId));
+        if (sistemaSnap.exists()) return sistemaSnap.data().sector || '';
+      }
+      return '';
+    } catch { return ''; }
+  }
+
+  /**
+   * Obtiene una tabla del catálogo por ID, sin filtrar por status (incluye drafts).
+   * Usado como fallback para resolver variables en snapshots obsoletos.
+   */
+  async getTableById(id: string): Promise<TableCatalogEntry | null> {
+    try {
+      const snap = await getDoc(doc(db, 'tableCatalog', id));
+      if (!snap.exists()) return null;
+      return { id: snap.id, ...snap.data() } as TableCatalogEntry;
+    } catch { return null; }
+  }
+
+  /**
    * Obtiene todos los proyectos de tablas (para resolver headerTitle/footerQF a nivel proyecto).
    */
   async getProjects(): Promise<{ id: string; headerTitle?: string | null; footerQF?: string | null }[]> {
@@ -496,8 +527,8 @@ export class FirebaseService {
       descripcion: data.accionesTomar,
       estado: 'nuevo',
       areaActual: 'admin_soporte',
-      asignadoA: '0svj4gY3hcNHtgcbtJv47fUew192',
-      asignadoNombre: 'Cynthia Mele',
+      asignadoA: 'pHDkcnzLEdX93APkPcf3ebqyOJL2',
+      asignadoNombre: 'Esteban Vigna',
       derivadoPor: null,
       prioridad: 'urgente',
       clienteId: null,

@@ -50,7 +50,7 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
     const s = sistemasFiltrados.find(si => si.id === id);
     if (!s) return;
     dirty();
-    setFields({ sistemaId: id, sistemaNombre: s.nombre, codigoInternoCliente: s.codigoInternoCliente, moduloId: undefined });
+    setFields({ sistemaId: id, sistemaNombre: s.nombre, codigoInternoCliente: s.codigoInternoCliente, sector: s.sector || '', moduloId: undefined });
     markInteracted();
   }, [sistemasFiltrados, setFields, markInteracted]);
 

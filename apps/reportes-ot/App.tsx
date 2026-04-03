@@ -181,6 +181,20 @@ const App: React.FC = () => {
               logoSrc: '/logo-ags-cropped.svg',
             }}
             markUserInteracted={app.markUserInteracted}
+            variables={{
+              'cliente.razonSocial': app.razonSocial ?? '',
+              'cliente.direccionCompleta': fullDireccion ?? '',
+              'cliente.contacto': app.contacto ?? '',
+              'cliente.sector': app.sector ?? '',
+              'ot.numero': app.otNumber ?? '',
+              'ingeniero.nombre': app.aclaracionEspecialista ?? '',
+              'ags.empresa': 'AGS ANALITICA S.A.',
+              'ags.direccion': 'Arenales 605 Piso 15, Vicente López (B1638BRG), Prov. de Buenos Aires',
+              'ags.telefono': 'Tel: (011) 45247 247',
+              'ags.email': 'info@agsanalitica.com',
+              'ags.web': 'www.agsanalitica.com',
+            }}
+            allPublishedTables={app.allPublishedTables}
           />
         ),
       }] : []),
@@ -465,6 +479,20 @@ const App: React.FC = () => {
           logoSrc: '/logo-ags-cropped.svg',
         }}
         markUserInteracted={app.markUserInteracted}
+        variables={{
+          'cliente.razonSocial': app.razonSocial ?? '',
+          'cliente.direccionCompleta': fullDireccion ?? '',
+          'cliente.contacto': app.contacto ?? '',
+          'cliente.sector': app.sector ?? '',
+          'ot.numero': app.otNumber ?? '',
+          'ingeniero.nombre': app.aclaracionEspecialista ?? '',
+          'ags.empresa': 'AGS ANALITICA S.A.',
+          'ags.direccion': 'Arenales 605 Piso 15, Vicente López (B1638BRG), Prov. de Buenos Aires',
+          'ags.telefono': 'Tel: (011) 45247 247',
+          'ags.email': 'info@agsanalitica.com',
+          'ags.web': 'www.agsanalitica.com',
+        }}
+        allPublishedTables={app.allPublishedTables}
       />
 
       {/* Hidden PDF containers */}
@@ -482,7 +510,7 @@ const App: React.FC = () => {
         <>
           <PreviewSection
             otNumber={app.otNumber} razonSocial={app.razonSocial}
-            contacto={app.contacto} fullDireccion={fullDireccion}
+            contacto={app.contacto} sector={app.sector} fullDireccion={fullDireccion}
             sistema={app.sistema} codigoInternoCliente={app.codigoInternoCliente}
             moduloModelo={app.moduloModelo} moduloDescripcion={app.moduloDescripcion} moduloMarca={app.moduloMarca} moduloSerie={app.moduloSerie}
             fechaInicio={app.fechaInicio} fechaFin={app.fechaFin}

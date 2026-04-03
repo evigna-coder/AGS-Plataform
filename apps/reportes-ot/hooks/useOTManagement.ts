@@ -162,6 +162,7 @@ export const useOTManagement = (
     setEsGarantia,
     setRazonSocial,
     setContacto,
+    setSector,
     setDireccion,
     setLocalidad,
     setProvincia,
@@ -242,6 +243,9 @@ export const useOTManagement = (
         setEsGarantia(!!data.esGarantia);
         setRazonSocial(data.razonSocial || '');
         setContacto(data.contacto || '');
+        // Sector: primero del doc reportes, si no existe buscarlo en ordenes_trabajo/sistemas
+        const sectorValue = data.sector || await firebase.getSectorFromOrdenesTrabajo(v);
+        setSector(sectorValue);
         setDireccion(data.direccion || '');
         setLocalidad(data.localidad || '');
         setProvincia(data.provincia || '');
@@ -372,6 +376,7 @@ export const useOTManagement = (
     setEsGarantia(false);
     setRazonSocial('');
     setContacto('');
+    setSector('');
     setDireccion('');
     setLocalidad('');
     setProvincia('');

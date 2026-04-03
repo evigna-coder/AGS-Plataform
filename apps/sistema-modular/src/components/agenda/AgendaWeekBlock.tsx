@@ -1,10 +1,9 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import type { Ingeniero, AgendaEntry, ZoomLevel } from '@ags/shared';
 import { AgendaGridRow } from './AgendaGridRow';
 import type { SelectionRange } from '../../utils/agendaDateUtils';
 import {
   buildWeekdayColumns,
-  buildCellOccupationMap,
   formatDayHeader,
   formatDateKey,
   formatWeekRange,
@@ -62,22 +61,34 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
     return headers;
   }, [columns, borderless]);
 
-  const occupationMaps = useMemo(() => {
-    const maps = new Map<string, ReturnType<typeof buildCellOccupationMap>>();
+  // Stable per-engineer entry arrays — only updates the engineer whose entries changed.
+  // This prevents sibling rows from re-rendering when an unrelated entry changes.
+  const engEntriesRef = useRef(new Map<string, AgendaEntry[]>());
+  const entriesByEngineer = useMemo(() => {
+    const newMap = new Map<string, AgendaEntry[]>();
     for (const ing of ingenieros) {
-      maps.set(ing.id, buildCellOccupationMap(entries, columns, ing.id));
+      const filtered = entries.filter(e => e.ingenieroId === ing.id);
+      const prev = engEntriesRef.current.get(ing.id);
+      // Reuse stable reference if this engineer's entries haven't changed
+      if (prev && prev.length === filtered.length &&
+          filtered.every((e, i) => e.id === prev[i].id && e.updatedAt === prev[i].updatedAt && e.estadoAgenda === prev[i].estadoAgenda)) {
+        newMap.set(ing.id, prev);
+      } else {
+        newMap.set(ing.id, filtered);
+      }
     }
-    return maps;
-  }, [ingenieros, entries, columns]);
+    engEntriesRef.current = newMap;
+    return newMap;
+  }, [ingenieros, entries]);
 
   const weekNum = getISOWeek(weekStart);
 
-  const engineerRows = ingenieros.map(ing => (
+  const engineerRows = useMemo(() => ingenieros.map(ing => (
     <AgendaGridRow
       key={ing.id}
       ingeniero={ing}
       columns={columns}
-      occupation={occupationMaps.get(ing.id) || new Map()}
+      engineerEntries={entriesByEngineer.get(ing.id) || []}
       showText={showText}
       compact={compact}
       selectedCellKey={selectedCellKey}
@@ -88,7 +99,8 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
       onEntryClick={onEntryClick}
       onCellContextMenu={onCellContextMenu}
     />
-  ));
+  )), [ingenieros, columns, entriesByEngineer, showText, compact, selectedCellKey, selectionRange,
+      sizes.row, feriados, onCellClick, onEntryClick, onCellContextMenu]);
 
   // ── BORDERLESS: inside month containers (views 2M, Año) ──
   if (borderless) {

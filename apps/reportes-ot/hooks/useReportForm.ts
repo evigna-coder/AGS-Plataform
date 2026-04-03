@@ -20,6 +20,7 @@ export interface ReportFormState {
   // Cliente
   razonSocial: string;
   contacto: string;
+  sector: string;
   direccion: string;
   localidad: string;
   provincia: string;
@@ -76,6 +77,7 @@ export interface ReportState {
   esGarantia: boolean;
   razonSocial: string;
   contacto: string;
+  sector: string;
   direccion: string;
   localidad: string;
   provincia: string;
@@ -124,6 +126,7 @@ export interface UseReportFormReturn {
     setEsGarantia: (value: boolean) => void;
     setRazonSocial: (value: string) => void;
     setContacto: (value: string) => void;
+    setSector: (value: string) => void;
     setDireccion: (value: string) => void;
     setLocalidad: (value: string) => void;
     setProvincia: (value: string) => void;
@@ -197,6 +200,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [accionesInternaOnly, setAccionesInternaOnly] = useState(true);
   const [articulos, setArticulos] = useState<Part[]>([]);
   const [emailPrincipal, setEmailPrincipal] = useState('');
+  const [sector, setSector] = useState('');
   const [signatureEngineer, setSignatureEngineer] = useState<string | null>(null);
   const [aclaracionEspecialista, setAclaracionEspecialista] = useState('');
   const [signatureClient, setSignatureClient] = useState<string | null>(null);
@@ -227,7 +231,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   // reportState memoizado (incluye protocolSelections para autosave)
   const reportState = useMemo(() => ({
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
-    razonSocial, contacto, direccion, localidad, provincia, sistema,
+    razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
@@ -236,7 +240,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     instrumentosSeleccionados, certificadosIngenieroSeleccionados
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
-    razonSocial, contacto, direccion, localidad, provincia, sistema,
+    razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
@@ -257,6 +261,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     esGarantia,
     razonSocial,
     contacto,
+    sector,
     direccion,
     localidad,
     provincia,
@@ -302,6 +307,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setEsGarantia,
       setRazonSocial,
       setContacto,
+      setSector,
       setDireccion,
       setLocalidad,
       setProvincia,

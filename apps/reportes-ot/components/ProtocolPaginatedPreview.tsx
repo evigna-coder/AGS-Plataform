@@ -10,7 +10,7 @@ const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 const PAGE_PADDING = { top: 6, right: 10, bottom: 10, left: 10 }; // mm
 const HEADER_HEIGHT_MM = 14;
-const FOOTER_HEIGHT_MM = 14;
+const FOOTER_HEIGHT_MM = 18;
 const HEADER_CONTENT_GAP_MM = 8;
 const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - PAGE_PADDING.top - PAGE_PADDING.bottom - HEADER_HEIGHT_MM - HEADER_CONTENT_GAP_MM - FOOTER_HEIGHT_MM;
 const MM_TO_PX = 3.7795;
@@ -58,10 +58,22 @@ function splitChecklistByHeaders(items: any[]): any[][] {
   return groups;
 }
 
+/* ── AGS company constants ── */
+const AGS_VARIABLES: Record<string, string> = {
+  'ags.empresa': 'AGS ANALITICA S.A.',
+  'ags.direccion': 'Arenales 605 Piso 15, Vicente López (B1638BRG), Prov. de Buenos Aires',
+  'ags.telefono': 'Tel: (011) 45247 247',
+  'ags.email': 'info@agsanalitica.com',
+  'ags.web': 'www.agsanalitica.com',
+};
+
 /* ── Types ── */
 interface ProtocolMeta {
   otNumber: string;
   razonSocial: string;
+  clienteContacto: string;
+  clienteDireccion: string;
+  clienteSector: string;
   sistema: string;
   moduloSerie: string;
   codigoInternoCliente: string;
@@ -101,8 +113,8 @@ interface Props {
   aclaracionEspecialista: string;
   fechaInicio: string;
   fechaFin: string;
-  /** Tablas vivas del catálogo para buscar headerTitle/footerQF actualizados (fallback si el snapshot no los tiene) */
-  catalogTables?: { id: string; projectId?: string | null; headerTitle?: string | null; footerQF?: string | null }[];
+  /** Tablas vivas del catálogo para buscar headerTitle/footerQF actualizados y resolver variables en snapshots obsoletos */
+  catalogTables?: { id: string; projectId?: string | null; headerTitle?: string | null; footerQF?: string | null; templateRows?: import('@ags/shared').TableCatalogRow[] }[];
   /** Proyectos del catálogo para resolver headerTitle/footerQF a nivel proyecto */
   catalogProjects?: { id: string; headerTitle?: string | null; footerQF?: string | null }[];
 }
@@ -148,16 +160,19 @@ const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: nu
   return (
     <div style={{ height: `${FOOTER_HEIGHT_MM}mm`, flexShrink: 0 }}>
       <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ paddingTop: '1mm' }}>
-        <div className="relative flex items-end justify-between">
-          <div className="flex items-end">
-            <img src={meta.isoLogoSrc} alt="Certificación ISO 9001" className="h-[12mm] w-auto" style={{ maxHeight: '12mm' }} />
+        <div className="relative flex items-center justify-between" style={{ marginBottom: '1.5mm' }}>
+          <div className="flex items-center">
+            <img src={meta.isoLogoSrc} alt="Certificación ISO 9001" className="h-[10mm] w-auto" style={{ maxHeight: '10mm' }} />
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-end">
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
             <span className="whitespace-nowrap">{qfNumber || 'QF-PRO-001 Rev.01'}</span>
           </div>
-          <div className="flex items-end whitespace-nowrap">
+          <div className="flex items-center whitespace-nowrap">
             Página {pageNum} de {totalPages} | Reporte N° {otNum}
           </div>
+        </div>
+        <div className="text-center text-[8px] text-slate-400 border-t border-slate-100" style={{ paddingTop: '1mm' }}>
+          {AGS_VARIABLES['ags.empresa']} &nbsp;|&nbsp; {AGS_VARIABLES['ags.direccion']} &nbsp;|&nbsp; {AGS_VARIABLES['ags.telefono']} &nbsp;|&nbsp; {AGS_VARIABLES['ags.email']}
         </div>
       </div>
     </div>
@@ -211,6 +226,17 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
 }) => {
   const measureRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<PageDef[]>([]);
+
+  /** Variables del reporte disponibles para auto-rellenar filas con variable binding */
+  const protocolVariables: Record<string, string> = {
+    'cliente.razonSocial': meta.razonSocial ?? '',
+    'cliente.direccionCompleta': meta.clienteDireccion ?? '',
+    'cliente.contacto': meta.clienteContacto ?? '',
+    'cliente.sector': meta.clienteSector ?? '',
+    'ot.numero': meta.otNumber ?? '',
+    'ingeniero.nombre': meta.ingenieroNombre ?? '',
+    ...AGS_VARIABLES,
+  };
 
   const sortedSelections = [...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999));
 
@@ -290,7 +316,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         ) : sel.tableSnapshot.tableType === 'text' ? (
           <CatalogTextView selection={sel} readOnly />
         ) : (
-          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} />
+          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} variables={protocolVariables} liveTemplateRows={catalogTables?.find(t => t.id === sel.tableId)?.templateRows} />
         );
 
         items.push({

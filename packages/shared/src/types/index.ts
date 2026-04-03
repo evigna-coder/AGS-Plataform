@@ -45,6 +45,7 @@ export interface WorkOrder {
   esGarantia: boolean;
   razonSocial: string;
   contacto: string;
+  sector?: string;
   direccion: string;
   localidad: string;
   provincia: string;
@@ -1121,6 +1122,16 @@ export interface TableCatalogRow {
    * Si es > 0: la columna 0 muestra sólo el label, y selectorColumn muestra el dropdown.
    */
   selectorColumn?: number;
+  /**
+   * Visibilidad condicional: solo muestra esta fila cuando el headerField indicado tiene alguno de estos valores.
+   * headerFieldId = fieldId de un TableHeaderField de la tabla; values = opciones que hacen visible esta fila.
+   */
+  visibleWhenSelector?: { headerFieldId: string; values: string[] } | null;
+  /**
+   * Variable del reporte que auto-rellena esta fila (ej. 'cliente.razonSocial').
+   * Cuando está seteada, la columna de valor se resuelve automáticamente desde el contexto del reporte.
+   */
+  variable?: string | null;
   /**
    * @deprecated Usar `columnSpans` para span por columna independiente.
    * Cuántas filas consecutivas (incluyendo esta) abarcan las columnas indicadas en spanColumns.

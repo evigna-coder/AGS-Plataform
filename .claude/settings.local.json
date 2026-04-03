@@ -133,7 +133,8 @@
       "Bash(pnpm dev:*)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
       "Bash(tasklist)",
-      "Bash(taskkill //F //PID 30516)"
+      "Bash(taskkill //F //PID 30516)",
+      "Bash(node --experimental-vm-modules -e ':*)"
     ]
   }
 }

@@ -215,32 +215,15 @@ export const agendaNotasService = {
   },
 
   async upsert(data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }): Promise<string> {
-    // Check if a note already exists for this engineer + date
-    const q = query(
-      collection(db, 'agendaNotas'),
-      where('fecha', '==', data.fecha),
-      where('ingenieroId', '==', data.ingenieroId),
-    );
-    const snap = await getDocs(q);
-    if (snap.docs.length > 0) {
-      // Update existing
-      const existingId = snap.docs[0].id;
-      await updateDoc(doc(db, 'agendaNotas', existingId), {
-        texto: data.texto,
-        ...getUpdateTrace(),
-        updatedAt: Timestamp.now(),
-      });
-      return existingId;
-    }
-    // Create new
-    const payload = deepCleanForFirestore({
+    // Deterministic ID = ingenieroId_fecha → single setDoc (no read required)
+    const docId = `${data.ingenieroId}_${data.fecha}`;
+    const ref = doc(db, 'agendaNotas', docId);
+    await setDoc(ref, deepCleanForFirestore({
       ...data,
-      ...getCreateTrace(),
-      createdAt: Timestamp.now(),
+      ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
-    const ref = await addDoc(collection(db, 'agendaNotas'), payload);
-    return ref.id;
+    }), { merge: true });
+    return docId;
   },
 
   async delete(id: string): Promise<void> {

@@ -68,6 +68,10 @@ interface ProtocolSectionProps {
   };
   // Marker
   markUserInteracted: () => void;
+  /** Variables del reporte para auto-rellenar filas con variable binding */
+  variables?: Record<string, string>;
+  /** Catálogo vivo completo — para resolver variables en snapshots obsoletos */
+  allPublishedTables?: TableCatalogEntry[];
 }
 
 export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
@@ -84,7 +88,25 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   aclaracionEspecialistaName, certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados,
   coverData,
   markUserInteracted,
+  variables,
+  allPublishedTables,
 }) => {
+  // Fetch fresh table data by ID (bypasses published filter) for liveTemplateRows fallback
+  const [freshTables, setFreshTables] = useState<TableCatalogEntry[]>([]);
+  useEffect(() => {
+    const ids = [...new Set(protocolSelections.map(s => s.tableId))];
+    if (ids.length === 0) return;
+    Promise.all(ids.map(id => firebase.getTableById(id))).then(results => {
+      setFreshTables(results.filter(Boolean) as TableCatalogEntry[]);
+    });
+  }, [protocolSelections, firebase]);
+
+  const getLiveRows = (tableId: string) => {
+    const fresh = freshTables.find(t => t.id === tableId);
+    if (fresh) return fresh.templateRows;
+    return allPublishedTables?.find(t => t.id === tableId)?.templateRows;
+  };
+
   // Resolve ingeniero ID from name for certificate selector
   const [resolvedIngenieroId, setResolvedIngenieroId] = useState<string | null>(null);
   useEffect(() => {
@@ -198,6 +220,8 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onAddRow={handleAddRow}
                 onRemoveRow={handleRemoveRow}
                 onChangeHeaderData={handleHeaderDataChange}
+                variables={variables}
+                liveTemplateRows={getLiveRows(sel.tableId)}
               />
             )
           )}

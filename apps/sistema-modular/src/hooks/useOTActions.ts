@@ -68,6 +68,7 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
         esFacturable: newItemData.necesitaPresupuesto,
         tieneContrato: newItemData.tieneContrato || cliente?.tipoServicio === 'contrato',
         esGarantia: false, razonSocial: form.razonSocial, contacto: form.contacto,
+        sector: form.sector,
         direccion: form.direccion, localidad: form.localidad, provincia: form.provincia,
         sistema: form.sistemaNombre, moduloModelo: form.moduloModelo,
         moduloDescripcion: form.moduloDescripcion, moduloSerie: form.moduloSerie,

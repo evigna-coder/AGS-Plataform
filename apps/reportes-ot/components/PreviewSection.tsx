@@ -58,6 +58,7 @@ interface PreviewSectionProps {
   otNumber: string;
   razonSocial: string;
   contacto: string;
+  sector: string;
   fullDireccion: string;
   sistema: string;
   codigoInternoCliente: string;
@@ -99,7 +100,7 @@ interface PreviewSectionProps {
 
 export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
   const {
-    otNumber, razonSocial, contacto, fullDireccion,
+    otNumber, razonSocial, contacto, sector, fullDireccion,
     sistema, codigoInternoCliente, moduloModelo, moduloDescripcion, moduloMarca, moduloSerie,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje,
     tipoServicio, reporteTecnico, articulos, accionesTomar, accionesInternaOnly, budgets,
@@ -303,6 +304,9 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
             meta={{
               otNumber,
               razonSocial,
+              clienteContacto: contacto,
+              clienteDireccion: fullDireccion,
+              clienteSector: sector,
               sistema,
               moduloSerie,
               codigoInternoCliente,

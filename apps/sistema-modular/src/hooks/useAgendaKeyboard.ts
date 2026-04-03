@@ -7,6 +7,9 @@ export interface AgendaKeyboardCallbacks {
   onCopy?: () => void;
   onPaste?: () => void;
   onDelete?: () => void;
+  onNavigatePrev?: () => void;
+  onNavigateNext?: () => void;
+  onTypeStart?: (char: string) => void;
 }
 
 export function useAgendaKeyboard(
@@ -62,7 +65,92 @@ export function useAgendaKeyboard(
       const dateIdx = weekdayKeys.indexOf(selectedCell.fecha);
       if (engIdx === -1 || dateIdx === -1) return;
 
+      // ── Tab / Shift+Tab — navigate by full day ──
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Previous day
+          const nd = Math.max(0, dateIdx - 1);
+          if (nd === dateIdx) return;
+          const fecha = weekdayKeys[nd];
+          const ing = ingenieros[engIdx];
+          const found = findEntriesAtCell(entries, ing.id, fecha, 1);
+          setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha, quarter: 1, entry: found[0] || null, allEntries: found });
+          setSelectionRange?.(null);
+        } else {
+          // Next day
+          const nd = Math.min(weekdayKeys.length - 1, dateIdx + 1);
+          if (nd === dateIdx) return;
+          const fecha = weekdayKeys[nd];
+          const ing = ingenieros[engIdx];
+          const found = findEntriesAtCell(entries, ing.id, fecha, 1);
+          setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha, quarter: 1, entry: found[0] || null, allEntries: found });
+          setSelectionRange?.(null);
+        }
+        return;
+      }
+
+      // ── Enter / Shift+Enter — navigate by engineer ──
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const ne = e.shiftKey
+          ? Math.max(0, engIdx - 1)
+          : Math.min(ingenieros.length - 1, engIdx + 1);
+        if (ne === engIdx) return;
+        const ing = ingenieros[ne];
+        const found = findEntriesAtCell(entries, ing.id, selectedCell.fecha, selectedCell.quarter);
+        setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha: selectedCell.fecha, quarter: selectedCell.quarter, entry: found[0] || null, allEntries: found });
+        setSelectionRange?.(null);
+        return;
+      }
+
+      // ── Home / End — jump to first / last visible day ──
+      if (e.key === 'Home') {
+        e.preventDefault();
+        if (weekdayKeys.length === 0) return;
+        const fecha = weekdayKeys[0];
+        const ing = ingenieros[engIdx];
+        const found = findEntriesAtCell(entries, ing.id, fecha, 1);
+        setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha, quarter: 1, entry: found[0] || null, allEntries: found });
+        setSelectionRange?.(null);
+        return;
+      }
+      if (e.key === 'End') {
+        e.preventDefault();
+        if (weekdayKeys.length === 0) return;
+        const fecha = weekdayKeys[weekdayKeys.length - 1];
+        const ing = ingenieros[engIdx];
+        const found = findEntriesAtCell(entries, ing.id, fecha, 4);
+        setSelectedCell({ ingenieroId: ing.id, ingenieroNombre: ing.nombre, fecha, quarter: 4, entry: found[0] || null, allEntries: found });
+        setSelectionRange?.(null);
+        return;
+      }
+
+      // ── Ctrl+Arrow — navigate to prev/next week ──
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          callbacks?.onNavigatePrev?.();
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          callbacks?.onNavigateNext?.();
+          return;
+        }
+      }
+
       const isArrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key);
+
+      // ── Printable char on empty cell → create task ──
+      if (!isArrow && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (!selectedCell.entry) {
+          e.preventDefault();
+          callbacks?.onTypeStart?.(e.key);
+        }
+        return;
+      }
+
       if (!isArrow) return;
 
       e.preventDefault();
@@ -88,7 +176,6 @@ export function useAgendaKeyboard(
           else return;
           break;
         case 'ArrowUp':
-          // Up/Down don't extend selection range (different engineer)
           if (!e.shiftKey) {
             const ne = engIdx > 0 ? engIdx - 1 : engIdx;
             if (ne === engIdx) return;
@@ -113,7 +200,6 @@ export function useAgendaKeyboard(
       const fecha = weekdayKeys[nd];
 
       if (e.shiftKey && setSelectionRange) {
-        // Shift+Arrow: extend selection range
         setSelectionRange({
           ingenieroId: selectedCell.ingenieroId,
           ingenieroNombre: selectedCell.ingenieroNombre,
@@ -123,7 +209,6 @@ export function useAgendaKeyboard(
           endQuarter: nq,
         });
       } else {
-        // Normal arrow: move anchor, clear range
         const ing = ingenieros[engIdx];
         const found = findEntriesAtCell(entries, ing.id, fecha, nq);
         setSelectedCell({

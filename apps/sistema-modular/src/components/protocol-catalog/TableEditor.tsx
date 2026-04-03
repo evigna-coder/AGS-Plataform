@@ -28,7 +28,7 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
       <div className="grid grid-cols-2 gap-2">
         <Input placeholder="Clave (ej: presion)" value={d.key}
           onChange={e => setD({ ...d, key: e.target.value })} />
-        <Input placeholder="Etiqueta (ej: Presión)" value={d.label}
+        <Input placeholder="Etiqueta (opcional — vacío oculta el encabezado)" value={d.label}
           onChange={e => setD({ ...d, label: e.target.value })} />
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -89,7 +89,7 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button size="sm" onClick={handleSave}
-            disabled={!d.label}>Guardar</Button>
+            disabled={!d.key}>Guardar</Button>
         </div>
       </div>
     </div>
@@ -571,6 +571,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
                 {selectedRow?.rowId === row.rowId ? (
                   <RowFormPanel row={selectedRow} columns={table.columns}
                     totalRows={table.templateRows.length} rowIndex={i}
+                    headerFields={table.headerFields ?? []}
                     onSave={saveRow}
                     onDelete={() => { upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId)); setSelectedRow(null); }}
                     onCancel={() => setSelectedRow(null)} />
@@ -603,6 +604,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
             {selectedRow && !table.templateRows.some(r => r.rowId === selectedRow.rowId) && (
               <RowFormPanel row={selectedRow} columns={table.columns}
                 totalRows={table.templateRows.length} rowIndex={table.templateRows.length}
+                headerFields={table.headerFields ?? []}
                 onSave={saveRow} onCancel={() => setSelectedRow(null)} />
             )}
           </div>

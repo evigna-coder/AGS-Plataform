@@ -46,10 +46,10 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     const dpr = window.devicePixelRatio || 1;
     const img = new Image();
     img.onload = () => {
-      // Dibujar la firma en su tamaño original, centrada en el canvas
+      // Dibujar la firma escalada para ocupar ~80% del canvas, centrada
       const imgW = img.naturalWidth / dpr;
       const imgH = img.naturalHeight / dpr;
-      const scale = Math.min(rect.width / imgW, rect.height / imgH, 1);
+      const scale = Math.min(rect.width * 0.8 / imgW, rect.height * 0.8 / imgH);
       const w = imgW * scale;
       const h = imgH * scale;
       const x = (rect.width - w) / 2;

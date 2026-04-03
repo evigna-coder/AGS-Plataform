@@ -57,7 +57,7 @@ export function useAppLogic(
   // Desestructurar estados para facilitar el uso
   const {
     otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
-    esFacturable, tieneContrato, esGarantia, razonSocial, contacto,
+    esFacturable, tieneContrato, esGarantia, razonSocial, contacto, sector,
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
@@ -892,7 +892,7 @@ export function useAppLogic(
     markUserInteracted,
     // Destructured form state
     otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
-    esFacturable, tieneContrato, esGarantia, razonSocial, contacto,
+    esFacturable, tieneContrato, esGarantia, razonSocial, contacto, sector,
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje,

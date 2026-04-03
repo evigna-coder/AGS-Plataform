@@ -1,7 +1,7 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragEndEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
@@ -10,21 +10,6 @@ import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
-
-/** Keep the small drag overlay centered under the cursor. */
-const OVERLAY_W = 16;
-const OVERLAY_H = 16;
-const snapOverlayToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) => {
-  if (!activatorEvent || !activeNodeRect) return transform;
-  const ev = activatorEvent as PointerEvent;
-  const grabX = ev.clientX - activeNodeRect.left;
-  const grabY = ev.clientY - activeNodeRect.top;
-  return {
-    ...transform,
-    x: transform.x + grabX - OVERLAY_W / 2,
-    y: transform.y + grabY - OVERLAY_H / 2,
-  };
-};
 
 /** Advance a date by `n` weekdays (skip weekends). */
 function addWeekdays(date: Date, n: number): Date {
@@ -56,17 +41,26 @@ export const AgendaPage: FC = () => {
 
   const [activeDragOT, setActiveDragOT] = useState<WorkOrder | null>(null);
   const [activeDragEntry, setActiveDragEntry] = useState<AgendaEntry | null>(null);
+  // Row highlight during drag: DOM-only, no React state (onDragOver fires at 60fps)
+  const highlightedRowRef = useRef<HTMLElement | null>(null);
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   const [selectedPendingOTs, setSelectedPendingOTs] = useState<Set<string>>(new Set());
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [selectionRange, setSelectionRange] = useState<SelectionRange | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4 } | null>(null);
-  const [manualTaskInput, setManualTaskInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number } | null>(null);
+  const [manualTaskInput, setManualTaskInput] = useState<{ ingenieroId: string; ingenieroNombre: string; fecha: string; quarter: 1|2|3|4; x: number; y: number; initialValue?: string } | null>(null);
   const manualTaskInputRef = useRef<HTMLInputElement>(null);
 
   // Clear selection on navigation/zoom change
   useEffect(() => { setSelectedCell(null); setSelectionRange(null); }, [anchor, zoomLevel]);
+
+  // Auto-scroll selected cell into view when navigating with keyboard
+  useEffect(() => {
+    if (!selectedCell) return;
+    const el = document.querySelector('[data-agenda-selected="true"]');
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [selectedCell]);
 
   // ── Clipboard handlers ──
 
@@ -138,11 +132,29 @@ export const AgendaPage: FC = () => {
     setSelectedCell(null);
   }, [deleteEntry]);
 
+  const handleTypeStart = useCallback((char: string) => {
+    const cell = selectedCellRef.current;
+    if (!cell || cell.entry) return;
+    const ing = ingenieros.find(i => i.id === cell.ingenieroId);
+    setManualTaskInput({
+      ingenieroId: cell.ingenieroId,
+      ingenieroNombre: ing?.nombre || '',
+      fecha: cell.fecha,
+      quarter: cell.quarter,
+      x: window.innerWidth / 2 - 120,
+      y: window.innerHeight / 2 - 80,
+      initialValue: char,
+    });
+  }, [ingenieros]);
+
   const keyboardCallbacks = useMemo<AgendaKeyboardCallbacks>(() => ({
     onCopy: handleCopy,
     onPaste: handlePaste,
     onDelete: handleKeyDelete,
-  }), [handleCopy, handlePaste, handleKeyDelete]);
+    onNavigatePrev: goToPrev,
+    onNavigateNext: goToNext,
+    onTypeStart: handleTypeStart,
+  }), [handleCopy, handlePaste, handleKeyDelete, goToPrev, goToNext, handleTypeStart]);
 
   // Keyboard navigation + copy/paste/delete
   useAgendaKeyboard(selectedCell, setSelectedCell, ingenieros, visibleDays, entries, keyboardCallbacks, selectionRange, setSelectionRange);
@@ -186,9 +198,34 @@ export const AgendaPage: FC = () => {
   const selectedPendingOTsRef = useRef(selectedPendingOTs);
   selectedPendingOTsRef.current = selectedPendingOTs;
 
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const overId = String(event.over?.id || '');
+    const newIngId = overId.startsWith('cell:') ? overId.split(':')[1] : null;
+    // Direct DOM — zero React re-renders during drag
+    if (highlightedRowRef.current) {
+      highlightedRowRef.current.style.backgroundColor = '';
+      highlightedRowRef.current.style.borderLeft = '';
+      highlightedRowRef.current = null;
+    }
+    if (newIngId) {
+      const el = document.querySelector<HTMLElement>(`[data-engineer-id="${newIngId}"]`);
+      if (el) {
+        el.style.backgroundColor = 'rgb(240 253 250)';
+        el.style.borderLeft = '2px solid rgb(20 184 166)';
+        highlightedRowRef.current = el;
+      }
+    }
+  }, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveDragOT(null);
     setActiveDragEntry(null);
+    // Clear DOM highlight
+    if (highlightedRowRef.current) {
+      highlightedRowRef.current.style.backgroundColor = '';
+      highlightedRowRef.current.style.borderLeft = '';
+      highlightedRowRef.current = null;
+    }
     const { active, over } = event;
     if (!over) return;
 
@@ -377,7 +414,14 @@ export const AgendaPage: FC = () => {
   // Auto-focus the manual task input when it appears
   useEffect(() => {
     if (manualTaskInput) {
-      setTimeout(() => manualTaskInputRef.current?.focus(), 50);
+      setTimeout(() => {
+        const el = manualTaskInputRef.current;
+        if (!el) return;
+        el.focus();
+        // Move cursor to end of any pre-filled value
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      }, 50);
     }
   }, [manualTaskInput]);
 
@@ -487,7 +531,13 @@ export const AgendaPage: FC = () => {
         onChangeEstado={handleChangeEstado}
       />
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        autoScroll={{ threshold: { x: 0.15, y: 0.15 }, acceleration: 15 }}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
         <div className="flex-1 relative overflow-hidden">
           {/* Grid area — absolute positioning decouples grid from sidebar */}
           <div
@@ -570,6 +620,7 @@ export const AgendaPage: FC = () => {
             <input
               ref={manualTaskInputRef}
               type="text"
+              defaultValue={manualTaskInput?.initialValue || ''}
               placeholder="Ej: Llevar auto al mecánico..."
               className="w-full text-sm px-2 py-1.5 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
               onKeyDown={e => {
@@ -591,12 +642,13 @@ export const AgendaPage: FC = () => {
           </div>
         )}
 
-        <DragOverlay dropAnimation={null} modifiers={[snapOverlayToCursor]}>
+        <DragOverlay dropAnimation={null}>
           {activeDragOT && (
-            <div
-              className="relative bg-amber-400 border border-amber-500 rounded-sm shadow-md pointer-events-none"
-              style={{ width: 16, height: 16 }}
-            >
+            <div className="relative bg-amber-400 border border-amber-500 rounded-sm shadow-md pointer-events-none flex items-center justify-center"
+              style={{ width: 26, height: 26 }}>
+              <span className="text-[7px] font-bold text-amber-900 leading-none select-none truncate px-0.5">
+                {activeDragOT.otNumber}
+              </span>
               {selectedPendingOTs.size > 1 && (
                 <span className="absolute -top-2 -right-2 text-[7px] font-bold text-white bg-teal-600 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow">
                   {selectedPendingOTs.size}
@@ -605,10 +657,8 @@ export const AgendaPage: FC = () => {
             </div>
           )}
           {activeDragEntry && (
-            <div
-              className="bg-teal-400 border border-teal-500 rounded-sm shadow-md pointer-events-none"
-              style={{ width: 16, height: 16 }}
-            />
+            <div className="bg-teal-400 border border-teal-500 rounded-sm shadow-md pointer-events-none"
+              style={{ width: 26, height: 26 }} />
           )}
         </DragOverlay>
       </DndContext>

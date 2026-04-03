@@ -1,13 +1,13 @@
 import { memo, useMemo } from 'react';
 import type { Ingeniero, AgendaEntry } from '@ags/shared';
-import type { GridColumn, CellOccupation, SelectionRange } from '../../utils/agendaDateUtils';
-import { isCellInRange } from '../../utils/agendaDateUtils';
+import type { GridColumn, SelectionRange } from '../../utils/agendaDateUtils';
+import { isCellInRange, buildCellOccupationMap } from '../../utils/agendaDateUtils';
 import { AgendaGridCell } from './AgendaGridCell';
 
 interface AgendaGridRowProps {
   ingeniero: Ingeniero;
   columns: GridColumn[];
-  occupation: Map<number, CellOccupation[]>;
+  engineerEntries: AgendaEntry[];
   showText: boolean;
   compact: boolean;
   selectedCellKey: string | null;
@@ -22,7 +22,7 @@ interface AgendaGridRowProps {
 export const AgendaGridRow = memo<AgendaGridRowProps>(({
   ingeniero,
   columns,
-  occupation,
+  engineerEntries,
   showText,
   compact,
   selectedCellKey,
@@ -33,6 +33,11 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
   onEntryClick,
   onCellContextMenu,
 }) => {
+  // Occupation map computed here — only recalculates when THIS engineer's entries change
+  const occupation = useMemo(
+    () => buildCellOccupationMap(engineerEntries, columns, ingeniero.id),
+    [engineerEntries, columns, ingeniero.id],
+  );
   const utilPct = useMemo(() => {
     if (compact) return null;
     let occupied = 0;
@@ -50,6 +55,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
   return (
     <>
       <div
+        data-engineer-id={ingeniero.id}
         className={`bg-white border-r border-r-slate-200 flex items-center px-1 truncate ${compact ? 'border-b border-b-slate-200' : 'border-b-2 border-b-slate-200'}`}
         style={{ height: rowHeight }}
         title={utilPct !== null ? `${utilPct}% ocupado` : undefined}

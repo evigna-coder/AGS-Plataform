@@ -28,6 +28,8 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
   onCellClick, onEntryClick, onZoomChange, onWeekClick, onCellContextMenu,
   feriados, onToggleFeriado,
 }) => {
+  // Extract selected fecha from cellKey ("ingId:YYYY-MM-DD:quarter") for per-week filtering
+  const selectedFecha = selectedCellKey ? selectedCellKey.split(':')[1] : null;
   const gridRef = useRef<HTMLDivElement>(null);
   const weeks = useMemo(() => groupDaysByWeek(visibleDays), [visibleDays]);
 
@@ -66,6 +68,12 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
 
   const wb = useCallback((week: { weekStart: Date; days: Date[] }, borderless?: boolean) => {
     const wKey = formatDateKey(week.weekStart);
+    const wEnd = formatDateKey(endOfWeek(week.weekStart, { weekStartsOn: 1 }));
+    // Only pass selectedCellKey to the week that actually contains the selection
+    const weekSelected = selectedFecha ? selectedFecha >= wKey && selectedFecha <= wEnd : false;
+    const weekInRange = selectionRange
+      ? selectionRange.endFecha >= wKey && selectionRange.startFecha <= wEnd
+      : false;
     return (
       <AgendaWeekBlock
         key={wKey}
@@ -75,8 +83,8 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
         entries={entriesByWeek.get(wKey) || []}
         zoom={zoom}
         borderless={borderless}
-        selectedCellKey={selectedCellKey}
-        selectionRange={selectionRange}
+        selectedCellKey={weekSelected ? selectedCellKey : null}
+        selectionRange={weekInRange ? selectionRange : null}
         onCellClick={onCellClick}
         onEntryClick={onEntryClick}
         onWeekClick={onWeekClick}
@@ -85,7 +93,8 @@ export const AgendaGrid: FC<AgendaGridProps> = ({
         onToggleFeriado={onToggleFeriado}
       />
     );
-  }, [ingenieros, entriesByWeek, zoom, selectedCellKey, selectionRange, onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado]);
+  }, [ingenieros, entriesByWeek, zoom, selectedFecha, selectedCellKey, selectionRange,
+      onCellClick, onEntryClick, onWeekClick, onCellContextMenu, feriados, onToggleFeriado]);
 
   // ── Views 1 & 2 (1S, 2S): vertical stack ──
   if (zoom === 'week' || zoom === '2weeks') {

@@ -103,6 +103,10 @@ interface Props {
   onAddRow?: (tableId: string) => void;
   onRemoveRow?: (tableId: string, rowId: string) => void;
   onChangeHeaderData?: (tableId: string, fieldId: string, value: string) => void;
+  /** Variables del reporte para auto-rellenar filas con variable binding */
+  variables?: Record<string, string>;
+  /** Filas del catálogo vivo — usadas como fallback si el snapshot no tiene 'variable' actualizado */
+  liveTemplateRows?: import('@ags/shared').TableCatalogRow[];
 }
 
 const PASS_LABELS: Record<string, string> = {
@@ -276,6 +280,8 @@ export const CatalogTableView: React.FC<Props> = ({
   onAddRow,
   onRemoveRow,
   onChangeHeaderData,
+  variables,
+  liveTemplateRows,
 }) => {
   const table = selection.tableSnapshot;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
@@ -417,6 +423,30 @@ export const CatalogTableView: React.FC<Props> = ({
   /** Renderiza una celda con lógica especial para columnas spec y conclusion */
   const renderTableCell = (col: TableCatalogColumn, rowId: string): React.ReactNode => {
     const rawValue = selection.filledData[rowId]?.[col.key] ?? '';
+
+    // ── Primera columna vacía en tabla multi-columna → celda de etiqueta en blanco ──
+    if (table.columns.length >= 2 && table.columns[0]?.key === col.key) {
+      const labelVal = String(table.templateRows.find(r => r.rowId === rowId)?.cells[col.key] ?? '').trim();
+      if (!labelVal) return <span />;
+    }
+
+    // ── Variable binding: auto-rellenar desde contexto del reporte ──────────
+    const templateRow = table.templateRows.find(r => r.rowId === rowId);
+    // Fallback: si el snapshot es obsoleto, usar la fila del catálogo vivo
+    const liveRow = liveTemplateRows?.find(r => r.rowId === rowId);
+    const rowVariable = templateRow?.variable || liveRow?.variable;
+    if (rowVariable && variables) {
+      const resolved = variables[rowVariable];
+      if (resolved !== undefined) {
+        const isLabelCol = table.columns[0]?.key === col.key;
+        if (!isLabelCol) {
+          // Todas las columnas excepto la primera (label) → mostrar valor resuelto
+          if (isPrint) return <span className="text-[10px] whitespace-pre-wrap">{resolved || '—'}</span>;
+          return <span className="text-[10px] text-slate-700 whitespace-pre-wrap">{resolved || '—'}</span>;
+        }
+        // Primera columna (label) → renderizar normalmente desde template
+      }
+    }
 
     // ── Columna Especificación ──────────────────────────────────────────────
     if (allSpecColKeys.has(col.key)) {
@@ -582,8 +612,8 @@ export const CatalogTableView: React.FC<Props> = ({
             </label>
           )}
 
-          {/* Botón duplicar (solo validation) */}
-          {!isPrint && !readOnly && onDuplicate && table.tableType === 'validation' && (
+          {/* Botón duplicar tabla */}
+          {!isPrint && !readOnly && onDuplicate && (
             <button
               onClick={() => onDuplicate(selection.tableId)}
               className="text-slate-400 hover:text-teal-600 transition-colors p-1"
@@ -653,9 +683,9 @@ export const CatalogTableView: React.FC<Props> = ({
                   className={`px-2 py-1.5 font-semibold ${col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center'} ${isPrint ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap' : 'text-xs text-slate-600 border-r border-slate-200'}`}
                   style={col.width ? { width: `${col.width}mm` } : undefined}
                 >
-                  {col.label}
-                  {col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
-                  {col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
+                  {col.label || null}
+                  {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
+                  {col.label && col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
                   {/* Indicador visual de columna calculada (solo en modo edición) */}
                   {allConclusionColKeys.has(col.key) && !isPrint && !readOnly && (
                     <span className="ml-1 text-blue-400 font-normal text-[9px]">auto</span>
@@ -711,6 +741,11 @@ export const CatalogTableView: React.FC<Props> = ({
                 }) && !table.columns.some(col => coveredCells.has(`${rowIdx}:${col.key}`));
               };
               return table.templateRows.map((row, idx) => {
+              // Visibilidad condicional por header field
+              if (row.visibleWhenSelector) {
+                const selVal = selection.headerData?.[row.visibleWhenSelector.headerFieldId] ?? '';
+                if (!selVal || !row.visibleWhenSelector.values.includes(selVal)) return null;
+              }
               if (row.isTitle) {
                 return (
                   <tr key={row.rowId} className={isPrint ? 'bg-slate-600 text-white' : 'bg-slate-50'}>
@@ -810,7 +845,7 @@ export const CatalogTableView: React.FC<Props> = ({
                     : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                   }
                 >
-                  {table.columns.map(col => {
+                  {table.columns.map((col, colIdx) => {
                     // Skip cells covered by a previous row's span
                     if (coveredCells.has(`${idx}:${col.key}`)) return null;
                     const colSpan = spanAt(row, col.key);
@@ -819,6 +854,9 @@ export const CatalogTableView: React.FC<Props> = ({
                     // in a column that HAS spans elsewhere (e.g. μECD in the "detector" column)
                     const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
                     const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
+                    // Label columns (first col or align:left) should NOT get centered/bold group styling
+                    const isLabelCol = colIdx === 0 || col.align === 'left';
+                    const groupStyle = isGroupCell && !isLabelCol ? ' font-semibold text-center bg-slate-50' : isGroupCell ? ' bg-slate-50' : '';
                     return (
                       <td
                         key={col.key}
@@ -826,9 +864,9 @@ export const CatalogTableView: React.FC<Props> = ({
                         className={[
                           'px-2 py-1.5 align-middle',
                           isPrint
-                            ? `text-[9px] border border-slate-300${isGroupCell ? ' font-semibold text-center bg-slate-50' : ''}${groupStart ? ' border-t-2 border-t-slate-500' : ''}`
-                            : `text-xs border-r border-slate-100 border-b border-b-slate-100${isGroupCell ? ' font-semibold text-center bg-slate-50 border-r-2 border-r-slate-300' : ''}${groupStart ? ' border-t-2 border-t-slate-300' : ''}`,
-                          !isGroupCell ? (col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center') : '',
+                            ? `text-[9px] border border-slate-300${groupStyle}`
+                            : `text-xs border-r border-slate-100 border-b border-b-slate-100${groupStyle}${isGroupCell && !isLabelCol ? ' border-r-2 border-r-slate-300' : ''}`,
+                          !isGroupCell ? (col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center') : isLabelCol ? 'text-left' : '',
                         ].join(' ')}
                       >
                         {renderTableCell(col, row.rowId)}

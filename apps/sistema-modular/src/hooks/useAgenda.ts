@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AgendaEntry, AgendaNota, Ingeniero, WorkOrder, ZoomLevel } from '@ags/shared';
 import { ingenierosService, agendaService, agendaNotasService, feriadosService, ordenesTrabajoService } from '../services/firebaseService';
 import {
@@ -59,12 +59,14 @@ export function useAgenda(): UseAgendaReturn {
     });
   }, []);
 
-  // Real-time entries subscription
+  // Real-time entries subscription — only flash loading on first load
+  const isFirstLoad = useRef(true);
   useEffect(() => {
-    setLoading(true);
+    if (isFirstLoad.current) setLoading(true);
     const unsubscribe = agendaService.subscribeToRange(rangeStart, rangeEnd, (newEntries) => {
       setEntries(newEntries);
       setLoading(false);
+      isFirstLoad.current = false;
     });
     return unsubscribe;
   }, [rangeStart, rangeEnd]);
@@ -80,15 +82,12 @@ export function useAgenda(): UseAgendaReturn {
     return feriadosService.subscribe(setFeriados);
   }, []);
 
-  // Load all candidate OTs once
+  // Load pending OTs only (filtered query — much faster than getAll)
   const [allCandidateOTs, setAllCandidateOTs] = useState<WorkOrder[]>([]);
   useEffect(() => {
-    const PENDING_ESTADOS = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
-    ordenesTrabajoService.getAll().then(allOTs => {
-      setAllCandidateOTs(allOTs.filter(
-        ot => ot.status === 'BORRADOR' || PENDING_ESTADOS.includes(ot.estadoAdmin || '')
-      ));
-    }).catch(err => console.error('Error loading OTs:', err));
+    ordenesTrabajoService.getPending()
+      .then(setAllCandidateOTs)
+      .catch(err => console.error('Error loading pending OTs:', err));
   }, []);
 
   // Derive pending OTs from candidates minus assigned (no Firestore re-read)

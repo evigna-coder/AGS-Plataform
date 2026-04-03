@@ -4,6 +4,7 @@ import type { WorkOrder, Part, OTEstadoAdmin, OTEstadoHistorial, CierreAdministr
 export interface OTFormState {
   razonSocial: string;
   contacto: string;
+  sector: string;
   direccion: string;
   localidad: string;
   provincia: string;
@@ -51,7 +52,7 @@ const DEFAULT_CIERRE: CierreAdministrativo = {
 };
 
 const INITIAL_FORM: OTFormState = {
-  razonSocial: '', contacto: '', direccion: '', localidad: '', provincia: '', emailPrincipal: '',
+  razonSocial: '', contacto: '', sector: '', direccion: '', localidad: '', provincia: '', emailPrincipal: '',
   sistemaNombre: '', codigoInternoCliente: '', moduloModelo: '', moduloDescripcion: '', moduloSerie: '',
   tipoServicio: '', fechaInicio: '', fechaFin: '', horasTrabajadas: '', tiempoViaje: '',
   reporteTecnico: '', accionesTomar: '', articulos: [], budgets: [''],
@@ -84,6 +85,7 @@ export function useOTFormState() {
   const loadFromOT = useCallback((ot: WorkOrder) => {
     setForm({
       razonSocial: ot.razonSocial || '', contacto: ot.contacto || '',
+      sector: ot.sector || '',
       direccion: ot.direccion || '', localidad: ot.localidad || '',
       provincia: ot.provincia || '', emailPrincipal: ot.emailPrincipal || '',
       sistemaNombre: ot.sistema || '', codigoInternoCliente: ot.codigoInternoCliente || '',
@@ -117,6 +119,7 @@ export function useOTFormState() {
 
   const buildSavePayload = useCallback((): Partial<WorkOrder> => ({
     razonSocial: cleanValue(form.razonSocial), contacto: cleanValue(form.contacto),
+    sector: cleanValue(form.sector),
     direccion: cleanValue(form.direccion), localidad: cleanValue(form.localidad),
     provincia: cleanValue(form.provincia), emailPrincipal: cleanValue(form.emailPrincipal),
     sistema: cleanValue(form.sistemaNombre), codigoInternoCliente: cleanValue(form.codigoInternoCliente),

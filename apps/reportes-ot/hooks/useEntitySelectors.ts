@@ -8,6 +8,7 @@ import type {
 interface FormSetters {
   setRazonSocial: (v: string) => void;
   setContacto: (v: string) => void;
+  setSector: (v: string) => void;
   setEmailPrincipal: (v: string) => void;
   setDireccion: (v: string) => void;
   setLocalidad: (v: string) => void;
@@ -215,6 +216,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
 
   const selectSector = useCallback((sector: string) => {
     setSelectedSector(sector);
+    setters.setSector(sector);
 
     // Limpiar downstream
     setSistemaId(null);
@@ -367,6 +369,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
       );
       if (sysMatch?.sector) {
         setSelectedSector(sysMatch.sector);
+        setters.setSector(sysMatch.sector);
         visibleSistemas = syss.filter(s => s.sector === sysMatch.sector);
         visibleContactos = conts.filter(c => c.sector === sysMatch.sector);
       }
