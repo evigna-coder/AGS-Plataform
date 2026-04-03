@@ -31,7 +31,7 @@ Plans:
 
 **Requirements:** COMEX-01, COMEX-02, COMEX-03, COMEX-04, COMEX-05, COMEX-06, COMEX-07, COMEX-08
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans executed ✅ VERIFIED
 
 Plans:
 - [x] 02-01-PLAN.md — Type extensions: ItemImportacion + Importacion fields + dateFields fix + calcularProrrateo.ts
@@ -39,4 +39,4 @@ Plans:
 - [x] 02-03-PLAN.md — ImportacionesList: migrate filters to useUrlFilters + ETA vencida badge
 - [x] 02-04-PLAN.md — ImportacionStatusTransition field validation per state + numeroGuia in aduana + ImportacionItemsSection
 - [x] 02-05-PLAN.md — ImportacionGastosSection prorrateo preview with calcularCostoConGastos
-- [ ] 02-06-PLAN.md — useIngresarStock hook + ImportacionIngresarStockModal + wire "Ingresar al stock" in ImportacionDetail
+- [x] 02-06-PLAN.md — useIngresarStock hook + ImportacionIngresarStockModal + wire "Ingresar al stock" in ImportacionDetail
