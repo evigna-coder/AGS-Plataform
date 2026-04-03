@@ -1,41 +1,34 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { requerimientosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
-import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRequerimientoModal } from '../../components/stock/CreateRequerimientoModal';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useRequerimientoInlineEdit } from '../../hooks/useRequerimientoInlineEdit';
+import { useGenerarOC } from '../../hooks/useGenerarOC';
+import { RequerimientoRow, URGENCIA_LABELS } from './RequerimientoRow';
 import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, UrgenciaRequerimiento } from '@ags/shared';
-import {
-  ESTADO_REQUERIMIENTO_LABELS,
-  ESTADO_REQUERIMIENTO_COLORS,
-  ORIGEN_REQUERIMIENTO_LABELS,
-} from '@ags/shared';
+import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 
-const ORIGEN_COLORS: Record<OrigenRequerimiento, string> = {
-  manual: 'bg-slate-100 text-slate-600',
-  presupuesto: 'bg-teal-50 text-teal-700',
-  stock_minimo: 'bg-amber-50 text-amber-700',
-  ingeniero: 'bg-blue-50 text-blue-700',
-};
-
-const URGENCIA_COLORS: Record<UrgenciaRequerimiento, string> = {
-  baja: 'bg-slate-100 text-slate-500',
-  media: 'bg-blue-50 text-blue-700',
-  alta: 'bg-amber-50 text-amber-700',
-  critica: 'bg-red-100 text-red-700',
-};
-const URGENCIA_LABELS: Record<UrgenciaRequerimiento, string> = {
-  baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica',
+const FILTER_SCHEMA = {
+  estado:   { type: 'string' as const, default: '' },
+  origen:   { type: 'string' as const, default: '' },
+  urgencia: { type: 'string' as const, default: '' },
 };
 
 export const RequerimientosList = () => {
   const [requerimientos, setRequerimientos] = useState<RequerimientoCompra[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ estado: '', origen: '', urgencia: '' });
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [showCreate, setShowCreate] = useState(false);
   const [sortField, setSortField] = useState('fechaSolicitud');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const { editingCell, editValue, setEditValue, startEdit, cancelEdit, saveEdit } = useRequerimientoInlineEdit();
+  const { generarOCs, loading: generandoOC } = useGenerarOC();
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, sortField, sortDir);
@@ -48,8 +41,19 @@ export const RequerimientosList = () => {
   }, [requerimientos, filters.urgencia]);
   const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
-  const unsubRef = useRef<(() => void) | null>(null);
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    if (selectedIds.size === sorted.length && sorted.length > 0) setSelectedIds(new Set());
+    else setSelectedIds(new Set(sorted.map(r => r.id)));
+  };
 
+  const unsubRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     unsubRef.current?.();
     unsubRef.current = requerimientosService.subscribe(
@@ -65,17 +69,9 @@ export const RequerimientosList = () => {
   const handleAprobar = async (id: string) => {
     if (!confirm('¿Aprobar este requerimiento?')) return;
     try {
-      await requerimientosService.update(id, {
-        estado: 'aprobado',
-        fechaAprobacion: new Date().toISOString(),
-      });
-      setRequerimientos(prev =>
-        prev.map(r => r.id === id ? { ...r, estado: 'aprobado' as const, fechaAprobacion: new Date().toISOString() } : r)
-      );
-    } catch (error) {
-      console.error('Error aprobando requerimiento:', error);
-      alert('Error al aprobar el requerimiento');
-    }
+      await requerimientosService.update(id, { estado: 'aprobado', fechaAprobacion: new Date().toISOString() });
+      setRequerimientos(prev => prev.map(r => r.id === id ? { ...r, estado: 'aprobado' as const, fechaAprobacion: new Date().toISOString() } : r));
+    } catch { alert('Error al aprobar el requerimiento'); }
   };
 
   const handleDelete = async (id: string) => {
@@ -83,9 +79,15 @@ export const RequerimientosList = () => {
     try {
       await requerimientosService.delete(id);
       setRequerimientos(prev => prev.filter(r => r.id !== id));
-    } catch (error) {
-      console.error('Error eliminando requerimiento:', error);
-      alert('Error al eliminar el requerimiento');
+    } catch { alert('Error al eliminar el requerimiento'); }
+  };
+
+  const handleGenerarOC = async () => {
+    const sel = sorted.filter(r => selectedIds.has(r.id));
+    const count = await generarOCs(sel);
+    if (count > 0) {
+      setSelectedIds(new Set());
+      alert(`${count} OC(s) generada(s) en estado borrador. Complete los precios en Órdenes de Compra.`);
     }
   };
 
@@ -105,25 +107,32 @@ export const RequerimientosList = () => {
         subtitle="Requisiciones de compra"
         count={sorted.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo requerimiento</Button>
+          <>
+            {selectedIds.size > 0 && (
+              <Button size="sm" onClick={handleGenerarOC} disabled={generandoOC}>
+                {generandoOC ? 'Generando...' : `Generar OC (${selectedIds.size})`}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo requerimiento</Button>
+          </>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <select value={filters.estado} onChange={e => setFilters({ ...filters, estado: e.target.value })}
+          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los estados</option>
             {(Object.keys(ESTADO_REQUERIMIENTO_LABELS) as EstadoRequerimiento[]).map(k => (
               <option key={k} value={k}>{ESTADO_REQUERIMIENTO_LABELS[k]}</option>
             ))}
           </select>
-          <select value={filters.origen} onChange={e => setFilters({ ...filters, origen: e.target.value })}
+          <select value={filters.origen} onChange={e => setFilter('origen', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los orígenes</option>
             {(Object.keys(ORIGEN_REQUERIMIENTO_LABELS) as OrigenRequerimiento[]).map(k => (
               <option key={k} value={k}>{ORIGEN_REQUERIMIENTO_LABELS[k]}</option>
             ))}
           </select>
-          <select value={filters.urgencia} onChange={e => setFilters({ ...filters, urgencia: e.target.value })}
+          <select value={filters.urgencia} onChange={e => setFilter('urgencia', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todas las urgencias</option>
             {(Object.keys(URGENCIA_LABELS) as UrgenciaRequerimiento[]).map(k => (
@@ -141,62 +150,42 @@ export const RequerimientosList = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Artículo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Cantidad</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Urgencia</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Solicitado por</th>
-                  <SortableHeader label="Fecha" field="fechaSolicitud" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className="px-3 py-2 w-8">
+                    <input type="checkbox"
+                      checked={selectedIds.size === sorted.length && sorted.length > 0}
+                      onChange={toggleAll} />
+                  </th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Artículo</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Cantidad</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Urgencia</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Proveedor sugerido</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Solicitado por</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider cursor-pointer" onClick={() => handleSort('fechaSolicitud')}>
+                    Fecha {sortField === 'fechaSolicitud' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sorted.map(r => (
-                  <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2">
-                      <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
-                    </td>
-                    <td className="px-4 py-2 text-xs text-slate-900">{r.articuloDescripcion}</td>
-                    <td className="px-4 py-2 text-xs text-slate-600">
-                      {r.cantidad} {r.unidadMedida}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ORIGEN_COLORS[r.origen]}`}>
-                        {ORIGEN_REQUERIMIENTO_LABELS[r.origen]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_REQUERIMIENTO_COLORS[r.estado]}`}>
-                        {ESTADO_REQUERIMIENTO_LABELS[r.estado]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      {r.urgencia && (
-                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${URGENCIA_COLORS[r.urgencia]}`}>
-                          {URGENCIA_LABELS[r.urgencia]}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-xs text-slate-900">{r.solicitadoPor}</td>
-                    <td className="px-4 py-2 text-xs text-slate-600">{formatDate(r.fechaSolicitud)}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        {r.estado === 'pendiente' && (
-                          <button onClick={() => handleAprobar(r.id)} className="text-xs text-green-600 hover:underline font-medium">
-                            Aprobar
-                          </button>
-                        )}
-                        <button className="text-xs text-teal-600 hover:underline font-medium">Ver</button>
-                        {r.estado === 'pendiente' && (
-                          <button onClick={() => handleDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">
-                            Eliminar
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                  <RequerimientoRow
+                    key={r.id}
+                    r={r}
+                    selected={selectedIds.has(r.id)}
+                    onToggle={() => toggleSelect(r.id)}
+                    editingCell={editingCell}
+                    editValue={editValue}
+                    setEditValue={setEditValue}
+                    startEdit={startEdit}
+                    cancelEdit={cancelEdit}
+                    saveEdit={saveEdit}
+                    onAprobar={handleAprobar}
+                    onDelete={handleDelete}
+                    formatDate={formatDate}
+                  />
                 ))}
               </tbody>
             </table>
