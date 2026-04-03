@@ -928,11 +928,6 @@ export const reservasService = {
     solicitadoPorNombre: string;
   }): Promise<void> {
     const posReservas = await getOrCreateReservasPosition();
-    const nuevaUbicacion = {
-      tipo: 'posicion' as TipoOrigenDestino,
-      referenciaId: posReservas.id,
-      referenciaNombre: posReservas.nombre,
-    };
     const now = Timestamp.now();
 
     const unitPayload = deepCleanForFirestore({
