@@ -1,33 +1,50 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useImportaciones } from '../../hooks/useImportaciones';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
-import type { EstadoImportacion } from '@ags/shared';
+import type { EstadoImportacion, Importacion } from '@ags/shared';
 import { ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
 
 const ESTADOS: EstadoImportacion[] = [
   'preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido', 'cancelado',
 ];
 
+const FILTER_SCHEMA = {
+  estado: { type: 'string' as const, default: '' },
+  sortField: { type: 'string' as const, default: 'fechaEstimadaArribo' },
+  sortDir: { type: 'string' as const, default: 'desc' },
+};
+
+const isEtaVencida = (imp: Importacion): boolean => {
+  if (!imp.fechaEstimadaArribo) return false;
+  if (imp.estado === 'recibido' || imp.estado === 'cancelado') return false;
+  return new Date(imp.fechaEstimadaArribo) < new Date();
+};
+
+const thClass = 'text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4';
+
 export const ImportacionesList = () => {
   const navigate = useNavigate();
   const { importaciones, loading, loadImportaciones } = useImportaciones();
-  const [estadoFilter, setEstadoFilter] = useState<string>('');
-  const [sortField, setSortField] = useState('fechaEstimadaArribo');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
 
   const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field);
+    setFilter('sortDir', s.dir);
   };
 
-  const sorted = useMemo(() => sortByField(importaciones, sortField, sortDir), [importaciones, sortField, sortDir]);
+  const sorted = useMemo(
+    () => sortByField(importaciones, filters.sortField, filters.sortDir as SortDir),
+    [importaciones, filters.sortField, filters.sortDir],
+  );
 
   useEffect(() => {
-    loadImportaciones(estadoFilter ? { estado: estadoFilter } : undefined);
-  }, [estadoFilter]);
+    loadImportaciones(filters.estado ? { estado: filters.estado } : undefined);
+  }, [filters.estado]);
 
   const formatDate = (d?: string | null) => {
     if (!d) return '-';
@@ -48,8 +65,8 @@ export const ImportacionesList = () => {
       >
         <div className="flex items-center gap-2">
           <select
-            value={estadoFilter}
-            onChange={e => setEstadoFilter(e.target.value)}
+            value={filters.estado}
+            onChange={e => setFilter('estado', e.target.value)}
             className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los estados</option>
@@ -72,13 +89,20 @@ export const ImportacionesList = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Numero</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">OC</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Proveedor</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Estado</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Puerto destino</th>
-                  <SortableHeader label="ETA" field="fechaEstimadaArribo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4" />
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4">Acciones</th>
+                  <th className={thClass}>Numero</th>
+                  <th className={thClass}>OC</th>
+                  <th className={thClass}>Proveedor</th>
+                  <th className={thClass}>Estado</th>
+                  <th className={thClass}>Puerto destino</th>
+                  <SortableHeader
+                    label="ETA"
+                    field="fechaEstimadaArribo"
+                    currentField={filters.sortField}
+                    currentDir={filters.sortDir as SortDir}
+                    onSort={handleSort}
+                    className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4"
+                  />
+                  <th className={thClass}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,15 +113,20 @@ export const ImportacionesList = () => {
                         {imp.numero}
                       </Link>
                     </td>
-                    <td className="text-xs py-2 px-4 text-slate-700">{imp.ordenCompraNumero}</td>
-                    <td className="text-xs py-2 px-4 text-slate-700">{imp.proveedorNombre}</td>
+                    <td className="text-xs py-2 px-4 text-slate-700 whitespace-nowrap">{imp.ordenCompraNumero}</td>
+                    <td className="text-xs py-2 px-4 text-slate-700 truncate max-w-[160px]">{imp.proveedorNombre}</td>
                     <td className="text-xs py-2 px-4">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_IMPORTACION_COLORS[imp.estado]}`}>
                         {ESTADO_IMPORTACION_LABELS[imp.estado]}
                       </span>
+                      {isEtaVencida(imp) && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 ml-1">
+                          ETA vencida
+                        </span>
+                      )}
                     </td>
-                    <td className="text-xs py-2 px-4 text-slate-700">{imp.puertoDestino || '-'}</td>
-                    <td className="text-xs py-2 px-4 text-slate-700">{formatDate(imp.fechaEstimadaArribo)}</td>
+                    <td className="text-xs py-2 px-4 text-slate-700 whitespace-nowrap">{imp.puertoDestino || '-'}</td>
+                    <td className="text-xs py-2 px-4 text-slate-700 whitespace-nowrap">{formatDate(imp.fechaEstimadaArribo)}</td>
                     <td className="text-xs py-2 px-4 text-center">
                       <Button
                         variant="ghost"
