@@ -291,7 +291,7 @@ export const presupuestosService = {
                     presupuestoId: id,
                     presupuestoNumero: pres!.numero ?? '',
                     clienteId: pres!.clienteId ?? '',
-                    clienteNombre: pres!.clienteId ?? '',
+                    clienteNombre: null,
                     solicitadoPorNombre: 'Sistema',
                   });
                 } catch (reservaErr) {
