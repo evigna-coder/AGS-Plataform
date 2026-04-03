@@ -70,6 +70,21 @@
         }
       ]
     }
+    ,
+    {
+      "collectionGroup": "agendaEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ingenieroId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaInicio",
+          "order": "ASCENDING"
+        }
+      ]
+    }
   ],
   "fieldOverrides": []
 }

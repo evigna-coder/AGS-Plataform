@@ -6,7 +6,7 @@ import type { AgendaEntry } from '@ags/shared';
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
   return d;
 }
@@ -21,16 +21,20 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
+/** Default: load 4 weeks ahead + 1 week back */
+const WEEKS_BACK = 1;
+const WEEKS_AHEAD = 4;
+
 export function useAgenda() {
   const { usuario } = useAuth();
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+  const [weeksAhead, setWeeksAhead] = useState(WEEKS_AHEAD);
 
-  const weekStart = useMemo(() => startOfWeek(selectedDate), [selectedDate]);
-  const rangeStart = formatDate(weekStart);
-  const rangeEnd = formatDate(addDays(weekStart, 6));
+  const today = useMemo(() => new Date(), []);
+  const weekStart = useMemo(() => startOfWeek(today), [today]);
+  const rangeStart = formatDate(addDays(weekStart, -WEEKS_BACK * 7));
+  const rangeEnd = formatDate(addDays(weekStart, weeksAhead * 7 - 1));
 
   useEffect(() => {
     if (!usuario?.id) return;
@@ -42,23 +46,16 @@ export function useAgenda() {
     return unsub;
   }, [usuario?.id, rangeStart, rangeEnd]);
 
-  const goNext = useCallback(() => {
-    setSelectedDate(d => addDays(d, viewMode === 'week' ? 7 : 1));
-  }, [viewMode]);
-
-  const goPrev = useCallback(() => {
-    setSelectedDate(d => addDays(d, viewMode === 'week' ? -7 : -1));
-  }, [viewMode]);
-
-  const goToday = useCallback(() => setSelectedDate(new Date()), []);
+  const loadMore = useCallback(() => {
+    setWeeksAhead(prev => prev + 4);
+  }, []);
 
   const entriesForDay = useCallback((date: string) => {
     return entries.filter(e => e.fechaInicio <= date && e.fechaFin >= date);
   }, [entries]);
 
   return {
-    entries, loading, selectedDate, setSelectedDate,
-    viewMode, setViewMode, goNext, goPrev, goToday,
-    weekStart, rangeStart, rangeEnd, entriesForDay,
+    entries, loading, today, weekStart, rangeStart, rangeEnd,
+    entriesForDay, loadMore, weeksAhead,
   };
 }
