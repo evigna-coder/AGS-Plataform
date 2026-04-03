@@ -3,12 +3,18 @@ import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragOverEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
 
-/** Snap the small overlay chip to the cursor position. */
-const snapToCursor: Modifier = ({ transform, activatorEvent }) => {
-  if (!activatorEvent) return transform;
+/** Keep the drag chip centered on the cursor regardless of grab origin. */
+const CHIP = 13; // half of 26px chip
+const snapToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) => {
+  if (!activatorEvent || !activeNodeRect) return transform;
   const ev = activatorEvent as PointerEvent;
-  // Offset so the chip appears just below-right of the cursor tip
-  return { ...transform, x: transform.x - ev.offsetX + 4, y: transform.y - ev.offsetY + 4 };
+  const grabX = ev.clientX - activeNodeRect.left;
+  const grabY = ev.clientY - activeNodeRect.top;
+  return {
+    ...transform,
+    x: transform.x + grabX - CHIP,
+    y: transform.y + grabY - CHIP,
+  };
 };
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { useAgenda } from '../../hooks/useAgenda';

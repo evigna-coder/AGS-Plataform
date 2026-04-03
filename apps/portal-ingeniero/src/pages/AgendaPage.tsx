@@ -2,8 +2,8 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import AgendaEntryCard from '../components/agenda/AgendaEntryCard';
+import AgendaGridView from '../components/agenda/AgendaGridView';
 import { useAgenda } from '../hooks/useAgenda';
-import { useAuth } from '../contexts/AuthContext';
 import type { AgendaEntry } from '@ags/shared';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -26,9 +26,7 @@ function formatWeekLabel(weekStart: Date): string {
   const end = addDays(weekStart, 6);
   const startMonth = weekStart.toLocaleDateString('es-AR', { month: 'short' });
   const endMonth = end.toLocaleDateString('es-AR', { month: 'short' });
-  if (startMonth === endMonth) {
-    return `${weekStart.getDate()} – ${end.getDate()} ${startMonth}`;
-  }
+  if (startMonth === endMonth) return `${weekStart.getDate()} – ${end.getDate()} ${startMonth}`;
   return `${weekStart.getDate()} ${startMonth} – ${end.getDate()} ${endMonth}`;
 }
 
@@ -37,33 +35,31 @@ function isToday(d: Date): boolean {
   return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
 }
 
+// ── List view (for non-admin or "Mis OTs" toggle) ──
+
 interface WeekBlockProps {
   weekStart: Date;
   entriesForDay: (date: string) => AgendaEntry[];
   isCurrentWeek: boolean;
-  showEngineer?: boolean;
 }
 
-function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer }: WeekBlockProps) {
+function WeekBlock({ weekStart, entriesForDay, isCurrentWeek }: WeekBlockProps) {
   const days = Array.from({ length: 7 }).map((_, i) => {
     const day = addDays(weekStart, i);
     const dayStr = formatDate(day);
-    const dayEntries = entriesForDay(dayStr);
-    return { day, dayStr, dayEntries, dayIndex: i };
+    return { day, dayStr, dayEntries: entriesForDay(dayStr), dayIndex: i };
   });
 
-  const hasEntries = days.some(d => d.dayEntries.length > 0);
-  if (!hasEntries) return null;
+  if (!days.some(d => d.dayEntries.length > 0)) return null;
 
   return (
     <div className="mb-6">
-      <div className={`flex items-center gap-2 mb-3 px-1 ${isCurrentWeek ? '' : ''}`}>
+      <div className="flex items-center gap-2 mb-3 px-1">
         <span className={`text-[11px] font-bold uppercase tracking-wider ${isCurrentWeek ? 'text-teal-700' : 'text-slate-400'}`}>
           {isCurrentWeek ? 'Esta semana' : formatWeekLabel(weekStart)}
         </span>
         <div className="flex-1 h-px bg-slate-200" />
       </div>
-
       <div className="space-y-3">
         {days.map(({ day, dayStr, dayEntries, dayIndex }) => {
           if (dayEntries.length === 0) return null;
@@ -78,7 +74,7 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer }: We
                 {today && <span className="text-[9px] font-medium text-teal-500 uppercase">Hoy</span>}
               </div>
               <div className="space-y-2 ml-1">
-                {dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} showEngineer={showEngineer} />)}
+                {dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)}
               </div>
             </div>
           );
@@ -88,26 +84,55 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer }: We
   );
 }
 
-export default function AgendaPage() {
-  const { loading, weekStart, entriesForDay, loadMore, weeksAhead, entries } = useAgenda();
-  const { hasRole } = useAuth();
-  const isAdmin = hasRole('admin', 'admin_soporte');
+// ── Page ──
 
-  // Generate all weeks in range (1 back + N ahead)
+export default function AgendaPage() {
+  const { loading, weekStart, entriesForDay, loadMore, weeksAhead, entries,
+          isAdmin, showMine, toggleShowMine, ingenieros } = useAgenda();
+
   const weeks: Date[] = [];
-  for (let i = -1; i < weeksAhead; i++) {
-    weeks.push(addDays(weekStart, i * 7));
-  }
+  for (let i = -1; i < weeksAhead; i++) weeks.push(addDays(weekStart, i * 7));
 
   const currentWeekStr = formatDate(weekStart);
+  const showGrid = isAdmin && !showMine;
 
   return (
     <div className="h-full flex flex-col">
-      <PageHeader title="Agenda" subtitle={`${entries.length} servicio(s) programado(s)`} />
+      <PageHeader
+        title="Agenda"
+        subtitle={`${entries.length} servicio(s) programado(s)`}
+        actions={isAdmin ? (
+          <button
+            onClick={toggleShowMine}
+            className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+              showMine
+                ? 'bg-teal-600 text-white border-teal-600'
+                : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400 hover:text-teal-600'
+            }`}
+          >
+            Mis OTs
+          </button>
+        ) : undefined}
+
+      />
 
       <div className="flex-1 overflow-y-auto px-4 pb-8 pt-2">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+        ) : showGrid ? (
+          <>
+            <AgendaGridView
+              ingenieros={ingenieros}
+              entries={entries}
+              weeks={weeks}
+              currentWeekStr={currentWeekStr}
+            />
+            <div className="text-center py-4">
+              <button onClick={loadMore} className="text-xs text-teal-600 hover:text-teal-700 font-medium hover:underline">
+                Cargar más semanas
+              </button>
+            </div>
+          </>
         ) : entries.length === 0 ? (
           <EmptyState message="No hay visitas programadas" />
         ) : (
@@ -118,15 +143,11 @@ export default function AgendaPage() {
                 weekStart={ws}
                 entriesForDay={entriesForDay}
                 isCurrentWeek={formatDate(ws) === currentWeekStr}
-                showEngineer={isAdmin}
               />
             ))}
             <div className="text-center py-4">
-              <button
-                onClick={loadMore}
-                className="text-xs text-teal-600 hover:text-teal-700 font-medium hover:underline"
-              >
-                Cargar mas semanas
+              <button onClick={loadMore} className="text-xs text-teal-600 hover:text-teal-700 font-medium hover:underline">
+                Cargar más semanas
               </button>
             </div>
           </>

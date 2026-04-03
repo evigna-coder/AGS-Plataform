@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { agendaService } from '../services/firebaseService';
+import { agendaService, ingenierosService } from '../services/firebaseService';
 import type { AgendaEntry } from '@ags/shared';
 
 function startOfWeek(date: Date): Date {
@@ -31,6 +31,14 @@ export function useAgenda() {
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeksAhead, setWeeksAhead] = useState(WEEKS_AHEAD);
+  // Admin grid: list of engineers + "show only mine" toggle
+  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
+  const [showMine, setShowMine] = useState(false);
+  const toggleShowMine = useCallback(() => setShowMine(v => !v), []);
+
+  useEffect(() => {
+    if (isAdmin) ingenierosService.getAll().then(setIngenieros);
+  }, [isAdmin]);
 
   const today = useMemo(() => new Date(), []);
   const weekStart = useMemo(() => startOfWeek(today), [today]);
@@ -40,14 +48,14 @@ export function useAgenda() {
   useEffect(() => {
     if (!usuario?.id) return;
     setLoading(true);
-    // Admin sees all engineers; others only see their own entries
-    const ingenieroId = isAdmin ? null : usuario.id;
+    // Admin in grid mode sees all; otherwise filter by own ID
+    const ingenieroId = (isAdmin && !showMine) ? null : usuario.id;
     const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, ingenieroId, (data) => {
       setEntries(data);
       setLoading(false);
     });
     return unsub;
-  }, [usuario?.id, isAdmin, rangeStart, rangeEnd]);
+  }, [usuario?.id, isAdmin, showMine, rangeStart, rangeEnd]);
 
   const loadMore = useCallback(() => {
     setWeeksAhead(prev => prev + 4);
@@ -60,5 +68,6 @@ export function useAgenda() {
   return {
     entries, loading, today, weekStart, rangeStart, rangeEnd,
     entriesForDay, loadMore, weeksAhead,
+    isAdmin, showMine, toggleShowMine, ingenieros,
   };
 }
