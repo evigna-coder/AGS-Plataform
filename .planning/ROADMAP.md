@@ -29,4 +29,14 @@ Plans:
 ### Phase 2: Comex — Importaciones y Despachos
 **Goal:** Gestión de comercio exterior: DUAs, despachos de importación, tracking de embarques, vinculación con altas de stock.
 
-*(a planificar después de Phase 1)*
+**Requirements:** COMEX-01, COMEX-02, COMEX-03, COMEX-04, COMEX-05, COMEX-06, COMEX-07, COMEX-08
+
+**Plans:** 6 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Type extensions: ItemImportacion + Importacion fields + dateFields fix + calcularProrrateo.ts
+- [ ] 02-02-PLAN.md — OCDetail "Crear Importación" button + ImportacionEditor fromOC prefill with item selector
+- [ ] 02-03-PLAN.md — ImportacionesList: migrate filters to useUrlFilters + ETA vencida badge
+- [ ] 02-04-PLAN.md — ImportacionStatusTransition field validation per state + numeroGuia in aduana + ImportacionItemsSection
+- [ ] 02-05-PLAN.md — ImportacionGastosSection prorrateo preview with calcularCostoConGastos
+- [ ] 02-06-PLAN.md — useIngresarStock hook + ImportacionIngresarStockModal + wire "Ingresar al stock" in ImportacionDetail
