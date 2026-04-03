@@ -1,29 +1,44 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ordenesCompraService } from '../../services/firebaseService';
 import { useImportaciones } from '../../hooks/useImportaciones';
+import { deepCleanForFirestore } from '../../services/firebase';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import type { OrdenCompra } from '@ags/shared';
+import { ItemEmbarqueSelector } from '../../components/stock/ItemEmbarqueSelector';
+import type { OrdenCompra, ItemOC, ItemImportacion } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const INCOTERMS = ['FOB', 'CIF', 'EXW', 'FCA', 'DAP'] as const;
 
+interface FromOCState {
+  ordenCompraId: string;
+  ordenCompraNumero: string;
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  moneda?: 'ARS' | 'USD' | 'EUR' | null;
+  items: ItemOC[];
+}
+
 export const ImportacionEditor = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const goBack = useNavigateBack();
   const { createImportacion } = useImportaciones();
+  const fromOC = (location.state as { fromOC?: FromOCState } | null)?.fromOC ?? null;
+
   const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompra[]>([]);
-  const [loadingOC, setLoadingOC] = useState(true);
+  const [loadingOC, setLoadingOC] = useState(!fromOC);
   const [saving, setSaving] = useState(false);
+  const [embarqueItems, setEmbarqueItems] = useState<ItemImportacion[]>([]);
 
   const [form, setForm] = useState({
-    ordenCompraId: '',
-    ordenCompraNumero: '',
-    proveedorId: '',
-    proveedorNombre: '',
+    ordenCompraId: fromOC?.ordenCompraId ?? '',
+    ordenCompraNumero: fromOC?.ordenCompraNumero ?? '',
+    proveedorId: fromOC?.proveedorId ?? '',
+    proveedorNombre: fromOC?.proveedorNombre ?? '',
     puertoOrigen: '',
     puertoDestino: '',
     naviera: '',
@@ -32,7 +47,7 @@ export const ImportacionEditor = () => {
   });
 
   useEffect(() => {
-    loadOrdenesCompra();
+    if (!fromOC) loadOrdenesCompra();
   }, []);
 
   const loadOrdenesCompra = async () => {
@@ -58,13 +73,7 @@ export const ImportacionEditor = () => {
         proveedorNombre: oc.proveedorNombre,
       }));
     } else {
-      setForm(prev => ({
-        ...prev,
-        ordenCompraId: '',
-        ordenCompraNumero: '',
-        proveedorId: '',
-        proveedorNombre: '',
-      }));
+      setForm(prev => ({ ...prev, ordenCompraId: '', ordenCompraNumero: '', proveedorId: '', proveedorNombre: '' }));
     }
   };
 
@@ -73,12 +82,12 @@ export const ImportacionEditor = () => {
     if (!form.ordenCompraId) { alert('Selecciona una orden de compra'); return; }
     try {
       setSaving(true);
-      const id = await createImportacion({
-        estado: 'preparacion',
+      const payload = deepCleanForFirestore({
+        estado: 'preparacion' as const,
         ordenCompraId: form.ordenCompraId,
         ordenCompraNumero: form.ordenCompraNumero,
-        proveedorId: form.proveedorId,
-        proveedorNombre: form.proveedorNombre,
+        proveedorId: form.proveedorId || null,
+        proveedorNombre: form.proveedorNombre || null,
         puertoOrigen: form.puertoOrigen || null,
         puertoDestino: form.puertoDestino || null,
         naviera: form.naviera || null,
@@ -86,7 +95,9 @@ export const ImportacionEditor = () => {
         notas: form.notas || null,
         gastos: [],
         documentos: [],
+        items: embarqueItems.length > 0 ? embarqueItems : null,
       });
+      const id = await createImportacion(payload as any);
       navigate(`/stock/importaciones/${id}`);
     } catch (err) {
       alert('Error al crear la importacion');
@@ -114,22 +125,29 @@ export const ImportacionEditor = () => {
         <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
           <Card title="Orden de compra vinculada" compact>
             <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Orden de compra (tipo importacion)</label>
-                <select
-                  value={form.ordenCompraId}
-                  onChange={e => handleOCChange(e.target.value)}
-                  className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  disabled={loadingOC}
-                >
-                  <option value="">{loadingOC ? 'Cargando...' : 'Seleccionar OC'}</option>
-                  {ordenesCompra.map(oc => (
-                    <option key={oc.id} value={oc.id}>
-                      {oc.numero} - {oc.proveedorNombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {fromOC ? (
+                <div>
+                  <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Orden de compra</label>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-medium border border-teal-200">
+                    #{fromOC.ordenCompraNumero}
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Orden de compra (tipo importacion)</label>
+                  <select
+                    value={form.ordenCompraId}
+                    onChange={e => handleOCChange(e.target.value)}
+                    className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    disabled={loadingOC}
+                  >
+                    <option value="">{loadingOC ? 'Cargando...' : 'Seleccionar OC'}</option>
+                    {ordenesCompra.map(oc => (
+                      <option key={oc.id} value={oc.id}>{oc.numero} - {oc.proveedorNombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {form.proveedorNombre && (
                 <div>
                   <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Proveedor</label>
@@ -138,6 +156,12 @@ export const ImportacionEditor = () => {
               )}
             </div>
           </Card>
+
+          {fromOC && (
+            <Card title="Items del embarque" compact>
+              <ItemEmbarqueSelector items={fromOC.items} onChange={setEmbarqueItems} />
+            </Card>
+          )}
 
           <Card title="Datos de embarque" compact>
             <div className="grid grid-cols-2 gap-3">
@@ -152,9 +176,7 @@ export const ImportacionEditor = () => {
                   className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="">Seleccionar</option>
-                  {INCOTERMS.map(i => (
-                    <option key={i} value={i}>{i}</option>
-                  ))}
+                  {INCOTERMS.map(i => <option key={i} value={i}>{i}</option>)}
                 </select>
               </div>
             </div>
