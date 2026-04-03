@@ -15,7 +15,7 @@
 
 **Out of scope:** Comex/DUAs, portal proveedor, stock por OT
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans executed
 
 Plans:
 - [x] 01-01-PLAN.md — Type extensions: UnidadStock reservation fields + getOrCreateReservasPosition helper
@@ -24,7 +24,7 @@ Plans:
 - [x] 01-04-PLAN.md — UnidadesList aggregated columns + PresupuestoDetail reservation/req buttons
 - [x] 01-05-PLAN.md — RequerimientosList: useUrlFilters migration + checkboxes + inline edit + Generar OC
 - [x] 01-06-PLAN.md — OCEditor: accept location.state.prefill for pre-populated items
-- [ ] 01-07-PLAN.md — handleReponer in useInventarioIngeniero + AjusteStockModal with mandatory justificación
+- [x] 01-07-PLAN.md — handleReponer in useInventarioIngeniero + AjusteStockModal with mandatory justificación
 
 ### Phase 2: Comex — Importaciones y Despachos
 **Goal:** Gestión de comercio exterior: DUAs, despachos de importación, tracking de embarques, vinculación con altas de stock.
