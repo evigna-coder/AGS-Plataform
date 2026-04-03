@@ -38,13 +38,21 @@ export default function AgendaEntryCard({ entry, showEngineer }: Props) {
         </div>
       </div>
       <div>
-        <Link
-          to={`/ordenes-trabajo/${entry.otNumber}`}
-          className="text-xs font-semibold text-teal-600 hover:underline"
-        >
-          OT {entry.otNumber}
-        </Link>
-        <p className="text-xs text-slate-800 font-medium mt-0.5">{entry.clienteNombre}</p>
+        {entry.otNumber ? (
+          <>
+            <Link
+              to={`/ordenes-trabajo/${entry.otNumber}`}
+              className="text-xs font-semibold text-teal-600 hover:underline"
+            >
+              OT {entry.otNumber}
+            </Link>
+            {entry.clienteNombre && (
+              <p className="text-xs text-slate-800 font-medium mt-0.5">{entry.clienteNombre}</p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs font-semibold text-slate-700">{entry.titulo || 'Tarea'}</p>
+        )}
       </div>
       <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
         {entry.tipoServicio && <span>{entry.tipoServicio}</span>}

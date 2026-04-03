@@ -40,31 +40,21 @@ const BORDER_COLOR: Record<string, string> = {
 function EntryCard({ entry }: { entry: AgendaEntry }) {
   const statusColor = ESTADO_AGENDA_COLORS[entry.estadoAgenda] ?? 'bg-slate-100 text-slate-600';
   const borderColor = BORDER_COLOR[entry.estadoAgenda] ?? 'border-l-slate-400';
+  const isManual = !entry.otNumber;
+  const headline = isManual ? (entry.titulo || 'Tarea') : `OT-${entry.otNumber}`;
   const details = [entry.tipoServicio, entry.sistemaNombre, entry.equipoModelo].filter(Boolean).join(' · ');
-  const titleAttr = [
-    entry.otNumber ? `OT-${entry.otNumber}` : null,
-    entry.clienteNombre,
-    details,
-    entry.equipoAgsId,
-    ESTADO_AGENDA_LABELS[entry.estadoAgenda],
-    entry.notas,
-  ].filter(Boolean).join('\n');
 
-  return (
-    <Link
-      to={`/ordenes-trabajo/${entry.otNumber}`}
-      className={`block bg-white rounded border border-slate-200 border-l-4 ${borderColor} px-1.5 py-1 hover:shadow-sm transition-shadow`}
-      title={titleAttr}
-    >
+  const inner = (
+    <>
       <div className="flex items-start justify-between gap-1 mb-0.5">
-        <span className="text-[10px] font-bold text-teal-600 leading-tight truncate">
-          OT-{entry.otNumber}
+        <span className={`text-[10px] font-bold leading-tight truncate ${isManual ? 'text-slate-700' : 'text-teal-600'}`}>
+          {headline}
         </span>
         <span className={`text-[8px] font-semibold px-1 py-px rounded-full shrink-0 leading-tight ${statusColor}`}>
           {ESTADO_AGENDA_LABELS[entry.estadoAgenda]}
         </span>
       </div>
-      {entry.clienteNombre && (
+      {!isManual && entry.clienteNombre && (
         <p className="text-[10px] text-slate-700 font-medium leading-tight truncate">{entry.clienteNombre}</p>
       )}
       {details && (
@@ -73,8 +63,14 @@ function EntryCard({ entry }: { entry: AgendaEntry }) {
       {entry.equipoAgsId && (
         <p className="text-[9px] font-mono text-slate-400 leading-tight truncate">{entry.equipoAgsId}</p>
       )}
-    </Link>
+    </>
   );
+
+  const className = `block bg-white rounded border border-slate-200 border-l-4 ${borderColor} px-1.5 py-1 hover:shadow-sm transition-shadow`;
+
+  return isManual
+    ? <div className={className}>{inner}</div>
+    : <Link to={`/ordenes-trabajo/${entry.otNumber}`} className={className}>{inner}</Link>;
 }
 
 interface Props {
