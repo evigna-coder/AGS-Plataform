@@ -15,7 +15,7 @@
 
 **Out of scope:** Comex/DUAs, portal proveedor, stock por OT
 
-**Plans:** 7 plans
+**Plans:** 2/7 plans executed
 
 Plans:
 - [x] 01-01-PLAN.md — Type extensions: UnidadStock reservation fields + getOrCreateReservasPosition helper
