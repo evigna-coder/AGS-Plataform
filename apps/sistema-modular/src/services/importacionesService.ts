@@ -300,9 +300,10 @@ export const importacionesService = {
     return `IMP-${String(maxNum + 1).padStart(4, '0')}`;
   },
 
-  async getAll(filters?: { estado?: string }): Promise<Importacion[]> {
+  async getAll(filters?: { estado?: string; ordenCompraId?: string }): Promise<Importacion[]> {
     const constraints: any[] = [orderBy('createdAt', 'desc')];
     if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
+    if (filters?.ordenCompraId) constraints.unshift(where('ordenCompraId', '==', filters.ordenCompraId));
     const q = query(collection(db, 'importaciones'), ...constraints);
     const snap = await getDocs(q);
     return snap.docs.map(d => {

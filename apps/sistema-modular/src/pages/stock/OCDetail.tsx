@@ -1,23 +1,32 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ordenesCompraService } from '../../services/firebaseService';
-import type { OrdenCompra } from '@ags/shared';
+import { importacionesService } from '../../services/importacionesService';
+import type { OrdenCompra, Importacion } from '@ags/shared';
 import { ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { OCInfoSidebar } from '../../components/stock/OCInfoSidebar';
 import { OCItemsTable } from '../../components/stock/OCItemsTable';
 import { OCStatusTransition } from '../../components/stock/OCStatusTransition';
+import { OCImportacionesSection } from '../../components/stock/OCImportacionesSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const OCDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const goBack = useNavigateBack();
   const [oc, setOc] = useState<OrdenCompra | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
+  const [importaciones, setImportaciones] = useState<Importacion[]>([]);
 
   useEffect(() => { if (id) loadOC(); }, [id]);
+
+  useEffect(() => {
+    if (!oc) return;
+    importacionesService.getAll({ ordenCompraId: oc.id }).then(setImportaciones);
+  }, [oc?.id]);
 
   const loadOC = async () => {
     if (!id) return;
@@ -63,6 +72,25 @@ export const OCDetail = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            {oc.tipo === 'importacion' && (
+              <Button size="sm" onClick={() =>
+                navigate('/stock/importaciones/nuevo', {
+                  state: {
+                    fromOC: {
+                      ordenCompraId: oc.id,
+                      ordenCompraNumero: oc.numero,
+                      proveedorId: oc.proveedorId,
+                      proveedorNombre: oc.proveedorNombre,
+                      moneda: oc.moneda,
+                      items: oc.items ?? [],
+                    },
+                    from: pathname,
+                  }
+                })
+              }>
+                + Crear Importacion
+              </Button>
+            )}
             {canReceive && (
               <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Registrar recepcion</Button>
             )}
@@ -82,6 +110,9 @@ export const OCDetail = () => {
           <OCInfoSidebar oc={oc} onUpdate={loadOC} />
           <div className="flex-1 min-w-0 space-y-4">
             <OCItemsTable items={oc.items} moneda={oc.moneda} readOnly />
+            {oc.tipo === 'importacion' && (
+              <OCImportacionesSection importaciones={importaciones} />
+            )}
           </div>
         </div>
       </div>
