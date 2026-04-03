@@ -9,6 +9,8 @@ import { ImportacionAduanaSection } from '../../components/stock/ImportacionAdua
 import { ImportacionVEPSection } from '../../components/stock/ImportacionVEPSection';
 import { ImportacionGastosSection } from '../../components/stock/ImportacionGastosSection';
 import { ImportacionDocumentosSection } from '../../components/stock/ImportacionDocumentosSection';
+import { ImportacionItemsSection } from '../../components/stock/ImportacionItemsSection';
+import { ImportacionIngresarStockModal } from '../../components/stock/ImportacionIngresarStockModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const ImportacionDetail = () => {
@@ -17,6 +19,7 @@ export const ImportacionDetail = () => {
   const goBack = useNavigateBack();
   const [imp, setImp] = useState<Importacion | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showIngresarStock, setShowIngresarStock] = useState(false);
 
   useEffect(() => {
     if (id) loadData();
@@ -51,6 +54,8 @@ export const ImportacionDetail = () => {
 
   if (!imp) return null;
 
+  const puedeIngresarStock = imp.estado === 'recibido' && !imp.stockIngresado;
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
@@ -60,6 +65,11 @@ export const ImportacionDetail = () => {
             <p className="text-xs text-slate-400 mt-0.5">Importacion de {imp.proveedorNombre}</p>
           </div>
           <div className="flex gap-2">
+            {puedeIngresarStock && (
+              <Button size="sm" onClick={() => setShowIngresarStock(true)}>
+                Ingresar al stock
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => goBack()}>Volver</Button>
           </div>
         </div>
@@ -71,6 +81,7 @@ export const ImportacionDetail = () => {
             <ImportacionInfoSidebar imp={imp} onUpdate={loadData} />
           </div>
           <div className="flex-1 min-w-0 space-y-4">
+            <ImportacionItemsSection imp={imp} />
             <ImportacionEmbarqueSection imp={imp} onUpdate={loadData} />
             <ImportacionAduanaSection imp={imp} onUpdate={loadData} />
             <ImportacionVEPSection imp={imp} onUpdate={loadData} />
@@ -79,6 +90,17 @@ export const ImportacionDetail = () => {
           </div>
         </div>
       </div>
+
+      {showIngresarStock && imp && (
+        <ImportacionIngresarStockModal
+          imp={imp}
+          onClose={() => setShowIngresarStock(false)}
+          onSuccess={() => {
+            setShowIngresarStock(false);
+            loadData();
+          }}
+        />
+      )}
     </div>
   );
 };
