@@ -314,6 +314,7 @@ export const importacionesService = {
         fechaArriboReal: data.fechaArriboReal?.toDate?.()?.toISOString() ?? null,
         fechaDespacho: data.fechaDespacho?.toDate?.()?.toISOString() ?? null,
         vepFechaPago: data.vepFechaPago?.toDate?.()?.toISOString() ?? null,
+        fechaRecepcion: data.fechaRecepcion?.toDate?.()?.toISOString() ?? null,
         createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
       };
@@ -331,6 +332,7 @@ export const importacionesService = {
       fechaArriboReal: data.fechaArriboReal?.toDate?.()?.toISOString() ?? null,
       fechaDespacho: data.fechaDespacho?.toDate?.()?.toISOString() ?? null,
       vepFechaPago: data.vepFechaPago?.toDate?.()?.toISOString() ?? null,
+      fechaRecepcion: data.fechaRecepcion?.toDate?.()?.toISOString() ?? null,
       createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
       updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
     } as Importacion;
@@ -348,9 +350,9 @@ export const importacionesService = {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
-    const dateFields = ['fechaEmbarque', 'fechaEstimadaArribo', 'fechaArriboReal', 'fechaDespacho', 'vepFechaPago'] as const;
+    const dateFields = ['fechaEmbarque', 'fechaEstimadaArribo', 'fechaArriboReal', 'fechaDespacho', 'vepFechaPago', 'fechaRecepcion'] as const;
     for (const f of dateFields) {
-      if (data[f]) payload[f] = Timestamp.fromDate(new Date(data[f]!));
+      if (data[f as keyof typeof data]) payload[f] = Timestamp.fromDate(new Date((data as any)[f]!));
     }
     const batch = createBatch();
     batch.set(doc(db, 'importaciones', id), payload);
@@ -361,7 +363,7 @@ export const importacionesService = {
 
   async update(id: string, data: Partial<Importacion>): Promise<void> {
     const payload: any = { ...cleanFirestoreData(data as any), ...getUpdateTrace(), updatedAt: Timestamp.now() };
-    const dateFields = ['fechaEmbarque', 'fechaEstimadaArribo', 'fechaArriboReal', 'fechaDespacho', 'vepFechaPago'] as const;
+    const dateFields = ['fechaEmbarque', 'fechaEstimadaArribo', 'fechaArriboReal', 'fechaDespacho', 'vepFechaPago', 'fechaRecepcion'] as const;
     for (const f of dateFields) {
       if ((data as any)[f]) payload[f] = Timestamp.fromDate(new Date((data as any)[f]));
     }
@@ -396,6 +398,7 @@ export const importacionesService = {
           fechaArriboReal: data.fechaArriboReal?.toDate?.()?.toISOString() ?? null,
           fechaDespacho: data.fechaDespacho?.toDate?.()?.toISOString() ?? null,
           vepFechaPago: data.vepFechaPago?.toDate?.()?.toISOString() ?? null,
+          fechaRecepcion: data.fechaRecepcion?.toDate?.()?.toISOString() ?? null,
           createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
           updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         };
