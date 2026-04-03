@@ -5,6 +5,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
@@ -63,6 +64,7 @@ export const UnidadesList = () => {
 
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
   const debouncedSearch = useDebounce(filters.search, 300);
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -185,6 +187,7 @@ export const UnidadesList = () => {
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -214,6 +217,12 @@ export const UnidadesList = () => {
                         <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>
                       )}
                     </td>
+                    <td className="px-4 py-2 text-center">
+                      <button onClick={e => { e.stopPropagation(); setAjustandoUnidad(u); }}
+                        className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">
+                        Ajustar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -221,6 +230,13 @@ export const UnidadesList = () => {
           </div>
         )}
       </div>
+      {ajustandoUnidad && (
+        <AjusteStockModal
+          unidad={ajustandoUnidad}
+          onClose={() => setAjustandoUnidad(null)}
+          onSuccess={() => setAjustandoUnidad(null)}
+        />
+      )}
     </div>
   );
 };

@@ -23,7 +23,7 @@ export const InventarioIngenieroPage = () => {
   const [depositos, setDepositos] = useState<PosicionStock[]>([]);
   useEffect(() => {
     posicionesStockService.getAll(true)
-      .then(all => setDepositos(all.filter(p => p.codigo !== 'RESERVAS' && p.tipo !== 'reserva')))
+      .then(all => setDepositos(all.filter(p => p.codigo !== 'RESERVAS')))
       .catch(() => setDepositos([]));
   }, []);
 
