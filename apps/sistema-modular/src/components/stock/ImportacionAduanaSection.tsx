@@ -17,6 +17,7 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
     despachante: imp.despachante || '',
     despachoNumero: imp.despachoNumero || '',
     fechaDespacho: imp.fechaDespacho ? imp.fechaDespacho.slice(0, 10) : '',
+    numeroGuia: imp.numeroGuia || '',
   });
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -29,6 +30,7 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
         despachante: form.despachante || null,
         despachoNumero: form.despachoNumero || null,
         fechaDespacho: form.fechaDespacho || null,
+        numeroGuia: form.numeroGuia || null,
       });
       setEditing(false);
       onUpdate();
@@ -37,6 +39,16 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    setForm({
+      despachante: imp.despachante || '',
+      despachoNumero: imp.despachoNumero || '',
+      fechaDespacho: imp.fechaDespacho ? imp.fechaDespacho.slice(0, 10) : '',
+      numeroGuia: imp.numeroGuia || '',
+    });
+    setEditing(false);
   };
 
   const formatDate = (d?: string | null) => {
@@ -51,7 +63,7 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
       actions={
         editing ? (
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={handleCancel}>Cancelar</Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         ) : (
@@ -64,12 +76,26 @@ export const ImportacionAduanaSection: React.FC<Props> = ({ imp, onUpdate }) => 
           <Input inputSize="sm" label="Despachante" value={form.despachante} onChange={set('despachante')} />
           <Input inputSize="sm" label="Numero de despacho" value={form.despachoNumero} onChange={set('despachoNumero')} />
           <Input inputSize="sm" label="Fecha de despacho" type="date" value={form.fechaDespacho} onChange={set('fechaDespacho')} />
+          <Input inputSize="sm" label="Guia" value={form.numeroGuia} onChange={set('numeroGuia')} />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <div><label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Despachante</label><p className="text-xs text-slate-700">{imp.despachante || '-'}</p></div>
-          <div><label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Numero de despacho</label><p className="text-xs text-slate-700">{imp.despachoNumero || '-'}</p></div>
-          <div><label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Fecha de despacho</label><p className="text-xs text-slate-700">{formatDate(imp.fechaDespacho)}</p></div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Despachante</label>
+            <p className="text-xs text-slate-700">{imp.despachante || '-'}</p>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Numero de despacho</label>
+            <p className="text-xs text-slate-700">{imp.despachoNumero || '-'}</p>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Fecha de despacho</label>
+            <p className="text-xs text-slate-700">{formatDate(imp.fechaDespacho)}</p>
+          </div>
+          <div>
+            <label className="font-mono uppercase tracking-wide text-[10px] font-medium text-slate-400 mb-0.5 block">GUÍA</label>
+            <p className="text-xs text-slate-700">{imp.numeroGuia || '-'}</p>
+          </div>
         </div>
       )}
     </Card>
