@@ -6,9 +6,10 @@ const QUARTER_LABELS: Record<number, string> = { 1: 'AM1', 2: 'AM2', 3: 'PM1', 4
 
 interface Props {
   entry: AgendaEntry;
+  showEngineer?: boolean;
 }
 
-export default function AgendaEntryCard({ entry }: Props) {
+export default function AgendaEntryCard({ entry, showEngineer }: Props) {
   const statusColor = ESTADO_AGENDA_COLORS[entry.estadoAgenda] ?? 'bg-slate-200 text-slate-700';
   const borderColor: Record<string, string> = {
     pendiente: 'border-l-slate-400',
@@ -25,9 +26,16 @@ export default function AgendaEntryCard({ entry }: Props) {
         <span className="text-[10px] font-medium text-slate-400">
           {QUARTER_LABELS[entry.quarterStart]} – {QUARTER_LABELS[entry.quarterEnd]}
         </span>
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColor}`}>
-          {ESTADO_AGENDA_LABELS[entry.estadoAgenda]}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {showEngineer && entry.ingenieroNombre && (
+            <span className="text-[9px] font-medium text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full">
+              {entry.ingenieroNombre.split(' ')[0]}
+            </span>
+          )}
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColor}`}>
+            {ESTADO_AGENDA_LABELS[entry.estadoAgenda]}
+          </span>
+        </div>
       </div>
       <div>
         <Link

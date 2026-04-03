@@ -631,19 +631,22 @@ function parseAgendaEntry(id: string, data: Record<string, unknown>): AgendaEntr
 }
 
 export const agendaService = {
-  /** Real-time subscription for entries in a date range for a specific engineer. Returns unsubscribe fn. */
+  /** Real-time subscription for entries in a date range.
+   *  Pass ingenieroId=null to load all engineers (admin view). */
   subscribeToRange(
     rangeStart: string,
     rangeEnd: string,
-    ingenieroId: string,
+    ingenieroId: string | null,
     callback: (entries: AgendaEntry[]) => void,
   ): () => void {
-    const q = query(
-      collection(db, 'agendaEntries'),
-      where('ingenieroId', '==', ingenieroId),
+    const constraints: QueryConstraint[] = [
       where('fechaInicio', '<=', rangeEnd),
       orderBy('fechaInicio', 'asc'),
-    );
+    ];
+    if (ingenieroId) {
+      constraints.unshift(where('ingenieroId', '==', ingenieroId));
+    }
+    const q = query(collection(db, 'agendaEntries'), ...constraints);
     return onSnapshot(q, (snap) => {
       const entries = snap.docs
         .map(d => parseAgendaEntry(d.id, d.data() as Record<string, unknown>))

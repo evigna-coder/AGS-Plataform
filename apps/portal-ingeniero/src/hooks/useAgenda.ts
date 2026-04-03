@@ -26,7 +26,8 @@ const WEEKS_BACK = 1;
 const WEEKS_AHEAD = 4;
 
 export function useAgenda() {
-  const { usuario } = useAuth();
+  const { usuario, hasRole } = useAuth();
+  const isAdmin = hasRole('admin', 'admin_soporte');
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeksAhead, setWeeksAhead] = useState(WEEKS_AHEAD);
@@ -39,12 +40,14 @@ export function useAgenda() {
   useEffect(() => {
     if (!usuario?.id) return;
     setLoading(true);
-    const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, usuario.id, (data) => {
+    // Admin sees all engineers; others only see their own entries
+    const ingenieroId = isAdmin ? null : usuario.id;
+    const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, ingenieroId, (data) => {
       setEntries(data);
       setLoading(false);
     });
     return unsub;
-  }, [usuario?.id, rangeStart, rangeEnd]);
+  }, [usuario?.id, isAdmin, rangeStart, rangeEnd]);
 
   const loadMore = useCallback(() => {
     setWeeksAhead(prev => prev + 4);

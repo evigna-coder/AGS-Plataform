@@ -3,6 +3,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
 import AgendaEntryCard from '../components/agenda/AgendaEntryCard';
 import { useAgenda } from '../hooks/useAgenda';
+import { useAuth } from '../contexts/AuthContext';
 import type { AgendaEntry } from '@ags/shared';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -40,9 +41,10 @@ interface WeekBlockProps {
   weekStart: Date;
   entriesForDay: (date: string) => AgendaEntry[];
   isCurrentWeek: boolean;
+  showEngineer?: boolean;
 }
 
-function WeekBlock({ weekStart, entriesForDay, isCurrentWeek }: WeekBlockProps) {
+function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer }: WeekBlockProps) {
   const days = Array.from({ length: 7 }).map((_, i) => {
     const day = addDays(weekStart, i);
     const dayStr = formatDate(day);
@@ -76,7 +78,7 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek }: WeekBlockProps) 
                 {today && <span className="text-[9px] font-medium text-teal-500 uppercase">Hoy</span>}
               </div>
               <div className="space-y-2 ml-1">
-                {dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)}
+                {dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} showEngineer={showEngineer} />)}
               </div>
             </div>
           );
@@ -88,6 +90,8 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek }: WeekBlockProps) 
 
 export default function AgendaPage() {
   const { loading, weekStart, entriesForDay, loadMore, weeksAhead, entries } = useAgenda();
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('admin', 'admin_soporte');
 
   // Generate all weeks in range (1 back + N ahead)
   const weeks: Date[] = [];
@@ -114,6 +118,7 @@ export default function AgendaPage() {
                 weekStart={ws}
                 entriesForDay={entriesForDay}
                 isCurrentWeek={formatDate(ws) === currentWeekStr}
+                showEngineer={isAdmin}
               />
             ))}
             <div className="text-center py-4">

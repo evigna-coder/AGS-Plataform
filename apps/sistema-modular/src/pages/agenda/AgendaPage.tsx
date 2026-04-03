@@ -1,7 +1,15 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragOverEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
+
+/** Snap the small overlay chip to the cursor position. */
+const snapToCursor: Modifier = ({ transform, activatorEvent }) => {
+  if (!activatorEvent) return transform;
+  const ev = activatorEvent as PointerEvent;
+  // Offset so the chip appears just below-right of the cursor tip
+  return { ...transform, x: transform.x - ev.offsetX + 4, y: transform.y - ev.offsetY + 4 };
+};
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
@@ -642,7 +650,7 @@ export const AgendaPage: FC = () => {
           </div>
         )}
 
-        <DragOverlay dropAnimation={null}>
+        <DragOverlay dropAnimation={null} modifiers={[snapToCursor]}>
           {activeDragOT && (
             <div className="relative bg-amber-400 border border-amber-500 rounded-sm shadow-md pointer-events-none flex items-center justify-center"
               style={{ width: 26, height: 26 }}>
