@@ -11,9 +11,11 @@ import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
 import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
+import { ReservarStockModal } from '../stock/ReservarStockModal';
 import { usePresupuestoEdit } from '../../hooks/usePresupuestoEdit';
 import { usePresupuestoSistemas } from '../../hooks/usePresupuestoSistemas';
 import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
+import { useGenerarRequerimientos } from '../../hooks/useGenerarRequerimientos';
 import type { Presupuesto } from '@ags/shared';
 
 interface Props {
@@ -29,6 +31,8 @@ const FACTURACION_STATES = ['aceptado'];
 export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onClose, onUpdated, onMinimize }) => {
   const [showSolicitarFactura, setShowSolicitarFactura] = useState(false);
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
+  const [showReservar, setShowReservar] = useState(false);
+  const { generarParaPresupuesto, loading: generandoReq } = useGenerarRequerimientos();
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
@@ -51,6 +55,17 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   };
 
   const totals = calculateTotals();
+
+  const itemsConStock = (form.items ?? [])
+    .filter(i => i.stockArticuloId)
+    .map(i => ({ articuloId: i.stockArticuloId!, descripcion: i.descripcion }));
+
+  const handleGenerarReq = async () => {
+    const presupuesto = { id: presupuestoId, numero: form.numero, items: form.items } as Presupuesto;
+    const count = await generarParaPresupuesto(presupuesto);
+    if (count > 0) alert(`${count} requerimiento(s) generado(s) correctamente.`);
+    else alert('No se generaron requerimientos. Verifique ítems con stock vinculado.');
+  };
 
   const condicionesValues = {
     notasTecnicas: form.notasTecnicas,
@@ -189,7 +204,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               </span>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {FACTURACION_STATES.includes(form.estado) && (
               <Button variant="ghost" size="sm" onClick={() => setShowSolicitarFactura(true)}>
                 Solicitar facturacion
@@ -200,6 +215,14 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
                 Crear revisión
               </Button>
             )}
+            {itemsConStock.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setShowReservar(true)}>
+                Reservar stock
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={handleGenerarReq} disabled={generandoReq}>
+              {generandoReq ? 'Generando...' : 'Generar req. de compra'}
+            </Button>
             <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
             {form.estado !== 'anulado' && (
               <Button variant="primary" size="sm" onClick={actions.handleSave} disabled={saving}>
@@ -242,6 +265,17 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           defaultTo={contactos.find(c => c.id === form.contactoId)?.email || ''}
           defaultContactoNombre={contactos.find(c => c.id === form.contactoId)?.nombre || ''}
           presupuestoNumero={form.numero}
+        />
+      )}
+      {showReservar && itemsConStock.length > 0 && (
+        <ReservarStockModal
+          presupuestoId={presupuestoId}
+          presupuestoNumero={form.numero}
+          clienteId={form.clienteId ?? ''}
+          clienteNombre={cliente?.razonSocial ?? ''}
+          items={itemsConStock}
+          onClose={() => setShowReservar(false)}
+          onSuccess={() => setShowReservar(false)}
         />
       )}
     </>
