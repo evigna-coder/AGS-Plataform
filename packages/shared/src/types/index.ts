@@ -1705,6 +1705,11 @@ export interface UnidadStock {
   costoUnitario?: number | null;
   monedaCosto?: 'ARS' | 'USD' | null;
   observaciones?: string | null;
+  // --- Campos de reserva (añadidos Phase 01-stock-requerimientos-oc) ---
+  reservadoParaPresupuestoId?: string | null;
+  reservadoParaPresupuestoNumero?: string | null;
+  reservadoParaClienteId?: string | null;
+  reservadoParaClienteNombre?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
