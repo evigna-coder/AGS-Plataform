@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTabs } from '../contexts/TabsContext';
 import { presupuestosService } from '../services/firebaseService';
 import type { Presupuesto, Cliente, Establecimiento, CategoriaPresupuesto, CondicionPago, ContactoEstablecimiento, ContactoCliente, PresupuestoSeccionesVisibles } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
@@ -29,7 +29,7 @@ export function usePresupuestoActions({
   cliente, establecimiento, contactos, condicionesPago, categoriasPresupuesto,
   onClose, onUpdated,
 }: UsePresupuestoActionsParams) {
-  const navigate = useNavigate();
+  const { navigateInActiveTab } = useTabs();
 
   const [showRevision, setShowRevision] = useState(false);
   const [revisionHistory, setRevisionHistory] = useState<Presupuesto[]>([]);
@@ -56,7 +56,7 @@ export function usePresupuestoActions({
     setShowRevision(false);
     onClose();
     onUpdated?.();
-    navigate(`/presupuestos/${newId}`);
+    navigateInActiveTab(`/presupuestos/${newId}`);
   };
 
   const loadRevisionHistory = async () => {

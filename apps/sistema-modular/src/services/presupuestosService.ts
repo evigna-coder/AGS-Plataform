@@ -212,7 +212,81 @@ export const presupuestosService = {
     await batch.commit();
 
     console.log('✅ Presupuesto creado exitosamente con ID:', presRef.id);
+
+    // Auto-generate requerimientos for items linked to stock articles
+    const itemsConStock = (presupuestoData.items || []).filter(i => i.stockArticuloId);
+    if (itemsConStock.length > 0) {
+      this._generarRequerimientosAutomaticos(presRef.id, numero, itemsConStock).catch(err =>
+        console.error('[presupuestosService] Error auto-generando requerimientos:', err)
+      );
+    }
+
     return { id: presRef.id, numero };
+  },
+
+  async _generarRequerimientosAutomaticos(
+    presupuestoId: string,
+    presupuestoNumero: string,
+    items: Array<{ stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
+  ) {
+    // Build map of qty in-transit per article from all active OCs (not cancelled/fully received)
+    const allOCs = await ordenesCompraService.getAll().catch(() => []);
+    const enTransitoMap = new Map<string, number>();
+    for (const oc of allOCs) {
+      if (oc.estado === 'cancelada' || oc.estado === 'recibida') continue;
+      for (const ocItem of oc.items || []) {
+        if (!ocItem.articuloId) continue;
+        const pendiente = Math.max(ocItem.cantidad - (ocItem.cantidadRecibida || 0), 0);
+        if (pendiente > 0) {
+          enTransitoMap.set(ocItem.articuloId, (enTransitoMap.get(ocItem.articuloId) || 0) + pendiente);
+        }
+      }
+    }
+
+    let count = 0;
+    for (const item of items) {
+      if (!item.stockArticuloId) continue;
+      const articulo = await articulosService.getById(item.stockArticuloId).catch(() => null);
+
+      // All active units for this article
+      const todasUnidades = await unidadesService.getAll({ articuloId: item.stockArticuloId }).catch(() => []);
+      const qtyDisponible = todasUnidades.filter(u => u.estado === 'disponible').length;
+      const qtyReservado = todasUnidades.filter(u => u.estado === 'reservado').length;
+      const qtyEnTransito = enTransitoMap.get(item.stockArticuloId) || 0;
+
+      // Stock proyectado = disponible - reservado + en tránsito
+      const stockProyectado = qtyDisponible - qtyReservado + qtyEnTransito;
+      const stockMinimo = articulo?.stockMinimo ?? 0;
+      const qtyResultante = stockProyectado - item.cantidad;
+
+      if (qtyResultante < stockMinimo || stockProyectado < item.cantidad) {
+        const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - stockProyectado, 1);
+        await requerimientosService.create({
+          articuloId: item.stockArticuloId,
+          articuloCodigo: articulo?.codigo ?? null,
+          articuloDescripcion: articulo?.descripcion ?? item.descripcion,
+          cantidad: qtyReq,
+          unidadMedida: articulo?.unidadMedida ?? 'unidad',
+          motivo: `Auto — presupuesto ${presupuestoNumero} | disp: ${qtyDisponible}, res: ${qtyReservado}, tránsito: ${qtyEnTransito}, necesario: ${item.cantidad}`,
+          origen: 'presupuesto',
+          origenRef: presupuestoId,
+          estado: 'pendiente',
+          presupuestoId,
+          presupuestoNumero,
+          proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
+          proveedorSugeridoNombre: null,
+          ordenCompraId: null,
+          ordenCompraNumero: null,
+          solicitadoPor: 'Automático',
+          fechaSolicitud: new Date().toISOString(),
+          fechaAprobacion: null,
+          urgencia: 'media',
+          notas: null,
+        });
+        count++;
+      }
+    }
+    if (count > 0) console.log(`✅ ${count} requerimiento(s) generados automáticamente para ${presupuestoNumero}`);
   },
 
   // Actualizar presupuesto

@@ -186,7 +186,7 @@ export const leadsService = {
     await batch.commit();
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { prioridad?: LeadPrioridad | null; proximoContacto?: string | null }) {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { prioridad?: LeadPrioridad | null; proximoContacto?: string | null; motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }) {
     const data: Record<string, any> = {
       postas: arrayUnion(deepCleanForFirestore(posta)),
       asignadoA: nuevoAsignadoA || null,
@@ -201,6 +201,10 @@ export const leadsService = {
     if (posta.comentario) data.descripcion = posta.comentario;
     if (extras?.prioridad !== undefined) data.prioridad = extras.prioridad;
     if (extras?.proximoContacto !== undefined) data.proximoContacto = extras.proximoContacto || null;
+    if (extras?.motivoLlamado !== undefined) {
+      data.motivoLlamado = extras.motivoLlamado;
+      data.motivoOtros = extras.motivoLlamado === 'otros' ? (extras.motivoOtros?.trim() || null) : null;
+    }
     const batch = createBatch();
     batch.update(docRef('leads', id), data);
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } as any });

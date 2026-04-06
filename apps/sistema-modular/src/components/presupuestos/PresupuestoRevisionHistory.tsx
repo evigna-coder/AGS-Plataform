@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTabs } from '../../contexts/TabsContext';
 import type { Presupuesto } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS } from '@ags/shared';
 import { extractBase } from '../../utils/presupuestoHelpers';
@@ -21,7 +21,7 @@ export const PresupuestoRevisionHistory: React.FC<Props> = ({
   presupuestoId, numero, estado, motivoAnulacion, presupuestoOrigenId,
   showHistory, revisionHistory, onLoadHistory, onCloseHistory, onClose,
 }) => {
-  const navigate = useNavigate();
+  const { navigateInActiveTab } = useTabs();
 
   return (
     <>
@@ -72,7 +72,7 @@ export const PresupuestoRevisionHistory: React.FC<Props> = ({
                 </span>
                 {rev.motivoAnulacion && <span className="text-slate-400 truncate max-w-[200px]" title={rev.motivoAnulacion}>{rev.motivoAnulacion}</span>}
                 {rev.id !== presupuestoId && (
-                  <button onClick={() => { onClose(); navigate(`/presupuestos/${rev.id}`); }}
+                  <button onClick={() => { onClose(); navigateInActiveTab(`/presupuestos/${rev.id}`); }}
                     className="text-teal-500 hover:text-teal-700 text-[10px] ml-auto">Abrir</button>
                 )}
               </div>

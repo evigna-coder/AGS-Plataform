@@ -70,9 +70,15 @@ class NavHelpers {
     // Expandir Stock si los sub-items no son visibles
     const subItem = this.page.locator('aside nav').getByText(submenu, { exact: true }).first();
     if (!await subItem.isVisible({ timeout: 1000 }).catch(() => false)) {
+      // Click en el botón Stock para expandir — usar evaluate para evitar issues de scroll
       const stockBtn = this.page.locator('aside nav').getByText('Stock', { exact: true }).first();
-      await stockBtn.click();
-      await this.page.waitForTimeout(500);
+      await stockBtn.waitFor({ timeout: 5_000 });
+      await stockBtn.evaluate((el: HTMLElement) => {
+        // Subir hasta el button padre y clickearlo
+        const btn = el.closest('button') || el;
+        btn.click();
+      });
+      await this.page.waitForTimeout(800);
     }
     await subItem.waitFor({ timeout: 5_000 });
     await subItem.scrollIntoViewIfNeeded();
@@ -119,17 +125,21 @@ class FormHelpers {
   /** Click en SearchableSelect (por placeholder) y selecciona la primera opción */
   async searchableSelectFirst(placeholder: string, container?: Locator) {
     const ctx = container || this.page;
-    const input = ctx.getByPlaceholder(placeholder).first();
-    await input.waitFor({ timeout: 5_000 });
-    // El SearchableSelect tiene: div[role=combobox] > input
-    // Click en el div wrapper para abrir el dropdown
-    const combobox = input.locator('..');  // parent div
+    // Buscar el div[role=combobox] que contiene un span con el placeholder text
+    // (cuando cerrado, el placeholder aparece como <span>)
+    const combobox = ctx.locator('[role="combobox"]')
+      .filter({ hasText: placeholder }).first();
+    await combobox.waitFor({ timeout: 5_000 });
+    // Click para abrir
     await combobox.click();
-    await this.page.waitForTimeout(500);
-    // Escribir vacío en el input para mostrar todas las opciones
-    await input.fill('');
-    await this.page.waitForTimeout(800);
-    // Primera opción del listbox (excluir "crear", "sin")
+    await this.page.waitForTimeout(600);
+    // Ahora el input de búsqueda está visible
+    const input = combobox.locator('input').first();
+    if (await input.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await input.fill('');
+      await this.page.waitForTimeout(600);
+    }
+    // Primera opción del listbox
     const firstOpt = this.page.locator('[role="option"], li')
       .filter({ hasNotText: /^crear|^sin /i }).first();
     if (await firstOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -141,7 +151,8 @@ class FormHelpers {
   async clickButton(text: string | RegExp) {
     const btn = this.page.getByRole('button', { name: text }).first();
     await btn.waitFor({ timeout: 10_000 });
-    await btn.click();
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click({ force: true });
   }
 }
 

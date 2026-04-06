@@ -3,8 +3,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import type { Ticket, Posta, TicketEstado, TicketArea } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS, getUserTicketAreas } from '@ags/shared';
+import type { Ticket, Posta, TicketEstado, TicketArea, MotivoLlamado } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS, MOTIVO_LLAMADO_LABELS, getUserTicketAreas } from '@ags/shared';
 
 interface Props {
   lead: Ticket;
@@ -21,6 +21,8 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
   const [areaDestino, setAreaDestino] = useState<TicketArea | ''>(lead.areaActual || '');
   const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
+  const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>(lead.motivoLlamado);
+  const [motivoOtros, setMotivoOtros] = useState(lead.motivoOtros || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -62,7 +64,10 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
         estadoNuevo: nuevoEstado,
         ...(accionRequerida.trim() ? { accionRequerida: accionRequerida.trim() } : {}),
       };
-      await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null);
+      await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null, {
+        motivoLlamado,
+        motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
+      });
       onSuccess();
       onClose();
     } finally {
@@ -86,6 +91,30 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
             ))}
           </select>
         </div>
+        <div>
+          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Motivo</label>
+          <select
+            value={motivoLlamado}
+            onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+          >
+            {Object.entries(MOTIVO_LLAMADO_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </div>
+        {motivoLlamado === 'otros' && (
+          <div>
+            <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Especificar motivo</label>
+            <input
+              type="text"
+              value={motivoOtros}
+              onChange={e => setMotivoOtros(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="Describir motivo..."
+            />
+          </div>
+        )}
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">
             Derivar a (usuario)

@@ -290,7 +290,7 @@ export const leadsService = {
     });
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null): Promise<void> {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }): Promise<void> {
     const update: Record<string, any> = {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
       asignadoA: nuevoAsignadoA || null,
@@ -302,6 +302,10 @@ export const leadsService = {
     };
     if (area !== undefined) update.areaActual = area || null;
     if (accionRequerida !== undefined) update.accionPendiente = accionRequerida || null;
+    if (extras?.motivoLlamado !== undefined) {
+      update.motivoLlamado = extras.motivoLlamado;
+      update.motivoOtros = extras.motivoLlamado === 'otros' ? (extras.motivoOtros?.trim() || null) : null;
+    }
     await updateDoc(doc(db, 'leads', id), update);
   },
 

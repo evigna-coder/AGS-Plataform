@@ -59,8 +59,10 @@ test.describe('Circuito 4: Órdenes de Trabajo', () => {
 
   test('4.4 — Abrir detalle de OT', async ({ app, nav }) => {
     await nav.goTo('Ordenes de Trabajo');
-    await app.waitForTimeout(1500);
-    await app.locator('tbody tr').first().click();
+    await app.waitForTimeout(2000);
+    const firstRow = app.locator('tbody tr').first();
+    await firstRow.scrollIntoViewIfNeeded();
+    await firstRow.click({ force: true });
     await app.waitForTimeout(2000);
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTabs } from '../../contexts/TabsContext';
 import { Button } from '../ui/Button';
 import type { Presupuesto } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS } from '@ags/shared';
@@ -25,7 +25,7 @@ export const PresupuestoHeaderBar: React.FC<Props> = ({
   saving, generatingPDF, deleting,
   onMinimize, onClose, onPreviewPDF, onDownloadPDF, onEnviar, onDelete,
 }) => {
-  const navigate = useNavigate();
+  const { navigateInActiveTab } = useTabs();
 
   return (
     <div className="-mx-5 -mt-4 px-5 pb-3 mb-4 border-b border-slate-100">
@@ -65,7 +65,7 @@ export const PresupuestoHeaderBar: React.FC<Props> = ({
             </Button>
           )}
           {estado === 'aceptado' && (
-            <Button variant="outline" size="sm" onClick={() => { onClose(); navigate(`/ordenes-trabajo/nuevo?presupuestoId=${presupuestoId}`); }}>Crear OT</Button>
+            <Button variant="outline" size="sm" onClick={() => { onClose(); navigateInActiveTab(`/ordenes-trabajo/nuevo?presupuestoId=${presupuestoId}`); }}>Crear OT</Button>
           )}
           <Button variant="ghost" size="sm" onClick={onDelete} disabled={deleting} title="Eliminar presupuesto"
             className="text-red-400 hover:text-red-600 hover:bg-red-50">

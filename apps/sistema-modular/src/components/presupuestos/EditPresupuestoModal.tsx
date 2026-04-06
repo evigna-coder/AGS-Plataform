@@ -15,7 +15,6 @@ import { ReservarStockModal } from '../stock/ReservarStockModal';
 import { usePresupuestoEdit } from '../../hooks/usePresupuestoEdit';
 import { usePresupuestoSistemas } from '../../hooks/usePresupuestoSistemas';
 import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
-import { useGenerarRequerimientos } from '../../hooks/useGenerarRequerimientos';
 import type { Presupuesto } from '@ags/shared';
 
 interface Props {
@@ -32,7 +31,6 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const [showSolicitarFactura, setShowSolicitarFactura] = useState(false);
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
   const [showReservar, setShowReservar] = useState(false);
-  const { generarParaPresupuesto, loading: generandoReq } = useGenerarRequerimientos();
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
@@ -59,13 +57,6 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const itemsConStock = (form.items ?? [])
     .filter(i => i.stockArticuloId)
     .map(i => ({ articuloId: i.stockArticuloId!, descripcion: i.descripcion }));
-
-  const handleGenerarReq = async () => {
-    const presupuesto = { id: presupuestoId, numero: form.numero, items: form.items } as Presupuesto;
-    const count = await generarParaPresupuesto(presupuesto);
-    if (count > 0) alert(`${count} requerimiento(s) generado(s) correctamente.`);
-    else alert('No se generaron requerimientos. Verifique ítems con stock vinculado.');
-  };
 
   const condicionesValues = {
     notasTecnicas: form.notasTecnicas,
@@ -220,9 +211,6 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
                 Reservar stock
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleGenerarReq} disabled={generandoReq}>
-              {generandoReq ? 'Generando...' : 'Generar req. de compra'}
-            </Button>
             <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
             {form.estado !== 'anulado' && (
               <Button variant="primary" size="sm" onClick={actions.handleSave} disabled={saving}>

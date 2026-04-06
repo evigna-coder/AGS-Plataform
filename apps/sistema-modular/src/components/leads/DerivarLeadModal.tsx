@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Lead, LeadEstado, LeadArea, TicketArea, TicketPrioridad, UsuarioAGS, Posta, Ingeniero } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, TicketArea, TicketPrioridad, UsuarioAGS, Posta, Ingeniero, MotivoLlamado } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, MOTIVO_LLAMADO_LABELS, getUserTicketAreas } from '@ags/shared';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -22,6 +22,8 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
   const [prioridad, setPrioridad] = useState<TicketPrioridad>(lead.prioridad as TicketPrioridad || 'normal');
+  const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>(lead.motivoLlamado);
+  const [motivoOtros, setMotivoOtros] = useState(lead.motivoOtros || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -69,6 +71,8 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
       await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null, {
         prioridad,
         proximoContacto: (() => { const d = new Date(); d.setDate(d.getDate() + TICKET_PRIORIDAD_DIAS[prioridad]); return d.toISOString().split('T')[0]; })(),
+        motivoLlamado,
+        motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
       });
       onDerived();
     } catch (err: any) {
@@ -86,6 +90,27 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
         <div className="bg-slate-50 rounded-lg px-3 py-2">
           <p className="text-xs text-slate-700 font-medium">{lead.razonSocial}</p>
           <p className="text-[10px] text-slate-500">{lead.contacto}</p>
+        </div>
+
+        {/* Motivo */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-1 block">Motivo</label>
+            <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)}
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+              {Object.entries(MOTIVO_LLAMADO_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+          {motivoLlamado === 'otros' && (
+            <div>
+              <label className="text-[11px] font-medium text-slate-400 mb-1 block">Especificar motivo</label>
+              <input type="text" value={motivoOtros} onChange={e => setMotivoOtros(e.target.value)}
+                className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="Describir motivo..." />
+            </div>
+          )}
         </div>
 
         {/* Área + Asignar a */}
