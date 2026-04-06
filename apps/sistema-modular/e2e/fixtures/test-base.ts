@@ -57,10 +57,11 @@ class NavHelpers {
 
   async goTo(label: string) {
     await this.ensureLoaded();
-    // exact:false para tolerar "Calif. Proveedores" y similares
     const item = this.page.locator('aside nav').getByText(label, { exact: false }).first();
     await item.waitFor({ timeout: 10_000 });
-    await item.click();
+    // Scroll into view — el sidebar es overflow-y-auto
+    await item.scrollIntoViewIfNeeded();
+    await item.click({ force: true });
     await this.page.waitForTimeout(1500);
   }
 
@@ -74,7 +75,8 @@ class NavHelpers {
       await this.page.waitForTimeout(500);
     }
     await subItem.waitFor({ timeout: 5_000 });
-    await subItem.click();
+    await subItem.scrollIntoViewIfNeeded();
+    await subItem.click({ force: true });
     await this.page.waitForTimeout(1500);
   }
 
@@ -119,17 +121,16 @@ class FormHelpers {
     const ctx = container || this.page;
     const input = ctx.getByPlaceholder(placeholder).first();
     await input.waitFor({ timeout: 5_000 });
-    // Forzar click (algunos tienen tabindex=-1)
-    await input.evaluate((el: HTMLElement) => el.click());
+    // El SearchableSelect tiene: div[role=combobox] > input
+    // Click en el div wrapper para abrir el dropdown
+    const combobox = input.locator('..');  // parent div
+    await combobox.click();
     await this.page.waitForTimeout(500);
-    // Disparar input para mostrar opciones
-    await input.evaluate((el: HTMLInputElement) => {
-      el.value = '';
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    // Escribir vacío en el input para mostrar todas las opciones
+    await input.fill('');
     await this.page.waitForTimeout(800);
-    // Primera opción (excluir "crear", "sin")
-    const firstOpt = this.page.locator('li, [role="option"]')
+    // Primera opción del listbox (excluir "crear", "sin")
+    const firstOpt = this.page.locator('[role="option"], li')
       .filter({ hasNotText: /^crear|^sin /i }).first();
     if (await firstOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
       await firstOpt.click();

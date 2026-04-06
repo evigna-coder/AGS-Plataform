@@ -27,17 +27,12 @@ test.describe('Circuito 6: Contratos', () => {
     // Fecha fin *
     await forms.fillField('Fecha fin', '2027-04-01', modal);
 
-    // Servicios incluidos * — son botones toggle, click el primero
-    const serviceBtns = modal.locator('button').filter({ hasNotText: /guardar|crear|cancelar|cerrar/i });
+    // Servicios incluidos * — botones toggle con clase rounded-full
+    const serviceBtns = modal.locator('button.rounded-full, button[class*="rounded-full"]');
     const svcCount = await serviceBtns.count();
-    for (let i = 0; i < Math.min(svcCount, 3); i++) {
-      const btn = serviceBtns.nth(i);
-      const text = await btn.textContent();
-      // Solo clickear si parece un servicio (no un control)
-      if (text && text.length > 2 && text.length < 50) {
-        await btn.click().catch(() => {});
-        break;
-      }
+    if (svcCount > 0) {
+      await serviceBtns.first().click();
+      await app.waitForTimeout(300);
     }
 
     // Guardar

@@ -16,7 +16,11 @@ test.describe('Circuito 5: Stock', () => {
 
   test('5.2 — Crear nuevo artículo', async ({ app, nav, forms }) => {
     await nav.goToStock('Articulos');
-    await forms.clickButton(/nuevo articulo/i);
+    await app.waitForTimeout(2000);
+    // Esperar que el botón sea visible (estamos en la lista)
+    const btn = app.getByRole('button', { name: /nuevo articulo/i }).first();
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click();
     await app.waitForTimeout(1500);
 
     // ArticuloEditor es página completa
