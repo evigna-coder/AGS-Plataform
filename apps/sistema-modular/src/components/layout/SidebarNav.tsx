@@ -67,12 +67,18 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         </a>
         {!collapsed && (
           <button
-            onClick={() => openTab(item.path, item.name, item.icon)}
+            onClick={() => {
+              if (window.electronAPI?.openModuleWindow) {
+                window.electronAPI.openModuleWindow(item.path);
+              } else {
+                openTab(item.path, item.name, item.icon);
+              }
+            }}
             className="shrink-0 p-1.5 mr-1 rounded text-slate-600 hover:text-slate-200 hover:bg-slate-700 transition-colors"
-            title="Abrir en nueva pestana"
+            title="Abrir en nueva ventana"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </button>
         )}

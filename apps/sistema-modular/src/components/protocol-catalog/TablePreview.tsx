@@ -21,17 +21,68 @@ export const TablePreview = ({ table }: Props) => {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse" style={table.columns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
             <thead>
-              <tr className="bg-slate-50">
-                {table.columns.map((col: TableCatalogEntry['columns'][number]) => (
-                  <th key={col.key} className={`px-3 py-2 font-bold text-slate-700 border border-slate-200 ${col.align === 'left' ? 'text-center' : col.align === 'right' ? 'text-center' : 'text-center'}`}
-                    style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
-                    {col.label}
-                    {col.unit ? ` (${col.unit})` : ''}
-                    {col.required ? ' *' : ''}
-                    {col.width ? <span className="text-slate-400 font-normal ml-1">({col.width}mm)</span> : ''}
-                  </th>
-                ))}
-              </tr>
+              {(() => {
+                const groups = table.columnGroups ?? [];
+                const hasGroups = groups.length > 0;
+                const groupTitle = table.columnGroupTitle ?? null;
+                const groupedCols = new Set<number>();
+                groups.forEach(g => { for (let i = g.startCol; i < g.startCol + g.span; i++) groupedCols.add(i); });
+
+                const thBase = 'px-3 py-2 font-bold text-slate-700 border border-slate-200 text-center';
+                const titleRow = groupTitle ? (
+                  <tr className="bg-slate-100">
+                    <th colSpan={table.columns.length} className={`${thBase} text-sm`}>{groupTitle}</th>
+                  </tr>
+                ) : null;
+
+                if (!hasGroups) {
+                  return (
+                    <>
+                      {titleRow}
+                      <tr className="bg-slate-50">
+                        {table.columns.map((col: TableCatalogEntry['columns'][number]) => (
+                          <th key={col.key} className={thBase}
+                            style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
+                            {col.label}{col.unit ? ` (${col.unit})` : ''}{col.required ? ' *' : ''}
+                            {col.width ? <span className="text-slate-400 font-normal ml-1">({col.width}mm)</span> : ''}
+                          </th>
+                        ))}
+                      </tr>
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    {titleRow}
+                    <tr className="bg-slate-50">
+                      {table.columns.map((col, colIdx) => {
+                        if (groupedCols.has(colIdx)) {
+                          const group = groups.find(g => g.startCol === colIdx);
+                          if (!group) return null;
+                          return <th key={`group-${colIdx}`} colSpan={group.span} className={thBase}>{group.label}</th>;
+                        }
+                        return (
+                          <th key={col.key} rowSpan={2} className={thBase}
+                            style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
+                            {col.label}{col.unit ? ` (${col.unit})` : ''}{col.required ? ' *' : ''}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                    <tr className="bg-slate-50">
+                      {groups.flatMap(g =>
+                        table.columns.slice(g.startCol, g.startCol + g.span).map(col => (
+                          <th key={col.key} className={thBase}
+                            style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
+                            {col.label}{col.unit ? ` (${col.unit})` : ''}
+                          </th>
+                        ))
+                      )}
+                    </tr>
+                  </>
+                );
+              })()}
             </thead>
             <tbody>
               {table.templateRows.length === 0 ? (

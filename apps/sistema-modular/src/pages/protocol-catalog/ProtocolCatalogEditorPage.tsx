@@ -88,6 +88,11 @@ export const TableCatalogEditorPage = () => {
   const dataLoaded = useRef(false);
 
   useEffect(() => {
+    // Reset cuando cambia tableId (ej. al clonar y navegar a la nueva tabla)
+    dataLoaded.current = false;
+  }, [tableId]);
+
+  useEffect(() => {
     if (dataLoaded.current) return;
     let cancelled = false;
     if (tableId) {

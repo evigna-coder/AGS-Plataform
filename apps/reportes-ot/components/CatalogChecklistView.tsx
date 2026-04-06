@@ -340,7 +340,7 @@ function ChecklistItemRow({
     const checked = cbAnswer?.checked ?? false;
     const linkedValue = cbAnswer?.linkedValue ?? '';
     const hasLabel = !!item.label;
-    const hasLinked = !!item.linkedValueLabel;
+    const hasLinked = !!(item.showLinkedValue ?? item.linkedValueLabel);
     const hasDate = !!item.showDate;
     const hasSig = !!item.showSignatures;
     const wantClient = item.showSignatures === 'both' || item.showSignatures === 'client';
@@ -425,6 +425,9 @@ function ChecklistItemRow({
     }
 
     // ── Checkbox con label (+ fecha/firmas opcionales debajo) ──
+    const showValueNow = hasLinked && (checked || item.alwaysShowValue);
+    const valueInline = showValueNow && !item.linkedValueLabel;
+
     if (isPrint) {
       return (
         <div className="py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
@@ -436,13 +439,24 @@ function ChecklistItemRow({
                 : checked ? <span className="text-[10px] text-white font-bold leading-none">✓</span>
                 : null}
             </span>
-            {labelEl}
-            {hasLinked && checked && (
-              <span className="text-[11px] text-slate-600 shrink-0">
-                <span className="text-slate-400">{item.linkedValueLabel}: </span>
+            {valueInline ? (
+              <span className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
+                {item.label}{' '}
                 <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
                 {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
               </span>
+            ) : (
+              <>
+                {labelEl}
+                {showValueNow && (
+                  <span className="text-[11px] text-slate-600 shrink-0">
+                    <span className="text-slate-400">{item.linkedValueLabel}: </span>
+                    <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
+                    {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
+                  </span>
+                )}
+              </>
             )}
           </div>
           {/* Fecha + firmas debajo, alineados en fila */}
@@ -471,16 +485,16 @@ function ChecklistItemRow({
             />
             {labelEl}
           </label>
-          {hasLinked && checked && (
+          {showValueNow && (
             <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[10px] text-slate-500">{item.linkedValueLabel}:</span>
+              {item.linkedValueLabel && <span className="text-[10px] text-slate-500">{item.linkedValueLabel}:</span>}
               <input
                 type="text"
                 className="text-xs bg-transparent border-b border-slate-300 outline-none w-16 text-center disabled:cursor-not-allowed"
                 value={linkedValue}
                 disabled={disabled}
                 placeholder="___"
-                onChange={e => onAnswer({ itemType: 'checkbox', checked: true, linkedValue: e.target.value })}
+                onChange={e => onAnswer({ itemType: 'checkbox', checked: checked || !!item.alwaysShowValue, linkedValue: e.target.value })}
               />
               {item.linkedValueUnit && <span className="text-[10px] text-slate-400">{item.linkedValueUnit}</span>}
             </div>
@@ -634,6 +648,19 @@ export const CatalogChecklistView: React.FC<Props> = ({
     }
   };
 
+  /** Tildar/destildar TODAS las checkboxes de toda la tabla */
+  const allCheckboxes = items.filter(i => i.itemType === 'checkbox' && !naSet.has(i.itemId));
+  const allGlobalChecked = allCheckboxes.length > 0 && allCheckboxes.every(cb => {
+    const a = checklistData[cb.itemId] as { itemType: 'checkbox'; checked: boolean } | undefined;
+    return a?.checked === true;
+  });
+  const handleCheckAllGlobal = (check: boolean) => {
+    for (const cb of allCheckboxes) {
+      const existing = checklistData[cb.itemId] as { itemType: 'checkbox'; checked: boolean; linkedValue?: string } | undefined;
+      onChangeData(selection.tableId, cb.itemId, { itemType: 'checkbox', checked: check, linkedValue: existing?.linkedValue ?? '' });
+    }
+  };
+
   const showTitle = tableSnapshot.showTitle ?? true;
 
   return (
@@ -647,10 +674,20 @@ export const CatalogChecklistView: React.FC<Props> = ({
             </div>
           )}
           {!showTitle && <div />}
-          {!readOnly && !isPrint && onRemove && (
-            <button onClick={() => onRemove(selection.tableId)}
-              className="text-slate-400 hover:text-slate-700 text-xs">× Quitar</button>
-          )}
+          <div className="flex items-center gap-3">
+            {!readOnly && !isPrint && allCheckboxes.length > 0 && (
+              <button
+                onClick={() => handleCheckAllGlobal(!allGlobalChecked)}
+                className={`text-[10px] font-semibold uppercase tracking-wide transition-colors ${allGlobalChecked ? 'text-red-400 hover:text-red-600' : 'text-teal-600 hover:text-teal-800'}`}
+              >
+                {allGlobalChecked ? 'Destildar todas' : 'Tildar todas'}
+              </button>
+            )}
+            {!readOnly && !isPrint && onRemove && (
+              <button onClick={() => onRemove(selection.tableId)}
+                className="text-slate-400 hover:text-slate-700 text-xs">× Quitar</button>
+            )}
+          </div>
         </div>
       )}
 

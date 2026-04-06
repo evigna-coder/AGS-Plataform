@@ -41,6 +41,14 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   // Variable binding
   const [variable, setVariable] = useState(row.variable ?? '');
 
+  // Unidades por columna (override de col.unit para esta fila)
+  const [cellUnits, setCellUnits] = useState<Record<string, string>>(
+    () => Object.fromEntries(Object.entries(row.cellUnits ?? {}).filter(([, v]) => v !== ''))
+  );
+  const [showCellUnits, setShowCellUnits] = useState(() => Object.keys(row.cellUnits ?? {}).length > 0);
+
+  const unitColumns = columns.filter(c => c.type === 'number_input' || c.type === 'text_input');
+
   // Visibilidad condicional por header field
   const [visFieldId, setVisFieldId] = useState(row.visibleWhenSelector?.headerFieldId ?? '');
   const [visSelValues, setVisSelValues] = useState<string[]>(row.visibleWhenSelector?.values ?? []);
@@ -70,12 +78,14 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
       const visWhen = visFieldId && visSelValues.length > 0
         ? { headerFieldId: visFieldId, values: visSelValues }
         : null;
+      const cleanCellUnits = Object.fromEntries(Object.entries(cellUnits).filter(([, v]) => v !== ''));
       onSave({
         ...row, cells, isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
         rowSpan: undefined, spanColumns: undefined,
         columnSpans: hasSpans ? cleanSpans : undefined,
         visibleWhenSelector: visWhen,
         variable: variable || null,
+        cellUnits: Object.keys(cleanCellUnits).length > 0 ? cleanCellUnits : null,
       });
     }
   };
@@ -275,7 +285,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
                   </div>
                 ) : (
                   <Input
-                    type={col.type === 'number_input' ? 'number' : col.type === 'date_input' ? 'date' : 'text'}
+                    type={col.type === 'date_input' ? 'date' : 'text'}
                     value={String(cells[col.key] ?? '')}
                     onChange={e => handleChange(col.key, e.target.value)}
                     placeholder={
@@ -328,6 +338,48 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
               </>
             )}
           </div>
+
+          {/* Unidades por columna (override de col.unit para esta fila) */}
+          {unitColumns.length > 0 && (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowCellUnits(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-[10px] font-bold text-slate-600 uppercase hover:bg-slate-100"
+              >
+                <span>Unidades por columna (opcional)</span>
+                <span className="text-slate-400">{showCellUnits ? '▲' : '▼'}</span>
+              </button>
+              {showCellUnits && (
+                <div className="p-3 space-y-1.5">
+                  <p className="text-[10px] text-slate-400 mb-2">
+                    Vacío = usa la unidad global de la columna. Solo completar las columnas que necesitan una unidad distinta en esta fila.
+                  </p>
+                  {unitColumns.map(col => (
+                    <div key={col.key} className="flex items-center gap-2">
+                      <span className="flex-1 text-xs text-slate-600 truncate">
+                        {col.label}{col.unit ? <span className="text-slate-400 ml-1">({col.unit})</span> : ''}
+                      </span>
+                      <input
+                        type="text"
+                        value={cellUnits[col.key] ?? ''}
+                        placeholder={col.unit ?? 'ej: mAU/h'}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setCellUnits(prev => {
+                            const next = { ...prev };
+                            if (val === '') { delete next[col.key]; } else { next[col.key] = val; }
+                            return next;
+                          });
+                        }}
+                        className="w-28 border border-slate-300 rounded px-2 py-1 text-xs text-center"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Column-level span config */}
           {maxRowSpan > 1 && (

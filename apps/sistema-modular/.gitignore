@@ -29,6 +29,14 @@ release/
 *.sln
 *.sw?
 
+# Playwright
+e2e/.auth/
+e2e/.auth-profile/
+e2e-report/
+test-results/
+playwright-report/
+blob-report/
+
 # Vite
 .vite/
 

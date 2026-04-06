@@ -1135,6 +1135,12 @@ export interface TableCatalogRow {
    */
   variable?: string | null;
   /**
+   * Unidad de medida por columna, específica para esta fila.
+   * Sobreescribe la unidad definida en la columna (col.unit).
+   * Ej: { resultado: 'mAU/h' } → esa celda muestra 'mAU/h' en lugar de la unidad global.
+   */
+  cellUnits?: Record<string, string> | null;
+  /**
    * @deprecated Usar `columnSpans` para span por columna independiente.
    * Cuántas filas consecutivas (incluyendo esta) abarcan las columnas indicadas en spanColumns.
    */
@@ -1175,6 +1181,17 @@ export interface TableCatalogRule {
   /** For 'compute': arithmetic operator to apply. targetColumn = sourceColumn {op} operandColumn.
    *  'abs_diff': targetColumn = |sourceColumn - operandColumn/constant| (valor absoluto de la diferencia) */
   computeOperator?: '+' | '-' | '*' | '/' | 'abs_diff' | null;
+  /**
+   * Override de umbral por fila. Clave = rowId, valor = umbral específico para esa fila.
+   * Si un rowId no está presente, se usa factoryThreshold como fallback.
+   * Aplica a operadores estándar (<=, >=, etc.) y a reglas compute con operando constante.
+   */
+  rowThresholds?: Record<string, string | number> | null;
+  /**
+   * Filas a las que aplica esta regla. Si es null/undefined/vacío, aplica a TODAS las filas.
+   * Permite tener reglas distintas para subconjuntos de filas (ej. una regla para filas 1-3, otra para 4-6).
+   */
+  applicableRowIds?: string[] | null;
 }
 
 // --- Checklist types (para tableType: 'checklist') ---
@@ -1219,10 +1236,14 @@ export interface ChecklistItem {
     | { selectorItemId: string; values: string[] }
     | { checkboxItemId: string; whenChecked: boolean }
     | null;
-  /** Para checkbox: si está definido, al tildar aparece un campo de valor con esta etiqueta (ej. "Cantidad") */
+  /** Para checkbox: activa un campo de valor junto al checkbox. */
+  showLinkedValue?: boolean;
+  /** Etiqueta del campo vinculado (ej. "Cantidad"). Vacío = sin etiqueta, solo el input. */
   linkedValueLabel?: string | null;
   /** Unidad del campo vinculado (ej. "unid.", "ml") */
   linkedValueUnit?: string | null;
+  /** Si true, el campo de valor se muestra siempre (no solo al tildar el checkbox). */
+  alwaysShowValue?: boolean;
   /** Para checkbox: qué fecha de la OT mostrar junto al checkbox.
    *  'inicio' = fecha realización; 'fin' = fecha finalización; 'both' = ambas; null/undefined = sin fecha */
   showDate?: 'inicio' | 'fin' | 'both' | null;
@@ -1345,6 +1366,17 @@ export interface TableCatalogEntry {
    * como "Solventes" que deben verse igual que las tablas auto-generadas.
    */
   compactDisplay?: boolean;
+  /**
+   * Título que abarca TODAS las columnas como primera fila del header.
+   * Ej: "Configuración de sistema" → <th colspan=N> en la primera fila.
+   */
+  columnGroupTitle?: string | null;
+  /**
+   * Grupos de columnas para cabeceras multi-nivel.
+   * Genera una fila extra de <th> con colspan. Las columnas no agrupadas ocupan rowSpan=2.
+   * Ej: [{ label: 'ALS', startCol: 4, span: 2 }] → "ALS" abarca columnas 4 y 5.
+   */
+  columnGroups?: { label: string; startCol: number; span: number }[];
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';

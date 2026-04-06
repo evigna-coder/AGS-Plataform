@@ -104,11 +104,12 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
 interface RuleFormProps {
   rule: TableCatalogRule;
   columns: TableCatalogColumn[];
+  rows?: TableCatalogRow[];
   onSave: (rule: TableCatalogRule) => void;
   onCancel: () => void;
 }
 
-const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
+const RuleForm = ({ rule, columns, rows = [], onSave, onCancel }: RuleFormProps) => {
   /** Auto-detecta columnas para vs_spec basándose en labels */
   const autoFillVsSpec = (r: TableCatalogRule): TableCatalogRule => {
     if (r.operator !== 'vs_spec') return r;
@@ -131,6 +132,9 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
   };
 
   const [d, setD] = useState<TableCatalogRule>(() => autoFillVsSpec(rule));
+  const [showRowOverrides, setShowRowOverrides] = useState(
+    () => Object.keys(rule.rowThresholds ?? {}).length > 0
+  );
   const allOps: TableCatalogRule['operator'][] = ['<=', '>=', '<', '>', '==', '!=', 'vs_spec', 'compute'];
   const opLabels: Record<string, string> = {
     '<=': '≤', '>=': '≥', '<': '<', '>': '>', '==': '==', '!=': '!=',
@@ -239,6 +243,49 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
               {d.computeOperator === 'abs_diff' ? '|' : ''}
             </p>
           )}
+          {/* Override de constante B por fila (solo cuando operando es constante) */}
+          {!d.operandColumn && rows.filter(r => !r.isTitle && !r.isSelector).length > 0 && (
+            <div className="border border-purple-200 rounded-lg overflow-hidden mt-1">
+              <button
+                type="button"
+                onClick={() => setShowRowOverrides(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-1.5 bg-purple-50 text-[10px] font-bold text-purple-700 uppercase hover:bg-purple-100"
+              >
+                <span>Constante por fila (opcional)</span>
+                <span className="text-purple-400">{showRowOverrides ? '▲' : '▼'}</span>
+              </button>
+              {showRowOverrides && (
+                <div className="p-3 space-y-1.5">
+                  <p className="text-[10px] text-slate-400 mb-2">
+                    Vacío = usa la constante global. Solo completar las filas que necesitan un valor distinto.
+                  </p>
+                  {rows.filter(r => !r.isTitle && !r.isSelector).map((row, idx) => {
+                    const label = String(Object.values(row.cells).find(v => v) ?? `Fila ${idx + 1}`);
+                    const current = d.rowThresholds?.[row.rowId] ?? '';
+                    return (
+                      <div key={row.rowId} className="flex items-center gap-2">
+                        <span className="flex-1 text-xs text-slate-600 truncate" title={label}>{label}</span>
+                        <input
+                          type="number"
+                          step="any"
+                          value={current === '' ? '' : String(current)}
+                          placeholder={String(d.factoryThreshold || '—')}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const next = { ...(d.rowThresholds ?? {}) };
+                            if (val === '') { delete next[row.rowId]; }
+                            else { next[row.rowId] = val; }
+                            setD({ ...d, rowThresholds: Object.keys(next).length ? next : null });
+                          }}
+                          className="w-24 border border-purple-200 rounded px-2 py-1 text-xs text-center"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : isVsSpec ? (
         /* ── vs_spec: compara valor medido contra especificación por fila → escribe PASA/FALLA ── */
@@ -315,7 +362,7 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
               <span className="block text-center text-sm font-bold text-slate-600 py-1.5">{opLabels[d.operator]}</span>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Umbral</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Umbral global</label>
               <Input placeholder="ej: 5.0" value={String(d.factoryThreshold)}
                 onChange={e => setD({ ...d, factoryThreshold: e.target.value })} />
             </div>
@@ -340,6 +387,101 @@ const RuleForm = ({ rule, columns, onSave, onCancel }: RuleFormProps) => {
                 onChange={e => setD({ ...d, valueIfFail: e.target.value })} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Overrides por fila (disponible para todos los operadores con umbral numérico) ── */}
+      {!isVsSpec && rows.filter(r => !r.isTitle && !r.isSelector).length > 0 && (
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowRowOverrides(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-[10px] font-bold text-slate-600 uppercase hover:bg-slate-100"
+          >
+            <span>Umbrales por fila (opcional)</span>
+            <span className="text-slate-400">{showRowOverrides ? '▲' : '▼'}</span>
+          </button>
+          {showRowOverrides && (
+            <div className="p-3 space-y-1.5">
+              <p className="text-[10px] text-slate-400 mb-2">
+                Vacío = usa el umbral global. Solo completar las filas que necesitan un valor distinto.
+              </p>
+              {rows.filter(r => !r.isTitle && !r.isSelector).map((row, idx) => {
+                const label = String(Object.values(row.cells).find(v => v) ?? `Fila ${idx + 1}`);
+                const current = d.rowThresholds?.[row.rowId] ?? '';
+                return (
+                  <div key={row.rowId} className="flex items-center gap-2">
+                    <span className="flex-1 text-xs text-slate-600 truncate" title={label}>{label}</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={current === '' ? '' : String(current)}
+                      placeholder={String(d.factoryThreshold || '—')}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const next = { ...(d.rowThresholds ?? {}) };
+                        if (val === '') { delete next[row.rowId]; }
+                        else { next[row.rowId] = val; }
+                        setD({ ...d, rowThresholds: Object.keys(next).length ? next : null });
+                      }}
+                      className="w-24 border border-slate-300 rounded px-2 py-1 text-xs text-center"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Selector de filas donde aplica la regla ── */}
+      {rows.filter(r => !r.isTitle && !r.isSelector).length > 1 && (
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => {
+              if (d.applicableRowIds?.length) {
+                setD({ ...d, applicableRowIds: null });
+              } else {
+                setD({ ...d, applicableRowIds: rows.filter(r => !r.isTitle && !r.isSelector).map(r => r.rowId) });
+              }
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-[10px] font-bold text-slate-600 uppercase hover:bg-slate-100"
+          >
+            <span>
+              Aplica a: {d.applicableRowIds?.length
+                ? `${d.applicableRowIds.length} de ${rows.filter(r => !r.isTitle && !r.isSelector).length} filas`
+                : 'todas las filas'}
+            </span>
+            <span className="text-slate-400">{d.applicableRowIds?.length ? '✎' : '▼'}</span>
+          </button>
+          {d.applicableRowIds && (
+            <div className="p-3 space-y-1">
+              <p className="text-[10px] text-slate-400 mb-2">
+                Destildar las filas donde esta regla NO debe aplicarse.
+              </p>
+              {rows.filter(r => !r.isTitle && !r.isSelector).map((row, idx) => {
+                const label = String(Object.values(row.cells).find(v => v) ?? `Fila ${idx + 1}`);
+                const checked = d.applicableRowIds!.includes(row.rowId);
+                return (
+                  <label key={row.rowId} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? d.applicableRowIds!.filter(id => id !== row.rowId)
+                          : [...d.applicableRowIds!, row.rowId];
+                        setD({ ...d, applicableRowIds: next.length === rows.filter(r => !r.isTitle && !r.isSelector).length ? null : next.length > 0 ? next : null });
+                      }}
+                      className="w-3.5 h-3.5 accent-slate-700"
+                    />
+                    <span className="text-xs text-slate-600">{label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -424,6 +566,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
   const [addingRule, setAddingRule] = useState(false);
   const [editingHeaderIdx, setEditingHeaderIdx] = useState<number | null>(null);
   const [addingHeader, setAddingHeader] = useState(false);
+  const [unitOverrideColKey, setUnitOverrideColKey] = useState<string | null>(null);
 
   const upd = (key: keyof TableCatalogEntry, value: any) => onChange({ ...table, [key]: value });
 
@@ -531,6 +674,11 @@ export const TableEditor = ({ table, onChange }: Props) => {
                       </span>
                     </span>
                     <div className="flex gap-3">
+                      {(col.type === 'number_input' || col.type === 'text_input') && table.templateRows.some(r => !r.isTitle && !r.isSelector) && (
+                        <button onClick={() => setUnitOverrideColKey(unitOverrideColKey === col.key ? null : col.key)}
+                          className={`text-xs font-bold ${unitOverrideColKey === col.key ? 'text-orange-600' : 'text-orange-500 hover:text-orange-700'}`}
+                          title="Configurar unidades distintas por fila">Unidades</button>
+                      )}
                       <button onClick={() => { setAddingCol(false); setEditingColIdx(i); }}
                         className="text-blue-600 text-xs font-bold">Editar</button>
                       <button onClick={() => upd('columns', table.columns.filter((_, j) => j !== i))}
@@ -539,12 +687,131 @@ export const TableEditor = ({ table, onChange }: Props) => {
                   </div>
                 </div>
               )}
+              {/* Panel de unidades por fila para esta columna */}
+              {unitOverrideColKey === col.key && (
+                <div className="ml-8 border border-orange-200 rounded-lg p-3 bg-orange-50 mt-1 space-y-1.5">
+                  <p className="text-[10px] text-orange-700 font-bold uppercase">
+                    Unidad por fila — {col.label} {col.unit ? `(global: ${col.unit})` : '(sin unidad global)'}
+                  </p>
+                  <p className="text-[10px] text-orange-600 mb-2">
+                    Vacío = usa la unidad global de la columna. Solo completar las filas que necesiten una unidad distinta.
+                  </p>
+                  {table.templateRows.filter(r => !r.isTitle && !r.isSelector).map((row, idx) => {
+                    const label = String(Object.values(row.cells).find(v => v) ?? `Fila ${idx + 1}`);
+                    const current = row.cellUnits?.[col.key] ?? '';
+                    return (
+                      <div key={row.rowId} className="flex items-center gap-2">
+                        <span className="flex-1 text-xs text-slate-600 truncate" title={label}>{label}</span>
+                        <input
+                          type="text"
+                          value={current}
+                          placeholder={col.unit ?? 'ej: mAU/h'}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const updatedRows = table.templateRows.map(r => {
+                              if (r.rowId !== row.rowId) return r;
+                              const next = { ...(r.cellUnits ?? {}) };
+                              if (val === '') { delete next[col.key]; } else { next[col.key] = val; }
+                              return { ...r, cellUnits: Object.keys(next).length > 0 ? next : null };
+                            });
+                            upd('templateRows', updatedRows);
+                          }}
+                          className="w-28 border border-orange-300 rounded px-2 py-1 text-xs text-center"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
           {addingCol && (
             <ColumnForm
               col={{ key: '', label: '', type: 'text_input', unit: null, required: false, expectedValue: null }}
               onSave={saveColumn} onCancel={() => setAddingCol(false)} />
+          )}
+
+          {/* Grupos de columnas (cabeceras multi-nivel) */}
+          {table.columns.length >= 2 && (
+            <div className="border-t border-slate-200 pt-3 mt-3 space-y-2">
+              {/* Título general (fila que abarca todas las columnas) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Título del header</label>
+                <p className="text-[10px] text-slate-400 mb-1.5">Fila superior que abarca todas las columnas (ej. "Configuración de sistema"). Vacío = sin título.</p>
+                <input
+                  type="text"
+                  value={table.columnGroupTitle ?? ''}
+                  placeholder="Ej: Configuración de sistema"
+                  onChange={e => upd('columnGroupTitle', e.target.value || null)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm"
+                />
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-bold text-slate-700 uppercase">Sub-grupos de columnas</p>
+                  <p className="text-[10px] text-slate-400">Agrupá columnas bajo una cabecera común (ej. "ALS" abarcando "Modelo" y "SN").</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => {
+                  const groups = [...(table.columnGroups ?? []), { label: '', startCol: 0, span: 2 }];
+                  upd('columnGroups', groups);
+                }}>+ Grupo</Button>
+              </div>
+              {(table.columnGroups ?? []).map((g, gi) => (
+                <div key={gi} className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                  <input
+                    type="text"
+                    value={g.label}
+                    placeholder="Ej: ALS"
+                    onChange={e => {
+                      const groups = [...(table.columnGroups ?? [])];
+                      groups[gi] = { ...groups[gi], label: e.target.value };
+                      upd('columnGroups', groups);
+                    }}
+                    className="w-32 border border-indigo-300 rounded px-2 py-1 text-xs"
+                  />
+                  <div className="flex items-center gap-1">
+                    <label className="text-[10px] text-slate-500">Desde col:</label>
+                    <select
+                      value={g.startCol}
+                      onChange={e => {
+                        const groups = [...(table.columnGroups ?? [])];
+                        groups[gi] = { ...groups[gi], startCol: Number(e.target.value) };
+                        upd('columnGroups', groups);
+                      }}
+                      className="border border-indigo-300 rounded px-1.5 py-1 text-xs"
+                    >
+                      {table.columns.map((col, ci) => (
+                        <option key={ci} value={ci}>{ci}: {col.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <label className="text-[10px] text-slate-500">Abarca:</label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={table.columns.length - g.startCol}
+                      value={g.span}
+                      onChange={e => {
+                        const groups = [...(table.columnGroups ?? [])];
+                        groups[gi] = { ...groups[gi], span: Math.max(2, Number(e.target.value) || 2) };
+                        upd('columnGroups', groups);
+                      }}
+                      className="w-14 border border-indigo-300 rounded px-2 py-1 text-xs text-center"
+                    />
+                    <label className="text-[10px] text-slate-500">cols</label>
+                  </div>
+                  <span className="text-[10px] text-indigo-500 flex-1 text-right">
+                    {table.columns.slice(g.startCol, g.startCol + g.span).map(c => c.label).join(' + ')}
+                  </span>
+                  <button onClick={() => {
+                    const groups = (table.columnGroups ?? []).filter((_, j) => j !== gi);
+                    upd('columnGroups', groups.length ? groups : []);
+                  }} className="text-red-500 text-xs font-bold ml-1">×</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -650,7 +917,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
           {table.validationRules.map((rule, i) => (
             <div key={rule.ruleId}>
               {editingRuleIdx === i ? (
-                <RuleForm rule={rule} columns={table.columns} onSave={saveRule}
+                <RuleForm rule={rule} columns={table.columns} rows={table.templateRows} onSave={saveRule}
                   onCancel={() => setEditingRuleIdx(null)} />
               ) : (
                 <div className="flex items-center justify-between p-2 border border-slate-200 rounded-lg">
@@ -668,7 +935,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
             </div>
           ))}
           {addingRule && (
-            <RuleForm rule={newRule()} columns={table.columns}
+            <RuleForm rule={newRule()} columns={table.columns} rows={table.templateRows}
               onSave={saveRule} onCancel={() => setAddingRule(false)} />
           )}
         </div>

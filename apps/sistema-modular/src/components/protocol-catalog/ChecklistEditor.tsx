@@ -173,30 +173,41 @@ const ItemForm = ({ item, allItems, onSave, onCancel }: ItemFormProps) => {
           <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
             <input
               type="checkbox"
-              checked={!!d.linkedValueLabel}
+              checked={!!(d.showLinkedValue ?? d.linkedValueLabel)}
               onChange={e => {
                 if (e.target.checked) {
-                  setD({ ...d, linkedValueLabel: 'Cantidad', linkedValueUnit: null });
+                  setD({ ...d, showLinkedValue: true });
                 } else {
-                  setD({ ...d, linkedValueLabel: null, linkedValueUnit: null });
+                  setD({ ...d, showLinkedValue: false, linkedValueLabel: null, linkedValueUnit: null, alwaysShowValue: undefined });
                 }
               }}
               className="accent-teal-600"
             />
-            Al tildar, mostrar campo de valor
+            Mostrar campo de valor
           </label>
-          {d.linkedValueLabel && (
-            <div className="grid grid-cols-2 gap-2 pl-6">
-              <Input
-                placeholder="Etiqueta (ej: Cantidad)"
-                value={d.linkedValueLabel}
-                onChange={e => setD({ ...d, linkedValueLabel: e.target.value || null })}
-              />
-              <Input
-                placeholder="Unidad (ej: unid.)"
-                value={d.linkedValueUnit ?? ''}
-                onChange={e => setD({ ...d, linkedValueUnit: e.target.value || null })}
-              />
+          {!!(d.showLinkedValue ?? d.linkedValueLabel) && (
+            <div className="space-y-2 pl-6">
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Sin etiqueta (opcional)"
+                  value={d.linkedValueLabel ?? ''}
+                  onChange={e => setD({ ...d, linkedValueLabel: e.target.value || null })}
+                />
+                <Input
+                  placeholder="Unidad (ej: unid.)"
+                  value={d.linkedValueUnit ?? ''}
+                  onChange={e => setD({ ...d, linkedValueUnit: e.target.value || null })}
+                />
+              </div>
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!d.alwaysShowValue}
+                  onChange={e => setD({ ...d, alwaysShowValue: e.target.checked || undefined })}
+                  className="accent-teal-600"
+                />
+                Mostrar siempre (sin necesidad de tildar)
+              </label>
             </div>
           )}
 
@@ -588,7 +599,7 @@ export const ChecklistEditor = ({ entry, onChange }: Props) => {
                     <span className="text-[10px] text-slate-400">{TYPE_LABELS[item.itemType]}</span>
                   )}
                   {item.unit && <span className="text-[10px] text-blue-500">{item.unit}</span>}
-                  {item.linkedValueLabel && <span className="text-[10px] text-orange-500" title={`Al tildar: ${item.linkedValueLabel}${item.linkedValueUnit ? ` (${item.linkedValueUnit})` : ''}`}>+valor</span>}
+                  {(item.showLinkedValue ?? item.linkedValueLabel) && <span className="text-[10px] text-orange-500" title={`${item.alwaysShowValue ? 'Siempre' : 'Al tildar'}: ${item.linkedValueLabel || '(sin etiqueta)'}${item.linkedValueUnit ? ` (${item.linkedValueUnit})` : ''}`}>+valor</span>}
                   {item.showDate && <span className="text-[10px] text-blue-500" title={item.dateLabel || (item.showDate === 'inicio' ? 'Fecha realización' : item.showDate === 'fin' ? 'Fecha finalización' : 'Ambas fechas')}>+fecha</span>}
                   {item.showSignatures && <span className="text-[10px] text-purple-500" title={item.showSignatures === 'both' ? 'Firma ingeniero + cliente' : item.showSignatures === 'engineer' ? 'Solo firma ingeniero' : 'Solo firma cliente'}>+firma</span>}
                   {item.canBeNA && <span className="text-[10px] text-amber-600">N/A</span>}
