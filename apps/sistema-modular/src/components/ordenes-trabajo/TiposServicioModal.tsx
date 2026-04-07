@@ -4,12 +4,14 @@ import type { TipoServicio } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props { open: boolean; onClose: () => void; }
 
 export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const [tipos, setTipos] = useState<TipoServicio[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ nombre: '', activo: true, requiresProtocol: false });
   const [showForm, setShowForm] = useState(false);
@@ -43,7 +45,7 @@ export const TiposServicioModal: React.FC<Props> = ({ open, onClose }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este tipo de servicio?')) return;
+    if (!await confirm('¿Eliminar este tipo de servicio?')) return;
     await tiposServicioService.delete(id); await loadData();
   };
 

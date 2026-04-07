@@ -12,9 +12,11 @@ import { FichaLoanerLink } from '../../components/fichas/FichaLoanerLink';
 import { FichaFotosSection } from '../../components/fichas/FichaFotosSection';
 import type { FichaPropiedad, EstadoFicha, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export function FichaDetail() {
   const { id } = useParams();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [ficha, setFicha] = useState<FichaPropiedad | null>(null);
@@ -51,7 +53,7 @@ export function FichaDetail() {
   };
 
   const handleEntregarCliente = async () => {
-    if (!ficha || !confirm('Generar remito de devolucion y marcar como entregado?')) return;
+    if (!ficha || !await confirm('Generar remito de devolucion y marcar como entregado?')) return;
     const remitoId = await remitosService.create({
       tipo: 'devolucion',
       estado: 'borrador',

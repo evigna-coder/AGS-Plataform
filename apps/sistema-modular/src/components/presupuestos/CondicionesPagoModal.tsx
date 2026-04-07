@@ -4,6 +4,7 @@ import type { CondicionPago } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -12,6 +13,7 @@ const getDiasTexto = (dias: number) => dias === 0 ? 'Contado' : dias === 1 ? '1 
 export const CondicionesPagoModal: React.FC<Props> = ({ open, onClose }) => {
   const [condiciones, setCondiciones] = useState<CondicionPago[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ nombre: '', dias: 0, descripcion: '', activo: true });
   const [showForm, setShowForm] = useState(false);
@@ -45,7 +47,7 @@ export const CondicionesPagoModal: React.FC<Props> = ({ open, onClose }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta condición de pago?')) return;
+    if (!await confirm('¿Eliminar esta condición de pago?')) return;
     await condicionesPagoService.delete(id); await loadData();
   };
 

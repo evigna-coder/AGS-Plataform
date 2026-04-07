@@ -5,10 +5,12 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { Marca } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const MarcasPage = () => {
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [showInactive, setShowInactive] = useState(false);
 
   // Inline create
@@ -70,7 +72,7 @@ export const MarcasPage = () => {
   };
 
   const handleDelete = async (marca: Marca) => {
-    if (!confirm(`¿Eliminar permanentemente "${marca.nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar permanentemente "${marca.nombre}"?`)) return;
     try {
       await marcasService.delete(marca.id);
       reload();

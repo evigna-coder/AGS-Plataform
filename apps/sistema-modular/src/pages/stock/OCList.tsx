@@ -7,6 +7,7 @@ import { ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const TIPO_LABELS: Record<TipoOC, string> = { nacional: 'Nacional', importacion: 'Importacion' };
 const TIPO_COLORS: Record<TipoOC, string> = { nacional: 'bg-emerald-100 text-emerald-700', importacion: 'bg-violet-100 text-violet-700' };
@@ -14,6 +15,7 @@ const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC'
 
 export const OCList = () => {
   const { ordenes, loading, loadOrdenes, deleteOrden } = useOrdenesCompra();
+  const confirm = useConfirm();
   const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
   const [filtroTipo, setFiltroTipo] = useState<TipoOC | ''>('');
   const [showCanceladas, setShowCanceladas] = useState(false);
@@ -38,7 +40,7 @@ export const OCList = () => {
   }, [ordenes, filtroEstado, filtroTipo, showCanceladas, sortField, sortDir]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar esta orden de compra?')) return;
+    if (!await confirm('Eliminar esta orden de compra?')) return;
     try {
       await deleteOrden(id);
       await loadOrdenes();

@@ -6,10 +6,13 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 type TabType = 'sistemas' | 'modulos';
 
 export const CategoriasEquipo = () => {
+
+  const confirm = useConfirm();
   const goBack = useNavigateBack();
   const [activeTab, setActiveTab] = useState<TabType>('sistemas');
   
@@ -85,7 +88,7 @@ export const CategoriasEquipo = () => {
   };
 
   const handleDeleteSistema = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar esta categoría?')) return;
+    if (!await confirm('¿Está seguro de eliminar esta categoría?')) return;
     try {
       await categoriasEquipoService.delete(id);
       await loadAll(true);
@@ -167,7 +170,7 @@ export const CategoriasEquipo = () => {
   };
 
   const handleDeleteModulo = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar esta categoría de módulo?')) return;
+    if (!await confirm('¿Está seguro de eliminar esta categoría de módulo?')) return;
     try {
       await categoriasModuloService.delete(id);
       await loadAll(true);

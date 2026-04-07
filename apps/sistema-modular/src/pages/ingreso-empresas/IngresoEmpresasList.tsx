@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { IngresoEmpresaModal } from '../../components/ingreso-empresas/IngresoEmpresaModal';
 import type { IngresoEmpresa, TipoIngresoCliente, DocumentoIngresoStatus } from '@ags/shared';
 import { TIPO_INGRESO_LABELS, DOCUMENTACION_INGRESO_KEYS } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const STATUS_ICON: Record<DocumentoIngresoStatus, { symbol: string; cls: string }> = {
   no_requerido: { symbol: '—', cls: 'text-slate-300' },
@@ -17,6 +18,7 @@ const STATUS_ICON: Record<DocumentoIngresoStatus, { symbol: string; cls: string 
 };
 
 export const IngresoEmpresasList = () => {
+  const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
@@ -58,7 +60,7 @@ export const IngresoEmpresasList = () => {
   };
 
   const handleDelete = async (item: IngresoEmpresa) => {
-    if (!confirm(`Eliminar ingreso de "${item.clienteNombre}"?`)) return;
+    if (!await confirm(`Eliminar ingreso de "${item.clienteNombre}"?`)) return;
     try {
       await ingresoEmpresasService.delete(item.id);
     } catch (err) {

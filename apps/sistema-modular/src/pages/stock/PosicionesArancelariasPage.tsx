@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { PosicionArancelaria, TratamientoArancelario } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 interface FormState {
   codigo: string;
@@ -69,6 +70,7 @@ const fromItem = (p: PosicionArancelaria): FormState => ({
 export const PosicionesArancelariasPage = () => {
   const [items, setItems] = useState<PosicionArancelaria[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [showInactive, setShowInactive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -130,7 +132,7 @@ export const PosicionesArancelariasPage = () => {
   };
 
   const handleDelete = async (p: PosicionArancelaria) => {
-    if (!confirm(`Eliminar permanentemente "${p.codigo}"?`)) return;
+    if (!await confirm(`Eliminar permanentemente "${p.codigo}"?`)) return;
     try { await posicionesArancelariasService.delete(p.id); reload(); }
     catch { alert('Error al eliminar'); }
   };

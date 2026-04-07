@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { registrosKmService, vehiculosService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import type { RegistroKm } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   vehiculoId: string;
@@ -11,6 +12,7 @@ interface Props {
 
 export const RegistroKmPanel: React.FC<Props> = ({ vehiculoId, registros, onChanged }) => {
   const [adding, setAdding] = useState(false);
+  const confirm = useConfirm();
   const [form, setForm] = useState({ fecha: '', km: '' });
   const [saving, setSaving] = useState(false);
 
@@ -33,7 +35,7 @@ export const RegistroKmPanel: React.FC<Props> = ({ vehiculoId, registros, onChan
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este registro?')) return;
+    if (!await confirm('Eliminar este registro?')) return;
     await registrosKmService.delete(vehiculoId, id);
     onChanged();
   };

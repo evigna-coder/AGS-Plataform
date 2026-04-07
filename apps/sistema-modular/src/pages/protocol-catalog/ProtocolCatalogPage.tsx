@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { ImportJsonDialog } from '../../components/protocol-catalog/ImportJsonDialog';
 import { ProjectSelector } from '../../components/protocol-catalog/ProjectSelector';
 import type { TableCatalogEntry } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
 const LS_KEY = 'ags:tableCatalog:activeProject';
@@ -34,6 +35,7 @@ function readSavedProject(): string | null | undefined {
 
 export const TableCatalogPage = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { tables, loading, error, listTables, archiveTable, publishTable, cloneTable, importTables, deleteTable, assignProject } = useTableCatalog();
   const { projects, createProject, updateProject, deleteProject } = useTableProjects();
 
@@ -97,22 +99,22 @@ export const TableCatalogPage = () => {
       navigate(`/table-catalog/${newId}/edit`);
     } catch { alert('Error al clonar'); }
   };
-  const handleArchive = (entry: TableCatalogEntry) => {
-    if (!confirm(`¿Archivar "${entry.name}"?`)) return;
+  const handleArchive = async (entry: TableCatalogEntry) => {
+    if (!await confirm(`¿Archivar "${entry.name}"?`)) return;
     archiveTable(entry.id);
   };
-  const handlePublish = (entry: TableCatalogEntry) => {
-    if (!confirm(`¿Publicar "${entry.name}"?`)) return;
+  const handlePublish = async (entry: TableCatalogEntry) => {
+    if (!await confirm(`¿Publicar "${entry.name}"?`)) return;
     publishTable(entry.id);
   };
-  const handleDelete = (entry: TableCatalogEntry) => {
-    if (!confirm(`¿Eliminar permanentemente "${entry.name}"?\n\nEsta acción no se puede deshacer.`)) return;
+  const handleDelete = async (entry: TableCatalogEntry) => {
+    if (!await confirm(`¿Eliminar permanentemente "${entry.name}"?\n\nEsta acción no se puede deshacer.`)) return;
     deleteTable(entry.id);
   };
 
   // --- Lote ---
-  const handleBulkDelete = () => {
-    if (!confirm(`¿Eliminar ${selectedIds.size} tabla(s)?\n\nEsta acción no se puede deshacer.`)) return;
+  const handleBulkDelete = async () => {
+    if (!await confirm(`¿Eliminar ${selectedIds.size} tabla(s)?\n\nEsta acción no se puede deshacer.`)) return;
     [...selectedIds].forEach(id => deleteTable(id));
     setSelectedIds(new Set());
   };

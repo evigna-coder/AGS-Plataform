@@ -5,6 +5,7 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -14,6 +15,7 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
 
   // Edit/Create form
@@ -62,7 +64,7 @@ export const ConceptosServicioModal: React.FC<Props> = ({ open, onClose }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este concepto?')) return;
+    if (!await confirm('¿Eliminar este concepto?')) return;
     await conceptosServicioService.delete(id); await loadData();
   };
 

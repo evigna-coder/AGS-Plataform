@@ -6,6 +6,7 @@ import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLOR
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
@@ -13,6 +14,7 @@ const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-x
 export const FacturacionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const { pathname } = useLocation();
 
   const [solicitud, setSolicitud] = useState<SolicitudFacturacion | null>(null);
@@ -88,7 +90,7 @@ export const FacturacionDetail = () => {
   };
 
   const handleAnular = async () => {
-    if (!id || !confirm('¿Anular esta solicitud de facturacion?')) return;
+    if (!id || !await confirm('¿Anular esta solicitud de facturacion?')) return;
     try {
       setSaving(true);
       await facturacionService.update(id, { estado: 'anulada' });

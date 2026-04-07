@@ -12,9 +12,11 @@ import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccion
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
 import type { Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export function LoanerDetail() {
   const { id } = useParams();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [loaner, setLoaner] = useState<Loaner | null>(null);
@@ -87,7 +89,7 @@ export function LoanerDetail() {
   };
 
   const handleBaja = async () => {
-    if (!loaner || !confirm('Dar de baja este loaner?')) return;
+    if (!loaner || !await confirm('Dar de baja este loaner?')) return;
     await loanersService.update(loaner.id, { estado: 'baja', activo: false });
     // subscription auto-refreshes
   };

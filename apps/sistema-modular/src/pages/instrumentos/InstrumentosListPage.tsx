@@ -16,6 +16,7 @@ import {
   type EstadoCertificado,
   type InstrumentoPatron,
 } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -45,6 +46,8 @@ const ESTADO_CERT_OPTIONS = [
 ];
 
 export const InstrumentosListPage = () => {
+
+  const confirm = useConfirm();
   const { instrumentos, loading, error, listInstrumentos, deactivateInstrumento } = useInstrumentos();
   const [showCreate, setShowCreate] = useState(false);
 
@@ -87,7 +90,7 @@ export const InstrumentosListPage = () => {
   const porVencer = instrumentos.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === 'por_vencer');
 
   const handleDeactivate = async (inst: InstrumentoPatron) => {
-    if (!confirm(`¿Desactivar "${inst.nombre}"?`)) return;
+    if (!await confirm(`¿Desactivar "${inst.nombre}"?`)) return;
     try {
       await deactivateInstrumento(inst.id);
       reload();

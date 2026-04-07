@@ -13,6 +13,7 @@ import { CreateEstablecimientoModal } from '../../components/establecimientos/Cr
 import { BulkAddressValidationModal } from '../../components/establecimientos/BulkAddressValidationModal';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
@@ -21,6 +22,7 @@ const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
 );
 
 export const EstablecimientosList = () => {
+  const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     cliente: { type: 'string' as const, default: '' },
@@ -85,7 +87,7 @@ export const EstablecimientosList = () => {
   };
 
   const handleDelete = async (est: Establecimiento) => {
-    if (!confirm(`¿Eliminar el establecimiento "${est.nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
+    if (!await confirm(`¿Eliminar el establecimiento "${est.nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
     try {
       await establecimientosService.delete(est.id);
     } catch (e) {
@@ -96,7 +98,7 @@ export const EstablecimientosList = () => {
 
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`¿Eliminar ${selected.size} establecimiento(s)?\n\nEsta acción no se puede deshacer.`)) return;
+    if (!await confirm(`¿Eliminar ${selected.size} establecimiento(s)?\n\nEsta acción no se puede deshacer.`)) return;
     setDeleting(true);
     try {
       for (const id of selected) {

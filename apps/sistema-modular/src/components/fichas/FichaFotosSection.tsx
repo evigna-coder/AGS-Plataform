@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { googleDriveService } from '../../services/googleDriveService';
 import { fichasService } from '../../services/firebaseService';
 import type { FichaPropiedad, FotoFicha } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   ficha: FichaPropiedad;
@@ -13,6 +14,7 @@ interface Props {
 
 export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
   const [uploading, setUploading] = useState(false);
+  const confirm = useConfirm();
   const [deleting, setDeleting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [driveReady, setDriveReady] = useState<boolean | null>(null);
@@ -55,7 +57,7 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
   };
 
   const handleDelete = async (foto: FotoFicha) => {
-    if (!confirm('Eliminar esta foto?')) return;
+    if (!await confirm('Eliminar esta foto?')) return;
     setDeleting(foto.id);
     try {
       await googleDriveService.deleteFile(foto.driveFileId);

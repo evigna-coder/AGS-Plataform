@@ -219,6 +219,23 @@ export const usePDFGeneration = (
       const protocolPdfDoc = await PDFDocument.create();
 
       for (const pageEl of Array.from(protocolPages)) {
+        // Capturar valores de inputs/selects ANTES de clonar (cloneNode no copia .value)
+        const origInputs = pageEl.querySelectorAll<HTMLInputElement>('input[type="text"], input[type="number"], input[type="date"]');
+        const origSelects = pageEl.querySelectorAll<HTMLSelectElement>('select');
+        const inputValues = Array.from(origInputs).map(el => ({
+          value: el.value,
+          fontSize: window.getComputedStyle(el).fontSize,
+          fontFamily: window.getComputedStyle(el).fontFamily,
+          color: window.getComputedStyle(el).color,
+          textAlign: window.getComputedStyle(el).textAlign,
+        }));
+        const selectValues = Array.from(origSelects).map(el => ({
+          text: el.options[el.selectedIndex]?.text || el.value || '',
+          fontSize: window.getComputedStyle(el).fontSize,
+          fontFamily: window.getComputedStyle(el).fontFamily,
+          color: window.getComputedStyle(el).color,
+        }));
+
         const clone = pageEl.cloneNode(true) as HTMLElement;
         clone.style.position = 'fixed';
         clone.style.top = '0';
@@ -228,6 +245,33 @@ export const usePDFGeneration = (
 
         clone.querySelectorAll('.overflow-hidden, .truncate').forEach(el => {
           (el as HTMLElement).style.setProperty('overflow', 'visible', 'important');
+        });
+
+        // Reemplazar inputs clonados por spans con los valores reales del original
+        const clonedInputs = clone.querySelectorAll<HTMLInputElement>('input[type="text"], input[type="number"], input[type="date"]');
+        clonedInputs.forEach((el, idx) => {
+          const data = inputValues[idx];
+          if (!data) return;
+          const span = document.createElement('span');
+          span.textContent = data.value;
+          span.style.fontSize = data.fontSize;
+          span.style.fontFamily = data.fontFamily;
+          span.style.color = data.color;
+          span.style.textAlign = data.textAlign;
+          span.style.display = 'inline-block';
+          span.style.width = '100%';
+          el.replaceWith(span);
+        });
+        const clonedSelects = clone.querySelectorAll<HTMLSelectElement>('select');
+        clonedSelects.forEach((el, idx) => {
+          const data = selectValues[idx];
+          if (!data) return;
+          const span = document.createElement('span');
+          span.textContent = data.text;
+          span.style.fontSize = data.fontSize;
+          span.style.fontFamily = data.fontFamily;
+          span.style.color = data.color;
+          el.replaceWith(span);
         });
 
         document.body.appendChild(clone);
@@ -454,9 +498,9 @@ export const usePDFGeneration = (
       if (protocolBlob) annexParts.push(protocolBlob);
       if (fotosBlob) annexParts.push(fotosBlob);
       annexParts.push(...adjuntosBlobs);
-      annexParts.push(...certIngBlobs);
       annexParts.push(...certInstBlobs);
       annexParts.push(...certPatronBlobs);
+      annexParts.push(...certIngBlobs);
 
       if (hasProtocol && protocolBlob) {
         // 2 archivos separados

@@ -7,9 +7,12 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { Modal } from '../../components/ui/Modal';
 import type { MinikitTemplate, MinikitTemplateItem, Articulo } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const MinikitTemplatesPage = () => {
   const [templates, setTemplates] = useState<MinikitTemplate[]>([]);
+
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MinikitTemplate | null>(null);
@@ -44,7 +47,7 @@ export const MinikitTemplatesPage = () => {
   };
 
   const handleDelete = async (t: MinikitTemplate) => {
-    if (!confirm(`¿Eliminar plantilla "${t.nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar plantilla "${t.nombre}"?`)) return;
     try { await minikitTemplatesService.delete(t.id); reload(true); }
     catch { alert('Error al eliminar'); }
   };

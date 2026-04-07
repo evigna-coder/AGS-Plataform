@@ -4,6 +4,7 @@ import type { CategoriaPresupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -18,6 +19,7 @@ const INITIAL_FORM = {
 export const CategoriasPresupuestoModal: React.FC<Props> = ({ open, onClose }) => {
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +60,7 @@ export const CategoriasPresupuestoModal: React.FC<Props> = ({ open, onClose }) =
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta categoría?')) return;
+    if (!await confirm('¿Eliminar esta categoría?')) return;
     await categoriasPresupuestoService.delete(id); await loadData();
   };
 

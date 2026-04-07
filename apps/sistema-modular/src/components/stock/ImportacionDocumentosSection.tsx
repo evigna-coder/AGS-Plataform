@@ -3,6 +3,7 @@ import { importacionesService } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import type { Importacion, DocumentoImportacion } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   imp: Importacion;
@@ -19,6 +20,7 @@ const TIPOS_DOCUMENTO = [
 
 export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate }) => {
   const [saving, setSaving] = useState(false);
+  const confirm = useConfirm();
   const [newDoc, setNewDoc] = useState<Partial<DocumentoImportacion> | null>(null);
 
   const handleAdd = () => {
@@ -50,7 +52,7 @@ export const ImportacionDocumentosSection: React.FC<Props> = ({ imp, onUpdate })
   };
 
   const handleDelete = async (docId: string) => {
-    if (!confirm('Eliminar este documento?')) return;
+    if (!await confirm('Eliminar este documento?')) return;
     try {
       setSaving(true);
       await importacionesService.update(imp.id, {

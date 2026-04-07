@@ -5,6 +5,7 @@ import {
 } from '../services/firebaseService';
 import { movimientosService } from '../services/stockService';
 import type { Ingeniero, Asignacion, ItemAsignacion, UnidadStock, Cliente } from '@ags/shared';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 export interface InventarioItem extends ItemAsignacion {
   asignacionId: string;
@@ -12,6 +13,7 @@ export interface InventarioItem extends ItemAsignacion {
 }
 
 export function useInventarioIngeniero(ingenieroId: string | undefined) {
+  const confirm = useConfirm();
   const [ingeniero, setIngeniero] = useState<Ingeniero | null>(null);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -55,7 +57,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
 
   // ── Devolver: revert entity status + mark asignacion item ──
   const handleDevolver = async (item: InventarioItem) => {
-    if (!confirm(`¿Devolver "${itemLabel(item)}"?`)) return;
+    if (!await confirm(`¿Devolver "${itemLabel(item)}"?`)) return;
     setSaving(true);
     try {
       const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;

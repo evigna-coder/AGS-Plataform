@@ -9,6 +9,7 @@ import { CreateLoanerModal } from '../../components/loaners/CreateLoanerModal';
 import type { Loaner, EstadoLoaner } from '@ags/shared';
 import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ALERTA_DIAS = 30;
@@ -19,6 +20,7 @@ function diasPrestamo(fechaSalida: string): number {
 
 export function LoanersList() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [loaners, setLoaners] = useState<Loaner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -54,7 +56,7 @@ export function LoanersList() {
   }, [loaners, filters.estado, sortField, sortDir]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este loaner?')) return;
+    if (!await confirm('Eliminar este loaner?')) return;
     await loanersService.delete(id);
     setLoaners(prev => prev.filter(l => l.id !== id));
   };

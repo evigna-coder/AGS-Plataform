@@ -11,6 +11,7 @@ import { useGenerarOC } from '../../hooks/useGenerarOC';
 import { RequerimientoRow, URGENCIA_LABELS } from './RequerimientoRow';
 import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const FILTER_SCHEMA = {
   estado:   { type: 'string' as const, default: '' },
@@ -21,6 +22,7 @@ const FILTER_SCHEMA = {
 export const RequerimientosList = () => {
   const [requerimientos, setRequerimientos] = useState<RequerimientoCompra[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [showCreate, setShowCreate] = useState(false);
   const [sortField, setSortField] = useState('fechaSolicitud');
@@ -67,7 +69,7 @@ export const RequerimientosList = () => {
   const loadData = useCallback(() => {}, []);
 
   const handleAprobar = async (id: string) => {
-    if (!confirm('¿Aprobar este requerimiento?')) return;
+    if (!await confirm('¿Aprobar este requerimiento?')) return;
     try {
       await requerimientosService.update(id, { estado: 'aprobado', fechaAprobacion: new Date().toISOString() });
       setRequerimientos(prev => prev.map(r => r.id === id ? { ...r, estado: 'aprobado' as const, fechaAprobacion: new Date().toISOString() } : r));
@@ -75,7 +77,7 @@ export const RequerimientosList = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este requerimiento pendiente?')) return;
+    if (!await confirm('¿Eliminar este requerimiento pendiente?')) return;
     try {
       await requerimientosService.delete(id);
       setRequerimientos(prev => prev.filter(r => r.id !== id));

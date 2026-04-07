@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { VehiculoModal } from '../../components/vehiculos/VehiculoModal';
 import type { Vehiculo } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 function vencimientoStatus(fecha: string): 'ok' | 'warning' | 'expired' {
   if (!fecha) return 'ok';
@@ -20,6 +21,8 @@ function vencimientoStatus(fecha: string): 'ok' | 'warning' | 'expired' {
 const STATUS_CLS = { ok: 'bg-emerald-50 text-emerald-700', warning: 'bg-amber-50 text-amber-700', expired: 'bg-red-50 text-red-700 font-bold' };
 
 export const VehiculosList = () => {
+
+  const confirm = useConfirm();
   const navigate = useNavigate();
 
   const FILTER_SCHEMA = useMemo(() => ({
@@ -55,7 +58,7 @@ export const VehiculosList = () => {
   }, [items, debouncedSearch]);
 
   const handleDelete = async (v: Vehiculo) => {
-    if (!confirm(`Eliminar vehículo "${v.patente}"?`)) return;
+    if (!await confirm(`Eliminar vehículo "${v.patente}"?`)) return;
     try {
       await vehiculosService.delete(v.id);
     } catch (err) {

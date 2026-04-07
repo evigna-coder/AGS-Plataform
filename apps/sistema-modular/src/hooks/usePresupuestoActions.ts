@@ -4,6 +4,7 @@ import { presupuestosService } from '../services/firebaseService';
 import type { Presupuesto, Cliente, Establecimiento, CategoriaPresupuesto, CondicionPago, ContactoEstablecimiento, ContactoCliente, PresupuestoSeccionesVisibles } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import type { PresupuestoFormState, PresupuestoTotals } from './usePresupuestoEdit';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 // NOTE: Lead sync is now handled automatically by presupuestosService.update()
 // via ticketsService.syncFromPresupuesto(). No manual posta needed here.
@@ -29,6 +30,7 @@ export function usePresupuestoActions({
   cliente, establecimiento, contactos, condicionesPago, categoriasPresupuesto,
   onClose, onUpdated,
 }: UsePresupuestoActionsParams) {
+  const confirm = useConfirm();
   const { navigateInActiveTab } = useTabs();
 
   const [showRevision, setShowRevision] = useState(false);
@@ -70,8 +72,8 @@ export function usePresupuestoActions({
     }
   };
 
-  const handleSuggestAutorizado = () => {
-    if (form.estado !== 'aceptado' && confirm('Se adjuntó una orden de compra. ¿Cambiar estado a "Aceptado"?')) {
+  const handleSuggestAutorizado = async () => {
+    if (form.estado !== 'aceptado' && await confirm('Se adjuntó una orden de compra. ¿Cambiar estado a "Aceptado"?')) {
       handleEstadoChange('aceptado');
     }
   };
@@ -166,7 +168,7 @@ export function usePresupuestoActions({
   };
 
   const handleDelete = async () => {
-    if (!confirm(`¿Eliminar permanentemente ${form.numero}? Esta acción no se puede deshacer.`)) return;
+    if (!await confirm(`¿Eliminar permanentemente ${form.numero}? Esta acción no se puede deshacer.`)) return;
     try {
       setDeleting(true);
       await presupuestosService.hardDelete(presupuestoId);

@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import type { Minikit, MinikitTemplate, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En transito', en_revision: 'En revision',
@@ -32,6 +33,7 @@ const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
 export const MinikitDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const [minikit, setMinikit] = useState<Minikit | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +92,7 @@ export const MinikitDetail = () => {
   };
 
   const handleDevolver = async () => {
-    if (!id || !confirm('Devolver este minikit a base?')) return;
+    if (!id || !await confirm('Devolver este minikit a base?')) return;
     setSaving(true);
     try {
       await minikitsService.update(id, { estado: 'en_base', asignadoA: null });

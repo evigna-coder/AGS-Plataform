@@ -5,6 +5,7 @@ import { modulosService, sistemasService } from '../../services/firebaseService'
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface ClienteMainContentProps {
   clienteId: string;
@@ -140,6 +141,7 @@ const SistemaExpandable = ({ sistema, establecimientos, categorias, selected, on
 export const ClienteMainContent = ({
   clienteId, cliente, sistemas, establecimientos, categorias, editing, formData, setFormData, onRefresh,
 }: ClienteMainContentProps) => {
+  const confirm = useConfirm();
   const { pathname } = useLocation();
   const [selectedSistemaIds, setSelectedSistemaIds] = useState<Set<string>>(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -200,7 +202,7 @@ export const ClienteMainContent = ({
                 </Button>
                 <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50" onClick={async () => {
                   const count = selectedSistemaIds.size;
-                  if (!confirm(`¿Eliminar ${count} sistema${count > 1 ? 's' : ''} permanentemente? Esta acción no se puede deshacer.`)) return;
+                  if (!await confirm(`¿Eliminar ${count} sistema${count > 1 ? 's' : ''} permanentemente? Esta acción no se puede deshacer.`)) return;
                   for (const sId of selectedSistemaIds) {
                     await sistemasService.delete(sId);
                   }

@@ -12,6 +12,7 @@ import { categoriasEquipoService } from '../../services/firebaseService';
 import { useTableProjects } from '../../hooks/useTableProjects';
 import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
 
@@ -76,6 +77,7 @@ function validateForPublish(entry: TableCatalogEntry): string[] {
 export const TableCatalogEditorPage = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const { getTable, saveDraft, publishTable, loading } = useTableCatalog();
   const { projects } = useTableProjects();
 
@@ -141,7 +143,7 @@ export const TableCatalogEditorPage = () => {
     const errors = validateForPublish(entry);
     if (errors.length) {
       setValidationErrors(errors);
-      if (!confirm(`Hay ${errors.length} advertencia(s).\n\n${errors.join('\n')}\n\n¿Publicar de todas formas?`)) return;
+      if (!await confirm(`Hay ${errors.length} advertencia(s).\n\n${errors.join('\n')}\n\n¿Publicar de todas formas?`)) return;
     }
     if (saving) return;
     setSaving(true);

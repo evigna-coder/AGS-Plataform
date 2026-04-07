@@ -7,6 +7,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CalificacionModal } from './CalificacionModal';
 import type { CalificacionProveedor, Proveedor } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -26,6 +27,7 @@ export function CalificacionesList() {
   const [items, setItems] = useState<CalificacionProveedor[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CalificacionProveedor | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
@@ -80,7 +82,7 @@ export function CalificacionesList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta calificación?')) return;
+    if (!await confirm('¿Eliminar esta calificación?')) return;
     await calificacionesService.delete(id);
   };
 

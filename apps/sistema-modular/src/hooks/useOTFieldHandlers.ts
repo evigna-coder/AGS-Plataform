@@ -2,6 +2,7 @@ import { useCallback, MutableRefObject } from 'react';
 import type { Cliente, Sistema, ModuloSistema, ContactoCliente, Part, OTEstadoAdmin, Ingeniero } from '@ags/shared';
 import { OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTFormState } from './useOTFormState';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 interface Params {
   form: OTFormState;
@@ -18,6 +19,7 @@ interface Params {
 }
 
 export function useOTFieldHandlers({ form, setField, setFields, markInteracted, validate, dirtyRef, clientes, contactos, sistemasFiltrados, modulosFiltrados, ingenieros }: Params) {
+  const confirm = useConfirm();
   const dirty = () => { dirtyRef.current = true; };
 
   const handleFieldChange = useCallback((field: string, value: string) => {
@@ -90,8 +92,8 @@ export function useOTFieldHandlers({ form, setField, setFields, markInteracted, 
   }, [form.cierreAdmin, setField, markInteracted]);
 
   // ── Reabrir OT ──────────────────────────────────────────────
-  const handleReabrirOT = useCallback(() => {
-    if (!window.confirm('Reabrir esta OT? Volvera al estado Cierre Administrativo.')) return;
+  const handleReabrirOT = useCallback(async () => {
+    if (!await confirm('Reabrir esta OT? Volvera al estado Cierre Administrativo.')) return;
     const ahora = new Date().toISOString();
     dirty();
     setFields({

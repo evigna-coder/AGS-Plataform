@@ -13,6 +13,7 @@ import { CreateEquipoModal } from '../../components/equipos/CreateEquipoModal';
 import QREquipoModal from '../../components/equipos/QREquipoModal';
 import { Modal } from '../../components/ui/Modal';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
@@ -26,6 +27,7 @@ const ESTADO_TABS = [
   { value: 'todos', label: 'Todos' },
 ] as const;
 export const EquiposList = () => {
+  const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     estadoTab: { type: 'string' as const, default: 'activos' },
@@ -156,7 +158,7 @@ export const EquiposList = () => {
   };
 
   const handleDeleteSistema = async (sistemaId: string, sistemaNombre: string) => {
-    if (!confirm(`¿Eliminar el sistema "${sistemaNombre}"?\n\nEsta acción eliminará también todos los módulos asociados y no se puede deshacer.`)) return;
+    if (!await confirm(`¿Eliminar el sistema "${sistemaNombre}"?\n\nEsta acción eliminará también todos los módulos asociados y no se puede deshacer.`)) return;
     try {
       await sistemasService.delete(sistemaId);
     } catch (error) {
@@ -167,7 +169,7 @@ export const EquiposList = () => {
 
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`¿Eliminar ${selected.size} sistema(s)?\n\nEsta acción eliminará también todos los módulos asociados y no se puede deshacer.`)) return;
+    if (!await confirm(`¿Eliminar ${selected.size} sistema(s)?\n\nEsta acción eliminará también todos los módulos asociados y no se puede deshacer.`)) return;
     setDeleting(true);
     try {
       for (const id of selected) {

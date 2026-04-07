@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { DispositivoModal } from '../../components/dispositivos/DispositivoModal';
 import type { Dispositivo, TipoDispositivo } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const TIPO_LABELS: Record<TipoDispositivo, string> = {
   celular: 'Celular', computadora: 'Computadora', tablet: 'Tablet', otro: 'Otro',
@@ -19,6 +20,7 @@ const TIPO_COLORS: Record<TipoDispositivo, string> = {
 };
 
 export const DispositivosList = () => {
+  const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
   }), []);
@@ -53,7 +55,7 @@ export const DispositivosList = () => {
   }, [items, debouncedSearch]);
 
   const handleDelete = async (d: Dispositivo) => {
-    if (!confirm(`Eliminar dispositivo "${d.marca} ${d.modelo}"?`)) return;
+    if (!await confirm(`Eliminar dispositivo "${d.marca} ${d.modelo}"?`)) return;
     try {
       await dispositivosService.delete(d.id);
     } catch (err) {

@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { usePosicionesTree, type PosicionNode } from '../../hooks/usePosicionesTree';
 import type { TipoPosicionStock, UnidadStock } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const TIPO_LABELS: Record<TipoPosicionStock, string> = {
   cajonera: 'Cajonera', estante: 'Estante', deposito: 'Depósito', vitrina: 'Vitrina', otro: 'Otro',
@@ -21,6 +22,7 @@ const emptyForm: FormState = { codigo: '', nombre: '', descripcion: '', tipo: 'c
 
 export const PosicionesPage = () => {
   const [showInactive, setShowInactive] = useState(false);
+  const confirm = useConfirm();
   const { tree, allPositions, loading, reload, expandedIds, toggleExpand, unitsCache, loadingUnits } = usePosicionesTree(showInactive);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -82,7 +84,7 @@ export const PosicionesPage = () => {
 
   const handleDelete = async (pos: PosicionNode) => {
     if (pos.children.length > 0) { alert('No se puede eliminar una posición con sub-posiciones. Elimine o mueva las hijas primero.'); return; }
-    if (!confirm(`¿Eliminar permanentemente "${pos.codigo} — ${pos.nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar permanentemente "${pos.codigo} — ${pos.nombre}"?`)) return;
     try { await posicionesStockService.delete(pos.id); reload(true); }
     catch { alert('Error al eliminar'); }
   };

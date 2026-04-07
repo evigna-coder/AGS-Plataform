@@ -4,6 +4,7 @@ import { db } from '../../services/firebase';
 import { useExcelMigration, type ValidationIssue } from '../../hooks/useExcelMigration';
 import { useStockMigration } from '../../hooks/useStockMigration';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 type ImportMode = 'clientes' | 'stock' | 'limpieza';
 
@@ -236,6 +237,7 @@ interface DedupTaskState {
 const DEDUP_TASK_ID = 'dedup-modulos';
 
 function DedupModulos() {
+  const confirm = useConfirm();
   const bg = useBackgroundTasks();
   const task = bg.getTask<DedupTaskState>(DEDUP_TASK_ID);
 
@@ -307,7 +309,7 @@ function DedupModulos() {
   };
 
   const deleteDuplicates = async () => {
-    if (!confirm(`¿Eliminar ${duplicates.length} modulo(s) duplicados?\n\nEsta acción no se puede deshacer.`)) return;
+    if (!await confirm(`¿Eliminar ${duplicates.length} modulo(s) duplicados?\n\nEsta acción no se puede deshacer.`)) return;
     updateState({ status: 'deleting' });
 
     const addLog = (msg: string) => {
@@ -433,6 +435,7 @@ interface RepairTaskState {
 const REPAIR_TASK_ID = 'repair-sistema-est';
 
 function RepairSistemaEstablecimiento() {
+  const confirm = useConfirm();
   const bg = useBackgroundTasks();
   const task = bg.getTask<RepairTaskState>(REPAIR_TASK_ID);
 
@@ -544,7 +547,7 @@ function RepairSistemaEstablecimiento() {
   };
 
   const applyFixes = async () => {
-    if (!confirm(`¿Reasignar ${fixes.length} sistema(s) a su establecimiento correcto?`)) return;
+    if (!await confirm(`¿Reasignar ${fixes.length} sistema(s) a su establecimiento correcto?`)) return;
     updateState({ status: 'fixing' });
 
     const addLog = (msg: string) => {
@@ -676,6 +679,7 @@ interface UnifyTaskState {
 const UNIFY_TASK_ID = 'unify-sistemas';
 
 function UnificarSistemasDuplicados() {
+  const confirm = useConfirm();
   const bg = useBackgroundTasks();
   const task = bg.getTask<UnifyTaskState>(UNIFY_TASK_ID);
 
@@ -805,7 +809,7 @@ function UnificarSistemasDuplicados() {
 
   const merge = async () => {
     const totalDups = groups.reduce((sum, g) => sum + g.sistemas.length - 1, 0);
-    if (!confirm(`¿Unificar ${groups.length} grupo(s) de sistemas?\n\n` +
+    if (!await confirm(`¿Unificar ${groups.length} grupo(s) de sistemas?\n\n` +
       `Se moverán módulos al sistema maestro y se eliminarán ${totalDups} sistema(s) duplicado(s).\n\n` +
       `Esta acción no se puede deshacer.`)) return;
 

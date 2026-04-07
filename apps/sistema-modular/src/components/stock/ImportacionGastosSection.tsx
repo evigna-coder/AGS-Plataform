@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import type { Importacion, GastoImportacion, ItemImportacion } from '@ags/shared';
 import { calcularCostoConGastos } from '../../utils/calcularProrrateo';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   imp: Importacion;
@@ -104,6 +105,7 @@ function ProrrateoPreview({ items, gastos, monedaOC }: ProrrateoPreviewProps) {
 
 export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => {
   const [saving, setSaving] = useState(false);
+  const confirm = useConfirm();
   const [newGasto, setNewGasto] = useState<Partial<GastoImportacion> | null>(null);
 
   const handleAdd = () => {
@@ -135,7 +137,7 @@ export const ImportacionGastosSection: React.FC<Props> = ({ imp, onUpdate }) => 
   };
 
   const handleDelete = async (gastoId: string) => {
-    if (!confirm('Eliminar este gasto?')) return;
+    if (!await confirm('Eliminar este gasto?')) return;
     try {
       setSaving(true);
       await importacionesService.update(imp.id, {

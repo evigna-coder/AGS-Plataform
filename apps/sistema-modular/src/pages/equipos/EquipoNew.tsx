@@ -10,9 +10,11 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const EquipoNew = () => {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const location = useLocation();
   const goBack = useNavigateBack();
   const [searchParams] = useSearchParams();
@@ -237,8 +239,8 @@ export const EquipoNew = () => {
     setShowModuloModal(true);
   };
 
-  const handleDeleteModulo = (index: number) => {
-    if (confirm('¿Está seguro de eliminar este módulo?')) {
+  const handleDeleteModulo = async (index: number) => {
+    if (await confirm('¿Está seguro de eliminar este módulo?')) {
       setModulos(modulos.filter((_, i) => i !== index));
     }
   };

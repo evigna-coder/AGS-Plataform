@@ -14,6 +14,7 @@ import { TiposServicioModal } from '../../components/ordenes-trabajo/TiposServic
 import { Modal } from '../../components/ui/Modal';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const ESTADO_COLORS: Record<string, string> = {
   CREADA: 'bg-slate-100 text-slate-600',
@@ -203,6 +204,7 @@ const FILTER_SCHEMA = {
 };
 
 export const OTList = () => {
+  const confirm = useConfirm();
   const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns('ot-list');
@@ -232,7 +234,7 @@ export const OTList = () => {
   };
   const handleBulkDelete = async () => {
     if (selectedOTs.size === 0) return;
-    if (!window.confirm(`¿Eliminar ${selectedOTs.size} OTs seleccionadas?`)) return;
+    if (!await confirm(`¿Eliminar ${selectedOTs.size} OTs seleccionadas?`)) return;
     try {
       for (const otNum of selectedOTs) await ordenesTrabajoService.delete(otNum);
       setSelectedOTs(new Set());
@@ -241,7 +243,7 @@ export const OTList = () => {
   };
   const handleBulkEstado = async (nuevoEstado: OTEstadoAdmin) => {
     if (selectedOTs.size === 0) return;
-    if (!window.confirm(`¿Cambiar ${selectedOTs.size} OTs a ${OT_ESTADO_LABELS[nuevoEstado]}?`)) return;
+    if (!await confirm(`¿Cambiar ${selectedOTs.size} OTs a ${OT_ESTADO_LABELS[nuevoEstado]}?`)) return;
     try {
       const ahora = new Date().toISOString();
       for (const otNum of selectedOTs) {
@@ -409,7 +411,7 @@ export const OTList = () => {
   const loadOrdenes = useCallback(async () => {}, []);
 
   const handleDelete = async (ot: WorkOrder) => {
-    if (!window.confirm(`¿Eliminar OT-${ot.otNumber}?`)) return;
+    if (!await confirm(`¿Eliminar OT-${ot.otNumber}?`)) return;
     try {
       await ordenesTrabajoService.delete(ot.otNumber);
       await loadOrdenes();

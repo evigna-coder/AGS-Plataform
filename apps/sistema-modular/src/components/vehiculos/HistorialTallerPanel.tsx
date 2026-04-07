@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { historialTallerService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import type { VisitaTaller } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   vehiculoId: string;
@@ -11,6 +12,7 @@ interface Props {
 
 export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, onChanged }) => {
   const [adding, setAdding] = useState(false);
+  const confirm = useConfirm();
   const [form, setForm] = useState({ taller: '', fecha: '', km: '', factura: '', monto: '', descripcion: '' });
   const [saving, setSaving] = useState(false);
 
@@ -39,7 +41,7 @@ export const HistorialTallerPanel: React.FC<Props> = ({ vehiculoId, historial, o
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar esta visita?')) return;
+    if (!await confirm('Eliminar esta visita?')) return;
     await historialTallerService.delete(vehiculoId, id);
     onChanged();
   };

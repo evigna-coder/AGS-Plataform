@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { Minikit, EstadoMinikit } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En tránsito', en_revision: 'En revisión',
@@ -17,6 +18,7 @@ const ESTADO_COLORS: Record<EstadoMinikit, string> = {
 };
 
 export const MinikitsList = () => {
+  const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     showInactive: { type: 'boolean' as const, default: false },
   }), []);
@@ -72,7 +74,7 @@ export const MinikitsList = () => {
   };
 
   const handleDelete = async (mk: Minikit) => {
-    if (!confirm(`¿Eliminar permanentemente "${mk.codigo} - ${mk.nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar permanentemente "${mk.codigo} - ${mk.nombre}"?`)) return;
     try {
       await minikitsService.delete(mk.id);
     } catch {

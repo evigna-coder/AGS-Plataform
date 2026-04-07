@@ -3,6 +3,7 @@ import type { TableProject } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   projects: TableProject[];
@@ -19,6 +20,7 @@ export const ProjectSelector: React.FC<Props> = memo(({
   projects, activeProjectId, onSelect, onCreate, onRename, onDelete, onUpdateSettings,
 }) => {
   const [showCreate, setShowCreate] = useState(false);
+  const confirm = useConfirm();
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export const ProjectSelector: React.FC<Props> = memo(({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este proyecto? Las tablas no se eliminan, solo se desvinculan.')) return;
+    if (!await confirm('¿Eliminar este proyecto? Las tablas no se eliminan, solo se desvinculan.')) return;
     setMenuId(null);
     await onDelete(id);
     if (activeProjectId === id) onSelect(undefined);

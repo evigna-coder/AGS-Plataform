@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { serviciosVehiculoService } from '../../services/firebaseService';
 import { Button } from '../ui/Button';
 import type { ServicioVehiculo, CriterioServicioVehiculo } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   vehiculoId: string;
@@ -13,6 +14,7 @@ interface Props {
 
 export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criterios, kmActual, onChanged }) => {
   const [adding, setAdding] = useState(false);
+  const confirm = useConfirm();
   const [form, setForm] = useState({ servicio: '', kmRealizacion: '', extensionKm: '', fechaRealizacion: '', fechaEstimativa: '' });
   const [saving, setSaving] = useState(false);
 
@@ -40,7 +42,7 @@ export const ServiciosPanel: React.FC<Props> = ({ vehiculoId, servicios, criteri
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este registro de servicio?')) return;
+    if (!await confirm('Eliminar este registro de servicio?')) return;
     await serviciosVehiculoService.delete(vehiculoId, id);
     onChanged();
   };

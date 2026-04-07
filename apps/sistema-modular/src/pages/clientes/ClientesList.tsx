@@ -12,6 +12,7 @@ import { CreateClienteModal } from '../../components/clientes/CreateClienteModal
 import { BulkCuitValidationModal } from '../../components/clientes/BulkCuitValidationModal';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
@@ -25,6 +26,7 @@ const ESTADO_TABS = [
   { value: 'todos', label: 'Todos' },
 ] as const;
 export const ClientesList = () => {
+  const confirm = useConfirm();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientosByCliente, setEstablecimientosByCliente] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -63,11 +65,23 @@ export const ClientesList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
+  // DEBUG: heartbeat to detect main thread blocking
+  useEffect(() => {
+    let expected = Date.now();
+    const id = setInterval(() => {
+      const now = Date.now();
+      const drift = now - expected;
+      if (drift > 500) console.warn(`[BLOCKED] Main thread was blocked for ${drift}ms`);
+      expected = now + 200;
+    }, 200);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     unsubClientesRef.current?.();
     unsubClientesRef.current = clientesService.subscribe(
       false,
-      (data) => { setClientes(data); setLoading(false); },
+      (data) => { console.log(`[CLIENTES] snapshot: ${data.length} docs`); setClientes(data); setLoading(false); },
       (err) => { console.error('Clientes subscription error:', err); setLoading(false); },
     );
     unsubEstRef.current?.();
@@ -88,7 +102,7 @@ export const ClientesList = () => {
 
   const handleDeactivate = async (cliente: Cliente) => {
     const action = cliente.activo ? 'desactivar' : 'reactivar';
-    if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} "${cliente.razonSocial}"?`)) return;
+    if (!await confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} "${cliente.razonSocial}"?`)) return;
     try {
       await clientesService.update(cliente.id, { activo: !cliente.activo });
     } catch (e) {
@@ -120,7 +134,7 @@ export const ClientesList = () => {
       return c?.activo !== false;
     });
     const action = allActive ? 'desactivar' : 'cambiar estado de';
-    if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} ${selected.size} cliente(s)?`)) return;
+    if (!await confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} ${selected.size} cliente(s)?`)) return;
     setBulkActioning(true);
     try {
       for (const id of selected) {

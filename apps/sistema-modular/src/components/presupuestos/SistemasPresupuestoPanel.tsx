@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Sistema } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface SistemasPresupuestoPanelProps {
   clienteSistemas: Sistema[];
@@ -14,13 +15,14 @@ export const SistemasPresupuestoPanel = ({
   onRemoveSistema,
 }: SistemasPresupuestoPanelProps) => {
   const [adding, setAdding] = useState(false);
+  const confirm = useConfirm();
 
   const linkedSistemas = clienteSistemas.filter(s => linkedSistemaIds.includes(s.id));
   const availableSistemas = clienteSistemas.filter(s => !linkedSistemaIds.includes(s.id));
 
-  const handleRemove = (sistemaId: string) => {
+  const handleRemove = async (sistemaId: string) => {
     const sistema = clienteSistemas.find(s => s.id === sistemaId);
-    if (confirm(`Desvincular "${sistema?.nombre || 'sistema'}"? Se eliminarán todos los items asociados.`)) {
+    if (await confirm(`Desvincular "${sistema?.nombre || 'sistema'}"? Se eliminarán todos los items asociados.`)) {
       onRemoveSistema(sistemaId);
     }
   };

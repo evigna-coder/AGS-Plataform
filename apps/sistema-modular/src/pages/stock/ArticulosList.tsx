@@ -10,6 +10,7 @@ import { CreateArticuloModal } from '../../components/stock/CreateArticuloModal'
 import { EditArticuloModal } from '../../components/stock/EditArticuloModal';
 import { ViewArticuloModal } from '../../components/stock/ViewArticuloModal';
 import type { Articulo, Marca, CategoriaEquipoStock, TipoArticulo } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
   HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro', GENERAL: 'General',
@@ -20,6 +21,7 @@ const TIPO_LABELS: Record<TipoArticulo, string> = {
 };
 
 export const ArticulosList = () => {
+  const confirm = useConfirm();
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     categoriaEquipo: { type: 'string' as const, default: '' },
@@ -63,7 +65,7 @@ export const ArticulosList = () => {
   const loadData = useCallback(() => {}, []);
 
   const handleDeactivate = async (art: Articulo) => {
-    if (!confirm(`Desactivar el articulo "${art.codigo} - ${art.descripcion}"?`)) return;
+    if (!await confirm(`Desactivar el articulo "${art.codigo} - ${art.descripcion}"?`)) return;
     try {
       await articulosService.deactivate(art.id);
     } catch (error) {
@@ -73,7 +75,7 @@ export const ArticulosList = () => {
   };
 
   const handleDelete = async (art: Articulo) => {
-    if (!confirm(`Eliminar permanentemente "${art.codigo}"?\n\nEsta accion no se puede deshacer.`)) return;
+    if (!await confirm(`Eliminar permanentemente "${art.codigo}"?\n\nEsta accion no se puede deshacer.`)) return;
     try {
       await articulosService.delete(art.id);
     } catch (error) {
@@ -124,7 +126,7 @@ export const ArticulosList = () => {
 
   const handleBulkDeactivate = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Desactivar ${selectedIds.size} articulo(s)?`)) return;
+    if (!await confirm(`Desactivar ${selectedIds.size} articulo(s)?`)) return;
     try {
       setBulkLoading(true);
       await processBatched([...selectedIds], id => articulosService.deactivate(id));
@@ -139,7 +141,7 @@ export const ArticulosList = () => {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Eliminar permanentemente ${selectedIds.size} articulo(s)?\n\nEsta accion no se puede deshacer.`)) return;
+    if (!await confirm(`Eliminar permanentemente ${selectedIds.size} articulo(s)?\n\nEsta accion no se puede deshacer.`)) return;
     try {
       setBulkLoading(true);
       await processBatched([...selectedIds], id => articulosService.delete(id));

@@ -5,9 +5,11 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const CondicionesPago = () => {
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const [condiciones, setCondiciones] = useState<CondicionPago[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -60,7 +62,7 @@ export const CondicionesPago = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar esta condición de pago?')) return;
+    if (!await confirm('¿Está seguro de eliminar esta condición de pago?')) return;
     
     try {
       await condicionesPagoService.delete(id);

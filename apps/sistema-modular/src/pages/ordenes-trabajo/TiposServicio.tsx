@@ -6,9 +6,11 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const TiposServicio = () => {
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const [tipos, setTipos] = useState<TipoServicio[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<TipoServicio | null>(null);
@@ -67,7 +69,7 @@ export const TiposServicio = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar este tipo de servicio?')) return;
+    if (!await confirm('¿Está seguro de eliminar este tipo de servicio?')) return;
     try {
       await tiposServicioService.delete(id);
       await loadData();

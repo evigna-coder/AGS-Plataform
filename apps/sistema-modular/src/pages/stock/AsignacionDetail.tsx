@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, ItemAsignacion, EstadoItemAsignacion } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
   asignado: 'bg-blue-100 text-blue-700',
@@ -15,6 +16,8 @@ const ESTADO_COLORS: Record<EstadoItemAsignacion, string> = {
 
 export const AsignacionDetail = () => {
   const { id } = useParams<{ id: string }>();
+
+  const confirm = useConfirm();
   const goBack = useNavigateBack();
   const [asg, setAsg] = useState<Asignacion | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +35,7 @@ export const AsignacionDetail = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleDevolver = async (item: ItemAsignacion) => {
-    if (!id || !confirm(`¿Devolver "${item.articuloCodigo || item.minikitCodigo}"?`)) return;
+    if (!id || !await confirm(`¿Devolver "${item.articuloCodigo || item.minikitCodigo}"?`)) return;
     setSaving(true);
     try {
       await asignacionesService.devolverItems(id, [{ itemId: item.id, cantidad: item.cantidad - item.cantidadDevuelta - item.cantidadConsumida }]);

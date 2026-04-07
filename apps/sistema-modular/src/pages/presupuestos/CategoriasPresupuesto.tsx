@@ -5,9 +5,11 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const CategoriasPresupuesto = () => {
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -81,7 +83,7 @@ export const CategoriasPresupuesto = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Está seguro de eliminar esta categoría?')) return;
+    if (!await confirm('¿Está seguro de eliminar esta categoría?')) return;
     
     try {
       await categoriasPresupuestoService.delete(id);

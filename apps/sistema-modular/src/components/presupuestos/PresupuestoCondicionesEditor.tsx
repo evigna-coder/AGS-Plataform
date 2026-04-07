@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import type { PresupuestoSeccionesVisibles, TipoPresupuesto } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_LABELS } from '@ags/shared';
 import { PRESUPUESTO_TEMPLATES } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 type SeccionKey = keyof PresupuestoSeccionesVisibles;
 
@@ -33,6 +34,8 @@ export const PresupuestoCondicionesEditor = ({
 }: PresupuestoCondicionesEditorProps) => {
   const [expanded, setExpanded] = useState<SeccionKey | null>(null);
 
+
+  const confirm = useConfirm();
   const getTemplate = useCallback((key: SeccionKey): string => {
     if (tipo === 'contrato') {
       const contratoTemplates = PRESUPUESTO_TEMPLATES.contrato as Record<string, string>;
@@ -47,15 +50,15 @@ export const PresupuestoCondicionesEditor = ({
     return typeof val === 'string' ? val : '';
   }, [tipo]);
 
-  const handleLoadTemplate = (key: SeccionKey) => {
+  const handleLoadTemplate = async (key: SeccionKey) => {
     const template = getTemplate(key);
     if (!template) return;
-    if (values[key] && !confirm('Esto reemplazará el contenido actual. ¿Continuar?')) return;
+    if (values[key] && !await confirm('Esto reemplazará el contenido actual. ¿Continuar?')) return;
     onValueChange(key, template);
   };
 
-  const handleLoadAll = () => {
-    if (!confirm('¿Cargar todas las plantillas predeterminadas? Se reemplazará el contenido existente.')) return;
+  const handleLoadAll = async () => {
+    if (!await confirm('¿Cargar todas las plantillas predeterminadas? Se reemplazará el contenido existente.')) return;
     for (const key of SECCION_KEYS) {
       const template = getTemplate(key);
       if (template) {

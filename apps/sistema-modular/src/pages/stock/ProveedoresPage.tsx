@@ -6,12 +6,14 @@ import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateProveedorModal } from '../../components/stock/CreateProveedorModal';
 import type { Proveedor } from '@ags/shared';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const TIPO_COLORS = { nacional: 'bg-blue-50 text-blue-700', internacional: 'bg-purple-50 text-purple-700' };
 
 export const ProveedoresPage = () => {
   const [items, setItems] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
   const [showInactive, setShowInactive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [filterTipo, setFilterTipo] = useState('');
@@ -41,7 +43,7 @@ export const ProveedoresPage = () => {
   };
 
   const handleDelete = async (p: Proveedor) => {
-    if (!confirm(`¿Eliminar permanentemente "${p.nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar permanentemente "${p.nombre}"?`)) return;
     try { await proveedoresService.delete(p.id); reload(); }
     catch { alert('Error al eliminar'); }
   };

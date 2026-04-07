@@ -4,6 +4,7 @@ import { storage } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import type { AdjuntoPresupuesto, TipoAdjuntoPresupuesto } from '@ags/shared';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   presupuestoId: string;
@@ -27,6 +28,7 @@ const TIPO_COLORS: Record<TipoAdjuntoPresupuesto, string> = {
 
 export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onRemove, onSuggestAutorizado }: Props) => {
   const [uploading, setUploading] = useState(false);
+  const confirm = useConfirm();
   const [selectedTipo, setSelectedTipo] = useState<TipoAdjuntoPresupuesto>('orden_compra');
   const [notas, setNotas] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -61,8 +63,8 @@ export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onR
     }
   };
 
-  const handleRemove = (adjId: string) => {
-    if (!confirm('Eliminar este adjunto?')) return;
+  const handleRemove = async (adjId: string) => {
+    if (!await confirm('Eliminar este adjunto?')) return;
     onRemove(adjId);
   };
 

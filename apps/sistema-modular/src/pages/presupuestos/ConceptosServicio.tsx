@@ -7,11 +7,13 @@ import { Input } from '../../components/ui/Input';
 import type { ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const MONEDAS: MonedaPresupuesto[] = ['USD', 'ARS', 'EUR'];
 
 export function ConceptosServicio() {
   const goBack = useNavigateBack();
+  const confirm = useConfirm();
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [categorias, setCategorias] = useState<CategoriaPresupuesto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export function ConceptosServicio() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este concepto?')) return;
+    if (!await confirm('Eliminar este concepto?')) return;
     await conceptosServicioService.delete(id);
     await loadData();
   };

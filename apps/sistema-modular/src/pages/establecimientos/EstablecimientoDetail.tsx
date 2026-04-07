@@ -11,6 +11,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 import { MoveSistemaModal } from '../../components/equipos/MoveSistemaModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const ChevronRight = () => (
   <svg className="w-4 h-4 text-slate-300 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -48,6 +49,7 @@ const SistemaRow = ({ s, selected, onToggle }: { s: Sistema; selected?: boolean;
 };
 
 export const EstablecimientoDetail = () => {
+  const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
@@ -234,7 +236,7 @@ export const EstablecimientoDetail = () => {
   };
 
   const handleDeleteContacto = async (contactoId: string) => {
-    if (!id || !confirm('Eliminar este contacto?')) return;
+    if (!id || !await confirm('Eliminar este contacto?')) return;
     try { await contactosEstablecimientoService.delete(id, contactoId); setContactos(prev => prev.filter(c => c.id !== contactoId)); }
     catch (e) { console.error(e); alert('Error al eliminar'); }
   };

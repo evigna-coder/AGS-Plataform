@@ -13,10 +13,12 @@ import { Button } from '../../components/ui/Button';
 import { EquipoInfoSidebar } from '../../components/equipos/EquipoInfoSidebar';
 import { ModulosList, type ModuloFormData } from '../../components/equipos/ModulosList';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const EquipoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const goBack = useNavigateBack();
 
   const [sistema, setSistema] = useState<Sistema | null>(null);
@@ -168,7 +170,7 @@ export const EquipoDetail = () => {
 
   const handleMoveModulo = async (moduloId: string, targetSistemaId: string) => {
     if (!id) return;
-    if (!confirm('Mover este modulo al sistema seleccionado?')) return;
+    if (!await confirm('Mover este modulo al sistema seleccionado?')) return;
     try {
       await modulosService.move(id, moduloId, targetSistemaId);
       setModulos(prev => prev.filter(m => m.id !== moduloId));
@@ -180,7 +182,7 @@ export const EquipoDetail = () => {
 
   const handleDeleteModulo = async (moduloId: string) => {
     if (!id) return;
-    if (!confirm('Esta seguro de eliminar este modulo?')) return;
+    if (!await confirm('Esta seguro de eliminar este modulo?')) return;
     try {
       await modulosService.delete(id, moduloId);
       await loadData(true);

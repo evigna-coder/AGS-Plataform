@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FC } from 'react';
 import type { CertificadoIngeniero, CategoriaPatron } from '@ags/shared';
 import { CATEGORIA_PATRON_LABELS } from '@ags/shared';
 import { certificadosIngenieroService } from '../services/personalService';
+import { useConfirm } from './ui/ConfirmDialog';
 
 const CATEGORIAS: CategoriaPatron[] = ['gc', 'hplc', 'uv', 'osmometro', 'polarimetro'];
 
@@ -35,6 +36,7 @@ const ESTADO_LABEL: Record<string, string> = {
 export const IngenieroCertificados: FC<Props> = ({ ingenieroId, ingenieroNombre }) => {
   const [certs, setCerts] = useState<CertificadoIngeniero[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const confirm = useConfirm();
   const [categoria, setCategoria] = useState<CategoriaPatron>('gc');
   const [descripcion, setDescripcion] = useState('');
   const [fechaEmision, setFechaEmision] = useState('');
@@ -74,7 +76,7 @@ export const IngenieroCertificados: FC<Props> = ({ ingenieroId, ingenieroNombre 
   };
 
   const handleDelete = async (cert: CertificadoIngeniero) => {
-    if (!confirm(`¿Eliminar certificado "${cert.descripcion}"?`)) return;
+    if (!await confirm(`¿Eliminar certificado "${cert.descripcion}"?`)) return;
     try { await certificadosIngenieroService.delete(cert.id, cert.certificadoStoragePath); }
     catch { alert('Error al eliminar'); }
   };

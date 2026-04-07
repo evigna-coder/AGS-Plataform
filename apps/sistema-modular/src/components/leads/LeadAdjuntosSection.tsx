@@ -4,6 +4,7 @@ import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
 import { leadsService } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   leadId: string;
@@ -23,6 +24,8 @@ function isImage(adj: AdjuntoLead): boolean {
 }
 
 export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: Props) => {
+
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -50,7 +53,7 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
   };
 
   const handleRemove = async (adj: AdjuntoLead) => {
-    if (!confirm(`Eliminar "${adj.nombre}"?`)) return;
+    if (!await confirm(`Eliminar "${adj.nombre}"?`)) return;
     try {
       await leadsService.removeAdjunto(leadId, adj, adjuntos);
       onUpdated();

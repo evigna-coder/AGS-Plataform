@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { Ingeniero, AreaIngeniero, UsuarioAGS } from '@ags/shared';
 import { IngenieroCertificados } from '../../components/IngenieroCertificados';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const AREA_LABELS: Record<AreaIngeniero, string> = {
   campo: 'Campo',
@@ -31,6 +32,8 @@ const emptyForm: FormState = { nombre: '', email: '', telefono: '', area: '', us
 
 export const IngenierosPage = () => {
   const [items, setItems] = useState<Ingeniero[]>([]);
+
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -113,7 +116,7 @@ export const IngenierosPage = () => {
   };
 
   const handleDelete = async (ing: Ingeniero) => {
-    if (!confirm(`¿Eliminar permanentemente "${ing.nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar permanentemente "${ing.nombre}"?`)) return;
     try {
       await ingenierosService.delete(ing.id);
       reload();

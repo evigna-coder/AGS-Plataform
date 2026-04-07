@@ -6,8 +6,10 @@ import type { WorkOrder, Cliente, Sistema, TipoServicio, ModuloSistema, Contacto
 import { useOTFormState } from './useOTFormState';
 import { useOTFieldHandlers } from './useOTFieldHandlers';
 import { useOTActions } from './useOTActions';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 export function useOTDetail(otNumber?: string) {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { form, setField, setFields, markInteracted, hasUserInteracted, loadFromOT, buildSavePayload, validate } = useOTFormState();
 
@@ -124,7 +126,7 @@ export function useOTDetail(otNumber?: string) {
   }, [form, handleSave]);
 
   const handleDelete = useCallback(async () => {
-    if (!otNumber || !window.confirm(`Eliminar OT ${otNumber}?`)) return;
+    if (!otNumber || !await confirm(`Eliminar OT ${otNumber}?`)) return;
     try { setSaving(true); await ordenesTrabajoService.delete(otNumber); alert('OT eliminada'); navigate('/ordenes-trabajo'); }
     catch { alert('Error al eliminar'); } finally { setSaving(false); }
   }, [otNumber, navigate]);
