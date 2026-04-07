@@ -59,6 +59,7 @@ export const OTNew = () => {
         if (!pres) return;
         const updates: Partial<typeof formData> = { clienteId: pres.clienteId };
         if (pres.sistemaId) updates.sistemaId = pres.sistemaId;
+        if (pres.contactoId) updates.contactoId = pres.contactoId;
         setFormData(prev => ({ ...prev, ...updates }));
       } catch (err) {
         console.error('Error cargando presupuesto origen:', err);

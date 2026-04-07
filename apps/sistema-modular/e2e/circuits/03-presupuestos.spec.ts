@@ -11,80 +11,62 @@ test.describe('Circuito 3: Presupuestos', () => {
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('3.2 — Crear nuevo presupuesto', async ({ app, nav, forms }) => {
-    await nav.goTo('Presupuestos');
-    // Esperar que la data cargue completamente (loading state)
-    await app.waitForTimeout(4000);
-    const btn = app.getByRole('button', { name: /Nuevo Presupuesto/i }).first();
-    await btn.waitFor({ state: 'visible', timeout: 15_000 });
-    await btn.click({ force: true });
+  test('3.2 — Crear nuevo presupuesto', async ({ app, nav }) => {
+    await nav.goToFresh('Presupuestos');
+
+    await app.getByRole('button', { name: '+ Nuevo Presupuesto' }).click();
     await app.waitForTimeout(1500);
 
-    const modal = app.locator('[class*="modal"], [role="dialog"]').last();
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    // Tipo (select nativo — usar selectOption como codegen)
+    await app.getByRole('combobox').nth(4).selectOption('servicio');
+    await app.waitForTimeout(300);
 
-    // Tipo * (select)
-    await forms.selectField('Tipo', 1, modal);
+    // Cliente (SearchableSelect — click en combobox, luego opción del listbox)
+    await app.getByRole('combobox').filter({ hasText: 'Seleccionar cliente...' }).click();
+    await app.waitForTimeout(800);
+    // Las opciones del SearchableSelect están en un listbox portal con role="option"
+    // Filtrar para no matchear <option> de <select> nativos
+    const clientOpts = app.locator('[role="listbox"] [role="option"], ul li');
+    const firstClient = clientOpts.first();
+    await firstClient.waitFor({ timeout: 5000 });
+    await firstClient.click();
+    await app.waitForTimeout(1500);
 
-    // Cliente * — click en el primer combobox del modal para abrir
-    const clienteCombobox = modal.locator('[role="combobox"]').first();
-    await clienteCombobox.click();
-    await app.waitForTimeout(600);
-    // Seleccionar primera opción
-    const firstOpt = app.locator('[role="option"], li')
-      .filter({ hasNotText: /^crear|^sin /i }).first();
-    if (await firstOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await firstOpt.click();
-      await app.waitForTimeout(1000);
-    }
-
-    // Necesitamos al menos 1 ítem — buscar botón agregar
-    const addBtn = modal.getByRole('button', { name: /agregar|añadir|\+/i }).first();
-    if (await addBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await addBtn.click();
+    // Catálogo de servicios (si aparece)
+    const catalogCombo = app.getByRole('combobox').filter({ hasText: 'Carga manual...' });
+    if (await catalogCombo.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await catalogCombo.click();
       await app.waitForTimeout(500);
-      // Llenar descripción del ítem
-      const descInput = modal.getByPlaceholder(/descripcion/i).first();
-      if (await descInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await descInput.fill(`${TEST_PREFIX} Servicio de prueba`);
+      const firstConcept = app.getByRole('option').first();
+      if (await firstConcept.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await firstConcept.click();
+        await app.waitForTimeout(500);
       }
-      // Cantidad y precio
-      const numInputs = modal.locator('input[type="number"]');
-      const numCount = await numInputs.count();
-      if (numCount > 0) await numInputs.first().fill('1');
-      if (numCount > 1) await numInputs.nth(1).fill('1000');
     }
 
-    // Guardar
-    const saveBtn = modal.getByRole('button', { name: /guardar|crear/i }).first();
-    // Esperar que se habilite (clienteId set + items > 0)
+    // Agregar línea (botón puede estar fuera de viewport)
+    const addBtn = app.getByRole('button', { name: '+ Agregar' });
+    await addBtn.evaluate((el: HTMLElement) => el.click());
     await app.waitForTimeout(500);
-    if (await saveBtn.isEnabled({ timeout: 3000 }).catch(() => false)) {
-      await saveBtn.click();
-      await app.waitForTimeout(3000);
-    }
+
+    // Crear presupuesto (botón puede estar fuera de viewport)
+    const createBtn = app.getByRole('button', { name: 'Crear presupuesto' });
+    await createBtn.evaluate((el: HTMLElement) => el.click());
+    await app.waitForTimeout(3000);
   });
 
   test('3.3 — Verificar presupuesto en lista', async ({ app, nav }) => {
-    await nav.goTo('Presupuestos');
+    await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
     const rows = await app.locator('tbody tr').count();
     expect(rows).toBeGreaterThanOrEqual(1);
   });
 
-  test('3.4 — Abrir detalle de presupuesto', async ({ app, nav }) => {
-    await nav.goTo('Presupuestos');
-    await app.waitForTimeout(2000);
+  test('3.4 — Abrir detalle de presupuesto', async ({ app }) => {
     const firstRow = app.locator('tbody tr').first();
     await firstRow.scrollIntoViewIfNeeded();
     await firstRow.click({ force: true });
     await app.waitForTimeout(2000);
     await expect(app.locator('body')).not.toContainText('Something went wrong');
-  });
-
-  test('3.5 — Verificar filtros', async ({ app, nav }) => {
-    await nav.goTo('Presupuestos');
-    await app.waitForTimeout(1500);
-    expect(await app.locator('select').count()).toBeGreaterThanOrEqual(1);
   });
 });

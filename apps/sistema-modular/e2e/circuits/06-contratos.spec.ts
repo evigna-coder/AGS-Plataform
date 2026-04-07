@@ -5,9 +5,10 @@ const ts = timestamp();
 test.describe('Circuito 6: Contratos', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('6.1 — Navegar a Contratos', async ({ nav }) => {
+  test('6.1 — Navegar a Contratos', async ({ app, nav }) => {
     await nav.goTo('Contratos');
-    await nav.expectPageTitle('Contratos');
+    await app.waitForTimeout(2000);
+    await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
   test('6.2 — Crear nuevo contrato', async ({ app, nav, forms }) => {

@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, inTransition } from './firebase';
 
 // Servicio para Tipos de Servicio (lista simple)
 export const tiposServicioService = {
@@ -81,7 +81,7 @@ export const tiposServicioService = {
         updatedAt: d.data().updatedAt?.toDate().toISOString(),
       })) as TipoServicio[];
       tipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      callback(tipos);
+      inTransition(callback)(tipos);
     }, err => { console.error('TiposServicio subscription error:', err); onError?.(err); });
   },
 };
@@ -181,7 +181,7 @@ export const posicionesArancelariasService = {
         updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
       })) as PosicionArancelaria[];
       items.sort((a, b) => a.codigo.localeCompare(b.codigo));
-      callback(items);
+      inTransition(callback)(items);
     }, err => { console.error('PosicionesArancelarias subscription error:', err); onError?.(err); });
   },
 };
@@ -274,8 +274,9 @@ export const requerimientosService = {
     if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
     if (filters?.origen) constraints.unshift(where('origen', '==', filters.origen));
     const q = query(collection(db, 'requerimientos_compra'), ...constraints);
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
-      callback(snap.docs.map(d => ({
+      safeCallback(snap.docs.map(d => ({
         id: d.id, ...d.data(),
         fechaSolicitud: d.data().fechaSolicitud?.toDate?.()?.toISOString() ?? d.data().fechaSolicitud,
         fechaAprobacion: d.data().fechaAprobacion?.toDate?.()?.toISOString() ?? null,
@@ -389,8 +390,9 @@ export const importacionesService = {
     const constraints: any[] = [orderBy('createdAt', 'desc')];
     if (filters?.estado) constraints.unshift(where('estado', '==', filters.estado));
     const q = query(collection(db, 'importaciones'), ...constraints);
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
-      callback(snap.docs.map(d => {
+      safeCallback(snap.docs.map(d => {
         const data = d.data();
         return {
           id: d.id, ...data,

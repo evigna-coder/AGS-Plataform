@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, onSnapshot, addDoc } from 'firebase/firestore';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
-import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit } from './firebase';
+import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit, inTransition } from './firebase';
 import { establecimientosService } from './establecimientosService';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
@@ -93,7 +93,7 @@ export const categoriasEquipoService = {
         if (!Array.isArray(c.modelos)) c.modelos = [];
       }
       categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      callback(categorias);
+      inTransition(callback)(categorias);
     }, err => {
       console.error('categorias_equipo subscription error:', err);
       onError?.(err);
@@ -188,7 +188,7 @@ export const categoriasModuloService = {
         if (!Array.isArray(c.modelos)) c.modelos = [];
       }
       categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      callback(categorias);
+      inTransition(callback)(categorias);
     }, err => {
       console.error('categorias_modulo subscription error:', err);
       onError?.(err);
@@ -381,7 +381,7 @@ export const sistemasService = {
         sistemas = sistemas.filter(s => s.activo === true);
       }
       sistemas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      callback(sistemas);
+      inTransition(callback)(sistemas);
     }, err => {
       console.error('sistemas subscription error:', err);
       onError?.(err);

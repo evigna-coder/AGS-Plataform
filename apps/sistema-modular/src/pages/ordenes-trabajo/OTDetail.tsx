@@ -6,6 +6,7 @@ import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSe
 import { OTItemsSection } from '../../components/ordenes-trabajo/OTItemsSection';
 import { OTCierreAdminSection } from '../../components/ordenes-trabajo/OTCierreAdminSection';
 import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
+import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 import { useOTDetail } from '../../hooks/useOTDetail';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTEstadoAdmin } from '@ags/shared';
@@ -26,6 +27,7 @@ export const OTDetail = () => {
   const goBack = useNavigateBack();
   const ot = useOTDetail(otNumber);
   const [showCrearLead, setShowCrearLead] = useState(false);
+  const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
 
   if (ot.loading) {
     return (
@@ -69,6 +71,9 @@ export const OTDetail = () => {
           </div>
           <div className="flex gap-2 items-center">
             {ot.saving && <span className="text-[11px] text-slate-400">Guardando...</span>}
+            <Button variant="outline" size="sm" onClick={() => setShowCrearPresupuesto(true)}>
+              Crear Presupuesto
+            </Button>
             <Button variant="outline" size="sm" onClick={() => ot.openInReportesOT()}>
               Abrir reporte
             </Button>
@@ -154,6 +159,7 @@ export const OTDetail = () => {
             presupuestoOrigenId={ot.presupuestoOrigenId}
             presupuestoOrigenNumero={ot.presupuestoOrigenNumero}
             onCreateLeadFromOT={() => setShowCrearLead(true)}
+            onCreatePresupuestoFromOT={() => setShowCrearPresupuesto(true)}
             creatingLead={false}
           />
 
@@ -226,6 +232,20 @@ export const OTDetail = () => {
           }}
         />
       )}
+      <CreatePresupuestoModal
+        open={showCrearPresupuesto}
+        onClose={() => setShowCrearPresupuesto(false)}
+        onCreated={() => setShowCrearPresupuesto(false)}
+        prefill={{
+          clienteId: ot.clienteId || undefined,
+          sistemaId: ot.sistemaId || undefined,
+          moduloId: ot.moduloId || undefined,
+          contactoNombre: ot.contacto || undefined,
+          origenTipo: 'ot',
+          origenId: otNumber,
+          origenRef: `OT-${otNumber}`,
+        }}
+      />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, deleteDoc, query, Timestamp, onSnapshot, addDoc, updateDoc } from 'firebase/firestore';
 import type { Cliente, ContactoCliente } from '@ags/shared';
-import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef } from './firebase';
+import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef, inTransition } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
@@ -83,7 +83,7 @@ export const clientesService = {
         clientes = clientes.filter(c => c.activo !== false);
       }
       clientes.sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
-      callback(clientes);
+      inTransition(callback)(clientes);
     }, err => {
       console.error('Clientes subscription error:', err);
       onError?.(err);

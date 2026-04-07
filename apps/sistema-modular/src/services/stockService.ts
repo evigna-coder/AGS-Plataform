@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, EstadoUnidad, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
 
@@ -117,7 +117,7 @@ export const posicionesStockService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as PosicionStock[];
       items.sort((a, b) => a.codigo.localeCompare(b.codigo));
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('posicionesStock subscribe error:', err);
       onError?.(err);
@@ -288,7 +288,7 @@ export const articulosService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as Articulo[];
       items.sort((a, b) => a.codigo.localeCompare(b.codigo));
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('articulos subscribe error:', err);
       onError?.(err);
@@ -431,7 +431,7 @@ export const unidadesService = {
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('unidades subscribe error:', err);
       onError?.(err);
@@ -544,7 +544,7 @@ export const minikitsService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as Minikit[];
       items.sort((a, b) => a.codigo.localeCompare(b.codigo));
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('minikits subscribe error:', err);
       onError?.(err);
@@ -638,7 +638,7 @@ export const minikitTemplatesService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as MinikitTemplate[];
       items.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('minikitTemplates subscribe error:', err);
       onError?.(err);
@@ -740,7 +740,7 @@ export const movimientosService = {
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('movimientosStock subscribe error:', err);
       onError?.(err);
@@ -901,7 +901,7 @@ export const remitosService = {
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('remitos subscribe error:', err);
       onError?.(err);

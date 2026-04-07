@@ -2,7 +2,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Tim
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
-import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace } from './firebase';
+import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, inTransition } from './firebase';
 
 // ── Mapeo de estados: presupuesto → lead ──────────────────────────────
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
@@ -152,8 +152,9 @@ export const leadsService = {
     if (filters?.areaActual) constraints.push(where('areaActual', '==', filters.areaActual));
     constraints.push(orderBy('createdAt', 'desc'));
     const q = query(collection(db, 'leads'), ...constraints);
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
-      callback(snap.docs.map(d => parseLeadDoc(d)));
+      safeCallback(snap.docs.map(d => parseLeadDoc(d)));
     }, err => {
       console.error('Leads subscription error:', err);
       onError?.(err);

@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
-import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
 
 /** Resolve a sistema's agsVisibleId (cached per-process). */
 const _agsIdCache = new Map<string, string | null>();
@@ -60,11 +60,12 @@ export const agendaService = {
       where('fechaInicio', '<=', rangeEnd),
       orderBy('fechaInicio', 'asc'),
     );
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, (snap) => {
       const entries = snap.docs
         .map(d => parseAgendaEntry(d))
         .filter(e => e.fechaFin >= rangeStart); // client-side filter for overlap
-      callback(entries);
+      safeCallback(entries);
     });
   },
 
@@ -187,10 +188,11 @@ export const agendaService = {
 
 export const feriadosService = {
   subscribe(callback: (fechas: Set<string>) => void): () => void {
+    const safeCallback = inTransition(callback);
     return onSnapshot(collection(db, 'feriados'), (snap) => {
       const fechas = new Set<string>();
       snap.docs.forEach(d => fechas.add(d.id));
-      callback(fechas);
+      safeCallback(fechas);
     });
   },
 
@@ -231,7 +233,7 @@ export const agendaNotasService = {
           updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? '',
         };
       });
-      callback(notas);
+      inTransition(callback)(notas);
     });
   },
 

@@ -157,3 +157,16 @@ export function batchAudit(
 
 // Re-export currentUser utilities for convenience
 export { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
+
+// ========== REACT TRANSITION HELPER ==========
+import { startTransition } from 'react';
+
+/**
+ * Wraps a callback in React's startTransition so Firestore real-time
+ * subscription updates don't block the UI thread during heavy re-renders.
+ * Without this, typing in search inputs or interacting with dropdowns
+ * becomes impossible while React synchronously re-renders large tables.
+ */
+export function inTransition<T extends (...args: any[]) => void>(cb: T): T {
+  return ((...args: any[]) => startTransition(() => cb(...args))) as unknown as T;
+}

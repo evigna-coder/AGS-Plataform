@@ -88,6 +88,10 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           h.setShowCrearLead(false);
           await h.reloadLeads(leadId);
         }}
+        prefill={{
+          clienteId: h.form.clienteId || undefined,
+          sistemaId: h.form.sistemaId && h.form.sistemaId !== '__ALL_SISTEMAS__' ? h.form.sistemaId : undefined,
+        }}
       />
     )}
     </>

@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
-import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit } from './firebase';
+import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, inTransition } from './firebase';
 import { leadsService } from './leadsService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
@@ -125,7 +125,7 @@ export const presupuestosService = {
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      callback(presupuestos);
+      inTransition(callback)(presupuestos);
     }, err => {
       console.error('Presupuestos subscription error:', err);
       onError?.(err);
@@ -607,8 +607,9 @@ export const ordenesCompraService = {
     if (filters?.tipo) constraints.unshift(where('tipo', '==', filters.tipo));
     if (filters?.proveedorId) constraints.unshift(where('proveedorId', '==', filters.proveedorId));
     const q = query(collection(db, 'ordenes_compra'), ...constraints);
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
-      callback(snap.docs.map(d => ({
+      safeCallback(snap.docs.map(d => ({
         id: d.id, ...d.data(),
         fechaRecepcion: d.data().fechaRecepcion?.toDate?.()?.toISOString() ?? null,
         fechaProforma: d.data().fechaProforma?.toDate?.()?.toISOString() ?? null,

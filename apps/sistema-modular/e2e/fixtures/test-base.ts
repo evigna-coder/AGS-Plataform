@@ -59,10 +59,39 @@ class NavHelpers {
     await this.ensureLoaded();
     const item = this.page.locator('aside nav').getByText(label, { exact: false }).first();
     await item.waitFor({ timeout: 10_000 });
-    // Scroll into view — el sidebar es overflow-y-auto
     await item.scrollIntoViewIfNeeded();
     await item.click({ force: true });
     await this.page.waitForTimeout(1500);
+  }
+
+  /**
+   * Navega forzando un cambio de ruta: va a Clientes primero, luego al destino.
+   * Esto resetea el MemoryRouter y garantiza que se muestra la vista lista.
+   */
+  async goToFresh(label: string) {
+    await this.ensureLoaded();
+    // Ir a Clientes primero para forzar cambio de ruta
+    const clientes = this.page.locator('aside nav').getByText('Clientes', { exact: false }).first();
+    await clientes.scrollIntoViewIfNeeded();
+    await clientes.click({ force: true });
+    await this.page.waitForTimeout(800);
+    // Ahora ir al destino
+    const item = this.page.locator('aside nav').getByText(label, { exact: false }).first();
+    await item.scrollIntoViewIfNeeded();
+    await item.click({ force: true });
+    await this.page.waitForTimeout(2000);
+  }
+
+  /** Igual que goToFresh pero para sub-items de Stock */
+  async goToStockFresh(submenu: string) {
+    await this.ensureLoaded();
+    // Ir a Clientes primero
+    const clientes = this.page.locator('aside nav').getByText('Clientes', { exact: false }).first();
+    await clientes.scrollIntoViewIfNeeded();
+    await clientes.click({ force: true });
+    await this.page.waitForTimeout(800);
+    // Ahora ir a Stock > submenu
+    await this.goToStock(submenu);
   }
 
   async goToStock(submenu: string) {
@@ -139,8 +168,8 @@ class FormHelpers {
       await input.fill('');
       await this.page.waitForTimeout(600);
     }
-    // Primera opción del listbox
-    const firstOpt = this.page.locator('[role="option"], li')
+    // Primera opción del listbox del SearchableSelect (no de <select> nativos)
+    const firstOpt = this.page.locator('[role="listbox"] [role="option"]')
       .filter({ hasNotText: /^crear|^sin /i }).first();
     if (await firstOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
       await firstOpt.click();

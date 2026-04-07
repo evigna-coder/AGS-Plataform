@@ -46,6 +46,7 @@ export interface OTInfoSidebarProps {
   presupuestoOrigenId?: string | null;
   presupuestoOrigenNumero?: string | null;
   onCreateLeadFromOT?: () => void;
+  onCreatePresupuestoFromOT?: () => void;
   creatingLead?: boolean;
 }
 
@@ -63,7 +64,7 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
   ordenCompra, fechaServicioAprox, ingenieroAsignadoId, ingenieroAsignadoNombre: _ian,
   ingenieros, onIngenieroChange, estadoAdmin: _ea, estadoAdminFecha: _eaf, estadoHistorial,
   leadId, presupuestoOrigenId, presupuestoOrigenNumero,
-  onCreateLeadFromOT, creatingLead,
+  onCreateLeadFromOT, onCreatePresupuestoFromOT, creatingLead,
 }) => {
   const { pathname } = useLocation();
   const totalHs = (Number(horasTrabajadas) || 0) + (Number(tiempoViaje) || 0);
@@ -257,7 +258,18 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
               <p className="text-[9px] text-slate-400 mt-1">Crea un lead vinculado con estado "en presupuesto" dirigido al área de ventas</p>
             </div>
           )}
-          {!leadId && !presupuestoOrigenId && !onCreateLeadFromOT && (
+          {!presupuestoOrigenId && onCreatePresupuestoFromOT && (
+            <div className="pt-1">
+              <button
+                onClick={onCreatePresupuestoFromOT}
+                className="w-full text-left text-[11px] font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg px-2.5 py-1.5 transition-colors"
+              >
+                Crear presupuesto desde OT
+              </button>
+              <p className="text-[9px] text-slate-400 mt-1">Crea un presupuesto con los datos del cliente y equipo de esta OT</p>
+            </div>
+          )}
+          {!leadId && !presupuestoOrigenId && !onCreateLeadFromOT && !onCreatePresupuestoFromOT && (
             <p className="text-[10px] text-slate-400 italic">Sin lead ni presupuesto vinculado</p>
           )}
         </div>

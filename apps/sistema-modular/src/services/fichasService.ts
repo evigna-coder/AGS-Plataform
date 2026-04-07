@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { FichaPropiedad, HistorialFicha, DerivacionProveedor } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
 
 // --- Fichas Propiedad del Cliente ---
 
@@ -58,6 +58,7 @@ export const fichasService = {
     if (filters?.estado) {
       q = query(q, where('estado', '==', filters.estado));
     }
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
       let items = snap.docs.map(d => ({
         id: d.id,
@@ -69,7 +70,7 @@ export const fichasService = {
         items = items.filter(f => f.estado !== 'entregado');
       }
       items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      callback(items);
+      safeCallback(items);
     }, onError);
   },
 

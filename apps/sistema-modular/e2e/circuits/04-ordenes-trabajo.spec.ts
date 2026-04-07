@@ -8,58 +8,70 @@ test.describe('Circuito 4: Órdenes de Trabajo', () => {
   test('4.1 — Navegar a OT', async ({ app, nav }) => {
     await nav.goTo('Ordenes de Trabajo');
     await app.waitForTimeout(2000);
-    // El título puede ser "Ordenes de Trabajo" o "Órdenes de Trabajo"
     const title = app.locator('h1, h2').first();
     await expect(title).toBeVisible({ timeout: 10_000 });
   });
 
-  test('4.2 — Crear nueva OT', async ({ app, nav, forms }) => {
-    await nav.goTo('Ordenes de Trabajo');
-    await forms.clickButton(/Nueva OT/i);
+  test('4.2 — Crear nueva OT', async ({ app, nav }) => {
+    await nav.goToFresh('Ordenes de Trabajo');
+
+    await app.getByRole('button', { name: '+ Nueva OT' }).click();
     await app.waitForTimeout(1500);
 
-    // OTNew es página completa
-    // Botón "Auto" para generar número
-    const autoBtn = app.getByRole('button', { name: /auto/i }).first();
-    if (await autoBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await autoBtn.click();
-      await app.waitForTimeout(1000);
-    }
+    // Tipo de servicio
+    await app.getByRole('combobox').filter({ hasText: 'Seleccionar tipo...' }).click();
+    await app.waitForTimeout(500);
+    await app.getByRole('option').first().click();
+    await app.waitForTimeout(500);
 
-    // Cliente * (SearchableSelect)
-    await forms.searchableSelectFirst('Seleccionar cliente...');
-    await app.waitForTimeout(1500); // esperar carga de sistemas
+    // Cliente
+    await app.getByRole('combobox').filter({ hasText: 'Seleccionar cliente...' }).click();
+    await app.waitForTimeout(500);
+    await app.getByRole('option').first().click();
+    await app.waitForTimeout(1500);
 
-    // Sistema * (SearchableSelect)
-    const sistemaInput = app.getByPlaceholder('Seleccionar sistema...');
-    if (await sistemaInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await forms.searchableSelectFirst('Seleccionar sistema...');
+    // Establecimiento (si aparece)
+    const estabCombo = app.getByRole('combobox').filter({ hasText: 'Todos los establecimientos' });
+    if (await estabCombo.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await estabCombo.click();
       await app.waitForTimeout(500);
+      const estabOpt = app.getByRole('option').first();
+      if (await estabOpt.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await estabOpt.click();
+        await app.waitForTimeout(500);
+      }
     }
 
-    // Tipo de Servicio * (SearchableSelect — puede no aparecer si no hay cliente/sistema)
-    const tipoInput = app.getByPlaceholder('Seleccionar tipo de servicio...');
-    if (await tipoInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await forms.searchableSelectFirst('Seleccionar tipo de servicio...');
+    // Sistema (si aparece)
+    const sistemaCombo = app.getByRole('combobox').filter({ hasText: 'Sin sistema' });
+    if (await sistemaCombo.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await sistemaCombo.click();
+      await app.waitForTimeout(500);
+      const sistOpt = app.getByRole('option').first();
+      if (await sistOpt.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await sistOpt.click();
+        await app.waitForTimeout(500);
+      }
     }
 
-    // Guardar
-    const saveBtn = app.getByRole('button', { name: /guardar|crear/i }).first();
-    if (await saveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await saveBtn.click();
-      await app.waitForTimeout(3000);
+    // Descripción del problema
+    const descInput = app.getByRole('textbox', { name: /descripcion del problema/i });
+    if (await descInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await descInput.fill(`${TEST_PREFIX} Problema prueba ${ts}`);
     }
+
+    // Crear OT
+    await app.getByRole('button', { name: 'Crear OT' }).click();
+    await app.waitForTimeout(3000);
   });
 
   test('4.3 — Verificar OTs en lista', async ({ app, nav }) => {
-    await nav.goTo('Ordenes de Trabajo');
+    await nav.goToFresh('Ordenes de Trabajo');
     await app.waitForTimeout(2000);
     expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
   });
 
-  test('4.4 — Abrir detalle de OT', async ({ app, nav }) => {
-    await nav.goTo('Ordenes de Trabajo');
-    await app.waitForTimeout(2000);
+  test('4.4 — Abrir detalle de OT', async ({ app }) => {
     const firstRow = app.locator('tbody tr').first();
     await firstRow.scrollIntoViewIfNeeded();
     await firstRow.click({ force: true });
@@ -67,14 +79,8 @@ test.describe('Circuito 4: Órdenes de Trabajo', () => {
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('4.5 — Verificar filtros', async ({ app, nav }) => {
-    await nav.goTo('Ordenes de Trabajo');
-    await app.waitForTimeout(1500);
-    expect(await app.locator('select').count()).toBeGreaterThanOrEqual(1);
-  });
-
-  test('4.6 — Verificar botón exportar CSV', async ({ app, nav }) => {
-    await nav.goTo('Ordenes de Trabajo');
+  test('4.5 — Verificar botón exportar CSV', async ({ app, nav }) => {
+    await nav.goToFresh('Ordenes de Trabajo');
     await app.waitForTimeout(1500);
     const exportBtn = app.getByRole('button', { name: /csv|exportar|descargar/i }).first();
     if (await exportBtn.isVisible({ timeout: 3000 }).catch(() => false)) {

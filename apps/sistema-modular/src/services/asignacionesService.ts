@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { Asignacion } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
 
 export const asignacionesService = {
   async getNextNumero(): Promise<string> {
@@ -170,7 +170,7 @@ export const asignacionesService = {
         createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as Asignacion[];
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('Asignaciones subscription error:', err);
       onError?.(err);

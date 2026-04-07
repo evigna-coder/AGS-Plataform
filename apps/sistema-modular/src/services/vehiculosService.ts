@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
-import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -82,10 +82,11 @@ export const vehiculosService = {
     onError?: (err: Error) => void,
   ): () => void {
     const q = query(collection(db, 'vehiculos'), orderBy('patente', 'asc'));
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
       let items = snap.docs.map(docToVehiculo);
       if (activosOnly) items = items.filter(v => v.activo);
-      callback(items);
+      safeCallback(items);
     }, err => {
       console.error('Vehiculos subscription error:', err);
       onError?.(err);

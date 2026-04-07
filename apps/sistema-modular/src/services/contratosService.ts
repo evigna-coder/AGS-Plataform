@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction, onSnapshot } from 'firebase/firestore';
 import type { Contrato, EstadoContrato } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, inTransition } from './firebase';
 
 function toISO(val: any, fallback: string | null = null): string | null {
   if (!val) return fallback;
@@ -55,7 +55,7 @@ export const contratosService = {
     return onSnapshot(q, snap => {
       const items = snap.docs.map(d => parseContrato(d.data(), d.id));
       items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      callback(items);
+      inTransition(callback)(items);
     }, err => {
       console.error('Contratos subscription error:', err);
       onError?.(err);

@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
 import type { CalificacionProveedor } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
 
 export const calificacionesService = {
   async getAll(filters?: {
@@ -33,6 +33,7 @@ export const calificacionesService = {
     if (filters?.proveedorId) {
       q = query(collection(db, 'calificaciones_proveedor'), where('proveedorId', '==', filters.proveedorId), orderBy('fechaRecepcion', 'desc'));
     }
+    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
       const items = snap.docs.map(d => ({
         id: d.id,
@@ -40,7 +41,7 @@ export const calificacionesService = {
         createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as CalificacionProveedor[];
-      callback(items);
+      safeCallback(items);
     }, onError);
   },
 
