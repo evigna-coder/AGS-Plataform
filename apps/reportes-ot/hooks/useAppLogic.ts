@@ -440,24 +440,19 @@ export function useAppLogic(
   useEffect(() => {
     if (reportIdFromUrl && !autoLoadedRef.current) {
       autoLoadedRef.current = true;
-      loadOT(reportIdFromUrl).catch(err => {
+      loadOT(reportIdFromUrl).then(loaded => {
+        if (loaded?.razonSocial) {
+          entitySelectors.tryMatchExistingData(loaded.razonSocial, {
+            direccion: loaded.direccion,
+            sistema: loaded.sistema,
+            moduloModelo: loaded.moduloModelo,
+          }).catch(() => {});
+        }
+      }).catch(err => {
         console.error('Error auto-cargando reporte:', err);
       });
     }
   }, [reportIdFromUrl, loadOT]);
-
-  // Intentar vincular con DB al cargar una OT existente
-  const prevOtRef = useRef<string>('');
-  useEffect(() => {
-    if (otNumber && otNumber !== prevOtRef.current && hasInitialized.current && razonSocial) {
-      entitySelectors.tryMatchExistingData(razonSocial, {
-        direccion,
-        sistema,
-        moduloModelo,
-      }).catch(() => {});
-    }
-    prevOtRef.current = otNumber;
-  }, [otNumber]);
 
   // Reset selecciones al crear nuevo reporte
   useEffect(() => {
@@ -608,7 +603,14 @@ export function useAppLogic(
   // Funciones de gestión de OT ahora vienen del hook useOTManagement
   const confirmLoadOt = async () => {
     try {
-      await loadOT(otInput);
+      const loaded = await loadOT(otInput);
+      if (loaded?.razonSocial) {
+        await entitySelectors.tryMatchExistingData(loaded.razonSocial, {
+          direccion: loaded.direccion,
+          sistema: loaded.sistema,
+          moduloModelo: loaded.moduloModelo,
+        }).catch(() => {});
+      }
     } catch (error: any) {
       modal.showAlert({
         title: 'Error',

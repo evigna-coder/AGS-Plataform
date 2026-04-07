@@ -328,6 +328,15 @@ export const useOTManagement = (
 
     // 🔓 habilitamos autosave solo si se cargó correctamente
     hasInitialized.current = true;
+
+    // Devolver datos clave para que el caller pueda vincular con entity selectors
+    // (evita timing issues con closures/effects que capturan valores stale)
+    return {
+      razonSocial: data.razonSocial || '',
+      direccion: data.direccion || '',
+      sistema: data.sistema || '',
+      moduloModelo: data.moduloModelo || '',
+    };
   };
 
   // Confirmar creación de nueva OT
