@@ -312,31 +312,31 @@ export const useOTManagement = (
         if (loadedStatus === 'BORRADOR' && !data.signatureEngineer) {
           void prefillFirma();
         }
+
+        // 🔓 habilitamos autosave solo si se cargó correctamente
+        hasInitialized.current = true;
+
+        // Devolver datos clave para que el caller pueda vincular con entity selectors
+        // (evita timing issues con closures/effects que capturan valores stale)
+        return {
+          razonSocial: data.razonSocial || '',
+          direccion: data.direccion || '',
+          sistema: data.sistema || '',
+          moduloModelo: data.moduloModelo || '',
+        };
       } else {
         // 🟡 NO EXISTE → mostrar modal de confirmación
         logger.debug("⚠️ OT no encontrada, solicitando confirmación...");
         setPendingOt(v);
         setShowNewOtModal(true);
         hasInitialized.current = true; // Desbloquear para que futuras cargas funcionen
-        return;
+        return null;
       }
     } catch (error) {
       logger.error("❌ Error al cargar OT:", error);
       // El alert será manejado por el componente que llama a loadOT
       throw error;
     }
-
-    // 🔓 habilitamos autosave solo si se cargó correctamente
-    hasInitialized.current = true;
-
-    // Devolver datos clave para que el caller pueda vincular con entity selectors
-    // (evita timing issues con closures/effects que capturan valores stale)
-    return {
-      razonSocial: data.razonSocial || '',
-      direccion: data.direccion || '',
-      sistema: data.sistema || '',
-      moduloModelo: data.moduloModelo || '',
-    };
   };
 
   // Confirmar creación de nueva OT
