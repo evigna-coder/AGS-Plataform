@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, addDoc } from 'firebase/firestore';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
-import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit, inTransition } from './firebase';
+import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit, inTransition, onSnapshot } from './firebase';
 import { establecimientosService } from './establecimientosService';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 

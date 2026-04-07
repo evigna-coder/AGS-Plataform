@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import type { Dispositivo } from '@ags/shared';
-import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 
 function tsToIso(ts: any): string {
   return ts?.toDate?.().toISOString() ?? '';

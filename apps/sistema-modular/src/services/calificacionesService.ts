@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import type { CalificacionProveedor } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 
 export const calificacionesService = {
   async getAll(filters?: {

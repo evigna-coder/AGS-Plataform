@@ -1,7 +1,7 @@
-import { collection, getDocs, doc, getDoc, Timestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp, query, orderBy } from 'firebase/firestore';
 import type { IngresoEmpresa } from '@ags/shared';
 import { DEFAULT_DOCUMENTACION } from '@ags/shared';
-import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 
 type CreateData = Omit<IngresoEmpresa, 'id' | 'createdAt' | 'updatedAt'>;
 type UpdateData = Partial<Omit<IngresoEmpresa, 'id' | 'createdAt' | 'updatedAt'>>;

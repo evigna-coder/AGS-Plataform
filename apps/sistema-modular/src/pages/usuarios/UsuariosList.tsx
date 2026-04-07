@@ -52,16 +52,16 @@ export const UsuariosList = () => {
     return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  if (loading && users.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando usuarios...</p></div>;
-  }
+  const isInitialLoad = loading && users.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Usuarios" subtitle="Gestion de usuarios, roles y permisos" count={users.length} />
+      <PageHeader title="Usuarios" subtitle="Gestion de usuarios, roles y permisos" count={isInitialLoad ? undefined : users.length} />
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {users.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando usuarios...</p></div>
+        ) : users.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No hay usuarios registrados.</p></div></Card>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">

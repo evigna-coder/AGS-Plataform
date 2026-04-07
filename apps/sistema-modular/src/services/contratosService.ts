@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
 import type { Contrato, EstadoContrato } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, inTransition } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, inTransition, onSnapshot } from './firebase';
 
 function toISO(val: any, fallback: string | null = null): string | null {
   if (!val) return fallback;

@@ -158,15 +158,98 @@ export function batchAudit(
 // Re-export currentUser utilities for convenience
 export { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
 
-// ========== REACT TRANSITION HELPER ==========
+// ========== FIRESTORE SNAPSHOT HELPERS ==========
 import { startTransition } from 'react';
+import {
+  onSnapshot as _onSnapshot,
+  type DocumentReference, type Query,
+  type QuerySnapshot, type DocumentSnapshot, type DocumentData,
+} from 'firebase/firestore';
 
 /**
- * Wraps a callback in React's startTransition so Firestore real-time
- * subscription updates don't block the UI thread during heavy re-renders.
- * Without this, typing in search inputs or interacting with dropdowns
- * becomes impossible while React synchronously re-renders large tables.
+ * Drop-in replacement for Firestore's `onSnapshot` that:
+ *
+ * 1. **Defers the entire handler** to the next macrotask via setTimeout(0),
+ *    freeing the main thread so user input (typing, clicking) is never blocked
+ *    by doc-mapping / sorting logic inside the handler.
+ *
+ * 2. **Debounces rapid-fire snapshots** (e.g. deactivating 5 clients fast) —
+ *    only the last snapshot is processed, skipping redundant intermediate work.
+ *
+ * 3. The FIRST snapshot fires immediately (via setTimeout(0)) so initial data
+ *    loads without visible delay.
  */
+// Overload: Query
+export function onSnapshot<T = DocumentData>(
+  query: Query<T>,
+  handler: (snapshot: QuerySnapshot<T>) => void,
+  onError?: (err: Error) => void,
+): () => void;
+// Overload: DocumentReference
+export function onSnapshot<T = DocumentData>(
+  ref: DocumentReference<T>,
+  handler: (snapshot: DocumentSnapshot<T>) => void,
+  onError?: (err: Error) => void,
+): () => void;
+// Implementation
+export function onSnapshot(
+  ref: any,
+  handler: (snap: any) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let first = true;
+
+  const unsub = _onSnapshot(
+    ref,
+    (snap: any) => {
+      // First snapshot: fire SYNCHRONOUSLY — the page is showing "Cargando..."
+      // and there are no inputs to block yet. Speed matters here.
+      if (first) {
+        first = false;
+        handler(snap);
+        return;
+      }
+      // Subsequent snapshots: debounce rapid-fire updates (e.g. deactivating
+      // 5 clients fast) so only the last one gets processed.
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        handler(snap);
+      }, 80);
+    },
+    onError,
+  );
+
+  return () => {
+    if (timer) clearTimeout(timer);
+    unsub();
+  };
+}
+
+/**
+ * Wraps a callback in React's startTransition so setState calls from
+ * Firestore subscriptions are rendered as low-priority concurrent updates.
+ * Used inside service subscribe() methods around the final callback(data).
+ */
+const _wrapperCache = new WeakMap<Function, Function>();
+
 export function inTransition<T extends (...args: any[]) => void>(cb: T): T {
-  return ((...args: any[]) => startTransition(() => cb(...args))) as unknown as T;
+  let cached = _wrapperCache.get(cb) as T | undefined;
+  if (cached) return cached;
+
+  let first = true;
+  cached = ((...args: any[]) => {
+    // First call: synchronous — the page needs data NOW to stop showing "Cargando..."
+    if (first) {
+      first = false;
+      cb(...args);
+      return;
+    }
+    // Subsequent calls: low-priority transition so inputs stay responsive
+    startTransition(() => cb(...args));
+  }) as unknown as T;
+
+  _wrapperCache.set(cb, cached);
+  return cached;
 }

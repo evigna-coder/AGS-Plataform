@@ -96,16 +96,14 @@ export function CalificacionesList() {
     { value: 'no_aprobado', label: 'No aprobado' },
   ];
 
-  if (loading && items.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando calificaciones...</p></div>;
-  }
+  const isInitialLoad = loading && items.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Calificación de Proveedores"
         subtitle="Evaluación de entregas y ranking de proveedores"
-        count={filtered.length}
+        count={isInitialLoad ? undefined : filtered.length}
         actions={<Button size="sm" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nueva calificación</Button>}
       >
         <div className="flex items-center gap-3 flex-wrap">
@@ -125,7 +123,10 @@ export function CalificacionesList() {
       </PageHeader>
 
       <div className="flex-1 overflow-auto px-4 pb-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando calificaciones...</p></div>
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
               <tr>
@@ -180,6 +181,7 @@ export function CalificacionesList() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       <CalificacionModal

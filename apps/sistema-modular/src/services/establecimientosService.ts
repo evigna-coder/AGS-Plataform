@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, inTransition } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, inTransition, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)

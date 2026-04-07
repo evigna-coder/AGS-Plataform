@@ -424,12 +424,12 @@ export const TableCatalogEditorPage = () => {
               <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Carátula del Protocolo</h3>
               <p className="text-xs text-slate-400 mb-4">
                 El <strong>nombre</strong> de la tabla se usa como título principal de la carátula (ej. "Calificación Operacional / Verificación de Funcionamiento").
-                La <strong>descripción</strong> se muestra como subtítulo. Los datos del equipo, fecha, OT e ingeniero se completan automáticamente desde el reporte.
+                El subtítulo se genera automáticamente con el <strong>nombre del sistema</strong> y la <strong>marca del módulo</strong> seleccionado en la OT.
               </p>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-500 space-y-1">
                 <p><strong>Título:</strong> {entry.name || '(nombre de la tabla)'}</p>
-                <p><strong>Subtítulo:</strong> {entry.description || '(descripción de la tabla)'}</p>
-                <p className="text-slate-400 mt-2">Campos auto-completados: Fecha, Orden de Servicio, Modelo, ID Equipo, N° de Serie, Realizado por</p>
+                <p><strong>Subtítulo:</strong> <span className="italic text-slate-400">Sistema — Marca (auto desde OT)</span></p>
+                <p className="text-slate-400 mt-2">Campos auto-completados: Fecha, Orden de Servicio, ID Equipo, N° de Serie, Realizado por</p>
               </div>
             </Card>
           ) : entry.tableType === 'text' ? (

@@ -83,16 +83,14 @@ export const RemitosList = () => {
     return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  if (loading && remitos.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remitos...</p></div>;
-  }
+  const isInitialLoad = loading && remitos.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Remitos"
         subtitle="Gestionar remitos de stock"
-        count={sorted.length}
+        count={isInitialLoad ? undefined : sorted.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo remito</Button>
         }
@@ -126,7 +124,9 @@ export const RemitosList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {sorted.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando remitos...</p></div>
+        ) : sorted.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron remitos</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">

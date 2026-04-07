@@ -1,7 +1,7 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, addDoc } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca } from '@ags/shared';
-import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // --- Biblioteca de Tablas (/tableCatalog) ---

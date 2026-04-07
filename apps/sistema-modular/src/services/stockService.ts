@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, EstadoUnidad, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
 

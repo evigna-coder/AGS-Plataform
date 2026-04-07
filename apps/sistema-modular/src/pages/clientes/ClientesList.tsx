@@ -158,13 +158,11 @@ export const ClientesList = () => {
     return `Cambiar estado (${selected.size})`;
   }, [selected, clientes]);
 
-  if (loading && clientes.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando clientes...</p></div>;
-  }
+  const isInitialLoad = loading && clientes.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Clientes" count={filtered.length}
+      <PageHeader title="Clientes" count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex gap-2 items-center">
             {selected.size > 0 && (
@@ -204,7 +202,9 @@ export const ClientesList = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {deferredFiltered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando clientes...</p></div>
+        ) : deferredFiltered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron clientes</p>

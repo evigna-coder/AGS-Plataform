@@ -176,6 +176,7 @@ const App: React.FC = () => {
             coverData={{
               otNumber: app.otNumber,
               sistemaNombre: app.sistema,
+              moduloMarca: app.moduloMarca,
               agsVisibleId: app.codigoInternoCliente,
               numeroSerie: app.moduloSerie,
               ingenieroNombre: app.aclaracionEspecialista,
@@ -475,6 +476,7 @@ const App: React.FC = () => {
         coverData={{
           otNumber: app.otNumber,
           sistemaNombre: app.sistema,
+          moduloMarca: app.moduloMarca,
           agsVisibleId: app.codigoInternoCliente,
           numeroSerie: app.moduloSerie,
           ingenieroNombre: app.aclaracionEspecialista,

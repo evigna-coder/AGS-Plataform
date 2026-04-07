@@ -1,7 +1,7 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
-import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, inTransition } from './firebase';
+import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, inTransition, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';

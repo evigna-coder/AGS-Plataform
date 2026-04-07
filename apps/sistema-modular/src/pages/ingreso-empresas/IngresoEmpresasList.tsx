@@ -67,16 +67,14 @@ export const IngresoEmpresasList = () => {
     }
   };
 
-  if (loading && items.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
-  }
+  const isInitialLoad = loading && items.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Ingreso a Empresas"
         subtitle="Documentación requerida para ingreso a clientes"
-        count={filtered.length}
+        count={isInitialLoad ? undefined : filtered.length}
         actions={<Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo ingreso</Button>}
       >
         <div className="flex items-center gap-3 flex-wrap">
@@ -101,7 +99,9 @@ export const IngresoEmpresasList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-auto px-5 pb-4">
-        {filtered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
+        ) : filtered.length === 0 ? (
           <div className="bg-white rounded-lg border border-slate-200 text-center py-12">
             <p className="text-slate-400">No se encontraron registros</p>
             <button onClick={() => { setEditItem(null); setShowModal(true); }} className="text-teal-600 hover:underline mt-2 inline-block text-xs">

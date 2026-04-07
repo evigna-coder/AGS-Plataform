@@ -308,6 +308,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
               clienteDireccion: fullDireccion,
               clienteSector: sector,
               sistema,
+              moduloMarca,
               moduloSerie,
               codigoInternoCliente,
               fechaInicio,

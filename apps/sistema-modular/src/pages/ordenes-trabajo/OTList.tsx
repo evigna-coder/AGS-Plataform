@@ -449,20 +449,14 @@ export const OTList = () => {
     return { byEstado, totalHsLab, totalHsViaje, pendientes, facturables, total: ordenes.length };
   }, [ordenes]);
 
-  if (loading && ordenes.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando órdenes de trabajo...</p>
-      </div>
-    );
-  }
+  const isInitialLoad = loading && ordenes.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Órdenes de Trabajo"
         subtitle="Gestión de órdenes de servicio"
-        count={grouped.length}
+        count={isInitialLoad ? undefined : grouped.length}
         actions={
           <div className="flex gap-2 items-center">
             <Button size="sm" variant="outline" onClick={() => exportToCSV(grouped, sistemas)}
@@ -613,7 +607,9 @@ export const OTList = () => {
       )}
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {grouped.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando órdenes de trabajo...</p></div>
+        ) : grouped.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron órdenes de trabajo</p>

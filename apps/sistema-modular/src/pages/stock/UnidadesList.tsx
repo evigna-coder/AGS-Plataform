@@ -103,20 +103,14 @@ export const UnidadesList = () => {
     return [...byArticulo.values()].map(row => ({ ...row, total: row.disponible + row.reservado + row.asignado }));
   }, [unidades]);
 
-  if (loading && unidades.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-slate-400">Cargando unidades...</p>
-      </div>
-    );
-  }
+  const isInitialLoad = loading && unidades.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Unidades de stock"
         subtitle="Inventario de unidades individuales"
-        count={groupByArticulo ? aggregated.length : filtered.length}
+        count={isInitialLoad ? undefined : (groupByArticulo ? aggregated.length : filtered.length)}
       >
         <div className="flex items-center gap-3 flex-wrap">
           <input
@@ -167,7 +161,9 @@ export const UnidadesList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {groupByArticulo ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
+        ) : groupByArticulo ? (
           <UnidadesAggregatedTable rows={aggregated} />
         ) : filtered.length === 0 ? (
           <Card>

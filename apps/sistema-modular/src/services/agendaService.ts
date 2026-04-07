@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
-import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 
 /** Resolve a sistema's agsVisibleId (cached per-process). */
 const _agsIdCache = new Map<string, string | null>();

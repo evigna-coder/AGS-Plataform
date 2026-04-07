@@ -96,16 +96,14 @@ export const InstrumentosListPage = () => {
     }
   };
 
-  if (loading && instrumentos.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando instrumentos...</p></div>;
-  }
+  const isInitialLoad = loading && instrumentos.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Instrumentos y Patrones"
         subtitle="Gestionar instrumentos, patrones y certificados de calibración"
-        count={filtered.length}
+        count={isInitialLoad ? undefined : filtered.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo instrumento</Button>
         }
@@ -156,7 +154,9 @@ export const InstrumentosListPage = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {error ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando instrumentos...</p></div>
+        ) : error ? (
           <Card><p className="text-red-600 text-sm">{error}</p></Card>
         ) : filtered.length === 0 ? (
           <Card>

@@ -62,6 +62,7 @@ interface ProtocolSectionProps {
   coverData?: {
     otNumber?: string;
     sistemaNombre?: string;
+    moduloMarca?: string;
     agsVisibleId?: string;
     numeroSerie?: string;
     ingenieroNombre?: string;
@@ -163,6 +164,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 otNumber={coverData?.otNumber}
                 fechaInicio={fechaInicio}
                 sistemaNombre={coverData?.sistemaNombre || sistema}
+                moduloMarca={coverData?.moduloMarca}
                 agsVisibleId={coverData?.agsVisibleId}
                 numeroSerie={coverData?.numeroSerie}
                 ingenieroNombre={coverData?.ingenieroNombre || aclaracionEspecialista}

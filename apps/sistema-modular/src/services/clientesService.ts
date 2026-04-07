@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, deleteDoc, query, Timestamp, onSnapshot, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc, query, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Cliente, ContactoCliente } from '@ags/shared';
-import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef, inTransition } from './firebase';
+import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef, inTransition, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})

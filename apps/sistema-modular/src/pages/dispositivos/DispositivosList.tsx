@@ -61,16 +61,14 @@ export const DispositivosList = () => {
     }
   };
 
-  if (loading && items.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>;
-  }
+  const isInitialLoad = loading && items.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Dispositivos"
         subtitle="Celulares, computadoras y otros dispositivos"
-        count={filtered.length}
+        count={isInitialLoad ? undefined : filtered.length}
         actions={<Button size="sm" onClick={() => { setEditItem(null); setShowModal(true); }}>+ Nuevo dispositivo</Button>}
       >
         <input type="text" placeholder="Buscar por marca, modelo, serie o asignado..."
@@ -79,7 +77,9 @@ export const DispositivosList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-auto px-5 pb-4">
-        {filtered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
+        ) : filtered.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron dispositivos</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">

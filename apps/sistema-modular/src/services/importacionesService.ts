@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import type { TipoServicio, PosicionArancelaria, RequerimientoCompra, Importacion } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, inTransition } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, inTransition, onSnapshot } from './firebase';
 
 // Servicio para Tipos de Servicio (lista simple)
 export const tiposServicioService = {

@@ -226,9 +226,7 @@ export const LeadsList = () => {
     });
   };
 
-  if (loading && leads.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>;
-  }
+  const isInitialLoad = loading && leads.length === 0;
 
   if (loadError) {
     return (
@@ -241,7 +239,7 @@ export const LeadsList = () => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Tickets" count={leadsFiltered.length}
+      <PageHeader title="Tickets" count={isInitialLoad ? undefined : leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
         <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
@@ -251,7 +249,9 @@ export const LeadsList = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {leadsFiltered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>
+        ) : leadsFiltered.length === 0 ? (
           <Card><div className="text-center py-12">
             <p className="text-slate-400">No se encontraron tickets</p>
             <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">

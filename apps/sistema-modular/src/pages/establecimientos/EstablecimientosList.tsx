@@ -148,13 +148,11 @@ export const EstablecimientosList = () => {
     return sortByField(result, filters.sortField, filters.sortDir as SortDir);
   }, [establecimientos, filters.cliente, debouncedSearch, clienteMap, filters.sortField, filters.sortDir]);
 
-  if (loading && establecimientos.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando establecimientos...</p></div>;
-  }
+  const isInitialLoad = loading && establecimientos.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Establecimientos" count={filtered.length}
+      <PageHeader title="Establecimientos" count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex gap-2 items-center">
             {selected.size > 0 && (
@@ -192,7 +190,9 @@ export const EstablecimientosList = () => {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {filtered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando establecimientos...</p></div>
+        ) : filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No se encontraron establecimientos</p>

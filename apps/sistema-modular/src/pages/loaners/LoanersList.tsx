@@ -61,16 +61,14 @@ export function LoanersList() {
 
   const getPrestamoActivo = (l: Loaner) => l.prestamos.find(p => p.estado === 'activo');
 
-  if (loading && loaners.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando loaners...</p></div>;
-  }
+  const isInitialLoad = loading && loaners.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Loaners"
         subtitle="Equipos de la empresa para prestamo y venta"
-        count={filtered.length}
+        count={isInitialLoad ? undefined : filtered.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo loaner</Button>
         }
@@ -98,7 +96,9 @@ export function LoanersList() {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {filtered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando loaners...</p></div>
+        ) : filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No hay loaners registrados</p>

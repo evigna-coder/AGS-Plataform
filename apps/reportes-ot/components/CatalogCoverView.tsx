@@ -9,6 +9,7 @@ interface Props {
   fechaInicio?: string;
   sistemaNombre?: string;
   sistemaModelo?: string;
+  moduloMarca?: string;
   agsVisibleId?: string;
   numeroSerie?: string;
   ingenieroNombre?: string;
@@ -27,6 +28,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   fechaInicio,
   sistemaNombre,
   sistemaModelo,
+  moduloMarca,
   agsVisibleId,
   numeroSerie,
   ingenieroNombre,
@@ -34,7 +36,9 @@ export const CatalogCoverView: React.FC<Props> = ({
 }) => {
   const table = selection.tableSnapshot;
   const titulo = table.name || 'Protocolo';
-  const subtitulo = table.description || '';
+  // Subtítulo dinámico: "sistema — marca" (ej. "HPLC 1260 — Agilent")
+  const partes = [sistemaNombre || sistemaModelo, moduloMarca].filter(Boolean);
+  const subtitulo = partes.length > 0 ? partes.join(' — ') : (table.description || '');
 
   const formatFecha = (iso?: string) => {
     if (!iso) return '—';
@@ -43,12 +47,9 @@ export const CatalogCoverView: React.FC<Props> = ({
     } catch { return iso; }
   };
 
-  const equipoDisplay = sistemaNombre || sistemaModelo || '—';
-
   const datos = [
     { label: 'Fecha', value: formatFecha(fechaInicio) },
     { label: 'Orden de Servicio', value: otNumber || '—', mono: true },
-    { label: 'Modelo', value: equipoDisplay },
     { label: 'ID Equipo', value: agsVisibleId || '—', mono: true },
     { label: 'N° de Serie', value: numeroSerie || '—' },
     { label: 'Realizado por', value: ingenieroNombre || '—' },
@@ -112,27 +113,39 @@ export const CatalogCoverView: React.FC<Props> = ({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        padding: '25mm 20mm',
+        alignItems: 'center',
+        padding: '18mm 20mm 20mm',
         height: '100%',
         boxSizing: 'border-box',
       }}>
-        {/* Logo centrado */}
+        {/* Logo arriba */}
         {logoSrc && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '22mm' }}>
-            <img src={logoSrc} alt="AGS Analítica" style={{ width: 160, height: 'auto' }} />
-          </div>
+          <img src={logoSrc} alt="AGS Analítica" style={{ width: 200, height: 'auto' }} />
         )}
 
-        {/* Título */}
-        <div style={{ textAlign: 'center', marginBottom: '16mm' }}>
+        {/* Título + separador + subtítulo — zona superior */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '7mm',
+          marginTop: '30mm',
+        }}>
           <p style={{
             fontFamily: 'Newsreader, serif',
             fontSize: 36,
             fontWeight: 600,
             color: '#1e293b',
             lineHeight: 1.2,
-            marginBottom: 6,
+            textAlign: 'center',
           }}>{titulo}</p>
+
+          <div style={{
+            width: 60,
+            height: 2,
+            background: 'linear-gradient(90deg, #0D6E6E, #0EA5E9)',
+          }} />
+
           {subtitulo && (
             <p style={{
               fontFamily: 'Newsreader, serif',
@@ -140,59 +153,45 @@ export const CatalogCoverView: React.FC<Props> = ({
               fontWeight: 400,
               color: '#64748b',
               lineHeight: 1.3,
+              textAlign: 'center',
             }}>{subtitulo}</p>
           )}
         </div>
 
-        {/* Separador degradé teal → celeste */}
-        <div style={{
-          width: 60,
-          height: 2,
-          background: 'linear-gradient(90deg, #0D6E6E, #0EA5E9)',
-          margin: '0 auto 16mm',
-        }} />
-
-        {/* Equipo (ocupa el espacio flexible) */}
-        <div style={{ textAlign: 'center', flex: 1 }}>
-          <p style={{
-            fontSize: 16,
-            color: '#334155',
-            lineHeight: 1.6,
-            fontWeight: 500,
-          }}>{equipoDisplay}</p>
-        </div>
+        {/* Spacer flexible — empuja datos hacia abajo, con tope */}
+        <div style={{ flex: 1, maxHeight: '50mm' }} />
 
         {/* Datos — grilla 2 columnas */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '16px 36px',
-          maxWidth: 460,
-          margin: '0 auto',
-          width: '100%',
-        }}>
-          {datos.map(d => (
-            <div key={d.label}>
-              <p style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 8,
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: 1.5,
-                color: '#64748b',
-                marginBottom: 3,
-              }}>{d.label}</p>
-              <p style={{
-                fontFamily: d.mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
-                fontSize: d.mono ? 12 : 13,
-                fontWeight: d.mono ? 500 : 400,
-                color: '#1e293b',
-                paddingBottom: 6,
-                borderBottom: '1px solid #e2e8f0',
-              }}>{d.value}</p>
-            </div>
-          ))}
-        </div>
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '16px 36px',
+            maxWidth: 460,
+            width: '100%',
+            marginTop: '8mm',
+          }}>
+            {datos.map(d => (
+              <div key={d.label}>
+                <p style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 8,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.5,
+                  color: '#64748b',
+                  marginBottom: 3,
+                }}>{d.label}</p>
+                <p style={{
+                  fontFamily: d.mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
+                  fontSize: d.mono ? 12 : 13,
+                  fontWeight: d.mono ? 500 : 400,
+                  color: '#1e293b',
+                  paddingBottom: 6,
+                  borderBottom: '1px solid #e2e8f0',
+                }}>{d.value}</p>
+              </div>
+            ))}
+          </div>
       </div>
     </div>
   );

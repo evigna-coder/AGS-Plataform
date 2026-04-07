@@ -72,16 +72,14 @@ export function FichasList() {
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '—'; }
   };
 
-  if (loading && fichas.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando fichas...</p></div>;
-  }
+  const isInitialLoad = loading && fichas.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Fichas Propiedad del Cliente"
         subtitle="Módulos y equipos ingresados para reparación"
-        count={filtered.length}
+        count={isInitialLoad ? undefined : filtered.length}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>+ Nueva ficha</Button>
         }
@@ -114,7 +112,9 @@ export function FichasList() {
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-5 pb-4">
-        {filtered.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando fichas...</p></div>
+        ) : filtered.length === 0 ? (
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No hay fichas registradas</p>

@@ -1,8 +1,8 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
 import { getCached, setCache, invalidateCache } from './serviceCache';
-import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace, inTransition } from './firebase';
+import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
 
 // ========== INGENIEROS ==========
 

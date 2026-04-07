@@ -96,16 +96,14 @@ export const RequerimientosList = () => {
     return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  if (loading && requerimientos.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando requerimientos...</p></div>;
-  }
+  const isInitialLoad = loading && requerimientos.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Requerimientos de Compra"
         subtitle="Requisiciones de compra"
-        count={sorted.length}
+        count={isInitialLoad ? undefined : sorted.length}
         actions={
           <>
             {selectedIds.size > 0 && (
@@ -143,7 +141,9 @@ export const RequerimientosList = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
-        {sorted.length === 0 ? (
+        {isInitialLoad ? (
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando requerimientos...</p></div>
+        ) : sorted.length === 0 ? (
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron requerimientos</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">
