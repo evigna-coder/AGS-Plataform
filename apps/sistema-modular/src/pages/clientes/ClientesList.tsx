@@ -32,7 +32,6 @@ export const ClientesList = () => {
   const [loading, setLoading] = useState(true);
   const unsubClientesRef = useRef<(() => void) | null>(null);
   const unsubEstRef = useRef<(() => void) | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const bgTasks = useBackgroundTasks();
   const hasCuitTask = !!bgTasks.getTask('bulk-cuit-validation');
   const [showCreate, setShowCreate] = useState(false);
@@ -52,12 +51,7 @@ export const ClientesList = () => {
   const debouncedSearch = useDebounce(localSearch, 300);
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
   // Sync from URL → local only when URL changes externally (e.g., "Limpiar" button)
-  useEffect(() => {
-    if (filters.search !== localSearch && filters.search === '') {
-      setLocalSearch('');
-      if (searchInputRef.current) searchInputRef.current.value = '';
-    }
-  }, [filters.search]);
+  useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
   const { tableRef, colWidths, onResizeStart } = useResizableColumns('clientes-list');
 
   const handleSort = (f: string) => {
@@ -65,23 +59,11 @@ export const ClientesList = () => {
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
 
-  // DEBUG: heartbeat to detect main thread blocking
-  useEffect(() => {
-    let expected = Date.now();
-    const id = setInterval(() => {
-      const now = Date.now();
-      const drift = now - expected;
-      if (drift > 500) console.warn(`[BLOCKED] Main thread was blocked for ${drift}ms`);
-      expected = now + 200;
-    }, 200);
-    return () => clearInterval(id);
-  }, []);
-
   useEffect(() => {
     unsubClientesRef.current?.();
     unsubClientesRef.current = clientesService.subscribe(
       false,
-      (data) => { console.log(`[CLIENTES] snapshot: ${data.length} docs`); setClientes(data); setLoading(false); },
+      (data) => { setClientes(data); setLoading(false); },
       (err) => { console.error('Clientes subscription error:', err); setLoading(false); },
     );
     unsubEstRef.current?.();
@@ -198,9 +180,8 @@ export const ClientesList = () => {
           <input
             type="text"
             placeholder="Buscar por razón social, CUIT, rubro..."
-            defaultValue={localSearch}
+            value={localSearch}
             onChange={e => setLocalSearch(e.target.value)}
-            ref={searchInputRef}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64"
           />
           <div className="flex items-center gap-1.5">
