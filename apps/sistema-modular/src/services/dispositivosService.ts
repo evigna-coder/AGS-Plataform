@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import type { Dispositivo } from '@ags/shared';
-import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
 function tsToIso(ts: any): string {
   return ts?.toDate?.().toISOString() ?? '';
@@ -40,12 +40,11 @@ export const dispositivosService = {
     callback: (items: Dispositivo[]) => void,
     onError?: (error: Error) => void,
   ) {
-    const safeCallback = inTransition(callback);
     return onSnapshot(collection(db, 'dispositivos'), snap => {
       let items = snap.docs.map(docToDispositivo);
       if (activosOnly) items = items.filter(d => d.activo);
       items.sort((a, b) => `${a.marca} ${a.modelo}`.localeCompare(`${b.marca} ${b.modelo}`));
-      safeCallback(items);
+      callback(items);
     }, onError);
   },
 

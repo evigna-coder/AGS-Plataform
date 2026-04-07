@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, inTransition, onSnapshot } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Contactos de Establecimiento (subcolección establecimientos/{id}/contactos)
@@ -153,7 +153,7 @@ export const establecimientosService = {
         } as Establecimiento;
       });
       list.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      inTransition(callback)(list);
+      callback(list);
     }, err => {
       console.error('Establecimientos subscription error:', err);
       onError?.(err);

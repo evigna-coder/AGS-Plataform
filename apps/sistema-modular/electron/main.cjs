@@ -182,7 +182,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: join(__dirname, 'preload.cjs')
+      preload: join(__dirname, 'preload.cjs'),
+      backgroundThrottling: false, // Prevent Electron from throttling timers/rendering
     },
     icon: join(__dirname, '../build/icon.ico'),
     titleBarStyle: 'default',
@@ -343,10 +344,11 @@ function createWindow() {
     console.log('Página cargada correctamente');
   });
 
-  // Log de errores de consola del renderer
+  // Log de errores de consola del renderer (solo errores)
   mainWindow.webContents.on('console-message', (event, level, message) => {
-    console.log(`[Renderer ${level}]:`, message);
+    if (level >= 2) console.log(`[Renderer ${level}]:`, message);
   });
+
 
   // Manejar ventanas emergentes (popups)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

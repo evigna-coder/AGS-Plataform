@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useDeferredValue } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 
 export interface SearchableSelectOption {
   value: string;
@@ -33,12 +33,10 @@ export function useSearchableSelect({
   const selectedOption = options.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : '';
 
-  // Defer search so filtering doesn't block the input from accepting keystrokes
-  const deferredSearch = useDeferredValue(searchTerm);
-  const deferredLower = deferredSearch.toLowerCase();
+  const searchLower = searchTerm.toLowerCase();
   const filteredOptions = useMemo(() =>
-    deferredLower ? options.filter(opt => opt.label.toLowerCase().includes(deferredLower)) : options,
-    [options, deferredLower]
+    searchLower ? options.filter(opt => opt.label.toLowerCase().includes(searchLower)) : options,
+    [options, searchLower]
   );
 
   // In creatable mode, add "Create: X" option if no exact match

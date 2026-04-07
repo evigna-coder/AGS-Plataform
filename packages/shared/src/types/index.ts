@@ -1377,6 +1377,12 @@ export interface TableCatalogEntry {
    * Ej: [{ label: 'ALS', startCol: 4, span: 2 }] → "ALS" abarca columnas 4 y 5.
    */
   columnGroups?: { label: string; startCol: number; span: number }[];
+  /** Número QF de la carátula (solo tableType === 'cover'). Ej: "QF7.0506" */
+  coverQF?: string | null;
+  /** Revisión de la carátula (solo tableType === 'cover'). Ej: "Rev. 09" */
+  coverRevision?: string | null;
+  /** Fecha de emisión de la carátula (solo tableType === 'cover'). Ej: "01/03/2026" */
+  coverFecha?: string | null;
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';

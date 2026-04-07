@@ -359,8 +359,11 @@ export const usePDFGeneration = (
 
   // ── Generar blobs de certificados de instrumentos ──
   const generateCertInstBlobs = async (): Promise<Blob[]> => {
-    const certUrls = instrumentosSeleccionados
-      .filter(i => i.tipo === 'instrumento')
+    console.log(`[PDF][CERT-INST] instrumentosSeleccionados total: ${instrumentosSeleccionados.length}`);
+    const instrumentos = instrumentosSeleccionados.filter(i => i.tipo === 'instrumento');
+    console.log(`[PDF][CERT-INST] Instrumentos (tipo=instrumento): ${instrumentos.length}`);
+    instrumentos.forEach(i => console.log(`  → ${i.nombre} | tipo=${i.tipo} | certUrl=${i.certificadoUrl ? 'SÍ' : 'NO (null/undefined)'}`));
+    const certUrls = instrumentos
       .map(i => i.certificadoUrl)
       .filter((url): url is string => !!url);
     const blobs: Blob[] = [];
@@ -369,20 +372,29 @@ export const usePDFGeneration = (
       for (const url of certUrls) {
         try {
           const blob = await firebase.downloadStorageBlob(url);
+          console.log(`[PDF][CERT-INST] Descargado blob: ${blob.size} bytes, tipo: ${blob.type}`);
           const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-INST');
-          if (rendered) blobs.push(rendered);
+          if (rendered) {
+            blobs.push(rendered);
+          } else {
+            console.warn('[PDF][CERT-INST] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?');
+          }
         } catch (err) {
           console.warn('[PDF][CERT-INST] Error descargando certificado:', err);
         }
       }
+    } else {
+      console.log('[PDF][CERT-INST] Sin URLs de certificados para descargar');
     }
     return blobs;
   };
 
   // ── Generar blobs de certificados de patrones ──
   const generateCertPatronBlobs = async (): Promise<Blob[]> => {
-    const certUrls = instrumentosSeleccionados
-      .filter(i => i.tipo === 'patron')
+    const patrones = instrumentosSeleccionados.filter(i => i.tipo === 'patron');
+    console.log(`[PDF][CERT-PATRON] Patrones (tipo=patron): ${patrones.length}`);
+    patrones.forEach(i => console.log(`  → ${i.nombre} | tipo=${i.tipo} | certUrl=${i.certificadoUrl ? 'SÍ' : 'NO (null/undefined)'}`));
+    const certUrls = patrones
       .map(i => i.certificadoUrl)
       .filter((url): url is string => !!url);
     const blobs: Blob[] = [];
@@ -391,12 +403,19 @@ export const usePDFGeneration = (
       for (const url of certUrls) {
         try {
           const blob = await firebase.downloadStorageBlob(url);
+          console.log(`[PDF][CERT-PATRON] Descargado blob: ${blob.size} bytes, tipo: ${blob.type}`);
           const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-PATRON');
-          if (rendered) blobs.push(rendered);
+          if (rendered) {
+            blobs.push(rendered);
+          } else {
+            console.warn('[PDF][CERT-PATRON] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?');
+          }
         } catch (err) {
           console.warn('[PDF][CERT-PATRON] Error descargando certificado:', err);
         }
       }
+    } else {
+      console.log('[PDF][CERT-PATRON] Sin URLs de certificados para descargar');
     }
     return blobs;
   };

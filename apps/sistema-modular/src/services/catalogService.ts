@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, addDoc } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca } from '@ags/shared';
-import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
+import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // --- Biblioteca de Tablas (/tableCatalog) ---
@@ -117,7 +117,7 @@ export const tableCatalogService = {
           ? entries.filter(e => !e.projectId)
           : entries.filter(e => e.projectId === filters.projectId);
       }
-      inTransition(callback)(entries);
+      callback(entries);
     }, onError);
   },
 };
@@ -182,9 +182,8 @@ export const tableProjectsService = {
     onError?: (error: Error) => void,
   ) {
     const q = query(collection(db, 'tableProjects'), orderBy('name', 'asc'));
-    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
-      safeCallback(snap.docs.map(d => toTableProject(d.id, d.data())));
+      callback(snap.docs.map(d => toTableProject(d.id, d.data())));
     }, onError);
   },
 };
@@ -334,7 +333,7 @@ export const instrumentosService = {
         items = items.filter(i => i.categorias.includes(filters.categoria!));
       }
       items.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      inTransition(callback)(items);
+      callback(items);
     }, onError);
   },
 };
@@ -419,7 +418,7 @@ export const marcasService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as Marca[];
       marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      inTransition(callback)(marcas);
+      callback(marcas);
     }, onError);
   },
 };

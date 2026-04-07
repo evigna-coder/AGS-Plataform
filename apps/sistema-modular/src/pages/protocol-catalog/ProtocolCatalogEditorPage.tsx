@@ -423,13 +423,48 @@ export const TableCatalogEditorPage = () => {
             <Card>
               <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Carátula del Protocolo</h3>
               <p className="text-xs text-slate-400 mb-4">
-                El <strong>nombre</strong> de la tabla se usa como título principal de la carátula (ej. "Calificación Operacional / Verificación de Funcionamiento").
-                El subtítulo se genera automáticamente con el <strong>nombre del sistema</strong> y la <strong>marca del módulo</strong> seleccionado en la OT.
+                El <strong>nombre</strong> se usa como título principal (ej. "Calificación Operacional / Verificación de Funcionamiento").
+                Si contiene "/" se separa: la primera parte es el título grande y el resto el subtítulo.
+                La <strong>descripción</strong> se muestra debajo con una barra vertical (ej. modelos compatibles).
+                Los datos del equipo, fecha e ingeniero se completan automáticamente desde la OT.
               </p>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-500 space-y-1">
                 <p><strong>Título:</strong> {entry.name || '(nombre de la tabla)'}</p>
-                <p><strong>Subtítulo:</strong> <span className="italic text-slate-400">Sistema — Marca (auto desde OT)</span></p>
-                <p className="text-slate-400 mt-2">Campos auto-completados: Fecha, Orden de Servicio, ID Equipo, N° de Serie, Realizado por</p>
+                <p><strong>Marca/Modelo:</strong> <span className="italic text-slate-400">Auto desde OT (sistema / marca módulo)</span></p>
+                <p><strong>Descripción:</strong> {entry.description || <span className="italic text-slate-400">(línea secundaria, ej. series compatibles)</span>}</p>
+                <p className="text-slate-400 mt-2">Campos auto-completados: Fecha, Modelo, ID, N° Serie, Realizado por</p>
+              </div>
+
+              {/* Pie de página — QF, Revisión, Fecha */}
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Pie de página de la carátula</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">N° QF</label>
+                    <Input
+                      value={entry.coverQF ?? ''}
+                      onChange={e => setMeta('coverQF', e.target.value || null)}
+                      placeholder="Ej: QF7.0506"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Revisión</label>
+                    <Input
+                      value={entry.coverRevision ?? ''}
+                      onChange={e => setMeta('coverRevision', e.target.value || null)}
+                      placeholder="Ej: Rev. 09"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Fecha</label>
+                    <Input
+                      value={entry.coverFecha ?? ''}
+                      onChange={e => setMeta('coverFecha', e.target.value || null)}
+                      placeholder="Ej: 01/03/2026"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1.5">Aparecen en el pie de la carátula, separados por una línea degradé.</p>
               </div>
             </Card>
           ) : entry.tableType === 'text' ? (

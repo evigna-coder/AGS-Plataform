@@ -2,7 +2,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, qu
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
 import { getCached, setCache, invalidateCache } from './serviceCache';
-import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace, inTransition, onSnapshot } from './firebase';
+import { db, storage, createBatch, docRef, batchAudit, cleanFirestoreData, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
 // ========== INGENIEROS ==========
 
@@ -98,7 +98,7 @@ export const ingenierosService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as Ingeniero[];
       items.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      inTransition(callback)(items);
+      callback(items);
     }, onError);
   },
 };
@@ -204,7 +204,7 @@ export const proveedoresService = {
         updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
       })) as Proveedor[];
       items.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      inTransition(callback)(items);
+      callback(items);
     }, onError);
   },
 };
@@ -314,7 +314,7 @@ export const usuariosService = {
         updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() ?? '',
         lastLoginAt: d.data().lastLoginAt?.toDate?.()?.toISOString() ?? '',
       })) as UsuarioAGS[];
-      inTransition(callback)(users);
+      callback(users);
     }, onError);
   },
 };
@@ -353,11 +353,10 @@ export const certificadosIngenieroService = {
     onError?: (error: Error) => void,
   ) {
     const q = query(collection(db, 'certificadosIngeniero'), where('ingenieroId', '==', ingenieroId));
-    const safeCallback = inTransition(callback);
     return onSnapshot(q, snap => {
       const items = snap.docs.map(d => parseCertificado(d.data(), d.id));
       items.sort((a, b) => a.categoria.localeCompare(b.categoria) || a.descripcion.localeCompare(b.descripcion));
-      safeCallback(items);
+      callback(items);
     }, onError);
   },
 

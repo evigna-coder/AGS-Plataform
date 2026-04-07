@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, inTransition, onSnapshot } from './firebase';
+import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
 import { agendaService } from './agendaService';
@@ -164,7 +164,7 @@ export const ordenesTrabajoService = {
         const itemB = b.otNumber.includes('.') ? parseInt(b.otNumber.split('.')[1]) : 0;
         return itemB - itemA;
       });
-      inTransition(callback)(ordenes);
+      callback(ordenes);
     }, err => {
       console.error('OT subscription error:', err);
       onError?.(err);
