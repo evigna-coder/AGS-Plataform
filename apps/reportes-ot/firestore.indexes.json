@@ -84,6 +84,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "adjuntos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "otNumber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "orden",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
