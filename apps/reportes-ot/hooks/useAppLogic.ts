@@ -159,15 +159,11 @@ export function useAppLogic(
     return () => { cancelled = true; };
   }, [tipoServicio, sistema]);
 
-  // Adjuntos: viven en colección separada /adjuntos (no en reportState)
+  // Adjuntos: listener en tiempo real para sincronizar entre dispositivos
   const [adjuntos, setAdjuntos] = useState<AdjuntoMeta[]>([]);
   useEffect(() => {
     if (!otNumber) { setAdjuntos([]); return; }
-    let cancelled = false;
-    firebase.getAdjuntosByOT(otNumber).then(data => {
-      if (!cancelled) setAdjuntos(data);
-    }).catch(err => console.error('Error cargando adjuntos:', err));
-    return () => { cancelled = true; };
+    return firebase.listenAdjuntosByOT(otNumber, setAdjuntos);
   }, [otNumber]);
 
   // Desestructurar setters para facilitar el uso

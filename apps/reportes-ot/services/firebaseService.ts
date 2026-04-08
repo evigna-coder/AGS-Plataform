@@ -450,6 +450,21 @@ export class FirebaseService {
     } catch (e) { console.error('Error cargando adjuntos:', e); return []; }
   }
 
+  /** Listener en tiempo real para adjuntos — sincroniza entre dispositivos */
+  listenAdjuntosByOT(otNumber: string, callback: (adjuntos: AdjuntoMeta[]) => void): () => void {
+    if (!otNumber) return () => {};
+    const q = query(
+      collection(db, 'adjuntos'),
+      where('otNumber', '==', otNumber),
+      orderBy('orden', 'asc')
+    );
+    return onSnapshot(q, (snap) => {
+      callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as AdjuntoMeta)));
+    }, (err) => {
+      console.error('Error en listener de adjuntos:', err);
+    });
+  }
+
   async uploadAdjuntoFile(otNumber: string, file: File): Promise<{ url: string; path: string }> {
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
