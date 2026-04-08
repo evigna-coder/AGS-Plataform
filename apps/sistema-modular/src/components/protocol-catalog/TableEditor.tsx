@@ -18,7 +18,7 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
   const [d, setD] = useState<TableCatalogColumn>(col);
   const [optionsText, setOptionsText] = useState((col.options ?? []).join(', '));
   const handleSave = () => {
-    const withOptions = d.type === 'select_input'
+    const withOptions = (d.type === 'select_input' || d.type === 'multi_select')
       ? { ...d, options: optionsText.split(',').map(o => o.trim()).filter(Boolean), key: d.key || crypto.randomUUID().slice(0, 8) }
       : { ...d, key: d.key || crypto.randomUUID().slice(0, 8) };
     onSave(withOptions);
@@ -40,7 +40,8 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
           <option value="fixed_text">Texto fijo</option>
           <option value="date_input">Fecha</option>
           <option value="pass_fail">Pasa/Falla</option>
-          <option value="select_input">Selección múltiple</option>
+          <option value="select_input">Selección (una opción)</option>
+          <option value="multi_select">Multi-selección (varias opciones)</option>
         </select>
         <Input placeholder="Unidad (ej: mL/min)" value={d.unit ?? ''}
           onChange={e => setD({ ...d, unit: e.target.value || null })} />
@@ -50,6 +51,15 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
         ) : d.type === 'select_input' ? (
           <Input placeholder="Opciones separadas por coma (ej: Sí, No, N/A)" value={optionsText}
             onChange={e => setOptionsText(e.target.value)} />
+        ) : d.type === 'multi_select' ? (
+          <div className="flex gap-2 flex-1">
+            <Input placeholder="Opciones fijas (coma) o vacío si usa tabla" value={optionsText}
+              onChange={e => setOptionsText(e.target.value)} />
+            <Input placeholder="Tabla fuente (nombre exacto)" value={d.optionsFromTable?.tableName ?? ''}
+              onChange={e => setD({ ...d, optionsFromTable: e.target.value ? { tableName: e.target.value, columnKey: d.optionsFromTable?.columnKey ?? '' } : null })} />
+            <Input placeholder="Columna (key)" value={d.optionsFromTable?.columnKey ?? ''}
+              onChange={e => setD({ ...d, optionsFromTable: { tableName: d.optionsFromTable?.tableName ?? '', columnKey: e.target.value } })} />
+          </div>
         ) : (
           <Input placeholder="Valor esperado" value={d.expectedValue ?? ''}
             onChange={e => setD({ ...d, expectedValue: e.target.value || null })} />

@@ -43,18 +43,10 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
     const img = new Image();
     img.onload = () => {
-      // Dibujar la firma escalada para ocupar ~80% del canvas, centrada
-      const imgW = img.naturalWidth / dpr;
-      const imgH = img.naturalHeight / dpr;
-      const scale = Math.min(rect.width * 0.8 / imgW, rect.height * 0.8 / imgH);
-      const w = imgW * scale;
-      const h = imgH * scale;
-      const x = (rect.width - w) / 2;
-      const y = (rect.height - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
+      // Dibujar a tamaño completo del canvas (1:1) para evitar achicamiento progresivo
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
     };
     img.src = dataUrl;
   }, []);

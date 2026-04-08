@@ -13,6 +13,7 @@ import { useModal } from './useModal';
 import { getProtocolTemplateForServiceType, getProtocolTemplateById } from '../utils/protocolSelector';
 import { createEmptyProtocolDataForTemplate } from '../data/sampleProtocol';
 import { useEntitySelectors } from './useEntitySelectors';
+import { useAssetPreloader } from './useAssetPreloader';
 import type { ProtocolSelection, TableCatalogEntry, ChecklistItemAnswer } from '../types/tableCatalog';
 import type { AdjuntoMeta } from '../types/instrumentos';
 
@@ -445,7 +446,9 @@ export function useAppLogic(
           entitySelectors.tryMatchExistingData(loaded.razonSocial, {
             direccion: loaded.direccion,
             sistema: loaded.sistema,
+            codigoInternoCliente: loaded.codigoInternoCliente,
             moduloModelo: loaded.moduloModelo,
+            moduloSerie: loaded.moduloSerie,
           }).catch(() => {});
         }
       }).catch(err => {
@@ -517,6 +520,14 @@ export function useAppLogic(
     return true;
   };
 
+  // Pre-carga de assets (certificados, adjuntos PDF) para acelerar generación de PDF
+  const assetPreloader = useAssetPreloader(
+    firebase,
+    instrumentosSeleccionados,
+    certificadosIngenieroSeleccionados,
+    adjuntos,
+  );
+
   // Hook de generación de PDF (después de validateBeforeClientConfirm)
   const pdfGeneration = usePDFGeneration(
     reportForm,
@@ -530,12 +541,14 @@ export function useAppLogic(
     instrumentosSeleccionados,
     certificadosIngenieroSeleccionados,
     adjuntos,
+    assetPreloader.cache,
   );
   const {
     generatePDFBlob: generatePDFBlobFromHook,
     handleFinalSubmit: handleFinalSubmitFromHook,
     confirmClientAndFinalize: confirmClientAndFinalizeFromHook,
     isGenerating,
+    generationStep,
     isPreviewMode,
     pdfBlob: generatedPdfBlob,
     setIsPreviewMode,
@@ -608,7 +621,9 @@ export function useAppLogic(
         await entitySelectors.tryMatchExistingData(loaded.razonSocial, {
           direccion: loaded.direccion,
           sistema: loaded.sistema,
+          codigoInternoCliente: loaded.codigoInternoCliente,
           moduloModelo: loaded.moduloModelo,
+          moduloSerie: loaded.moduloSerie,
         }).catch(() => {});
       }
     } catch (error: any) {
@@ -850,7 +865,9 @@ export function useAppLogic(
         await entitySelectors.tryMatchExistingData(razonSocial, {
           direccion,
           sistema,
+          codigoInternoCliente,
           moduloModelo,
+          moduloSerie,
         }).catch(() => {});
       }
 
@@ -948,7 +965,8 @@ export function useAppLogic(
     setPendingOt: otManagement.modals.setPendingOt,
     // PDF
     generatePDFBlob, handleFinalSubmit, confirmClientAndFinalize,
-    isGenerating, isPreviewMode, generatedPdfBlob, setIsPreviewMode, setGeneratedPdfBlob,
+    isGenerating, generationStep, isPreviewMode, generatedPdfBlob, setIsPreviewMode, setGeneratedPdfBlob,
+    assetPreloader,
     // Computed
     baseInputClass, totalHs, fullDireccion,
     isLockedByClient,

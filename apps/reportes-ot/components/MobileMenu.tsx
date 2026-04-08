@@ -4,6 +4,7 @@ interface MobileMenuProps {
   isPreviewMode: boolean;
   status: 'BORRADOR' | 'FINALIZADO';
   isGenerating: boolean;
+  generationStep?: string;
   isSharing: boolean;
   hasPdfBlob: boolean;
   hasSignatures: boolean;
@@ -21,6 +22,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   isPreviewMode,
   status,
   isGenerating,
+  generationStep,
   isSharing,
   hasPdfBlob,
   hasSignatures,
@@ -82,7 +84,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                 disabled={isGenerating}
                 className="bg-emerald-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isGenerating ? 'Generando PDF...' : 'Generar PDF'}
+                {isGenerating ? (generationStep || 'Generando PDF…') : 'Generar PDF'}
               </button>
             ) : (
               <button onClick={onReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
@@ -206,7 +208,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                     disabled={isGenerating}
                     className="bg-emerald-600 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
-                    {isGenerating ? 'Generando...' : 'Generar PDF'}
+                    {isGenerating ? (generationStep || 'Generando…') : 'Generar PDF'}
                   </button>
                 ) : (
                   <button 
@@ -243,7 +245,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                     !hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'
                   }`}
                 >
-                  {isGenerating ? 'Generando...' : 'Finalizar PDF'}
+                  {isGenerating ? (generationStep || 'Finalizando…') : 'Finalizar PDF'}
                 </button>
               </>
             )}

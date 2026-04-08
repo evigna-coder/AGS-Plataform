@@ -225,8 +225,15 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onAddRow={handleAddRow}
                 onRemoveRow={handleRemoveRow}
                 onChangeHeaderData={handleHeaderDataChange}
-                variables={variables}
+                variables={{
+                  ...variables,
+                  'equipo.modelo': coverData?.sistemaNombre || sistema || '',
+                  'equipo.marca': coverData?.moduloMarca || '',
+                  'equipo.serie': coverData?.numeroSerie || '',
+                  'equipo.id': coverData?.agsVisibleId || '',
+                }}
                 liveTemplateRows={getLiveRows(sel.tableId)}
+                siblingSelections={protocolSelections}
               />
             )
           )}

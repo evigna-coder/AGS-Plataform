@@ -128,17 +128,9 @@ const getPageHeaderTitle = (page: PageDef, fallback: string): string => {
   return fallback;
 };
 
-/** Obtiene footerQF de la primera selection de la página */
-const getPageFooterQF = (page: PageDef): string => {
-  for (const item of page.items) {
-    if (item.footerQF) return item.footerQF;
-  }
-  return '';
-};
 
 /* ━━━━━━━━━━━━━━━━━━━━ PAGE HEADER ━━━━━━━━━━━━━━━━━━━━ */
 const PageHeader: React.FC<{ meta: ProtocolMeta; protocolTitle?: string }> = ({ meta, protocolTitle }) => {
-  const otNum = meta.otNumber.startsWith('OT-') ? meta.otNumber.substring(3) : meta.otNumber;
   const serviceLabel = SERVICE_LABELS[meta.tipoServicio] || 'Protocolo de Servicio';
   const title = protocolTitle || serviceLabel;
 
@@ -156,20 +148,16 @@ const PageHeader: React.FC<{ meta: ProtocolMeta; protocolTitle?: string }> = ({ 
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━ PAGE FOOTER ━━━━━━━━━━━━━━━━━━━━ */
-const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: number; qfNumber?: string }> = ({ meta, pageNum, totalPages, qfNumber }) => {
-  const otNum = meta.otNumber.startsWith('OT-') ? meta.otNumber.substring(3) : meta.otNumber;
+const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: number }> = ({ meta, pageNum, totalPages }) => {
   return (
     <div style={{ height: `${FOOTER_HEIGHT_MM}mm`, flexShrink: 0 }}>
       <div className="border-t border-slate-200 text-[9px] text-slate-500" style={{ paddingTop: '1mm' }}>
-        <div className="relative flex items-center justify-between" style={{ marginBottom: '1.5mm' }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: '1.5mm' }}>
           <div className="flex items-center">
             <img src={meta.isoLogoSrc} alt="Certificación ISO 9001" className="h-[10mm] w-auto" style={{ maxHeight: '10mm' }} />
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
-            <span className="whitespace-nowrap">{qfNumber || 'QF-PRO-001 Rev.01'}</span>
-          </div>
           <div className="flex items-center whitespace-nowrap">
-            Página {pageNum} de {totalPages} | Reporte N° {otNum}
+            Página {pageNum} de {totalPages}
           </div>
         </div>
         <div className="text-center text-[8px] text-slate-400 border-t border-slate-100" style={{ paddingTop: '1mm' }}>
@@ -265,6 +253,10 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
     'cliente.sector': meta.clienteSector ?? '',
     'ot.numero': meta.otNumber ?? '',
     'ingeniero.nombre': meta.ingenieroNombre ?? '',
+    'equipo.modelo': meta.sistema ?? '',
+    'equipo.marca': meta.moduloMarca ?? '',
+    'equipo.serie': meta.moduloSerie ?? '',
+    'equipo.id': meta.codigoInternoCliente ?? '',
     ...AGS_VARIABLES,
   };
 
@@ -347,7 +339,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         ) : sel.tableSnapshot.tableType === 'text' ? (
           <CatalogTextView selection={sel} readOnly />
         ) : (
-          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} variables={protocolVariables} liveTemplateRows={catalogTables?.find(t => t.id === sel.tableId)?.templateRows} />
+          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} variables={protocolVariables} liveTemplateRows={catalogTables?.find(t => t.id === sel.tableId)?.templateRows} siblingSelections={sortedSelections} />
         );
 
         items.push({
@@ -491,9 +483,8 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
 
   const serviceLabel = SERVICE_LABELS[meta.tipoServicio] || 'Protocolo de Servicio';
 
-  // Protocol-wide fallback: si alguna tabla del protocolo tiene headerTitle/footerQF, se aplica a todas las páginas
+  // Protocol-wide fallback: si alguna tabla del protocolo tiene headerTitle, se aplica a todas las páginas
   const protocolWideTitle = contentItems.find(i => i.headerTitle)?.headerTitle || serviceLabel;
-  const protocolWideQF = contentItems.find(i => i.footerQF)?.footerQF || '';
 
   return (
     <>
@@ -521,8 +512,6 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       {/* Paginated A4 pages */}
       {pages.length > 0 && pages.map((page, pageIdx) => {
         const pageTitle = getPageHeaderTitle(page, protocolWideTitle);
-        const pageQF = getPageFooterQF(page) || protocolWideQF;
-
         // Cover pages: full page, no header/footer
         if (page.isCover) {
           return (
@@ -594,7 +583,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
               })}
             </div>
 
-            <PageFooter meta={meta} pageNum={contentPageIdx} totalPages={totalContentPages} qfNumber={pageQF} />
+            <PageFooter meta={meta} pageNum={contentPageIdx} totalPages={totalContentPages} />
           </div>
         );
       })}

@@ -237,6 +237,9 @@ const App: React.FC = () => {
             aclaracionEspecialista={app.aclaracionEspecialista} setAclaracionEspecialista={app.setAclaracionEspecialista}
             clientPadRef={app.clientPadRef} engineerPadRef={app.engineerPadRef}
             isGenerating={app.isGenerating}
+            generationStep={app.generationStep}
+            assetProgress={app.assetPreloader.progress}
+            assetReady={app.assetPreloader.isReady}
             onConfirmClientAndFinalize={app.confirmClientAndFinalize}
           />
         ),
@@ -412,6 +415,9 @@ const App: React.FC = () => {
             aclaracionEspecialista={app.aclaracionEspecialista} setAclaracionEspecialista={app.setAclaracionEspecialista}
             clientPadRef={app.clientPadRef} engineerPadRef={app.engineerPadRef}
             isGenerating={app.isGenerating}
+            generationStep={app.generationStep}
+            assetProgress={app.assetPreloader.progress}
+            assetReady={app.assetPreloader.isReady}
             onConfirmClientAndFinalize={app.confirmClientAndFinalize}
           />
 
@@ -539,7 +545,7 @@ const App: React.FC = () => {
       {/* Floating Buttons */}
       <MobileMenu
         isPreviewMode={app.isPreviewMode} status={app.status}
-        isGenerating={app.isGenerating} isSharing={app.isSharing}
+        isGenerating={app.isGenerating} generationStep={app.generationStep} isSharing={app.isSharing}
         hasPdfBlob={!!app.generatedPdfBlob}
         hasSignatures={!!(app.signatureEngineer || app.engineerPadRef.current?.getSignature()) && !!(app.signatureClient || app.clientPadRef.current?.getSignature())}
         onNewReport={app.newReport}

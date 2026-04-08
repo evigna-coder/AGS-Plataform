@@ -132,20 +132,20 @@ export const CatalogCoverView: React.FC<Props> = ({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        padding: '22mm 28mm 10mm 28mm',
+        padding: '10mm 28mm 10mm 28mm',
         height: '100%',
         boxSizing: 'border-box',
       }}>
         {/* Logo arriba-izquierda */}
         {logoSrc && (
-          <img src={logoSrc} alt="AGS Analítica" style={{ width: 140, height: 'auto', alignSelf: 'flex-start' }} />
+          <img src={logoSrc} alt="AGS Analítica" style={{ width: 180, height: 'auto', alignSelf: 'flex-start' }} />
         )}
 
         {/* Título grande — alineado izquierda */}
-        <div style={{ marginTop: '14mm' }}>
+        <div style={{ marginTop: '12mm' }}>
           <p style={{
             fontFamily: 'Newsreader, serif',
-            fontSize: 46,
+            fontSize: 50,
             fontWeight: 700,
             color: '#1e293b',
             lineHeight: 1.1,
@@ -154,12 +154,12 @@ export const CatalogCoverView: React.FC<Props> = ({
           {subTitle && (
             <p style={{
               fontFamily: 'Newsreader, serif',
-              fontSize: 18,
+              fontSize: 24,
               fontWeight: 400,
               color: '#94a3b8',
               lineHeight: 1.3,
               textAlign: 'left',
-              marginTop: 4,
+              marginTop: '6mm',
             }}>{subTitle}</p>
           )}
         </div>
@@ -170,7 +170,7 @@ export const CatalogCoverView: React.FC<Props> = ({
             display: 'flex',
             alignItems: 'flex-start',
             gap: 10,
-            marginTop: '8mm',
+            marginTop: '10mm',
           }}>
             <div style={{
               width: 3,
@@ -182,13 +182,13 @@ export const CatalogCoverView: React.FC<Props> = ({
             }} />
             <div>
               <p style={{
-                fontSize: 12,
+                fontSize: 16,
                 fontWeight: 500,
                 color: '#334155',
               }}>{brandLine}</p>
               {modelLine && (
                 <p style={{
-                  fontSize: 12,
+                  fontSize: 16,
                   fontWeight: 400,
                   color: '#64748b',
                   marginTop: 2,
@@ -208,13 +208,13 @@ export const CatalogCoverView: React.FC<Props> = ({
           gap: '14px 30px',
           maxWidth: 460,
           width: '100%',
-          marginBottom: '12mm',
+          marginBottom: '46mm',
         }}>
           {datos.map(d => (
             <div key={d.label}>
               <p style={{
                 fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 7,
+                fontSize: 9,
                 fontWeight: 600,
                 textTransform: 'uppercase',
                 letterSpacing: 1.5,
@@ -223,7 +223,7 @@ export const CatalogCoverView: React.FC<Props> = ({
               }}>{d.label}</p>
               <p style={{
                 fontFamily: d.mono ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
-                fontSize: d.mono ? 11 : 13,
+                fontSize: d.mono ? 13 : 15,
                 fontWeight: d.mono ? 500 : 400,
                 color: '#1e293b',
                 paddingBottom: 6,
@@ -247,9 +247,9 @@ export const CatalogCoverView: React.FC<Props> = ({
               alignItems: 'center',
               paddingTop: 6,
             }}>
-              {coverQF && <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, fontWeight: 500, color: '#94a3b8' }}>{coverQF}</p>}
-              {coverRevision && <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, fontWeight: 500, color: '#94a3b8' }}>{coverRevision}</p>}
-              {coverFecha && <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 7, fontWeight: 500, color: '#94a3b8' }}>{coverFecha}</p>}
+              {coverQF && <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverQF}</p>}
+              {coverRevision && <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverRevision}</p>}
+              {coverFecha && <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverFecha}</p>}
             </div>
           </>
         )}

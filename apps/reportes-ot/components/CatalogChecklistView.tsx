@@ -310,15 +310,21 @@ function ChecklistItemRow({
     const selected = (answer as { itemType: 'selector'; selected: string } | undefined)?.selected ?? '';
     if (isPrint) {
       return (
-        <div className="flex items-center gap-2 py-1 px-3 bg-slate-50 border-b border-slate-200" style={{ paddingLeft: `${indent + 8}px` }}>
-          {labelEl}
-          <span className="text-[11px] font-bold text-indigo-700">{selected || '—'}</span>
+        <div className="py-1 px-3 bg-slate-50 border-b border-slate-200" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.4' }}>
+          <span className="text-[11px] text-slate-800">
+            {item.numberPrefix && <span className="font-mono text-slate-400 mr-1">{item.numberPrefix}</span>}
+            {item.label}
+          </span>
+          {selected && <span className="text-[11px] font-semibold text-slate-800 ml-1.5">{selected}</span>}
         </div>
       );
     }
     return (
-      <div className="flex items-center gap-2 py-1.5 px-2 bg-slate-50/50" style={{ paddingLeft: `${indent + 8}px` }}>
-        {labelEl}
+      <div className="flex items-center gap-1.5 py-1.5 px-2 bg-slate-50/50" style={{ paddingLeft: `${indent + 8}px` }}>
+        <span className={`text-xs leading-snug shrink-0 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+          {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
+          {item.label}
+        </span>
         <select
           value={selected}
           disabled={disabled}
@@ -430,35 +436,27 @@ function ChecklistItemRow({
 
     if (isPrint) {
       return (
-        <div className="py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
-          <div className="flex items-start gap-2.5">
-            <span className={`shrink-0 mt-px w-[14px] h-[14px] border-2 rounded-sm flex items-center justify-center ${
-              isNA ? 'border-slate-300 bg-slate-100' : checked ? 'border-slate-700 bg-slate-700' : 'border-slate-400 bg-white'
-            }`}>
-              {isNA ? <span className="text-[9px] text-slate-400 font-bold leading-none">—</span>
-                : checked ? <span className="text-[10px] text-white font-bold leading-none">✓</span>
-                : null}
-            </span>
-            {valueInline ? (
-              <span className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
-                {item.label}{' '}
-                <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
-                {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
+        <div className="py-1 text-[11px] text-slate-800" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
+          <span className={isNA ? 'line-through text-slate-400' : ''}>
+            {isNA
+              ? <span className="text-slate-400 mr-1">—</span>
+              : <span className="mr-1">{checked ? '☑' : '☐'}</span>
+            }
+            {item.numberPrefix && <span className="text-slate-400 mr-1">{item.numberPrefix}</span>}
+            {item.label}
+            {valueInline && linkedValue && (
+              <span className="font-semibold ml-1">{linkedValue}
+                {item.linkedValueUnit && <span className="text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
               </span>
-            ) : (
-              <>
-                {labelEl}
-                {showValueNow && (
-                  <span className="text-[11px] text-slate-600 shrink-0">
-                    <span className="text-slate-400">{item.linkedValueLabel}: </span>
-                    <span className="font-mono border-b border-slate-400">{linkedValue || '___'}</span>
-                    {item.linkedValueUnit && <span className="text-[10px] text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
-                  </span>
-                )}
-              </>
             )}
-          </div>
+            {!valueInline && showValueNow && linkedValue && (
+              <span className="text-slate-600 ml-2">
+                {item.linkedValueLabel && <span className="text-slate-400">{item.linkedValueLabel}: </span>}
+                <span className="font-semibold">{linkedValue}</span>
+                {item.linkedValueUnit && <span className="text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
+              </span>
+            )}
+          </span>
           {/* Fecha + firmas debajo, alineados en fila */}
           {(hasDate || hasSig) && (
             <div className="mt-5">
@@ -519,12 +517,13 @@ function ChecklistItemRow({
     const value = (answer as { itemType: 'value_input'; value: string } | undefined)?.value ?? '';
     if (isPrint) {
       return (
-        <div className="flex items-center gap-2 py-0.5" style={{ paddingLeft: `${indent + 8}px` }}>
-          {labelEl}
-          <span className="text-[11px] font-mono border-b border-slate-400 min-w-[60px] text-center">
-            {isNA ? 'N/A' : value || '___'}
-          </span>
-          {item.unit && <span className="text-[10px] text-slate-500">{item.unit}</span>}
+        <div className="py-1 text-[11px] text-slate-800" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
+          {item.numberPrefix && <span className="text-slate-400 mr-1">{item.numberPrefix}</span>}
+          <span className={isNA ? 'line-through text-slate-400' : ''}>{item.label}</span>
+          {(isNA || value) && (
+            <span className="font-semibold ml-1">{isNA ? 'N/A' : value}</span>
+          )}
+          {value && item.unit && <span className="text-slate-500 ml-0.5">{item.unit}</span>}
         </div>
       );
     }
@@ -533,7 +532,7 @@ function ChecklistItemRow({
         {labelEl}
         <input
           type="text"
-          className="text-[11px] bg-transparent border-none outline-none border-b border-slate-300 w-24 shrink-0 disabled:cursor-not-allowed"
+          className={`text-[11px] bg-transparent border-none outline-none border-b border-slate-300 w-24 shrink-0 disabled:cursor-not-allowed`}
           value={isNA ? '' : value}
           disabled={disabled}
           placeholder={isNA ? 'N/A' : '___'}
@@ -550,12 +549,17 @@ function ChecklistItemRow({
     if (isPrint) {
       const label = isNA ? 'N/A' : result === 'CUMPLE' ? 'Cumple' : result === 'NO_CUMPLE' ? 'No cumple' : '—';
       return (
-        <div className="flex items-center gap-1 py-0.5 border-b border-slate-100"
-          style={{ paddingLeft: `${indent + 8}px` }}>
-          {labelEl}
-          <span className={`text-[11px] font-bold shrink-0 ${result === 'CUMPLE' ? 'text-emerald-700' : result === 'NO_CUMPLE' ? 'text-red-700' : 'text-slate-400'}`}>
-            {label}
+        <div className="py-1 border-b border-slate-100"
+          style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
+          <span className={`text-[11px] ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+            {item.numberPrefix && <span className="font-mono text-slate-400 mr-1">{item.numberPrefix}</span>}
+            {item.label}
           </span>
+          {label !== '—' && (
+            <span className={`text-[11px] font-bold ml-2 ${result === 'CUMPLE' ? 'text-emerald-700' : result === 'NO_CUMPLE' ? 'text-red-700' : 'text-slate-400'}`}>
+              {label}
+            </span>
+          )}
         </div>
       );
     }

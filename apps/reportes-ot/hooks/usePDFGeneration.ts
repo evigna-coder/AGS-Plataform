@@ -52,6 +52,7 @@ export interface UsePDFGenerationReturn {
 
   // Estados
   isGenerating: boolean;
+  generationStep: string;
   isPreviewMode: boolean;
   pdfBlob: Blob | null;
 
@@ -72,8 +73,10 @@ export const usePDFGeneration = (
   instrumentosSeleccionados: InstrumentoPatronOption[] = [],
   certificadosIngenieroSeleccionados: CertificadoIngeniero[] = [],
   adjuntos: AdjuntoMeta[] = [],
+  assetCache?: Map<string, ArrayBuffer>,
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState('');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
 
@@ -206,7 +209,19 @@ export const usePDFGeneration = (
     if (!hasTablas) return null;
 
     console.log("[PDF][TABLAS] Generando PDF de protocolos…");
-    const protocolPages = document.querySelectorAll<HTMLElement>('[data-protocol-page]');
+
+    // Esperar a que las páginas del protocolo existan y tengan dimensiones reales.
+    // ProtocolPaginatedPreview usa un setTimeout(300ms) para medir + otro render.
+    let protocolPages: HTMLElement[] = [];
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const pages = document.querySelectorAll<HTMLElement>('[data-protocol-page]');
+      if (pages.length > 0 && Array.from(pages).every(p => p.offsetWidth > 0 && p.offsetHeight > 0)) {
+        protocolPages = Array.from(pages);
+        break;
+      }
+      console.log(`[PDF][TABLAS] Esperando páginas de protocolo… intento ${attempt + 1}/20`);
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
 
     if (protocolPages.length > 0) {
       const measureDivs = document.querySelectorAll<HTMLElement>('[data-measurement-div]');
@@ -279,7 +294,7 @@ export const usePDFGeneration = (
 
         try {
           const canvas = await html2canvas(clone, {
-            scale: Math.max(window.devicePixelRatio * 2, 5),
+            scale: Math.max(window.devicePixelRatio, 3),
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false,
@@ -361,107 +376,90 @@ export const usePDFGeneration = (
     }
   };
 
-  // ── Generar blobs de adjuntos PDF ──
-  const generateAdjuntosBlobs = async (): Promise<Blob[]> => {
-    const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
-    const blobs: Blob[] = [];
-    if (pdfAdjuntos.length > 0) {
-      console.log(`[PDF][ADJUNTOS] Descargando ${pdfAdjuntos.length} adjunto(s) PDF…`);
-      for (const adj of pdfAdjuntos) {
-        try {
-          const blob = await firebase.downloadStorageBlob(adj.url);
-          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'ADJUNTOS');
-          if (rendered) blobs.push(rendered);
-        } catch (err) {
-          console.warn(`[PDF][ADJUNTOS] Error descargando ${adj.fileName}:`, err);
-        }
-      }
+  // ── Helper: obtener ArrayBuffer de una URL (cache → descarga con retry) ──
+  const getAssetBuffer = async (url: string): Promise<ArrayBuffer> => {
+    // Buscar en cache primero
+    const cached = assetCache?.get(url);
+    if (cached) {
+      console.log(`[PDF] Cache hit para asset`);
+      return cached;
     }
-    return blobs;
+    // Descargar con 1 retry
+    const download = async (retries = 1): Promise<Blob> => {
+      try {
+        return await firebase.downloadStorageBlob(url);
+      } catch (err) {
+        if (retries > 0) {
+          console.log(`[PDF] Reintentando descarga…`);
+          await new Promise(r => setTimeout(r, 1000));
+          return download(retries - 1);
+        }
+        throw err;
+      }
+    };
+    const blob = await download();
+    return blob.arrayBuffer();
   };
 
-  // ── Generar blobs de certificados de ingeniero ──
+  // ── Helper: descargar y renderizar múltiples PDFs en paralelo ──
+  const downloadAndRenderCerts = async (urls: string[], label: string): Promise<Blob[]> => {
+    if (urls.length === 0) {
+      console.log(`[PDF][${label}] Sin URLs de certificados para descargar`);
+      return [];
+    }
+    console.log(`[PDF][${label}] Descargando ${urls.length} certificado(s) en paralelo…`);
+    const results = await Promise.all(
+      urls.map(async (url) => {
+        try {
+          const buffer = await getAssetBuffer(url);
+          console.log(`[PDF][${label}] Asset listo: ${buffer.byteLength} bytes`);
+          const rendered = await renderExternalPdfToBlob(buffer, label);
+          if (!rendered) {
+            console.warn(`[PDF][${label}] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?`);
+          }
+          return rendered;
+        } catch (err) {
+          console.warn(`[PDF][${label}] Error descargando certificado:`, err);
+          return null;
+        }
+      })
+    );
+    return results.filter((b): b is Blob => b !== null);
+  };
+
+  // ── Generar blobs de adjuntos PDF (paralelo) ──
+  const generateAdjuntosBlobs = async (): Promise<Blob[]> => {
+    const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
+    return downloadAndRenderCerts(pdfAdjuntos.map(a => a.url), 'ADJUNTOS');
+  };
+
+  // ── Generar blobs de certificados de ingeniero (paralelo) ──
   const generateCertIngBlobs = async (): Promise<Blob[]> => {
     const certIngUrls = certificadosIngenieroSeleccionados
       .map(c => c.certificadoUrl)
       .filter((url): url is string => !!url);
-    const blobs: Blob[] = [];
-    if (certIngUrls.length > 0) {
-      console.log(`[PDF][CERT-ING] Descargando ${certIngUrls.length} certificado(s) de ingeniero…`);
-      for (const url of certIngUrls) {
-        try {
-          const blob = await firebase.downloadStorageBlob(url);
-          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-ING');
-          if (rendered) blobs.push(rendered);
-        } catch (err) {
-          console.warn('[PDF][CERT-ING] Error descargando certificado:', err);
-        }
-      }
-    }
-    return blobs;
+    return downloadAndRenderCerts(certIngUrls, 'CERT-ING');
   };
 
-  // ── Generar blobs de certificados de instrumentos ──
+  // ── Generar blobs de certificados de instrumentos (paralelo) ──
   const generateCertInstBlobs = async (): Promise<Blob[]> => {
     console.log(`[PDF][CERT-INST] instrumentosSeleccionados total: ${instrumentosSeleccionados.length}`);
     const instrumentos = instrumentosSeleccionados.filter(i => i.tipo === 'instrumento');
     console.log(`[PDF][CERT-INST] Instrumentos (tipo=instrumento): ${instrumentos.length}`);
-    instrumentos.forEach(i => console.log(`  → ${i.nombre} | tipo=${i.tipo} | certUrl=${i.certificadoUrl ? 'SÍ' : 'NO (null/undefined)'}`));
     const certUrls = instrumentos
       .map(i => i.certificadoUrl)
       .filter((url): url is string => !!url);
-    const blobs: Blob[] = [];
-    if (certUrls.length > 0) {
-      console.log(`[PDF][CERT-INST] Descargando ${certUrls.length} certificado(s) de instrumentos…`);
-      for (const url of certUrls) {
-        try {
-          const blob = await firebase.downloadStorageBlob(url);
-          console.log(`[PDF][CERT-INST] Descargado blob: ${blob.size} bytes, tipo: ${blob.type}`);
-          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-INST');
-          if (rendered) {
-            blobs.push(rendered);
-          } else {
-            console.warn('[PDF][CERT-INST] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?');
-          }
-        } catch (err) {
-          console.warn('[PDF][CERT-INST] Error descargando certificado:', err);
-        }
-      }
-    } else {
-      console.log('[PDF][CERT-INST] Sin URLs de certificados para descargar');
-    }
-    return blobs;
+    return downloadAndRenderCerts(certUrls, 'CERT-INST');
   };
 
-  // ── Generar blobs de certificados de patrones ──
+  // ── Generar blobs de certificados de patrones (paralelo) ──
   const generateCertPatronBlobs = async (): Promise<Blob[]> => {
     const patrones = instrumentosSeleccionados.filter(i => i.tipo === 'patron');
     console.log(`[PDF][CERT-PATRON] Patrones (tipo=patron): ${patrones.length}`);
-    patrones.forEach(i => console.log(`  → ${i.nombre} | tipo=${i.tipo} | certUrl=${i.certificadoUrl ? 'SÍ' : 'NO (null/undefined)'}`));
     const certUrls = patrones
       .map(i => i.certificadoUrl)
       .filter((url): url is string => !!url);
-    const blobs: Blob[] = [];
-    if (certUrls.length > 0) {
-      console.log(`[PDF][CERT-PATRON] Descargando ${certUrls.length} certificado(s) de patrones…`);
-      for (const url of certUrls) {
-        try {
-          const blob = await firebase.downloadStorageBlob(url);
-          console.log(`[PDF][CERT-PATRON] Descargado blob: ${blob.size} bytes, tipo: ${blob.type}`);
-          const rendered = await renderExternalPdfToBlob(await blob.arrayBuffer(), 'CERT-PATRON');
-          if (rendered) {
-            blobs.push(rendered);
-          } else {
-            console.warn('[PDF][CERT-PATRON] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?');
-          }
-        } catch (err) {
-          console.warn('[PDF][CERT-PATRON] Error descargando certificado:', err);
-        }
-      }
-    } else {
-      console.log('[PDF][CERT-PATRON] Sin URLs de certificados para descargar');
-    }
-    return blobs;
+    return downloadAndRenderCerts(certUrls, 'CERT-PATRON');
   };
 
   /**
@@ -482,16 +480,28 @@ export const usePDFGeneration = (
         preloadFromContainer(document.getElementById('pdf-container-fotos-pdf')),
       ]);
 
-      // Siempre generar Hoja 1
+      // Siempre generar Hoja 1 primero (necesita DOM limpio)
+      setGenerationStep('Generando reporte…');
       const reportBlob = await generateReportBlob();
 
-      // Generar todas las partes de anexo
-      const protocolBlob = await generateProtocolPagesBlob();
-      const fotosBlob = await generateFotoPagesBlob();
-      const adjuntosBlobs = await generateAdjuntosBlobs();
-      const certIngBlobs = await generateCertIngBlobs();
-      const certInstBlobs = await generateCertInstBlobs();
-      const certPatronBlobs = await generateCertPatronBlobs();
+      // Rendering DOM (secuencial) + descargas (paralelo) corren simultáneamente
+      setGenerationStep('Renderizando protocolos y descargando certificados…');
+      const [domResults, adjuntosBlobs, certIngBlobs, certInstBlobs, certPatronBlobs] =
+        await Promise.all([
+          // Grupo DOM: secuencial entre sí (html2canvas no soporta concurrencia)
+          (async () => {
+            const protocolBlob = await generateProtocolPagesBlob();
+            const fotosBlob = await generateFotoPagesBlob();
+            return { protocolBlob, fotosBlob };
+          })(),
+          // Grupo descargas: paralelo entre sí y con el grupo DOM
+          generateAdjuntosBlobs(),
+          generateCertIngBlobs(),
+          generateCertInstBlobs(),
+          generateCertPatronBlobs(),
+        ]);
+
+      const { protocolBlob, fotosBlob } = domResults;
 
       // Colectar todos los anexos en orden
       const annexParts: Blob[] = [];
@@ -502,11 +512,14 @@ export const usePDFGeneration = (
       annexParts.push(...certPatronBlobs);
       annexParts.push(...certIngBlobs);
 
+      const idPart = codigoInternoCliente ? ` ID ${sanitizeFilename(codigoInternoCliente)}` : '';
+      const sysPart = sistema ? ` - ${sanitizeFilename(sistema)}` : '';
+
+      setGenerationStep('Armando PDF final…');
+
       if (hasProtocol && protocolBlob) {
         // 2 archivos separados
-        const reportFilename = `Reporte de servicio N° ${sanitizeFilename(otNumber)}.pdf`;
-        const idPart = codigoInternoCliente ? ` ID ${sanitizeFilename(codigoInternoCliente)}` : '';
-        const sysPart = sistema ? ` - ${sanitizeFilename(sistema)}` : '';
+        const reportFilename = `Reporte de servicio N° ${sanitizeFilename(otNumber)}${idPart}${sysPart}.pdf`;
         const protocolFilename = `Protocolo de servicio N° ${sanitizeFilename(otNumber)}${idPart}${sysPart}.pdf`;
 
         // Protocolo: protocolo + fotos + adjuntos + certs (sin Hoja 1)
@@ -521,7 +534,7 @@ export const usePDFGeneration = (
         };
       } else {
         // 1 solo archivo con todo
-        const filename = `${otNumber}_Reporte_AGS.pdf`;
+        const filename = `Reporte de servicio N° ${sanitizeFilename(otNumber)}${idPart}${sysPart}.pdf`;
         if (annexParts.length > 0) {
           const allParts = [reportBlob, ...annexParts];
           const merged = await mergePdfBlobs(allParts);
@@ -631,7 +644,7 @@ export const usePDFGeneration = (
 
       // Crear ticket interno si las acciones son solo para AGS (solo en primera finalización, no al regenerar)
       const wasAlreadyFinalized = formState.status === 'FINALIZADO';
-      if (!wasAlreadyFinalized && finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
+      if (!wasAlreadyFinalized && finalizedData.accionesTomar?.trim()) {
         try {
           await firebase.createTicketFromAcciones({
             otNumber,
@@ -662,16 +675,18 @@ export const usePDFGeneration = (
       setIsPreviewMode(true);
 
       // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       try {
         window.scrollTo(0, 0);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 200));
 
+        setGenerationStep('Generando PDF…');
         const result = await generatePDFs();
         setPdfBlob(result.reportBlob);
 
         // Subir PDF(s) a Firebase Storage
+        setGenerationStep('Subiendo a la nube…');
         try {
           const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
           const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
@@ -689,6 +704,7 @@ export const usePDFGeneration = (
         }
 
         // Descargar archivo(s)
+        setGenerationStep('Descargando archivo(s)…');
         downloadPDF(result.reportBlob, result.reportFilename);
         if (result.protocolBlob && result.protocolFilename) {
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -703,9 +719,11 @@ export const usePDFGeneration = (
         });
       } finally {
         setIsGenerating(false);
+        setGenerationStep('');
       }
     } catch (e) {
       setIsGenerating(false);
+      setGenerationStep('');
       console.error("Error al guardar en Firestore:", e);
       showAlert({
         title: 'Error Crítico',
@@ -734,7 +752,8 @@ export const usePDFGeneration = (
     }
 
     setIsGenerating(true);
-    
+    setGenerationStep('Guardando reporte…');
+
     // Paso 1: Guardar en Firestore
     let saveSuccess = false;
     try {
@@ -753,7 +772,7 @@ export const usePDFGeneration = (
 
       // Crear ticket interno si las acciones son solo para AGS (solo en primera finalización, no al regenerar)
       const wasAlreadyFinalized = formState.status === 'FINALIZADO';
-      if (!wasAlreadyFinalized && finalizedData.accionesInternaOnly && finalizedData.accionesTomar?.trim()) {
+      if (!wasAlreadyFinalized && finalizedData.accionesTomar?.trim()) {
         try {
           await firebase.createTicketFromAcciones({
             otNumber,
@@ -796,16 +815,18 @@ export const usePDFGeneration = (
         setIsPreviewMode(true);
 
         // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         window.scrollTo(0, 0);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 200));
 
+        setGenerationStep('Generando PDF…');
         console.log("Generando PDF(s)...");
         const result = await generatePDFs();
         setPdfBlob(result.reportBlob);
 
         // Subir PDF(s) a Firebase Storage
+        setGenerationStep('Subiendo a la nube…');
         try {
           const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
           const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
@@ -823,6 +844,7 @@ export const usePDFGeneration = (
         }
 
         // Descargar archivo(s)
+        setGenerationStep('Descargando archivo(s)…');
         downloadPDF(result.reportBlob, result.reportFilename);
         if (result.protocolBlob && result.protocolFilename) {
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -830,7 +852,7 @@ export const usePDFGeneration = (
         }
 
         console.log("PDF(s) generado(s) exitosamente");
-        
+
         showAlert({
           title: 'Éxito',
           message: 'Reporte finalizado y PDF generado correctamente.',
@@ -839,7 +861,7 @@ export const usePDFGeneration = (
       } catch (pdfErr) {
         console.error("Error generando PDF:", pdfErr);
         console.error("Detalles del error:", pdfErr.message, pdfErr.stack);
-        
+
         showAlert({
           title: 'Advertencia',
           message: 'No se pudo generar el PDF, pero el reporte fue guardado correctamente.',
@@ -847,6 +869,7 @@ export const usePDFGeneration = (
         });
       } finally {
         setIsGenerating(false);
+        setGenerationStep('');
       }
     }
   };
@@ -857,6 +880,7 @@ export const usePDFGeneration = (
     handleFinalSubmit,
     confirmClientAndFinalize,
     isGenerating,
+    generationStep,
     isPreviewMode,
     pdfBlob,
     setIsPreviewMode,

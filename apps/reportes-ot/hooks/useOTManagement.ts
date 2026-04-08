@@ -322,7 +322,9 @@ export const useOTManagement = (
           razonSocial: data.razonSocial || '',
           direccion: data.direccion || '',
           sistema: data.sistema || '',
+          codigoInternoCliente: data.codigoInternoCliente || '',
           moduloModelo: data.moduloModelo || '',
+          moduloSerie: data.moduloSerie || '',
         };
       } else {
         // 🟡 NO EXISTE → mostrar modal de confirmación

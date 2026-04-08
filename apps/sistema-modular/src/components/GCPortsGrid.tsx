@@ -20,6 +20,7 @@ const DETECTOR_OPTIONS: Array<{ value: DetectorType; label: string }> = [
   { value: 'FPD', label: 'FPD' },
   { value: 'ECD', label: 'ECD' },
   { value: 'SCD', label: 'SCD' },
+  { value: 'MSD', label: 'MSD' },
 ];
 
 const selectClass =

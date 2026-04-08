@@ -304,7 +304,8 @@ export type DetectorType =
   | 'FPD'   // Flame Photometric Detector
   | 'ECD'   // Electron Capture Detector
   | 'SCD'   // Sulfur Chemiluminescence Detector
-  | 'TCD';  // Thermal Conductivity Detector
+  | 'TCD'   // Thermal Conductivity Detector
+  | 'MSD';  // Mass Selective Detector
 
 export interface ConfiguracionGC {
   puertoInyeccionFront?: InletType | null;
@@ -334,6 +335,7 @@ export const DETECTOR_LABELS: Record<DetectorType, string> = {
   ECD: 'ECD (Electron Capture Detector)',
   SCD: 'SCD (Sulfur Chemiluminescence Detector)',
   TCD: 'TCD (Thermal Conductivity Detector)',
+  MSD: 'MSD (Mass Selective Detector)',
 };
 
 // --- Módulo de sistema ---
@@ -1087,7 +1089,8 @@ export type TableCatalogColumnType =
   | 'fixed_text'
   | 'date_input'
   | 'pass_fail'
-  | 'select_input';
+  | 'select_input'
+  | 'multi_select';
 
 export interface TableCatalogColumn {
   key: string;
@@ -1106,6 +1109,12 @@ export interface TableCatalogColumn {
   align?: 'left' | 'center' | 'right' | null;
   /** Cuando es true, la columna actúa como etiqueta fija: las filas con valor vacío muestran celda en blanco. */
   isLabelColumn?: boolean;
+  /**
+   * Para multi_select: referencia a otra tabla del protocolo para obtener opciones dinámicas.
+   * tableName = nombre exacto de la tabla fuente; columnKey = key de la columna cuyos valores se usan como opciones.
+   * Si no se define, usa `options[]` estáticas.
+   */
+  optionsFromTable?: { tableName: string; columnKey: string } | null;
 }
 
 export interface TableCatalogRow {

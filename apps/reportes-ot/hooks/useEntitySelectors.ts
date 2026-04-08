@@ -310,7 +310,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
   // Reconstruye la cadena de selección sin limpiar los campos del formulario
   const tryMatchExistingData = useCallback(async (
     razonSocial: string,
-    formData?: { direccion?: string; sistema?: string; moduloModelo?: string },
+    formData?: { direccion?: string; sistema?: string; codigoInternoCliente?: string; moduloModelo?: string; moduloSerie?: string },
   ) => {
     if (!razonSocial.trim()) return;
 
@@ -360,18 +360,26 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setAllContactos(conts);
     setAllSistemas(syss);
 
+    // Helper para buscar sistema: primero por nombre + código interno, luego solo nombre
+    const sistemaTarget = formData.sistema?.toLowerCase().trim() || '';
+    const codigoTarget = formData.codigoInternoCliente?.toLowerCase().trim() || '';
+    const findSistema = (list: typeof syss) =>
+      (codigoTarget && list.find(s =>
+        s.nombre.toLowerCase().trim() === sistemaTarget &&
+        (s.codigoInternoCliente?.toLowerCase().trim() || '') === codigoTarget
+      )) ||
+      list.find(s => s.nombre.toLowerCase().trim() === sistemaTarget);
+
     // Si hay sectores, filtrar por sector del sistema; si no, mostrar todo
     let visibleSistemas = syss;
     let visibleContactos = conts;
     if (estabSectores.length > 0 && formData.sistema) {
-      const sysMatch = syss.find(
-        s => s.nombre.toLowerCase().trim() === formData.sistema!.toLowerCase().trim()
-      );
-      if (sysMatch?.sector) {
-        setSelectedSector(sysMatch.sector);
-        setters.setSector(sysMatch.sector);
-        visibleSistemas = syss.filter(s => s.sector === sysMatch.sector);
-        visibleContactos = conts.filter(c => c.sector === sysMatch.sector);
+      const sysForSector = findSistema(syss);
+      if (sysForSector?.sector) {
+        setSelectedSector(sysForSector.sector);
+        setters.setSector(sysForSector.sector);
+        visibleSistemas = syss.filter(s => s.sector === sysForSector.sector);
+        visibleContactos = conts.filter(c => c.sector === sysForSector.sector);
       }
     }
     setContactos(visibleContactos);
@@ -379,9 +387,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
 
     // Intentar match del sistema
     if (!formData.sistema) return;
-    const sysMatch = visibleSistemas.find(
-      s => s.nombre.toLowerCase().trim() === formData.sistema!.toLowerCase().trim()
-    );
+    const sysMatch = findSistema(visibleSistemas);
     if (!sysMatch) return;
 
     setSistemaId(sysMatch.id);
@@ -390,11 +396,18 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     const mods = await firebase.getModulosBySistema(sysMatch.id);
     setModulos(mods);
 
-    // Intentar match del módulo
+    // Intentar match del módulo (por nombre + serie para desambiguar duplicados)
     if (!formData.moduloModelo) return;
-    const modMatch = mods.find(
-      m => m.nombre?.toLowerCase().trim() === formData.moduloModelo!.toLowerCase().trim()
-    );
+    const nombreTarget = formData.moduloModelo.toLowerCase().trim();
+    const serieTarget = formData.moduloSerie?.toLowerCase().trim() || '';
+    const modMatch =
+      // Primero intentar match exacto por nombre + serie
+      mods.find(m =>
+        m.nombre?.toLowerCase().trim() === nombreTarget &&
+        (m.serie?.toLowerCase().trim() || '') === serieTarget
+      ) ||
+      // Fallback: match solo por nombre (si no hay serie o no matchea)
+      mods.find(m => m.nombre?.toLowerCase().trim() === nombreTarget);
     if (modMatch) {
       setModuloId(modMatch.id);
     }

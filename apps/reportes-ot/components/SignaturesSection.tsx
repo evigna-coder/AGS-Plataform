@@ -14,6 +14,9 @@ interface SignaturesSectionProps {
   clientPadRef: React.RefObject<SignaturePadHandle | null>;
   engineerPadRef: React.RefObject<SignaturePadHandle | null>;
   isGenerating: boolean;
+  generationStep?: string;
+  assetProgress?: { loaded: number; total: number };
+  assetReady?: boolean;
   onConfirmClientAndFinalize: () => void;
 }
 
@@ -24,7 +27,7 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
   aclaracionCliente, setAclaracionCliente,
   aclaracionEspecialista, setAclaracionEspecialista,
   clientPadRef, engineerPadRef,
-  isGenerating, onConfirmClientAndFinalize,
+  isGenerating, generationStep, assetProgress, assetReady, onConfirmClientAndFinalize,
 }) => {
   return (
     <div className="no-print grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -57,8 +60,13 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
             disabled={isGenerating}
             className="w-full bg-green-600 text-white rounded-xl py-2.5 text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGenerating ? 'Finalizando...' : 'Confirmar firma del cliente'}
+            {isGenerating ? (generationStep || 'Finalizando…') : 'Confirmar firma del cliente'}
           </button>
+        )}
+        {!readOnly && assetProgress && assetProgress.total > 0 && !assetReady && (
+          <p className="text-[10px] text-amber-600 text-center">
+            Precargando assets… ({assetProgress.loaded}/{assetProgress.total})
+          </p>
         )}
         <input
           type="text"

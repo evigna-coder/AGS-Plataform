@@ -1,3 +1,5 @@
+import React from 'react';
+import { createPortal } from 'react-dom';
 import type { TableCatalogColumn, ProtocolSelection } from '../types/tableCatalog';
 
 // ─── Auto-cómputo de Conclusión ───────────────────────────────────────────────
@@ -24,15 +26,18 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
   }
 
   const extractNum = (str: string): number => {
-    const m = str.match(/(\d+[.,]\d+|\d+)/);
+    const m = str.match(/([+-]?\d+[.,]\d+|[+-]?\d+)/);
     return m ? parseFloat(m[0].replace(',', '.')) : NaN;
   };
 
   // Rango con operadores: "≥ -1.0 ≤+5.0°C" | ">= -1.0 <= 5.0"
+  // Soporta cualquier variante de ≥/>=/>  y ≤/<=/< con números positivos o negativos
   const dualMatch = s.match(/[≥>]=?\s*([+-]?\d+[.,]?\d*)\s*[≤<]=?\s*([+-]?\d+[.,]?\d*)/);
   if (dualMatch) {
-    const min = parseFloat(dualMatch[1].replace(',', '.'));
-    const max = parseFloat(dualMatch[2].replace(',', '.'));
+    const a = parseFloat(dualMatch[1].replace(',', '.'));
+    const b = parseFloat(dualMatch[2].replace(',', '.'));
+    const min = Math.min(a, b);
+    const max = Math.max(a, b);
     return numR >= min && numR <= max ? 'PASS' : 'FAIL';
   }
 
@@ -88,6 +93,102 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
   return '';
 }
 
+// ─── Multi-select cell ────────────────────────────────────────────────────────
+
+function MultiSelectCell({ options, selected, readOnly, onToggle, getDisplay }: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  readOnly: boolean;
+  onToggle: (opt: string) => void;
+  getDisplay?: (v: string) => string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  // Posicionar el dropdown en fixed relativo al trigger
+  React.useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropW = 400;
+    const dropH = Math.min(360, options.length * 32 + 40);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    // Centrar horizontalmente respecto al trigger
+    let left = rect.left + rect.width / 2 - dropW / 2;
+    if (left < 8) left = 8;
+    if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
+    if (spaceBelow < dropH) {
+      setPos({ top: rect.top - dropH - 4, left });
+    } else {
+      setPos({ top: rect.bottom + 4, left });
+    }
+  }, [open]);
+
+  // Cerrar al hacer click fuera
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const dropdownEl = open ? (
+    <div
+      ref={dropdownRef}
+      className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-xl overflow-y-auto"
+      style={{ maxHeight: '360px', width: '400px', top: pos.top, left: pos.left }}
+    >
+      <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex items-center justify-between z-10">
+        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Tests disponibles</span>
+        <button onClick={() => setOpen(false)} className="text-[10px] text-teal-600 font-semibold hover:text-teal-800">Cerrar</button>
+      </div>
+      {options.map(opt => (
+        <label key={opt.value} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs border-b border-slate-100 last:border-0">
+          <input type="checkbox" checked={selected.includes(opt.value)} onChange={() => onToggle(opt.value)} className="w-4 h-4 accent-teal-600 shrink-0" />
+          <span className="text-slate-700">
+            <span className="font-semibold">{opt.value}</span>
+            {opt.label && <span className="text-slate-400 ml-1.5">— {opt.label}</span>}
+          </span>
+        </label>
+      ))}
+      {options.length === 0 && <p className="px-3 py-2 text-[10px] text-slate-400 italic">Sin opciones disponibles</p>}
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <div ref={triggerRef}>
+        <div
+          className={`min-h-[24px] text-[10px] leading-snug ${!readOnly ? 'cursor-pointer' : ''}`}
+          onClick={() => !readOnly && setOpen(!open)}
+        >
+          {selected.length > 0
+            ? selected.map((v, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <span className="text-slate-800">{getDisplay ? getDisplay(v) : v}</span>
+                  {!readOnly && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onToggle(v); }}
+                      className="text-slate-300 hover:text-red-500 text-[8px] leading-none"
+                    >✕</button>
+                  )}
+                </div>
+              ))
+            : <span className="text-slate-300 italic">{readOnly ? '—' : 'Seleccionar...'}</span>
+          }
+        </div>
+      </div>
+      {dropdownEl && createPortal(dropdownEl, document.body)}
+    </>
+  );
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 interface Props {
@@ -107,6 +208,8 @@ interface Props {
   variables?: Record<string, string>;
   /** Filas del catálogo vivo — usadas como fallback si el snapshot no tiene 'variable' actualizado */
   liveTemplateRows?: import('@ags/shared').TableCatalogRow[];
+  /** Tablas hermanas del protocolo — para resolver opciones de multi_select con optionsFromTable */
+  siblingSelections?: ProtocolSelection[];
 }
 
 const PASS_LABELS: Record<string, string> = {
@@ -144,7 +247,7 @@ function renderDefaultCell(
 
   if (col.type === 'checkbox') {
     const checked = rawValue === 'true' || rawValue === '1';
-    if (isPrint) return <span className="text-[11px]">{checked ? '✓' : '☐'}</span>;
+    if (isPrint) return <span className="text-[11px]">{checked ? '☑' : '☐'}</span>;
     return (
       <input
         type="checkbox"
@@ -237,6 +340,31 @@ function renderDefaultCell(
   const selectAll = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
 
   if (!effectiveUnit) {
+    const alignClass = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+    // Textarea auto-expandible para columnas alineadas a izquierda (texto extenso)
+    if (col.align === 'left' && !compact) {
+      const handleTextarea = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = effectiveUnit
+          ? e.target.value.replace(new RegExp(`\\s*${escUnit}\\s*$`), '').trim()
+          : e.target.value;
+        onChange(rowId, col.key, val);
+        // Auto-resize
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+      };
+      return (
+        <textarea
+          value={displayValue}
+          disabled={readOnly}
+          placeholder={placeholder}
+          onChange={handleTextarea}
+          onFocus={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+          rows={1}
+          className={`w-full text-[10px] ${alignClass} border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5 resize-none overflow-hidden`}
+          style={{ minHeight: '26px' }}
+        />
+      );
+    }
     return (
       <input
         type="text"
@@ -246,8 +374,8 @@ function renderDefaultCell(
         onChange={handleChange}
         onFocus={selectAll}
         className={compact
-          ? 'w-full text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300 px-0 py-0'
-          : 'w-full text-[10px] text-center border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5'}
+          ? `w-full text-[10px] ${alignClass} bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300 px-0 py-0`
+          : `w-full text-[10px] ${alignClass} border border-slate-300 rounded bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300 px-1 py-0.5`}
       />
     );
   }
@@ -287,10 +415,44 @@ export const CatalogTableView: React.FC<Props> = ({
   onChangeHeaderData,
   variables,
   liveTemplateRows,
+  siblingSelections,
 }) => {
   const table = selection.tableSnapshot;
   const compact = table.compactDisplay ?? false;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
+
+  /** Resuelve opciones para una columna multi_select desde una tabla hermana del protocolo.
+   *  Retorna { value: string (se guarda), label: string (se muestra) }[] */
+  const resolveMultiSelectOptions = (col: TableCatalogColumn): { value: string; label: string }[] => {
+    // 1. Opciones desde tabla hermana
+    if (col.optionsFromTable && siblingSelections) {
+      const { tableName, columnKey } = col.optionsFromTable;
+      const needle = tableName.toLowerCase().trim();
+      const sibling = needle
+        ? siblingSelections.find(s =>
+            s.tableName?.toLowerCase().trim() === needle ||
+            s.tableSnapshot.name?.toLowerCase().trim() === needle
+          )
+        : undefined;
+      if (sibling) {
+        const rows = sibling.tableSnapshot.templateRows.filter(r => !r.isTitle && !r.isSelector);
+        const effectiveKey = columnKey || sibling.tableSnapshot.columns[0]?.key || '';
+        // Segunda columna para label (si existe)
+        const cols = sibling.tableSnapshot.columns;
+        const keyIdx = cols.findIndex(c => c.key === effectiveKey);
+        const labelCol = keyIdx >= 0 && cols.length > keyIdx + 1 ? cols[keyIdx + 1] : null;
+        return rows
+          .map(r => {
+            const value = String(r.cells?.[effectiveKey] ?? '').trim();
+            const label = labelCol ? String(r.cells?.[labelCol.key] ?? '').trim() : '';
+            return { value, label };
+          })
+          .filter(o => o.value);
+      }
+    }
+    // 2. Fallback: opciones estáticas de la columna
+    return (col.options ?? []).map(o => ({ value: o, label: '' }));
+  };
 
   // Extraer TODAS las reglas vs_spec (soporta múltiples, ej. FRONT y BACK con conclusiones separadas)
   const vsSpecRules = (table.validationRules ?? []).filter(r =>
@@ -445,6 +607,40 @@ export const CatalogTableView: React.FC<Props> = ({
       if (!labelVal) return <span />;
       if (isPrint) return <span className="text-[10px]">{labelVal}</span>;
       return <span className="text-[10px] text-slate-700 cursor-default">{labelVal}</span>;
+    }
+
+    // ── Multi-select (dropdown con checkboxes, valores apilados) ─────────────
+    if (col.type === 'multi_select') {
+      const options = resolveMultiSelectOptions(col);
+      let selected: string[] = [];
+      if (rawValue) {
+        try { selected = JSON.parse(rawValue); } catch { selected = []; }
+      }
+      const getDisplay = (v: string) => {
+        const opt = options.find(o => o.value === v);
+        return opt?.label ? `${v} - ${opt.label}` : v;
+      };
+
+      if (isPrint) {
+        return selected.length > 0
+          ? <div className="text-[10px] leading-snug">{selected.map((v, i) => <div key={i}>{getDisplay(v)}</div>)}</div>
+          : <span className="text-[10px] text-slate-400">—</span>;
+      }
+
+      const toggle = (opt: string) => {
+        const next = selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt];
+        handleCellChange(rowId, col.key, next.length > 0 ? JSON.stringify(next) : '');
+      };
+
+      return (
+        <MultiSelectCell
+          options={options}
+          selected={selected}
+          readOnly={readOnly}
+          onToggle={toggle}
+          getDisplay={getDisplay}
+        />
+      );
     }
 
     // ── Variable binding: auto-rellenar desde contexto del reporte ──────────
@@ -754,7 +950,7 @@ export const CatalogTableView: React.FC<Props> = ({
                     {titleRow}
                     <tr className={isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100 border-b border-slate-200'}>
                       {table.columns.map((col, colIdx) => (
-                        <th key={col.key} className={`${thClass(colIdx)} ${col.align === 'left' ? '!text-left' : col.align === 'right' ? '!text-right' : ''}`}
+                        <th key={col.key} className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''}`}
                           style={col.width ? { width: `${col.width}mm` } : undefined}>
                           {col.label || null}
                           {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
@@ -794,7 +990,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       // Columna no agrupada: rowSpan=2
                       return (
                         <th key={col.key} rowSpan={2}
-                          className={`${thClass(colIdx)} ${col.align === 'left' ? '!text-left' : col.align === 'right' ? '!text-right' : ''} ${isPrint ? '' : 'border-b border-slate-200'}`}
+                          className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''} ${isPrint ? '' : 'border-b border-slate-200'}`}
                           style={col.width ? { width: `${col.width}mm` } : undefined}>
                           {col.label || null}
                           {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
@@ -814,7 +1010,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         const isLastCol = colIdx === table.columns.length - 1;
                         return (
                           <th key={col.key}
-                            className={`${thClass(colIdx)} ${col.align === 'left' ? '!text-left' : col.align === 'right' ? '!text-right' : ''} ${!isPrint && isLastInGroup && !isLastCol ? 'border-r border-slate-200' : ''}`}
+                            className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''} ${!isPrint && isLastInGroup && !isLastCol ? 'border-r border-slate-200' : ''}`}
                             style={col.width ? { width: `${col.width}mm` } : undefined}>
                             {col.label || null}
                             {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
@@ -900,7 +1096,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       return table.columns.map((col, colIdx) => (
                         <td
                           key={col.key}
-                          className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[9px] border border-slate-300' : `text-xs${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}`}
+                          className={`px-2 ${isPrint ? 'py-0.5' : 'py-1.5'} align-middle ${isPrint ? 'text-[9px] border border-slate-300' : `text-xs${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -986,7 +1182,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         key={col.key}
                         rowSpan={isSpanning ? colSpan : undefined}
                         className={[
-                          `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
+                          `px-2 ${isPrint ? 'py-0.5' : compact ? 'py-1' : 'py-1.5'} align-middle`,
                           isPrint
                             ? `text-[9px] border border-slate-300${groupStyle}`
                             : `text-xs${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
