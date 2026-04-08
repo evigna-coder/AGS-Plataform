@@ -19,12 +19,13 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
   const handleFiles = async (files: File[]) => {
     if (!otNumber || files.length === 0) return;
     setUploading(true);
-    try {
-      let currentOrden = adjuntos.length > 0 ? Math.max(...adjuntos.map(a => a.orden)) + 1 : 0;
-      const newAdjuntos: AdjuntoMeta[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (files.length > 1) setUploadProgress(`${i + 1}/${files.length}`);
+    let currentOrden = adjuntos.length > 0 ? Math.max(...adjuntos.map(a => a.orden)) + 1 : 0;
+    const newAdjuntos: AdjuntoMeta[] = [];
+    const failed: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress(`${i + 1}/${files.length}`);
+      try {
         const { url, path } = await firebase.uploadAdjuntoFile(otNumber, file);
         const tipo: 'foto' | 'archivo' = file.type.startsWith('image/') ? 'foto' : 'archivo';
         const id = await firebase.createAdjunto({
@@ -41,15 +42,15 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
         });
         newAdjuntos.push({ id, otNumber, tipo, storagePath: path, url, fileName: file.name, mimeType: file.type, sizeBytes: file.size, caption: null, orden: currentOrden, uploadedAt: new Date().toISOString() });
         currentOrden++;
+      } catch (err) {
+        console.error(`Error subiendo "${file.name}":`, err);
+        failed.push(file.name);
       }
-      setAdjuntos([...adjuntos, ...newAdjuntos]);
-    } catch (err) {
-      console.error('Error subiendo adjunto:', err);
-      alert('Error al subir el archivo');
-    } finally {
-      setUploading(false);
-      setUploadProgress('');
     }
+    if (newAdjuntos.length > 0) setAdjuntos([...adjuntos, ...newAdjuntos]);
+    if (failed.length > 0) alert(`No se pudieron subir: ${failed.join(', ')}`);
+    setUploading(false);
+    setUploadProgress('');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

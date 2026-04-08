@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
+import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
 import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero } from '../types/instrumentos';
@@ -455,7 +455,11 @@ export class FirebaseService {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `adjuntos/${otNumber}/${timestamp}_${safeName}`;
     const storageR = ref(storage, storagePath);
-    await uploadBytes(storageR, file, { contentType: file.type });
+    // uploadBytesResumable soporta archivos grandes sin timeout
+    await new Promise<void>((resolve, reject) => {
+      const task = uploadBytesResumable(storageR, file, { contentType: file.type });
+      task.on('state_changed', null, reject, resolve);
+    });
     const url = await getDownloadURL(storageR);
     return { url, path: storagePath };
   }
