@@ -14,6 +14,11 @@ service firebase.storage {
       allow read, write: if true; // ⚠️ Solo para desarrollo
     }
 
+    // Certificados de ingeniero (subidos desde sistema-modular, leídos desde reportes-ot)
+    match /certificados-ingeniero/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
     // Adjuntos de reportes OT (fotos y archivos)
     match /adjuntos/{allPaths=**} {
       allow read, write: if true; // ⚠️ Solo para desarrollo

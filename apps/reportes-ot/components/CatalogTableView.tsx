@@ -321,7 +321,7 @@ function renderDefaultCell(
 
   if (isPrint) {
     return (
-      <span className="text-[10px]">
+      <span className="text-[10px]" style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
         {displayValue ? `${displayValue}${effectiveUnit ? '\u00A0' + effectiveUnit : ''}` : '—'}
       </span>
     );
@@ -661,6 +661,21 @@ export const CatalogTableView: React.FC<Props> = ({
       }
     }
 
+    // ── Auto-fill por label (solo tabla informacional de 1 fila: cabecera equipo) ─
+    const dataRows = table.templateRows.filter(r => !r.isTitle && !r.isSelector);
+    if (variables && !rawValue && table.tableType === 'informational' && dataRows.length === 1) {
+      const colLabel = (col.label || col.key).toLowerCase().replace(/[:.]/g, '').trim();
+      let resolved: string | null = null;
+      if (colLabel === 'marca') resolved = variables['equipo.marca'] || null;
+      else if (colLabel === 'modelo') resolved = variables['equipo.modelo'] || null;
+      else if (/^(número de serie|nro?\s+de serie|n[°º]\s*de serie|serie|s\/n)$/.test(colLabel)) resolved = variables['equipo.serie'] || null;
+      else if (colLabel === 'id') resolved = variables['equipo.id'] || null;
+      if (resolved) {
+        if (isPrint) return <span className="text-[10px]">{resolved}</span>;
+        return <span className="text-[10px] text-slate-700">{resolved}</span>;
+      }
+    }
+
     // ── Columna Especificación ──────────────────────────────────────────────
     if (allSpecColKeys.has(col.key)) {
       const factoryVal = getFactorySpec(rowId);
@@ -805,9 +820,9 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Encabezado de tabla (ocultar si showTitle === false) */}
       {table.showTitle !== false ? (
-      <div className={`flex items-center justify-between px-3 gap-3 ${compact ? 'py-1.5' : 'py-2'} ${isPrint ? 'bg-slate-800 text-white' : 'bg-slate-50 border-b border-slate-200'}`}>
+      <div className={`flex items-center justify-between px-3 gap-3 ${compact ? 'py-1.5' : 'py-2'} bg-slate-50 border-b border-slate-200`}>
         <div className="min-w-0">
-          <p className={`font-semibold truncate ${isPrint ? 'text-xs font-bold uppercase tracking-wide text-white' : compact ? 'text-xs text-slate-900' : 'text-sm text-slate-900'}`}>
+          <p className={`font-semibold truncate ${compact ? 'text-xs text-slate-900' : 'text-sm text-slate-900'}`}>
             {table.name}
           </p>
           {table.description && !isPrint && (
@@ -881,7 +896,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Campos de encabezado (selectores pre-tabla) */}
       {(table.headerFields ?? []).length > 0 && (
-        <div className={`flex flex-wrap gap-4 px-3 py-2 ${isPrint ? 'border-b border-slate-300 bg-slate-50' : 'border-b border-slate-200 bg-white'}`}>
+        <div className="flex flex-wrap gap-4 px-3 py-2 border-b border-slate-200 bg-white">
           {(table.headerFields ?? []).map(hf => {
             const value = selection.headerData?.[hf.fieldId] ?? '';
             // En print/PDF: texto entre paréntesis se oculta (ej. "DAD (1260)" → "DAD")
@@ -929,15 +944,13 @@ export const CatalogTableView: React.FC<Props> = ({
 
               const thClass = (colIdx: number) =>
                 `px-2 font-semibold ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} text-center ${
-                  isPrint
-                    ? 'text-[8.5px] text-white border border-slate-500 whitespace-nowrap'
-                    : `text-slate-600${colIdx < table.columns.length - 1 ? ' border-r border-slate-200' : ''}`
+                  `text-slate-600${colIdx < table.columns.length - 1 ? ' border-r border-slate-200' : ''}`
                 }`;
 
               const titleRow = groupTitle ? (
-                <tr className={isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100'}>
+                <tr className="bg-slate-100">
                   <th colSpan={table.columns.length}
-                    className={`px-2 font-bold text-center ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} ${isPrint ? 'text-[9px] text-white border border-slate-500' : 'text-slate-700 border-b border-slate-200'}`}>
+                    className={`px-2 font-bold text-center ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} text-slate-700 border-b border-slate-200`}>
                     {groupTitle}
                   </th>
                 </tr>
@@ -948,7 +961,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 return (
                   <>
                     {titleRow}
-                    <tr className={isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100 border-b border-slate-200'}>
+                    <tr className="bg-slate-100 border-b border-slate-200">
                       {table.columns.map((col, colIdx) => (
                         <th key={col.key} className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''}`}
                           style={col.width ? { width: `${col.width}mm` } : undefined}>
@@ -968,7 +981,7 @@ export const CatalogTableView: React.FC<Props> = ({
               // Con grupos: título (opcional) + dos filas de headers
               // Fila 1: grupos (colspan) + columnas no agrupadas (rowSpan=2)
               // Fila 2: sub-columnas de cada grupo
-              const trClass = isPrint ? 'bg-slate-700 text-white' : 'bg-slate-100';
+              const trClass = 'bg-slate-100';
               return (
                 <>
                   {titleRow}
@@ -1068,10 +1081,10 @@ export const CatalogTableView: React.FC<Props> = ({
               }
               if (row.isTitle) {
                 return (
-                  <tr key={row.rowId} className={isPrint ? 'bg-slate-600 text-white' : 'bg-slate-50'}>
+                  <tr key={row.rowId} className="bg-slate-50">
                     <td
                       colSpan={table.columns.length}
-                      className={`px-2 py-1 font-semibold ${isPrint ? 'text-[9px] text-white border border-slate-500' : 'text-xs text-slate-700 border-b border-slate-200'}`}
+                      className="px-2 py-1 font-semibold text-xs text-slate-700 border-b border-slate-200"
                     >
                       {row.titleText ?? ''}
                     </td>
@@ -1096,7 +1109,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       return table.columns.map((col, colIdx) => (
                         <td
                           key={col.key}
-                          className={`px-2 ${isPrint ? 'py-0.5' : 'py-1.5'} align-middle ${isPrint ? 'text-[9px] border border-slate-300' : `text-xs${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}`}
+                          className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -1182,10 +1195,8 @@ export const CatalogTableView: React.FC<Props> = ({
                         key={col.key}
                         rowSpan={isSpanning ? colSpan : undefined}
                         className={[
-                          `px-2 ${isPrint ? 'py-0.5' : compact ? 'py-1' : 'py-1.5'} align-middle`,
-                          isPrint
-                            ? `text-[9px] border border-slate-300${groupStyle}`
-                            : `text-xs${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
+                          `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
+                          `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
                           !isGroupCell ? (col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center') : isLabelCol ? 'text-left' : '',
                         ].join(' ')}
                       >

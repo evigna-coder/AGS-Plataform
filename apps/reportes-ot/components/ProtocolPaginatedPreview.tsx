@@ -339,7 +339,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         ) : sel.tableSnapshot.tableType === 'text' ? (
           <CatalogTextView selection={sel} readOnly />
         ) : (
-          <CatalogTableView selection={sel} readOnly onChangeData={() => {}} variables={protocolVariables} liveTemplateRows={catalogTables?.find(t => t.id === sel.tableId)?.templateRows} siblingSelections={sortedSelections} />
+          <CatalogTableView selection={sel} readOnly isPrint onChangeData={() => {}} variables={protocolVariables} liveTemplateRows={catalogTables?.find(t => t.id === sel.tableId)?.templateRows} siblingSelections={sortedSelections} />
         );
 
         items.push({
