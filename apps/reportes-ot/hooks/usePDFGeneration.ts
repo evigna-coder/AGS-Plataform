@@ -73,6 +73,7 @@ export const usePDFGeneration = (
   instrumentosSeleccionados: InstrumentoPatronOption[] = [],
   certificadosIngenieroSeleccionados: CertificadoIngeniero[] = [],
   adjuntos: AdjuntoMeta[] = [],
+  setAdjuntos?: (adjuntos: AdjuntoMeta[]) => void,
   assetCache?: Map<string, ArrayBuffer>,
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -378,11 +379,11 @@ export const usePDFGeneration = (
 
   // ── Helper: obtener ArrayBuffer de una URL (cache → descarga con retry) ──
   const getAssetBuffer = async (url: string): Promise<ArrayBuffer> => {
-    // Buscar en cache primero
+    // Buscar en cache primero (clonar para evitar detached ArrayBuffer)
     const cached = assetCache?.get(url);
-    if (cached) {
-      console.log(`[PDF] Cache hit para asset`);
-      return cached;
+    if (cached && cached.byteLength > 0) {
+      console.log(`[PDF] Cache hit para asset (${cached.byteLength} bytes)`);
+      return cached.slice(0);
     }
     // Descargar con 1 retry
     const download = async (retries = 1): Promise<Blob> => {
@@ -752,6 +753,18 @@ export const usePDFGeneration = (
     }
 
     setIsGenerating(true);
+
+    // Paso 0: Re-fetchear adjuntos por si se subieron desde otro dispositivo
+    if (setAdjuntos && otNumber) {
+      setGenerationStep('Sincronizando adjuntos…');
+      try {
+        const freshAdjuntos = await firebase.getAdjuntosByOT(otNumber);
+        setAdjuntos(freshAdjuntos);
+      } catch (err) {
+        console.warn('[PDF] Error refrescando adjuntos:', err);
+      }
+    }
+
     setGenerationStep('Guardando reporte…');
 
     // Paso 1: Guardar en Firestore

@@ -66,7 +66,8 @@ export const useAssetPreloader = (
         try {
           const blob = await firebase.downloadStorageBlob(url);
           if (controller.signal.aborted) return;
-          cache.set(url, await blob.arrayBuffer());
+          const buffer = await blob.arrayBuffer();
+          cache.set(url, buffer.slice(0));
         } catch (err) {
           // No bloquear por errores — se reintentará al generar el PDF
           console.warn('[PRELOADER] Error pre-descargando asset:', err);

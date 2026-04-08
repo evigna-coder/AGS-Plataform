@@ -541,6 +541,7 @@ export function useAppLogic(
     instrumentosSeleccionados,
     certificadosIngenieroSeleccionados,
     adjuntos,
+    setAdjuntos,
     assetPreloader.cache,
   );
   const {
