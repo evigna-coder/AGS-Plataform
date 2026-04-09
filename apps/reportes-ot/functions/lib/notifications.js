@@ -177,7 +177,7 @@ async function sendPushNotifications(event) {
         const tokensSnap = await db.collection(`usuarios/${userId}/fcmTokens`).get();
         if (tokensSnap.empty)
             continue;
-        const portalUrl = process.env.PORTAL_URL || 'https://portal-ingeniero.vercel.app';
+        const portalUrl = process.env.PORTAL_URL || 'https://portal.agsanalitica.com';
         for (const tokenDoc of tokensSnap.docs) {
             const tokenData = tokenDoc.data();
             messages.push({

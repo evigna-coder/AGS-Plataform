@@ -17,6 +17,21 @@ import PerfilPage from './pages/PerfilPage';
 import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 
+/** Listener de notificaciones foreground — componente separado para respetar rules of hooks */
+function ForegroundNotificationListener() {
+  useEffect(() => {
+    try {
+      const unsub = onForegroundNotification(({ title, body, data }) => {
+        showToast(title, body, data);
+      });
+      return unsub;
+    } catch {
+      // Firebase Messaging no soportado en este contexto
+    }
+  }, []);
+  return null;
+}
+
 // Rutas privadas (requieren auth)
 function PrivateApp() {
   const { loading, isAuthenticated, isPending, isDisabled, authError } = useAuth();
@@ -64,14 +79,6 @@ function PrivateApp() {
     return <LoginPage />;
   }
 
-  // Foreground notifications → toast in-app
-  useEffect(() => {
-    const unsub = onForegroundNotification(({ title, body, data }) => {
-      showToast(title, body, data);
-    });
-    return unsub;
-  }, []);
-
   return (
     <Routes>
       <Route element={<AppShell />}>
@@ -101,6 +108,7 @@ export default function App() {
           {/* Todas las demás rutas → auth gate */}
           <Route path="/*" element={<PrivateApp />} />
         </Routes>
+        <ForegroundNotificationListener />
         <ToastContainer />
       </AuthProvider>
     </BrowserRouter>

@@ -141,8 +141,9 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
               <div className="flex-1 h-px bg-slate-200" />
             </div>
 
-            {/* Grid */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            {/* Grid — horizontally scrollable on small screens */}
+            <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white" style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 480 }}>
               {/* Header row */}
               <div className="grid border-b border-slate-200 bg-slate-50" style={{ gridTemplateColumns: gridCols }}>
                 <div className="px-2 py-1.5" />
@@ -189,6 +190,7 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         );

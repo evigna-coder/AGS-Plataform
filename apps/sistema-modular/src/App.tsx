@@ -11,6 +11,16 @@ import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
 import { ToastContainer, showToast } from './components/notifications/Toast';
 import { onForegroundNotification } from './services/notificationService';
 
+function ForegroundNotificationListener() {
+  useEffect(() => {
+    const unsub = onForegroundNotification(({ title, body, data }) => {
+      showToast(title, body, data);
+    });
+    return unsub;
+  }, []);
+  return null;
+}
+
 function QRNotificationListener() {
   useQRLeadNotifications();
   return null;
@@ -60,17 +70,10 @@ function AuthGate() {
   }
   if (isPending || !isAuthenticated) return <PendingApprovalPage />;
 
-  // Foreground notifications → toast in-app
-  useEffect(() => {
-    const unsub = onForegroundNotification(({ title, body, data }) => {
-      showToast(title, body, data);
-    });
-    return unsub;
-  }, []);
-
   return (
     <>
       <QRNotificationListener />
+      <ForegroundNotificationListener />
       <ConfirmDialogProvider>
       <BackgroundTasksProvider>
       <FloatingPresupuestoProvider>

@@ -37,7 +37,12 @@ function isSupported(): boolean {
 
 function getMessagingInstance() {
   if (!messagingInstance) {
-    messagingInstance = getMessaging(app);
+    try {
+      messagingInstance = getMessaging(app);
+    } catch (e) {
+      console.warn('[Notifications] Firebase Messaging no soportado:', e);
+      return null;
+    }
   }
   return messagingInstance;
 }
@@ -96,6 +101,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
     }
 
     const messaging = getMessagingInstance();
+    if (!messaging) return null;
     const token = await getToken(messaging, {
       vapidKey,
       serviceWorkerRegistration: registration,
@@ -133,6 +139,7 @@ export function onForegroundNotification(handler: OnForegroundMessage): () => vo
 
   foregroundHandler = handler;
   const messaging = getMessagingInstance();
+  if (!messaging) return () => {};
 
   const unsubscribe = onMessage(messaging, (payload: MessagePayload) => {
     const title = payload.notification?.title || 'Portal AGS';
