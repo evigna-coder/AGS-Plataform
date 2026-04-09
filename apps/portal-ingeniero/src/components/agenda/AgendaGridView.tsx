@@ -142,8 +142,11 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
             </div>
 
             {/* Grid — horizontally scrollable on small screens */}
-            <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white" style={{ minWidth: 0 }}>
-              <div style={{ minWidth: 480 }}>
+            <div
+              className="border border-slate-200 rounded-xl bg-white overflow-x-scroll overscroll-x-contain"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <div style={{ minWidth: 520 }}>
               {/* Header row */}
               <div className="grid border-b border-slate-200 bg-slate-50" style={{ gridTemplateColumns: gridCols }}>
                 <div className="px-2 py-1.5" />
