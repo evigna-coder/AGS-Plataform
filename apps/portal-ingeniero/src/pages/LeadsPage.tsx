@@ -160,9 +160,11 @@ export default function LeadsPage() {
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mb-2">{lead.contacto}</div>
-                    {(lead.descripcion || lead.motivoContacto) && (
-                      <p className="text-[11px] text-slate-400 line-clamp-2 mb-2">{lead.descripcion || lead.motivoContacto}</p>
-                    )}
+                    {(() => {
+                      const lastComment = lead.postas?.slice().reverse().find(p => p.comentario)?.comentario;
+                      const text = lastComment || lead.descripcion || lead.motivoContacto;
+                      return text ? <p className="text-[11px] text-slate-400 line-clamp-2 mb-2">{text}</p> : null;
+                    })()}
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                         {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
@@ -283,9 +285,15 @@ export default function LeadsPage() {
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
                         <td className="px-3 py-2 overflow-hidden">
-                          <span className="text-[10px] text-slate-500 line-clamp-2" title={lead.descripcion || lead.motivoContacto || ''}>
-                            {lead.descripcion || lead.motivoContacto || '—'}
-                          </span>
+                          {(() => {
+                            const lastComment = lead.postas?.slice().reverse().find(p => p.comentario)?.comentario;
+                            const text = lastComment || lead.descripcion || lead.motivoContacto || '—';
+                            return (
+                              <span className="text-[10px] text-slate-500 line-clamp-2" title={text}>
+                                {text}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
