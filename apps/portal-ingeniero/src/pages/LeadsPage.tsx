@@ -122,7 +122,7 @@ export default function LeadsPage() {
   };
 
   if (loading && leads.length === 0) {
-    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando leads...</p></div>;
+    return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando tickets...</p></div>;
   }
 
   return (
@@ -137,7 +137,7 @@ export default function LeadsPage() {
       <div className="flex-1 min-h-0 px-3 md:px-5 pb-4">
         {leadsFiltered.length === 0 ? (
           <Card><div className="text-center py-12">
-            <p className="text-slate-400">No se encontraron leads</p>
+            <p className="text-slate-400">No se encontraron tickets</p>
             <button onClick={() => setShowCreate(true)} className="text-teal-600 hover:underline mt-2 inline-block text-xs">
               Crear primer ticket
             </button>
