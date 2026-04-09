@@ -112,7 +112,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   useEffect(() => {
     if (form.clienteId) {
       setEstablecimientosFiltrados(establecimientos.filter(e => e.clienteCuit === form.clienteId));
-      contactosService.getByCliente(form.clienteId).then(setContactos).catch(() => setContactos([]));
+      contactosService.getByCliente(form.clienteId).then(c => { console.log('[OT] contactos cargados:', c.length); setContactos(c); }).catch(err => { console.error('[OT] Error contactos:', err); setContactos([]); });
       presupuestosService.getAll({ clienteId: form.clienteId }).then(pres => {
         setPresupuestosCliente(pres.filter(p => p.estado !== 'anulado'));
       }).catch(() => setPresupuestosCliente([]));

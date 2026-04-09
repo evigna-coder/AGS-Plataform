@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, deleteDoc, query, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, deleteDoc, query, where, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Cliente, ContactoCliente } from '@ags/shared';
 import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
@@ -176,13 +176,64 @@ export const contactosService = {
     return docRef.id;
   },
 
-  // Obtener todos los contactos de un cliente
+  // Obtener todos los contactos de un cliente.
+  // Busca primero en la subcolección legacy (clientes/{id}/contactos) y luego
+  // en los establecimientos del cliente (establecimientos/{estId}/contactos).
+  // Devuelve la unión de ambos sin duplicados.
   async getByCliente(clienteId: string) {
-    const querySnapshot = await getDocs(collection(db, 'clientes', clienteId, 'contactos'));
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
+    console.log('[contactos] getByCliente:', clienteId);
+    // 1. Legacy: clientes/{id}/contactos
+    const legacySnap = await getDocs(collection(db, 'clientes', clienteId, 'contactos'));
+    const legacy = legacySnap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
     })) as ContactoCliente[];
+    console.log('[contactos] legacy:', legacy.length);
+
+    // 2. Establecimientos del cliente → sus contactos
+    // Buscar por clienteCuit Y por clienteId (campo legacy de migración)
+    const [estByCuit, estByLegacy] = await Promise.all([
+      getDocs(query(collection(db, 'establecimientos'), where('clienteCuit', '==', clienteId))),
+      getDocs(query(collection(db, 'establecimientos'), where('clienteId', '==', clienteId))),
+    ]);
+    const estIds = new Set<string>();
+    const estDocs = [...estByCuit.docs, ...estByLegacy.docs].filter(d => {
+      if (estIds.has(d.id)) return false;
+      estIds.add(d.id);
+      return true;
+    });
+    console.log('[contactos] establecimientos encontrados:', estDocs.length);
+    const estContactos: ContactoCliente[] = [];
+    for (const estDoc of estDocs) {
+      const ctSnap = await getDocs(collection(db, 'establecimientos', estDoc.id, 'contactos'));
+      ctSnap.docs.forEach(d => {
+        const data = d.data();
+        estContactos.push({
+          id: d.id,
+          nombre: data.nombre || '',
+          cargo: data.cargo || '',
+          sector: data.sector || '',
+          telefono: data.telefono || '',
+          interno: data.interno || '',
+          email: data.email || '',
+          esPrincipal: data.esPrincipal ?? false,
+        });
+      });
+    }
+
+    // Merge: legacy + establecimientos (dedup by email)
+    const seen = new Set(legacy.map(c => c.email?.toLowerCase()));
+    const merged = [...legacy];
+    for (const c of estContactos) {
+      const key = c.email?.toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        merged.push(c);
+      } else if (!key) {
+        merged.push(c);
+      }
+    }
+    return merged;
   },
 
   // Actualizar contacto

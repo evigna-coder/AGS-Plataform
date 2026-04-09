@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema } from '@ags/shared';
+import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema, ContactoCliente } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
-import { leadsService, usuariosService, clientesService, sistemasService, modulosService } from '../services/firebaseService';
+import { leadsService, usuariosService, clientesService, sistemasService, modulosService, contactosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
 export interface LeadPrefill {
@@ -43,6 +43,8 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const fileRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [contactosCliente, setContactosCliente] = useState<ContactoCliente[]>([]);
+
   const [clienteSearch, setClienteSearch] = useState('');
   const [showClienteDropdown, setShowClienteDropdown] = useState(false);
 
@@ -64,6 +66,21 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
       }
     });
   }, []);
+
+  // Cargar contactos del cliente seleccionado
+  useEffect(() => {
+    if (clienteId) {
+      contactosService.getByCliente(clienteId).then(setContactosCliente).catch(() => setContactosCliente([]));
+    } else {
+      setContactosCliente([]);
+    }
+  }, [clienteId]);
+
+  const handleSelectContacto = (ct: ContactoCliente) => {
+    setContacto(ct.nombre);
+    if (ct.email) setEmail(ct.email);
+    if (ct.telefono) setTelefono(ct.telefono);
+  };
 
   const filteredClientes = clienteSearch.trim()
     ? clientes.filter(c => c.razonSocial.toLowerCase().includes(clienteSearch.toLowerCase())).slice(0, 8)
@@ -158,7 +175,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
     accionPendiente, setAccionPendiente, prioridad, setPrioridad, estadoInicial, setEstadoInicial,
     diasProximoContacto, setDiasProximoContacto,
     clienteSearch, setClienteSearch, showClienteDropdown, setShowClienteDropdown,
-    filteredClientes, sistemasFiltrados,
+    filteredClientes, sistemasFiltrados, contactosCliente, handleSelectContacto,
     handleSelectCliente, handleClearCliente, handleSistemaChange,
     handleFileChange, removeFile, handleSubmit,
   };

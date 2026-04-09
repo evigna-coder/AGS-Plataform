@@ -121,8 +121,40 @@ export const clientesService = {
     return snap.docs.map(d => ({ id: d.id, razonSocial: d.data().razonSocial ?? '' }));
   },
   async getContactos(clienteId: string): Promise<ContactoCliente[]> {
-    const snap = await getDocs(collection(db, 'clientes', clienteId, 'contactos'));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactoCliente));
+    // 1. Contactos legacy en subcolección del cliente
+    const legacySnap = await getDocs(collection(db, 'clientes', clienteId, 'contactos'));
+    const legacyContactos = legacySnap.docs.map(d => ({ id: d.id, ...d.data() } as ContactoCliente));
+
+    // 2. Contactos en establecimientos del cliente (modelo actual)
+    // Buscar por clienteCuit Y por clienteId (campo legacy de migración)
+    const [estByCuit, estByLegacy] = await Promise.all([
+      getDocs(query(collection(db, 'establecimientos'), where('clienteCuit', '==', clienteId))),
+      getDocs(query(collection(db, 'establecimientos'), where('clienteId', '==', clienteId))),
+    ]);
+    const estIds = new Set<string>();
+    const estDocs = [...estByCuit.docs, ...estByLegacy.docs].filter(d => {
+      if (estIds.has(d.id)) return false;
+      estIds.add(d.id);
+      return true;
+    });
+    const estContactos: ContactoCliente[] = [];
+    for (const estDoc of estDocs) {
+      const estNombre = (estDoc.data().nombre as string) || '';
+      const contactosSnap = await getDocs(collection(db, 'establecimientos', estDoc.id, 'contactos'));
+      for (const cDoc of contactosSnap.docs) {
+        const data = cDoc.data();
+        estContactos.push({
+          id: cDoc.id,
+          nombre: (data.nombre as string) || '',
+          email: (data.email as string) || '',
+          telefono: (data.telefono as string) || '',
+          cargo: (data.cargo as string) || (estNombre ? `(${estNombre})` : ''),
+          esPrincipal: (data.esPrincipal as boolean) || false,
+        });
+      }
+    }
+
+    return [...legacyContactos, ...estContactos];
   },
 };
 

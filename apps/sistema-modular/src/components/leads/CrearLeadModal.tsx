@@ -41,8 +41,27 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
           filteredClientes={h.filteredClientes}
           onSelect={h.handleSelectCliente} onClear={h.handleClearCliente}
           error={h.errors.razonSocial} />
-        <Input inputSize="sm" label="Contacto *" value={h.contacto}
-          onChange={e => h.setContacto(e.target.value)} error={h.errors.contacto} placeholder="Persona de contacto" />
+        {h.contactosCliente.length > 0 ? (
+          <div>
+            <label className={labelClass}>Contacto *</label>
+            <SearchableSelect
+              value={h.contacto}
+              onChange={v => {
+                const ct = h.contactosCliente.find(c => c.nombre === v);
+                if (ct) { h.handleSelectContacto(ct); }
+                else { h.setContacto(v); }
+              }}
+              options={h.contactosCliente.map(c => ({ value: c.nombre, label: `${c.nombre}${c.cargo ? ` — ${c.cargo}` : ''}` }))}
+              placeholder="Buscar o escribir contacto..."
+              creatable
+              createLabel="Nuevo contacto"
+            />
+            {h.errors.contacto && <p className="text-xs text-red-600 mt-0.5">{h.errors.contacto}</p>}
+          </div>
+        ) : (
+          <Input inputSize="sm" label="Contacto *" value={h.contacto}
+            onChange={e => h.setContacto(e.target.value)} error={h.errors.contacto} placeholder="Persona de contacto" />
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Input inputSize="sm" label="Email" type="email" value={h.email}
             onChange={e => h.setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
