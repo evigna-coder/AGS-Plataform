@@ -3,8 +3,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import type { Ticket, Posta, TicketEstado, TicketArea, MotivoLlamado } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS, MOTIVO_LLAMADO_LABELS, getUserTicketAreas } from '@ags/shared';
+import type { Ticket, Posta, TicketEstado, TicketArea, TicketPrioridad, MotivoLlamado } from '@ags/shared';
+import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, MOTIVO_LLAMADO_LABELS, getUserTicketAreas } from '@ags/shared';
 
 interface Props {
   lead: Ticket;
@@ -21,6 +21,8 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
   const [areaDestino, setAreaDestino] = useState<TicketArea | ''>(lead.areaActual || '');
   const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
+  const [prioridad, setPrioridad] = useState<import('@ags/shared').TicketPrioridad>((lead as any).prioridad || 'normal');
+  const [fechaContactoCustom, setFechaContactoCustom] = useState('');
   const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>(lead.motivoLlamado);
   const [motivoOtros, setMotivoOtros] = useState(lead.motivoOtros || '');
   const [saving, setSaving] = useState(false);
@@ -65,6 +67,8 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
         ...(accionRequerida.trim() ? { accionRequerida: accionRequerida.trim() } : {}),
       };
       await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null, {
+        prioridad,
+        proximoContacto: fechaContactoCustom || (() => { const d = new Date(); d.setDate(d.getDate() + (TICKET_PRIORIDAD_DIAS[prioridad] ?? 7)); return d.toISOString().split('T')[0]; })(),
         motivoLlamado,
         motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
       });
@@ -139,6 +143,18 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
               <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Próximo contacto</label>
+          <select value={prioridad} onChange={e => { setPrioridad(e.target.value as TicketPrioridad); setFechaContactoCustom(''); }}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+              <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+            ))}
+          </select>
+          <input type="date" value={fechaContactoCustom} onChange={e => setFechaContactoCustom(e.target.value)}
+            className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            title="O elegir fecha específica" />
         </div>
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Acción requerida</label>

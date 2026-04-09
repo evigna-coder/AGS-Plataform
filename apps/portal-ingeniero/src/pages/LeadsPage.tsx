@@ -287,7 +287,7 @@ export default function LeadsPage() {
                             {lead.descripcion || lead.motivoContacto || '—'}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-center whitespace-nowrap">
+                        <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
                             {!isClosed && canModify && (
                               <>

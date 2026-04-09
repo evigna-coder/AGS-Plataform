@@ -52,6 +52,10 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate, mod
                 <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
               ))}
             </select>
+            <input type="date" value={localFechaContacto}
+              onChange={e => { setLocalFechaContacto(e.target.value); onFieldUpdate?.('proximoContacto', e.target.value); }}
+              className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              title="O elegir fecha específica" />
           </InfoRow>
           <InfoRow label="Motivo">
             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>

@@ -22,6 +22,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
   const [prioridad, setPrioridad] = useState<TicketPrioridad>(lead.prioridad as TicketPrioridad || 'normal');
+  const [fechaContactoCustom, setFechaContactoCustom] = useState('');
   const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>(lead.motivoLlamado);
   const [motivoOtros, setMotivoOtros] = useState(lead.motivoOtros || '');
   const [saving, setSaving] = useState(false);
@@ -70,7 +71,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
       };
       await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null, {
         prioridad,
-        proximoContacto: (() => { const d = new Date(); d.setDate(d.getDate() + TICKET_PRIORIDAD_DIAS[prioridad]); return d.toISOString().split('T')[0]; })(),
+        proximoContacto: fechaContactoCustom || (() => { const d = new Date(); d.setDate(d.getDate() + TICKET_PRIORIDAD_DIAS[prioridad]); return d.toISOString().split('T')[0]; })(),
         motivoLlamado,
         motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
       });
@@ -148,12 +149,15 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-1 block">Próximo contacto</label>
-            <select value={prioridad} onChange={e => setPrioridad(e.target.value as TicketPrioridad)}
+            <select value={prioridad} onChange={e => { setPrioridad(e.target.value as TicketPrioridad); setFechaContactoCustom(''); }}
               className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
               {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
                 <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
               ))}
             </select>
+            <input type="date" value={fechaContactoCustom} onChange={e => setFechaContactoCustom(e.target.value)}
+              className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              title="O elegir fecha específica" />
           </div>
         </div>
 
