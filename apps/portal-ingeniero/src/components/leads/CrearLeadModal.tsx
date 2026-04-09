@@ -32,7 +32,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [step, setStep] = useState(1);
   const [clientes, setClientes] = useState<{ id: string; razonSocial: string }[]>([]);
   const [contactos, setContactos] = useState<ContactoCliente[]>([]);
-  const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
+  const [usuarios, setUsuarios] = useState<{ id: string; displayName: string; role: string | null; roles?: string[] }[]>([]);
   const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
   const [clienteSearch, setClienteSearch] = useState('');
   const [showClienteDropdown, setShowClienteDropdown] = useState(false);
