@@ -36,6 +36,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
   const [clienteSearch, setClienteSearch] = useState('');
   const [showClienteDropdown, setShowClienteDropdown] = useState(false);
+  const [clienteHighlight, setClienteHighlight] = useState(-1);
 
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [razonSocial, setRazonSocial] = useState('');
@@ -197,6 +198,32 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
   const labelClass = 'text-[11px] font-medium text-slate-500 mb-1 block';
 
+  const handleClienteKeyDown = (e: React.KeyboardEvent) => {
+    if (!showClienteDropdown || filteredClientes.length === 0) return;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setClienteHighlight(prev => prev < filteredClientes.length - 1 ? prev + 1 : 0);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setClienteHighlight(prev => prev > 0 ? prev - 1 : filteredClientes.length - 1);
+        break;
+      case 'Tab':
+      case 'Enter':
+        if (clienteHighlight >= 0 && clienteHighlight < filteredClientes.length) {
+          e.preventDefault();
+          handleSelectCliente(filteredClientes[clienteHighlight]);
+          setClienteHighlight(-1);
+        }
+        break;
+      case 'Escape':
+        setShowClienteDropdown(false);
+        setClienteHighlight(-1);
+        break;
+    }
+  };
+
   const clienteField = (
     <div className="relative">
       <label className={labelClass}>Razón social *</label>
@@ -212,19 +239,23 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
           <input
             type="text"
             value={razonSocial}
-            onChange={e => { setRazonSocial(e.target.value); setClienteSearch(e.target.value); setShowClienteDropdown(true); }}
+            onChange={e => { setRazonSocial(e.target.value); setClienteSearch(e.target.value); setShowClienteDropdown(true); setClienteHighlight(-1); }}
             onFocus={() => { if (razonSocial) setShowClienteDropdown(true); }}
             onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
+            onKeyDown={handleClienteKeyDown}
             className={selectClass}
             placeholder="Buscar cliente existente o escribir nuevo..."
           />
           {showClienteDropdown && filteredClientes.length > 0 && (
             <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {filteredClientes.map(c => (
+              {filteredClientes.map((c, i) => (
                 <button
                   key={c.id}
                   onMouseDown={() => handleSelectCliente(c)}
-                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-teal-50 text-slate-700 border-b border-slate-100 last:border-0"
+                  onMouseEnter={() => setClienteHighlight(i)}
+                  className={`w-full text-left px-3 py-2.5 text-sm text-slate-700 border-b border-slate-100 last:border-0 transition-colors ${
+                    i === clienteHighlight ? 'bg-teal-50 text-teal-800' : 'hover:bg-slate-50'
+                  }`}
                 >
                   {c.razonSocial}
                 </button>
