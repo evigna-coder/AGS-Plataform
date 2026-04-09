@@ -14,7 +14,7 @@ interface Props {
 
 export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) {
   const { usuario } = useAuth();
-  const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
+  const [usuarios, setUsuarios] = useState<{ id: string; displayName: string; role: string | null; roles?: string[] }[]>([]);
   const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>(lead.estado);
