@@ -44,11 +44,19 @@ function deepCleanForFirestore<T>(obj: T): T {
 // --- Usuarios ---
 // =============================================
 export const usuariosService = {
-  async getIngenieros(): Promise<{ id: string; displayName: string }[]> {
+  async getIngenieros(): Promise<{ id: string; displayName: string; role: string | null; roles?: string[] }[]> {
     const q = query(collection(db, 'usuarios'), where('status', '==', 'activo'));
     const snap = await getDocs(q);
     return snap.docs
-      .map(d => ({ id: d.id, displayName: (d.data().displayName as string) ?? '' }))
+      .map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          displayName: (data.displayName as string) ?? '',
+          role: (data.role as string) ?? null,
+          roles: (data.roles as string[]) ?? undefined,
+        };
+      })
       .filter(u => u.displayName)
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   },

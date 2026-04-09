@@ -8,6 +8,7 @@ import { SidebarNav } from './layout/SidebarNav';
 import { BackgroundTasksIndicator } from './layout/BackgroundTasksIndicator';
 import { FloatingPresupuesto } from './layout/FloatingPresupuesto';
 import { TabContentManager } from './layout/TabContentManager';
+import { NotificationButton } from './notifications/NotificationButton';
 
 export const Layout: React.FC = () => {
   const { usuario } = useAuth();
@@ -38,6 +39,7 @@ export const Layout: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <NotificationButton />
           {usuario?.photoURL && (
             <img src={usuario.photoURL} alt="" className="w-7 h-7 rounded-full" referrerPolicy="no-referrer" />
           )}

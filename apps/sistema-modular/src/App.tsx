@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TabsProvider } from './contexts/TabsContext';
 import { BackgroundTasksProvider } from './contexts/BackgroundTasksContext';
@@ -7,6 +8,8 @@ import { Layout } from './components/Layout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
 import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
+import { ToastContainer, showToast } from './components/notifications/Toast';
+import { onForegroundNotification } from './services/notificationService';
 
 function QRNotificationListener() {
   useQRLeadNotifications();
@@ -57,6 +60,14 @@ function AuthGate() {
   }
   if (isPending || !isAuthenticated) return <PendingApprovalPage />;
 
+  // Foreground notifications → toast in-app
+  useEffect(() => {
+    const unsub = onForegroundNotification(({ title, body, data }) => {
+      showToast(title, body, data);
+    });
+    return unsub;
+  }, []);
+
   return (
     <>
       <QRNotificationListener />
@@ -65,6 +76,7 @@ function AuthGate() {
       <FloatingPresupuestoProvider>
       <TabsProvider>
         <Layout />
+        <ToastContainer />
       </TabsProvider>
       </FloatingPresupuestoProvider>
       </BackgroundTasksProvider>
