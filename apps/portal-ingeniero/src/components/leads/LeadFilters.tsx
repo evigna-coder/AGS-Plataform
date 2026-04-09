@@ -28,7 +28,7 @@ export interface LeadFiltersState {
 
 export const INITIAL_FILTERS: LeadFiltersState = {
   motivo: '', area: '', prioridad: '', responsable: '',
-  soloMios: false, misCreados: false, mostrarFinalizados: false, fechaDesde: '', fechaHasta: '',
+  soloMios: true, misCreados: false, mostrarFinalizados: false, fechaDesde: '', fechaHasta: '',
 };
 
 interface LeadFiltersProps {
