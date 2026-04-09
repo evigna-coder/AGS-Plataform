@@ -70,7 +70,19 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
   const { presupuesto, cliente, establecimiento, contacto, condicionPago, categorias } = params;
 
   const impuestos = calcularImpuestos(presupuesto.items, categorias);
-  const montoEnLetras = numberToWords(presupuesto.total || 0, presupuesto.moneda);
+  const isMixta = presupuesto.moneda === 'MIXTA';
+
+  // Per-currency totals
+  const totalsByCurrency: Record<string, number> = {};
+  if (isMixta) {
+    presupuesto.items.forEach(i => { const m = i.moneda || 'USD'; totalsByCurrency[m] = (totalsByCurrency[m] || 0) + (i.subtotal || 0); });
+  } else {
+    totalsByCurrency[presupuesto.moneda] = presupuesto.total || 0;
+  }
+
+  const montoEnLetras = isMixta
+    ? Object.entries(totalsByCurrency).map(([m, t]) => `${numberToWords(t, m)} (${m})`).join(' + ')
+    : numberToWords(presupuesto.total || 0, presupuesto.moneda);
 
   // For contrato PDFs, load modules for each linked sistema
   let modulosBySistema: Record<string, ModuloSistema[]> | undefined;
@@ -110,6 +122,7 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
     isoLogoSrc: ISO_LOGO_SRC,
     impuestos,
     modulosBySistema,
+    totalsByCurrency: isMixta ? totalsByCurrency : undefined,
   };
 
   const isContrato = presupuesto.tipo === 'contrato';

@@ -664,7 +664,7 @@ export interface UsuarioPosta {
 
 // --- Presupuesto: Tipos auxiliares ---
 export type TipoPresupuesto = 'servicio' | 'partes' | 'ventas' | 'contrato' | 'mixto';
-export type MonedaPresupuesto = 'USD' | 'ARS' | 'EUR';
+export type MonedaPresupuesto = 'USD' | 'ARS' | 'EUR' | 'MIXTA';
 export type OrigenPresupuesto = 'lead' | 'ot' | 'requerimiento_compra' | 'directo';
 
 export const TIPO_PRESUPUESTO_LABELS: Record<TipoPresupuesto, string> = {
@@ -687,12 +687,14 @@ export const MONEDA_PRESUPUESTO_LABELS: Record<MonedaPresupuesto, string> = {
   USD: 'Dólares (USD)',
   ARS: 'Pesos (ARS)',
   EUR: 'Euros (EUR)',
+  MIXTA: 'Mixta (multi-moneda)',
 };
 
-export const MONEDA_SIMBOLO: Record<MonedaPresupuesto, string> = {
+export const MONEDA_SIMBOLO: Record<string, string> = {
   USD: 'U$S',
   ARS: '$',
   EUR: '€',
+  MIXTA: '',
 };
 
 export const ORIGEN_PRESUPUESTO_LABELS: Record<OrigenPresupuesto, string> = {
@@ -777,6 +779,8 @@ export interface PresupuestoItem {
   subItem?: string | null;
   /** Item de bonificación (descuento 100%) */
   esBonificacion?: boolean;
+  /** Moneda del item — solo relevante cuando el presupuesto es MIXTA */
+  moneda?: 'USD' | 'ARS' | 'EUR' | null;
 }
 
 // --- Adjunto de Presupuesto ---
@@ -952,6 +956,14 @@ export const PRESUPUESTO_SECCIONES_DEFAULT: PresupuestoSeccionesVisibles = {
   aceptacionPresupuesto: true,
 };
 
+// --- Cuotas de Presupuesto ---
+export interface PresupuestoCuota {
+  numero: number;          // 1, 2, 3...
+  moneda: 'USD' | 'ARS' | 'EUR';
+  monto: number;
+  descripcion?: string;    // ej: "Cuota 1/12"
+}
+
 // --- Presupuestos ---
 export interface Presupuesto {
   id: string;
@@ -974,6 +986,7 @@ export interface Presupuesto {
   tipoCambio?: number;
   condicionPagoId?: string;
   ordenesCompraIds: string[];
+  ordenCompraNumero?: string | null; // Número de OC del cliente (ej: "O-000100445302")
   adjuntos: AdjuntoPresupuesto[];
   // --- Textos / Condiciones ---
   notasTecnicas?: string | null;
@@ -1001,6 +1014,9 @@ export interface Presupuesto {
   otVinculadaNumber?: string | null;
   // --- Facturación ---
   facturacionEstado?: 'pendiente' | 'parcial' | 'completa' | null;
+  // --- Cuotas ---
+  cuotas?: PresupuestoCuota[] | null;
+  cantidadCuotas?: number | null;
   // --- Audit ---
   createdAt: string;
   updatedAt: string;

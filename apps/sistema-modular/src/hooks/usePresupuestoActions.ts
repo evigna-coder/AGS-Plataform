@@ -52,6 +52,7 @@ export function usePresupuestoActions({
   const handleSave = async () => {
     await save();
     onUpdated?.();
+    onClose();
   };
 
   const handleRevisionCreated = (newId: string) => {

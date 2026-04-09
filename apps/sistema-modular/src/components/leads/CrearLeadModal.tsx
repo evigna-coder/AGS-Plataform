@@ -61,7 +61,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
           <div>
             <label className={labelClass}>Estado inicial</label>
             <select value={h.estadoInicial} onChange={e => h.setEstadoInicial(e.target.value as TicketEstado)} className={selectClass}>
-              {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
+              {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
                 <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
               ))}
             </select>

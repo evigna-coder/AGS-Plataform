@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { presupuestosService, clientesService, sistemasService, leadsService, ordenesTrabajoService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../services/firebaseService';
 import { establecimientosService, contactosEstablecimientoService } from '../services/establecimientosService';
 import { useAuth } from '../contexts/AuthContext';
-import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket } from '@ags/shared';
+import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket } from '@ags/shared';
 
 export interface PresupuestoFormState {
   clienteId: string;
@@ -73,6 +73,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [conceptos, setConceptos] = useState<ConceptoServicio[]>([]);
   const [form, setForm] = useState<PresupuestoFormState>(INITIAL_PRESUPUESTO_FORM);
   const [items, setItems] = useState<PresupuestoItem[]>([]);
+  const [cuotas, setCuotas] = useState<PresupuestoCuota[]>([]);
   const [prefilled, setPrefilled] = useState(false);
   const [leadOptions, setLeadOptions] = useState<{ value: string; label: string }[]>([]);
   const [leadsCache, setLeadsCache] = useState<Ticket[]>([]);
@@ -90,25 +91,31 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     });
   }, [open]);
 
-  // Apply prefill
+  // Apply prefill — runs when modal opens AND again when sistemas load
+  // (establecimientoId can only be derived after sistemas are available)
   useEffect(() => {
-    if (!open || !prefill || prefilled) return;
-    setPrefilled(true);
-    // Derive establecimientoId from sistema if not provided
-    let estId = prefill.establecimientoId || '';
-    if (!estId && prefill.sistemaId && sistemas.length > 0) {
-      const sis = sistemas.find(s => s.id === prefill.sistemaId);
-      if (sis) estId = sis.establecimientoId;
+    if (!open || !prefill) return;
+    // First pass: set basic fields
+    if (!prefilled) {
+      setPrefilled(true);
+      setForm(prev => ({
+        ...prev,
+        clienteId: prefill.clienteId || prev.clienteId,
+        establecimientoId: prefill.establecimientoId || prev.establecimientoId,
+        sistemaId: prefill.sistemaId || prev.sistemaId,
+        origenTipo: prefill.origenTipo || prev.origenTipo,
+        origenId: prefill.origenId || prev.origenId,
+        origenRef: prefill.origenRef || prev.origenRef,
+      }));
     }
-    setForm(prev => ({
-      ...prev,
-      clienteId: prefill.clienteId || prev.clienteId,
-      establecimientoId: estId || prev.establecimientoId,
-      sistemaId: prefill.sistemaId || prev.sistemaId,
-      origenTipo: prefill.origenTipo || prev.origenTipo,
-      origenId: prefill.origenId || prev.origenId,
-      origenRef: prefill.origenRef || prev.origenRef,
-    }));
+    // Second pass: derive establecimientoId from sistema once sistemas load
+    if (prefill.sistemaId && sistemas.length > 0) {
+      setForm(prev => {
+        if (prev.establecimientoId) return prev; // already set
+        const sis = sistemas.find(s => s.id === prefill.sistemaId);
+        return sis?.establecimientoId ? { ...prev, establecimientoId: sis.establecimientoId } : prev;
+      });
+    }
   }, [open, prefill, prefilled, sistemas]);
 
   // Load establecimientos
@@ -169,7 +176,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     });
   }, [form.origenId, leadsCache]);
 
-  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setLeadsCache([]); };
+  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setLeadsCache([]); };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
@@ -199,6 +206,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : undefined,
         notasTecnicas: form.notasTecnicas || undefined,
         condicionesComerciales: form.condicionesComerciales || undefined,
+        ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
       };
       const { id: presupuestoId, numero } = await presupuestosService.create(data);
       if (form.origenTipo === 'lead' && form.origenId && usuario) {
@@ -229,7 +237,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   };
 
   return {
-    saving, form, setForm, items, handleClose, handleSave, addItem, removeItem,
+    saving, form, setForm, items, cuotas, setCuotas, handleClose, handleSave, addItem, removeItem,
     clientes, establecimientos, sistemasFiltrados, contactos,
     categorias, condiciones, conceptos, leadOptions, otOptions,
     showCrearLead, setShowCrearLead, reloadLeads,

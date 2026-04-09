@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ordenesTrabajoService, clientesService, establecimientosService, sistemasService,
   tiposServicioService, contactosService, modulosService, presupuestosService,
@@ -34,7 +34,18 @@ const INITIAL_FORM: CreateOTFormState = {
   materialesParaServicio: '', leadId: '',
 };
 
-export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: () => void) {
+export interface OTPrefill {
+  clienteId?: string;
+  sistemaId?: string;
+  moduloId?: string;
+  contactoId?: string;
+  presupuestoId?: string;
+  presupuestoNumero?: string;
+  ordenCompra?: string;
+  leadId?: string;
+}
+
+export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: () => void, prefill?: OTPrefill) {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -50,6 +61,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const [contratosCliente, setContratosCliente] = useState<Contrato[]>([]);
   const [showCrearLead, setShowCrearLead] = useState(false);
   const [form, setForm] = useState<CreateOTFormState>(INITIAL_FORM);
+  const [prefilled, setPrefilled] = useState(false);
 
   const set = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -76,6 +88,26 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     loadCatalogos();
   }, [open]);
 
+  // Apply prefill after catalogs load
+  useEffect(() => {
+    if (!open || !prefill || prefilled || clientes.length === 0) return;
+    setPrefilled(true);
+    const updates: Partial<CreateOTFormState> = {};
+    if (prefill.clienteId) updates.clienteId = prefill.clienteId;
+    if (prefill.sistemaId) updates.sistemaId = prefill.sistemaId;
+    if (prefill.moduloId) updates.moduloId = prefill.moduloId;
+    if (prefill.contactoId) updates.contactoId = prefill.contactoId;
+    if (prefill.presupuestoId) updates.presupuestoId = prefill.presupuestoId;
+    if (prefill.presupuestoNumero) updates.presupuestoNumero = prefill.presupuestoNumero;
+    if (prefill.ordenCompra) updates.ordenCompra = prefill.ordenCompra;
+    if (prefill.leadId) updates.leadId = prefill.leadId;
+    setForm(prev => ({ ...prev, ...updates }));
+  }, [open, prefill, prefilled, clientes]);
+
+  // Track which clienteId the cascade last ran for, to avoid resetting on
+  // establecimientos reload for the SAME client
+  const lastCascadeClientId = useRef('');
+
   // Cascade: client -> establecimientos + contactos + presupuestos + contratos
   useEffect(() => {
     if (form.clienteId) {
@@ -89,12 +121,18 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       setEstablecimientosFiltrados([]); setContactos([]); setPresupuestosCliente([]);
       setContratosCliente([]);
     }
-    set('establecimientoId', ''); set('sistemaId', ''); set('moduloId', '');
-    set('contactoId', ''); set('presupuestoId', ''); set('presupuestoNumero', '');
-    set('ordenCompra', ''); set('contratoId', '');
+    // Only reset dependent fields when the CLIENT actually changed, not when
+    // establecimientos reloaded for the same client
+    if (lastCascadeClientId.current && lastCascadeClientId.current !== form.clienteId) {
+      set('establecimientoId', ''); set('sistemaId', ''); set('moduloId', '');
+      set('contactoId', ''); set('presupuestoId', ''); set('presupuestoNumero', '');
+      set('ordenCompra', ''); set('contratoId', '');
+    }
+    lastCascadeClientId.current = form.clienteId;
   }, [form.clienteId, establecimientos]);
 
   // Cascade: establecimiento -> sistemas
+  const lastCascadeEstId = useRef('');
   useEffect(() => {
     if (form.establecimientoId) {
       setSistemasFiltrados(sistemas.filter(s => s.establecimientoId === form.establecimientoId));
@@ -104,15 +142,22 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     } else {
       setSistemasFiltrados([]);
     }
-    set('sistemaId', ''); set('moduloId', '');
+    if (lastCascadeEstId.current && lastCascadeEstId.current !== form.establecimientoId) {
+      set('sistemaId', ''); set('moduloId', '');
+    }
+    lastCascadeEstId.current = form.establecimientoId;
   }, [form.establecimientoId, form.clienteId, sistemas, establecimientosFiltrados]);
 
   // Cascade: sistema -> modulos
+  const lastCascadeSisId = useRef('');
   useEffect(() => {
     if (form.sistemaId) {
       modulosService.getBySistema(form.sistemaId).then(setModulos).catch(() => setModulos([]));
     } else { setModulos([]); }
-    set('moduloId', '');
+    if (lastCascadeSisId.current && lastCascadeSisId.current !== form.sistemaId) {
+      set('moduloId', '');
+    }
+    lastCascadeSisId.current = form.sistemaId;
   }, [form.sistemaId]);
 
   const handlePresupuestoChange = (presupuestoId: string) => {

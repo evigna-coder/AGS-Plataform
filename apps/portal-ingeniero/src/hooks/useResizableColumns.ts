@@ -2,10 +2,29 @@ import { useRef, useState, useCallback } from 'react';
 
 /**
  * Hook for resizable table columns via drag handles.
+ * Pass a `storageKey` to persist column widths across sessions in localStorage.
+ *
+ * Usage:
+ *   const { tableRef, colWidths, onResizeStart } = useResizableColumns('tickets-list');
  */
-export function useResizableColumns() {
+export function useResizableColumns(storageKey?: string) {
   const tableRef = useRef<HTMLTableElement>(null);
-  const [colWidths, setColWidths] = useState<number[] | null>(null);
+
+  // Restore from localStorage if key provided
+  const [colWidths, setColWidths] = useState<number[] | null>(() => {
+    if (!storageKey) return null;
+    try {
+      const saved = localStorage.getItem(`col-widths:${storageKey}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  // Save to localStorage whenever widths change
+  const persistWidths = useCallback((widths: number[]) => {
+    if (storageKey) {
+      try { localStorage.setItem(`col-widths:${storageKey}`, JSON.stringify(widths)); } catch {}
+    }
+  }, [storageKey]);
 
   const onResizeStart = useCallback((colIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -45,13 +64,15 @@ export function useResizableColumns() {
       document.removeEventListener('mouseup', onUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      // Persist final widths
+      setColWidths(prev => { if (prev) persistWidths(prev); return prev; });
     };
 
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [colWidths]);
+  }, [colWidths, persistWidths]);
 
   return { tableRef, colWidths, onResizeStart };
 }

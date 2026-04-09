@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { presupuestosService, clientesService, usuariosService, facturacionService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import type { Presupuesto, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,7 +14,12 @@ import { ConceptosServicioModal } from '../../components/presupuestos/ConceptosS
 import { CategoriasPresupuestoModal } from '../../components/presupuestos/CategoriasPresupuestoModal';
 import { CondicionesPagoModal } from '../../components/presupuestos/CondicionesPagoModal';
 import { PresupuestoDashboard } from '../../components/presupuestos/PresupuestoDashboard';
+import { SolicitarFacturaModal } from '../../components/presupuestos/SolicitarFacturaModal';
+import { AdjuntarOCModal } from '../../components/presupuestos/AdjuntarOCModal';
+import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
+import { useTabs } from '../../contexts/TabsContext';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
 
@@ -22,6 +27,7 @@ const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tr
 const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion'];
 
 export const PresupuestosList = () => {
+  const confirm = useConfirm();
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
@@ -32,7 +38,18 @@ export const PresupuestosList = () => {
   const [showCategorias, setShowCategorias] = useState(false);
   const [showCondiciones, setShowCondiciones] = useState(false);
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
+  const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
+  const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
+  const [otTarget, setOtTarget] = useState<Presupuesto | null>(null);
   const floatingPres = useFloatingPresupuesto();
+  const { navigateInActiveTab } = useTabs();
+
+  const handleQuickEstado = async (p: Presupuesto, nuevoEstado: PresupuestoEstado) => {
+    if (!await confirm(`¿Cambiar ${p.numero} a "${ESTADO_PRESUPUESTO_LABELS[nuevoEstado]}"?`)) return;
+    const updates: Partial<Presupuesto> = { estado: nuevoEstado };
+    if (nuevoEstado === 'enviado' && !p.fechaEnvio) updates.fechaEnvio = new Date().toISOString().split('T')[0];
+    await presupuestosService.update(p.id, updates).catch(() => alert('Error al cambiar estado'));
+  };
 
   const FILTER_SCHEMA = useMemo(() => ({
     search:      { type: 'string' as const, default: '' },
@@ -287,12 +304,52 @@ export const PresupuestosList = () => {
                       <td className="px-3 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
                           {!isAnulado(p) && (
-                            <button onClick={() => setRevisionTarget(p)} title="Crear revisión"
-                              className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
-                              </svg>
-                            </button>
+                            <>
+                              <select
+                                value={p.estado}
+                                onChange={e => handleQuickEstado(p, e.target.value as PresupuestoEstado)}
+                                className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white text-slate-600 cursor-pointer hover:border-slate-400"
+                                title="Cambiar estado"
+                              >
+                                {Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([k, v]) => (
+                                  <option key={k} value={k}>{v}</option>
+                                ))}
+                              </select>
+                              <button onClick={() => setOcTarget(p)} title="Adjuntar OC"
+                                className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                </svg>
+                              </button>
+                              {(p.estado === 'borrador' || p.estado === 'enviado') && (
+                                <button onClick={() => handleQuickEstado(p, 'enviado')} title="Marcar como enviado"
+                                  className="text-[10px] font-medium text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded hover:bg-blue-50">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                                  </svg>
+                                </button>
+                              )}
+                              {p.estado === 'aceptado' && (
+                                <button onClick={() => setFacturaTarget(p)} title="Solicitar facturación"
+                                  className="text-[10px] font-medium text-amber-500 hover:text-amber-700 px-1 py-0.5 rounded hover:bg-amber-50">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                                  </svg>
+                                </button>
+                              )}
+                              <button onClick={() => setOtTarget(p)} title="Crear OT"
+                                className="text-[10px] font-medium text-violet-500 hover:text-violet-700 px-1 py-0.5 rounded hover:bg-violet-50">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" />
+                                </svg>
+                              </button>
+                              <button onClick={() => setRevisionTarget(p)} title="Crear revisión"
+                                className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded hover:bg-slate-100">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                                </svg>
+                              </button>
+                            </>
                           )}
                           <button onClick={() => floatingPres.open(p.id, loadData)}
                             className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1 py-0.5 rounded hover:bg-emerald-50">
@@ -314,6 +371,42 @@ export const PresupuestosList = () => {
       <ConceptosServicioModal open={showConceptos} onClose={() => setShowConceptos(false)} />
       <CategoriasPresupuestoModal open={showCategorias} onClose={() => setShowCategorias(false)} />
       <CondicionesPagoModal open={showCondiciones} onClose={() => setShowCondiciones(false)} />
+      {otTarget && (
+        <CreateOTModal
+          open={!!otTarget}
+          onClose={() => setOtTarget(null)}
+          onCreated={() => setOtTarget(null)}
+          prefill={{
+            clienteId: otTarget.clienteId,
+            sistemaId: otTarget.sistemaId || undefined,
+            contactoId: otTarget.contactoId || undefined,
+            presupuestoId: otTarget.id,
+            presupuestoNumero: otTarget.numero,
+            ordenCompra: (otTarget as any).ordenCompraNumero || undefined,
+          }}
+        />
+      )}
+      {ocTarget && (
+        <AdjuntarOCModal
+          open={!!ocTarget}
+          presupuestoId={ocTarget.id}
+          presupuestoNumero={ocTarget.numero}
+          currentOCNumero={(ocTarget as any).ordenCompraNumero}
+          currentAdjuntos={ocTarget.adjuntos || []}
+          onClose={() => setOcTarget(null)}
+          onSaved={() => setOcTarget(null)}
+        />
+      )}
+      {facturaTarget && (
+        <SolicitarFacturaModal
+          open={!!facturaTarget}
+          presupuesto={facturaTarget}
+          clienteNombre={getClienteNombre(facturaTarget.clienteId)}
+          condicionPagoNombre="—"
+          onClose={() => setFacturaTarget(null)}
+          onCreated={() => setFacturaTarget(null)}
+        />
+      )}
     </div>
   );
 };

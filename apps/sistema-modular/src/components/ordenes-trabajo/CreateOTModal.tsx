@@ -3,20 +3,21 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
-import { useCreateOTForm } from '../../hooks/useCreateOTForm';
+import { useCreateOTForm, type OTPrefill } from '../../hooks/useCreateOTForm';
 import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  prefill?: OTPrefill;
 }
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-0.5';
 const selectClass = 'w-full border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
 
-export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
-  const h = useCreateOTForm(open, onClose, onCreated);
+export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefill }) => {
+  const h = useCreateOTForm(open, onClose, onCreated, prefill);
 
   const selectedContrato = h.contratosCliente.find(c => c.id === h.form.contratoId);
 

@@ -114,17 +114,37 @@ interface Props {
   moneda: MonedaPresupuesto;
 }
 
+const MONEDA_OPTIONS: { value: 'USD' | 'ARS' | 'EUR'; label: string }[] = [
+  { value: 'USD', label: 'USD' },
+  { value: 'ARS', label: 'ARS' },
+  { value: 'EUR', label: 'EUR' },
+];
+
 const EMPTY_ITEM: Partial<PresupuestoItem> = {
   descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
   categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
-  servicioCode: null,
+  servicioCode: null, moneda: null,
 };
 
 export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
-  const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({ ...EMPTY_ITEM });
+  const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({ ...EMPTY_ITEM, moneda: moneda === 'MIXTA' ? 'USD' : null });
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloCatalog[]>([]);
-  const sym = MONEDA_SIMBOLO[moneda] || '$';
-  const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+  const isMixta = moneda === 'MIXTA';
+  const symFor = (m: string) => MONEDA_SIMBOLO[m] || '$';
+  const sym = isMixta ? '' : (MONEDA_SIMBOLO[moneda] || '$');
+  const fmtMoney = (n: number, m?: string | null) => `${m ? symFor(m) : sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+  // Per-currency totals for MIXTA mode
+  const totalsByCurrency = useMemo(() => {
+    if (!isMixta) return null;
+    const map: Record<string, number> = {};
+    items.forEach(i => {
+      const m = i.moneda || 'USD';
+      map[m] = (map[m] || 0) + (i.subtotal || 0);
+    });
+    return map;
+  }, [items, isMixta]);
+
   const totalItems = items.reduce((s, i) => s + (i.subtotal || 0), 0);
 
   // Load articles catalog once
@@ -154,8 +174,9 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       conceptoServicioId: newItem.conceptoServicioId || null,
       servicioCode: newItem.servicioCode || null,
       subtotal,
+      ...(isMixta ? { moneda: newItem.moneda || 'USD' } : {}),
     });
-    setNewItem({ ...EMPTY_ITEM });
+    setNewItem({ ...EMPTY_ITEM, moneda: isMixta ? (newItem.moneda || 'USD') : null });
   };
 
   const handleSelectArticulo = (art: ArticuloCatalog) => {
@@ -248,8 +269,8 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
         </div>
       </div>
 
-      {/* Row 3: Cant, Unidad, Precio, Dto, Categoría, Agregar */}
-      <div className="grid grid-cols-[60px_75px_90px_50px_1fr_auto] gap-2.5 items-end">
+      {/* Row 3: Cant, Unidad, Precio, Dto, [Moneda], Categoría, Agregar */}
+      <div className={`grid ${isMixta ? 'grid-cols-[60px_75px_90px_50px_70px_1fr_auto]' : 'grid-cols-[60px_75px_90px_50px_1fr_auto]'} gap-2.5 items-end`}>
         <div>
           <label className={lbl}>Cant. *</label>
           <input type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={e => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })}
@@ -270,6 +291,15 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
           <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={e => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" placeholder="0" />
         </div>
+        {isMixta && (
+          <div>
+            <label className={lbl}>Moneda</label>
+            <select value={newItem.moneda || 'USD'} onChange={e => setNewItem({ ...newItem, moneda: e.target.value as 'USD' | 'ARS' | 'EUR' })}
+              className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white">
+              {MONEDA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className={lbl}>Categoria <Link to="/presupuestos/categorias" className="text-teal-700 hover:underline">→</Link></label>
           <SearchableSelect value={newItem.categoriaPresupuestoId || ''} onChange={v => setNewItem({ ...newItem, categoriaPresupuestoId: v || undefined })}
@@ -289,6 +319,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center w-24">Codigo</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center">Descripcion</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-12">Cant.</th>
+                {isMixta && <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-14">Mon.</th>}
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-20">P.Unit.</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-20">Subtotal</th>
                 <th className="w-8"></th>
@@ -300,8 +331,9 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
                   <td className="px-2 py-1.5 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
                   <td className="px-3 py-1.5 text-xs text-slate-700 truncate max-w-[300px]">{item.descripcion}</td>
                   <td className="px-2 py-1.5 text-xs text-center">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
-                  <td className="px-2 py-1.5 text-xs text-center font-mono">{fmtMoney(item.precioUnitario)}</td>
-                  <td className="px-2 py-1.5 text-xs text-center font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal)}</td>
+                  {isMixta && <td className="px-2 py-1.5 text-[10px] text-center font-mono text-slate-500">{item.moneda || 'USD'}</td>}
+                  <td className="px-2 py-1.5 text-xs text-center font-mono">{fmtMoney(item.precioUnitario, isMixta ? item.moneda : null)}</td>
+                  <td className="px-2 py-1.5 text-xs text-center font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal, isMixta ? item.moneda : null)}</td>
                   <td className="text-center">
                     <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
                   </td>
@@ -309,11 +341,21 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
               ))}
             </tbody>
             <tfoot className="bg-[#F0F0F0] border-t border-[#E5E5E5]">
-              <tr>
-                <td colSpan={4} className="px-3 py-1.5 text-center text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
-                <td className="px-2 py-1.5 text-center text-xs font-mono font-semibold text-teal-700">{fmtMoney(totalItems)}</td>
-                <td></td>
-              </tr>
+              {isMixta && totalsByCurrency ? (
+                Object.entries(totalsByCurrency).map(([m, total]) => (
+                  <tr key={m}>
+                    <td colSpan={isMixta ? 5 : 4} className="px-3 py-1 text-right text-[9px] font-mono font-semibold text-slate-500 uppercase">Total {m}</td>
+                    <td className="px-2 py-1 text-center text-xs font-mono font-semibold text-teal-700">{fmtMoney(total, m)}</td>
+                    <td></td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-3 py-1.5 text-center text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
+                  <td className="px-2 py-1.5 text-center text-xs font-mono font-semibold text-teal-700">{fmtMoney(totalItems)}</td>
+                  <td></td>
+                </tr>
+              )}
             </tfoot>
           </table>
         </div>

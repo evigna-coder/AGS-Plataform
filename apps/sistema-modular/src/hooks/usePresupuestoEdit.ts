@@ -47,6 +47,11 @@ export interface PresupuestoFormState {
   presupuestoOrigenId: string | null;
   motivoAnulacion: string | null;
   anuladoPorId: string | null;
+  // Cuotas
+  cuotas: import('@ags/shared').PresupuestoCuota[] | null;
+  cantidadCuotas: number | null;
+  // OC
+  ordenCompraNumero: string | null;
 }
 
 export interface PresupuestoTotals {
@@ -70,6 +75,8 @@ const INITIAL_FORM: PresupuestoFormState = {
   adjuntos: [], proximoContacto: '', responsableId: '', responsableNombre: '',
   createdAt: '',
   version: undefined, presupuestoOrigenId: null, motivoAnulacion: null, anuladoPorId: null,
+  cuotas: null, cantidadCuotas: null,
+  ordenCompraNumero: null,
 };
 
 /** Map a Presupuesto document snapshot to the local form state shape. */
@@ -94,6 +101,8 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     createdAt: p.createdAt || '', version: p.version,
     presupuestoOrigenId: p.presupuestoOrigenId || null,
     motivoAnulacion: p.motivoAnulacion || null, anuladoPorId: p.anuladoPorId || null,
+    cuotas: p.cuotas || null, cantidadCuotas: p.cantidadCuotas || null,
+    ordenCompraNumero: p.ordenCompraNumero || null,
   };
 }
 

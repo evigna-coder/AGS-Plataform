@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTabs } from '../../contexts/TabsContext';
 import { Button } from '../ui/Button';
 import type { Presupuesto } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS } from '@ags/shared';
@@ -18,15 +17,14 @@ interface Props {
   onDownloadPDF: () => void;
   onEnviar: () => void;
   onDelete: () => void;
+  onCrearOT?: () => void;
 }
 
 export const PresupuestoHeaderBar: React.FC<Props> = ({
   presupuestoId, numero, estado, clienteRazonSocial,
   saving, generatingPDF, deleting,
-  onMinimize, onClose, onPreviewPDF, onDownloadPDF, onEnviar, onDelete,
+  onMinimize, onClose, onPreviewPDF, onDownloadPDF, onEnviar, onDelete, onCrearOT,
 }) => {
-  const { navigateInActiveTab } = useTabs();
-
   return (
     <div className="-mx-5 -mt-4 px-5 pb-3 mb-4 border-b border-slate-100">
       <div className="flex items-center justify-between">
@@ -64,8 +62,8 @@ export const PresupuestoHeaderBar: React.FC<Props> = ({
               {estado === 'borrador' ? 'Enviar' : 'Reenviar'}
             </Button>
           )}
-          {estado === 'aceptado' && (
-            <Button variant="outline" size="sm" onClick={() => { onClose(); navigateInActiveTab(`/ordenes-trabajo/nuevo?presupuestoId=${presupuestoId}`); }}>Crear OT</Button>
+          {estado === 'aceptado' && onCrearOT && (
+            <Button variant="outline" size="sm" onClick={onCrearOT}>Crear OT</Button>
           )}
           <Button variant="ghost" size="sm" onClick={onDelete} disabled={deleting} title="Eliminar presupuesto"
             className="text-red-400 hover:text-red-600 hover:bg-red-50">

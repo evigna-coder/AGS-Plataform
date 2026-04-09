@@ -94,7 +94,7 @@ export default function LeadsPage() {
     return result;
   }, [leads, usuario, filters.misCreados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns();
+  const { tableRef, colWidths, onResizeStart } = useResizableColumns('pi-tickets-list');
 
   const pipelineTotal = useMemo(() =>
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
@@ -287,7 +287,7 @@ export default function LeadsPage() {
                             {lead.descripcion || lead.motivoContacto || '—'}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-center whitespace-nowrap overflow-hidden">
+                        <td className="px-3 py-2 text-center whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             {!isClosed && canModify && (
                               <>

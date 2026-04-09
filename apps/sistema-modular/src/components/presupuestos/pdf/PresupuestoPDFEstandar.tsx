@@ -31,6 +31,8 @@ export interface PresupuestoPDFData {
   };
   /** Módulos por sistemaId — para mostrar info de equipos en PDF contrato */
   modulosBySistema?: Record<string, ModuloSistema[]>;
+  /** Per-currency totals for MIXTA presupuestos */
+  totalsByCurrency?: Record<string, number>;
 }
 
 const S = baseStyles;
@@ -274,15 +276,49 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
               <Text style={S.totalsValue}>{impuestos.iibb.toFixed(2)}</Text>
             </View>
           )}
-          <View style={S.totalsRowFinal}>
-            <Text style={S.totalsLabelFinal}>TOTAL {moneda}</Text>
-            <Text style={S.totalsValueFinal}>{total?.toFixed(2)}</Text>
-          </View>
+          {data.totalsByCurrency ? (
+            Object.entries(data.totalsByCurrency).map(([m, t]) => (
+              <View key={m} style={S.totalsRowFinal}>
+                <Text style={S.totalsLabelFinal}>TOTAL {m}</Text>
+                <Text style={S.totalsValueFinal}>{t?.toFixed(2)}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={S.totalsRowFinal}>
+              <Text style={S.totalsLabelFinal}>TOTAL {moneda}</Text>
+              <Text style={S.totalsValueFinal}>{total?.toFixed(2)}</Text>
+            </View>
+          )}
         </View>
       </View>
 
       {/* Monto en letras */}
       <Text style={S.monedaLetras}>{montoEnLetras}</Text>
+
+      {/* Plan de cuotas */}
+      {presupuesto.cuotas && presupuesto.cuotas.length > 0 && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: COLORS.primary, marginBottom: 4, textTransform: 'uppercase' }}>
+            Plan de cuotas ({presupuesto.cuotas.length})
+          </Text>
+          <View style={{ borderWidth: 0.5, borderColor: COLORS.border }}>
+            <View style={{ flexDirection: 'row', backgroundColor: COLORS.sectionBg, padding: 3 }}>
+              <Text style={{ fontSize: 6, fontWeight: 700, width: '15%', textAlign: 'center' }}>#</Text>
+              <Text style={{ fontSize: 6, fontWeight: 700, width: '20%', textAlign: 'center' }}>Moneda</Text>
+              <Text style={{ fontSize: 6, fontWeight: 700, width: '30%', textAlign: 'right' }}>Monto</Text>
+              <Text style={{ fontSize: 6, fontWeight: 700, width: '35%', textAlign: 'left', paddingLeft: 6 }}>Descripción</Text>
+            </View>
+            {presupuesto.cuotas.map((c, i) => (
+              <View key={i} style={{ flexDirection: 'row', padding: 2, borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: COLORS.border }}>
+                <Text style={{ fontSize: 6, width: '15%', textAlign: 'center' }}>{c.numero}</Text>
+                <Text style={{ fontSize: 6, width: '20%', textAlign: 'center' }}>{c.moneda}</Text>
+                <Text style={{ fontSize: 6, width: '30%', textAlign: 'right' }}>{c.monto?.toFixed(2)}</Text>
+                <Text style={{ fontSize: 6, width: '35%', textAlign: 'left', paddingLeft: 6 }}>{c.descripcion || ''}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }

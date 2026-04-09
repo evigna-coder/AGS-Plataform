@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { PresupuestoItemsTable } from './PresupuestoItemsTable';
+import { PresupuestoCuotasSection } from './PresupuestoCuotasSection';
 import { PresupuestoAdjuntosSection } from './PresupuestoAdjuntosSection';
 import { PresupuestoCondicionesEditor } from './PresupuestoCondicionesEditor';
 import { SistemasPresupuestoPanel } from './SistemasPresupuestoPanel';
@@ -15,7 +16,9 @@ import { ReservarStockModal } from '../stock/ReservarStockModal';
 import { usePresupuestoEdit } from '../../hooks/usePresupuestoEdit';
 import { usePresupuestoSistemas } from '../../hooks/usePresupuestoSistemas';
 import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
-import type { Presupuesto } from '@ags/shared';
+import { CreateOTModal } from '../ordenes-trabajo/CreateOTModal';
+import type { Presupuesto, PresupuestoCuota } from '@ags/shared';
+import { MONEDA_SIMBOLO } from '@ags/shared';
 
 interface Props {
   presupuestoId: string;
@@ -31,6 +34,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const [showSolicitarFactura, setShowSolicitarFactura] = useState(false);
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
   const [showReservar, setShowReservar] = useState(false);
+  const [showCrearOT, setShowCrearOT] = useState(false);
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
@@ -53,6 +57,22 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   };
 
   const totals = calculateTotals();
+  const isMixta = form.moneda === 'MIXTA';
+
+  const totalsByCurrency = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (isMixta) {
+      (form.items ?? []).forEach(i => { const m = i.moneda || 'USD'; map[m] = (map[m] || 0) + (i.subtotal || 0); });
+    } else {
+      map[form.moneda] = totals.total;
+    }
+    return map;
+  }, [form.items, form.moneda, isMixta, totals.total]);
+
+  const handleCuotasChange = (cuotas: PresupuestoCuota[]) => {
+    setField('cuotas', cuotas);
+    setField('cantidadCuotas', cuotas.length || null);
+  };
 
   const itemsConStock = (form.items ?? [])
     .filter(i => i.stockArticuloId)
@@ -96,6 +116,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           onDownloadPDF={actions.handleDownloadPDF}
           onEnviar={() => setShowEnviarEmail(true)}
           onDelete={actions.handleDelete}
+          onCrearOT={() => setShowCrearOT(true)}
         />
 
         <PresupuestoMetadataStrip
@@ -151,6 +172,16 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           getGrupo={getGrupo}
         />
 
+        {/* Cuotas */}
+        <div className="mt-4">
+          <PresupuestoCuotasSection
+            cuotas={form.cuotas || []}
+            onChange={handleCuotasChange}
+            totalsByCurrency={totalsByCurrency}
+            moneda={form.moneda}
+          />
+        </div>
+
         {/* Collapsible sections */}
         <div className="mt-4 space-y-2">
           <CollapsibleSection
@@ -189,11 +220,17 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
         {/* Footer */}
         <div className="-mx-5 -mb-4 mt-4 flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl">
           <div className="text-xs text-slate-500">
-            {form.items.length > 0 && (
+            {form.items.length > 0 && isMixta ? (
+              <span>Items: <strong>{form.items.length}</strong> — {
+                Object.entries(totalsByCurrency).map(([m, t], i) => (
+                  <span key={m}>{i > 0 && ' · '}<strong className="text-teal-700">{MONEDA_SIMBOLO[m] || '$'} {t.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>
+                ))
+              }</span>
+            ) : form.items.length > 0 ? (
               <span>Items: <strong>{form.items.length}</strong> — Total: <strong className="text-teal-700">{actions.fmtMoney(totals.total)}</strong>
                 {totals.totalImpuestos > 0 && <span className="text-slate-400"> (imp: {actions.fmtMoney(totals.totalImpuestos)})</span>}
               </span>
-            )}
+            ) : null}
           </div>
           <div className="flex gap-2 flex-wrap">
             {FACTURACION_STATES.includes(form.estado) && (
@@ -264,6 +301,21 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           items={itemsConStock}
           onClose={() => setShowReservar(false)}
           onSuccess={() => setShowReservar(false)}
+        />
+      )}
+      {showCrearOT && (
+        <CreateOTModal
+          open={showCrearOT}
+          onClose={() => setShowCrearOT(false)}
+          onCreated={() => { setShowCrearOT(false); onUpdated?.(); }}
+          prefill={{
+            clienteId: form.clienteId,
+            sistemaId: form.sistemaId || undefined,
+            contactoId: form.contactoId || undefined,
+            presupuestoId,
+            presupuestoNumero: form.numero,
+            ordenCompra: form.ordenCompraNumero || undefined,
+          }}
         />
       )}
     </>

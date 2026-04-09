@@ -131,6 +131,8 @@ export const LeadDetail = () => {
     if (lead.clienteId) params.set('cliente', lead.clienteId);
     if (lead.sistemaId) params.set('sistema', lead.sistemaId);
     if (lead.moduloId) params.set('modulo', lead.moduloId);
+    if (lead.contacto) params.set('contactoNombre', lead.contacto);
+    if (lead.email) params.set('email', lead.email);
     params.set('leadId', lead.id);
     navigate(`/ordenes-trabajo/nuevo?${params.toString()}`);
   };

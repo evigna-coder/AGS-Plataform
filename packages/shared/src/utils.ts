@@ -74,7 +74,7 @@ NOTA: Tiempo estimado de inicio de servicio: lo antes posible dentro de los 30 d
  * Convierte un número a texto en español para montos en presupuestos.
  * Ej: 57734.97 → "CINCUENTA Y SIETE MIL SETECIENTOS TREINTA Y CUATRO CON 97/100"
  */
-export function numberToWords(n: number, moneda: 'USD' | 'ARS' | 'EUR' = 'USD'): string {
+export function numberToWords(n: number, moneda: string = 'USD'): string {
   const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
   const especiales = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE',
     'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];

@@ -17,6 +17,8 @@ export const OTNew = () => {
   const moduloIdFromUrl = searchParams.get('modulo');
   const leadIdFromUrl = searchParams.get('leadId');
   const presupuestoIdFromUrl = searchParams.get('presupuestoId');
+  const contactoNombreFromUrl = searchParams.get('contactoNombre');
+  const emailFromUrl = searchParams.get('email');
 
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -77,6 +79,14 @@ export const OTNew = () => {
       setSistemasFiltrados([]);
     }
   }, [formData.clienteId]);
+
+  // Auto-match contacto by name from URL params (Lead → OT flow)
+  useEffect(() => {
+    if (!contactoNombreFromUrl || contactos.length === 0 || formData.contactoId) return;
+    const nombre = contactoNombreFromUrl.toLowerCase();
+    const match = contactos.find(c => c.nombre.toLowerCase() === nombre);
+    if (match) setFormData(prev => ({ ...prev, contactoId: match.id }));
+  }, [contactos, contactoNombreFromUrl, formData.contactoId]);
 
   useEffect(() => {
     if (formData.sistemaId) {
@@ -198,7 +208,7 @@ export const OTNew = () => {
         tieneContrato: cliente.tipoServicio === 'contrato',
         esGarantia: false,
         razonSocial: cliente.razonSocial,
-        contacto: contacto?.nombre || '',
+        contacto: contacto?.nombre || contactoNombreFromUrl || '',
         direccion: cliente.direccion || '',
         localidad: cliente.localidad || '',
         provincia: cliente.provincia || '',
@@ -215,7 +225,7 @@ export const OTNew = () => {
         reporteTecnico: '',
         accionesTomar: '',
         articulos: [],
-        emailPrincipal: contacto?.email || '',
+        emailPrincipal: contacto?.email || emailFromUrl || '',
         signatureEngineer: null,
         aclaracionEspecialista: '',
         signatureClient: null,
@@ -256,7 +266,7 @@ export const OTNew = () => {
   const generateNextOT = async () => {
     try {
       const nextOT = await ordenesTrabajoService.getNextOtNumber();
-      setFormData({ ...formData, otNumber: nextOT });
+      setFormData(prev => ({ ...prev, otNumber: nextOT }));
     } catch (error) {
       console.error('Error generando OT:', error);
       alert('Error al generar número de OT automático');
@@ -300,7 +310,7 @@ export const OTNew = () => {
                       if (!/^\d{0,5}(\.\d{0,2})?$/.test(value)) {
                         return;
                       }
-                      setFormData({ ...formData, otNumber: value });
+                      setFormData(prev => ({ ...prev, otNumber: value }));
                     }}
                     placeholder="25660 o 25660.02"
                     required
@@ -318,7 +328,7 @@ export const OTNew = () => {
                 </label>
                 <SearchableSelect
                   value={formData.tipoServicio}
-                  onChange={(value) => setFormData({ ...formData, tipoServicio: value })}
+                  onChange={(value) => setFormData(prev => ({ ...prev, tipoServicio: value }))}
                   options={tiposServicio.map(t => ({ value: t.nombre, label: t.nombre }))}
                   placeholder="Seleccionar tipo de servicio..."
                   required
@@ -339,7 +349,7 @@ export const OTNew = () => {
               <label className="block text-xs font-medium text-slate-600 mb-1">Cliente *</label>
               <SearchableSelect
                 value={formData.clienteId}
-                onChange={(value) => setFormData({ ...formData, clienteId: value, sistemaId: '', contactoId: '' })}
+                onChange={(value) => setFormData(prev => ({ ...prev, clienteId: value, sistemaId: '', contactoId: '' }))}
                 options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
                 placeholder="Seleccionar cliente..."
                 required
@@ -352,7 +362,7 @@ export const OTNew = () => {
                   <label className="block text-xs font-medium text-slate-600 mb-1">Sistema / Equipo *</label>
                   <SearchableSelect
                     value={formData.sistemaId}
-                    onChange={(value) => setFormData({ ...formData, sistemaId: value })}
+                    onChange={(value) => setFormData(prev => ({ ...prev, sistemaId: value }))}
                     options={sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` }))}
                     placeholder="Seleccionar sistema..."
                     required
@@ -364,7 +374,7 @@ export const OTNew = () => {
                     <label className="block text-xs font-medium text-slate-600 mb-1">Contacto</label>
                     <SearchableSelect
                       value={formData.contactoId}
-                      onChange={(value) => setFormData({ ...formData, contactoId: value })}
+                      onChange={(value) => setFormData(prev => ({ ...prev, contactoId: value }))}
                       options={[
                         { value: '', label: 'Sin contacto específico' },
                         ...contactos.map(c => ({ value: c.id, label: `${c.nombre}${c.cargo ? ` - ${c.cargo}` : ''}` })),
