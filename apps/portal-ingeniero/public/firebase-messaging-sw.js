@@ -20,6 +20,13 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Fetch handler — requerido por Chrome para que la PWA sea instalable.
+// Network-first: deja pasar todo al servidor, sin cache offline.
+self.addEventListener('fetch', (event) => {
+  // No interceptar — dejar que el navegador maneje normalmente
+  return;
+});
+
 // Background push handler — cuando la app NO está en foreground
 self.addEventListener('push', (event) => {
   if (!event.data) return;
