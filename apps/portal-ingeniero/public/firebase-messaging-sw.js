@@ -6,38 +6,22 @@
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/11.8.1/firebase-messaging-compat.js');
 
-// La config se inyecta desde el cliente al registrar el SW, pero FCM necesita
-// firebase inicializado en el SW también. Usamos messagingSenderId mínimo.
-// El resto de la config se pasa via postMessage desde la app.
-let firebaseConfig = null;
-
-// Escuchar mensaje de la app con la config completa
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'FIREBASE_CONFIG') {
-    firebaseConfig = event.data.config;
-    firebase.initializeApp(firebaseConfig);
-    firebase.messaging();
-  }
+// Config pública de Firebase — se inicializa inmediatamente para que FCM
+// registre los handlers de push/notificationclick en la evaluación inicial.
+firebase.initializeApp({
+  apiKey: 'AIzaSyD5oxchnQBK69zXGE-hrbRZ8vdduvwVjWw',
+  authDomain: 'agssop-e7353.firebaseapp.com',
+  projectId: 'agssop-e7353',
+  storageBucket: 'agssop-e7353.firebasestorage.app',
+  messagingSenderId: '818451692964',
+  appId: '1:818451692964:web:e9c4c9485f81d823e45531',
 });
 
-// Fetch handler — requerido por Chrome para que la PWA sea instalable.
-// Network-first: deja pasar todo al servidor, sin cache offline.
-self.addEventListener('fetch', (event) => {
-  // No interceptar — dejar que el navegador maneje normalmente
-  return;
-});
+// Inicializar messaging — esto registra los handlers de FCM internos
+const messaging = firebase.messaging();
 
-// Background push handler — cuando la app NO está en foreground
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-
-  let payload;
-  try {
-    payload = event.data.json();
-  } catch {
-    return;
-  }
-
+// Background message handler — cuando la app NO está en foreground
+messaging.onBackgroundMessage((payload) => {
   const notification = payload.notification || {};
   const data = payload.data || {};
 
@@ -52,13 +36,16 @@ self.addEventListener('push', (event) => {
       leadId: data.leadId || null,
       type: data.type || 'generic',
     },
-    // Vibrar en mobile
     vibrate: [200, 100, 200],
-    // Mantener la notificación hasta que el usuario interactúe
     requireInteraction: data.type === 'lead_urgent',
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  return self.registration.showNotification(title, options);
+});
+
+// Fetch handler — requerido por Chrome para que la PWA sea instalable.
+self.addEventListener('fetch', () => {
+  // No interceptar — dejar que el navegador maneje normalmente
 });
 
 // Click en notificación → abrir/focar el portal en el ticket
@@ -70,7 +57,6 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Si ya hay una ventana del portal abierta, focarla y navegar
       for (const client of windowClients) {
         if (client.url.startsWith(self.location.origin)) {
           client.focus();
@@ -78,7 +64,6 @@ self.addEventListener('notificationclick', (event) => {
           return;
         }
       }
-      // Si no hay ventana, abrir una nueva
       return clients.openWindow(fullUrl);
     })
   );

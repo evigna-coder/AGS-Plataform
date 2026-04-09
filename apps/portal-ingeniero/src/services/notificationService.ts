@@ -51,31 +51,6 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
       scope: '/',
     });
-
-    // Enviar config de Firebase al SW
-    const firebaseConfig = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    };
-
-    // Esperar a que el SW esté activo antes de enviar el mensaje
-    const sw = registration.active || registration.installing || registration.waiting;
-    if (sw) {
-      if (sw.state === 'activated') {
-        sw.postMessage({ type: 'FIREBASE_CONFIG', config: firebaseConfig });
-      } else {
-        sw.addEventListener('statechange', () => {
-          if (sw.state === 'activated') {
-            sw.postMessage({ type: 'FIREBASE_CONFIG', config: firebaseConfig });
-          }
-        });
-      }
-    }
-
     return registration;
   } catch (error) {
     console.error('[Notifications] Error registrando Service Worker:', error);
