@@ -21,7 +21,7 @@ import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState } from '../componen
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../utils/leadHelpers';
 import { useResizableColumns } from '../hooks/useResizableColumns';
 
-const thBase = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
+const thBase = 'px-2 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative select-none';
 
 export default function LeadsPage() {
   const navigate = useNavigate();
@@ -199,17 +199,17 @@ export default function LeadsPage() {
                   <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 ) : (
                   <colgroup>
-                    <col style={{ width: '13%' }} />{/* Cliente */}
-                    <col style={{ width: '10%' }} />{/* Contacto */}
+                    <col style={{ width: '11%' }} />{/* Cliente */}
+                    <col style={{ width: '8%' }} />{/* Contacto */}
                     <col style={{ width: '6%' }} />{/* Motivo */}
                     <col style={{ width: '5%' }} />{/* Prioridad */}
                     <col style={{ width: '7%' }} />{/* Estado */}
-                    <col style={{ width: '9%' }} />{/* Área */}
-                    <col style={{ width: '9%' }} />{/* Asignado */}
-                    <col style={{ width: '7%' }} />{/* Fecha */}
-                    <col style={{ width: '6%' }} />{/* Seguimiento */}
-                    <col style={{ width: '18%' }} />{/* Observaciones */}
-                    <col style={{ width: '10%' }} />{/* Acciones */}
+                    <col style={{ width: '8%' }} />{/* Área */}
+                    <col style={{ width: '8%' }} />{/* Asignado */}
+                    <col style={{ width: '6%' }} />{/* Fecha */}
+                    <col style={{ width: '5%' }} />{/* Seguimiento */}
+                    <col style={{ width: '22%' }} />{/* Observaciones */}
+                    <col style={{ width: '14%' }} />{/* Acciones */}
                   </colgroup>
                 )}
                 <thead className="sticky top-0 z-10">
@@ -236,12 +236,12 @@ export default function LeadsPage() {
                     return (
                       <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                         onClick={() => navigate(`/leads/${lead.id}`)}>
-                        <td className="px-3 py-2 overflow-hidden">
-                          <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
+                        <td className="px-2 py-1.5 overflow-hidden">
+                          <Link to={`/leads/${lead.id}`} className="text-[11px] font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
                             {lead.razonSocial}
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden" title={lead.contacto}>
+                        <td className="px-2 py-1.5 text-[11px] text-slate-600 truncate overflow-hidden" title={lead.contacto}>
                           {lead.contacto}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap overflow-hidden">

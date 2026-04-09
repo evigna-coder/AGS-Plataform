@@ -24,6 +24,17 @@ export default function LeadDetailPage() {
   const [comentario, setComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
 
+  // Escape key → back to grid
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !showDerivar && !showFinalizar) {
+        navigate('/leads');
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [navigate, showDerivar, showFinalizar]);
+
   // Entidades vinculadas (read-only)
   const [linkedOTs, setLinkedOTs] = useState<string[]>([]);
 
@@ -173,14 +184,6 @@ export default function LeadDetailPage() {
               )}
             </div>
 
-            {/* Adjuntos */}
-            <LeadAdjuntosSection
-              leadId={lead.id}
-              adjuntos={lead.adjuntos || []}
-              onUpdated={load}
-              readOnly={!isActive}
-            />
-
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -217,6 +220,14 @@ export default function LeadDetailPage() {
                 <LeadTimeline postas={lead.postas} />
               </div>
             </Card>
+
+            {/* Adjuntos */}
+            <LeadAdjuntosSection
+              leadId={lead.id}
+              adjuntos={lead.adjuntos || []}
+              onUpdated={load}
+              readOnly={!isActive}
+            />
 
             {/* Entidades vinculadas (read-only) */}
             {linkedOTs.length > 0 && (

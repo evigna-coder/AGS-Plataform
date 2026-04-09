@@ -31,6 +31,17 @@ export const LeadDetail = () => {
 
   const [moduloNombre, setModuloNombre] = useState<string | null>(null);
 
+  // Escape key → back to grid
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !showDerivar && !showFinalizar && !showCrearPresupuesto) {
+        goBack();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [goBack, showDerivar, showFinalizar, showCrearPresupuesto]);
+
   // Entidades vinculadas
   const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string; estado: string }[]>([]);
   const [linkedOTs, setLinkedOTs] = useState<{ otNumber: string }[]>([]);

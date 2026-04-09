@@ -39,6 +39,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const [prioridad, setPrioridad] = useState<LeadPrioridad>('normal');
   const [estadoInicial, setEstadoInicial] = useState<import('@ags/shared').TicketEstado>('nuevo');
   const [diasProximoContacto, setDiasProximoContacto] = useState('');
+  const [fechaContactoCustom, setFechaContactoCustom] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -106,6 +107,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const sistemasFiltrados = clienteId ? sistemas.filter(s => s.clienteId === clienteId) : sistemas;
 
   const calcProximoContacto = (): string | null => {
+    if (fechaContactoCustom) return fechaContactoCustom;
     const dias = TICKET_PRIORIDAD_DIAS[prioridad] ?? 7;
     const date = new Date();
     date.setDate(date.getDate() + dias);
@@ -173,7 +175,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
     sistemaId, moduloId, setModuloId, modulos,
     asignadoA, setAsignadoA, areaActual, setAreaActual,
     accionPendiente, setAccionPendiente, prioridad, setPrioridad, estadoInicial, setEstadoInicial,
-    diasProximoContacto, setDiasProximoContacto,
+    diasProximoContacto, setDiasProximoContacto, fechaContactoCustom, setFechaContactoCustom,
     clienteSearch, setClienteSearch, showClienteDropdown, setShowClienteDropdown,
     filteredClientes, sistemasFiltrados, contactosCliente, handleSelectContacto,
     handleSelectCliente, handleClearCliente, handleSistemaChange,

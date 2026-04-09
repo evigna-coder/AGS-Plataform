@@ -95,11 +95,15 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Próximo contacto</label>
-            <select value={h.prioridad} onChange={e => h.setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
+            <select value={h.prioridad} onChange={e => { h.setPrioridad(e.target.value as TicketPrioridad); h.setFechaContactoCustom(''); }} className={selectClass}>
               {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
                 <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
               ))}
             </select>
+            <input type="date" value={h.fechaContactoCustom}
+              onChange={e => h.setFechaContactoCustom(e.target.value)}
+              className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              title="O elegir fecha específica" placeholder="Fecha personalizada" />
           </div>
           <Input inputSize="sm" label="Acción pendiente (opcional)" value={h.accionPendiente}
             onChange={e => h.setAccionPendiente(e.target.value)}

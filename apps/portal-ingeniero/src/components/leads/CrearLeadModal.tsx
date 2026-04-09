@@ -50,6 +50,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [accionPendiente, setAccionPendiente] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [motivoOtros, setMotivoOtros] = useState('');
+  const [fechaContactoCustom, setFechaContactoCustom] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -153,7 +154,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         areaActual: areaActual || null,
         accionPendiente: accionPendiente.trim() || null,
         prioridad: prioridad || 'normal',
-        proximoContacto: (() => { const d = new Date(); d.setDate(d.getDate() + (TICKET_PRIORIDAD_DIAS[prioridad] ?? 7)); return d.toISOString().split('T')[0]; })(),
+        proximoContacto: fechaContactoCustom || (() => { const d = new Date(); d.setDate(d.getDate() + (TICKET_PRIORIDAD_DIAS[prioridad] ?? 7)); return d.toISOString().split('T')[0]; })(),
         source: 'portal',
       } as Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>);
       // Upload adjuntos if any
@@ -185,6 +186,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setMotivoOtros('');
     setDescripcion('');
     setPendingFiles([]);
+    setFechaContactoCustom('');
     setClienteSearch('');
     setContactos([]);
     setStep(1);
@@ -289,11 +291,15 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>Próximo contacto</label>
-          <select value={prioridad} onChange={e => setPrioridad(e.target.value as TicketPrioridad)} className={selectClass}>
+          <select value={prioridad} onChange={e => { setPrioridad(e.target.value as TicketPrioridad); setFechaContactoCustom(''); }} className={selectClass}>
             {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
               <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
             ))}
           </select>
+          <input type="date" value={fechaContactoCustom}
+            onChange={e => setFechaContactoCustom(e.target.value)}
+            className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            title="O elegir fecha específica" />
         </div>
         <Input label="Acción pendiente (opcional)" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
           placeholder="Ej: Averiguar N° parte, Confirmar disponibilidad..." />

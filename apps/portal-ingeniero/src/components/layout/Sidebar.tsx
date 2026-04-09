@@ -16,7 +16,7 @@ export default function Sidebar() {
   const { usuario } = useAuth();
 
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 bg-slate-900 min-h-0">
+    <aside className="hidden md:flex flex-col w-48 shrink-0 bg-slate-900 min-h-0">
       {/* Branding */}
       <div className="px-5 py-4 border-b border-slate-700">
         <p className="text-xs font-semibold text-slate-400 tracking-widest uppercase">AGS Analítica</p>
