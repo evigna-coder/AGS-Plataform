@@ -12,6 +12,7 @@ import {
 } from './webauthn.js';
 import { handleValidateCuit } from './afip.js';
 export { processMailQueue } from './mailer.js';
+export { onLeadWritten } from './notifications.js';
 
 initializeApp();
 

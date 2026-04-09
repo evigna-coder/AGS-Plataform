@@ -5,26 +5,14 @@ import { formatRangeLabel } from '../../utils/agendaDateUtils';
 interface AgendaHeaderProps {
   anchor: Date;
   zoomLevel: ZoomLevel;
-  onZoomChange: (zoom: ZoomLevel) => void;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
 }
 
-const ZOOM_LABELS: Record<ZoomLevel, string> = {
-  week: '1S',
-  '2weeks': '2S',
-  month: '1M',
-  '2months': '2M',
-  year: 'Año',
-};
-
-const ZOOM_ORDER: ZoomLevel[] = ['week', '2weeks', 'month', '2months', 'year'];
-
 export const AgendaHeader: FC<AgendaHeaderProps> = ({
   anchor,
   zoomLevel,
-  onZoomChange,
   onPrev,
   onNext,
   onToday,
@@ -71,23 +59,6 @@ export const AgendaHeader: FC<AgendaHeaderProps> = ({
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* Zoom pills */}
-      <div className="flex bg-slate-100 rounded-md p-0.5 shrink-0">
-        {ZOOM_ORDER.map(z => (
-          <button
-            key={z}
-            onClick={() => onZoomChange(z)}
-            className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-              zoomLevel === z
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {ZOOM_LABELS[z]}
-          </button>
-        ))}
-      </div>
     </div>
   );
 };

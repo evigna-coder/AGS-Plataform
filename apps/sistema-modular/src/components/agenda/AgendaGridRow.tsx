@@ -86,6 +86,7 @@ export const AgendaGridRow = memo<AgendaGridRowProps>(({
             entrySistemaNombre={entry?.sistemaNombre}
             entryNotas={entry?.notas}
             entryRef={entry}
+            allEntriesRef={occs.length > 0 ? occs.map(o => o.entry) : undefined}
             isStart={primary?.isStart}
             isEnd={primary?.isEnd}
             entryCount={occs.length}

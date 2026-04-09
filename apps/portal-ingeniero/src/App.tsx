@@ -1,6 +1,9 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Spinner } from './components/ui/Spinner';
+import { ToastContainer, showToast } from './components/ui/Toast';
+import { onForegroundNotification } from './services/notificationService';
 import AppShell from './components/layout/AppShell';
 import LoginPage from './pages/LoginPage';
 import OTListPage from './pages/OTListPage';
@@ -61,6 +64,14 @@ function PrivateApp() {
     return <LoginPage />;
   }
 
+  // Foreground notifications → toast in-app
+  useEffect(() => {
+    const unsub = onForegroundNotification(({ title, body, data }) => {
+      showToast(title, body, data);
+    });
+    return unsub;
+  }, []);
+
   return (
     <Routes>
       <Route element={<AppShell />}>
@@ -90,6 +101,7 @@ export default function App() {
           {/* Todas las demás rutas → auth gate */}
           <Route path="/*" element={<PrivateApp />} />
         </Routes>
+        <ToastContainer />
       </AuthProvider>
     </BrowserRouter>
   );

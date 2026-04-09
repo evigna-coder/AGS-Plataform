@@ -1,7 +1,9 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
 import { ESTADO_AGENDA_LABELS } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
+import { AgendaCellPopover } from './AgendaCellPopover';
 
 const CELL_BG: Record<EstadoAgenda, string> = {
   pendiente: 'bg-slate-300',
@@ -45,6 +47,8 @@ interface AgendaGridCellProps {
   rowHeight: string;
   // Entry object only needed for draggable data — passed by ref, not compared in memo
   entryRef?: AgendaEntry;
+  // All entries in this cell — used for hover popover, not compared in memo
+  allEntriesRef?: AgendaEntry[];
   onClick?: (e?: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }
@@ -56,7 +60,7 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   entryTipoServicio, entrySistemaNombre, entryNotas,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, showText, compact, isSelected, inSelectionRange, rowHeight,
-  entryRef, onClick, onContextMenu,
+  entryRef, allEntriesRef, onClick, onContextMenu,
 }) => {
   const hasEntry = !!entryId;
   const droppableId = `cell:${ingenieroId}:${fecha}:${quarter}`;
@@ -86,6 +90,12 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
     ? `${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`
     : '';
 
+  // Hover popover for multi-entry cells
+  const [showPopover, setShowPopover] = useState(false);
+  const cellElementRef = useRef<HTMLElement | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }, []);
+
   const isDayEnd = quarter === 4;
   const borderClass = compact
     ? `${isDayEnd ? 'border-r border-r-slate-300' : 'border-r border-slate-100/30'} border-b border-b-slate-200`
@@ -94,58 +104,79 @@ export const AgendaGridCell = memo<AgendaGridCellProps>(({
   const setNodeRef = useCallback((node: HTMLElement | null) => {
     setDropRef(node);
     setDragRef(node);
+    cellElementRef.current = node;
   }, [setDropRef, setDragRef]);
 
   return (
-    <div
-      ref={setNodeRef}
-      {...(hasEntry && isStart ? { ...listeners, ...attributes } : {})}
-      className={`${borderClass} cursor-pointer transition-colors relative
-        ${hasEntry ? bg : isFeriado ? 'bg-red-50' : 'hover:bg-slate-50'}
-        ${rounded}
-        ${isToday && !hasEntry && !isFeriado ? 'bg-teal-50/40' : ''}
-        ${cancelled ? 'opacity-40' : ''}
-        ${isSelected ? 'ring-2 ring-inset ring-teal-500 z-10' : ''}
-        ${inSelectionRange && !isSelected ? 'bg-teal-100/60 ring-1 ring-inset ring-teal-300' : ''}
-        ${isOver && !isSelected && !inSelectionRange ? 'ring-2 ring-inset ring-teal-400 bg-teal-50/60' : ''}
-        ${isDragging ? 'opacity-30' : ''}
-        ${hasEntry && isStart ? 'cursor-grab active:cursor-grabbing' : ''}
-      `}
-      style={{ height: rowHeight }}
-      {...(isSelected ? { 'data-agenda-selected': 'true' } : {})}
-      onClick={(e) => onClick?.(e)}
-      onContextMenu={onContextMenu}
-      title={hasEntry ? `${entryOtNumber ? `OT-${entryOtNumber}` : entryTitulo || 'Tarea'}\n${entryClienteNombre || ''}${entryTipoServicio ? `\n${entryTipoServicio}` : ''}${entrySistemaNombre ? `\n${entrySistemaNombre}` : ''}\n${ESTADO_AGENDA_LABELS[entryEstado!]}${entryNotas ? `\n${entryNotas}` : ''}${hasMultiple ? `\n(+${entryCount - 1} más)` : ''}` : undefined}
-    >
-      {isStart && hasEntry && showText && (
-        <span
-          className={`text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''}`}
-          style={{ lineHeight: rowHeight }}
-        >
-          {entryOtNumber || entryTitulo || '—'}
-        </span>
+    <>
+      <div
+        ref={setNodeRef}
+        {...(hasEntry && isStart ? { ...listeners, ...attributes } : {})}
+        className={`${borderClass} cursor-pointer transition-colors relative
+          ${hasEntry ? bg : isFeriado ? 'bg-red-50' : 'hover:bg-slate-50'}
+          ${rounded}
+          ${isToday && !hasEntry && !isFeriado ? 'bg-teal-50/40' : ''}
+          ${cancelled ? 'opacity-40' : ''}
+          ${isSelected ? 'ring-2 ring-inset ring-teal-500 z-10' : ''}
+          ${inSelectionRange && !isSelected ? 'bg-teal-100/60 ring-1 ring-inset ring-teal-300' : ''}
+          ${isOver && !isSelected && !inSelectionRange ? 'ring-2 ring-inset ring-teal-400 bg-teal-50/60' : ''}
+          ${isDragging ? 'opacity-30' : ''}
+          ${hasEntry && isStart ? 'cursor-grab active:cursor-grabbing' : ''}
+        `}
+        style={{ height: rowHeight }}
+        {...(isSelected ? { 'data-agenda-selected': 'true' } : {})}
+        onClick={(e) => onClick?.(e)}
+        onContextMenu={onContextMenu}
+        onMouseEnter={() => {
+          if (hasEntry && allEntriesRef && allEntriesRef.length > 0) {
+            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+            setShowPopover(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (showPopover) hideTimerRef.current = setTimeout(() => setShowPopover(false), 150);
+        }}
+        title={undefined}
+      >
+        {isStart && hasEntry && showText && (
+          <span
+            className={`text-[8px] font-semibold px-0.5 truncate block whitespace-nowrap overflow-hidden ${text} ${cancelled ? 'line-through' : ''}`}
+            style={{ lineHeight: rowHeight }}
+          >
+            {entryOtNumber || entryTitulo || '—'}
+          </span>
+        )}
+        {isOver && !hasEntry && (
+          <span className="absolute inset-0 flex items-center justify-center text-teal-500 text-[10px] font-bold pointer-events-none select-none">+</span>
+        )}
+        {hasMultiple && !compact && (
+          <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />
+        )}
+        {/* Resize handle — right edge of the last cell of an entry */}
+        {hasEntry && isEnd && !compact && (
+          <div
+            ref={setResizeRef}
+            {...resizeListeners}
+            {...resizeAttrs}
+            className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize z-20 flex items-center justify-center group
+              ${isResizing ? 'bg-teal-600/40' : 'hover:bg-teal-400/50'}`}
+            onClick={e => e.stopPropagation()}
+            title="Arrastrar para cambiar duración"
+          >
+            <span className="w-0.5 h-3 rounded bg-current opacity-50 group-hover:opacity-100" />
+          </div>
+        )}
+      </div>
+      {showPopover && allEntriesRef && allEntriesRef.length > 0 && cellElementRef.current && createPortal(
+        <AgendaCellPopover
+          entries={allEntriesRef}
+          cellRect={cellElementRef.current.getBoundingClientRect()}
+          onMouseEnter={() => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }}
+          onMouseLeave={() => setShowPopover(false)}
+        />,
+        document.body,
       )}
-      {isOver && !hasEntry && (
-        <span className="absolute inset-0 flex items-center justify-center text-teal-500 text-[10px] font-bold pointer-events-none select-none">+</span>
-      )}
-      {hasMultiple && !compact && (
-        <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-teal-600 m-px" />
-      )}
-      {/* Resize handle — right edge of the last cell of an entry */}
-      {hasEntry && isEnd && !compact && (
-        <div
-          ref={setResizeRef}
-          {...resizeListeners}
-          {...resizeAttrs}
-          className={`absolute top-0 right-0 bottom-0 w-2 cursor-col-resize z-20 flex items-center justify-center group
-            ${isResizing ? 'bg-teal-600/40' : 'hover:bg-teal-400/50'}`}
-          onClick={e => e.stopPropagation()}
-          title="Arrastrar para cambiar duración"
-        >
-          <span className="w-0.5 h-3 rounded bg-current opacity-50 group-hover:opacity-100" />
-        </div>
-      )}
-    </div>
+    </>
   );
 }, (prev, next) => {
   // Custom comparator — only re-render when visual data changes

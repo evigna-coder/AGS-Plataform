@@ -114,7 +114,7 @@ export const AgendaWeekBlock = memo<AgendaWeekBlockProps>(({
   }
 
   // ── STANDALONE: individual week cards (views 1S, 2S, 1M) ──
-  const canDrillDown = zoom === 'month' || zoom === '2weeks';
+  const canDrillDown = zoom === 'month';
 
   return (
     <div className="border border-slate-200 rounded bg-white shrink-0">

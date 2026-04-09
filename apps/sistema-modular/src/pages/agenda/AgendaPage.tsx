@@ -64,7 +64,7 @@ interface ClipboardData {
 export const AgendaPage: FC = () => {
   const {
     anchor, zoomLevel, visibleDays,
-    setZoomLevel, goToPrev, goToNext, goToToday, goToDate,
+    goToPrev, goToNext, goToToday, goToDate,
     ingenieros, entries, pendingOTs, feriados, loading,
     createEntry, updateEntry, deleteEntry, toggleFeriado,
   } = useAgenda();
@@ -437,9 +437,7 @@ export const AgendaPage: FC = () => {
 
   const handleWeekClick = useCallback((weekStart: Date) => {
     goToDate(weekStart);
-    if (zoomLevel === 'month') setZoomLevel('2weeks');
-    else if (zoomLevel === '2weeks') setZoomLevel('week');
-  }, [goToDate, zoomLevel, setZoomLevel]);
+  }, [goToDate]);
 
   // ── Context menu for manual tasks ──
 
@@ -595,7 +593,6 @@ export const AgendaPage: FC = () => {
       <AgendaHeader
         anchor={anchor}
         zoomLevel={zoomLevel}
-        onZoomChange={setZoomLevel}
         onPrev={goToPrev}
         onNext={goToNext}
         onToday={goToToday}
@@ -641,7 +638,6 @@ export const AgendaPage: FC = () => {
                 selectionRange={selectionRange}
                 onCellClick={handleCellClick}
                 onEntryClick={handleEntryClick}
-                onZoomChange={setZoomLevel}
                 onWeekClick={handleWeekClick}
                 onCellContextMenu={handleContextMenu}
                 feriados={feriados}

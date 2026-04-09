@@ -2841,9 +2841,50 @@ export interface UsuarioAGS {
   firmaBase64?: string | null;
   /** Nombre/aclaración que aparece debajo de la firma en reportes */
   nombreAclaracion?: string | null;
+  /** Preferencias de notificaciones push */
+  notificationPreferences?: NotificationPreferences | null;
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string;
+}
+
+// --- Notification Preferences ---
+
+export interface NotificationPreferences {
+  /** Master toggle — desactiva todas las push */
+  pushEnabled: boolean;
+  /** Cuando me asignan un ticket */
+  notifyOnAssigned: boolean;
+  /** Cuando me derivan un ticket */
+  notifyOnDerived: boolean;
+  /** Comentario en mis tickets */
+  notifyOnComment: boolean;
+  /** Ticket cerrado donde participo */
+  notifyOnFinalized: boolean;
+  /** Tickets marcados urgente */
+  notifyOnUrgent: boolean;
+  /** Solo para admins: 'mine' = solo mis tickets, 'all' = todos */
+  scope: 'mine' | 'all';
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  pushEnabled: true,
+  notifyOnAssigned: true,
+  notifyOnDerived: true,
+  notifyOnComment: true,
+  notifyOnFinalized: true,
+  notifyOnUrgent: true,
+  scope: 'mine',
+};
+
+// --- FCM Token ---
+
+export interface FCMTokenRecord {
+  token: string;
+  device: 'desktop' | 'mobile';
+  browser: string;
+  createdAt: string;
+  lastRefreshed: string;
 }
 
 // --- Audit Log ---

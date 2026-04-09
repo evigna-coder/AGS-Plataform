@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.afip = exports.webauthn = void 0;
+exports.afip = exports.webauthn = exports.onLeadWritten = exports.processMailQueue = void 0;
 const app_1 = require("firebase-admin/app");
 const https_1 = require("firebase-functions/v2/https");
 const cors_1 = __importDefault(require("cors"));
@@ -11,6 +11,10 @@ const express_1 = __importDefault(require("express"));
 const middleware_js_1 = require("./middleware.js");
 const webauthn_js_1 = require("./webauthn.js");
 const afip_js_1 = require("./afip.js");
+var mailer_js_1 = require("./mailer.js");
+Object.defineProperty(exports, "processMailQueue", { enumerable: true, get: function () { return mailer_js_1.processMailQueue; } });
+var notifications_js_1 = require("./notifications.js");
+Object.defineProperty(exports, "onLeadWritten", { enumerable: true, get: function () { return notifications_js_1.onLeadWritten; } });
 (0, app_1.initializeApp)();
 const app = (0, express_1.default)();
 // CORS: usar el paquete cors para preflight OPTIONS (Cloud Functions 2nd gen a veces no pasa OPTIONS al middleware manual).

@@ -38,7 +38,7 @@ export interface UseAgendaReturn {
 
 export function useAgenda(): UseAgendaReturn {
   const [anchor, setAnchor] = useState<Date>(() => getMonday(new Date()));
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('month');
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('2weeks');
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [notas, setNotas] = useState<AgendaNota[]>([]);

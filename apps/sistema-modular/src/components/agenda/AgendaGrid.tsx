@@ -1,4 +1,4 @@
-import { type FC, useMemo, useRef, useEffect, useCallback } from 'react';
+import { type FC, useMemo, useRef, useCallback } from 'react';
 import type { Ingeniero, AgendaEntry, ZoomLevel } from '@ags/shared';
 import { AgendaWeekBlock } from './AgendaWeekBlock';
 import type { SelectionRange } from '../../utils/agendaDateUtils';
@@ -14,39 +14,21 @@ interface AgendaGridProps {
   selectionRange: SelectionRange | null;
   onCellClick: (ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => void;
   onEntryClick: (entries: AgendaEntry[], primary: AgendaEntry) => void;
-  onZoomChange: (zoom: ZoomLevel) => void;
   onWeekClick: (weekStart: Date) => void;
   onCellContextMenu?: (ingenieroId: string, fecha: string, quarter: 1|2|3|4, e: React.MouseEvent) => void;
   feriados?: Set<string>;
   onToggleFeriado?: (fecha: string) => void;
 }
 
-const ZOOM_ORDER: ZoomLevel[] = ['week', '2weeks', 'month', '2months', 'year'];
-
 export const AgendaGrid: FC<AgendaGridProps> = ({
   ingenieros, visibleDays, zoom, entries, selectedCellKey, selectionRange,
-  onCellClick, onEntryClick, onZoomChange, onWeekClick, onCellContextMenu,
+  onCellClick, onEntryClick, onWeekClick, onCellContextMenu,
   feriados, onToggleFeriado,
 }) => {
   // Extract selected fecha from cellKey ("ingId:YYYY-MM-DD:quarter") for per-week filtering
   const selectedFecha = selectedCellKey ? selectedCellKey.split(':')[1] : null;
   const gridRef = useRef<HTMLDivElement>(null);
   const weeks = useMemo(() => groupDaysByWeek(visibleDays), [visibleDays]);
-
-  // Ctrl+Scroll zoom
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      const idx = ZOOM_ORDER.indexOf(zoom);
-      if (e.deltaY < 0 && idx > 0) onZoomChange(ZOOM_ORDER[idx - 1]);
-      else if (e.deltaY > 0 && idx < ZOOM_ORDER.length - 1) onZoomChange(ZOOM_ORDER[idx + 1]);
-    };
-    el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
-  }, [zoom, onZoomChange]);
 
   const emptyState = ingenieros.length === 0 ? (
     <div className="flex-1 flex items-center justify-center text-slate-400 text-xs">

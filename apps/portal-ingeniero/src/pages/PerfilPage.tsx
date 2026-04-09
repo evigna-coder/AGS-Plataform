@@ -6,6 +6,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { SignaturePad, type SignaturePadHandle } from '../components/ordenes-trabajo/SignaturePad';
+import { NotificationSettings } from '../components/notifications/NotificationSettings';
 
 export default function PerfilPage() {
   const { usuario, firebaseUser } = useAuth();
@@ -155,6 +156,9 @@ export default function PerfilPage() {
             )}
           </div>
         </Card>
+
+        {/* Notificaciones */}
+        <NotificationSettings />
 
         <Button variant="danger" size="sm" onClick={() => signOut()}>
           Cerrar sesión

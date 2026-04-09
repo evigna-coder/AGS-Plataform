@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead, NotificationPreferences, FCMTokenRecord } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
 
@@ -793,5 +793,90 @@ export const viaticosService = {
       .map(d => parseViaticoPeriodo(d.id, d.data() as Record<string, unknown>))
       .filter(p => p.estado === 'enviado' || p.estado === 'confirmado')
       .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
+  },
+};
+
+// =============================================
+// --- FCM Tokens ---
+// =============================================
+
+function detectDevice(): 'desktop' | 'mobile' {
+  return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+}
+
+function detectBrowser(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes('Firefox')) return 'Firefox';
+  if (ua.includes('Edg')) return 'Edge';
+  if (ua.includes('Chrome')) return 'Chrome';
+  if (ua.includes('Safari')) return 'Safari';
+  return 'Unknown';
+}
+
+/** Genera un hash corto del token para usarlo como document ID */
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export const fcmTokensService = {
+  /** Guarda o actualiza el token FCM del dispositivo actual */
+  async saveToken(userId: string, token: string): Promise<void> {
+    const tokenId = await hashToken(token);
+    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', tokenId);
+    await setDoc(tokenRef, {
+      token,
+      device: detectDevice(),
+      browser: detectBrowser(),
+      createdAt: Timestamp.now(),
+      lastRefreshed: Timestamp.now(),
+    }, { merge: true });
+  },
+
+  /** Actualiza el timestamp de refresh de un token existente */
+  async refreshToken(userId: string, token: string): Promise<void> {
+    const tokenId = await hashToken(token);
+    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', tokenId);
+    await updateDoc(tokenRef, { lastRefreshed: Timestamp.now() });
+  },
+
+  /** Elimina un token FCM (ej: al cerrar sesión) */
+  async removeToken(userId: string, token: string): Promise<void> {
+    const tokenId = await hashToken(token);
+    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', tokenId);
+    try {
+      await deleteDoc(tokenRef);
+    } catch {
+      // Token ya no existe, ignorar
+    }
+  },
+
+  /** Elimina todos los tokens del usuario (ej: al desactivar notificaciones) */
+  async removeAllTokens(userId: string): Promise<void> {
+    const snap = await getDocs(collection(db, 'usuarios', userId, 'fcmTokens'));
+    const deletes = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletes);
+  },
+};
+
+// =============================================
+// --- Notification Preferences ---
+// =============================================
+
+export const notificationPrefsService = {
+  async get(userId: string): Promise<NotificationPreferences | null> {
+    const snap = await getDoc(doc(db, 'usuarios', userId));
+    if (!snap.exists()) return null;
+    return (snap.data() as Record<string, unknown>).notificationPreferences as NotificationPreferences | null ?? null;
+  },
+
+  async save(userId: string, prefs: NotificationPreferences): Promise<void> {
+    await updateDoc(doc(db, 'usuarios', userId), {
+      notificationPreferences: prefs,
+      updatedAt: Timestamp.now(),
+    });
   },
 };
