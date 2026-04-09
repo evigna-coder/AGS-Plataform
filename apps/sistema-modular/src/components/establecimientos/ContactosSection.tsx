@@ -30,6 +30,8 @@ interface ContactosSectionProps {
   onSave: () => void;
   onClose: () => void;
   setContactoForm: (data: ContactoFormData) => void;
+  /** Sectores del establecimiento — usados como opciones en el selector de sector del contacto */
+  establecimientoSectores?: string[];
 }
 
 export { emptyContactoForm };
@@ -37,17 +39,19 @@ export { emptyContactoForm };
 export const ContactosSection = ({
   contactos, showModal, editingContacto, contactoForm,
   onOpenNew, onOpenEdit, onDelete, onSave, onClose, setContactoForm,
+  establecimientoSectores = [],
 }: ContactosSectionProps) => {
   const [sectorCatalog, setSectorCatalog] = useState<SectorCatalog[]>([]);
 
   useEffect(() => {
     if (showModal) {
-      sectoresCatalogService.getAll().then(setSectorCatalog);
+      sectoresCatalogService.getAll().then(setSectorCatalog).catch(() => {});
     }
   }, [showModal]);
 
-  // Merge catálogo + valor actual del form (si es uno custom que no está en catálogo)
+  // Merge: establecimiento sectores + catálogo global + valor actual del form
   const sectorOptions = Array.from(new Set([
+    ...establecimientoSectores,
     ...sectorCatalog.map(s => s.nombre),
     ...(contactoForm.sector ? [contactoForm.sector] : []),
   ])).sort().map(name => ({ value: name, label: name }));

@@ -305,6 +305,7 @@ export const EstablecimientoDetail = () => {
               showModal={showContactoModal}
               editingContacto={editingContacto}
               contactoForm={contactoForm}
+              establecimientoSectores={sectores}
               onOpenNew={() => { setEditingContacto(null); setContactoForm(emptyContactoForm); setShowContactoModal(true); }}
               onOpenEdit={openEditContacto}
               onDelete={handleDeleteContacto}
@@ -318,29 +319,25 @@ export const EstablecimientoDetail = () => {
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Sectores</h3>
               </div>
-              {sectores.length === 0 && !editing ? (
+              {sectores.length === 0 ? (
                 <p className="text-slate-400 text-xs">Sin sectores definidos</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {sectores.map(s => (
                     <span key={s} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full">
                       {s}
-                      {editing && (
-                        <button onClick={() => handleRemoveSector(s)} className="text-slate-400 hover:text-red-500 ml-0.5">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
+                      <button onClick={() => handleRemoveSector(s)} className="text-slate-400 hover:text-red-500 ml-0.5">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </span>
                   ))}
                 </div>
               )}
-              {editing && (() => {
-                // Opciones: catálogo global + sectores del establecimiento que no estén en catálogo
+              {(() => {
                 const allNames = new Set(sectorCatalog.map(s => s.nombre));
                 sectores.forEach(s => allNames.add(s));
-                // Excluir los ya agregados
                 const available = [...allNames].filter(n => !sectores.includes(n)).sort();
                 return (
                   <div className="mt-2">
