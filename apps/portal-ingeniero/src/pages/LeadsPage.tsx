@@ -48,20 +48,24 @@ export default function LeadsPage() {
 
   // Build Firestore query filters
   const queryFilters = useMemo(() => {
-    // Non-admin: always lock to own tickets at query level (asignadoA or createdBy)
+    // Non-admin: always lock to own tickets at query level
     if (!canSeeAll && usuario) {
       const base = estadoFilter ? { estado: estadoFilter as LeadEstado } : {};
-      if (filters.misCreados) {
-        return { ...base, createdBy: usuario.id };
-      }
+      if (filters.misCreados) return { ...base, createdBy: usuario.id };
+      if (filters.misDerivados) return { ...base, derivadoPor: usuario.id };
       return { ...base, asignadoA: usuario.id };
     }
-    const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
+    // Admin: soloMios filters by asignadoA; misCreados/misDerivados fetch all and filter client-side
+    const responsableFilter = filters.soloMios && usuario
+      ? usuario.id
+      : (filters.misCreados || filters.misDerivados)
+        ? undefined
+        : (filters.responsable || undefined);
     return {
       ...(estadoFilter ? { estado: estadoFilter as LeadEstado } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, usuario, canSeeAll]);
+  }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario, canSeeAll]);
 
   // Real-time subscription
   useEffect(() => {
@@ -85,7 +89,10 @@ export default function LeadsPage() {
       result = result.filter(l => l.estado !== 'finalizado');
     }
     if (filters.misCreados && usuario) {
-      result = result.filter(l => l.createdBy === usuario.id || l.derivadoPor === usuario.id);
+      result = result.filter(l => l.createdBy === usuario.id);
+    }
+    if (filters.misDerivados && usuario) {
+      result = result.filter(l => l.derivadoPor === usuario.id);
     }
     if (filters.motivo) result = result.filter(l => l.motivoLlamado === filters.motivo);
     if (filters.area) result = result.filter(l => l.areaActual === filters.area);
@@ -102,7 +109,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, usuario, filters.misCreados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns('pi-tickets-list');
 
