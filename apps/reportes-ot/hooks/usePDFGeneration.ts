@@ -402,30 +402,47 @@ export const usePDFGeneration = (
     return blob.arrayBuffer();
   };
 
-  // ── Helper: descargar y renderizar múltiples PDFs en paralelo ──
+  // ── Helper: descargar PDFs en paralelo y renderizar secuencialmente ──
+  // IMPORTANTE: pdfjs-dist usa un Web Worker compartido que NO es thread-safe.
+  // Si renderizamos múltiples PDFs en paralelo, aparecen errores "Invalid page request".
+  // Por eso descargamos en paralelo (rápido, limitado por red) pero renderizamos en serie.
   const downloadAndRenderCerts = async (urls: string[], label: string): Promise<Blob[]> => {
     if (urls.length === 0) {
       console.log(`[PDF][${label}] Sin URLs de certificados para descargar`);
       return [];
     }
     console.log(`[PDF][${label}] Descargando ${urls.length} certificado(s) en paralelo…`);
-    const results = await Promise.all(
+
+    // Paso 1: descargar todos en paralelo
+    const buffers = await Promise.all(
       urls.map(async (url) => {
         try {
           const buffer = await getAssetBuffer(url);
           console.log(`[PDF][${label}] Asset listo: ${buffer.byteLength} bytes`);
-          const rendered = await renderExternalPdfToBlob(buffer, label);
-          if (!rendered) {
-            console.warn(`[PDF][${label}] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?`);
-          }
-          return rendered;
+          return buffer;
         } catch (err) {
-          console.warn(`[PDF][${label}] Error descargando certificado:`, err);
+          console.warn(`[PDF][${label}] Error descargando:`, err);
           return null;
         }
       })
     );
-    return results.filter((b): b is Blob => b !== null);
+
+    // Paso 2: renderizar secuencialmente (pdfjs-dist worker no es thread-safe)
+    const results: Blob[] = [];
+    for (const buffer of buffers) {
+      if (!buffer) continue;
+      try {
+        const rendered = await renderExternalPdfToBlob(buffer, label);
+        if (rendered) {
+          results.push(rendered);
+        } else {
+          console.warn(`[PDF][${label}] renderExternalPdfToBlob retornó null — ¿el archivo no es PDF?`);
+        }
+      } catch (err) {
+        console.warn(`[PDF][${label}] Error renderizando:`, err);
+      }
+    }
+    return results;
   };
 
   // ── Generar blobs de adjuntos PDF (paralelo) ──
