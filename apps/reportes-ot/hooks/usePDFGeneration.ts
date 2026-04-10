@@ -430,7 +430,18 @@ export const usePDFGeneration = (
 
   // ── Generar blobs de adjuntos PDF (paralelo) ──
   const generateAdjuntosBlobs = async (): Promise<Blob[]> => {
-    const pdfAdjuntos = adjuntos.filter(a => a.mimeType === 'application/pdf');
+    // Detectar PDFs por mimeType O por extensión del nombre (algunos dispositivos
+    // no setean mimeType correctamente y queda como application/octet-stream o vacío)
+    const pdfAdjuntos = adjuntos.filter(a => {
+      const mime = (a.mimeType || '').toLowerCase();
+      const name = (a.fileName || '').toLowerCase();
+      const isImage = mime.startsWith('image/');
+      if (isImage) return false; // Las imágenes van por AdjuntosPDFSection
+      return mime === 'application/pdf'
+          || mime === 'application/x-pdf'
+          || name.endsWith('.pdf');
+    });
+    console.log(`[PDF][ADJUNTOS] Detectados ${pdfAdjuntos.length} adjunto(s) PDF:`, pdfAdjuntos.map(a => `${a.fileName} (${a.mimeType || 'sin mime'})`));
     return downloadAndRenderCerts(pdfAdjuntos.map(a => a.url), 'ADJUNTOS');
   };
 
