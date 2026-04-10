@@ -79,16 +79,7 @@ export function useAgenda() {
       filter = null;
     } else {
       const ids = [usuario.id, myIngenieroId].filter((x): x is string => !!x);
-      console.log('[useAgenda] filter resolution', {
-        usuarioId: usuario.id,
-        email: usuario.email,
-        myIngenieroId,
-        idsToQuery: ids,
-        ingenierosLoaded,
-        ingenierosCount: ingenieros.length,
-      });
       if (ids.length === 0) {
-        console.warn('[useAgenda] No IDs to query — user has no linked ingeniero');
         setEntries([]);
         setLoading(false);
         return;
@@ -96,12 +87,11 @@ export function useAgenda() {
       filter = ids;
     }
     const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, filter, (data) => {
-      console.log('[useAgenda] entries received', { count: data.length, filter });
       setEntries(data);
       setLoading(false);
     });
     return unsub;
-  }, [usuario?.id, usuario?.email, isAdmin, showMine, rangeStart, rangeEnd, myIngenieroId, ingenierosLoaded, ingenieros.length]);
+  }, [usuario?.id, usuario?.email, isAdmin, showMine, rangeStart, rangeEnd, myIngenieroId, ingenierosLoaded]);
 
   const loadMore = useCallback(() => {
     setWeeksAhead(prev => prev + 4);
