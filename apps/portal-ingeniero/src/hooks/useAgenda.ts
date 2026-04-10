@@ -33,7 +33,7 @@ export function useAgenda() {
   const [loading, setLoading] = useState(true);
   const [weeksAhead, setWeeksAhead] = useState(WEEKS_AHEAD);
   // Ingenieros list — always loaded, used for both admin grid and resolving my ingenieroId
-  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string; usuarioId: string | null }[]>([]);
+  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string; usuarioId: string | null; email: string | null }[]>([]);
   const [ingenierosLoaded, setIngenierosLoaded] = useState(false);
   const [showMine, setShowMine] = useState(false);
   const toggleShowMine = useCallback(() => setShowMine(v => !v), []);
@@ -45,12 +45,20 @@ export function useAgenda() {
     });
   }, []);
 
-  // Resolve my ingenieroId: find ingeniero linked to my usuario.id (Firebase UID)
+  // Resolve my ingenieroId: try linking by usuarioId first, fallback to email match
   const myIngenieroId = useMemo(() => {
     if (!usuario?.id) return null;
-    const match = ingenieros.find(i => i.usuarioId === usuario.id);
-    return match?.id ?? null;
-  }, [ingenieros, usuario?.id]);
+    // Primary match: explicit usuarioId link (set manually by admin in IngenierosPage)
+    const byUid = ingenieros.find(i => i.usuarioId === usuario.id);
+    if (byUid) return byUid.id;
+    // Fallback: match by email (case-insensitive)
+    if (usuario.email) {
+      const email = usuario.email.toLowerCase();
+      const byEmail = ingenieros.find(i => (i.email || '').toLowerCase() === email);
+      if (byEmail) return byEmail.id;
+    }
+    return null;
+  }, [ingenieros, usuario?.id, usuario?.email]);
 
   const today = useMemo(() => new Date(), []);
   const weekStart = useMemo(() => startOfWeek(today), [today]);
@@ -71,7 +79,16 @@ export function useAgenda() {
       filter = null;
     } else {
       const ids = [usuario.id, myIngenieroId].filter((x): x is string => !!x);
+      console.log('[useAgenda] filter resolution', {
+        usuarioId: usuario.id,
+        email: usuario.email,
+        myIngenieroId,
+        idsToQuery: ids,
+        ingenierosLoaded,
+        ingenierosCount: ingenieros.length,
+      });
       if (ids.length === 0) {
+        console.warn('[useAgenda] No IDs to query — user has no linked ingeniero');
         setEntries([]);
         setLoading(false);
         return;
@@ -79,11 +96,12 @@ export function useAgenda() {
       filter = ids;
     }
     const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, filter, (data) => {
+      console.log('[useAgenda] entries received', { count: data.length, filter });
       setEntries(data);
       setLoading(false);
     });
     return unsub;
-  }, [usuario?.id, isAdmin, showMine, rangeStart, rangeEnd, myIngenieroId, ingenierosLoaded]);
+  }, [usuario?.id, usuario?.email, isAdmin, showMine, rangeStart, rangeEnd, myIngenieroId, ingenierosLoaded, ingenieros.length]);
 
   const loadMore = useCallback(() => {
     setWeeksAhead(prev => prev + 4);

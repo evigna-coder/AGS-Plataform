@@ -170,7 +170,7 @@ export const clientesService = {
 // --- Ingenieros — solo lectura ---
 // =============================================
 export const ingenierosService = {
-  async getAll(): Promise<{ id: string; nombre: string; usuarioId: string | null }[]> {
+  async getAll(): Promise<{ id: string; nombre: string; usuarioId: string | null; email: string | null }[]> {
     const q = query(collection(db, 'ingenieros'), where('activo', '==', true));
     const snap = await getDocs(q);
     return snap.docs
@@ -178,6 +178,7 @@ export const ingenierosService = {
         id: d.id,
         nombre: (d.data().nombre as string) ?? '',
         usuarioId: (d.data().usuarioId as string) ?? null,
+        email: (d.data().email as string) ?? null,
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
   },
