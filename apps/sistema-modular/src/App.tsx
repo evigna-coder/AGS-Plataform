@@ -10,6 +10,7 @@ import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
 import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
 import { ToastContainer, showToast } from './components/notifications/Toast';
 import { onForegroundNotification } from './services/notificationService';
+import { TokenAutoRefresher } from './components/notifications/TokenAutoRefresher';
 
 function ForegroundNotificationListener() {
   useEffect(() => {
@@ -74,6 +75,7 @@ function AuthGate() {
     <>
       <QRNotificationListener />
       <ForegroundNotificationListener />
+      <TokenAutoRefresher />
       <ConfirmDialogProvider>
       <BackgroundTasksProvider>
       <FloatingPresupuestoProvider>

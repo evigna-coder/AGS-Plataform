@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Spinner } from './components/ui/Spinner';
 import { ToastContainer, showToast } from './components/ui/Toast';
 import { onForegroundNotification } from './services/notificationService';
+import { TokenAutoRefresher } from './components/notifications/TokenAutoRefresher';
 import AppShell from './components/layout/AppShell';
 import LoginPage from './pages/LoginPage';
 import OTListPage from './pages/OTListPage';
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/*" element={<PrivateApp />} />
         </Routes>
         <ForegroundNotificationListener />
+        <TokenAutoRefresher />
         <ToastContainer />
       </AuthProvider>
     </BrowserRouter>
