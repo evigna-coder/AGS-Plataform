@@ -25,7 +25,9 @@ const thBase = 'px-2 py-1.5 text-center text-[10px] font-medium text-slate-400 t
 
 export default function LeadsPage() {
   const navigate = useNavigate();
-  const { usuario } = useAuth();
+  const { usuario, hasRole } = useAuth();
+  // Only admin and admin_ing_soporte can see all tickets; others are locked to their own
+  const canSeeAll = hasRole('admin', 'admin_ing_soporte');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -46,12 +48,19 @@ export default function LeadsPage() {
 
   // Build Firestore query filters
   const queryFilters = useMemo(() => {
+    // Non-admin: always lock to own tickets at query level
+    if (!canSeeAll && usuario) {
+      return {
+        ...(estadoFilter ? { estado: estadoFilter as LeadEstado } : {}),
+        asignadoA: usuario.id,
+      };
+    }
     const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
     return {
       ...(estadoFilter ? { estado: estadoFilter as LeadEstado } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, usuario]);
+  }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, usuario, canSeeAll]);
 
   // Real-time subscription
   useEffect(() => {
@@ -131,7 +140,7 @@ export default function LeadsPage() {
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
         <LeadFilters search={search} onSearchChange={setSearch} estadoFilter={estadoFilter} onEstadoChange={setEstadoFilter}
-          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} />
+          filters={filters} onFiltersChange={setFilters} usuarios={usuarios} canSeeAll={canSeeAll} />
       </PageHeader>
 
       <div className="flex-1 min-h-0 px-3 md:px-5 pb-4">

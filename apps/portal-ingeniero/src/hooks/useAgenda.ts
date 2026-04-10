@@ -27,18 +27,30 @@ const WEEKS_AHEAD = 4;
 
 export function useAgenda() {
   const { usuario, hasRole } = useAuth();
-  const isAdmin = hasRole('admin', 'admin_soporte');
+  // Only 'admin' and 'admin_ing_soporte' can see all agendas
+  const isAdmin = hasRole('admin', 'admin_ing_soporte');
   const [entries, setEntries] = useState<AgendaEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeksAhead, setWeeksAhead] = useState(WEEKS_AHEAD);
-  // Admin grid: list of engineers + "show only mine" toggle
-  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
+  // Ingenieros list — always loaded, used for both admin grid and resolving my ingenieroId
+  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string; usuarioId: string | null }[]>([]);
+  const [ingenierosLoaded, setIngenierosLoaded] = useState(false);
   const [showMine, setShowMine] = useState(false);
   const toggleShowMine = useCallback(() => setShowMine(v => !v), []);
 
   useEffect(() => {
-    if (isAdmin) ingenierosService.getAll().then(setIngenieros);
-  }, [isAdmin]);
+    ingenierosService.getAll().then(list => {
+      setIngenieros(list);
+      setIngenierosLoaded(true);
+    });
+  }, []);
+
+  // Resolve my ingenieroId: find ingeniero linked to my usuario.id (Firebase UID)
+  const myIngenieroId = useMemo(() => {
+    if (!usuario?.id) return null;
+    const match = ingenieros.find(i => i.usuarioId === usuario.id);
+    return match?.id ?? null;
+  }, [ingenieros, usuario?.id]);
 
   const today = useMemo(() => new Date(), []);
   const weekStart = useMemo(() => startOfWeek(today), [today]);
@@ -47,15 +59,23 @@ export function useAgenda() {
 
   useEffect(() => {
     if (!usuario?.id) return;
+    // Wait until ingenieros are loaded so myIngenieroId is resolved before filtering
+    if (!ingenierosLoaded) return;
     setLoading(true);
-    // Admin in grid mode sees all; otherwise filter by own ID
-    const ingenieroId = (isAdmin && !showMine) ? null : usuario.id;
+    // Admin (not viewing "mine") sees all; otherwise filter by resolved ingenieroId
+    const ingenieroId = (isAdmin && !showMine) ? null : myIngenieroId;
+    // Non-admin without a linked ingeniero → no entries to show
+    if (ingenieroId === null && !(isAdmin && !showMine)) {
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
     const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, ingenieroId, (data) => {
       setEntries(data);
       setLoading(false);
     });
     return unsub;
-  }, [usuario?.id, isAdmin, showMine, rangeStart, rangeEnd]);
+  }, [usuario?.id, isAdmin, showMine, rangeStart, rangeEnd, myIngenieroId, ingenierosLoaded]);
 
   const loadMore = useCallback(() => {
     setWeeksAhead(prev => prev + 4);

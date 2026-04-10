@@ -39,9 +39,11 @@ interface LeadFiltersProps {
   filters: LeadFiltersState;
   onFiltersChange: (f: LeadFiltersState) => void;
   usuarios: { id: string; displayName: string }[];
+  /** If false, user is locked to their own tickets (cannot untick "Mis tickets"). */
+  canSeeAll?: boolean;
 }
 
-export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChange, filters, onFiltersChange, usuarios }: LeadFiltersProps) => {
+export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChange, filters, onFiltersChange, usuarios, canSeeAll = true }: LeadFiltersProps) => {
   const set = (partial: Partial<LeadFiltersState>) => onFiltersChange({ ...filters, ...partial });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const hasAdvanced = filters.motivo || filters.area || filters.prioridad || filters.responsable || filters.fechaDesde || filters.fechaHasta || estadoFilter;
@@ -55,14 +57,20 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           onChange={e => onSearchChange(e.target.value)}
           className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
         <div className="flex items-center gap-3 ml-auto">
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, misCreados: false })} className="rounded border-slate-300" />
-            Mis tickets
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={filters.misCreados} onChange={e => set({ misCreados: e.target.checked, soloMios: false })} className="rounded border-slate-300" />
-            Mis creados
-          </label>
+          {canSeeAll ? (
+            <>
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, misCreados: false })} className="rounded border-slate-300" />
+                Mis tickets
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                <input type="checkbox" checked={filters.misCreados} onChange={e => set({ misCreados: e.target.checked, soloMios: false })} className="rounded border-slate-300" />
+                Mis creados
+              </label>
+            </>
+          ) : (
+            <span className="text-[11px] text-slate-400 italic">Solo tus tickets asignados</span>
+          )}
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={filters.mostrarFinalizados} onChange={e => set({ mostrarFinalizados: e.target.checked })} className="rounded border-slate-300" />
             Finalizados
