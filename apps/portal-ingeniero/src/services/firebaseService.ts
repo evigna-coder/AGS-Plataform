@@ -873,20 +873,27 @@ function detectBrowser(): string {
   return 'Unknown';
 }
 
-/** Genera un hash corto del token para usarlo como document ID */
-async function hashToken(token: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+/**
+ * ID persistente del dispositivo/navegador (guardado en localStorage).
+ * Se usa como document ID en fcmTokens para que el mismo dispositivo
+ * siempre sobreescriba su propio doc cuando rota el token FCM.
+ * Esto evita acumulación de tokens duplicados y notificaciones repetidas.
+ */
+function getDeviceId(): string {
+  const KEY = 'ags_device_id';
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
 }
 
 export const fcmTokensService = {
-  /** Guarda o actualiza el token FCM del dispositivo actual */
+  /** Guarda o actualiza el token FCM del dispositivo actual (upsert por deviceId) */
   async saveToken(userId: string, token: string): Promise<void> {
-    const tokenId = await hashToken(token);
-    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', tokenId);
+    const deviceId = getDeviceId();
+    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', deviceId);
     await setDoc(tokenRef, {
       token,
       device: detectDevice(),
@@ -897,16 +904,16 @@ export const fcmTokensService = {
   },
 
   /** Actualiza el timestamp de refresh de un token existente */
-  async refreshToken(userId: string, token: string): Promise<void> {
-    const tokenId = await hashToken(token);
-    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', tokenId);
+  async refreshToken(userId: string, _token: string): Promise<void> {
+    const deviceId = getDeviceId();
+    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', deviceId);
     await updateDoc(tokenRef, { lastRefreshed: Timestamp.now() });
   },
 
-  /** Elimina un token FCM (ej: al cerrar sesión) */
-  async removeToken(userId: string, token: string): Promise<void> {
-    const tokenId = await hashToken(token);
-    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', tokenId);
+  /** Elimina el token FCM del dispositivo actual (ej: al cerrar sesión) */
+  async removeToken(userId: string, _token: string): Promise<void> {
+    const deviceId = getDeviceId();
+    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', deviceId);
     try {
       await deleteDoc(tokenRef);
     } catch {

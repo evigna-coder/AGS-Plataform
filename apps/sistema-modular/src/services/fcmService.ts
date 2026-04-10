@@ -17,18 +17,25 @@ function detectBrowser(): string {
   return 'Unknown';
 }
 
-async function hashToken(token: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+/**
+ * ID persistente del dispositivo (guardado en localStorage).
+ * Se usa como document ID en fcmTokens para que el mismo dispositivo
+ * siempre sobreescriba su propio doc cuando rota el token FCM.
+ */
+function getDeviceId(): string {
+  const KEY = 'ags_device_id';
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
 }
 
 export const fcmTokensService = {
   async saveToken(userId: string, token: string): Promise<void> {
-    const tokenId = await hashToken(token);
-    await setDoc(doc(db, 'usuarios', userId, 'fcmTokens', tokenId), {
+    const deviceId = getDeviceId();
+    await setDoc(doc(db, 'usuarios', userId, 'fcmTokens', deviceId), {
       token,
       device: detectDevice(),
       browser: detectBrowser(),
@@ -37,9 +44,9 @@ export const fcmTokensService = {
     }, { merge: true });
   },
 
-  async removeToken(userId: string, token: string): Promise<void> {
-    const tokenId = await hashToken(token);
-    try { await deleteDoc(doc(db, 'usuarios', userId, 'fcmTokens', tokenId)); } catch { /* ok */ }
+  async removeToken(userId: string, _token: string): Promise<void> {
+    const deviceId = getDeviceId();
+    try { await deleteDoc(doc(db, 'usuarios', userId, 'fcmTokens', deviceId)); } catch { /* ok */ }
   },
 
   async removeAllTokens(userId: string): Promise<void> {
