@@ -23,7 +23,30 @@ function ForegroundNotificationListener() {
   useEffect(() => {
     try {
       const unsub = onForegroundNotification(({ title, body, data }) => {
+        // 1. Toast in-app (UX rápido dentro de la app)
         showToast(title, body, data);
+
+        // 2. Notificación nativa del SO (Windows/Android)
+        // En foreground, FCM no dispara showNotification automáticamente —
+        // lo hacemos manualmente via el Service Worker registrado.
+        if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+          navigator.serviceWorker.getRegistration('/').then(reg => {
+            if (!reg) return;
+            reg.showNotification(title, {
+              body,
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              tag: data.leadId || 'default',
+              data: {
+                url: data.url || '/',
+                leadId: data.leadId,
+                type: data.type,
+              },
+              vibrate: [200, 100, 200],
+              requireInteraction: data.type === 'lead_urgent',
+            } as NotificationOptions);
+          });
+        }
       });
       return unsub;
     } catch {

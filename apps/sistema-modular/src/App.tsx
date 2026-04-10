@@ -16,6 +16,26 @@ function ForegroundNotificationListener() {
   useEffect(() => {
     const unsub = onForegroundNotification(({ title, body, data }) => {
       showToast(title, body, data);
+
+      // Notificación nativa del SO (Windows)
+      if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+        navigator.serviceWorker.getRegistration('/').then(reg => {
+          if (!reg) return;
+          reg.showNotification(title, {
+            body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: data.leadId || 'default',
+            data: {
+              url: data.url || '/',
+              leadId: data.leadId,
+              type: data.type,
+            },
+            vibrate: [200, 100, 200],
+            requireInteraction: data.type === 'lead_urgent',
+          } as NotificationOptions);
+        });
+      }
     });
     return unsub;
   }, []);
