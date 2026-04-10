@@ -5,7 +5,7 @@ import { onAuthStateChanged, isAllowedDomain, signOut } from '../services/authSe
 import { usuariosService } from '../services/firebaseService';
 import { setCurrentUser } from '../services/currentUser';
 
-const PORTAL_ROLES: UserRole[] = ['ingeniero_soporte', 'admin', 'admin_soporte'];
+const PORTAL_ROLES: UserRole[] = ['ingeniero_soporte', 'admin', 'admin_soporte', 'admin_ing_soporte'];
 
 interface AuthContextValue {
   firebaseUser: User | null;
