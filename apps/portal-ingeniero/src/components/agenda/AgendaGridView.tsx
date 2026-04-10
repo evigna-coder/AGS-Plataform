@@ -116,8 +116,8 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
     );
   }
 
-  const ENG_COL = '110px';
-  const DAY_COL = 'minmax(72px, 1fr)';
+  const ENG_COL = '90px';
+  const DAY_COL = 'minmax(130px, 1fr)';
   const gridCols = `${ENG_COL} repeat(5, ${DAY_COL})`;
 
   return (
@@ -146,7 +146,7 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
               className="border border-slate-200 rounded-xl bg-white overflow-x-scroll overscroll-x-contain"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
-              <div style={{ minWidth: 520 }}>
+              <div style={{ minWidth: 740 }}>
               {/* Header row */}
               <div className="grid border-b border-slate-200 bg-slate-50" style={{ gridTemplateColumns: gridCols }}>
                 <div className="px-2 py-1.5" />
@@ -184,7 +184,7 @@ export default function AgendaGridView({ ingenieros, entries, weeks, currentWeek
                       return (
                         <div
                           key={dk}
-                          className={`border-l border-slate-100 px-1 py-1 space-y-1 min-h-[52px] ${isToday(dk) ? 'bg-teal-50/40' : ''}`}
+                          className={`border-l border-slate-100 px-1 py-1 space-y-1 min-h-[52px] overflow-hidden ${isToday(dk) ? 'bg-teal-50/40' : ''}`}
                         >
                           {cellEntries.map(e => <EntryCard key={e.id} entry={e} />)}
                         </div>

@@ -136,6 +136,20 @@ export const TableSelectorPanel: React.FC<Props> = ({
       // Para tablas: pre-poblar filledData desde templateRows.
       // Celdas editables vacías arrancan con "N/A" por defecto.
       const filledData: Record<string, Record<string, string>> = {};
+      const dataRows = table.templateRows.filter(r => !r.isTitle && !r.isSelector);
+
+      // Pre-calcular qué columnas text_input/number_input tienen el mismo valor en todas las filas.
+      // Si es el mismo → es un placeholder/unidad (editable, debe ser N/A).
+      // Si varía → es un label descriptivo por fila (read-only, conservar valor de fábrica).
+      const editableColTypes = new Set(['text_input', 'number_input']);
+      const colIsPlaceholder = new Map<string, boolean>();
+      for (const col of table.columns) {
+        if (!editableColTypes.has(col.type)) continue;
+        const vals = dataRows.map(r => String(r.cells?.[col.key] ?? '').trim());
+        const allSame = vals.length > 0 && vals.every(v => v === vals[0]);
+        colIsPlaceholder.set(col.key, allSame);
+      }
+
       for (const row of table.templateRows) {
         if (row.isTitle) continue;
         filledData[row.rowId] = {};
@@ -155,15 +169,19 @@ export const TableSelectorPanel: React.FC<Props> = ({
           // Si el valor de fábrica es solo la unidad de la columna, tratarlo como vacío
           const effectiveUnit = (col.unit ?? col.label?.match(/\(\s*([^)]{1,15})\s*\)\s*$/)?.[1])?.trim();
           const isJustUnit = effectiveUnit && strVal === effectiveUnit;
-          if (strVal && !isJustUnit) {
-            // Tiene valor de fábrica real → usarlo
-            filledData[row.rowId][col.key] = String(v);
-          } else if (nonEditableTypes.has(col.type) || col.type === 'select_input') {
+
+          if (nonEditableTypes.has(col.type) || col.type === 'select_input') {
             // fixed_text, checkbox, pass_fail, select_input → vacío
+            filledData[row.rowId][col.key] = strVal;
+          } else if (row.variable) {
+            // Fila con variable binding (auto-rellenada desde contexto) → vacío, no N/A
             filledData[row.rowId][col.key] = '';
-          } else {
-            // Celda editable vacía → "N/A" por defecto
+          } else if (!strVal || isJustUnit || colIsPlaceholder.get(col.key)) {
+            // Sin valor, solo unidad, o placeholder repetido → "N/A" para que el IST complete
             filledData[row.rowId][col.key] = 'N/A';
+          } else {
+            // Valor de fábrica que varía por fila → label descriptivo (read-only), conservar
+            filledData[row.rowId][col.key] = String(v);
           }
         }
       }

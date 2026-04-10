@@ -663,7 +663,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
     // ── Auto-fill por label (solo tabla informacional de 1 fila: cabecera equipo) ─
     const dataRows = table.templateRows.filter(r => !r.isTitle && !r.isSelector);
-    if (variables && !rawValue && table.tableType === 'informational' && dataRows.length === 1) {
+    if (variables && (!rawValue || rawValue === 'N/A') && table.tableType === 'informational' && dataRows.length === 1) {
       const colLabel = (col.label || col.key).toLowerCase().replace(/[:.]/g, '').trim();
       let resolved: string | null = null;
       if (colLabel === 'marca') resolved = variables['equipo.marca'] || null;
@@ -933,6 +933,13 @@ export const CatalogTableView: React.FC<Props> = ({
       {/* Tabla */}
       <div className={isPrint || readOnly ? '' : 'overflow-x-auto'}>
         <table className="w-full text-left border-collapse" style={table.columns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
+          {table.columns.some(c => c.width) && (
+            <colgroup>
+              {table.columns.map(col => (
+                <col key={col.key} style={col.width ? { width: `${col.width}mm` } : undefined} />
+              ))}
+            </colgroup>
+          )}
           <thead>
             {(() => {
               const groups = table.columnGroups ?? [];
