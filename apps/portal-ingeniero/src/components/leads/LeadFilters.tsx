@@ -69,7 +69,29 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
               </label>
             </>
           ) : (
-            <span className="text-[11px] text-slate-400 italic">Solo tus tickets asignados</span>
+            // Non-admin: toggle between assigned and created (one must always be active)
+            <>
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                <input
+                  type="radio"
+                  name="tickets-scope"
+                  checked={!filters.misCreados}
+                  onChange={() => set({ soloMios: true, misCreados: false })}
+                  className="border-slate-300"
+                />
+                Mis asignados
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                <input
+                  type="radio"
+                  name="tickets-scope"
+                  checked={filters.misCreados}
+                  onChange={() => set({ soloMios: false, misCreados: true })}
+                  className="border-slate-300"
+                />
+                Mis creados
+              </label>
+            </>
           )}
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={filters.mostrarFinalizados} onChange={e => set({ mostrarFinalizados: e.target.checked })} className="rounded border-slate-300" />

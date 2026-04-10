@@ -62,15 +62,23 @@ export function useAgenda() {
     // Wait until ingenieros are loaded so myIngenieroId is resolved before filtering
     if (!ingenierosLoaded) return;
     setLoading(true);
-    // Admin (not viewing "mine") sees all; otherwise filter by resolved ingenieroId
-    const ingenieroId = (isAdmin && !showMine) ? null : myIngenieroId;
-    // Non-admin without a linked ingeniero → no entries to show
-    if (ingenieroId === null && !(isAdmin && !showMine)) {
-      setEntries([]);
-      setLoading(false);
-      return;
+    // Admin (not viewing "mine") sees all → pass null
+    // Otherwise match BOTH possible ingenieroId values in agendaEntries:
+    //   - Firebase UID (stored when OT was assigned — sistema-modular uses ingeniero.usuarioId)
+    //   - ingeniero doc ID (stored when created via drag-drop directly in agenda)
+    let filter: string | string[] | null;
+    if (isAdmin && !showMine) {
+      filter = null;
+    } else {
+      const ids = [usuario.id, myIngenieroId].filter((x): x is string => !!x);
+      if (ids.length === 0) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+      filter = ids;
     }
-    const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, ingenieroId, (data) => {
+    const unsub = agendaService.subscribeToRange(rangeStart, rangeEnd, filter, (data) => {
       setEntries(data);
       setLoading(false);
     });

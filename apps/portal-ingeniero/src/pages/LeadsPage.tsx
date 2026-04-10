@@ -48,12 +48,13 @@ export default function LeadsPage() {
 
   // Build Firestore query filters
   const queryFilters = useMemo(() => {
-    // Non-admin: always lock to own tickets at query level
+    // Non-admin: always lock to own tickets at query level (asignadoA or createdBy)
     if (!canSeeAll && usuario) {
-      return {
-        ...(estadoFilter ? { estado: estadoFilter as LeadEstado } : {}),
-        asignadoA: usuario.id,
-      };
+      const base = estadoFilter ? { estado: estadoFilter as LeadEstado } : {};
+      if (filters.misCreados) {
+        return { ...base, createdBy: usuario.id };
+      }
+      return { ...base, asignadoA: usuario.id };
     }
     const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
     return {

@@ -288,13 +288,14 @@ export const leadsService = {
 
   /** Real-time subscription. Returns unsubscribe function. */
   subscribe(
-    filters: { estado?: LeadEstado; asignadoA?: string } | undefined,
+    filters: { estado?: LeadEstado; asignadoA?: string; createdBy?: string } | undefined,
     callback: (leads: Lead[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
     const constraints: QueryConstraint[] = [];
     if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
     if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
+    if (filters?.createdBy) constraints.push(where('createdBy', '==', filters.createdBy));
     constraints.push(orderBy('createdAt', 'desc'));
     const q = query(collection(db, 'leads'), ...constraints);
     return onSnapshot(q, snap => {
@@ -682,18 +683,32 @@ function parseAgendaEntry(id: string, data: Record<string, unknown>): AgendaEntr
 
 export const agendaService = {
   /** Real-time subscription for entries in a date range.
-   *  Pass ingenieroId=null to load all engineers (admin view). */
+   *  - null → all engineers (admin view)
+   *  - string → single engineer match
+   *  - string[] → match any of these IDs (up to 30, Firestore 'in' limit) */
   subscribeToRange(
     rangeStart: string,
     rangeEnd: string,
-    ingenieroId: string | null,
+    ingenieroId: string | string[] | null,
     callback: (entries: AgendaEntry[]) => void,
   ): () => void {
     const constraints: QueryConstraint[] = [
       where('fechaInicio', '<=', rangeEnd),
       orderBy('fechaInicio', 'asc'),
     ];
-    if (ingenieroId) {
+    if (Array.isArray(ingenieroId)) {
+      const unique = Array.from(new Set(ingenieroId.filter(Boolean)));
+      if (unique.length === 0) {
+        // No valid IDs → return empty immediately
+        callback([]);
+        return () => {};
+      }
+      if (unique.length === 1) {
+        constraints.unshift(where('ingenieroId', '==', unique[0]));
+      } else {
+        constraints.unshift(where('ingenieroId', 'in', unique));
+      }
+    } else if (ingenieroId) {
       constraints.unshift(where('ingenieroId', '==', ingenieroId));
     }
     const q = query(collection(db, 'agendaEntries'), ...constraints);
