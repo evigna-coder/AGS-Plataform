@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import type { Lead } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
+import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS } from '@ags/shared';
 
 interface Props {
   lead: Lead;
 }
 
 export default function LeadCard({ lead }: Props) {
-  const estadoColor = LEAD_ESTADO_COLORS[lead.estado] ?? 'bg-slate-100 text-slate-600';
+  const estadoColor = getSimplifiedEstadoColor(lead.estado);
   const motivoColor = MOTIVO_LLAMADO_COLORS[lead.motivoLlamado] ?? 'bg-slate-100 text-slate-600';
   const fecha = lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }) : '';
 
@@ -21,7 +21,7 @@ export default function LeadCard({ lead }: Props) {
           {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado] ?? lead.motivoLlamado}
         </span>
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${estadoColor}`}>
-          {LEAD_ESTADO_LABELS[lead.estado] ?? lead.estado}
+          {getSimplifiedEstadoLabel(lead.estado)}
         </span>
         {lead.areaActual && (
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>

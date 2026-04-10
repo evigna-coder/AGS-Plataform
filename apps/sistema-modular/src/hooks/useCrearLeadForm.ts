@@ -138,7 +138,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         deUsuarioId: usuario.id, deUsuarioNombre: usuario.displayName,
         aUsuarioId: asignadoA || usuario.id,
         aUsuarioNombre: responsable?.displayName || usuario.displayName,
-        estadoAnterior: estadoInicial, estadoNuevo: estadoInicial,
+        estadoAnterior: 'nuevo' as const, estadoNuevo: 'nuevo' as const,
         ...(descripcion.trim() ? { comentario: descripcion.trim() } : {}),
       } : null;
 
@@ -150,7 +150,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         motivoContacto: descripcion.trim(),
         descripcion: descripcion.trim() || null,
         sistemaId: sistemaId || null, moduloId: moduloId || null,
-        estado: estadoInicial, postas: initialPosta ? [initialPosta] : [],
+        estado: 'nuevo' as const, postas: initialPosta ? [initialPosta] : [],
         asignadoA: asignadoA || null,
         asignadoNombre: usuarios.find(u => u.id === asignadoA)?.displayName || null,
         derivadoPor: null, areaActual: areaActual || null,

@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import type { Lead, LeadEstado, LeadArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
+import type { Lead, LeadArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import {
-  LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS,
+  getSimplifiedEstadoLabel, getSimplifiedEstadoColor,
   LEAD_AREA_LABELS, LEAD_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
@@ -76,13 +76,13 @@ export const LeadsList = () => {
       : (filters.misCreados || filters.misDerivados)
         ? undefined
         : (filters.responsable || undefined);
+    // Estado se filtra client-side porque "en_proceso" agrupa múltiples estados internos.
     return {
-      ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
       ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
       ...(filters.area ? { areaActual: filters.area as LeadArea } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario]);
+  }, [filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario]);
 
   // Real-time subscription — auto-updates when any user writes
   useEffect(() => {
@@ -126,7 +126,15 @@ export const LeadsList = () => {
 
     // Ocultar finalizados salvo que el checkbox esté tildado
     if (!filters.mostrarFinalizados) {
-      result = result.filter(l => l.estado !== 'finalizado');
+      result = result.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+    }
+    // Filtro de estado simplificado (nuevo / en_proceso / finalizado)
+    if (filters.estadoFilter === 'nuevo') {
+      result = result.filter(l => l.estado === 'nuevo');
+    } else if (filters.estadoFilter === 'en_proceso') {
+      result = result.filter(l => l.estado !== 'nuevo' && l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+    } else if (filters.estadoFilter === 'finalizado') {
+      result = result.filter(l => l.estado === 'finalizado' || l.estado === 'no_concretado');
     }
     if (filters.misCreados && usuario) {
       result = result.filter(l => l.createdBy === usuario.id);
@@ -147,7 +155,7 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, usuario, isAdmin, extraAreas, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+  }, [leads, usuario, isAdmin, extraAreas, filters.estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
 
   const leadsSorted = useMemo(() => {
     const sorted = [...leadsFiltered];
@@ -253,7 +261,7 @@ export const LeadsList = () => {
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
         <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
-          estadoFilter={filters.estadoFilter as LeadEstado | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
+          estadoFilter={filters.estadoFilter as 'nuevo' | 'en_proceso' | 'finalizado' | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
           filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}
           usuarios={usuarios} />
       </PageHeader>
@@ -334,8 +342,8 @@ export const LeadsList = () => {
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
-                          {LEAD_ESTADO_LABELS[lead.estado]}
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
+                          {getSimplifiedEstadoLabel(lead.estado)}
                         </span>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">

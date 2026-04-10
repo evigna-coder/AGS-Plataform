@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, TICKET_ESTADO_ORDER, TICKET_ESTADO_LABELS, getUserTicketAreas } from '@ags/shared';
-import type { MotivoLlamado, TicketArea, TicketPrioridad, TicketEstado } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
+import type { MotivoLlamado, TicketArea, TicketPrioridad } from '@ags/shared';
 import { useCrearLeadForm, type LeadPrefill } from '../../hooks/useCrearLeadForm';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -69,7 +69,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
             onChange={e => h.setTelefono(e.target.value)} placeholder="011 1234 5678" />
         </div>
 
-        {/* Bloque 2: Motivo + Estado inicial */}
+        {/* Bloque 2: Motivo + Área */}
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Motivo *</label>
@@ -77,51 +77,6 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
               {Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <div>
-            <label className={labelClass}>Estado inicial</label>
-            <select value={h.estadoInicial} onChange={e => h.setEstadoInicial(e.target.value as TicketEstado)} className={selectClass}>
-              {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
-                <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {h.motivoLlamado === 'otros' && (
-          <Input inputSize="sm" label="Especificar motivo *" value={h.motivoOtros}
-            onChange={e => h.setMotivoOtros(e.target.value)} placeholder="Describir el motivo..." />
-        )}
-
-        {/* Bloque 2b: Próximo contacto */}
-        <div>
-          <label className={labelClass}>Próximo contacto</label>
-          <select
-            value={h.prioridad}
-            onChange={e => {
-              const v = e.target.value;
-              if (v === 'custom') {
-                h.setPrioridad('custom' as TicketPrioridad);
-              } else {
-                h.setPrioridad(v as TicketPrioridad);
-                h.setFechaContactoCustom('');
-              }
-            }}
-            className={selectClass}
-          >
-            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
-              <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
-            ))}
-            <option value="custom">Elegir fecha específica...</option>
-          </select>
-          {(h.prioridad as string) === 'custom' && (
-            <input type="date" value={h.fechaContactoCustom}
-              onChange={e => h.setFechaContactoCustom(e.target.value)}
-              className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              title="Elegir fecha" />
-          )}
-        </div>
-
-        {/* Bloque 3: Área + Asignación */}
-        <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Área destino</label>
             <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
@@ -131,6 +86,14 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
               ))}
             </select>
           </div>
+        </div>
+        {h.motivoLlamado === 'otros' && (
+          <Input inputSize="sm" label="Especificar motivo *" value={h.motivoOtros}
+            onChange={e => h.setMotivoOtros(e.target.value)} placeholder="Describir el motivo..." />
+        )}
+
+        {/* Bloque 3: Asignado + Próximo contacto */}
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Asignar a</label>
             <select value={h.asignadoA} onChange={e => h.setAsignadoA(e.target.value)} className={selectClass}>
@@ -144,6 +107,33 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
                 })
                 .map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
             </select>
+          </div>
+          <div>
+            <label className={labelClass}>Próximo contacto</label>
+            <select
+              value={h.prioridad}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === 'custom') {
+                  h.setPrioridad('custom' as TicketPrioridad);
+                } else {
+                  h.setPrioridad(v as TicketPrioridad);
+                  h.setFechaContactoCustom('');
+                }
+              }}
+              className={selectClass}
+            >
+              {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+                <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+              ))}
+              <option value="custom">Elegir fecha específica...</option>
+            </select>
+            {(h.prioridad as string) === 'custom' && (
+              <input type="date" value={h.fechaContactoCustom}
+                onChange={e => h.setFechaContactoCustom(e.target.value)}
+                className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                title="Elegir fecha" />
+            )}
           </div>
         </div>
 

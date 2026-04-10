@@ -3,8 +3,8 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import type { Ticket, Posta, TicketEstado, TicketArea, TicketPrioridad, MotivoLlamado } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, MOTIVO_LLAMADO_LABELS, getUserTicketAreas } from '@ags/shared';
+import type { Ticket, Posta, TicketArea, TicketPrioridad, MotivoLlamado } from '@ags/shared';
+import { TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, MOTIVO_LLAMADO_LABELS, getUserTicketAreas } from '@ags/shared';
 
 interface Props {
   lead: Ticket;
@@ -12,16 +12,17 @@ interface Props {
   onSuccess: () => void;
 }
 
+const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
+const labelClass = 'text-[11px] font-medium text-slate-500 mb-0.5 block';
+
 export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) {
   const { usuario } = useAuth();
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string; role: string | null; roles?: string[] }[]>([]);
-  const [ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
+  const [_ingenieros, setIngenieros] = useState<{ id: string; nombre: string }[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
-  const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>(lead.estado);
   const [areaDestino, setAreaDestino] = useState<TicketArea | ''>(lead.areaActual || '');
-  const [accionRequerida, setAccionRequerida] = useState('');
   const [comentario, setComentario] = useState('');
-  const [prioridad, setPrioridad] = useState<import('@ags/shared').TicketPrioridad>((lead as any).prioridad || 'normal');
+  const [prioridad, setPrioridad] = useState<TicketPrioridad | 'custom'>(((lead as any).prioridad as TicketPrioridad) || 'normal');
   const [fechaContactoCustom, setFechaContactoCustom] = useState('');
   const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>(lead.motivoLlamado);
   const [motivoOtros, setMotivoOtros] = useState(lead.motivoOtros || '');
@@ -53,6 +54,8 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
     const destNombre = getDestinatarioNombre();
     setSaving(true);
     try {
+      // Al derivar, el estado pasa a "en_seguimiento" (mostrado como "En proceso")
+      const nuevoEstado = 'en_seguimiento' as const;
       const posta: Posta = {
         id: crypto.randomUUID(),
         fecha: new Date().toISOString(),
@@ -64,11 +67,15 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
         ...(comentario.trim() ? { comentario: comentario.trim() } : {}),
         estadoAnterior: lead.estado,
         estadoNuevo: nuevoEstado,
-        ...(accionRequerida.trim() ? { accionRequerida: accionRequerida.trim() } : {}),
       };
-      await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, accionRequerida.trim() || null, {
-        prioridad,
-        proximoContacto: fechaContactoCustom || (() => { const d = new Date(); d.setDate(d.getDate() + (TICKET_PRIORIDAD_DIAS[prioridad] ?? 7)); return d.toISOString().split('T')[0]; })(),
+      await leadsService.derivar(lead.id, posta, destinatarioId, destNombre || null, areaDestino || null, null, {
+        prioridad: prioridad === 'custom' ? 'normal' : prioridad,
+        proximoContacto: fechaContactoCustom || (() => {
+          const d = new Date();
+          const dias = prioridad === 'custom' ? 7 : (TICKET_PRIORIDAD_DIAS[prioridad as TicketPrioridad] ?? 7);
+          d.setDate(d.getDate() + dias);
+          return d.toISOString().split('T')[0];
+        })(),
         motivoLlamado,
         motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
       });
@@ -81,102 +88,84 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
 
   return (
     <Modal open={true} title="Derivar Ticket" onClose={onClose}>
-      <div className="space-y-3">
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Área destino</label>
-          <select
-            value={areaDestino}
-            onChange={e => setAreaDestino(e.target.value as TicketArea | '')}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="">Sin área específica</option>
-            {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Motivo</label>
-          <select
-            value={motivoLlamado}
-            onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            {Object.entries(MOTIVO_LLAMADO_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </select>
+      <div className="space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className={labelClass}>Motivo</label>
+            <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+              {Object.entries(MOTIVO_LLAMADO_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Área destino</label>
+            <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as TicketArea | '')} className={selectClass}>
+              <option value="">Sin área específica</option>
+              {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
         </div>
         {motivoLlamado === 'otros' && (
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Especificar motivo</label>
+            <label className={labelClass}>Especificar motivo</label>
             <input
               type="text"
               value={motivoOtros}
               onChange={e => setMotivoOtros(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className={selectClass}
               placeholder="Describir motivo..."
             />
           </div>
         )}
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">
-            Derivar a (usuario)
-          </label>
-          <select
-            value={destinatarioId}
-            onChange={e => setDestinatarioId(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="">Sin asignar usuario</option>
-            {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className={labelClass}>Derivar a</label>
+            <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)} className={selectClass}>
+              <option value="">Sin asignar usuario</option>
+              {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Próximo contacto</label>
+            <select
+              value={prioridad}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === 'custom') {
+                  setPrioridad('custom');
+                } else {
+                  setPrioridad(v as TicketPrioridad);
+                  setFechaContactoCustom('');
+                }
+              }}
+              className={selectClass}
+            >
+              {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+                <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+              ))}
+              <option value="custom">Elegir fecha específica...</option>
+            </select>
+            {prioridad === 'custom' && (
+              <input type="date" value={fechaContactoCustom} onChange={e => setFechaContactoCustom(e.target.value)}
+                className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                title="Elegir fecha" />
+            )}
+          </div>
         </div>
         <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Nuevo estado</label>
-          <select
-            value={nuevoEstado}
-            onChange={e => setNuevoEstado(e.target.value as TicketEstado)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado').map(e => (
-              <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Próximo contacto</label>
-          <select value={prioridad} onChange={e => { setPrioridad(e.target.value as TicketPrioridad); setFechaContactoCustom(''); }}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
-            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
-              <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
-            ))}
-          </select>
-          <input type="date" value={fechaContactoCustom} onChange={e => setFechaContactoCustom(e.target.value)}
-            className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            title="O elegir fecha específica" />
-        </div>
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Acción requerida</label>
-          <input
-            type="text"
-            value={accionRequerida}
-            onChange={e => setAccionRequerida(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-            placeholder="Ej: Averiguar N° de parte..."
-          />
-        </div>
-        <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Comentario</label>
+          <label className={labelClass}>Observación</label>
           <textarea
             value={comentario}
             onChange={e => setComentario(e.target.value)}
-            rows={3}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-            placeholder="Motivo de derivación..."
+            rows={2}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+            placeholder="Qué hay que hacer con este ticket..."
           />
         </div>
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={handleSubmit} disabled={saving}>
             {saving ? 'Derivando...' : 'Derivar'}

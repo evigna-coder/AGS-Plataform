@@ -559,6 +559,39 @@ export const TICKET_ESTADO_ORDER: TicketEstado[] = [
   'pendiente_facturacion', 'finalizado', 'no_concretado',
 ];
 
+// --- Estados simplificados (fase actual sin módulos completos) ---
+// Mostramos solo 3 estados en la UI: Nuevo / En proceso / Finalizado.
+// Los estados detallados se mantienen en el modelo para cuando vuelvan los módulos.
+
+export type TicketEstadoSimplificado = 'nuevo' | 'en_proceso' | 'finalizado';
+
+export const TICKET_ESTADO_SIMPLIFICADO_LABELS: Record<TicketEstadoSimplificado, string> = {
+  nuevo: 'Nuevo',
+  en_proceso: 'En proceso',
+  finalizado: 'Finalizado',
+};
+
+export const TICKET_ESTADO_SIMPLIFICADO_COLORS: Record<TicketEstadoSimplificado, string> = {
+  nuevo: 'bg-blue-100 text-blue-800',
+  en_proceso: 'bg-sky-100 text-sky-800',
+  finalizado: 'bg-emerald-100 text-emerald-800',
+};
+
+/** Mapea cualquier TicketEstado al estado simplificado para mostrar en UI */
+export function getSimplifiedEstado(estado: TicketEstado): TicketEstadoSimplificado {
+  if (estado === 'nuevo') return 'nuevo';
+  if (estado === 'finalizado' || estado === 'no_concretado') return 'finalizado';
+  return 'en_proceso';
+}
+
+export function getSimplifiedEstadoLabel(estado: TicketEstado): string {
+  return TICKET_ESTADO_SIMPLIFICADO_LABELS[getSimplifiedEstado(estado)];
+}
+
+export function getSimplifiedEstadoColor(estado: TicketEstado): string {
+  return TICKET_ESTADO_SIMPLIFICADO_COLORS[getSimplifiedEstado(estado)];
+}
+
 // --- Posta (derivación) ---
 export interface Posta {
   id: string;

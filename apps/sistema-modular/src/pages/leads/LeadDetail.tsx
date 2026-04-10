@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import type { Lead, LeadEstado, UsuarioAGS, Posta } from '@ags/shared';
-import { LEAD_ESTADO_LABELS, LEAD_ESTADO_COLORS } from '@ags/shared';
+import type { Lead, UsuarioAGS, Posta } from '@ags/shared';
+import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor } from '@ags/shared';
 import { leadsService, usuariosService, presupuestosService, ordenesTrabajoService, modulosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
@@ -120,11 +120,6 @@ export const LeadDetail = () => {
     loadLinkedEntities(lead);
   }, [lead, loadLinkedEntities]);
 
-  const handleEstadoChange = async (estado: LeadEstado) => {
-    if (!lead) return;
-    leadsService.update(lead.id, { estado }).catch(err => console.error('Error updating estado:', err));
-  };
-
   const handleFieldUpdate = async (field: string, value: any) => {
     if (!lead) return;
     leadsService.update(lead.id, { [field]: value }).catch(err => console.error('Error updating field:', err));
@@ -205,8 +200,8 @@ export const LeadDetail = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-slate-900 tracking-tight">{lead.razonSocial}</h2>
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_ESTADO_COLORS[lead.estado]}`}>
-                  {LEAD_ESTADO_LABELS[lead.estado]}
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
+                  {getSimplifiedEstadoLabel(lead.estado)}
                 </span>
               </div>
               <p className="text-xs text-slate-400">{lead.contacto}{lead.email ? ` · ${lead.email}` : ''}</p>
@@ -228,7 +223,7 @@ export const LeadDetail = () => {
       <div className="flex-1 overflow-y-auto px-5 py-4">
         <div className="flex gap-5">
           <div className="w-72 shrink-0">
-            <LeadSidebar lead={lead} usuarios={usuarios} onEstadoChange={handleEstadoChange} onFieldUpdate={handleFieldUpdate} moduloNombre={moduloNombre} />
+            <LeadSidebar lead={lead} usuarios={usuarios} onFieldUpdate={handleFieldUpdate} moduloNombre={moduloNombre} />
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">

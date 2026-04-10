@@ -1,15 +1,14 @@
-import type { LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, UsuarioAGS } from '@ags/shared';
+import type { LeadArea, LeadPrioridad, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import { MOTIVO_LLAMADO_LABELS, LEAD_AREA_LABELS, LEAD_PRIORIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
-const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
+export type EstadoFilterValue = '' | 'nuevo' | 'en_proceso' | 'finalizado';
+
+const ESTADO_TABS: { value: EstadoFilterValue; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'nuevo', label: 'Nuevo' },
-  { value: 'relevamiento_pendiente', label: 'Relevamiento' },
-  { value: 'presupuesto_pendiente', label: 'Presupuesto pend.' },
-  { value: 'en_seguimiento', label: 'En seguimiento' },
-  { value: 'en_coordinacion', label: 'Coordinación' },
-  { value: 'no_concretado', label: 'No concretado' },
+  { value: 'en_proceso', label: 'En proceso' },
+  { value: 'finalizado', label: 'Finalizado' },
 ];
 
 export interface LeadFiltersState {
@@ -33,8 +32,8 @@ export const INITIAL_FILTERS: LeadFiltersState = {
 interface LeadFiltersProps {
   search: string;
   onSearchChange: (v: string) => void;
-  estadoFilter: LeadEstado | '';
-  onEstadoChange: (v: LeadEstado | '') => void;
+  estadoFilter: EstadoFilterValue;
+  onEstadoChange: (v: EstadoFilterValue) => void;
   filters: LeadFiltersState;
   onFiltersChange: (f: LeadFiltersState) => void;
   usuarios: UsuarioAGS[];
@@ -53,7 +52,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-64" />
         <div className="flex items-center gap-1.5">
           {ESTADO_TABS.map(tab => (
-            <button key={tab.value} onClick={() => onEstadoChange(tab.value as LeadEstado | '')}
+            <button key={tab.value} onClick={() => onEstadoChange(tab.value)}
               className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
                 estadoFilter === tab.value ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}>

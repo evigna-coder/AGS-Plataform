@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { Lead, LeadEstado } from '@ags/shared';
-import { TICKET_ESTADO_LABELS, TICKET_AREA_LABELS, TICKET_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
+import type { Lead } from '@ags/shared';
+import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor, TICKET_AREA_LABELS, TICKET_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import type { TicketPrioridad } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { getDaysOpen, getDaysSinceLastActivity, getDaysUntilContacto, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
@@ -8,11 +8,10 @@ import { getDaysOpen, getDaysSinceLastActivity, getDaysUntilContacto, getAgeBadg
 interface LeadSidebarProps {
   lead: Lead;
   usuarios: { id: string; displayName: string }[];
-  onEstadoChange: (estado: LeadEstado) => void;
   onFieldUpdate?: (field: string, value: any) => void;
 }
 
-export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate }: LeadSidebarProps) => {
+export const LeadSidebar = ({ lead, usuarios, onFieldUpdate }: LeadSidebarProps) => {
   const responsable = usuarios.find(u => u.id === lead.asignadoA);
   const isActive = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';
   const daysOpen = getDaysOpen(lead.createdAt);
@@ -27,10 +26,9 @@ export const LeadSidebar = ({ lead, usuarios, onEstadoChange, onFieldUpdate }: L
       <Card>
         <div className="p-4 space-y-3">
           <InfoRow label="Estado">
-            <select value={lead.estado} onChange={e => onEstadoChange(e.target.value as LeadEstado)}
-              className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-              {Object.entries(TICKET_ESTADO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
+              {getSimplifiedEstadoLabel(lead.estado)}
+            </span>
           </InfoRow>
           <InfoRow label="Próximo contacto">
             <select value={lead.prioridad || ''} onChange={e => {

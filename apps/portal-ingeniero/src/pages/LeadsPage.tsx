@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Lead, LeadEstado } from '@ags/shared';
+import type { Lead } from '@ags/shared';
 import {
-  TICKET_ESTADO_LABELS, TICKET_ESTADO_COLORS,
+  getSimplifiedEstadoLabel, getSimplifiedEstadoColor,
   TICKET_AREA_LABELS, TICKET_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
@@ -17,7 +17,7 @@ import CrearLeadModal from '../components/leads/CrearLeadModal';
 import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 import LeadQuickNoteModal from '../components/leads/LeadQuickNoteModal';
-import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState } from '../components/leads/LeadFilters';
+import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState, type EstadoFilterValue } from '../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../utils/leadHelpers';
 import { useResizableColumns } from '../hooks/useResizableColumns';
 
@@ -37,7 +37,7 @@ export default function LeadsPage() {
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
 
   const [search, setSearch] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState<LeadEstado | ''>('');
+  const [estadoFilter, setEstadoFilter] = useState<EstadoFilterValue>('');
   const [filters, setFilters] = useState<LeadFiltersState>(INITIAL_FILTERS);
 
   const unsubRef = useRef<(() => void) | null>(null);
@@ -47,13 +47,13 @@ export default function LeadsPage() {
   }, []);
 
   // Build Firestore query filters
+  // Estado: se filtra client-side porque "en_proceso" agrupa múltiples estados internos.
   const queryFilters = useMemo(() => {
     // Non-admin: always lock to own tickets at query level
     if (!canSeeAll && usuario) {
-      const base = estadoFilter ? { estado: estadoFilter as LeadEstado } : {};
-      if (filters.misCreados) return { ...base, createdBy: usuario.id };
-      if (filters.misDerivados) return { ...base, derivadoPor: usuario.id };
-      return { ...base, asignadoA: usuario.id };
+      if (filters.misCreados) return { createdBy: usuario.id };
+      if (filters.misDerivados) return { derivadoPor: usuario.id };
+      return { asignadoA: usuario.id };
     }
     // Admin: soloMios filters by asignadoA; misCreados/misDerivados fetch all and filter client-side
     const responsableFilter = filters.soloMios && usuario
@@ -62,10 +62,9 @@ export default function LeadsPage() {
         ? undefined
         : (filters.responsable || undefined);
     return {
-      ...(estadoFilter ? { estado: estadoFilter as LeadEstado } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [estadoFilter, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario, canSeeAll]);
+  }, [filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario, canSeeAll]);
 
   // Real-time subscription
   useEffect(() => {
@@ -86,7 +85,15 @@ export default function LeadsPage() {
     let result = leads;
     // Ocultar finalizados salvo que el checkbox esté tildado
     if (!filters.mostrarFinalizados) {
-      result = result.filter(l => l.estado !== 'finalizado');
+      result = result.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+    }
+    // Filtro de estado simplificado (nuevo / en_proceso / finalizado)
+    if (estadoFilter === 'nuevo') {
+      result = result.filter(l => l.estado === 'nuevo');
+    } else if (estadoFilter === 'en_proceso') {
+      result = result.filter(l => l.estado !== 'nuevo' && l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+    } else if (estadoFilter === 'finalizado') {
+      result = result.filter(l => l.estado === 'finalizado' || l.estado === 'no_concretado');
     }
     if (filters.misCreados && usuario) {
       result = result.filter(l => l.createdBy === usuario.id);
@@ -109,7 +116,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, usuario, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, onResizeStart } = useResizableColumns('pi-tickets-list');
 
@@ -172,8 +179,8 @@ export default function LeadsPage() {
                     className={`block bg-white rounded-xl border border-slate-200 p-3 active:bg-slate-50 ${getRowStyle(lead)}`}>
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <span className="text-sm font-semibold text-slate-800 truncate">{lead.razonSocial}</span>
-                      <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_ESTADO_COLORS[lead.estado]}`}>
-                        {TICKET_ESTADO_LABELS[lead.estado]}
+                      <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
+                        {getSimplifiedEstadoLabel(lead.estado)}
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mb-2">{lead.contacto}</div>
@@ -276,8 +283,8 @@ export default function LeadsPage() {
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_ESTADO_COLORS[lead.estado]}`}>
-                            {TICKET_ESTADO_LABELS[lead.estado]}
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
+                            {getSimplifiedEstadoLabel(lead.estado)}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap overflow-hidden">

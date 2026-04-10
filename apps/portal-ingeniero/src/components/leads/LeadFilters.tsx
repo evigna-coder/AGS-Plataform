@@ -1,16 +1,15 @@
 import { useState } from 'react';
-import type { LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado } from '@ags/shared';
+import type { LeadArea, LeadPrioridad, MotivoLlamado } from '@ags/shared';
 import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
-const ESTADO_TABS: { value: LeadEstado | ''; label: string }[] = [
+/** Valores simplificados del filtro de estado en la UI */
+export type EstadoFilterValue = '' | 'nuevo' | 'en_proceso' | 'finalizado';
+
+const ESTADO_TABS: { value: EstadoFilterValue; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'nuevo', label: 'Nuevo' },
-  { value: 'relevamiento_pendiente', label: 'Relevamiento' },
-  { value: 'presupuesto_pendiente', label: 'Presupuesto pend.' },
-  { value: 'en_seguimiento', label: 'En seguimiento' },
-  { value: 'en_coordinacion', label: 'Coordinación' },
-  { value: 'no_concretado', label: 'No concretado' },
+  { value: 'en_proceso', label: 'En proceso' },
   { value: 'finalizado', label: 'Finalizado' },
 ];
 
@@ -35,8 +34,8 @@ export const INITIAL_FILTERS: LeadFiltersState = {
 interface LeadFiltersProps {
   search: string;
   onSearchChange: (v: string) => void;
-  estadoFilter: LeadEstado | '';
-  onEstadoChange: (v: LeadEstado | '') => void;
+  estadoFilter: EstadoFilterValue;
+  onEstadoChange: (v: EstadoFilterValue) => void;
   filters: LeadFiltersState;
   onFiltersChange: (f: LeadFiltersState) => void;
   usuarios: { id: string; displayName: string }[];
@@ -132,7 +131,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           {/* Estado tabs (desktop) */}
           <div className="hidden md:flex items-center gap-1.5 overflow-x-auto">
             {ESTADO_TABS.map(tab => (
-              <button key={tab.value} onClick={() => onEstadoChange(tab.value as LeadEstado | '')}
+              <button key={tab.value} onClick={() => onEstadoChange(tab.value)}
                 className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
                   estadoFilter === tab.value ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-200 border border-slate-200'
                 }`}>
@@ -143,7 +142,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
 
           {/* Estado select (mobile) */}
           <div className="md:hidden">
-            <select value={estadoFilter} onChange={e => onEstadoChange(e.target.value as LeadEstado | '')}
+            <select value={estadoFilter} onChange={e => onEstadoChange(e.target.value as EstadoFilterValue)}
               className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
               {ESTADO_TABS.map(tab => (
                 <option key={tab.value} value={tab.value}>{tab.value ? tab.label : 'Estado: Todos'}</option>

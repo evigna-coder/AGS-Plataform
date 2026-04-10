@@ -4,8 +4,8 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_ESTADO_LABELS, TICKET_ESTADO_ORDER, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
-import type { MotivoLlamado, TicketArea, TicketEstado, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
+import type { MotivoLlamado, TicketArea, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -46,7 +46,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [motivoLlamado, setMotivoLlamado] = useState<MotivoLlamado>('soporte');
   const [areaActual, setAreaActual] = useState<TicketArea | ''>('');
   const [asignadoId, setAsignadoId] = useState('');
-  const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>('relevamiento_pendiente');
   const [prioridad, setPrioridad] = useState<TicketPrioridad | 'custom'>('normal');
   const [descripcion, setDescripcion] = useState('');
   const [motivoOtros, setMotivoOtros] = useState('');
@@ -131,8 +130,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         aUsuarioNombre: asignadoNombre || '',
         ...(areaActual ? { aArea: areaActual } : {}),
         ...(descripcion.trim() ? { comentario: descripcion.trim() } : {}),
-        estadoAnterior: nuevoEstado,
-        estadoNuevo: nuevoEstado,
+        estadoAnterior: 'nuevo' as const,
+        estadoNuevo: 'nuevo' as const,
       };
       await leadsService.create({
         razonSocial: razonSocial.trim(),
@@ -146,7 +145,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         clienteId: clienteId || null,
         contactoId: null,
         sistemaId: null,
-        estado: nuevoEstado,
+        estado: 'nuevo' as const,
         postas: [posta],
         asignadoA: asignadoId || null,
         asignadoNombre: asignadoNombre,
@@ -185,7 +184,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setMotivoLlamado('soporte');
     setAreaActual('');
     setAsignadoId('');
-    setNuevoEstado('relevamiento_pendiente');
     setPrioridad('normal');
     setMotivoOtros('');
     setDescripcion('');
@@ -300,79 +298,69 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     </div>
   );
 
-  const motivoEstadoFields = (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div>
-          <label className={labelClass}>Motivo *</label>
-          <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
-            {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          {motivoLlamado === 'otros' && (
-            <Input className="mt-1" value={motivoOtros} onChange={e => setMotivoOtros(e.target.value)}
-              placeholder="Describir el motivo..." />
-          )}
-        </div>
-        <div>
-          <label className={labelClass}>Estado inicial</label>
-          <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as TicketEstado)} className={selectClass}>
-            {TICKET_ESTADO_ORDER.filter(e => e !== 'finalizado' && e !== 'no_concretado' && e !== 'nuevo').map(e => (
-              <option key={e} value={e}>{TICKET_ESTADO_LABELS[e]}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div>
-        <label className={labelClass}>Próximo contacto</label>
-        <select
-          value={prioridad}
-          onChange={e => {
-            const v = e.target.value;
-            if (v === 'custom') {
-              setPrioridad('custom');
-            } else {
-              setPrioridad(v as TicketPrioridad);
-              setFechaContactoCustom('');
-            }
-          }}
-          className={selectClass}
-        >
-          {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
-            <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
-          ))}
-          <option value="custom">Elegir fecha específica...</option>
-        </select>
-        {prioridad === 'custom' && (
-          <input type="date" value={fechaContactoCustom}
-            onChange={e => setFechaContactoCustom(e.target.value)}
-            className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            title="Elegir fecha" />
-        )}
-      </div>
-    </>
+  const motivoField = (
+    <div>
+      <label className={labelClass}>Motivo *</label>
+      <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
+        {MOTIVOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      </select>
+      {motivoLlamado === 'otros' && (
+        <Input className="mt-1" value={motivoOtros} onChange={e => setMotivoOtros(e.target.value)}
+          placeholder="Describir el motivo..." />
+      )}
+    </div>
   );
 
-  const areaAsignacionFields = (
-    <>
-      <div>
-        <label className={labelClass}>Área destino *</label>
-        <select value={areaActual} onChange={e => setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
-          <option value="">Seleccionar área...</option>
-          {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </div>
-      {areaActual && (
-        <div>
-          <label className={labelClass}>Asignar a (usuario)</label>
-          <select value={asignadoId} onChange={e => setAsignadoId(e.target.value)} className={selectClass}>
-            <option value="">Solo al área (sin persona específica)</option>
-            {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
-        </div>
+  const proximoContactoField = (
+    <div>
+      <label className={labelClass}>Próximo contacto</label>
+      <select
+        value={prioridad}
+        onChange={e => {
+          const v = e.target.value;
+          if (v === 'custom') {
+            setPrioridad('custom');
+          } else {
+            setPrioridad(v as TicketPrioridad);
+            setFechaContactoCustom('');
+          }
+        }}
+        className={selectClass}
+      >
+        {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+          <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+        ))}
+        <option value="custom">Elegir fecha específica...</option>
+      </select>
+      {prioridad === 'custom' && (
+        <input type="date" value={fechaContactoCustom}
+          onChange={e => setFechaContactoCustom(e.target.value)}
+          className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          title="Elegir fecha" />
       )}
-    </>
+    </div>
+  );
+
+  const areaField = (
+    <div>
+      <label className={labelClass}>Área destino *</label>
+      <select value={areaActual} onChange={e => setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>
+        <option value="">Seleccionar área...</option>
+        {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+          <option key={v} value={v}>{l}</option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const asignadoField = (
+    <div>
+      <label className={labelClass}>Asignar a</label>
+      <select value={asignadoId} onChange={e => setAsignadoId(e.target.value)} className={selectClass} disabled={!areaActual}>
+        <option value="">{areaActual ? 'Solo al área' : '— Elegí área primero —'}</option>
+        {personList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+      </select>
+    </div>
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -444,17 +432,23 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         {/* Step content */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {step === 1 ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Cliente y contacto</p>
               {clienteField}
               {contactoField}
               {emailTelFields}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Clasificación y asignación</p>
-              {motivoEstadoFields}
-              {areaAsignacionFields}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {motivoField}
+                {areaField}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {asignadoField}
+                {proximoContactoField}
+              </div>
               {descripcionField}
               {adjuntosField}
             </div>
@@ -489,8 +483,14 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         {clienteField}
         {contactoField}
         {emailTelFields}
-        {motivoEstadoFields}
-        {areaAsignacionFields}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {motivoField}
+          {areaField}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {asignadoField}
+          {proximoContactoField}
+        </div>
         {descripcionField}
         {adjuntosField}
         <div className="flex justify-end gap-2 pt-1">
