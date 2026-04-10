@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -41,9 +42,10 @@ interface WeekBlockProps {
   weekStart: Date;
   entriesForDay: (date: string) => AgendaEntry[];
   isCurrentWeek: boolean;
+  showEngineer?: boolean;
 }
 
-function WeekBlock({ weekStart, entriesForDay, isCurrentWeek }: WeekBlockProps) {
+function WeekBlock({ weekStart, entriesForDay, isCurrentWeek, showEngineer }: WeekBlockProps) {
   const days = Array.from({ length: 7 }).map((_, i) => {
     const day = addDays(weekStart, i);
     const dayStr = formatDate(day);
@@ -74,7 +76,27 @@ function WeekBlock({ weekStart, entriesForDay, isCurrentWeek }: WeekBlockProps) 
                 {today && <span className="text-[9px] font-medium text-teal-500 uppercase">Hoy</span>}
               </div>
               <div className="space-y-2 ml-1">
-                {dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)}
+                {showEngineer ? (
+                  // Admin mobile: group by engineer within each day
+                  Object.entries(
+                    dayEntries.reduce<Record<string, AgendaEntry[]>>((acc, e) => {
+                      const name = e.ingenieroNombre || 'Sin asignar';
+                      (acc[name] ??= []).push(e);
+                      return acc;
+                    }, {})
+                  ).map(([nombre, engineerEntries]) => (
+                    <div key={nombre}>
+                      <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full inline-block mb-1">
+                        {nombre}
+                      </span>
+                      <div className="space-y-1.5">
+                        {engineerEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  dayEntries.map(e => <AgendaEntryCard key={e.id} entry={e} />)
+                )}
               </div>
             </div>
           );
@@ -94,7 +116,15 @@ export default function AgendaPage() {
   for (let i = -1; i < weeksAhead; i++) weeks.push(addDays(weekStart, i * 7));
 
   const currentWeekStr = formatDate(weekStart);
-  const showGrid = isAdmin && !showMine;
+  // Grid only on desktop (>=768px) — mobile always shows list view
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const showGrid = isAdmin && !showMine && isDesktop;
 
   return (
     <div className="h-full flex flex-col">
@@ -143,6 +173,7 @@ export default function AgendaPage() {
                 weekStart={ws}
                 entriesForDay={entriesForDay}
                 isCurrentWeek={formatDate(ws) === currentWeekStr}
+                showEngineer={isAdmin && !showMine}
               />
             ))}
             <div className="text-center py-4">
