@@ -19,6 +19,7 @@ export interface LeadFiltersState {
   responsable: string;
   soloMios: boolean;
   misCreados: boolean;
+  misDerivados: boolean;
   mostrarFinalizados: boolean;
   fechaDesde: string;
   fechaHasta: string;
@@ -26,7 +27,7 @@ export interface LeadFiltersState {
 
 export const INITIAL_FILTERS: LeadFiltersState = {
   motivo: '', area: '', prioridad: '', responsable: '',
-  soloMios: false, misCreados: false, mostrarFinalizados: false, fechaDesde: '', fechaHasta: '',
+  soloMios: false, misCreados: false, misDerivados: false, mostrarFinalizados: false, fechaDesde: '', fechaHasta: '',
 };
 
 interface LeadFiltersProps {
@@ -62,12 +63,16 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
         </div>
         <div className="flex items-center gap-3 ml-auto">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, misCreados: false })} className="rounded border-slate-300" />
-            Mis leads
+            <input type="checkbox" checked={filters.soloMios} onChange={e => set({ soloMios: e.target.checked, misCreados: false, misDerivados: false })} className="rounded border-slate-300" />
+            Mis tickets
           </label>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={filters.misCreados} onChange={e => set({ misCreados: e.target.checked, soloMios: false })} className="rounded border-slate-300" />
+            <input type="checkbox" checked={filters.misCreados} onChange={e => set({ misCreados: e.target.checked, soloMios: false, misDerivados: false })} className="rounded border-slate-300" />
             Mis creados
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+            <input type="checkbox" checked={filters.misDerivados} onChange={e => set({ misDerivados: e.target.checked, soloMios: false, misCreados: false })} className="rounded border-slate-300" />
+            Mis derivados
           </label>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={filters.mostrarFinalizados} onChange={e => set({ mostrarFinalizados: e.target.checked })} className="rounded border-slate-300" />
@@ -96,7 +101,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(LEAD_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
             placeholder="Área" />
         </div>
-        {!filters.soloMios && !filters.misCreados && (
+        {!filters.soloMios && !filters.misCreados && !filters.misDerivados && (
           <div className="min-w-[120px]">
             <SearchableSelect size="sm" value={filters.responsable}
               onChange={v => set({ responsable: v })}

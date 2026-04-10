@@ -54,6 +54,7 @@ export const LeadsList = () => {
     responsable: { type: 'string' as const, default: '' },
     soloMios: { type: 'boolean' as const, default: false },
     misCreados: { type: 'boolean' as const, default: false },
+    misDerivados: { type: 'boolean' as const, default: false },
     mostrarFinalizados: { type: 'boolean' as const, default: false },
     prioridad: { type: 'string' as const, default: '' },
     fechaDesde: { type: 'string' as const, default: '' },
@@ -70,14 +71,18 @@ export const LeadsList = () => {
 
   // Build Firestore query filters (stable ref via JSON key)
   const queryFilters = useMemo(() => {
-    const responsableFilter = filters.soloMios && usuario ? usuario.id : filters.misCreados ? undefined : (filters.responsable || undefined);
+    const responsableFilter = filters.soloMios && usuario
+      ? usuario.id
+      : (filters.misCreados || filters.misDerivados)
+        ? undefined
+        : (filters.responsable || undefined);
     return {
       ...(filters.estadoFilter ? { estado: filters.estadoFilter as LeadEstado } : {}),
       ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
       ...(filters.area ? { areaActual: filters.area as LeadArea } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
-  }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, usuario]);
+  }, [filters.estadoFilter, filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario]);
 
   // Real-time subscription — auto-updates when any user writes
   useEffect(() => {
@@ -126,6 +131,9 @@ export const LeadsList = () => {
     if (filters.misCreados && usuario) {
       result = result.filter(l => l.createdBy === usuario.id);
     }
+    if (filters.misDerivados && usuario) {
+      result = result.filter(l => l.derivadoPor === usuario.id);
+    }
     if (filters.prioridad) result = result.filter(l => l.prioridad === filters.prioridad);
     if (filters.fechaDesde) result = result.filter(l => l.createdAt >= filters.fechaDesde);
     if (filters.fechaHasta) result = result.filter(l => l.createdAt <= filters.fechaHasta + 'T23:59:59');
@@ -139,7 +147,7 @@ export const LeadsList = () => {
       );
     }
     return result;
-  }, [leads, usuario, filters.misCreados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
+  }, [leads, usuario, isAdmin, extraAreas, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.prioridad, filters.fechaDesde, filters.fechaHasta, debouncedSearch]);
 
   const leadsSorted = useMemo(() => {
     const sorted = [...leadsFiltered];
@@ -207,10 +215,11 @@ export const LeadsList = () => {
     responsable: filters.responsable,
     soloMios: filters.soloMios,
     misCreados: filters.misCreados,
+    misDerivados: filters.misDerivados,
     mostrarFinalizados: filters.mostrarFinalizados,
     fechaDesde: filters.fechaDesde,
     fechaHasta: filters.fechaHasta,
-  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.misCreados, filters.mostrarFinalizados, filters.fechaDesde, filters.fechaHasta]);
+  }), [filters.motivo, filters.area, filters.prioridad, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.fechaDesde, filters.fechaHasta]);
 
   const handleLeadFiltersChange = (f: LeadFiltersState) => {
     setFilters({
@@ -220,6 +229,7 @@ export const LeadsList = () => {
       responsable: f.responsable,
       soloMios: f.soloMios,
       misCreados: f.misCreados,
+      misDerivados: f.misDerivados,
       mostrarFinalizados: f.mostrarFinalizados,
       fechaDesde: f.fechaDesde,
       fechaHasta: f.fechaHasta,
