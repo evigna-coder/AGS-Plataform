@@ -32,7 +32,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
 
   return (
     <Modal open title="Nuevo Ticket" subtitle="Registrar nueva consulta o pedido" onClose={onClose}>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {/* Bloque 1: Cliente + Contacto */}
         <LeadClienteField
           clienteId={h.clienteId} razonSocial={h.razonSocial} setRazonSocial={h.setRazonSocial}
@@ -62,7 +62,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
           <Input inputSize="sm" label="Contacto *" value={h.contacto}
             onChange={e => h.setContacto(e.target.value)} error={h.errors.contacto} placeholder="Persona de contacto" />
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <Input inputSize="sm" label="Email" type="email" value={h.email}
             onChange={e => h.setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
           <Input inputSize="sm" label="Teléfono" value={h.telefono}
@@ -70,7 +70,7 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
         </div>
 
         {/* Bloque 2: Motivo + Estado inicial */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Motivo *</label>
             <select value={h.motivoLlamado} onChange={e => h.setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
@@ -91,27 +91,37 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
             onChange={e => h.setMotivoOtros(e.target.value)} placeholder="Describir el motivo..." />
         )}
 
-        {/* Bloque 2b: Próximo contacto + Acción pendiente */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Próximo contacto</label>
-            <select value={h.prioridad} onChange={e => { h.setPrioridad(e.target.value as TicketPrioridad); h.setFechaContactoCustom(''); }} className={selectClass}>
-              {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
-                <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
-              ))}
-            </select>
+        {/* Bloque 2b: Próximo contacto */}
+        <div>
+          <label className={labelClass}>Próximo contacto</label>
+          <select
+            value={h.prioridad}
+            onChange={e => {
+              const v = e.target.value;
+              if (v === 'custom') {
+                h.setPrioridad('custom' as TicketPrioridad);
+              } else {
+                h.setPrioridad(v as TicketPrioridad);
+                h.setFechaContactoCustom('');
+              }
+            }}
+            className={selectClass}
+          >
+            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+              <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+            ))}
+            <option value="custom">Elegir fecha específica...</option>
+          </select>
+          {(h.prioridad as string) === 'custom' && (
             <input type="date" value={h.fechaContactoCustom}
               onChange={e => h.setFechaContactoCustom(e.target.value)}
               className="mt-1 w-full text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              title="O elegir fecha específica" placeholder="Fecha personalizada" />
-          </div>
-          <Input inputSize="sm" label="Acción pendiente (opcional)" value={h.accionPendiente}
-            onChange={e => h.setAccionPendiente(e.target.value)}
-            placeholder="Ej: Averiguar N° parte, Confirmar..." />
+              title="Elegir fecha" />
+          )}
         </div>
 
         {/* Bloque 3: Área + Asignación */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass}>Área destino</label>
             <select value={h.areaActual} onChange={e => h.setAreaActual(e.target.value as TicketArea | '')} className={selectClass}>

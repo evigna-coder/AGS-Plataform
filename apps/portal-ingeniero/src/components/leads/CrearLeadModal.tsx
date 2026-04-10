@@ -47,8 +47,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [areaActual, setAreaActual] = useState<TicketArea | ''>('');
   const [asignadoId, setAsignadoId] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<TicketEstado>('relevamiento_pendiente');
-  const [prioridad, setPrioridad] = useState<TicketPrioridad>('normal');
-  const [accionPendiente, setAccionPendiente] = useState('');
+  const [prioridad, setPrioridad] = useState<TicketPrioridad | 'custom'>('normal');
   const [descripcion, setDescripcion] = useState('');
   const [motivoOtros, setMotivoOtros] = useState('');
   const [fechaContactoCustom, setFechaContactoCustom] = useState('');
@@ -153,9 +152,14 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         asignadoNombre: asignadoNombre,
         derivadoPor: usuario.id,
         areaActual: areaActual || null,
-        accionPendiente: accionPendiente.trim() || null,
-        prioridad: prioridad || 'normal',
-        proximoContacto: fechaContactoCustom || (() => { const d = new Date(); d.setDate(d.getDate() + (TICKET_PRIORIDAD_DIAS[prioridad] ?? 7)); return d.toISOString().split('T')[0]; })(),
+        accionPendiente: null,
+        prioridad: prioridad === 'custom' ? 'normal' : (prioridad || 'normal'),
+        proximoContacto: fechaContactoCustom || (() => {
+          const d = new Date();
+          const dias = prioridad === 'custom' ? 7 : (TICKET_PRIORIDAD_DIAS[prioridad as TicketPrioridad] ?? 7);
+          d.setDate(d.getDate() + dias);
+          return d.toISOString().split('T')[0];
+        })(),
         source: 'portal',
       } as Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>);
       // Upload adjuntos if any
@@ -183,7 +187,6 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     setAsignadoId('');
     setNuevoEstado('relevamiento_pendiente');
     setPrioridad('normal');
-    setAccionPendiente('');
     setMotivoOtros('');
     setDescripcion('');
     setPendingFiles([]);
@@ -195,8 +198,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
 
   /* ---- Shared field renderers ---- */
 
-  const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
-  const labelClass = 'text-[11px] font-medium text-slate-500 mb-1 block';
+  const selectClass = 'w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500';
+  const labelClass = 'text-[11px] font-medium text-slate-500 mb-0.5 block';
 
   const handleClienteKeyDown = (e: React.KeyboardEvent) => {
     if (!showClienteDropdown || filteredClientes.length === 0) return;
@@ -291,7 +294,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   );
 
   const emailTelFields = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <Input label="Email" value={email} onChange={e => setEmail(e.target.value)} />
       <Input label="Teléfono" value={telefono} onChange={e => setTelefono(e.target.value)} />
     </div>
@@ -299,7 +302,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
 
   const motivoEstadoFields = (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className={labelClass}>Motivo *</label>
           <select value={motivoLlamado} onChange={e => setMotivoLlamado(e.target.value as MotivoLlamado)} className={selectClass}>
@@ -319,21 +322,32 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelClass}>Próximo contacto</label>
-          <select value={prioridad} onChange={e => { setPrioridad(e.target.value as TicketPrioridad); setFechaContactoCustom(''); }} className={selectClass}>
-            {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
-              <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
-            ))}
-          </select>
+      <div>
+        <label className={labelClass}>Próximo contacto</label>
+        <select
+          value={prioridad}
+          onChange={e => {
+            const v = e.target.value;
+            if (v === 'custom') {
+              setPrioridad('custom');
+            } else {
+              setPrioridad(v as TicketPrioridad);
+              setFechaContactoCustom('');
+            }
+          }}
+          className={selectClass}
+        >
+          {Object.entries(TICKET_PRIORIDAD_DIAS).map(([k, dias]) => (
+            <option key={k} value={k}>{dias <= 4 ? `${(dias as number) * 24} hs` : `${dias} días`} — {TICKET_PRIORIDAD_LABELS[k as TicketPrioridad]}</option>
+          ))}
+          <option value="custom">Elegir fecha específica...</option>
+        </select>
+        {prioridad === 'custom' && (
           <input type="date" value={fechaContactoCustom}
             onChange={e => setFechaContactoCustom(e.target.value)}
             className="mt-1 w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            title="O elegir fecha específica" />
-        </div>
-        <Input label="Acción pendiente (opcional)" value={accionPendiente} onChange={e => setAccionPendiente(e.target.value)}
-          placeholder="Ej: Averiguar N° parte, Confirmar disponibilidad..." />
+            title="Elegir fecha" />
+        )}
       </div>
     </>
   );
@@ -373,8 +387,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
       <textarea
         value={descripcion}
         onChange={e => setDescripcion(e.target.value)}
-        rows={3}
-        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+        rows={2}
+        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
       />
     </div>
   );
@@ -471,7 +485,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   /* ---- Desktop: modal normal ---- */
   return (
     <Modal open={open} title="Nuevo Ticket" onClose={onClose}>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {clienteField}
         {contactoField}
         {emailTelFields}
@@ -479,7 +493,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         {areaAsignacionFields}
         {descripcionField}
         {adjuntosField}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={handleSubmit} disabled={saving || !canSubmit}>
             {saving ? 'Creando...' : 'Crear Ticket'}
