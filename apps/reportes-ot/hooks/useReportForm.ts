@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { Part, type ProtocolData } from '../types';
 import type { ProtocolSelection } from '../types/tableCatalog';
-import type { InstrumentoPatronOption, CertificadoIngeniero } from '../types/instrumentos';
+import type { InstrumentoPatronOption, CertificadoIngeniero, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
 
 export interface ReportFormState {
   // OT y estado general
@@ -61,8 +61,14 @@ export interface ReportFormState {
   // Tablas dinámicas del catálogo
   protocolSelections: ProtocolSelection[];
 
-  // Instrumentos/patrones utilizados
+  // Instrumentos/patrones utilizados (instrumentos únicamente — legacy conserva patron también)
   instrumentosSeleccionados: InstrumentoPatronOption[];
+
+  // Patrones utilizados (nueva colección, por lote)
+  patronesSeleccionados: PatronSeleccionado[];
+
+  // Columnas cromatográficas utilizadas (nueva colección, por serie)
+  columnasSeleccionadas: ColumnaSeleccionada[];
 
   // Certificados de ingeniero seleccionados
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
@@ -106,6 +112,8 @@ export interface ReportState {
   protocolData: ProtocolData | null;
   protocolSelections: ProtocolSelection[];
   instrumentosSeleccionados: InstrumentoPatronOption[];
+  patronesSeleccionados: PatronSeleccionado[];
+  columnasSeleccionadas: ColumnaSeleccionada[];
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
   resolvedIngenieroId: string | null;
 }
@@ -156,6 +164,8 @@ export interface UseReportFormReturn {
     setProtocolData: (value: ProtocolData | null) => void;
     setProtocolSelections: (value: ProtocolSelection[]) => void;
     setInstrumentosSeleccionados: (value: InstrumentoPatronOption[]) => void;
+    setPatronesSeleccionados: (value: PatronSeleccionado[]) => void;
+    setColumnasSeleccionadas: (value: ColumnaSeleccionada[]) => void;
     setCertificadosIngenieroSeleccionados: (value: CertificadoIngeniero[]) => void;
     setResolvedIngenieroId: (value: string | null) => void;
   };
@@ -211,6 +221,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [protocolData, setProtocolData] = useState<ProtocolData | null>(null);
   const [protocolSelections, setProtocolSelections] = useState<ProtocolSelection[]>([]);
   const [instrumentosSeleccionados, setInstrumentosSeleccionados] = useState<InstrumentoPatronOption[]>([]);
+  const [patronesSeleccionados, setPatronesSeleccionados] = useState<PatronSeleccionado[]>([]);
+  const [columnasSeleccionadas, setColumnasSeleccionadas] = useState<ColumnaSeleccionada[]>([]);
   const [certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados] = useState<CertificadoIngeniero[]>([]);
   const [resolvedIngenieroId, setResolvedIngenieroId] = useState<string | null>(null);
   const [otInput, setOtInput] = useState(initialOtNumber);
@@ -240,7 +252,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados, certificadosIngenieroSeleccionados, resolvedIngenieroId
+    instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
+    certificadosIngenieroSeleccionados, resolvedIngenieroId
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
@@ -249,7 +262,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados, certificadosIngenieroSeleccionados, resolvedIngenieroId
+    instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
+    certificadosIngenieroSeleccionados, resolvedIngenieroId
   ]);
 
   const formState: ReportFormState = {
@@ -293,6 +307,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     protocolData,
     protocolSelections,
     instrumentosSeleccionados,
+    patronesSeleccionados,
+    columnasSeleccionadas,
     certificadosIngenieroSeleccionados,
     resolvedIngenieroId
   };
@@ -340,6 +356,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setProtocolData,
       setProtocolSelections,
       setInstrumentosSeleccionados,
+      setPatronesSeleccionados,
+      setColumnasSeleccionadas,
       setCertificadosIngenieroSeleccionados,
       setResolvedIngenieroId
     },

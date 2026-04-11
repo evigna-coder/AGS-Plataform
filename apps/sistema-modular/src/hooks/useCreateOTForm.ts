@@ -253,6 +253,8 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         comentarioFacturacion: form.comentarioFacturacion || null,
         materialesParaServicio: form.materialesParaServicio || '',
         leadId: form.leadId || undefined,
+        // Bidirectional link to presupuesto origen (audit/traceability)
+        presupuestoOrigenId: form.presupuestoId || null,
       };
       await ordenesTrabajoService.create(otData);
       await ordenesTrabajoService.create({
@@ -269,11 +271,22 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         );
       }
 
-      // Link presupuesto and set en_ejecucion
+      // Link presupuesto and set en_ejecucion. Append to otsVinculadasNumbers
+      // (contrato presupuestos can spawn many OTs) while keeping the singular
+      // otVinculadaNumber field reflecting the most recent one for compat.
       if (form.presupuestoId) {
-        await presupuestosService.update(form.presupuestoId, { otVinculadaNumber: otNum, estado: 'en_ejecucion' } as any).catch(err =>
-          console.error('Error vinculando presupuesto:', err)
-        );
+        try {
+          const presActual = await presupuestosService.getById(form.presupuestoId);
+          const prev = presActual?.otsVinculadasNumbers ?? [];
+          const nextList = prev.includes(otNum) ? prev : [...prev, otNum];
+          await presupuestosService.update(form.presupuestoId, {
+            otVinculadaNumber: otNum,
+            otsVinculadasNumbers: nextList,
+            estado: 'en_ejecucion',
+          } as any);
+        } catch (err) {
+          console.error('Error vinculando presupuesto:', err);
+        }
       }
 
       handleClose();

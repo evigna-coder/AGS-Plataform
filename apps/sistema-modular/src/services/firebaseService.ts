@@ -11,6 +11,8 @@ export * from './leadsService';
 export * from './presupuestosService';
 export * from './stockService';
 export * from './catalogService';
+export * from './patronesService';
+export * from './columnasService';
 export * from './personalService';
 export * from './agendaService';
 export * from './fichasService';

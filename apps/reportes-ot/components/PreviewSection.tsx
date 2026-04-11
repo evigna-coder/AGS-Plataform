@@ -12,7 +12,7 @@ import { formatDateTimeAR } from '../services/time';
 import { Part } from '../types';
 import type { FirebaseService } from '../services/firebaseService';
 import type { ProtocolSelection, TableCatalogEntry } from '../types/tableCatalog';
-import type { InstrumentoPatronOption, AdjuntoMeta } from '../types/instrumentos';
+import type { InstrumentoPatronOption, AdjuntoMeta, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
 
 const A4_WIDTH_PX = 794; // 210mm ≈ 794px at 96dpi
 
@@ -89,6 +89,8 @@ interface PreviewSectionProps {
   // Protocol
   protocolSelections: ProtocolSelection[];
   instrumentosSeleccionados: InstrumentoPatronOption[];
+  patronesSeleccionados: PatronSeleccionado[];
+  columnasSeleccionadas: ColumnaSeleccionada[];
   allPublishedTables: TableCatalogEntry[];
   allProjects: { id: string; headerTitle?: string | null; footerQF?: string | null }[];
   // Adjuntos
@@ -106,7 +108,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
     tipoServicio, reporteTecnico, articulos, accionesTomar, accionesInternaOnly, budgets,
     esFacturable, tieneContrato, esGarantia,
     signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
-    protocolSelections, instrumentosSeleccionados, allPublishedTables, allProjects,
+    protocolSelections, instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas, allPublishedTables, allProjects,
     adjuntos, firebase,
     setIsPreviewMode,
   } = props;
@@ -296,11 +298,13 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
       </ScaledA4Wrapper>
 
       {/* Preview: Tablas + Instrumentos (paginado A4 con headers/footers) */}
-      {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0) && (
+      {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0 || patronesSeleccionados.length > 0 || columnasSeleccionadas.length > 0) && (
         <ScaledA4Wrapper className="relative bg-[#f1f5f9] mt-6 pb-6"><div id="pdf-preview-tablas" className="flex flex-col gap-6">
           <ProtocolPaginatedPreview
             protocolSelections={protocolSelections}
             instrumentosSeleccionados={instrumentosSeleccionados}
+            patronesSeleccionados={patronesSeleccionados}
+            columnasSeleccionadas={columnasSeleccionadas}
             meta={{
               otNumber,
               razonSocial,

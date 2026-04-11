@@ -191,6 +191,8 @@ export const useOTManagement = (
     setProtocolData,
     setProtocolSelections,
     setInstrumentosSeleccionados,
+    setPatronesSeleccionados,
+    setColumnasSeleccionadas,
     setCertificadosIngenieroSeleccionados,
     setResolvedIngenieroId
   } = setters;
@@ -283,6 +285,10 @@ export const useOTManagement = (
         setProtocolSelections(data.protocolSelections || []);
         // Instrumentos/patrones seleccionados
         setInstrumentosSeleccionados(data.instrumentosSeleccionados || []);
+        // Patrones seleccionados (nueva colección, por lote)
+        setPatronesSeleccionados(data.patronesSeleccionados || []);
+        // Columnas seleccionadas (nueva colección, por serie)
+        setColumnasSeleccionadas(data.columnasSeleccionadas || []);
         // Certificados de ingeniero seleccionados
         setCertificadosIngenieroSeleccionados(data.certificadosIngenieroSeleccionados || []);
         // Plantilla esperada según tipo de servicio; si no hay protocolo para este tipo, limpiar
@@ -356,6 +362,8 @@ export const useOTManagement = (
     }
     setProtocolSelections([]);
     setInstrumentosSeleccionados([]);
+    setPatronesSeleccionados([]);
+    setColumnasSeleccionadas([]);
     setShowNewOtModal(false);
     setPendingOt('');
     hasInitialized.current = true;
@@ -427,6 +435,8 @@ export const useOTManagement = (
     }
     setProtocolSelections([]);
     setInstrumentosSeleccionados([]);
+    setPatronesSeleccionados([]);
+    setColumnasSeleccionadas([]);
     setClientConfirmed(false);
     setStatus('BORRADOR');
 
@@ -552,6 +562,8 @@ export const useOTManagement = (
     setProtocolData(newState.protocolData);
     setProtocolSelections([]);
     setInstrumentosSeleccionados([]);
+    setPatronesSeleccionados([]);
+    setColumnasSeleccionadas([]);
 
     // Habilitar autosave DESPUÉS de establecer todos los estados
     hasUserInteracted.current = true;

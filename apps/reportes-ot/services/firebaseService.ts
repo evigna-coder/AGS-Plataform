@@ -3,7 +3,7 @@ import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, delet
 import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
-import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero } from '../types/instrumentos';
+import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero, Patron, Columna } from '../types/instrumentos';
 import { deepCleanForFirestore } from '@ags/shared';
 
 const firebaseConfig = {
@@ -376,6 +376,52 @@ export class FirebaseService {
         } as InstrumentoPatronOption;
       }).sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando instrumentos:', e); return []; }
+  }
+
+  // ── Patrones (colección /patrones) ──
+
+  async getActivePatrones(): Promise<Patron[]> {
+    try {
+      const q = query(collection(db, 'patrones'), where('activo', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          codigoArticulo: data.codigoArticulo ?? '',
+          descripcion: data.descripcion ?? '',
+          marca: data.marca ?? '',
+          categorias: data.categorias ?? [],
+          lotes: data.lotes ?? [],
+          activo: data.activo !== false,
+          createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.().toISOString() ?? data.updatedAt ?? new Date().toISOString(),
+        } as Patron;
+      }).sort((a, b) => a.codigoArticulo.localeCompare(b.codigoArticulo));
+    } catch (e) { console.error('Error cargando patrones:', e); return []; }
+  }
+
+  // ── Columnas (colección /columnas) ──
+
+  async getActiveColumnas(): Promise<Columna[]> {
+    try {
+      const q = query(collection(db, 'columnas'), where('activo', '==', true));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          codigoArticulo: data.codigoArticulo ?? '',
+          descripcion: data.descripcion ?? '',
+          marca: data.marca ?? '',
+          categorias: data.categorias ?? [],
+          series: data.series ?? [],
+          activo: data.activo !== false,
+          createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.().toISOString() ?? data.updatedAt ?? new Date().toISOString(),
+        } as Columna;
+      }).sort((a, b) => a.codigoArticulo.localeCompare(b.codigoArticulo));
+    } catch (e) { console.error('Error cargando columnas:', e); return []; }
   }
 
   // ── Ingenieros ──

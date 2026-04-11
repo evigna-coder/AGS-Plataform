@@ -64,7 +64,8 @@ export function useAppLogic(
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados, certificadosIngenieroSeleccionados, resolvedIngenieroId
+    instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
+    certificadosIngenieroSeleccionados, resolvedIngenieroId
   } = formState;
 
   /** Plantilla actual: por id guardado o por tipo de servicio (para fallback) */
@@ -176,7 +177,7 @@ export function useAppLogic(
     setHoraInicio, setHoraFin, setHorasTrabajadas, setTiempoViaje, setReporteTecnico, setAccionesTomar, setAccionesInternaOnly,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
-    setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados,
+    setProtocolSelections, setInstrumentosSeleccionados, setPatronesSeleccionados, setColumnasSeleccionadas, setCertificadosIngenieroSeleccionados,
     setResolvedIngenieroId
   } = setters;
 
@@ -539,6 +540,8 @@ export function useAppLogic(
     adjuntos,
     setAdjuntos,
     assetPreloader.cache,
+    patronesSeleccionados,
+    columnasSeleccionadas,
   );
   const {
     generatePDFBlob: generatePDFBlobFromHook,
@@ -917,7 +920,8 @@ export function useAppLogic(
     signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
-    instrumentosSeleccionados, certificadosIngenieroSeleccionados, resolvedIngenieroId,
+    instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
+    certificadosIngenieroSeleccionados, resolvedIngenieroId,
     // Protocol
     protocolTemplate,
     // Date display
@@ -939,7 +943,9 @@ export function useAppLogic(
     setReporteTecnico, setAccionesTomar, setAccionesInternaOnly,
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
-    setProtocolSelections, setInstrumentosSeleccionados, setCertificadosIngenieroSeleccionados,
+    setProtocolSelections, setInstrumentosSeleccionados,
+    setPatronesSeleccionados, setColumnasSeleccionadas,
+    setCertificadosIngenieroSeleccionados,
     setResolvedIngenieroId,
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,

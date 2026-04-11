@@ -12,6 +12,8 @@ import { OTList, OTNew, OTDetail, TiposServicio } from '../../pages/ordenes-trab
 import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio } from '../../pages/presupuestos';
 import { TableCatalogPage, TableCatalogEditorPage } from '../../pages/protocol-catalog';
 import { InstrumentosListPage, InstrumentoEditorPage } from '../../pages/instrumentos';
+import { PatronesListPage, PatronEditorPage } from '../../pages/patrones';
+import { ColumnasListPage, ColumnaEditorPage } from '../../pages/columnas';
 import { FichasList, FichaEditor, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
 import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitTemplatesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage } from '../../pages/stock';
@@ -23,6 +25,7 @@ import { ImportacionDatos } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
+import { TiposEquipoList } from '../../pages/tipos-equipo';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -85,6 +88,7 @@ function AppRoutes() {
       <Route path="/presupuestos/categorias" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><CategoriasPresupuesto /></ProtectedRoute>} />
       <Route path="/presupuestos/condiciones-pago" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><CondicionesPago /></ProtectedRoute>} />
       <Route path="/presupuestos/conceptos-servicio" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ConceptosServicio /></ProtectedRoute>} />
+      <Route path="/presupuestos/tipos-equipo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><TiposEquipoList /></ProtectedRoute>} />
       {/* Biblioteca de Tablas */}
       <Route path="/table-catalog" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogPage /></ProtectedRoute>} />
       <Route path="/table-catalog/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogEditorPage /></ProtectedRoute>} />
@@ -100,6 +104,12 @@ function AppRoutes() {
       <Route path="/instrumentos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentosListPage /></ProtectedRoute>} />
       <Route path="/instrumentos/nuevo" element={<Navigate to="/instrumentos" replace />} />
       <Route path="/instrumentos/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentoEditorPage /></ProtectedRoute>} />
+      {/* Patrones */}
+      <Route path="/patrones" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronesListPage /></ProtectedRoute>} />
+      <Route path="/patrones/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronEditorPage /></ProtectedRoute>} />
+      {/* Columnas */}
+      <Route path="/columnas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnasListPage /></ProtectedRoute>} />
+      <Route path="/columnas/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnaEditorPage /></ProtectedRoute>} />
       {/* Fichas */}
       <Route path="/fichas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><FichasList /></ProtectedRoute>} />
       <Route path="/fichas/nuevo" element={<Navigate to="/fichas" replace />} />

@@ -11,7 +11,7 @@ import { CertificadoIngenieroSelectorPanel } from './CertificadoIngenieroSelecto
 import ProtocolView from './ProtocolView';
 import { isProtocolTestMode } from '../utils/protocolSelector';
 import type { ProtocolSelection, TableCatalogEntry, ChecklistItemAnswer } from '../types/tableCatalog';
-import type { InstrumentoPatronOption, CertificadoIngeniero } from '../types/instrumentos';
+import type { InstrumentoPatronOption, CertificadoIngeniero, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
 
 interface ProtocolSectionProps {
   isPreviewMode: boolean;
@@ -53,6 +53,12 @@ interface ProtocolSectionProps {
   // Instrumentos
   instrumentosSeleccionados: InstrumentoPatronOption[];
   setInstrumentosSeleccionados: (v: InstrumentoPatronOption[]) => void;
+  // Patrones (nueva colección)
+  patronesSeleccionados: PatronSeleccionado[];
+  setPatronesSeleccionados: (v: PatronSeleccionado[]) => void;
+  // Columnas (nueva colección)
+  columnasSeleccionadas: ColumnaSeleccionada[];
+  setColumnasSeleccionadas: (v: ColumnaSeleccionada[]) => void;
   // Certificados ingeniero
   aclaracionEspecialistaName: string;
   resolvedIngenieroId: string | null;
@@ -87,6 +93,8 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin,
   instrumentosSeleccionados, setInstrumentosSeleccionados,
+  patronesSeleccionados, setPatronesSeleccionados,
+  columnasSeleccionadas, setColumnasSeleccionadas,
   aclaracionEspecialistaName, resolvedIngenieroId, certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados,
   coverData,
   markUserInteracted,
@@ -240,30 +248,34 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
         </div>
       )}
 
-      {/* Instrumentos/patrones: solo visible cuando hay tablas seleccionadas */}
+      {/* Instrumentos/patrones/columnas: solo visible cuando hay tablas seleccionadas */}
       {protocolSelections.length > 0 && (
         <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2">
           <div className="flex items-center gap-2 mb-3">
             <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            <span className="text-sm font-medium text-slate-700">Instrumentos / Patrones utilizados</span>
+            <span className="text-sm font-medium text-slate-700">Instrumentos / Patrones / Columnas utilizados</span>
           </div>
           <InstrumentoSelectorPanel
             firebase={firebase}
-            selected={instrumentosSeleccionados}
+            instrumentosSelected={instrumentosSeleccionados}
+            patronesSelected={patronesSeleccionados}
+            columnasSelected={columnasSeleccionadas}
             onApply={(sel) => {
-              setInstrumentosSeleccionados(sel);
+              setInstrumentosSeleccionados(sel.instrumentos);
+              setPatronesSeleccionados(sel.patrones);
+              setColumnasSeleccionadas(sel.columnas);
               markUserInteracted();
             }}
             readOnly={readOnly}
           />
           {/* Instrumentos seleccionados */}
-          {instrumentosSeleccionados.filter(i => i.tipo === 'instrumento').length > 0 && (
+          {instrumentosSeleccionados.length > 0 && (
             <div className="mt-2">
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Instrumentos</p>
               <div className="flex flex-wrap gap-1.5">
-                {instrumentosSeleccionados.filter(i => i.tipo === 'instrumento').map(inst => (
+                {instrumentosSeleccionados.map(inst => (
                   <span key={inst.id} className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
                     {inst.nombre}
                     {!readOnly && (
@@ -278,19 +290,40 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
             </div>
           )}
           {/* Patrones seleccionados */}
-          {instrumentosSeleccionados.filter(i => i.tipo === 'patron').length > 0 && (
+          {patronesSeleccionados.length > 0 && (
             <div className="mt-2">
               <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider mb-1">Patrones</p>
               <div className="flex flex-wrap gap-1.5">
-                {instrumentosSeleccionados.filter(i => i.tipo === 'patron').map(inst => (
-                  <span key={inst.id} className="inline-flex items-center gap-1 text-[10px] bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2 py-0.5">
-                    {inst.nombre}
-                    {inst.lote && <span className="text-purple-400 font-mono">·{inst.lote}</span>}
+                {patronesSeleccionados.map((p, idx) => (
+                  <span key={`${p.patronId}__${p.lote}__${idx}`} className="inline-flex items-center gap-1 text-[10px] bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2 py-0.5">
+                    <span className="font-mono">{p.codigoArticulo}</span>
+                    <span>· {p.descripcion}</span>
+                    <span className="text-purple-400 font-mono">· Lote {p.lote}</span>
                     {!readOnly && (
                       <button onClick={() => {
-                        setInstrumentosSeleccionados(instrumentosSeleccionados.filter(i => i.id !== inst.id));
+                        setPatronesSeleccionados(patronesSeleccionados.filter((_, i) => i !== idx));
                         markUserInteracted();
                       }} className="text-purple-400 hover:text-purple-600 ml-0.5">×</button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Columnas seleccionadas */}
+          {columnasSeleccionadas.length > 0 && (
+            <div className="mt-2">
+              <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1">Columnas</p>
+              <div className="flex flex-wrap gap-1.5">
+                {columnasSeleccionadas.map((c, idx) => (
+                  <span key={`${c.columnaId}__${c.serie}__${idx}`} className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+                    {c.codigoArticulo}
+                    <span className="text-amber-400 font-mono">· S/N {c.serie}</span>
+                    {!readOnly && (
+                      <button onClick={() => {
+                        setColumnasSeleccionadas(columnasSeleccionadas.filter((_, i) => i !== idx));
+                        markUserInteracted();
+                      }} className="text-amber-400 hover:text-amber-600 ml-0.5">×</button>
                     )}
                   </span>
                 ))}

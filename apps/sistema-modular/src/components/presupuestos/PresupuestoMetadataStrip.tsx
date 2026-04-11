@@ -104,6 +104,25 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
           </div>
         )}
       </div>
+      {form.tipo === 'contrato' && (
+        <div className="grid grid-cols-5 gap-3 pt-2 border-t border-slate-100">
+          <div className="col-span-5 mb-1">
+            <span className="text-[10px] font-mono uppercase tracking-wide text-teal-700/70">Vigencia del contrato</span>
+          </div>
+          <div>
+            <label className={lbl}>Desde</label>
+            <input type="date" value={form.contratoFechaInicio || ''}
+              onChange={e => setField('contratoFechaInicio', e.target.value || null)}
+              className="w-full border rounded-lg px-2 py-1 text-xs bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500" />
+          </div>
+          <div>
+            <label className={lbl}>Hasta</label>
+            <input type="date" value={form.contratoFechaFin || ''}
+              onChange={e => setField('contratoFechaFin', e.target.value || null)}
+              className="w-full border rounded-lg px-2 py-1 text-xs bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

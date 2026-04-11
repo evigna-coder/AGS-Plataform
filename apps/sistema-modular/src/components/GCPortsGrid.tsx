@@ -19,6 +19,7 @@ const DETECTOR_OPTIONS: Array<{ value: DetectorType; label: string }> = [
   { value: 'NCD', label: 'NCD' },
   { value: 'FPD', label: 'FPD' },
   { value: 'ECD', label: 'ECD' },
+  { value: 'uECD', label: 'uECD' },
   { value: 'SCD', label: 'SCD' },
   { value: 'MSD', label: 'MSD' },
 ];

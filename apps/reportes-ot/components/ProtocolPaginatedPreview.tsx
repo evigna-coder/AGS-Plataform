@@ -107,6 +107,10 @@ interface PageDef {
 interface Props {
   protocolSelections: any[];
   instrumentosSeleccionados: any[];
+  /** Patrones seleccionados desde la nueva colección /patrones (por lote) */
+  patronesSeleccionados?: any[];
+  /** Columnas cromatográficas seleccionadas desde la nueva colección /columnas (por serie) */
+  columnasSeleccionadas?: any[];
   meta: ProtocolMeta;
   signatureClient: string | null;
   signatureEngineer: string | null;
@@ -168,69 +172,96 @@ const PageFooter: React.FC<{ meta: ProtocolMeta; pageNum: number; totalPages: nu
   );
 };
 
-/* ━━━━━━━━━━━━━━━━━━━━ INSTRUMENTOS TABLE ━━━━━━━━━━━━━━━━━━━━ */
-const InstrumentosTable: React.FC<{ instrumentos: any[] }> = ({ instrumentos }) => {
+/* ━━━━━━━━━━━━━━━━━━━━ INSTRUMENTOS / PATRONES / COLUMNAS TABLE ━━━━━━━━━━━━━━━━━━━━ */
+const fmtDate = (v: string | null | undefined) =>
+  v ? new Date(v).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
+const cellCls = 'px-2 py-1 text-[10px] border-r border-slate-100';
+
+/** Bloque único de tabla con header slate-50 y thead slate-100 */
+const TableBlock: React.FC<{ title: string; headers: string[]; children: React.ReactNode }> = ({ title, headers, children }) => (
+  <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
+    <div className="flex items-center px-3 py-1.5 bg-slate-50 border-b border-slate-200">
+      <p className="font-semibold text-xs text-slate-900">{title}</p>
+    </div>
+    <table className="w-full text-left border-collapse">
+      <thead>
+        <tr className="bg-slate-100 border-b border-slate-200">
+          {headers.map(h => (
+            <th key={h} className="px-2 py-1 text-[10px] font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200 last:border-r-0">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>{children}</tbody>
+    </table>
+  </div>
+);
+
+const InstrumentosTable: React.FC<{
+  instrumentos: any[];
+  patrones?: any[];
+  columnas?: any[];
+}> = ({ instrumentos, patrones = [], columnas = [] }) => {
+  // Soporte legacy: si `instrumentos` incluye items con tipo='patron', separarlos
   const insts = instrumentos.filter((i: any) => i.tipo !== 'patron');
-  const patrones = instrumentos.filter((i: any) => i.tipo === 'patron');
-  const fmtDate = (v: string | null | undefined) =>
-    v ? new Date(v).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  const legacyPatrones = instrumentos.filter((i: any) => i.tipo === 'patron');
+  const hasAnyPatron = patrones.length > 0 || legacyPatrones.length > 0;
+
   return (
     <div className="space-y-3">
       {insts.length > 0 && (
-        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
-          <div className="flex items-center px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-            <p className="font-semibold text-xs text-slate-900">Instrumentos Utilizados</p>
-          </div>
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-100 border-b border-slate-200">
-                {['Identificación', 'Marca', 'Modelo', 'Nº Serie', 'Certificado', 'Vencimiento'].map(h => (
-                  <th key={h} className="px-2 py-1 text-[10px] font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200 last:border-r-0">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {insts.map((inst: any, idx: number) => (
-                <tr key={inst.id} className={idx % 2 ? 'bg-slate-50/50' : ''}>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.nombre}</td>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.marca || '—'}</td>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.modelo || '—'}</td>
-                  <td className="px-2 py-1 text-[10px] font-mono border-r border-slate-100">{inst.serie || '—'}</td>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
-                  <td className="px-2 py-1 text-[10px]">{fmtDate(inst.certificadoVencimiento)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TableBlock title="Instrumentos Utilizados" headers={['Identificación', 'Marca', 'Modelo', 'Nº Serie', 'Certificado', 'Vencimiento']}>
+          {insts.map((inst: any, idx: number) => (
+            <tr key={inst.id} className={idx % 2 ? 'bg-slate-50/50' : ''}>
+              <td className={cellCls}>{inst.nombre}</td>
+              <td className={cellCls}>{inst.marca || '—'}</td>
+              <td className={cellCls}>{inst.modelo || '—'}</td>
+              <td className={`${cellCls} font-mono`}>{inst.serie || '—'}</td>
+              <td className={cellCls}>{inst.certificadoEmisor || '—'}</td>
+              <td className="px-2 py-1 text-[10px]">{fmtDate(inst.certificadoVencimiento)}</td>
+            </tr>
+          ))}
+        </TableBlock>
       )}
-      {patrones.length > 0 && (
-        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
-          <div className="flex items-center px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-            <p className="font-semibold text-xs text-slate-900">Patrones Utilizados</p>
-          </div>
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-100 border-b border-slate-200">
-                {['Artículo', 'Marca', 'Descripción', 'Lote', 'Certificado', 'Vencimiento'].map(h => (
-                  <th key={h} className="px-2 py-1 text-[10px] font-semibold text-slate-600 whitespace-nowrap border-r border-slate-200 last:border-r-0">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {patrones.map((inst: any, idx: number) => (
-                <tr key={inst.id} className={idx % 2 ? 'bg-slate-50/50' : ''}>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.modelo || '—'}</td>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.marca || '—'}</td>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.nombre}</td>
-                  <td className="px-2 py-1 text-[10px] font-mono border-r border-slate-100">{inst.lote || '—'}</td>
-                  <td className="px-2 py-1 text-[10px] border-r border-slate-100">{inst.certificadoEmisor || '—'}</td>
-                  <td className="px-2 py-1 text-[10px]">{fmtDate(inst.certificadoVencimiento)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {hasAnyPatron && (
+        <TableBlock title="Patrones Utilizados" headers={['Artículo', 'Marca', 'Descripción', 'Lote', 'Certificado', 'Vencimiento']}>
+          {/* Patrones nuevos (colección /patrones) */}
+          {patrones.map((p: any, idx: number) => (
+            <tr key={`p-${p.patronId}-${p.lote}-${idx}`} className={idx % 2 ? 'bg-slate-50/50' : ''}>
+              <td className={`${cellCls} font-mono`}>{p.codigoArticulo || '—'}</td>
+              <td className={cellCls}>{p.marca || '—'}</td>
+              <td className={cellCls}>{p.descripcion || '—'}</td>
+              <td className={`${cellCls} font-mono`}>{p.lote || '—'}</td>
+              <td className={cellCls}>{p.certificadoEmisor || '—'}</td>
+              <td className="px-2 py-1 text-[10px]">{fmtDate(p.fechaVencimiento)}</td>
+            </tr>
+          ))}
+          {/* Patrones legacy (tipo='patron' en colección /instrumentos) */}
+          {legacyPatrones.map((inst: any, idx: number) => (
+            <tr key={`lp-${inst.id}`} className={(patrones.length + idx) % 2 ? 'bg-slate-50/50' : ''}>
+              <td className={`${cellCls} font-mono`}>{inst.modelo || '—'}</td>
+              <td className={cellCls}>{inst.marca || '—'}</td>
+              <td className={cellCls}>{inst.nombre}</td>
+              <td className={`${cellCls} font-mono`}>{inst.lote || '—'}</td>
+              <td className={cellCls}>{inst.certificadoEmisor || '—'}</td>
+              <td className="px-2 py-1 text-[10px]">{fmtDate(inst.certificadoVencimiento)}</td>
+            </tr>
+          ))}
+        </TableBlock>
+      )}
+      {columnas.length > 0 && (
+        <TableBlock title="Columnas Utilizadas" headers={['Artículo', 'Marca', 'Descripción', 'Nº Serie', 'Certificado', 'Vencimiento']}>
+          {columnas.map((c: any, idx: number) => (
+            <tr key={`c-${c.columnaId}-${c.serie}-${idx}`} className={idx % 2 ? 'bg-slate-50/50' : ''}>
+              <td className={`${cellCls} font-mono`}>{c.codigoArticulo || '—'}</td>
+              <td className={cellCls}>{c.marca || '—'}</td>
+              <td className={cellCls}>{c.descripcion || '—'}</td>
+              <td className={`${cellCls} font-mono`}>{c.serie || '—'}</td>
+              <td className={cellCls}>{c.certificadoEmisor || '—'}</td>
+              <td className="px-2 py-1 text-[10px]">{fmtDate(c.fechaVencimiento)}</td>
+            </tr>
+          ))}
+        </TableBlock>
       )}
     </div>
   );
@@ -238,7 +269,9 @@ const InstrumentosTable: React.FC<{ instrumentos: any[] }> = ({ instrumentos }) 
 
 /* ━━━━━━━━━━━━━━━━━━━━ MAIN PAGINATED COMPONENT ━━━━━━━━━━━━━━━━━━━━ */
 export const ProtocolPaginatedPreview: React.FC<Props> = ({
-  protocolSelections, instrumentosSeleccionados, meta,
+  protocolSelections, instrumentosSeleccionados,
+  patronesSeleccionados = [], columnasSeleccionadas = [],
+  meta,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin, catalogTables, catalogProjects,
 }) => {
@@ -352,15 +385,23 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       }
     }
 
-    if (instrumentosSeleccionados.length > 0) {
+    const hasAnyInventario =
+      instrumentosSeleccionados.length > 0 ||
+      patronesSeleccionados.length > 0 ||
+      columnasSeleccionadas.length > 0;
+    if (hasAnyInventario) {
       items.push({
         key: '__instrumentos__',
-        node: <InstrumentosTable instrumentos={instrumentosSeleccionados} />,
+        node: <InstrumentosTable
+          instrumentos={instrumentosSeleccionados}
+          patrones={patronesSeleccionados}
+          columnas={columnasSeleccionadas}
+        />,
       });
     }
 
     return items;
-  }, [sortedSelections, instrumentosSeleccionados]);
+  }, [sortedSelections, instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas]);
 
   const contentItems = buildContentItems();
 
@@ -479,7 +520,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [contentItems.length, protocolSelections, instrumentosSeleccionados]);
+  }, [contentItems.length, protocolSelections, instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas]);
 
   const serviceLabel = SERVICE_LABELS[meta.tipoServicio] || 'Protocolo de Servicio';
 

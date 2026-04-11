@@ -20,6 +20,8 @@ export const navigation: NavItem[] = [
   { name: 'Dispositivos', path: '/dispositivos', icon: '📱', modulo: 'dispositivos' },
   { name: 'Vehículos', path: '/vehiculos', icon: '🚗', modulo: 'vehiculos' },
   { name: 'Instrumentos', path: '/instrumentos', icon: '🔬', modulo: 'instrumentos' },
+  { name: 'Patrones', path: '/patrones', icon: '⚗️', modulo: 'instrumentos' },
+  { name: 'Columnas', path: '/columnas', icon: '📊', modulo: 'instrumentos' },
   { name: 'Fichas Propiedad', path: '/fichas', icon: '🔧', modulo: 'fichas' },
   { name: 'Loaners', path: '/loaners', icon: '🔄', modulo: 'loaners' },
   {

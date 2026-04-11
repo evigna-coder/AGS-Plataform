@@ -52,6 +52,13 @@ export interface PresupuestoFormState {
   cantidadCuotas: number | null;
   // OC
   ordenCompraNumero: string | null;
+  // OT vinculadas (bidireccional)
+  otVinculadaNumber: string | null;
+  otsVinculadasNumbers: string[] | null;
+  // Contrato
+  contratoFechaInicio: string | null;
+  contratoFechaFin: string | null;
+  cantidadCuotasPorMoneda: Record<string, number> | null;
 }
 
 export interface PresupuestoTotals {
@@ -77,6 +84,8 @@ const INITIAL_FORM: PresupuestoFormState = {
   version: undefined, presupuestoOrigenId: null, motivoAnulacion: null, anuladoPorId: null,
   cuotas: null, cantidadCuotas: null,
   ordenCompraNumero: null,
+  otVinculadaNumber: null, otsVinculadasNumbers: null,
+  contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
 };
 
 /** Map a Presupuesto document snapshot to the local form state shape. */
@@ -103,6 +112,11 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     motivoAnulacion: p.motivoAnulacion || null, anuladoPorId: p.anuladoPorId || null,
     cuotas: p.cuotas || null, cantidadCuotas: p.cantidadCuotas || null,
     ordenCompraNumero: p.ordenCompraNumero || null,
+    otVinculadaNumber: p.otVinculadaNumber || null,
+    otsVinculadasNumbers: p.otsVinculadasNumbers || null,
+    contratoFechaInicio: p.contratoFechaInicio ? p.contratoFechaInicio.split('T')[0] : null,
+    contratoFechaFin: p.contratoFechaFin ? p.contratoFechaFin.split('T')[0] : null,
+    cantidadCuotasPorMoneda: p.cantidadCuotasPorMoneda || null,
   };
 }
 
@@ -169,7 +183,15 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
     const unsub = presupuestosService.subscribeById(
       presupuestoId,
       async (presupuestoData) => {
-        if (!presupuestoData) return;
+        if (!presupuestoData) {
+          // Document does not exist (invalid id or deleted mid-session).
+          // Release the loading state so consumers can react.
+          if (!initialLoadDone.current) {
+            initialLoadDone.current = true;
+            setLoading(false);
+          }
+          return;
+        }
         const isFirst = !initialLoadDone.current;
         // Skip snapshot when user has unsaved local edits (unless first load)
         if (!isFirst && dirty.current) return;
@@ -265,6 +287,10 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         proximoContacto: form.proximoContacto || null,
         responsableId: form.responsableId || null,
         responsableNombre: form.responsableNombre || null,
+        // Contrato (Fase 2 — new additive fields)
+        contratoFechaInicio: form.contratoFechaInicio,
+        contratoFechaFin: form.contratoFechaFin,
+        cantidadCuotasPorMoneda: form.cantidadCuotasPorMoneda,
       });
       // Sync lead estado
       if (form.origenTipo === 'lead' && form.origenId) {
@@ -303,6 +329,19 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
   const addItem = useCallback((item: PresupuestoItem) => {
     dirty.current = true;
     setFormState(prev => ({ ...prev, items: [...prev.items, item] }));
+  }, []);
+
+  /** Bulk-add items (used when adding an entire Sistema + plantilla in contrato mode). */
+  const addItems = useCallback((newItems: PresupuestoItem[]) => {
+    if (newItems.length === 0) return;
+    dirty.current = true;
+    setFormState(prev => ({ ...prev, items: [...prev.items, ...newItems] }));
+  }, []);
+
+  /** Remove all items of a given sistema grupo (used to unlink a sistema from contrato). */
+  const removeItemsByGrupo = useCallback((grupo: number) => {
+    dirty.current = true;
+    setFormState(prev => ({ ...prev, items: prev.items.filter(i => (i.grupo || 0) !== grupo) }));
   }, []);
 
   const removeItem = useCallback((itemId: string) => {
@@ -350,7 +389,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
     clienteSistemas, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
     save, load,
-    updateItem, addItem, removeItem,
+    updateItem, addItem, addItems, removeItem, removeItemsByGrupo,
     addAdjunto, removeAdjunto,
     handleEstadoChange,
   };

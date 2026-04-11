@@ -7,7 +7,7 @@ import { FirebaseService } from '../services/firebaseService';
 import { UseReportFormReturn } from './useReportForm';
 import { SignaturePadHandle } from '../components/SignaturePad';
 import { getPDFOptions } from '../utils/pdfOptions';
-import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero } from '../types/instrumentos';
+import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -75,6 +75,8 @@ export const usePDFGeneration = (
   adjuntos: AdjuntoMeta[] = [],
   setAdjuntos?: (adjuntos: AdjuntoMeta[]) => void,
   assetCache?: Map<string, ArrayBuffer>,
+  patronesSeleccionados: PatronSeleccionado[] = [],
+  columnasSeleccionadas: ColumnaSeleccionada[] = [],
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
@@ -482,13 +484,23 @@ export const usePDFGeneration = (
   };
 
   // ── Generar blobs de certificados de patrones (paralelo) ──
+  // Une patrones legacy (tipo='patron' en /instrumentos) + patrones nuevos (/patrones por lote)
   const generateCertPatronBlobs = async (): Promise<Blob[]> => {
-    const patrones = instrumentosSeleccionados.filter(i => i.tipo === 'patron');
-    console.log(`[PDF][CERT-PATRON] Patrones (tipo=patron): ${patrones.length}`);
-    const certUrls = patrones
-      .map(i => i.certificadoUrl)
-      .filter((url): url is string => !!url);
-    return downloadAndRenderCerts(certUrls, 'CERT-PATRON');
+    const legacy = instrumentosSeleccionados.filter(i => i.tipo === 'patron');
+    const legacyUrls = legacy.map(i => i.certificadoUrl).filter((u): u is string => !!u);
+    const nuevosUrls = patronesSeleccionados.map(p => p.certificadoUrl).filter((u): u is string => !!u);
+    const allUrls = [...legacyUrls, ...nuevosUrls];
+    console.log(`[PDF][CERT-PATRON] legacy=${legacy.length} nuevos=${patronesSeleccionados.length} → ${allUrls.length} certificado(s)`);
+    return downloadAndRenderCerts(allUrls, 'CERT-PATRON');
+  };
+
+  // ── Generar blobs de certificados de columnas (paralelo) ──
+  const generateCertColumnasBlobs = async (): Promise<Blob[]> => {
+    const certUrls = columnasSeleccionadas
+      .map(c => c.certificadoUrl)
+      .filter((u): u is string => !!u);
+    console.log(`[PDF][CERT-COLUMNAS] Columnas=${columnasSeleccionadas.length} → ${certUrls.length} certificado(s)`);
+    return downloadAndRenderCerts(certUrls, 'CERT-COLUMNAS');
   };
 
   /**
@@ -515,7 +527,7 @@ export const usePDFGeneration = (
 
       // Rendering DOM (secuencial) + descargas (paralelo) corren simultáneamente
       setGenerationStep('Renderizando protocolos y descargando certificados…');
-      const [domResults, adjuntosBlobs, certIngBlobs, certInstBlobs, certPatronBlobs] =
+      const [domResults, adjuntosBlobs, certIngBlobs, certInstBlobs, certPatronBlobs, certColumnasBlobs] =
         await Promise.all([
           // Grupo DOM: secuencial entre sí (html2canvas no soporta concurrencia)
           (async () => {
@@ -528,6 +540,7 @@ export const usePDFGeneration = (
           generateCertIngBlobs(),
           generateCertInstBlobs(),
           generateCertPatronBlobs(),
+          generateCertColumnasBlobs(),
         ]);
 
       const { protocolBlob, fotosBlob } = domResults;
@@ -539,6 +552,7 @@ export const usePDFGeneration = (
       annexParts.push(...adjuntosBlobs);
       annexParts.push(...certInstBlobs);
       annexParts.push(...certPatronBlobs);
+      annexParts.push(...certColumnasBlobs);
       annexParts.push(...certIngBlobs);
 
       const idPart = codigoInternoCliente ? ` ID ${sanitizeFilename(codigoInternoCliente)}` : '';

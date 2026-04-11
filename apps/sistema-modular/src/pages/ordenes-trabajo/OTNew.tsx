@@ -244,10 +244,17 @@ export const OTNew = () => {
           console.error('Error syncing lead from OT creation:', err));
       }
 
-      // Vincular OT al presupuesto de origen
+      // Vincular OT al presupuesto de origen. Append to otsVinculadasNumbers
+      // and keep singular otVinculadaNumber for compat.
       if (presupuestoIdFromUrl) {
         try {
-          await presupuestosService.update(presupuestoIdFromUrl, { otVinculadaNumber: formData.otNumber });
+          const presActual = await presupuestosService.getById(presupuestoIdFromUrl);
+          const prev = presActual?.otsVinculadasNumbers ?? [];
+          const nextList = prev.includes(formData.otNumber) ? prev : [...prev, formData.otNumber];
+          await presupuestosService.update(presupuestoIdFromUrl, {
+            otVinculadaNumber: formData.otNumber,
+            otsVinculadasNumbers: nextList,
+          } as any);
         } catch (err) {
           console.error('Error vinculando presupuesto:', err);
         }

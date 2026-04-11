@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { PresupuestoItemsTable } from './PresupuestoItemsTable';
@@ -9,6 +9,9 @@ import { SistemasPresupuestoPanel } from './SistemasPresupuestoPanel';
 import { PresupuestoHeaderBar } from './PresupuestoHeaderBar';
 import { PresupuestoMetadataStrip } from './PresupuestoMetadataStrip';
 import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
+import { PresupuestoRequerimientosSection } from './PresupuestoRequerimientosSection';
+import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
+import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
 import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
@@ -35,12 +38,16 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
   const [showReservar, setShowReservar] = useState(false);
   const [showCrearOT, setShowCrearOT] = useState(false);
+  // Bumped whenever a save completes, to re-query requerimientos that may
+  // have been auto-generated as a side effect. Auto-gen runs fire-and-forget
+  // in the service layer so we refresh a few seconds later to catch up.
+  const [requerimientosRefreshKey, setRequerimientosRefreshKey] = useState(0);
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
     clienteSistemas, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
-    save, updateItem, addItem, removeItem, addAdjunto, removeAdjunto,
+    save, updateItem, addItem, addItems, removeItem, removeItemsByGrupo, addAdjunto, removeAdjunto,
     handleEstadoChange: rawEstadoChange,
   } = usePresupuestoEdit(open ? presupuestoId : null);
 
@@ -73,6 +80,16 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
     setField('cuotas', cuotas);
     setField('cantidadCuotas', cuotas.length || null);
   };
+
+  // Refresh requerimientos section after a save completes. Auto-generation
+  // happens asynchronously in presupuestosService.update/create so we poll
+  // once shortly after the save to pick up any new documents.
+  useEffect(() => {
+    if (!saving) {
+      const t = setTimeout(() => setRequerimientosRefreshKey(k => k + 1), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [saving]);
 
   const itemsConStock = (form.items ?? [])
     .filter(i => i.stockArticuloId)
@@ -128,6 +145,11 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           onEstadoChange={actions.handleEstadoChange}
         />
 
+        <PresupuestoOTsVinculadas
+          otsVinculadasNumbers={form.otsVinculadasNumbers}
+          otVinculadaNumber={form.otVinculadaNumber}
+        />
+
         <PresupuestoRevisionHistory
           presupuestoId={presupuestoId}
           numero={form.numero}
@@ -150,27 +172,40 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           />
         )}
 
-        {/* Items table */}
-        <PresupuestoItemsTable
-          items={form.items}
-          categoriasPresupuesto={categoriasPresupuesto}
-          conceptosServicio={conceptosServicio}
-          moneda={form.moneda}
-          totals={totals}
-          notasTecnicas={form.notasTecnicas}
-          condicionesComerciales={form.condicionesComerciales}
-          onAddItem={addItem}
-          onUpdateItem={updateItem}
-          onRemoveItem={removeItem}
-          onNotasTecnicasChange={(v) => setField('notasTecnicas', v)}
-          onCondicionesChange={(v) => setField('condicionesComerciales', v)}
-          calculateItemTaxes={calculateItemTaxes}
-          tipoPresupuesto={form.tipo}
-          sistemas={clienteSistemas}
-          loadModulos={loadModulosBySistema}
-          itemsByGrupo={itemsByGrupo}
-          getGrupo={getGrupo}
-        />
+        {/* Items table — switches based on presupuesto type */}
+        {form.tipo === 'contrato' ? (
+          <PresupuestoItemsTableContrato
+            items={form.items}
+            moneda={form.moneda}
+            sistemas={clienteSistemas}
+            loadModulos={loadModulosBySistema}
+            onAddItems={addItems}
+            onUpdateItem={updateItem}
+            onRemoveItem={removeItem}
+            onRemoveSistema={(_sistemaId, grupo) => removeItemsByGrupo(grupo)}
+          />
+        ) : (
+          <PresupuestoItemsTable
+            items={form.items}
+            categoriasPresupuesto={categoriasPresupuesto}
+            conceptosServicio={conceptosServicio}
+            moneda={form.moneda}
+            totals={totals}
+            notasTecnicas={form.notasTecnicas}
+            condicionesComerciales={form.condicionesComerciales}
+            onAddItem={addItem}
+            onUpdateItem={updateItem}
+            onRemoveItem={removeItem}
+            onNotasTecnicasChange={(v) => setField('notasTecnicas', v)}
+            onCondicionesChange={(v) => setField('condicionesComerciales', v)}
+            calculateItemTaxes={calculateItemTaxes}
+            tipoPresupuesto={form.tipo}
+            sistemas={clienteSistemas}
+            loadModulos={loadModulosBySistema}
+            itemsByGrupo={itemsByGrupo}
+            getGrupo={getGrupo}
+          />
+        )}
 
         {/* Cuotas */}
         <div className="mt-4">
@@ -179,6 +214,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             onChange={handleCuotasChange}
             totalsByCurrency={totalsByCurrency}
             moneda={form.moneda}
+            cantidadCuotasPorMoneda={form.cantidadCuotasPorMoneda}
+            onCantidadCuotasPorMonedaChange={(map) => setField('cantidadCuotasPorMoneda', map)}
           />
         </div>
 
@@ -215,6 +252,11 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               />
             </div>
           </CollapsibleSection>
+
+          <PresupuestoRequerimientosSection
+            presupuestoId={presupuestoId}
+            refreshKey={requerimientosRefreshKey}
+          />
         </div>
 
         {/* Footer */}

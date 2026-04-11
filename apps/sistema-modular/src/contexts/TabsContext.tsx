@@ -51,6 +51,8 @@ const NAV_META: Record<string, { label: string; icon: string }> = {
   '/presupuestos': { label: 'Presupuestos', icon: '📋' },
   '/table-catalog': { label: 'Biblioteca Tablas', icon: '📐' },
   '/instrumentos': { label: 'Instrumentos', icon: '🔬' },
+  '/patrones': { label: 'Patrones', icon: '⚗️' },
+  '/columnas': { label: 'Columnas', icon: '📊' },
   '/fichas': { label: 'Fichas Propiedad', icon: '🔧' },
   '/loaners': { label: 'Loaners', icon: '🔄' },
   '/stock': { label: 'Stock', icon: '📦' },

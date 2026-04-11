@@ -169,6 +169,10 @@ const App: React.FC = () => {
             fechaInicio={app.fechaInicio} fechaFin={app.fechaFin}
             instrumentosSeleccionados={app.instrumentosSeleccionados}
             setInstrumentosSeleccionados={app.setInstrumentosSeleccionados}
+            patronesSeleccionados={app.patronesSeleccionados}
+            setPatronesSeleccionados={app.setPatronesSeleccionados}
+            columnasSeleccionadas={app.columnasSeleccionadas}
+            setColumnasSeleccionadas={app.setColumnasSeleccionadas}
             aclaracionEspecialistaName={app.aclaracionEspecialista}
             resolvedIngenieroId={app.resolvedIngenieroId}
             certificadosIngenieroSeleccionados={app.certificadosIngenieroSeleccionados}
@@ -315,6 +319,8 @@ const App: React.FC = () => {
             <PdfHiddenContainers
               protocolSelections={app.protocolSelections}
               instrumentosSeleccionados={app.instrumentosSeleccionados}
+              patronesSeleccionados={app.patronesSeleccionados}
+              columnasSeleccionadas={app.columnasSeleccionadas}
               adjuntos={app.adjuntos}
               signatureClient={app.signatureClient} signatureEngineer={app.signatureEngineer}
               aclaracionCliente={app.aclaracionCliente} aclaracionEspecialista={app.aclaracionEspecialista}
@@ -534,6 +540,8 @@ const App: React.FC = () => {
             aclaracionCliente={app.aclaracionCliente} aclaracionEspecialista={app.aclaracionEspecialista}
             protocolSelections={app.protocolSelections}
             instrumentosSeleccionados={app.instrumentosSeleccionados}
+            patronesSeleccionados={app.patronesSeleccionados}
+            columnasSeleccionadas={app.columnasSeleccionadas}
             allPublishedTables={app.allPublishedTables} allProjects={app.allProjects}
             adjuntos={app.adjuntos} firebase={app.firebase}
             setIsPreviewMode={app.setIsPreviewMode}

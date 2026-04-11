@@ -190,6 +190,7 @@ export const PresupuestosList = () => {
             <Button size="sm" variant="outline" onClick={() => setShowConceptos(true)}>Conceptos</Button>
             <Button size="sm" variant="outline" onClick={() => setShowCategorias(true)}>Categorías</Button>
             <Button size="sm" variant="outline" onClick={() => setShowCondiciones(true)}>Condiciones</Button>
+            <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/tipos-equipo')}>Tipos de equipo</Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Presupuesto</Button>
           </div>
         }>

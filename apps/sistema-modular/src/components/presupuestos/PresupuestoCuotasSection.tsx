@@ -9,32 +9,57 @@ interface Props {
   /** Totals per currency for MIXTA, or single total for normal mode */
   totalsByCurrency: Record<string, number>;
   moneda: MonedaPresupuesto;
+  /** Per-currency cuota counts (MIXTA only). null => use global cantCuotas. */
+  cantidadCuotasPorMoneda?: Record<string, number> | null;
+  onCantidadCuotasPorMonedaChange?: (map: Record<string, number> | null) => void;
 }
 
 const lbl = 'text-[10px] font-mono font-medium text-slate-500 mb-0.5 block uppercase tracking-wide';
 
-export const PresupuestoCuotasSection: React.FC<Props> = ({ cuotas, onChange, totalsByCurrency, moneda }) => {
+export const PresupuestoCuotasSection: React.FC<Props> = ({
+  cuotas, onChange, totalsByCurrency, moneda,
+  cantidadCuotasPorMoneda, onCantidadCuotasPorMonedaChange,
+}) => {
   const [collapsed, setCollapsed] = useState(cuotas.length === 0);
   const [cantCuotas, setCantCuotas] = useState(cuotas.length || 12);
+  const isMixta = moneda === 'MIXTA';
+
+  // Local asymmetric map — hydrated from prop, fallback to cantCuotas for all
+  // currencies present in totalsByCurrency.
+  const [localMap, setLocalMap] = useState<Record<string, number>>(() => {
+    if (cantidadCuotasPorMoneda) return { ...cantidadCuotasPorMoneda };
+    const initial: Record<string, number> = {};
+    Object.keys(totalsByCurrency).forEach(cur => { initial[cur] = 12; });
+    return initial;
+  });
 
   const fmtMoney = (n: number, m: string) => `${MONEDA_SIMBOLO[m] || '$'} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+  const handleSetCount = (cur: string, n: number) => {
+    const next = { ...localMap, [cur]: n };
+    setLocalMap(next);
+    onCantidadCuotasPorMonedaChange?.(next);
+  };
 
   const handleGenerate = () => {
     const generated: PresupuestoCuota[] = [];
     for (const [currency, total] of Object.entries(totalsByCurrency)) {
       if (total <= 0) continue;
-      const montoPorCuota = Math.round((total / cantCuotas) * 100) / 100;
-      const remainder = Math.round((total - montoPorCuota * cantCuotas) * 100) / 100;
-      for (let i = 0; i < cantCuotas; i++) {
+      const n = isMixta ? (localMap[currency] || cantCuotas) : cantCuotas;
+      if (n <= 0) continue;
+      const montoPorCuota = Math.round((total / n) * 100) / 100;
+      const remainder = Math.round((total - montoPorCuota * n) * 100) / 100;
+      for (let i = 0; i < n; i++) {
         generated.push({
           numero: i + 1,
           moneda: currency as 'USD' | 'ARS' | 'EUR',
           monto: i === 0 ? montoPorCuota + remainder : montoPorCuota,
-          descripcion: `Cuota ${i + 1}/${cantCuotas}`,
+          descripcion: `Cuota ${i + 1}/${n}`,
         });
       }
     }
     onChange(generated);
+    if (isMixta) onCantidadCuotasPorMonedaChange?.(localMap);
     setCollapsed(false);
   };
 
@@ -77,21 +102,41 @@ export const PresupuestoCuotasSection: React.FC<Props> = ({ cuotas, onChange, to
 
       {!collapsed && (
         <div className="space-y-2">
-          {/* Generator */}
-          <div className="flex items-end gap-2">
-            <div>
-              <label className={lbl}>Cantidad de cuotas</label>
-              <input type="number" min="1" max="60" value={cantCuotas}
-                onChange={e => setCantCuotas(Number(e.target.value) || 1)}
-                className="w-20 border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" />
+          {/* Generator — asymmetric inputs per currency when MIXTA */}
+          {isMixta && Object.keys(totalsByCurrency).length > 0 ? (
+            <div className="flex items-end gap-2 flex-wrap">
+              {Object.keys(totalsByCurrency).map(cur => (
+                <div key={cur}>
+                  <label className={lbl}>Cuotas {cur}</label>
+                  <input type="number" min="0" max="60"
+                    value={localMap[cur] ?? 12}
+                    onChange={e => handleSetCount(cur, Number(e.target.value) || 0)}
+                    className="w-20 border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" />
+                </div>
+              ))}
+              <Button size="sm" variant="outline" onClick={handleGenerate}>
+                Generar cuotas
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleAddCuota}>
+                + Cuota manual
+              </Button>
             </div>
-            <Button size="sm" variant="outline" onClick={handleGenerate}>
-              Generar cuotas iguales
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleAddCuota}>
-              + Cuota manual
-            </Button>
-          </div>
+          ) : (
+            <div className="flex items-end gap-2">
+              <div>
+                <label className={lbl}>Cantidad de cuotas</label>
+                <input type="number" min="1" max="60" value={cantCuotas}
+                  onChange={e => setCantCuotas(Number(e.target.value) || 1)}
+                  className="w-20 border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" />
+              </div>
+              <Button size="sm" variant="outline" onClick={handleGenerate}>
+                Generar cuotas iguales
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleAddCuota}>
+                + Cuota manual
+              </Button>
+            </div>
+          )}
 
           {/* Cuotas table */}
           {cuotas.length > 0 && (

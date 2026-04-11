@@ -303,6 +303,7 @@ export type DetectorType =
   | 'NCD'   // Nitrogen/Phosphorus Detector
   | 'FPD'   // Flame Photometric Detector
   | 'ECD'   // Electron Capture Detector
+  | 'uECD'  // Micro Electron Capture Detector
   | 'SCD'   // Sulfur Chemiluminescence Detector
   | 'TCD'   // Thermal Conductivity Detector
   | 'MSD';  // Mass Selective Detector
@@ -333,6 +334,7 @@ export const DETECTOR_LABELS: Record<DetectorType, string> = {
   NCD: 'NCD (Nitrogen/Phosphorus Detector)',
   FPD: 'FPD (Flame Photometric Detector)',
   ECD: 'ECD (Electron Capture Detector)',
+  uECD: 'uECD (Micro Electron Capture Detector)',
   SCD: 'SCD (Sulfur Chemiluminescence Detector)',
   TCD: 'TCD (Thermal Conductivity Detector)',
   MSD: 'MSD (Mass Selective Detector)',
@@ -814,6 +816,12 @@ export interface PresupuestoItem {
   esBonificacion?: boolean;
   /** Moneda del item — solo relevante cuando el presupuesto es MIXTA */
   moneda?: 'USD' | 'ARS' | 'EUR' | null;
+  /** Sector / área del cliente donde reside el sistema (ej: "QC", "Control de Calidad"). Usado como header de sección en presupuestos de contrato. */
+  sectorNombre?: string | null;
+  /** Nota inline adicional por ítem (ej: "LLEVA SELLO DE FASE REVERSA"). Se renderiza como observación en el PDF de contrato. */
+  itemNotasAdicionales?: string | null;
+  /** Si es true, el ítem se renderiza como "S/L" (sin cargo) en la columna de cantidad. Usado para listar componentes de un sistema para trazabilidad. */
+  esSinCargo?: boolean;
 }
 
 // --- Adjunto de Presupuesto ---
@@ -1044,12 +1052,22 @@ export interface Presupuesto {
   motivoAnulacion?: string | null; // Razón de anulación (al ser reemplazado por revisión)
   anuladoPorId?: string | null; // ID de la revisión que reemplazó a este presupuesto
   // --- OT vinculada ---
+  /** @deprecated Mantener para compat: refleja la última OT creada. Usar otsVinculadasNumbers para la lista completa. */
   otVinculadaNumber?: string | null;
+  /** Lista de números de OT generadas desde este presupuesto (un presupuesto contrato puede generar N OTs). */
+  otsVinculadasNumbers?: string[] | null;
   // --- Facturación ---
   facturacionEstado?: 'pendiente' | 'parcial' | 'completa' | null;
   // --- Cuotas ---
   cuotas?: PresupuestoCuota[] | null;
   cantidadCuotas?: number | null;
+  /** Cantidad de cuotas por moneda. Soporta cuotas asimétricas (ej: {USD: 12, ARS: 10}). Si null, usa cantidadCuotas para todas. */
+  cantidadCuotasPorMoneda?: Record<string, number> | null;
+  // --- Vigencia del contrato (distinto de validezDias que es la oferta) ---
+  /** Fecha de inicio de vigencia del contrato (ISO). Solo aplica para tipo === 'contrato'. */
+  contratoFechaInicio?: string | null;
+  /** Fecha de fin de vigencia del contrato (ISO). Solo aplica para tipo === 'contrato'. */
+  contratoFechaFin?: string | null;
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
@@ -1058,6 +1076,55 @@ export interface Presupuesto {
   updatedBy?: string | null;
   updatedByName?: string | null;
 }
+
+// =============================================
+// --- Plantilla de Tipo de Equipo ---
+// Usado en presupuestos de contrato para autogenerar items de sistemas
+// con sus componentes S/L y servicios estándar.
+// =============================================
+
+export type TipoServicioPlantilla = 'mantenimiento' | 'regulatorio' | 'consumible' | 'otro';
+
+/** Componente S/L de un sistema (sin cargo, solo trazabilidad). */
+export interface TipoEquipoComponente {
+  id: string;
+  orden: number;                    // Sub-orden dentro del sistema (ej: 2 = X.2, 3 = X.3)
+  codigo: string;                   // Part number Agilent (ej: "G1322A")
+  descripcion: string;               // "Desgasificador Estándar - HPLC 1100"
+  servicioCode?: string | null;     // Código servicio interno (ej: "AT1_DEG_11A")
+}
+
+/** Servicio estándar aplicable a un tipo de equipo (con precio editable al cotizar). */
+export interface TipoEquipoServicio {
+  id: string;
+  orden: number;                    // Sub-orden (ej: 10 = X.10, 11 = X.11, 20 = X.20)
+  servicioCode: string;             // "MP1_CN_11B"
+  descripcion: string;              // "Mantenimiento Preventivo - HPLC 1100 Con ALS"
+  cantidadDefault: number;          // 1, 2... (0 = S/L)
+  tipo: TipoServicioPlantilla;
+  precioDefault?: number | null;    // Precio sugerido (opcional)
+}
+
+/** Plantilla completa de un tipo de equipo. */
+export interface TipoEquipoPlantilla {
+  id: string;
+  nombre: string;                   // "HPLC 1100", "UV/VIS 8453", "GC 6890"
+  descripcion?: string | null;      // Descripción larga opcional
+  activo: boolean;
+  componentes: TipoEquipoComponente[];
+  servicios: TipoEquipoServicio[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+}
+
+export const TIPO_SERVICIO_PLANTILLA_LABELS: Record<TipoServicioPlantilla, string> = {
+  mantenimiento: 'Mantenimiento',
+  regulatorio: 'Regulatorio',
+  consumible: 'Consumible',
+  otro: 'Otro',
+};
 
 // --- Facturación ---
 
@@ -1625,6 +1692,106 @@ export interface InstrumentoPatron {
   /** Asignación actual (ingeniero) */
   asignadoAId?: string | null;
   asignadoANombre?: string | null;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+// =============================================
+// --- Patrones (colección separada de instrumentos) ---
+// =============================================
+
+/** Lote individual de un patrón, con su propio certificado y vencimiento */
+export interface PatronLote {
+  /** Código de lote del fabricante */
+  lote: string;
+  /** Fecha de vencimiento del lote (ISO string) */
+  fechaVencimiento: string | null;
+  /** Emisor del certificado */
+  certificadoEmisor?: string | null;
+  /** URL pública del certificado PDF */
+  certificadoUrl?: string | null;
+  /** Ruta en Storage */
+  certificadoStoragePath?: string | null;
+  /** Nombre original del archivo */
+  certificadoNombre?: string | null;
+  /** Fecha de emisión del certificado */
+  certificadoFechaEmision?: string | null;
+  /** Notas u observaciones del lote */
+  notas?: string | null;
+}
+
+/**
+ * Patrón de referencia (estándar/material de referencia).
+ * Un patrón se identifica por código de artículo + descripción.
+ * Puede tener múltiples lotes simultáneos, cada uno con su propio vencimiento y certificado.
+ * Colección Firestore: `patrones`
+ */
+export interface Patron {
+  id: string;
+  /** Código de artículo del fabricante (ej. "8500-6917") */
+  codigoArticulo: string;
+  /** Descripción del patrón (ej. "Caffeine Standards Kit for LC/MS OQ/PV") */
+  descripcion: string;
+  /** Marca/fabricante */
+  marca: string;
+  /** Categorías funcionales a las que aplica */
+  categorias: CategoriaPatron[];
+  /** Lotes disponibles. Cada uno es una instancia física independiente. */
+  lotes: PatronLote[];
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+// =============================================
+// --- Columnas cromatográficas (GC, HPLC, etc.) ---
+// =============================================
+
+/** Unidad física individual de una columna, con su propio número de serie */
+export interface ColumnaSerie {
+  /** Número de serie físico */
+  serie: string;
+  /** Fecha de vencimiento del certificado (opcional, muchas columnas no tienen) */
+  fechaVencimiento?: string | null;
+  /** Emisor del certificado */
+  certificadoEmisor?: string | null;
+  /** URL pública del certificado PDF (opcional) */
+  certificadoUrl?: string | null;
+  /** Ruta en Storage */
+  certificadoStoragePath?: string | null;
+  /** Nombre original del archivo */
+  certificadoNombre?: string | null;
+  /** Notas u observaciones (estado, horas de uso, etc.) */
+  notas?: string | null;
+}
+
+/**
+ * Columna cromatográfica (GC, HPLC).
+ * Se identifica por código de artículo + descripción.
+ * Puede tener múltiples unidades físicas (series) bajo el mismo código.
+ * Colección Firestore: `columnas`
+ */
+export interface Columna {
+  id: string;
+  /** Código de artículo del fabricante */
+  codigoArticulo: string;
+  /** Descripción de la columna (dimensiones, fase, etc.) */
+  descripcion: string;
+  /** Marca/fabricante */
+  marca: string;
+  /** Categorías funcionales (normalmente 'gc' o 'hplc') */
+  categorias: CategoriaPatron[];
+  /** Unidades físicas disponibles, cada una con su serie */
+  series: ColumnaSerie[];
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -3066,6 +3233,56 @@ export interface InstrumentoPatronOption {
   categorias: string[];
   certificadoEmisor?: string | null;
   certificadoVencimiento?: string | null;
+  certificadoUrl?: string | null;
+}
+
+/**
+ * Patrón seleccionado en un reporte — representa un lote específico de un patrón.
+ * Se genera a partir de un `Patron` + un `PatronLote`.
+ */
+export interface PatronSeleccionado {
+  /** ID del documento Patron en Firestore */
+  patronId: string;
+  /** Código de artículo */
+  codigoArticulo: string;
+  /** Descripción (ej. "Caffeine Standards Kit for LC/MS OQ/PV") */
+  descripcion: string;
+  /** Marca */
+  marca: string;
+  /** Categorías (copia del Patron padre) */
+  categorias: string[];
+  /** Código de lote seleccionado */
+  lote: string;
+  /** Fecha de vencimiento del lote */
+  fechaVencimiento: string | null;
+  /** Emisor del certificado del lote */
+  certificadoEmisor?: string | null;
+  /** URL del certificado del lote */
+  certificadoUrl?: string | null;
+}
+
+/**
+ * Columna seleccionada en un reporte — representa una unidad física específica de una columna.
+ * Se genera a partir de una `Columna` + una `ColumnaSerie`.
+ */
+export interface ColumnaSeleccionada {
+  /** ID del documento Columna en Firestore */
+  columnaId: string;
+  /** Código de artículo */
+  codigoArticulo: string;
+  /** Descripción (dimensiones, fase, etc.) */
+  descripcion: string;
+  /** Marca */
+  marca: string;
+  /** Categorías (copia de la Columna padre) */
+  categorias: string[];
+  /** Número de serie físico seleccionado */
+  serie: string;
+  /** Fecha de vencimiento del certificado (opcional) */
+  fechaVencimiento?: string | null;
+  /** Emisor del certificado (opcional) */
+  certificadoEmisor?: string | null;
+  /** URL del certificado (opcional) */
   certificadoUrl?: string | null;
 }
 

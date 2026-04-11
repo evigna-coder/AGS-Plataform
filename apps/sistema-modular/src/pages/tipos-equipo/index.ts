@@ -1,0 +1,1 @@
+export { TiposEquipoList } from './TiposEquipoList';
