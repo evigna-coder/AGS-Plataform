@@ -8,6 +8,7 @@ import { PresupuestoCuotasSection } from './PresupuestoCuotasSection';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PresupuestoFormHeader } from './PresupuestoFormHeader';
 import { PresupuestoFormCliente } from './PresupuestoFormCliente';
+import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
 
 interface Props {
   open: boolean;
@@ -44,6 +45,15 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         <PresupuestoFormCliente form={h.form} setForm={h.setForm}
           clientes={h.clientes} establecimientos={h.establecimientos}
           sistemasFiltrados={h.sistemasFiltrados} contactos={h.contactos} />
+
+        {/* Pendientes activas del cliente */}
+        <PendientesActivosBanner
+          clienteId={h.form.clienteId || null}
+          equipoId={h.form.sistemaId && h.form.sistemaId !== '__ALL_SISTEMAS__' ? h.form.sistemaId : null}
+          context="presupuesto"
+          selectedIds={h.selectedPendienteIds}
+          onSelectionChange={h.setSelectedPendienteIds}
+        />
 
         {/* Divider + Items */}
         <hr className="border-[#E5E5E5]" />

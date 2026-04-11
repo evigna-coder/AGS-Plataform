@@ -5,6 +5,7 @@ import {
   contratosService,
 } from '../services/firebaseService';
 import { ingenierosService } from '../services/personalService';
+import { pendientesService } from '../services/pendientesService';
 import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, Contrato } from '@ags/shared';
 
 export interface CreateOTFormState {
@@ -60,6 +61,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const [presupuestosCliente, setPresupuestosCliente] = useState<Presupuesto[]>([]);
   const [contratosCliente, setContratosCliente] = useState<Contrato[]>([]);
   const [showCrearLead, setShowCrearLead] = useState(false);
+  const [selectedPendienteIds, setSelectedPendienteIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<CreateOTFormState>(INITIAL_FORM);
   const [prefilled, setPrefilled] = useState(false);
 
@@ -289,6 +291,22 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         }
       }
 
+      // Auto-complete pendientes marcadas
+      if (selectedPendienteIds.size > 0) {
+        const ids = Array.from(selectedPendienteIds);
+        await Promise.all(
+          ids.map(id =>
+            pendientesService
+              .completar(id, {
+                resolucionDocType: 'ot',
+                resolucionDocId: otNum,
+                resolucionDocLabel: `OT-${otNum}`,
+              })
+              .catch(err => console.error(`Error completando pendiente ${id}:`, err)),
+          ),
+        );
+      }
+
       handleClose();
       onCreated();
     } catch (err) {
@@ -304,5 +322,6 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     contactos, modulos, ingenieros, presupuestosCliente,
     contratosCliente, hasContrato, presupuestoRequerido,
     showCrearLead, setShowCrearLead,
+    selectedPendienteIds, setSelectedPendienteIds,
   };
 }

@@ -12,6 +12,7 @@ import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
 import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
 import { LeadAdjuntosSection } from '../../components/leads/LeadAdjuntosSection';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { TicketPendientesChips } from '../../components/pendientes/TicketPendientesChips';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export const LeadDetail = () => {
@@ -301,6 +302,9 @@ export const LeadDetail = () => {
                 <LeadTimeline postas={lead.postas} />
               </div>
             </Card>
+
+            {/* Pendientes generados */}
+            <TicketPendientesChips ticketId={lead.id} />
 
             {/* Entidades vinculadas */}
             {(linkedPresupuestos.length > 0 || linkedOTs.length > 0) && (

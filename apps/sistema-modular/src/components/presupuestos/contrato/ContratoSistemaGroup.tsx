@@ -2,11 +2,14 @@ import React, { useState, useMemo } from 'react';
 import type { PresupuestoItem } from '@ags/shared';
 import { ContratoItemRow } from './ContratoItemRow';
 import type { SistemaBucket } from './contratoItemHelpers';
+import type { ArticuloMini } from './ArticuloInlineAutocomplete';
 
 interface Props {
   bucket: SistemaBucket;
   isMixta: boolean;
+  articulosCatalog: ArticuloMini[];
   onUpdateItem: (itemId: string, field: keyof PresupuestoItem, value: any) => void;
+  onPickArticulo: (itemId: string, art: ArticuloMini) => void;
   onRemoveItem: (itemId: string) => void;
   onRemoveSistema: (sistemaId: string | null, grupo: number) => void;
   onAddItem: (grupo: number, esSinCargo: boolean) => void;
@@ -17,7 +20,8 @@ interface Props {
  * header (sistema info), items table, and per-sistema subtotal.
  */
 export const ContratoSistemaGroup: React.FC<Props> = ({
-  bucket, isMixta, onUpdateItem, onRemoveItem, onRemoveSistema, onAddItem,
+  bucket, isMixta, articulosCatalog,
+  onUpdateItem, onPickArticulo, onRemoveItem, onRemoveSistema, onAddItem,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -122,7 +126,9 @@ export const ContratoSistemaGroup: React.FC<Props> = ({
                   key={item.id}
                   item={item}
                   isMixta={isMixta}
+                  articulosCatalog={articulosCatalog}
                   onUpdate={(field, value) => onUpdateItem(item.id, field, value)}
+                  onPickArticulo={art => onPickArticulo(item.id, art)}
                   onRemove={() => onRemoveItem(item.id)}
                 />
               ))}

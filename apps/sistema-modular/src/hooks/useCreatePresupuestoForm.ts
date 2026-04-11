@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { presupuestosService, clientesService, sistemasService, leadsService, ordenesTrabajoService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../services/firebaseService';
 import { establecimientosService, contactosEstablecimientoService } from '../services/establecimientosService';
+import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket } from '@ags/shared';
 
@@ -79,6 +80,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [leadsCache, setLeadsCache] = useState<Ticket[]>([]);
   const [otOptions, setOtOptions] = useState<{ value: string; label: string }[]>([]);
   const [showCrearLead, setShowCrearLead] = useState(false);
+  const [selectedPendienteIds, setSelectedPendienteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) { setPrefilled(false); return; }
@@ -176,7 +178,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     });
   }, [form.origenId, leadsCache]);
 
-  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setLeadsCache([]); };
+  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
@@ -209,6 +211,23 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
       };
       const { id: presupuestoId, numero } = await presupuestosService.create(data);
+
+      // Auto-complete pendientes marcadas
+      if (selectedPendienteIds.size > 0) {
+        const ids = Array.from(selectedPendienteIds);
+        await Promise.all(
+          ids.map(id =>
+            pendientesService
+              .completar(id, {
+                resolucionDocType: 'presupuesto',
+                resolucionDocId: presupuestoId,
+                resolucionDocLabel: numero,
+              })
+              .catch(err => console.error(`Error completando pendiente ${id}:`, err)),
+          ),
+        );
+      }
+
       if (form.origenTipo === 'lead' && form.origenId && usuario) {
         const posta: Posta = {
           id: crypto.randomUUID(), fecha: new Date().toISOString(),
@@ -241,5 +260,6 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     clientes, establecimientos, sistemasFiltrados, contactos,
     categorias, condiciones, conceptos, leadOptions, otOptions,
     showCrearLead, setShowCrearLead, reloadLeads,
+    selectedPendienteIds, setSelectedPendienteIds,
   };
 }

@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EquipoInfoSidebar } from '../../components/equipos/EquipoInfoSidebar';
 import { ModulosList, type ModuloFormData } from '../../components/equipos/ModulosList';
+import { PendientesClienteSection } from '../../components/pendientes/PendientesClienteSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -272,6 +273,17 @@ export const EquipoDetail = () => {
               onDelete={handleDeleteModulo}
               onMove={handleMoveModulo}
             />
+
+            {/* Pendientes del equipo */}
+            {cliente && (
+              <PendientesClienteSection
+                clienteId={cliente.id}
+                clienteNombre={cliente.razonSocial}
+                equipoId={sistema.id}
+                equipoNombre={sistema.nombre}
+                title="Pendientes del equipo"
+              />
+            )}
 
             {/* Ubicaciones placeholder */}
             <Card compact>

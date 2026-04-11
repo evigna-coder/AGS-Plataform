@@ -49,6 +49,7 @@ export const navigation: NavItem[] = [
   { name: 'Calif. Proveedores', path: '/calificacion-proveedores', icon: '⭐', modulo: 'calificacion-proveedores' },
   { name: 'Usuarios', path: '/usuarios', icon: '👤', modulo: 'usuarios' },
   { name: 'Agenda', path: '/agenda', icon: '📅', modulo: 'agenda' },
+  { name: 'Pendientes', path: '/pendientes', icon: '📝', modulo: 'pendientes' },
   { name: 'Contratos', path: '/contratos', icon: '📑', modulo: 'contratos' },
   { name: 'Facturacion', path: '/facturacion', icon: '💰', modulo: 'facturacion' },
   { name: 'Importar Datos', path: '/admin/importar', icon: '📥', modulo: 'admin' },

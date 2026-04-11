@@ -56,50 +56,57 @@ function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta
   const COLS = isMixta ? COLS_MIXTA : COLS_SINGLE;
   const subtotals = totalsByCurrency(group.items);
 
+  // NOTE: do NOT wrap={false} on the outer card — con 21 sistemas y módulos,
+  // el contenido no entra en una sola página y react-pdf estaba saltando las
+  // cards enteras. Permitimos que se dividan entre páginas, pero mantenemos
+  // wrap={false} en el header + módulos + tableHead para que al menos el
+  // encabezado del sistema no quede huérfano al pie de página.
   return (
-    <View style={cs.sistemaCard} wrap={false}>
-      <View style={cs.sistemaCardHeader}>
-        <Text style={cs.sistemaCardNum}>{group.grupo}.</Text>
-        <Text style={cs.sistemaCardName}>{group.sistemaNombre}</Text>
-        {group.moduloSeriePrincipal && (
-          <Text style={cs.sistemaCardId}>S/N: {group.moduloSeriePrincipal}</Text>
-        )}
-        {group.sistemaCodigoInterno && (
-          <Text style={[cs.sistemaCardId, { marginLeft: 8 }]}>ID: {group.sistemaCodigoInterno}</Text>
-        )}
-      </View>
-
-      {/* Módulos del sistema (bloque informativo) */}
-      {modulos && modulos.length > 0 && (
-        <View style={cs.modulosInfo}>
-          <Text style={cs.modulosInfoLabel}>Módulos del sistema</Text>
-          <View style={[cs.modulosInfoRow, { marginBottom: 1 }]}>
-            <Text style={[cs.modulosInfoCol, { width: '22%', fontWeight: 'bold' }]}>Módulo</Text>
-            <Text style={[cs.modulosInfoCol, { width: '32%', fontWeight: 'bold' }]}>Descripción</Text>
-            <Text style={[cs.modulosInfoCol, { width: '26%', fontWeight: 'bold' }]}>Serie</Text>
-            <Text style={[cs.modulosInfoCol, { width: '20%', fontWeight: 'bold' }]}>Marca</Text>
-          </View>
-          {modulos.map(m => (
-            <View key={m.id} style={cs.modulosInfoRow}>
-              <Text style={[cs.modulosInfoCol, { width: '22%' }]}>{m.nombre || '—'}</Text>
-              <Text style={[cs.modulosInfoCol, { width: '32%' }]}>{m.descripcion || '—'}</Text>
-              <Text style={[cs.modulosInfoCol, { width: '26%' }]}>{m.serie || '—'}</Text>
-              <Text style={[cs.modulosInfoCol, { width: '20%' }]}>{m.marca || '—'}</Text>
-            </View>
-          ))}
+    <View style={cs.sistemaCard}>
+      <View wrap={false}>
+        <View style={cs.sistemaCardHeader}>
+          <Text style={cs.sistemaCardNum}>{group.grupo}.</Text>
+          <Text style={cs.sistemaCardName}>{group.sistemaNombre}</Text>
+          {group.moduloSeriePrincipal && (
+            <Text style={cs.sistemaCardId}>S/N: {group.moduloSeriePrincipal}</Text>
+          )}
+          {group.sistemaCodigoInterno && (
+            <Text style={[cs.sistemaCardId, { marginLeft: 8 }]}>ID: {group.sistemaCodigoInterno}</Text>
+          )}
         </View>
-      )}
 
-      <View style={cs.itemTableHead}>
-        <Text style={[cs.itemTableHeadCell, { width: COLS.num }]}>#</Text>
-        <Text style={[cs.itemTableHeadCell, { width: COLS.codigo }]}>Código</Text>
-        <Text style={[cs.itemTableHeadCell, { width: COLS.desc }]}>Descripción</Text>
-        <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS.cant }]}>Cant.</Text>
-        {isMixta && (
-          <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS_MIXTA.mon }]}>Mon.</Text>
+        {/* Módulos del sistema (bloque informativo) */}
+        {modulos && modulos.length > 0 && (
+          <View style={cs.modulosInfo}>
+            <Text style={cs.modulosInfoLabel}>Módulos del sistema</Text>
+            <View style={[cs.modulosInfoRow, { marginBottom: 1 }]}>
+              <Text style={[cs.modulosInfoCol, { width: '22%', fontWeight: 'bold' }]}>Módulo</Text>
+              <Text style={[cs.modulosInfoCol, { width: '32%', fontWeight: 'bold' }]}>Descripción</Text>
+              <Text style={[cs.modulosInfoCol, { width: '26%', fontWeight: 'bold' }]}>Serie</Text>
+              <Text style={[cs.modulosInfoCol, { width: '20%', fontWeight: 'bold' }]}>Marca</Text>
+            </View>
+            {modulos.map(m => (
+              <View key={m.id} style={cs.modulosInfoRow}>
+                <Text style={[cs.modulosInfoCol, { width: '22%' }]}>{m.nombre || '—'}</Text>
+                <Text style={[cs.modulosInfoCol, { width: '32%' }]}>{m.descripcion || '—'}</Text>
+                <Text style={[cs.modulosInfoCol, { width: '26%' }]}>{m.serie || '—'}</Text>
+                <Text style={[cs.modulosInfoCol, { width: '20%' }]}>{m.marca || '—'}</Text>
+              </View>
+            ))}
+          </View>
         )}
-        <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: COLS.precio }]}>Precio</Text>
-        <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: COLS.subtotal }]}>Subtotal</Text>
+
+        <View style={cs.itemTableHead}>
+          <Text style={[cs.itemTableHeadCell, { width: COLS.num }]}>#</Text>
+          <Text style={[cs.itemTableHeadCell, { width: COLS.codigo }]}>Código</Text>
+          <Text style={[cs.itemTableHeadCell, { width: COLS.desc }]}>Descripción</Text>
+          <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS.cant }]}>Cant.</Text>
+          {isMixta && (
+            <Text style={[cs.itemTableHeadCell, cs.itemCellCenter, { width: COLS_MIXTA.mon }]}>Mon.</Text>
+          )}
+          <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: COLS.precio }]}>Precio</Text>
+          <Text style={[cs.itemTableHeadCell, cs.itemCellRight, { width: COLS.subtotal }]}>Subtotal</Text>
+        </View>
       </View>
 
       {group.items.map(item => (
@@ -107,7 +114,7 @@ function SistemaCard({ group, isMixta, modulos }: { group: SistemaGroup; isMixta
       ))}
 
       {Object.keys(subtotals).length > 0 && (
-        <View style={cs.sistemaSubtotal}>
+        <View style={cs.sistemaSubtotal} wrap={false}>
           {Object.entries(subtotals).map(([cur, tot]) => (
             <View key={cur} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
               <Text style={cs.sistemaSubtotalLabel}>Subtotal {cur}</Text>

@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
+import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
 import { useCreateOTForm, type OTPrefill } from '../../hooks/useCreateOTForm';
 import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 
@@ -133,6 +134,15 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
               disabled={!h.form.sistemaId || h.modulos.length === 0} />
           </div>
         </div>
+
+        {/* Pendientes activas del cliente */}
+        <PendientesActivosBanner
+          clienteId={h.form.clienteId || null}
+          equipoId={h.form.sistemaId || null}
+          context="ot"
+          selectedIds={h.selectedPendienteIds}
+          onSelectionChange={h.setSelectedPendienteIds}
+        />
 
         {/* Contacto + Ingeniero */}
         <div className="grid grid-cols-2 gap-3">

@@ -224,6 +224,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Pendientes (recordatorios por cliente/equipo, surface en presupuestos/OTs)
+    match /pendientes/{pendienteId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Postas (derivaciones workflow entre usuarios)
     match /postas/{postaId} {
       allow read, write: if true; // Temporal para desarrollo

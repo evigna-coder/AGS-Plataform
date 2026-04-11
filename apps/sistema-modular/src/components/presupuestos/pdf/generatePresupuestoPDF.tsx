@@ -88,25 +88,19 @@ export async function generatePresupuestoPDF(params: GeneratePDFParams): Promise
   let modulosBySistema: Record<string, ModuloSistema[]> | undefined;
   if (presupuesto.tipo === 'contrato') {
     const sistemaIds = [...new Set(presupuesto.items.map(i => i.sistemaId).filter(Boolean))] as string[];
-    console.log('[PDF] sistemaIds extraídos de items:', sistemaIds, '| items:', presupuesto.items.map(i => ({ id: i.id, sistemaId: i.sistemaId, grupo: i.grupo })));
     if (sistemaIds.length > 0) {
       try {
         const { modulosService } = await import('../../../services/equiposService');
         const entries = await Promise.all(
           sistemaIds.map(async (sid) => {
-            const mods = await modulosService.getBySistema(sid).catch((err) => {
-              console.error('[PDF] Error cargando módulos para sistema', sid, err);
-              return [] as ModuloSistema[];
-            });
-            console.log(`[PDF] Sistema ${sid}: ${mods.length} módulos`, mods.map(m => m.nombre));
+            const mods = await modulosService.getBySistema(sid).catch(() => [] as ModuloSistema[]);
             return [sid, mods] as const;
           })
         );
         modulosBySistema = Object.fromEntries(entries);
-        console.log('[PDF] modulosBySistema:', modulosBySistema);
-      } catch (err) { console.error('[PDF] Error general cargando módulos:', err); }
-    } else {
-      console.warn('[PDF] No se encontraron sistemaIds en los items. Los items no tienen sistemaId asignado.');
+      } catch (err) {
+        console.error('[PDF] Error cargando módulos:', err);
+      }
     }
   }
 

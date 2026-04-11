@@ -2864,6 +2864,7 @@ export type ModuloId =
   | 'dispositivos'
   | 'vehiculos'
   | 'agenda'
+  | 'pendientes'
   | 'facturacion'
   | 'contratos'
   | 'usuarios'
@@ -2873,7 +2874,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'facturacion', 'contratos', 'usuarios', 'admin'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -2881,11 +2882,11 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'contratos'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'contratos'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
   },
   ventas: {
     apps: ['sistema-modular'],
@@ -2920,6 +2921,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/dispositivos': 'dispositivos',
   '/vehiculos': 'vehiculos',
   '/agenda': 'agenda',
+  '/pendientes': 'pendientes',
   '/facturacion': 'facturacion',
   '/contratos': 'contratos',
   '/usuarios': 'usuarios',
@@ -2943,6 +2945,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'dispositivos': 'Dispositivos',
   'vehiculos': 'Vehículos',
   'agenda': 'Agenda',
+  'pendientes': 'Pendientes',
   'facturacion': 'Facturación',
   'contratos': 'Contratos',
   'usuarios': 'Usuarios',
@@ -3165,6 +3168,85 @@ export interface AgendaNota {
 }
 
 export type ZoomLevel = 'week' | '2weeks' | 'month' | '2months' | 'year';
+
+// =============================================
+// --- Pendientes (recordatorios por cliente/equipo) ---
+// =============================================
+
+/** Scope de cuándo aparece un pendiente — dispara el banner en presupuestos y/o OTs */
+export type PendienteTipo = 'presupuesto' | 'visita' | 'ambos';
+
+/** Estado de un pendiente */
+export type PendienteEstado = 'pendiente' | 'completada' | 'descartada';
+
+/** Tipo de documento que resolvió un pendiente al cerrarse */
+export type PendienteResolucionDocType = 'presupuesto' | 'ot';
+
+export const PENDIENTE_TIPO_LABELS: Record<PendienteTipo, string> = {
+  presupuesto: 'Presupuesto',
+  visita: 'Visita',
+  ambos: 'Ambos',
+};
+
+export const PENDIENTE_TIPO_COLORS: Record<PendienteTipo, string> = {
+  presupuesto: 'bg-blue-100 text-blue-700',
+  visita: 'bg-amber-100 text-amber-700',
+  ambos: 'bg-purple-100 text-purple-700',
+};
+
+export const PENDIENTE_ESTADO_LABELS: Record<PendienteEstado, string> = {
+  pendiente: 'Pendiente',
+  completada: 'Completada',
+  descartada: 'Descartada',
+};
+
+export const PENDIENTE_ESTADO_COLORS: Record<PendienteEstado, string> = {
+  pendiente: 'bg-slate-200 text-slate-700',
+  completada: 'bg-emerald-100 text-emerald-700',
+  descartada: 'bg-red-100 text-red-600',
+};
+
+export interface Pendiente {
+  id: string;
+
+  // Scope
+  clienteId: string;
+  clienteNombre: string;              // denormalizado para listas
+  equipoId?: string | null;           // opcional: pendiente específica de un equipo
+  equipoNombre?: string | null;       // denormalizado
+  equipoAgsId?: string | null;        // visible ID del equipo si aplica
+
+  // Contenido
+  tipo: PendienteTipo;
+  descripcion: string;
+  estado: PendienteEstado;
+
+  // Origen
+  origenTicketId?: string | null;
+  origenTicketRazonSocial?: string | null;
+
+  // Cierre por completado (incluida en presupuesto/OT o marcada manual)
+  completadaEn?: string | null;
+  completadaPor?: string | null;
+  completadaPorNombre?: string | null;
+  resolucionDocType?: PendienteResolucionDocType | null;
+  resolucionDocId?: string | null;
+  resolucionDocLabel?: string | null; // "P-2026-042" o "OT-2705"
+
+  // Cierre por descarte
+  descartadaEn?: string | null;
+  descartadaPor?: string | null;
+  descartadaPorNombre?: string | null;
+  descartadaMotivo?: string | null;
+
+  // Audit trail estándar
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
 
 // =============================================
 // --- Tipos ligeros para selectores (reportes-ot) ---

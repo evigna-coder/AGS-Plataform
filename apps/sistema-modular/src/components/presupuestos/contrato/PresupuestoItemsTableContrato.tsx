@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '../../ui/Button';
 import type { PresupuestoItem, Sistema, ModuloSistema, MonedaPresupuesto } from '@ags/shared';
 import { ContratoSistemaGroup } from './ContratoSistemaGroup';
 import { AgregarSistemaContratoModal } from './AgregarSistemaContratoModal';
 import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem } from './contratoItemHelpers';
+import { articulosService } from '../../../services/firebaseService';
+import type { ArticuloMini } from './ArticuloInlineAutocomplete';
 
 interface Props {
   items: PresupuestoItem[];
@@ -27,7 +29,23 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   onAddItems, onUpdateItem, onRemoveItem, onRemoveSistema,
 }) => {
   const [showAdd, setShowAdd] = useState(false);
+  const [articulosCatalog, setArticulosCatalog] = useState<ArticuloMini[]>([]);
   const isMixta = moneda === 'MIXTA';
+
+  // Load stock articles catalog once for inline N° de parte autocomplete
+  useEffect(() => {
+    articulosService.getAll({ activoOnly: true })
+      .then(arts => setArticulosCatalog(arts.map(a => ({ id: a.id, codigo: a.codigo, descripcion: a.descripcion }))))
+      .catch(() => setArticulosCatalog([]));
+  }, []);
+
+  /** Called from ContratoItemRow when user picks an article from the autocomplete.
+   *  We need the itemId to know which row to update, so we build a closure per row. */
+  const handlePickArticulo = (itemId: string, art: ArticuloMini) => {
+    onUpdateItem(itemId, 'stockArticuloId', art.id);
+    onUpdateItem(itemId, 'codigoProducto', art.codigo);
+    onUpdateItem(itemId, 'descripcion', art.descripcion);
+  };
 
   const grouped = useMemo(() => groupItemsForContrato(items), [items]);
 
@@ -154,7 +172,9 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
                   key={`${sectorBucket.sectorNombre}-${sistemaBucket.grupo}`}
                   bucket={sistemaBucket}
                   isMixta={isMixta}
+                  articulosCatalog={articulosCatalog}
                   onUpdateItem={onUpdateItem}
+                  onPickArticulo={handlePickArticulo}
                   onRemoveItem={onRemoveItem}
                   onRemoveSistema={onRemoveSistema}
                   onAddItem={handleAddItemToSistema}

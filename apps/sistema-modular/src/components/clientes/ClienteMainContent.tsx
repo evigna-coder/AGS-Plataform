@@ -5,6 +5,7 @@ import { modulosService, sistemasService } from '../../services/firebaseService'
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
+import { PendientesClienteSection } from '../pendientes/PendientesClienteSection';
 import { useConfirm } from '../ui/ConfirmDialog';
 
 interface ClienteMainContentProps {
@@ -249,6 +250,13 @@ export const ClienteMainContent = ({
           </div>
         )}
       </Card>
+
+      {/* Pendientes del cliente */}
+      <PendientesClienteSection
+        clienteId={clienteId}
+        clienteNombre={cliente.razonSocial}
+        title="Pendientes del cliente"
+      />
 
       {/* Notas */}
       <Card compact>
