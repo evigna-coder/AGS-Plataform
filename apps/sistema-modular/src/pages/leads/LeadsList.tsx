@@ -52,7 +52,7 @@ export const LeadsList = () => {
     motivo: { type: 'string' as const, default: '' },
     area: { type: 'string' as const, default: '' },
     responsable: { type: 'string' as const, default: '' },
-    soloMios: { type: 'boolean' as const, default: false },
+    soloMios: { type: 'boolean' as const, default: true },
     misCreados: { type: 'boolean' as const, default: false },
     misDerivados: { type: 'boolean' as const, default: false },
     mostrarFinalizados: { type: 'boolean' as const, default: false },

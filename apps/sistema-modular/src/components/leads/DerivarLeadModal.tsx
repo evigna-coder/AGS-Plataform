@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Lead, LeadArea, TicketArea, TicketPrioridad, UsuarioAGS, Posta, Ingeniero, MotivoLlamado, PendienteTipo, Sistema } from '@ags/shared';
 import { TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, MOTIVO_LLAMADO_LABELS, PENDIENTE_TIPO_LABELS, getUserTicketAreas } from '@ags/shared';
-import { leadsService, usuariosService, ingenierosService, sistemasService } from '../../services/firebaseService';
+import { leadsService, usuariosService, ingenierosService, sistemasService, clientesService } from '../../services/firebaseService';
 import { pendientesService } from '../../services/pendientesService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
@@ -34,6 +34,10 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const [equipos, setEquipos] = useState<Sistema[]>([]);
   const [equipoId, setEquipoId] = useState(lead.sistemaId || '');
 
+  // Resolve clienteId: use lead.clienteId if available, otherwise search by razonSocial
+  const [resolvedClienteId, setResolvedClienteId] = useState<string | null>(lead.clienteId || null);
+  const [resolvingCliente, setResolvingCliente] = useState(false);
+
   const isSistema = areaDestino === 'sistema';
 
   useEffect(() => {
@@ -41,16 +45,32 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
     ingenierosService.getAll().then(setIngenieros);
   }, []);
 
+  // Auto-resolve clienteId from razonSocial when missing
+  useEffect(() => {
+    if (lead.clienteId) {
+      setResolvedClienteId(lead.clienteId);
+      return;
+    }
+    if (!isSistema || !lead.razonSocial) return;
+    setResolvingCliente(true);
+    clientesService.getAll(true).then(clientes => {
+      const match = clientes.find(c =>
+        c.razonSocial.toLowerCase() === lead.razonSocial.toLowerCase()
+      );
+      setResolvedClienteId(match?.id ?? null);
+    }).catch(() => {}).finally(() => setResolvingCliente(false));
+  }, [isSistema, lead.clienteId, lead.razonSocial]);
+
   // Load equipos del cliente cuando es área sistema
   useEffect(() => {
-    if (!isSistema || !lead.clienteId) {
+    if (!isSistema || !resolvedClienteId) {
       setEquipos([]);
       return;
     }
     sistemasService.getAll().then(all => {
-      setEquipos(all.filter(s => s.clienteId === lead.clienteId && s.activo !== false));
+      setEquipos(all.filter(s => s.clienteId === resolvedClienteId && s.activo !== false));
     }).catch(() => {});
-  }, [isSistema, lead.clienteId]);
+  }, [isSistema, resolvedClienteId]);
 
   // Pre-fill equipo from ticket's sistemaId
   useEffect(() => {
@@ -87,8 +107,8 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           setSaving(false);
           return;
         }
-        if (!lead.clienteId) {
-          alert('El ticket no tiene cliente asociado. No se puede crear pendiente.');
+        if (!resolvedClienteId) {
+          alert('No se encontró el cliente en el sistema. Verificá que el cliente exista.');
           setSaving(false);
           return;
         }
@@ -97,7 +117,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
 
         // 1. Create pendiente
         await pendientesService.create({
-          clienteId: lead.clienteId,
+          clienteId: resolvedClienteId,
           clienteNombre: lead.razonSocial,
           equipoId: equipoId || null,
           equipoNombre: equipo?.nombre ?? null,
@@ -229,7 +249,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
               </div>
             </div>
 
-            {lead.clienteId && equipos.length > 0 && (
+            {resolvedClienteId && equipos.length > 0 && (
               <div>
                 <label className={labelClass}>Equipo (opcional)</label>
                 <select value={equipoId} onChange={e => setEquipoId(e.target.value)} className={selectClass}>
@@ -250,12 +270,15 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
                 placeholder="Ej: Cotizar filtros de split en próximo mantenimiento..." />
             </div>
 
-            {!lead.clienteId && (
+            {!resolvedClienteId && !resolvingCliente && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 <p className="text-[11px] text-amber-700">
-                  Este ticket no tiene cliente asociado. No se podrá crear la pendiente.
+                  No se encontró el cliente "{lead.razonSocial}" en el sistema. Verificá que exista como cliente para poder crear la pendiente.
                 </p>
               </div>
+            )}
+            {resolvingCliente && (
+              <p className="text-[10px] text-slate-400">Buscando cliente...</p>
             )}
           </>
         )}
@@ -310,7 +333,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
 
         <div className="flex justify-end gap-2 pt-1">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving || (isSistema && (!comentario.trim() || !lead.clienteId))}>
+          <Button size="sm" onClick={handleSubmit} disabled={saving || (isSistema && (!comentario.trim() || !resolvedClienteId || resolvingCliente))}>
             {saving
               ? (isSistema ? 'Creando pendiente...' : 'Derivando...')
               : (isSistema ? 'Crear pendiente y finalizar' : 'Derivar')}

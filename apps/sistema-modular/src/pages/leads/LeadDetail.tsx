@@ -228,7 +228,7 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            {/* Contacto + Descripción arriba de todo */}
+            {/* Contacto + Descripción */}
             <div className="flex gap-3">
               <Card className="flex-1">
                 <div className="p-4 space-y-2">
@@ -257,14 +257,6 @@ export const LeadDetail = () => {
                 </Card>
               )}
             </div>
-
-            {/* Adjuntos */}
-            <LeadAdjuntosSection
-              leadId={lead.id}
-              adjuntos={lead.adjuntos || []}
-              onUpdated={() => {/* subscription auto-refreshes */}}
-              readOnly={!isActive}
-            />
 
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (
@@ -295,13 +287,21 @@ export const LeadDetail = () => {
               </Card>
             )}
 
-            {/* Timeline */}
+            {/* Historial */}
             <Card>
               <div className="p-4">
                 <h3 className="text-[11px] font-medium text-slate-400 mb-3">Historial</h3>
                 <LeadTimeline postas={lead.postas} />
               </div>
             </Card>
+
+            {/* Adjuntos */}
+            <LeadAdjuntosSection
+              leadId={lead.id}
+              adjuntos={lead.adjuntos || []}
+              onUpdated={() => {/* subscription auto-refreshes */}}
+              readOnly={!isActive}
+            />
 
             {/* Pendientes generados */}
             <TicketPendientesChips ticketId={lead.id} />
