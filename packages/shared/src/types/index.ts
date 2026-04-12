@@ -407,13 +407,14 @@ export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
 };
 
 // --- Áreas destino (Tickets) ---
-export type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas';
+export type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas' | 'sistema';
 
 export const TICKET_AREA_LABELS: Record<TicketArea, string> = {
   admin_soporte: 'Administración de soporte',
   ing_soporte: 'Ing. de soporte',
   administracion: 'Administración',
   ventas: 'Ventas',
+  sistema: 'Sistema (pendiente)',
 };
 
 export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
@@ -421,6 +422,7 @@ export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
   ing_soporte: 'bg-teal-100 text-teal-700',
   administracion: 'bg-violet-100 text-violet-700',
   ventas: 'bg-green-100 text-green-700',
+  sistema: 'bg-purple-100 text-purple-700',
 };
 
 // --- Prioridad ---

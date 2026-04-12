@@ -102,7 +102,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
             <label className={labelClass}>Área destino</label>
             <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as TicketArea | '')} className={selectClass}>
               <option value="">Sin área específica</option>
-              {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
+              {Object.entries(TICKET_AREA_LABELS).filter(([v]) => v !== 'sistema').map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>
               ))}
             </select>
