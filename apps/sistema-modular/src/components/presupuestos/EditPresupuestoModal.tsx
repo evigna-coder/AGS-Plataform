@@ -310,7 +310,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           open={showSolicitarFactura}
           presupuesto={{ id: presupuestoId, numero: form.numero, clienteId: form.clienteId, moneda: form.moneda, items: form.items } as Presupuesto}
           clienteNombre={cliente?.razonSocial || ''}
-          condicionPagoNombre={condicionesPago.find(c => c.id === form.condicionPagoId)?.nombre || 'No especificada'}
+          condicionPagoNombre={(() => { const cp = condicionesPago.find(c => c.id === form.condicionPagoId); return cp ? `${cp.nombre}${cp.dias > 0 ? ` (${cp.dias} días)` : ''}` : 'No especificada'; })()}
           onClose={() => setShowSolicitarFactura(false)}
           onCreated={() => { setShowSolicitarFactura(false); onUpdated?.(); }}
         />

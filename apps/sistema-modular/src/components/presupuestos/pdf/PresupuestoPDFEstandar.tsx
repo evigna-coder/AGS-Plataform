@@ -224,7 +224,7 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
         <View style={S.formaPago}>
           <Text style={S.formaPagoLabel}>Forma de Pago:</Text>
           <Text style={S.formaPagoValue}>
-            {condicionPago.nombre}
+            {condicionPago.nombre}{condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}
             {presupuesto.condicionesComerciales
               ? ` - (VER CONDICIONES COMERCIALES PÁGINA 2)`
               : ''}
