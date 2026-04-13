@@ -5,3 +5,5 @@
 [    1228ms] [LOG] [ENV CHECK] development AIzaSyBBylObMr3GiLEA7iKRdIymIbtWo8VKBVI @ http://localhost:3001/src/main.tsx?t=1776082696164:7
 [   67451ms] [LOG] Cargando categorias de modulos desde Firestore... @ http://localhost:3001/src/services/equiposService.ts:107
 [   69138ms] [LOG] 13 categorias de modulos cargadas @ http://localhost:3001/src/services/equiposService.ts:118
+[  528811ms] [LOG] Cargando categorias de modulos desde Firestore... @ http://localhost:3001/src/services/equiposService.ts:107
+[  530199ms] [LOG] 13 categorias de modulos cargadas @ http://localhost:3001/src/services/equiposService.ts:118
