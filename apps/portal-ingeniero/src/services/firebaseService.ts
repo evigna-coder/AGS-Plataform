@@ -558,7 +558,8 @@ export const otService = {
     let otData: Record<string, unknown> | null = null;
     let repData: Record<string, unknown> | null = null;
     let otExists = false;
-    // repLoaded tracked implicitly via repData being non-null
+    let otLoaded = false;
+    let repLoaded = false;
 
     // Report-specific fields that reportes-ot writes — merge these from reportes if empty in ordenes_trabajo
     const REPORT_FIELDS = [
@@ -570,6 +571,9 @@ export const otService = {
 
     const emit = () => {
       if (!active) return;
+      // Wait until BOTH subscriptions have fired at least once before emitting null
+      if (!otLoaded || !repLoaded) return;
+
       if (!otExists && !repData) { callback(null); return; }
       if (otExists && otData) {
         // Merge report fields from reportes if they're empty in ordenes_trabajo
@@ -593,22 +597,27 @@ export const otService = {
     // Subscribe to ordenes_trabajo
     const unsubOT = onSnapshot(doc(db, 'ordenes_trabajo', otNumber), snap => {
       if (!active) return;
+      otLoaded = true;
       otExists = snap.exists();
       otData = otExists ? snap.data() as Record<string, unknown> : null;
       emit();
     }, err => {
       console.error('OT ordenes_trabajo subscription error:', err);
+      otLoaded = true;
       onError?.(err);
     });
 
     // Also subscribe to reportes (for merged report data)
     const unsubRep = onSnapshot(doc(db, 'reportes', otNumber), snap => {
       if (!active) return;
+      repLoaded = true;
       repData = snap.exists() ? snap.data() as Record<string, unknown> : null;
       emit();
     }, () => {
-      // reportes may not exist — that's OK
+      // reportes may not exist or permission denied — that's OK
+      repLoaded = true;
       repData = null;
+      emit();
     });
 
     return () => {
