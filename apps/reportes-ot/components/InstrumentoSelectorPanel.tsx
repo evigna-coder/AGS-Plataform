@@ -334,9 +334,9 @@ function ColumnasTab({
 // ─── Componente principal ────────────────────────────────────────────────────
 export const InstrumentoSelectorPanel: React.FC<Props> = ({
   firebase,
-  instrumentosSelected,
-  patronesSelected,
-  columnasSelected,
+  instrumentosSelected = [],
+  patronesSelected = [],
+  columnasSelected = [],
   onApply,
   readOnly,
 }) => {

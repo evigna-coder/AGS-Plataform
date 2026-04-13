@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { useSpeechToText } from '../../hooks/useSpeechToText';
 
 interface VoiceTextareaProps {
@@ -10,8 +10,9 @@ interface VoiceTextareaProps {
   autoFocus?: boolean;
 }
 
-export function VoiceTextarea({ value, onChange, rows = 2, placeholder, className, autoFocus }: VoiceTextareaProps) {
+export function VoiceTextarea({ value, onChange, rows = 3, placeholder, className, autoFocus }: VoiceTextareaProps) {
   const baseTextRef = useRef(value);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { isListening, isSupported, toggle } = useSpeechToText({
     onResult: (transcript) => {
@@ -19,6 +20,15 @@ export function VoiceTextarea({ value, onChange, rows = 2, placeholder, classNam
       onChange(baseTextRef.current + separator + transcript);
     },
   });
+
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => { autoResize(); }, [value, autoResize]);
 
   useEffect(() => {
     if (!isListening) {
@@ -31,12 +41,13 @@ export function VoiceTextarea({ value, onChange, rows = 2, placeholder, classNam
   return (
     <div className="relative">
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={e => { onChange(e.target.value); if (!isListening) baseTextRef.current = e.target.value; }}
         rows={rows}
         placeholder={placeholder}
         className={`${className || defaultClass} ${isListening ? 'ring-2 ring-red-400 border-red-300' : ''}`}
-        style={isSupported ? { paddingRight: '2.75rem' } : undefined}
+        style={{ paddingRight: isSupported ? '2.75rem' : undefined, overflow: 'hidden' }}
         autoFocus={autoFocus}
       />
       {isSupported && (
