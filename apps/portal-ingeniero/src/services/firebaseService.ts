@@ -604,7 +604,6 @@ export const otService = {
     // Also subscribe to reportes (for merged report data)
     const unsubRep = onSnapshot(doc(db, 'reportes', otNumber), snap => {
       if (!active) return;
-      repLoaded = true;
       repData = snap.exists() ? snap.data() as Record<string, unknown> : null;
       emit();
     }, () => {
