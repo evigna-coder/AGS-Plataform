@@ -200,6 +200,16 @@ export const sistemasService = {
       updatedAt: d.data()['updatedAt']?.toDate().toISOString(),
     } as Sistema;
   },
+  async getByCliente(clienteId: string): Promise<Pick<Sistema, 'id' | 'nombre' | 'agsVisibleId' | 'activo'>[]> {
+    const q = query(collection(db, 'sistemas'), where('clienteId', '==', clienteId), where('activo', '==', true));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      id: d.id,
+      nombre: (d.data().nombre as string) ?? '',
+      agsVisibleId: (d.data().agsVisibleId as string) ?? null,
+      activo: true,
+    }));
+  },
 };
 
 // =============================================
@@ -945,5 +955,23 @@ export const notificationPrefsService = {
       notificationPreferences: prefs,
       updatedAt: Timestamp.now(),
     });
+  },
+};
+
+// =============================================
+// --- Pendientes (create-only, para derivar a sistema) ---
+// =============================================
+
+export const pendientesService = {
+  async create(data: Record<string, unknown>): Promise<string> {
+    const payload = cleanFirestoreData({
+      ...data,
+      estado: data.estado || 'pendiente',
+      ...getCreateTrace(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    const ref = await addDoc(collection(db, 'pendientes'), payload);
+    return ref.id;
   },
 };

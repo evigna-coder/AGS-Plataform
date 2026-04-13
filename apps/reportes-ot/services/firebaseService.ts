@@ -602,6 +602,20 @@ export class FirebaseService {
     codigoInternoCliente: string;
     accionesTomar: string;
   }): Promise<string> {
+    // Resolve clienteId and sistemaId from the OT document
+    let clienteId: string | null = null;
+    let sistemaId: string | null = null;
+    try {
+      const otSnap = await getDocs(query(collection(db, 'ordenes_trabajo'), where('otNumber', '==', data.otNumber)));
+      if (!otSnap.empty) {
+        const otData = otSnap.docs[0].data();
+        clienteId = (otData.clienteId as string) || null;
+        sistemaId = (otData.sistemaId as string) || null;
+      }
+    } catch (e) {
+      console.warn('No se pudo resolver clienteId/sistemaId desde OT:', e);
+    }
+
     const now = new Date().toISOString();
     const docRef = await addDoc(collection(db, 'leads'), {
       razonSocial: data.razonSocial,
@@ -617,9 +631,9 @@ export class FirebaseService {
       asignadoNombre: 'Esteban Vigna',
       derivadoPor: null,
       prioridad: 'urgente',
-      clienteId: null,
+      clienteId,
       contactoId: null,
-      sistemaId: null,
+      sistemaId,
       postas: [],
       otIds: [data.otNumber],
       presupuestosIds: [],
