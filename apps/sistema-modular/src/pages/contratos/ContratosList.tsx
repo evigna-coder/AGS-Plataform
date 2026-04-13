@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { contratosService, clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import type { Contrato, Cliente, EstadoContrato } from '@ags/shared';
 import { ESTADO_CONTRATO_LABELS, ESTADO_CONTRATO_COLORS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -10,12 +11,14 @@ import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { CreateContratoModal } from '../../components/contratos/CreateContratoModal';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 export const ContratosList = () => {
   const navigate = useNavigate();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('contratos-list');
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,17 +90,39 @@ export const ContratosList = () => {
           <p className="text-center text-sm text-slate-400 py-8">No hay contratos</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table ref={tableRef} className="w-full text-xs table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '7%' }} />
+                </colgroup>
+              )}
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <SortableHeader label="Numero" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Cliente" field="clienteNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <th className={thClass}>Vigencia</th>
-                  <th className={thClass}>Tipo limite</th>
-                  <th className={thClass}>Visitas</th>
-                  <th className={thClass}>Servicios</th>
-                  <th className={thClass}>Estado</th>
-                  <th className={thClass}>Presupuesto</th>
+                  <SortableHeader label="Numero" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(0)} relative`}>
+                    <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
+                    <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <SortableHeader label="Cliente" field="clienteNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)} relative`}>
+                    <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                    <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <th className={`${thClass} ${getAlignClass(2)} relative`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Vigencia<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(3)} relative`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Tipo limite<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(4)} relative`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Visitas<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(5)} relative`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Servicios<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(6)} relative`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Estado<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(7)} relative`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Presupuesto<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -105,24 +130,24 @@ export const ContratosList = () => {
                   const visitasRestantes = c.tipoLimite === 'visitas' && c.maxVisitas !== null ? c.maxVisitas - c.visitasUsadas : null;
                   return (
                     <tr key={c.id} onClick={() => navigate(`/contratos/${c.id}`)} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors">
-                      <td className="px-3 py-2 text-center font-mono font-medium text-teal-700">{c.numero}</td>
-                      <td className="px-3 py-2 text-slate-700 max-w-[200px] truncate">{c.clienteNombre}</td>
-                      <td className="px-3 py-2 text-center text-slate-500 whitespace-nowrap">{fmtDate(c.fechaInicio)} — {fmtDate(c.fechaFin)}</td>
-                      <td className="px-3 py-2 text-center text-slate-500">{TIPO_LIMITE_CONTRATO_LABELS[c.tipoLimite]}</td>
-                      <td className="px-3 py-2 text-center">
+                      <td className={`px-3 py-2 font-mono font-medium text-teal-700 ${getAlignClass(0)}`}>{c.numero}</td>
+                      <td className={`px-3 py-2 text-slate-700 max-w-[200px] truncate ${getAlignClass(1)}`}>{c.clienteNombre}</td>
+                      <td className={`px-3 py-2 text-slate-500 whitespace-nowrap ${getAlignClass(2)}`}>{fmtDate(c.fechaInicio)} — {fmtDate(c.fechaFin)}</td>
+                      <td className={`px-3 py-2 text-slate-500 ${getAlignClass(3)}`}>{TIPO_LIMITE_CONTRATO_LABELS[c.tipoLimite]}</td>
+                      <td className={`px-3 py-2 ${getAlignClass(4)}`}>
                         {visitasRestantes !== null ? (
                           <span className={`font-mono font-medium ${visitasRestantes <= 2 ? 'text-red-600' : visitasRestantes <= 5 ? 'text-amber-600' : 'text-slate-700'}`}>
                             {c.visitasUsadas}/{c.maxVisitas}
                           </span>
                         ) : <span className="text-slate-400">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-center text-[11px] text-slate-500">{c.serviciosIncluidos.map(s => s.tipoServicioNombre).join(', ')}</td>
-                      <td className="px-3 py-2 text-center">
+                      <td className={`px-3 py-2 text-[11px] text-slate-500 ${getAlignClass(5)}`}>{c.serviciosIncluidos.map(s => s.tipoServicioNombre).join(', ')}</td>
+                      <td className={`px-3 py-2 ${getAlignClass(6)}`}>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_CONTRATO_COLORS[c.estado]}`}>
                           {ESTADO_CONTRATO_LABELS[c.estado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-center text-[11px] font-mono text-slate-500">{c.presupuestoNumero || '—'}</td>
+                      <td className={`px-3 py-2 text-[11px] font-mono text-slate-500 ${getAlignClass(7)}`}>{c.presupuestoNumero || '—'}</td>
                     </tr>
                   );
                 })}

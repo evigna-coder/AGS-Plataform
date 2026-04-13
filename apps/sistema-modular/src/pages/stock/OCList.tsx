@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrdenesCompra } from '../../hooks/useOrdenesCompra';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { EstadoOC, TipoOC } from '@ags/shared';
 import { ESTADO_OC_LABELS, ESTADO_OC_COLORS } from '@ags/shared';
@@ -16,6 +18,7 @@ const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC'
 export const OCList = () => {
   const { ordenes, loading, loadOrdenes, deleteOrden } = useOrdenesCompra();
   const confirm = useConfirm();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('oc-list');
   const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
   const [filtroTipo, setFiltroTipo] = useState<TipoOC | ''>('');
   const [showCanceladas, setShowCanceladas] = useState(false);
@@ -101,18 +104,67 @@ export const OCList = () => {
           </Card>
         ) : (
           <div className="bg-white overflow-x-auto">
-            <table className="w-full">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '11%' }} />
+                </colgroup>
+              )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Numero</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Proveedor</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Items</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Total</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Moneda</th>
-                  <SortableHeader label="Entrega est." field="fechaEntregaEstimada" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider" />
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(0)}`}>
+                    <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
+                    Numero
+                    <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(1)}`}>
+                    <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                    Tipo
+                    <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(2)}`}>
+                    <ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />
+                    Estado
+                    <div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}>
+                    <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
+                    Proveedor
+                    <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(4)}`}>
+                    <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
+                    Items
+                    <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(5)}`}>
+                    <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
+                    Total
+                    <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(6)}`}>
+                    <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
+                    Moneda
+                    <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                  <SortableHeader label="Entrega est." field="fechaEntregaEstimada" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(7)}`}>
+                    <ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />
+                    <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider relative">
+                    Acciones
+                    <div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -120,22 +172,22 @@ export const OCList = () => {
                   const sym = MONEDA_SYM[o.moneda] || '$';
                   return (
                     <tr key={o.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-2">
+                      <td className={`px-4 py-2 ${getAlignClass(0)}`}>
                         <Link to={`/stock/ordenes-compra/${o.id}`} className="font-mono font-semibold text-teal-600 hover:underline text-xs">{o.numero}</Link>
                       </td>
-                      <td className="px-4 py-2">
+                      <td className={`px-4 py-2 ${getAlignClass(1)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLORS[o.tipo]}`}>{TIPO_LABELS[o.tipo]}</span>
                       </td>
-                      <td className="px-4 py-2">
+                      <td className={`px-4 py-2 ${getAlignClass(2)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_OC_COLORS[o.estado]}`}>{ESTADO_OC_LABELS[o.estado]}</span>
                       </td>
-                      <td className="px-4 py-2 text-xs text-slate-700">{o.proveedorNombre}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600 text-center tabular-nums">{o.items.length}</td>
-                      <td className="px-4 py-2 text-xs text-slate-900 font-medium text-center tabular-nums">
+                      <td className={`px-4 py-2 text-xs text-slate-700 ${getAlignClass(3)}`}>{o.proveedorNombre}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-600 tabular-nums ${getAlignClass(4)}`}>{o.items.length}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-900 font-medium tabular-nums ${getAlignClass(5)}`}>
                         {o.total != null ? `${sym} ${o.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : '-'}
                       </td>
-                      <td className="px-4 py-2 text-xs text-center text-slate-500">{o.moneda}</td>
-                      <td className="px-4 py-2 text-xs text-slate-500">
+                      <td className={`px-4 py-2 text-xs text-slate-500 ${getAlignClass(6)}`}>{o.moneda}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-500 ${getAlignClass(7)}`}>
                         {o.fechaEntregaEstimada ? new Date(o.fechaEntregaEstimada).toLocaleDateString('es-AR') : '-'}
                       </td>
                       <td className="px-4 py-2 text-center space-x-1">

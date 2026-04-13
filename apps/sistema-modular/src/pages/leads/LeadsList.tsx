@@ -24,6 +24,7 @@ import { LeadQuickNoteModal } from '../../components/leads/LeadQuickNoteModal';
 import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thBase = 'px-3 py-2 text-center text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
 
@@ -188,7 +189,7 @@ export const LeadsList = () => {
     return <span className="text-teal-500 ml-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns('tickets-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('tickets-list');
 
   const pipelineTotal = useMemo(() =>
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
@@ -298,16 +299,16 @@ export const LeadsList = () => {
               )}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('razonSocial')}>Cliente <SortIcon col="razonSocial" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(0, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('contacto')}>Contacto <SortIcon col="contacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(1, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('motivoLlamado')}>Motivo <SortIcon col="motivoLlamado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(2, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('prioridad')}>Prioridad <SortIcon col="prioridad" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(3, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('estado')}>Estado <SortIcon col="estado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(4, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('areaActual')}>Área <SortIcon col="areaActual" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(5, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('asignadoA')}>Asignado <SortIcon col="asignadoA" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(6, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('createdAt')}>Fecha <SortIcon col="createdAt" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(7, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600`} onClick={() => toggleSort('proximoContacto')}>Seguim. <SortIcon col="proximoContacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(8, e); }} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} text-slate-400`}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(0)}`} onClick={() => toggleSort('razonSocial')}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />Cliente <SortIcon col="razonSocial" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(0, e); }} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(1)}`} onClick={() => toggleSort('contacto')}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />Contacto <SortIcon col="contacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(1, e); }} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(2)}`} onClick={() => toggleSort('motivoLlamado')}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Motivo <SortIcon col="motivoLlamado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(2, e); }} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(3)}`} onClick={() => toggleSort('prioridad')}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Prioridad <SortIcon col="prioridad" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(3, e); }} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(4)}`} onClick={() => toggleSort('estado')}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Estado <SortIcon col="estado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(4, e); }} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(5)}`} onClick={() => toggleSort('areaActual')}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Área <SortIcon col="areaActual" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(5, e); }} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(6)}`} onClick={() => toggleSort('asignadoA')}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Asignado <SortIcon col="asignadoA" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(6, e); }} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(7)}`} onClick={() => toggleSort('createdAt')}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Fecha <SortIcon col="createdAt" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(7, e); }} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(8)}`} onClick={() => toggleSort('proximoContacto')}><ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} />Seguim. <SortIcon col="proximoContacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(8, e); }} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thBase} text-slate-400 ${getAlignClass(9)}`}><ColAlignIcon align={colAligns?.[9] || 'left'} onClick={() => cycleAlign(9)} />Observaciones<div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thBase} text-center text-slate-400`}>Acciones</th>
                 </tr>
               </thead>
@@ -320,54 +321,54 @@ export const LeadsList = () => {
                   return (
                     <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                       onClick={() => navigate(`/leads/${lead.id}`)}>
-                      <td className="px-3 py-2 overflow-hidden text-left">
+                      <td className={`px-3 py-2 overflow-hidden ${getAlignClass(0)}`}>
                         <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}
                           onClick={e => e.stopPropagation()}>
                           {lead.razonSocial}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden text-center" title={lead.contacto}>
+                      <td className={`px-3 py-2 text-xs text-slate-600 truncate overflow-hidden ${getAlignClass(1)}`} title={lead.contacto}>
                         {lead.contacto}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
+                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(2)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                           {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                         </span>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
+                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(3)}`}>
                         {lead.prioridad ? (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
                             {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
+                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(4)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
                           {getSimplifiedEstadoLabel(lead.estado)}
                         </span>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
+                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(5)}`}>
                         {lead.areaActual ? (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
                             {LEAD_AREA_LABELS[lead.areaActual]}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-xs text-slate-500 truncate overflow-hidden text-center" title={getResponsableNombre(lead.asignadoA)}>
+                      <td className={`px-3 py-2 text-xs text-slate-500 truncate overflow-hidden ${getAlignClass(6)}`} title={getResponsableNombre(lead.asignadoA)}>
                         {getResponsableNombre(lead.asignadoA)}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
+                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(7)}`}>
                         <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
                         {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap overflow-hidden text-center">
+                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(8)}`}>
                         {daysUntil !== null ? (
                           <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
                             {getContactoStatusText(daysUntil)}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 overflow-hidden text-left">
+                      <td className={`px-3 py-2 overflow-hidden ${getAlignClass(9)}`}>
                         <span className="text-[10px] text-slate-500 truncate block" title={lead.descripcion || lead.motivoContacto || ''}>
                           {((lead.descripcion || lead.motivoContacto || '—').length > 30
                             ? (lead.descripcion || lead.motivoContacto || '').slice(0, 30) + '...'

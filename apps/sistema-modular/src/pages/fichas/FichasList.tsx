@@ -11,12 +11,15 @@ import type { FichaPropiedad, EstadoFicha, Cliente } from '@ags/shared';
 import { ESTADO_FICHA_LABELS, ESTADO_FICHA_COLORS } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 export function FichasList() {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('fichas-list');
 
   const FILTER_SCHEMA = useMemo(() => ({
     estado: { type: 'string' as const, default: '' },
@@ -128,44 +131,60 @@ export function FichasList() {
           </Card>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-            <table className="w-full table-fixed">
-              <colgroup>
-                <col style={{ width: 75 }} />
-                <col style={{ width: '15%' }} />
-                <col />
-                <col style={{ width: 85 }} />
-                <col style={{ width: 78 }} />
-                <col style={{ width: 75 }} />
-                <col style={{ width: 110 }} />
-              </colgroup>
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: 75 }} />
+                  <col style={{ width: '15%' }} />
+                  <col />
+                  <col style={{ width: 85 }} />
+                  <col style={{ width: 78 }} />
+                  <col style={{ width: 75 }} />
+                  <col style={{ width: 110 }} />
+                </colgroup>
+              )}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <SortableHeader label="Numero" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Cliente" field="clienteNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <th className={thClass}>Descripcion</th>
-                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
-                  <th className={thClass}>OT Ref</th>
-                  <th className={`${thClass} text-center`}>Acciones</th>
+                  <SortableHeader label="Numero" field="numero" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(0)} relative`}>
+                    <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
+                    <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <SortableHeader label="Cliente" field="clienteNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)} relative`}>
+                    <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                    <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <th className={`${thClass} ${getAlignClass(2)} relative`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Descripcion<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(3)} relative`}>
+                    <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
+                    <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <SortableHeader label="Ingreso" field="fechaIngreso" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(4)} relative`}>
+                    <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
+                    <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <th className={`${thClass} ${getAlignClass(5)} relative`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />OT Ref<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(f => (
                   <tr key={f.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/fichas/${f.id}`)}>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                       <span className="font-semibold text-teal-600 text-xs">{f.numero}</span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-700 truncate" title={f.clienteNombre}>{f.clienteNombre}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600 truncate" title={f.moduloNombre || f.descripcionLibre || ''}>
+                    <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={f.clienteNombre}>{f.clienteNombre}</td>
+                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={f.moduloNombre || f.descripcionLibre || ''}>
                       {f.moduloNombre || f.descripcionLibre || <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
                       <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_FICHA_COLORS[f.estado]}`}>
                         {ESTADO_FICHA_LABELS[f.estado]}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(f.fechaIngreso)}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+                    <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(4)}`}>{formatDate(f.fechaIngreso)}</td>
+                    <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(5)}`}>
                       {f.otReferencia ? (
                         <Link to={`/ordenes-trabajo/${f.otReferencia}`} className="text-teal-600 hover:underline" onClick={e => e.stopPropagation()}>
                           {f.otReferencia}

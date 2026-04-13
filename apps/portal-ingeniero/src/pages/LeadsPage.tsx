@@ -20,6 +20,7 @@ import LeadQuickNoteModal from '../components/leads/LeadQuickNoteModal';
 import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState, type EstadoFilterValue } from '../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../utils/leadHelpers';
 import { useResizableColumns } from '../hooks/useResizableColumns';
+import { ColAlignIcon } from '../components/ui/ColAlignIcon';
 
 const thBase = 'px-2 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative select-none';
 
@@ -118,7 +119,7 @@ export default function LeadsPage() {
     return result;
   }, [leads, usuario, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns('pi-tickets-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pi-tickets-list');
 
   const pipelineTotal = useMemo(() =>
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
@@ -240,16 +241,16 @@ export default function LeadsPage() {
                 )}
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className={thBase}>Cliente<div onMouseDown={e => onResizeStart(0, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Contacto<div onMouseDown={e => onResizeStart(1, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Motivo<div onMouseDown={e => onResizeStart(2, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Prioridad<div onMouseDown={e => onResizeStart(3, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Estado<div onMouseDown={e => onResizeStart(4, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Área<div onMouseDown={e => onResizeStart(5, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Asignado<div onMouseDown={e => onResizeStart(6, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Fecha<div onMouseDown={e => onResizeStart(7, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Seguim.<div onMouseDown={e => onResizeStart(8, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={thBase}>Observaciones<div onMouseDown={e => onResizeStart(9, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />Cliente<div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />Contacto<div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Motivo<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Prioridad<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Estado<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Área<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(6)}`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Asignado<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(7)}`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Fecha<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(8)}`}><ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} />Seguim.<div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className={`${thBase} ${getAlignClass(9)}`}><ColAlignIcon align={colAligns?.[9] || 'left'} onClick={() => cycleAlign(9)} />Observaciones<div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                     <th className={`${thBase} text-center`}>Acciones</th>
                   </tr>
                 </thead>
@@ -262,53 +263,53 @@ export default function LeadsPage() {
                     return (
                       <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                         onClick={() => navigate(`/leads/${lead.id}`)}>
-                        <td className="px-2 py-1.5 overflow-hidden">
+                        <td className={`px-2 py-1.5 overflow-hidden ${getAlignClass(0)}`}>
                           <Link to={`/leads/${lead.id}`} className="text-[11px] font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
                             {lead.razonSocial}
                           </Link>
                         </td>
-                        <td className="px-2 py-1.5 text-[11px] text-slate-600 truncate overflow-hidden" title={lead.contacto}>
+                        <td className={`px-2 py-1.5 text-[11px] text-slate-600 truncate overflow-hidden ${getAlignClass(1)}`} title={lead.contacto}>
                           {lead.contacto}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(2)}`}>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                             {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                           </span>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(3)}`}>
                           {lead.prioridad ? (
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_PRIORIDAD_COLORS[lead.prioridad]}`}>
                               {TICKET_PRIORIDAD_LABELS[lead.prioridad]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(4)}`}>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
                             {getSimplifiedEstadoLabel(lead.estado)}
                           </span>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(5)}`}>
                           {lead.areaActual ? (
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_AREA_COLORS[lead.areaActual]}`}>
                               {TICKET_AREA_LABELS[lead.areaActual]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-500 truncate overflow-hidden" title={getResponsableNombre(lead.asignadoA)}>
+                        <td className={`px-3 py-2 text-xs text-slate-500 truncate overflow-hidden ${getAlignClass(6)}`} title={getResponsableNombre(lead.asignadoA)}>
                           {getResponsableNombre(lead.asignadoA)}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(7)}`}>
                           <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
                           {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap overflow-hidden">
+                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(8)}`}>
                           {daysUntil !== null ? (
                             <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
                               {getContactoStatusText(daysUntil)}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
-                        <td className="px-3 py-2 overflow-hidden">
+                        <td className={`px-3 py-2 overflow-hidden ${getAlignClass(9)}`}>
                           {(() => {
                             const lastComment = lead.postas?.slice().reverse().find(p => p.comentario)?.comentario;
                             const text = lastComment || lead.descripcion || lead.motivoContacto || '—';

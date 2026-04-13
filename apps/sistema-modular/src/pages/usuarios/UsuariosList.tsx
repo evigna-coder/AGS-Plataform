@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { usuariosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -15,6 +17,7 @@ const ALL_MODULOS = Object.keys(MODULO_LABELS) as ModuloId[];
 const ALL_APPS = Object.keys(APP_LABELS) as AppId[];
 
 export const UsuariosList = () => {
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('usuarios-list');
   const [users, setUsers] = useState<UsuarioAGS[]>([]);
   const [loading, setLoading] = useState(true);
   const [showApprove, setShowApprove] = useState<UsuarioAGS | null>(null);
@@ -65,15 +68,29 @@ export const UsuariosList = () => {
           <Card><div className="text-center py-12"><p className="text-slate-400">No hay usuarios registrados.</p></div></Card>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
-            <table className="w-full">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: 50 }} />
+                  <col />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: 110 }} />
+                </colgroup>
+              )}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-10"></th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Usuario</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Rol</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Estado</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Ultimo login</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap w-28"></th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider relative"><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(1)}`}>Usuario<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(2)}`}>Rol<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(3)}`}>Estado<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(4)}`}>Ultimo login<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative"><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -88,11 +105,11 @@ export const UsuariosList = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 min-w-0">
+                    <td className={`px-3 py-2.5 min-w-0 ${getAlignClass(1)}`}>
                       <p className="text-xs font-medium text-slate-900 truncate">{u.displayName}</p>
                       <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className={`px-3 py-2.5 whitespace-nowrap ${getAlignClass(2)}`}>
                       <span className="text-xs text-slate-700">
                         {u.role ? USER_ROLE_LABELS[u.role] : <span className="text-slate-400 italic">Sin rol</span>}
                       </span>
@@ -100,12 +117,12 @@ export const UsuariosList = () => {
                         <span className="ml-1.5 text-[9px] font-medium bg-teal-100 text-teal-600 px-1 py-px rounded">custom</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className={`px-3 py-2.5 whitespace-nowrap ${getAlignClass(3)}`}>
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${USER_STATUS_COLORS[u.status]}`}>
                         {USER_STATUS_LABELS[u.status]}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap">{formatDate(u.lastLoginAt)}</td>
+                    <td className={`px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap ${getAlignClass(4)}`}>{formatDate(u.lastLoginAt)}</td>
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         {u.status === 'pendiente' ? (

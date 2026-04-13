@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { unidadesService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
@@ -66,6 +68,7 @@ export const UnidadesList = () => {
   const [loading, setLoading] = useState(true);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
   const debouncedSearch = useDebounce(filters.search, 300);
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('unidades-list');
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -173,41 +176,57 @@ export const UnidadesList = () => {
           </Card>
         ) : (
           <div className="bg-white overflow-x-auto">
-            <table className="w-full">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '8%' }} />
+                </colgroup>
+              )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Codigo articulo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro serie</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nro lote</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Condicion</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Estado</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Ubicacion</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}>Codigo articulo<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}>Descripcion<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}>Nro serie<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}>Nro lote<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(4)}`}>Condicion<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(5)}`}>Estado<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(6)}`}>Ubicacion<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(u => (
                   <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 ${getAlignClass(0)}`}>
                       <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">
                         {u.articuloCodigo}
                       </Link>
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-900">{u.articuloDescripcion}</td>
-                    <td className="px-4 py-2 text-xs text-slate-600 font-mono">{u.nroSerie ?? '-'}</td>
-                    <td className="px-4 py-2 text-xs text-slate-600">{u.nroLote ?? '-'}</td>
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(1)}`}>{u.articuloDescripcion}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-600 font-mono ${getAlignClass(2)}`}>{u.nroSerie ?? '-'}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(3)}`}>{u.nroLote ?? '-'}</td>
+                    <td className={`px-4 py-2 ${getAlignClass(4)}`}>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CONDICION_COLORS[u.condicion]}`}>
                         {CONDICION_LABELS[u.condicion]}
                       </span>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 ${getAlignClass(5)}`}>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>
                         {ESTADO_LABELS[u.estado]}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-600">
+                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>
                       {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
                       {u.ubicacion.referenciaNombre && (
                         <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>

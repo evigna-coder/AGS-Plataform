@@ -4,6 +4,7 @@ import { leadsService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { VoiceTextarea } from '../ui/VoiceTextarea';
 
 interface LeadQuickNoteModalProps {
   lead: Lead;
@@ -44,9 +45,9 @@ export default function LeadQuickNoteModal({ lead, onClose, onAdded }: LeadQuick
     <Modal open title="Nota rápida" onClose={onClose}>
       <div className="space-y-3">
         <p className="text-xs text-slate-500">{lead.razonSocial} — {lead.contacto}</p>
-        <textarea
+        <VoiceTextarea
           value={texto}
-          onChange={e => setTexto(e.target.value)}
+          onChange={setTexto}
           rows={3}
           autoFocus
           placeholder="Escribí una nota o actualización..."

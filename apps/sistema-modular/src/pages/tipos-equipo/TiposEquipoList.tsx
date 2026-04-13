@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { tiposEquipoService } from '../../services/tiposEquipoService';
 import type { TipoEquipoPlantilla, TipoEquipoComponente, TipoEquipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -22,6 +24,7 @@ const EMPTY_FORM: FormData = { nombre: '', descripcion: '', activo: true, compon
 export const TiposEquipoList = () => {
   const goBack = useNavigateBack();
   const confirm = useConfirm();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('tipos-equipo-list');
   const [plantillas, setPlantillas] = useState<TipoEquipoPlantilla[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -183,25 +186,37 @@ export const TiposEquipoList = () => {
               </p>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table ref={tableRef} className="w-full text-sm table-fixed">
+              {colWidths ? (
+                <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '30%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '16%' }} />
+                </colgroup>
+              )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Nombre</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Descripción</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-mono uppercase tracking-wider text-slate-500">Componentes</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-mono uppercase tracking-wider text-slate-500">Servicios</th>
-                  <th className="px-3 py-2 text-center text-[10px] font-mono uppercase tracking-wider text-slate-500">Estado</th>
-                  <th className="px-3 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-slate-500">Acciones</th>
+                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />Nombre<div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />Descripción<div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Componentes<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Servicios<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Estado<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className="px-3 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-slate-500 relative">Acciones<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {plantillas.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2.5 font-semibold text-slate-900">{p.nombre}</td>
-                    <td className="px-3 py-2.5 text-xs text-slate-600">{p.descripcion || <span className="text-slate-400">—</span>}</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-700">{p.componentes.length}</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-700">{p.servicios.length}</td>
-                    <td className="px-3 py-2.5 text-center">
+                    <td className={`px-3 py-2.5 font-semibold text-slate-900 ${getAlignClass(0)}`}>{p.nombre}</td>
+                    <td className={`px-3 py-2.5 text-xs text-slate-600 ${getAlignClass(1)}`}>{p.descripcion || <span className="text-slate-400">—</span>}</td>
+                    <td className={`px-3 py-2.5 text-xs text-slate-700 ${getAlignClass(2)}`}>{p.componentes.length}</td>
+                    <td className={`px-3 py-2.5 text-xs text-slate-700 ${getAlignClass(3)}`}>{p.servicios.length}</td>
+                    <td className={`px-3 py-2.5 ${getAlignClass(4)}`}>
                       <span className={`inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full ${p.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                         {p.activo ? 'Activa' : 'Inactiva'}
                       </span>

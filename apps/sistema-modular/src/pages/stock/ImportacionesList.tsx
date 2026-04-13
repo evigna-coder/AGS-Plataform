@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useImportaciones } from '../../hooks/useImportaciones';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -30,6 +32,7 @@ export const ImportacionesList = () => {
   const navigate = useNavigate();
   const { importaciones, loading, loadImportaciones } = useImportaciones();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('importaciones-list');
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
@@ -86,36 +89,54 @@ export const ImportacionesList = () => {
               <p className="text-xs text-slate-400">No hay importaciones registradas</p>
             </div>
           ) : (
-            <table className="w-full">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
+              )}
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className={thClass}>Numero</th>
-                  <th className={thClass}>OC</th>
-                  <th className={thClass}>Proveedor</th>
-                  <th className={thClass}>Estado</th>
-                  <th className={thClass}>Puerto destino</th>
+                  <th className={`${thClass} relative ${getAlignClass(0)}`}>Numero<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(1)}`}>OC<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(2)}`}>Proveedor<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(3)}`}>Estado<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(4)}`}>Puerto destino<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <SortableHeader
                     label="ETA"
                     field="fechaEstimadaArribo"
                     currentField={filters.sortField}
                     currentDir={filters.sortDir as SortDir}
                     onSort={handleSort}
-                    className="text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4"
-                  />
-                  <th className={thClass}>Acciones</th>
+                    className={`relative text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4 ${getAlignClass(5)}`}
+                  >
+                    <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
+                    <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </SortableHeader>
+                  <th className={thClass + ' relative'}>Acciones<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.map(imp => (
                   <tr key={imp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                    <td className="text-xs py-2 px-4">
+                    <td className={`text-xs py-2 px-4 ${getAlignClass(0)}`}>
                       <Link to={`/stock/importaciones/${imp.id}`} className="text-teal-600 font-medium hover:underline">
                         {imp.numero}
                       </Link>
                     </td>
-                    <td className="text-xs py-2 px-4 text-slate-700 whitespace-nowrap">{imp.ordenCompraNumero}</td>
-                    <td className="text-xs py-2 px-4 text-slate-700 truncate max-w-[160px]">{imp.proveedorNombre}</td>
-                    <td className="text-xs py-2 px-4">
+                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(1)}`}>{imp.ordenCompraNumero}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 truncate max-w-[160px] ${getAlignClass(2)}`}>{imp.proveedorNombre}</td>
+                    <td className={`text-xs py-2 px-4 ${getAlignClass(3)}`}>
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_IMPORTACION_COLORS[imp.estado]}`}>
                         {ESTADO_IMPORTACION_LABELS[imp.estado]}
                       </span>
@@ -125,8 +146,8 @@ export const ImportacionesList = () => {
                         </span>
                       )}
                     </td>
-                    <td className="text-xs py-2 px-4 text-slate-700 whitespace-nowrap">{imp.puertoDestino || '-'}</td>
-                    <td className="text-xs py-2 px-4 text-slate-700 whitespace-nowrap">{formatDate(imp.fechaEstimadaArribo)}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(4)}`}>{imp.puertoDestino || '-'}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(5)}`}>{formatDate(imp.fechaEstimadaArribo)}</td>
                     <td className="text-xs py-2 px-4 text-center">
                       <Button
                         variant="ghost"

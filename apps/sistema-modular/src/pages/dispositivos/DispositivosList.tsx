@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { dispositivosService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -21,6 +23,7 @@ const TIPO_COLORS: Record<TipoDispositivo, string> = {
 
 export const DispositivosList = () => {
   const confirm = useConfirm();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('dispositivos-list');
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
   }), []);
@@ -85,30 +88,43 @@ export const DispositivosList = () => {
           <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron dispositivos</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">
-            <table className="w-full">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '30%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '14%' }} />
+                </colgroup>
+              )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Marca / Modelo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Serie</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Asignado a</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}>Tipo<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}>Marca / Modelo<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}>Serie<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}>Asignado a<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(d => (
                   <tr key={d.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 ${getAlignClass(0)}`}>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TIPO_COLORS[d.tipo]}`}>
                         {TIPO_LABELS[d.tipo]}
                       </span>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className={`px-4 py-2 ${getAlignClass(1)}`}>
                       <span className="text-xs font-semibold text-slate-900">{d.marca} {d.modelo}</span>
                       {d.descripcion && <p className="text-[10px] text-slate-400 mt-0.5">{d.descripcion}</p>}
                     </td>
-                    <td className="px-4 py-2 font-mono text-xs text-slate-600">{d.serie || '-'}</td>
-                    <td className="px-4 py-2 text-xs text-slate-600">{d.asignadoANombre || '-'}</td>
+                    <td className={`px-4 py-2 font-mono text-xs text-slate-600 ${getAlignClass(2)}`}>{d.serie || '-'}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(3)}`}>{d.asignadoANombre || '-'}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
                         <button onClick={() => { setEditItem(d); setShowModal(true); }} className="text-xs text-teal-600 hover:underline font-medium">Editar</button>

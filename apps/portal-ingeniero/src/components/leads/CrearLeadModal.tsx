@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { VoiceTextarea } from '../ui/VoiceTextarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
 import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
@@ -372,9 +373,9 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const descripcionField = (
     <div>
       <label className={labelClass}>Descripción</label>
-      <textarea
+      <VoiceTextarea
         value={descripcion}
-        onChange={e => setDescripcion(e.target.value)}
+        onChange={setDescripcion}
         rows={2}
         className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
       />

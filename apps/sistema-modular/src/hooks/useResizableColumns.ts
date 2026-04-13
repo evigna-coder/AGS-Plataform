@@ -1,20 +1,41 @@
 import { useRef, useState, useCallback } from 'react';
 
+export type ColAlign = 'left' | 'center' | 'right';
+
 /**
- * Hook for resizable table columns via drag handles.
- * Pass a `storageKey` to persist column widths across sessions in localStorage.
+ * Hook for resizable table columns via drag handles + per-column alignment.
+ * Pass a `storageKey` to persist column widths & alignments across sessions in localStorage.
  *
  * Usage:
- *   const { tableRef, colWidths, onResizeStart } = useResizableColumns('tickets-list');
+ *   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, resetWidths }
+ *     = useResizableColumns('my-list');
+ *
+ * In each <th>, add resize handle:
+ *   <div
+ *     onMouseDown={e => onResizeStart(colIndex, e)}
+ *     onDoubleClick={() => onAutoFit(colIndex)}
+ *     className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40"
+ *   />
+ *
+ * For alignment toggle, use <ColAlignIcon> component (see components/ui/ColAlignIcon.tsx).
  */
 export function useResizableColumns(storageKey?: string) {
   const tableRef = useRef<HTMLTableElement>(null);
 
-  // Restore from localStorage if key provided
+  // Restore widths from localStorage if key provided
   const [colWidths, setColWidths] = useState<number[] | null>(() => {
     if (!storageKey) return null;
     try {
       const saved = localStorage.getItem(`col-widths:${storageKey}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  // Restore alignments from localStorage
+  const [colAligns, setColAligns] = useState<ColAlign[] | null>(() => {
+    if (!storageKey) return null;
+    try {
+      const saved = localStorage.getItem(`col-aligns:${storageKey}`);
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
@@ -26,14 +47,19 @@ export function useResizableColumns(storageKey?: string) {
     }
   }, [storageKey]);
 
+  /** Helper: read current pixel widths from the DOM */
+  const readCurrentWidths = useCallback((): number[] => {
+    if (!tableRef.current) return [];
+    const ths = tableRef.current.querySelectorAll('thead th');
+    return Array.from(ths).map(th => (th as HTMLElement).getBoundingClientRect().width);
+  }, []);
+
   const onResizeStart = useCallback((colIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!tableRef.current) return;
 
-    const ths = tableRef.current.querySelectorAll('thead th');
-    const currentWidths = colWidths
-      || Array.from(ths).map(th => (th as HTMLElement).getBoundingClientRect().width);
+    const currentWidths = colWidths || readCurrentWidths();
 
     const startX = e.clientX;
     const startWidth = currentWidths[colIndex];
@@ -72,15 +98,90 @@ export function useResizableColumns(storageKey?: string) {
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [colWidths, persistWidths]);
+  }, [colWidths, readCurrentWidths, persistWidths]);
 
-  // Reset to default widths and clear storage
+  /** Double-click: auto-fit column to its longest content */
+  const onAutoFit = useCallback((colIndex: number) => {
+    if (!tableRef.current) return;
+
+    const currentWidths = colWidths || readCurrentWidths();
+    if (currentWidths.length === 0) return;
+
+    // Measure max content width in this column (header + body rows)
+    const rows = tableRef.current.querySelectorAll('tr');
+    let maxContentWidth = 0;
+    const padding = 24; // px-3 = 12px each side
+
+    rows.forEach(row => {
+      const cell = row.children[colIndex] as HTMLElement | undefined;
+      if (!cell) return;
+
+      // Temporarily remove width constraint to measure natural content width
+      const oldWidth = cell.style.width;
+      const oldOverflow = cell.style.overflow;
+      const oldWhiteSpace = cell.style.whiteSpace;
+      cell.style.width = 'auto';
+      cell.style.overflow = 'visible';
+      cell.style.whiteSpace = 'nowrap';
+
+      const contentWidth = cell.scrollWidth;
+      maxContentWidth = Math.max(maxContentWidth, contentWidth);
+
+      // Restore
+      cell.style.width = oldWidth;
+      cell.style.overflow = oldOverflow;
+      cell.style.whiteSpace = oldWhiteSpace;
+    });
+
+    const newWidth = Math.max(40, maxContentWidth + padding);
+    const diff = newWidth - currentWidths[colIndex];
+
+    // Distribute the difference to the adjacent column
+    const nextIndex = colIndex + 1;
+    const newWidths = [...currentWidths];
+    newWidths[colIndex] = newWidth;
+    if (nextIndex < newWidths.length) {
+      newWidths[nextIndex] = Math.max(40, newWidths[nextIndex] - diff);
+    }
+
+    setColWidths(newWidths);
+    persistWidths(newWidths);
+  }, [colWidths, readCurrentWidths, persistWidths]);
+
+  /** Cycle column alignment: left → center → right → left */
+  const cycleAlign = useCallback((colIndex: number) => {
+    if (!tableRef.current) return;
+    const colCount = tableRef.current.querySelectorAll('thead th').length;
+    const current = colAligns || new Array<ColAlign>(colCount).fill('left');
+    const order: ColAlign[] = ['left', 'center', 'right'];
+    const idx = order.indexOf(current[colIndex] || 'left');
+    const next = [...current];
+    next[colIndex] = order[(idx + 1) % 3];
+    setColAligns(next);
+    if (storageKey) {
+      try { localStorage.setItem(`col-aligns:${storageKey}`, JSON.stringify(next)); } catch {}
+    }
+  }, [colAligns, storageKey]);
+
+  /** Get the CSS text-align class for a column */
+  const getAlignClass = useCallback((colIndex: number): string => {
+    const align = colAligns?.[colIndex] || 'left';
+    if (align === 'center') return 'text-center';
+    if (align === 'right') return 'text-right';
+    return 'text-left';
+  }, [colAligns]);
+
+  // Reset to default widths/alignments and clear storage
   const resetWidths = useCallback(() => {
     setColWidths(null);
+    setColAligns(null);
     if (storageKey) {
-      try { localStorage.removeItem(`col-widths:${storageKey}`); } catch {}
+      try {
+        localStorage.removeItem(`col-widths:${storageKey}`);
+        localStorage.removeItem(`col-aligns:${storageKey}`);
+      } catch {}
     }
   }, [storageKey]);
 
-  return { tableRef, colWidths, onResizeStart, resetWidths };
+  return { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, resetWidths };
 }

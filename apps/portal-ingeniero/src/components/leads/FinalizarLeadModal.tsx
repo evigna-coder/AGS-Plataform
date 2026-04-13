@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { VoiceTextarea } from '../ui/VoiceTextarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService } from '../../services/firebaseService';
 import type { Lead, Posta, LeadEstado } from '@ags/shared';
@@ -59,9 +60,9 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
         </div>
         <div>
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Comentario</label>
-          <textarea
+          <VoiceTextarea
             value={comentario}
-            onChange={e => setComentario(e.target.value)}
+            onChange={setComentario}
             rows={3}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             placeholder="Notas de cierre..."

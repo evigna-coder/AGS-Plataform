@@ -1,0 +1,7 @@
+[    1166ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3001/node_modules/.vite/deps/react-dom_client.js?v=18a29c1f:20102
+[    1172ms] [LOG] %c✅ Variables de entorno de Firebase cargadas correctamente color: green; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:45
+[    1173ms] [LOG] %c📋 Project ID: agssop-e7353 color: blue; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:46
+[    1176ms] [LOG] %c✅ Firebase inicializado con caché local persistente color: green; font-weight: bold @ http://localhost:3001/src/services/firebase.ts:63
+[    1228ms] [LOG] [ENV CHECK] development AIzaSyBBylObMr3GiLEA7iKRdIymIbtWo8VKBVI @ http://localhost:3001/src/main.tsx?t=1776082696164:7
+[   67451ms] [LOG] Cargando categorias de modulos desde Firestore... @ http://localhost:3001/src/services/equiposService.ts:107
+[   69138ms] [LOG] 13 categorias de modulos cargadas @ http://localhost:3001/src/services/equiposService.ts:118

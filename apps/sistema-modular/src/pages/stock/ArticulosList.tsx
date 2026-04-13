@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { articulosService, marcasService } from '../../services/firebaseService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -22,6 +24,7 @@ const TIPO_LABELS: Record<TipoArticulo, string> = {
 
 export const ArticulosList = () => {
   const confirm = useConfirm();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('articulos-list');
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     categoriaEquipo: { type: 'string' as const, default: '' },
@@ -249,25 +252,72 @@ export const ArticulosList = () => {
           </Card>
         ) : (
           <div className="bg-white overflow-x-auto">
-              <table className="w-full">
+              <table ref={tableRef} className="w-full table-fixed">
+                {colWidths ? (
+                  <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+                ) : (
+                  <colgroup>
+                    <col style={{ width: '4%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '24%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '9%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '13%' }} />
+                  </colgroup>
+                )}
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 w-8">
+                    <th className="px-3 py-2 w-8 relative">
                       <input
                         type="checkbox"
                         checked={allSelected}
                         onChange={toggleSelectAll}
                         className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-700"
                       />
+                      <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Codigo</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Marca</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Stock min.</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Precio ref.</th>
-                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(1)}`}>
+                      <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                      Codigo
+                      <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(2)}`}>
+                      <ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />
+                      Descripcion
+                      <div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}>
+                      <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
+                      Marca
+                      <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(4)}`}>
+                      <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
+                      Categoria
+                      <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(5)}`}>
+                      <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
+                      Tipo
+                      <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(6)}`}>
+                      <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
+                      Stock min.
+                      <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(7)}`}>
+                      <ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />
+                      Precio ref.
+                      <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                    <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider relative">
+                      Acciones
+                      <div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -281,29 +331,29 @@ export const ArticulosList = () => {
                           className="w-3.5 h-3.5 rounded border-slate-300 accent-teal-700"
                         />
                       </td>
-                      <td className="px-4 py-2 whitespace-nowrap">
+                      <td className={`px-4 py-2 whitespace-nowrap ${getAlignClass(1)}`}>
                         <button onClick={() => setViewId(art.id)} className="font-mono text-xs font-semibold text-teal-700 hover:text-teal-800 hover:underline text-left">
                           {art.codigo}
                         </button>
                       </td>
-                      <td className="px-4 py-2 text-xs text-slate-900 max-w-md truncate">
+                      <td className={`px-4 py-2 text-xs text-slate-900 max-w-md truncate ${getAlignClass(2)}`}>
                         <button onClick={() => setViewId(art.id)} className="hover:text-teal-700 hover:underline text-left">
                           {art.descripcion}
                         </button>
                       </td>
-                      <td className="px-4 py-2 text-xs text-slate-600">{getMarcaNombre(art)}</td>
-                      <td className="px-4 py-2">
+                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(3)}`}>{getMarcaNombre(art)}</td>
+                      <td className={`px-4 py-2 ${getAlignClass(4)}`}>
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">
                           {CATEGORIA_LABELS[art.categoriaEquipo] ?? art.categoriaEquipo}
                         </span>
                       </td>
-                      <td className="px-4 py-2">
+                      <td className={`px-4 py-2 ${getAlignClass(5)}`}>
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-700">
                           {TIPO_LABELS[art.tipo] ?? art.tipo}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-xs text-slate-600 text-center">{art.stockMinimo}</td>
-                      <td className="px-4 py-2 text-xs text-slate-600 text-center">
+                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>{art.stockMinimo}</td>
+                      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(7)}`}>
                         {art.precioReferencia != null
                           ? `${art.monedaPrecio === 'USD' ? 'US$' : '$'} ${art.precioReferencia.toLocaleString('es-AR')}`
                           : '-'}

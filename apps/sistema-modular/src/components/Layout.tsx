@@ -54,7 +54,7 @@ export const Layout: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav collapsed={collapsed} onCollapse={setCollapsed} />
-        <main className="flex-1 min-h-0 bg-slate-50">
+        <main className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
           <TabContentManager />
         </main>
       </div>

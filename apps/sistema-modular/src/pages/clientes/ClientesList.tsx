@@ -11,13 +11,14 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { CreateClienteModal } from '../../components/clientes/CreateClienteModal';
 import { BulkCuitValidationModal } from '../../components/clientes/BulkCuitValidationModal';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useBackgroundTasks } from '../../contexts/BackgroundTasksContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative';
 
-const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
-  <div onMouseDown={onMouseDown} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40 z-20" />
+const ResizeHandle = ({ onMouseDown, onDoubleClick }: { onMouseDown: (e: React.MouseEvent) => void; onDoubleClick?: () => void }) => (
+  <div onMouseDown={onMouseDown} onDoubleClick={onDoubleClick} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40 z-20" />
 );
 
 const ESTADO_TABS = [
@@ -52,7 +53,7 @@ export const ClientesList = () => {
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
   // Sync from URL → local only when URL changes externally (e.g., "Limpiar" button)
   useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns('clientes-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('clientes-list');
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
@@ -228,15 +229,17 @@ export const ClientesList = () => {
                     <input type="checkbox" checked={selected.size > 0 && selected.size === deferredFiltered.length}
                       onChange={toggleSelectAll} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                   </th>
-                  <SortableHeader label="Razón Social" field="razonSocial" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
-                    <ResizeHandle onMouseDown={e => onResizeStart(1, e)} />
+                  <SortableHeader label="Razón Social" field="razonSocial" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)}`}>
+                    <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                    <ResizeHandle onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} />
                   </SortableHeader>
-                  <th className={thClass}>CUIT<ResizeHandle onMouseDown={e => onResizeStart(2, e)} /></th>
-                  <SortableHeader label="Rubro" field="rubro" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass}>
-                    <ResizeHandle onMouseDown={e => onResizeStart(3, e)} />
+                  <th className={`${thClass} ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />CUIT<ResizeHandle onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} /></th>
+                  <SortableHeader label="Rubro" field="rubro" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(3)}`}>
+                    <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
+                    <ResizeHandle onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} />
                   </SortableHeader>
-                  <th className={`${thClass} text-center`}>Establec.</th>
-                  <th className={thClass}>Estado</th>
+                  <th className={`${thClass} ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Establec.</th>
+                  <th className={`${thClass} ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Estado</th>
                   <th className={`${thClass} text-center`}>Acciones</th>
                 </tr>
               </thead>
@@ -247,17 +250,17 @@ export const ClientesList = () => {
                       <input type="checkbox" checked={selected.has(cliente.id)}
                         onChange={() => toggleSelect(cliente.id)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                     </td>
-                    <td className="px-3 py-2 overflow-hidden">
+                    <td className={`px-3 py-2 overflow-hidden ${getAlignClass(1)}`}>
                       <Link to={`/clientes/${cliente.id}`}
                         className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block"
                         title={cliente.razonSocial}>
                         {cliente.razonSocial}
                       </Link>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap overflow-hidden">{cliente.cuit || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600 truncate overflow-hidden">{cliente.rubro || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600 text-center tabular-nums whitespace-nowrap">{establecimientosByCliente[cliente.id] ?? 0}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className={`px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap overflow-hidden ${getAlignClass(2)}`}>{cliente.cuit || <span className="text-slate-300">—</span>}</td>
+                    <td className={`px-3 py-2 text-xs text-slate-600 truncate overflow-hidden ${getAlignClass(3)}`}>{cliente.rubro || <span className="text-slate-300">—</span>}</td>
+                    <td className={`px-3 py-2 text-xs text-slate-600 tabular-nums whitespace-nowrap ${getAlignClass(4)}`}>{establecimientosByCliente[cliente.id] ?? 0}</td>
+                    <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(5)}`}>
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                         cliente.activo !== false ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
                       }`}>

@@ -8,6 +8,8 @@ import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../com
 import { CalificacionModal } from './CalificacionModal';
 import type { CalificacionProveedor, Proveedor } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -31,6 +33,8 @@ export function CalificacionesList() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CalificacionProveedor | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
+
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('calificaciones-list');
 
   const [filters, setFilters] = useState({ proveedorId: '', estado: '' });
   const [sortField, setSortField] = useState('fechaRecepcion');
@@ -129,18 +133,42 @@ export function CalificacionesList() {
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando calificaciones...</p></div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-          <table className="w-full text-sm">
+          <table ref={tableRef} className="w-full text-sm table-fixed">
+            {colWidths ? (
+              <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+            ) : (
+              <colgroup>
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '9%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '9%' }} />
+                <col style={{ width: '9%' }} />
+              </colgroup>
+            )}
             <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
               <tr>
-                <SortableHeader label="Fecha" field="fechaRecepcion" current={sortField} dir={sortDir} onSort={handleSort} className={thClass} />
-                <SortableHeader label="Proveedor" field="proveedorNombre" current={sortField} dir={sortDir} onSort={handleSort} className={thClass + ' text-left'} />
-                <th className={thClass}>OC</th>
-                <th className={thClass}>Remito</th>
-                <SortableHeader label="Puntaje" field="puntajeTotal" current={sortField} dir={sortDir} onSort={handleSort} className={thClass} />
-                <th className={thClass}>Prom. Prov.</th>
-                <th className={thClass}>Estado</th>
-                <th className={thClass}>Resp.</th>
-                <th className={thClass + ' w-20'}></th>
+                <SortableHeader label="Fecha" field="fechaRecepcion" current={sortField} dir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(0)} relative`}>
+                  <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
+                  <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                </SortableHeader>
+                <SortableHeader label="Proveedor" field="proveedorNombre" current={sortField} dir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)} relative`}>
+                  <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                  <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                </SortableHeader>
+                <th className={`${thClass} ${getAlignClass(2)} relative`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />OC<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                <th className={`${thClass} ${getAlignClass(3)} relative`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Remito<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                <SortableHeader label="Puntaje" field="puntajeTotal" current={sortField} dir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(4)} relative`}>
+                  <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
+                  <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                </SortableHeader>
+                <th className={`${thClass} ${getAlignClass(5)} relative`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Prom. Prov.<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                <th className={`${thClass} ${getAlignClass(6)} relative`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Estado<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                <th className={`${thClass} ${getAlignClass(7)} relative`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Resp.<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                <th className={thClass + ' relative w-20'}><div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -150,22 +178,22 @@ export function CalificacionesList() {
                 const promEstado = promedio >= 80 ? 'aprobado' : promedio >= 60 ? 'condicional' : 'no_aprobado';
                 return (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-3 py-2 text-center text-slate-600 font-mono text-xs">{c.fechaRecepcion}</td>
-                    <td className="px-3 py-2 font-semibold text-teal-700">{c.proveedorNombre}</td>
-                    <td className="px-3 py-2 text-center text-slate-500 text-xs">{c.ordenCompraNro || '—'}</td>
-                    <td className="px-3 py-2 text-center text-slate-500 text-xs">{c.remitoNro || '—'}</td>
-                    <td className="px-3 py-2 text-center font-mono font-bold">{c.puntajeTotal}</td>
-                    <td className="px-3 py-2 text-center">
+                    <td className={`px-3 py-2 text-slate-600 font-mono text-xs ${getAlignClass(0)}`}>{c.fechaRecepcion}</td>
+                    <td className={`px-3 py-2 font-semibold text-teal-700 ${getAlignClass(1)}`}>{c.proveedorNombre}</td>
+                    <td className={`px-3 py-2 text-slate-500 text-xs ${getAlignClass(2)}`}>{c.ordenCompraNro || '—'}</td>
+                    <td className={`px-3 py-2 text-slate-500 text-xs ${getAlignClass(3)}`}>{c.remitoNro || '—'}</td>
+                    <td className={`px-3 py-2 font-mono font-bold ${getAlignClass(4)}`}>{c.puntajeTotal}</td>
+                    <td className={`px-3 py-2 ${getAlignClass(5)}`}>
                       <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_COLORS[promEstado]}`}>
                         {promedio} ({prom?.count || 0})
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className={`px-3 py-2 ${getAlignClass(6)}`}>
                       <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_COLORS[c.estado]}`}>
                         {ESTADO_LABELS[c.estado]}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center text-slate-500 text-xs">{c.responsable}</td>
+                    <td className={`px-3 py-2 text-slate-500 text-xs ${getAlignClass(7)}`}>{c.responsable}</td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex items-center gap-1 justify-center">
                         <button onClick={() => { setEditing(c); setShowModal(true); }}

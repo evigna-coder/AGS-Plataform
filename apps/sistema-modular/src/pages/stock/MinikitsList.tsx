@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { minikitsService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -19,6 +21,7 @@ const ESTADO_COLORS: Record<EstadoMinikit, string> = {
 
 export const MinikitsList = () => {
   const confirm = useConfirm();
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('minikits-list');
   const FILTER_SCHEMA = useMemo(() => ({
     showInactive: { type: 'boolean' as const, default: false },
   }), []);
@@ -150,37 +153,61 @@ export const MinikitsList = () => {
             </div>
           </Card>
         ) : (
-          <div className="bg-white">
-            <div className="divide-y divide-slate-100">
-              {minikits.map(mk => (
-                <div key={mk.id} className={`flex items-center justify-between py-2 px-2 ${!mk.activo ? 'opacity-50' : ''}`}>
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="font-mono font-semibold text-teal-600 text-xs whitespace-nowrap">
-                      {mk.codigo}
-                    </span>
-                    <span className="text-xs text-slate-900 truncate">{mk.nombre}</span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[mk.estado]}`}>
-                      {ESTADO_LABELS[mk.estado]}
-                    </span>
-                    {mk.asignadoA && (
-                      <span className="text-[10px] text-slate-500 truncate">
-                        {mk.asignadoA.tipo === 'ingeniero' ? 'Ing.' : 'OT'} {mk.asignadoA.nombre}
+          <div className="bg-white overflow-x-auto">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '28%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
+              )}
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className={`relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}>Código<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}>Nombre<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}>Estado<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}>Asignado a<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className="relative px-2 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {minikits.map(mk => (
+                  <tr key={mk.id} className={`hover:bg-slate-50 ${!mk.activo ? 'opacity-50' : ''}`}>
+                    <td className={`px-2 py-2 ${getAlignClass(0)}`}>
+                      <span className="font-mono font-semibold text-teal-600 text-xs whitespace-nowrap">{mk.codigo}</span>
+                    </td>
+                    <td className={`px-2 py-2 text-xs text-slate-900 truncate ${getAlignClass(1)}`}>{mk.nombre}</td>
+                    <td className={`px-2 py-2 ${getAlignClass(2)}`}>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[mk.estado]}`}>
+                        {ESTADO_LABELS[mk.estado]}
                       </span>
-                    )}
-                  </div>
-                  <div className="flex gap-3 shrink-0 ml-4">
-                    <Link to={`/stock/minikits/${mk.id}`}
-                      className="text-teal-600 hover:underline font-medium text-[10px]">Ver</Link>
-                    <button onClick={() => handleToggleActivo(mk)}
-                      className={`font-medium text-[10px] ${mk.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
-                      {mk.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                    <button onClick={() => handleDelete(mk)}
-                      className="text-red-600 hover:underline font-medium text-[10px]">Eliminar</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    </td>
+                    <td className={`px-2 py-2 text-[10px] text-slate-500 truncate ${getAlignClass(3)}`}>
+                      {mk.asignadoA ? `${mk.asignadoA.tipo === 'ingeniero' ? 'Ing.' : 'OT'} ${mk.asignadoA.nombre}` : '—'}
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex gap-3">
+                        <Link to={`/stock/minikits/${mk.id}`}
+                          className="text-teal-600 hover:underline font-medium text-[10px]">Ver</Link>
+                        <button onClick={() => handleToggleActivo(mk)}
+                          className={`font-medium text-[10px] ${mk.activo ? 'text-amber-600 hover:underline' : 'text-green-600 hover:underline'}`}>
+                          {mk.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button onClick={() => handleDelete(mk)}
+                          className="text-red-600 hover:underline font-medium text-[10px]">Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

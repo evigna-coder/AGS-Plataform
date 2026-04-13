@@ -16,6 +16,8 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { CreatePendienteModal } from '../../components/pendientes/CreatePendienteModal';
 import { DescartarPendienteModal } from '../../components/pendientes/DescartarPendienteModal';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass =
   'px-3 py-2 text-left text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -43,6 +45,7 @@ const fmtDate = (iso: string | null | undefined) => {
 };
 
 export const PendientesList = () => {
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pendientes-list');
   const [pendientes, setPendientes] = useState<Pendiente[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,17 +212,33 @@ export const PendientesList = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table ref={tableRef} className="w-full table-fixed">
+              {colWidths ? (
+                <colgroup>
+                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+              ) : (
+                <colgroup>
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '10%' }} />
+                </colgroup>
+              )}
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50">
-                  <th className={thClass}>Cliente</th>
-                  <th className={thClass}>Equipo</th>
-                  <th className={thClass}>Tipo</th>
-                  <th className={`${thClass} w-full`}>Descripción</th>
-                  <th className={thClass}>Estado</th>
-                  <th className={thClass}>Origen</th>
-                  <th className={thClass}>Creado</th>
-                  <th className={`${thClass} text-right`}>Acciones</th>
+                  <th className={`${thClass} ${getAlignClass(0)} relative`}>Cliente<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(1)} relative`}>Equipo<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(2)} relative`}>Tipo<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(3)} relative`}>Descripción<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(4)} relative`}>Estado<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(5)} relative`}>Origen<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(6)} relative`}>Creado<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} text-right relative`}>Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody>
@@ -232,10 +251,10 @@ export const PendientesList = () => {
                       key={p.id}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
-                      <td className={`${tdClass} font-medium text-slate-800 max-w-[180px] truncate`}>
+                      <td className={`${tdClass} font-medium text-slate-800 max-w-[180px] truncate ${getAlignClass(0)}`}>
                         {p.clienteNombre}
                       </td>
-                      <td className={`${tdClass} max-w-[160px] truncate`}>
+                      <td className={`${tdClass} max-w-[160px] truncate ${getAlignClass(1)}`}>
                         {p.equipoNombre ? (
                           <span>
                             {p.equipoNombre}
@@ -249,14 +268,14 @@ export const PendientesList = () => {
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                      <td className={tdClass}>
+                      <td className={`${tdClass} ${getAlignClass(2)}`}>
                         <span
                           className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${PENDIENTE_TIPO_COLORS[p.tipo]}`}
                         >
                           {PENDIENTE_TIPO_LABELS[p.tipo]}
                         </span>
                       </td>
-                      <td className={`${tdClass} max-w-[400px]`}>
+                      <td className={`${tdClass} max-w-[400px] ${getAlignClass(3)}`}>
                         <p className="line-clamp-2" title={p.descripcion}>
                           {p.descripcion}
                         </p>
@@ -271,14 +290,14 @@ export const PendientesList = () => {
                           </p>
                         )}
                       </td>
-                      <td className={tdClass}>
+                      <td className={`${tdClass} ${getAlignClass(4)}`}>
                         <span
                           className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${PENDIENTE_ESTADO_COLORS[p.estado]}`}
                         >
                           {PENDIENTE_ESTADO_LABELS[p.estado]}
                         </span>
                       </td>
-                      <td className={tdClass}>
+                      <td className={`${tdClass} ${getAlignClass(5)}`}>
                         {p.origenTicketId ? (
                           <span className="text-[11px] font-mono text-slate-500">
                             Ticket
@@ -287,7 +306,7 @@ export const PendientesList = () => {
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                      <td className={`${tdClass} whitespace-nowrap`}>
+                      <td className={`${tdClass} whitespace-nowrap ${getAlignClass(6)}`}>
                         <span className="text-slate-500">{fmtDate(p.createdAt)}</span>
                         {p.createdByName && (
                           <p className="text-[10px] text-slate-400">{p.createdByName}</p>

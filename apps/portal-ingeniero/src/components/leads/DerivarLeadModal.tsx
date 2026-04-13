@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { VoiceTextarea } from '../ui/VoiceTextarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, usuariosService, ingenierosService, clientesService, sistemasService, pendientesService } from '../../services/firebaseService';
 import type { Ticket, Posta, TicketArea, TicketPrioridad, MotivoLlamado, PendienteTipo } from '@ags/shared';
@@ -223,7 +224,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
 
             <div>
               <label className={labelClass}>Descripción de la pendiente *</label>
-              <textarea value={comentario} onChange={e => setComentario(e.target.value)} rows={3}
+              <VoiceTextarea value={comentario} onChange={setComentario} rows={3}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                 placeholder="Ej: Cotizar filtros de split en próximo mantenimiento..." />
             </div>
@@ -269,7 +270,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
             </div>
             <div>
               <label className={labelClass}>Observación</label>
-              <textarea value={comentario} onChange={e => setComentario(e.target.value)} rows={2}
+              <VoiceTextarea value={comentario} onChange={setComentario} rows={2}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                 placeholder="Qué hay que hacer con este ticket..." />
             </div>

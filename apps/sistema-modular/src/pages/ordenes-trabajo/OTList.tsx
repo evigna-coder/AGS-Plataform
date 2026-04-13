@@ -14,6 +14,7 @@ import { TiposServicioModal } from '../../components/ordenes-trabajo/TiposServic
 import { Modal } from '../../components/ui/Modal';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -207,7 +208,7 @@ export const OTList = () => {
   const confirm = useConfirm();
   const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
 
-  const { tableRef, colWidths, onResizeStart } = useResizableColumns('ot-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('ot-list');
   const [ordenes, setOrdenes] = useState<WorkOrder[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
@@ -661,14 +662,16 @@ export const OTList = () => {
                   ].map((col, i) => (
                     <SortableHeader key={col.field} label={col.label} field={col.field}
                       currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort}
-                      className={`${thClass} relative`}>
-                      <div onMouseDown={e => onResizeStart(i, e)}
+                      className={`${thClass} relative ${getAlignClass(i)}`}>
+                      <ColAlignIcon align={colAligns?.[i] || 'left'} onClick={() => cycleAlign(i)} />
+                      <div onMouseDown={e => onResizeStart(i, e)} onDoubleClick={() => onAutoFit(i)}
                         className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </SortableHeader>
                   ))}
-                  <th className={`${thClass} relative`}>
+                  <th className={`${thClass} relative ${getAlignClass(6)}`}>
+                    <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
                     Descripción
-                    <div onMouseDown={e => onResizeStart(6, e)}
+                    <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)}
                       className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </th>
                   {[
@@ -678,8 +681,9 @@ export const OTList = () => {
                   ].map(col => (
                     <SortableHeader key={col.field} label={col.label} field={col.field}
                       currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort}
-                      className={`${thClass} relative`}>
-                      <div onMouseDown={e => onResizeStart(col.idx, e)}
+                      className={`${thClass} relative ${getAlignClass(col.idx)}`}>
+                      <ColAlignIcon align={colAligns?.[col.idx] || 'left'} onClick={() => cycleAlign(col.idx)} />
+                      <div onMouseDown={e => onResizeStart(col.idx, e)} onDoubleClick={() => onAutoFit(col.idx)}
                         className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </SortableHeader>
                   ))}
@@ -699,7 +703,7 @@ export const OTList = () => {
                         <input type="checkbox" checked={selectedOTs.has(ot.otNumber)}
                           onChange={() => toggleSelect(ot.otNumber)} className="w-3.5 h-3.5 accent-teal-600" />
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td className={`px-2 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
                         {isItem ? (
                           <span className="text-xs text-teal-500 pl-2">
                             <span className="text-slate-300 mr-1">└</span>{ot.otNumber}
@@ -708,26 +712,26 @@ export const OTList = () => {
                           <span className="font-semibold text-teal-600 text-xs">{ot.otNumber}</span>
                         )}
                       </td>
-                      <td className="px-2 py-2 text-xs text-slate-700 truncate" title={ot.razonSocial}>
+                      <td className={`px-2 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={ot.razonSocial}>
                         {isItem ? '' : ot.razonSocial}
                       </td>
-                      <td className="px-2 py-2 text-xs text-slate-600 truncate" title={sistema?.nombre || ot.sistema}>
+                      <td className={`px-2 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={sistema?.nombre || ot.sistema}>
                         {isItem ? '' : (sistema?.nombre || ot.sistema || '—')}
                       </td>
-                      <td className="px-2 py-2 text-xs text-slate-600 font-mono truncate" title={ot.codigoInternoCliente || ''}>
+                      <td className={`px-2 py-2 text-xs text-slate-600 font-mono truncate ${getAlignClass(3)}`} title={ot.codigoInternoCliente || ''}>
                         {isItem ? '' : (ot.codigoInternoCliente || '—')}
                       </td>
-                      <td className="px-2 py-2 text-xs text-slate-600 truncate" title={[ot.moduloModelo, ot.moduloSerie].filter(Boolean).join(' — ')}>
+                      <td className={`px-2 py-2 text-xs text-slate-600 truncate ${getAlignClass(4)}`} title={[ot.moduloModelo, ot.moduloSerie].filter(Boolean).join(' — ')}>
                         {ot.moduloModelo || '—'}
                         {ot.moduloSerie && <span className="text-slate-400 ml-1">({ot.moduloSerie})</span>}
                       </td>
-                      <td className="px-2 py-2 text-xs text-slate-600 truncate" title={ot.tipoServicio}>{ot.tipoServicio}</td>
-                      <td className="px-2 py-2 text-xs text-slate-500 truncate" title={ot.problemaFallaInicial || ''}>
+                      <td className={`px-2 py-2 text-xs text-slate-600 truncate ${getAlignClass(5)}`} title={ot.tipoServicio}>{ot.tipoServicio}</td>
+                      <td className={`px-2 py-2 text-xs text-slate-500 truncate ${getAlignClass(6)}`} title={ot.problemaFallaInicial || ''}>
                         {ot.problemaFallaInicial || <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="px-2 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(ot.createdAt)}</td>
-                      <td className="px-2 py-2 text-xs text-slate-500 whitespace-nowrap">{formatDate(ot.fechaInicio || ot.fechaServicioAprox)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap"><StatusBadge ot={ot} /></td>
+                      <td className={`px-2 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(7)}`}>{formatDate(ot.createdAt)}</td>
+                      <td className={`px-2 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(8)}`}>{formatDate(ot.fechaInicio || ot.fechaServicioAprox)}</td>
+                      <td className={`px-2 py-2 whitespace-nowrap ${getAlignClass(9)}`}><StatusBadge ot={ot} /></td>
                       <td className="px-2 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-0.5">
                           <button
