@@ -590,7 +590,7 @@ export const otService = {
         }
         callback(toOT(otNumber, merged));
       } else if (repData) {
-        callback(reporteToWorkOrder(otNumber, repData));
+        callback(toOT(otNumber, repData));
       }
     };
 
