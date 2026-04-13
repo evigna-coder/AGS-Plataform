@@ -555,33 +555,67 @@ export const otService = {
     onError?: (err: Error) => void,
   ): () => void {
     let active = true;
-    let currentUnsub: (() => void) | null = null;
+    let otData: Record<string, unknown> | null = null;
+    let repData: Record<string, unknown> | null = null;
+    let otExists = false;
+    // repLoaded tracked implicitly via repData being non-null
 
-    // Try ordenes_trabajo first (primary collection)
-    currentUnsub = onSnapshot(doc(db, 'ordenes_trabajo', otNumber), snap => {
+    // Report-specific fields that reportes-ot writes — merge these from reportes if empty in ordenes_trabajo
+    const REPORT_FIELDS = [
+      'reporteTecnico', 'accionesTomar', 'horasTrabajadas', 'tiempoViaje',
+      'fechaInicio', 'fechaFin', 'signatureEngineer', 'signatureClient',
+      'aclaracionEspecialista', 'aclaracionCliente', 'pdfUrl', 'protocolPdfUrl',
+      'problemaFallaInicial', 'materialesParaServicio', 'articulos',
+    ];
+
+    const emit = () => {
       if (!active) return;
-      if (snap.exists()) {
-        callback(toOT(snap.id, snap.data() as Record<string, unknown>));
-      } else {
-        // Not in ordenes_trabajo — fall back to reportes
-        if (currentUnsub) currentUnsub();
-        currentUnsub = onSnapshot(doc(db, 'reportes', otNumber), repSnap => {
-          if (!active) return;
-          if (!repSnap.exists()) { callback(null); return; }
-          callback(reporteToWorkOrder(repSnap.id, repSnap.data() as Record<string, unknown>));
-        }, err => {
-          console.error('OT reportes subscription error:', err);
-          onError?.(err);
-        });
+      if (!otExists && !repData) { callback(null); return; }
+      if (otExists && otData) {
+        // Merge report fields from reportes if they're empty in ordenes_trabajo
+        const merged = { ...otData };
+        if (repData) {
+          for (const f of REPORT_FIELDS) {
+            const otVal = merged[f];
+            const repVal = repData[f];
+            const isEmpty = otVal === undefined || otVal === null || otVal === '' || (Array.isArray(otVal) && otVal.length === 0);
+            if (isEmpty && repVal !== undefined && repVal !== null && repVal !== '') {
+              merged[f] = repVal;
+            }
+          }
+        }
+        callback(toOT(otNumber, merged));
+      } else if (repData) {
+        callback(reporteToWorkOrder(otNumber, repData));
       }
+    };
+
+    // Subscribe to ordenes_trabajo
+    const unsubOT = onSnapshot(doc(db, 'ordenes_trabajo', otNumber), snap => {
+      if (!active) return;
+      otExists = snap.exists();
+      otData = otExists ? snap.data() as Record<string, unknown> : null;
+      emit();
     }, err => {
       console.error('OT ordenes_trabajo subscription error:', err);
       onError?.(err);
     });
 
+    // Also subscribe to reportes (for merged report data)
+    const unsubRep = onSnapshot(doc(db, 'reportes', otNumber), snap => {
+      if (!active) return;
+      repLoaded = true;
+      repData = snap.exists() ? snap.data() as Record<string, unknown> : null;
+      emit();
+    }, () => {
+      // reportes may not exist — that's OK
+      repData = null;
+    });
+
     return () => {
       active = false;
-      if (currentUnsub) currentUnsub();
+      unsubOT();
+      unsubRep();
     };
   },
 
