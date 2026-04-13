@@ -298,7 +298,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
       </ScaledA4Wrapper>
 
       {/* Preview: Tablas + Instrumentos (paginado A4 con headers/footers) */}
-      {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0 || patronesSeleccionados.length > 0 || columnasSeleccionadas.length > 0) && (
+      {(protocolSelections?.length > 0 || instrumentosSeleccionados?.length > 0 || patronesSeleccionados?.length > 0 || columnasSeleccionadas?.length > 0) && (
         <ScaledA4Wrapper className="relative bg-[#f1f5f9] mt-6 pb-6"><div id="pdf-preview-tablas" className="flex flex-col gap-6">
           <ProtocolPaginatedPreview
             protocolSelections={protocolSelections}

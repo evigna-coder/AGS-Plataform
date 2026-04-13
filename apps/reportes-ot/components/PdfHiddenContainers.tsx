@@ -32,7 +32,7 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
   return (
     <>
       {/* Hidden PDF: Tablas + Instrumentos/Patrones/Columnas */}
-      {(protocolSelections.length > 0 || instrumentosSeleccionados.length > 0 || patronesSeleccionados.length > 0 || columnasSeleccionadas.length > 0) && (
+      {(protocolSelections?.length > 0 || instrumentosSeleccionados?.length > 0 || patronesSeleccionados?.length > 0 || columnasSeleccionadas?.length > 0) && (
         <div
           id="pdf-container-tablas-pdf"
           style={{
@@ -108,7 +108,7 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
               </div>
             </div>
           )}
-          {(patronesSeleccionados.length > 0 || instrumentosSeleccionados.filter(i => i.tipo === 'patron').length > 0) && (
+          {((patronesSeleccionados?.length ?? 0) > 0 || (instrumentosSeleccionados?.filter(i => i.tipo === 'patron').length ?? 0) > 0) && (
             <div className="mb-6 rounded-xl border border-slate-200 bg-white" style={{ breakInside: 'avoid' }}>
               <div className="flex items-center px-3 py-2 bg-slate-50 border-b border-slate-200 rounded-t-xl">
                 <p className="font-semibold text-sm text-slate-900">Patrones Utilizados</p>
@@ -127,7 +127,7 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
                   </thead>
                   <tbody>
                     {/* Patrones nuevos (colección /patrones) */}
-                    {patronesSeleccionados.map((p, idx) => (
+                    {(patronesSeleccionados ?? []).map((p, idx) => (
                       <tr key={`p-${p.patronId}-${p.lote}-${idx}`} className={idx % 2 === 0 ? '' : 'bg-slate-50/50'}>
                         <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{p.codigoArticulo || '—'}</td>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{p.marca || '—'}</td>
@@ -143,7 +143,7 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
                     ))}
                     {/* Patrones legacy (tipo='patron' en colección /instrumentos) */}
                     {instrumentosSeleccionados.filter(i => i.tipo === 'patron').map((inst, idx) => (
-                      <tr key={`lp-${inst.id}`} className={(patronesSeleccionados.length + idx) % 2 === 0 ? '' : 'bg-slate-50/50'}>
+                      <tr key={`lp-${inst.id}`} className={((patronesSeleccionados?.length ?? 0) + idx) % 2 === 0 ? '' : 'bg-slate-50/50'}>
                         <td className="px-2 py-1.5 text-xs font-mono border-r border-slate-100">{inst.modelo || '—'}</td>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.marca || '—'}</td>
                         <td className="px-2 py-1.5 text-xs border-r border-slate-100">{inst.nombre}</td>

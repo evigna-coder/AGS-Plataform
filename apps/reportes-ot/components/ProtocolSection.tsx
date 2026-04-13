@@ -271,7 +271,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
             readOnly={readOnly}
           />
           {/* Instrumentos seleccionados */}
-          {instrumentosSeleccionados.length > 0 && (
+          {instrumentosSeleccionados?.length > 0 && (
             <div className="mt-2">
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Instrumentos</p>
               <div className="flex flex-wrap gap-1.5">
@@ -290,7 +290,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
             </div>
           )}
           {/* Patrones seleccionados */}
-          {patronesSeleccionados.length > 0 && (
+          {patronesSeleccionados?.length > 0 && (
             <div className="mt-2">
               <p className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider mb-1">Patrones</p>
               <div className="flex flex-wrap gap-1.5">
@@ -311,7 +311,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
             </div>
           )}
           {/* Columnas seleccionadas */}
-          {columnasSeleccionadas.length > 0 && (
+          {columnasSeleccionadas?.length > 0 && (
             <div className="mt-2">
               <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1">Columnas</p>
               <div className="flex flex-wrap gap-1.5">
