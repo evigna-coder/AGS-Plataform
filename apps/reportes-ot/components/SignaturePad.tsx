@@ -54,6 +54,8 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // Prevent IntersectionObserver from re-drawing during initial mount
+    skipObserverUntilRef.current = Date.now() + 1000;
     setupCtx(canvas);
     const signatureToRestore = savedSignatureRef.current || initialValue;
     if (signatureToRestore) {
