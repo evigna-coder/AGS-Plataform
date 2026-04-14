@@ -41,6 +41,9 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   // Variable binding
   const [variable, setVariable] = useState(row.variable ?? '');
 
+  // Permitir que el técnico duplique esta fila al llenar el protocolo
+  const [duplicableEnProtocolo, setDuplicableEnProtocolo] = useState(row.duplicableEnProtocolo ?? false);
+
   // Unidades por columna (override de col.unit para esta fila)
   const [cellUnits, setCellUnits] = useState<Record<string, string>>(
     () => Object.fromEntries(Object.entries(row.cellUnits ?? {}).filter(([, v]) => v !== ''))
@@ -62,11 +65,11 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
 
   const handleSave = () => {
     if (mode === 'title') {
-      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined });
+      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: undefined });
     } else if (mode === 'selector') {
       const options = selectorOptionsText.split(',').map(o => o.trim()).filter(Boolean);
       const effectiveSelectorCol = selectorColumn > 0 ? selectorColumn : undefined;
-      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined });
+      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: duplicableEnProtocolo || undefined });
     } else {
       // Filtrar spans <= 1 y construir el objeto limpio
       const cleanSpans: Record<string, number> = {};
@@ -86,6 +89,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         visibleWhenSelector: visWhen,
         variable: variable || null,
         cellUnits: Object.keys(cleanCellUnits).length > 0 ? cleanCellUnits : null,
+        duplicableEnProtocolo: duplicableEnProtocolo || undefined,
       });
     }
   };
@@ -133,6 +137,20 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
           </label>
         </div>
       </div>
+
+      {mode !== 'title' && (
+        <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+          <input
+            type="checkbox"
+            checked={duplicableEnProtocolo}
+            onChange={e => setDuplicableEnProtocolo(e.target.checked)}
+          />
+          <span>
+            <span className="font-bold uppercase tracking-wide text-[10px] text-teal-800">Duplicable en protocolo</span>
+            <span className="block text-[10px] text-slate-500">El técnico podrá agregar copias de esta fila al llenar el reporte (p.ej. un segundo inyector).</span>
+          </span>
+        </label>
+      )}
 
       {mode === 'title' ? (
         <div>

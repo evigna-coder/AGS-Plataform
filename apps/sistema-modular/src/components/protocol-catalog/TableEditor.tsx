@@ -876,7 +876,26 @@ export const TableEditor = ({ table, onChange }: Props) => {
                               {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
                             </>}
                       </span>
-                      <span className="text-blue-600 text-xs font-bold">Editar</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const duplicated = {
+                              ...JSON.parse(JSON.stringify(row)),
+                              rowId: crypto.randomUUID(),
+                              rowSpan: undefined,
+                              spanColumns: undefined,
+                              columnSpans: undefined,
+                            };
+                            const next = [...table.templateRows];
+                            next.splice(i + 1, 0, duplicated);
+                            upd('templateRows', next);
+                          }}
+                          className="text-slate-500 hover:text-teal-700 text-xs font-medium"
+                          title="Duplicar fila"
+                        >Duplicar</button>
+                        <span className="text-blue-600 text-xs font-bold">Editar</span>
+                      </div>
                     </div>
                   </div>
                 )}

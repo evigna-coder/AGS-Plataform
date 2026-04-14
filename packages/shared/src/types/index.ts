@@ -1305,6 +1305,12 @@ export interface TableCatalogRow {
    * Reemplaza rowSpan+spanColumns permitiendo spans distintos por columna en la misma fila.
    */
   columnSpans?: Record<string, number>;
+  /**
+   * Si es true, el técnico puede duplicar esta fila al llenar el protocolo (p.ej. agregar
+   * un segundo "Inyector automático"). Las filas duplicadas se guardan en el reporte de la OT
+   * y no modifican la plantilla de la biblioteca.
+   */
+  duplicableEnProtocolo?: boolean;
 }
 
 export interface TableCatalogRule {

@@ -40,6 +40,7 @@ interface ProtocolSectionProps {
   handleRemoveSection: (tableId: string, sectionItemId: string) => void;
   handleAddRow: (tableId: string) => void;
   handleRemoveRow: (tableId: string, rowId: string) => void;
+  handleDuplicateRow: (tableId: string, originalRowId: string) => void;
   handleHeaderDataChange: (tableId: string, fieldId: string, value: string) => void;
   handleChecklistAnswer: (tableId: string, itemId: string, answer: ChecklistItemAnswer) => void;
   handleToggleChecklistSection: (tableId: string, itemId: string, isNA: boolean) => void;
@@ -88,7 +89,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   protocolSelections, setProtocolSelections, suggestedTables, setSuggestedTables,
   handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
   handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
-  handleAddRow, handleRemoveRow, handleHeaderDataChange,
+  handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange,
   handleChecklistAnswer, handleToggleChecklistSection,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin,
@@ -232,6 +233,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onDuplicate={handleDuplicateTable}
                 onAddRow={handleAddRow}
                 onRemoveRow={handleRemoveRow}
+                onDuplicateRow={handleDuplicateRow}
                 onChangeHeaderData={handleHeaderDataChange}
                 variables={{
                   ...variables,

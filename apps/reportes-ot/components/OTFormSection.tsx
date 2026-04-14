@@ -50,6 +50,79 @@ function TimeSelect15({ value, onChange, disabled, label }: {
   );
 }
 
+// ── Contacto principal con toggle manual ──
+function ContactoPrincipal({
+  contacto, setContacto, emailPrincipal, setEmailPrincipal, entitySelectors, readOnly,
+}: {
+  contacto: string;
+  setContacto: (v: string) => void;
+  emailPrincipal: string;
+  setEmailPrincipal: (v: string) => void;
+  entitySelectors: any;
+  readOnly: boolean;
+}) {
+  const [manualMode, setManualMode] = useState(false);
+
+  const toggleManual = useCallback(() => {
+    setManualMode(prev => {
+      const next = !prev;
+      setContacto('');
+      setEmailPrincipal('');
+      return next;
+    });
+  }, [setContacto, setEmailPrincipal]);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <label className="text-[9px] font-bold text-slate-500 uppercase">Contacto</label>
+        {!readOnly && (
+          <button type="button" onClick={toggleManual}
+            className="text-[10px] text-teal-700 hover:text-teal-900 underline">
+            {manualMode ? '↺ usar selector' : '+ ingresar manual'}
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {manualMode ? (
+          <input
+            type="text"
+            value={contacto}
+            placeholder="Persona de contacto"
+            onChange={(e) => { if (readOnly) return; setContacto(e.target.value); }}
+            disabled={readOnly}
+            className={`w-full border rounded-lg px-3 py-1.5 text-sm
+              ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+          />
+        ) : (
+          <SmartSelect
+            value={entitySelectors.contactoId || ''}
+            onChange={entitySelectors.selectContacto}
+            options={entitySelectors.contactoOptions}
+            placeholder="Seleccionar contacto..."
+            disabled={readOnly}
+          />
+        )}
+        <input
+          type="email"
+          value={emailPrincipal}
+          placeholder="correo@ejemplo.com"
+          onChange={(e) => { if (readOnly) return; setEmailPrincipal(e.target.value); }}
+          disabled={readOnly}
+          className={`w-full border rounded-lg px-3 py-1.5 text-sm
+            ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
+        />
+      </div>
+      {/* Contactos adicionales */}
+      <ContactosAdicionales
+        contactos={entitySelectors.contactos}
+        contactoPrincipalId={entitySelectors.contactoId}
+        readOnly={readOnly}
+      />
+    </div>
+  );
+}
+
 // ── Contactos adicionales (para futuro envío directo) ──
 function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
   contactos: { id: string; nombre: string; email: string; esPrincipal: boolean }[];
@@ -57,6 +130,11 @@ function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
   readOnly: boolean;
 }) {
   const [extras, setExtras] = useState<string[]>([]);
+  const [manualExtras, setManualExtras] = useState<{ nombre: string; email: string }[]>([]);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualNombre, setManualNombre] = useState('');
+  const [manualEmail, setManualEmail] = useState('');
+
   const available = contactos.filter(c => c.id !== contactoPrincipalId && !extras.includes(c.id));
 
   const addContacto = useCallback((id: string) => {
@@ -67,13 +145,24 @@ function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
     setExtras(prev => prev.filter(x => x !== id));
   }, []);
 
-  const selectedExtras = contactos.filter(c => extras.includes(c.id));
+  const addManual = useCallback(() => {
+    const nombre = manualNombre.trim();
+    if (!nombre) return;
+    setManualExtras(prev => [...prev, { nombre, email: manualEmail.trim() }]);
+    setManualNombre('');
+    setManualEmail('');
+    setShowManualForm(false);
+  }, [manualNombre, manualEmail]);
 
-  if (contactos.length <= 1) return null;
+  const removeManual = useCallback((idx: number) => {
+    setManualExtras(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const selectedExtras = contactos.filter(c => extras.includes(c.id));
 
   return (
     <div className="mt-2">
-      {selectedExtras.length > 0 && (
+      {(selectedExtras.length > 0 || manualExtras.length > 0) && (
         <div className="flex flex-wrap gap-1.5 mb-1.5">
           {selectedExtras.map(c => (
             <span key={c.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
@@ -84,20 +173,56 @@ function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
               )}
             </span>
           ))}
+          {manualExtras.map((c, i) => (
+            <span key={`m-${i}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 border border-teal-200 rounded-full text-xs text-teal-700">
+              {c.nombre} {c.email && <span className="text-teal-400">({c.email})</span>}
+              {!readOnly && (
+                <button type="button" onClick={() => removeManual(i)}
+                  className="ml-0.5 text-teal-400 hover:text-red-500 font-bold">&times;</button>
+              )}
+            </span>
+          ))}
         </div>
       )}
-      {!readOnly && available.length > 0 && (
-        <div className="flex items-center gap-2">
-          <select
-            className="border rounded-lg px-2 py-1 text-xs text-slate-600 bg-white border-slate-200"
-            value=""
-            onChange={(e) => addContacto(e.target.value)}
-          >
-            <option value="">+ Agregar contacto...</option>
-            {available.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre} {c.email ? `(${c.email})` : ''}</option>
-            ))}
-          </select>
+      {!readOnly && !showManualForm && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {available.length > 0 && (
+            <select
+              className="border rounded-lg px-2 py-1 text-xs text-slate-600 bg-white border-slate-200"
+              value=""
+              onChange={(e) => addContacto(e.target.value)}
+            >
+              <option value="">+ Agregar contacto...</option>
+              {available.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre} {c.email ? `(${c.email})` : ''}</option>
+              ))}
+            </select>
+          )}
+          <button type="button" onClick={() => setShowManualForm(true)}
+            className="text-[11px] text-teal-700 hover:text-teal-900 underline">
+            + ingresar manual
+          </button>
+        </div>
+      )}
+      {!readOnly && showManualForm && (
+        <div className="flex items-center gap-2 flex-wrap mt-1">
+          <input type="text" value={manualNombre}
+            onChange={(e) => setManualNombre(e.target.value)}
+            placeholder="Nombre"
+            className="border rounded-lg px-2 py-1 text-xs bg-white border-slate-300" />
+          <input type="email" value={manualEmail}
+            onChange={(e) => setManualEmail(e.target.value)}
+            placeholder="correo@ejemplo.com"
+            className="border rounded-lg px-2 py-1 text-xs bg-white border-slate-300" />
+          <button type="button" onClick={addManual}
+            disabled={!manualNombre.trim()}
+            className="text-[11px] px-2 py-1 rounded bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-40">
+            agregar
+          </button>
+          <button type="button" onClick={() => { setShowManualForm(false); setManualNombre(''); setManualEmail(''); }}
+            className="text-[11px] text-slate-500 hover:text-slate-700 underline">
+            cancelar
+          </button>
         </div>
       )}
     </div>
@@ -313,33 +438,14 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             </div>
             {/* Contacto principal */}
             {entitySelectors.establecimientoId && entitySelectors.contactoOptions.length > 0 && (
-              <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Contacto</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <SmartSelect
-                    value={entitySelectors.contactoId || ''}
-                    onChange={entitySelectors.selectContacto}
-                    options={entitySelectors.contactoOptions}
-                    placeholder="Seleccionar contacto..."
-                    disabled={readOnly}
-                  />
-                  <input
-                    type="email"
-                    value={emailPrincipal}
-                    placeholder="correo@ejemplo.com"
-                    onChange={(e) => { if (readOnly) return; setEmailPrincipal(e.target.value); }}
-                    disabled={readOnly}
-                    className={`w-full border rounded-lg px-3 py-1.5 text-sm
-                      ${readOnly ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'}`}
-                  />
-                </div>
-                {/* Contactos adicionales */}
-                <ContactosAdicionales
-                  contactos={entitySelectors.contactos}
-                  contactoPrincipalId={entitySelectors.contactoId}
-                  readOnly={readOnly}
-                />
-              </div>
+              <ContactoPrincipal
+                contacto={contacto}
+                setContacto={setContacto}
+                emailPrincipal={emailPrincipal}
+                setEmailPrincipal={setEmailPrincipal}
+                entitySelectors={entitySelectors}
+                readOnly={readOnly}
+              />
             )}
           </>
         )}

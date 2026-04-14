@@ -203,6 +203,7 @@ interface Props {
   onDuplicate?: (tableId: string) => void;
   onAddRow?: (tableId: string) => void;
   onRemoveRow?: (tableId: string, rowId: string) => void;
+  onDuplicateRow?: (tableId: string, originalRowId: string) => void;
   onChangeHeaderData?: (tableId: string, fieldId: string, value: string) => void;
   /** Variables del reporte para auto-rellenar filas con variable binding */
   variables?: Record<string, string>;
@@ -412,6 +413,7 @@ export const CatalogTableView: React.FC<Props> = ({
   onDuplicate,
   onAddRow,
   onRemoveRow,
+  onDuplicateRow,
   onChangeHeaderData,
   variables,
   liveTemplateRows,
@@ -1063,22 +1065,23 @@ export const CatalogTableView: React.FC<Props> = ({
                   }
                 }
               });
-              // Detect rows that START a new group: either has a span > 1,
-              // or is NOT covered by a previous row's span in the first spannable column
-              // (handles single-row groups like μECD)
+              // Solo filas con span propio > 1 reciben estilo de "celda de grupo" (gris/bold).
               const isGroupStart = (rowIdx: number): boolean => {
                 if (rowIdx === 0) return false;
                 const r = table.templateRows[rowIdx];
                 if (!r) return false;
-                // Has an explicit span → definitely a group start
-                if (table.columns.some(col => spanAt(r, col.key) > 1)) return true;
-                // Check if previous row had a span that covered this row — if not, it's a new group
+                return table.columns.some(col => spanAt(r, col.key) > 1);
+              };
+              // Borde separador: se dibuja tanto al iniciar un merge como al salir de uno
+              // (fila standalone que viene después de un bloque fusionado).
+              const hasMergeBoundaryAbove = (rowIdx: number): boolean => {
+                if (rowIdx === 0) return false;
+                if (isGroupStart(rowIdx)) return true;
                 const prevRow = table.templateRows[rowIdx - 1];
                 if (!prevRow) return false;
-                return table.columns.some(col => {
-                  const prevSpan = spanAt(prevRow, col.key);
-                  return prevSpan > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`);
-                }) && !table.columns.some(col => coveredCells.has(`${rowIdx}:${col.key}`));
+                return table.columns.some(col =>
+                  spanAt(prevRow, col.key) > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`)
+                );
               };
               return table.templateRows.map((row, idx) => {
               // Visibilidad condicional por header field
@@ -1100,6 +1103,9 @@ export const CatalogTableView: React.FC<Props> = ({
               }
               if (row.isSelector) {
                 const selectorValue = selection.filledData[row.rowId]?.['__selector__'] ?? '';
+                const isDup = row.rowId.startsWith('dup_');
+                const canDuplicate = !!row.duplicableEnProtocolo && !!onDuplicateRow && !readOnly && !isPrint;
+                const canRemove = isDup && !!onRemoveRow && !readOnly && !isPrint;
                 return (
                   <tr
                     key={row.rowId}
@@ -1172,11 +1178,41 @@ export const CatalogTableView: React.FC<Props> = ({
                         </td>
                       ));
                     })()}
+                    {(canDuplicate || canRemove) && (
+                      <td className="px-1 py-1 align-middle w-12 whitespace-nowrap">
+                        {canDuplicate && (
+                          <button
+                            onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
+                            className="text-teal-500 hover:text-teal-700 transition-colors mr-1"
+                            title="Duplicar fila"
+                          >
+                            <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        )}
+                        {canRemove && (
+                          <button
+                            onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
+                            className="text-slate-300 hover:text-red-500 transition-colors"
+                            title="Quitar fila duplicada"
+                          >
+                            <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               }
               const isExtra = row.rowId.startsWith('extra_');
+              const isDup = row.rowId.startsWith('dup_');
+              const canDuplicate = !!row.duplicableEnProtocolo && !!onDuplicateRow && !readOnly && !isPrint;
+              const canRemoveDup = isDup && !!onRemoveRow && !readOnly && !isPrint;
               const groupStart = isGroupStart(idx);
+              const boundaryAbove = hasMergeBoundaryAbove(idx);
               return (
                 <tr
                   key={row.rowId}
@@ -1205,24 +1241,38 @@ export const CatalogTableView: React.FC<Props> = ({
                           `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
                           `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
                           !isGroupCell ? (col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center') : isLabelCol ? 'text-left' : '',
+                          boundaryAbove ? 'border-t border-t-slate-300' : '',
                         ].join(' ')}
                       >
                         {renderTableCell(col, row.rowId)}
                       </td>
                     );
                   })}
-                  {/* Botón eliminar fila extra */}
-                  {isExtra && !readOnly && !isPrint && onRemoveRow && (
-                    <td className="px-1 py-1 align-middle w-6">
-                      <button
-                        onClick={() => onRemoveRow(selection.tableId, row.rowId)}
-                        className="text-slate-300 hover:text-red-500 transition-colors"
-                        title="Quitar fila"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                  {/* Acciones: duplicar (filas marcadas) / quitar (extras o duplicadas) */}
+                  {(canDuplicate || canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
+                    <td className="px-1 py-1 align-middle w-12 whitespace-nowrap">
+                      {canDuplicate && (
+                        <button
+                          onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
+                          className="text-teal-500 hover:text-teal-700 transition-colors mr-1"
+                          title="Duplicar fila"
+                        >
+                          <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      )}
+                      {(canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
+                        <button
+                          onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
+                          className="text-slate-300 hover:text-red-500 transition-colors"
+                          title={canRemoveDup ? 'Quitar fila duplicada' : 'Quitar fila'}
+                        >
+                          <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>

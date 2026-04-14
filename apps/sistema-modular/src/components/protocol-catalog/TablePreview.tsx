@@ -110,19 +110,23 @@ export const TablePreview = ({ table }: Props) => {
                     }
                   }
                 });
-                // Detect rows that START a new group: either has a span > 1,
-                // or is NOT covered by a previous row's span (handles single-row groups like μECD)
+                // Solo filas con span propio > 1 reciben estilo de "celda de grupo" (gris/bold).
                 const isGroupStart = (rowIdx: number): boolean => {
                   if (rowIdx === 0) return false;
                   const row = table.templateRows[rowIdx];
                   if (!row) return false;
-                  if (table.columns.some(col => spanAt(row, col.key) > 1)) return true;
+                  return table.columns.some(col => spanAt(row, col.key) > 1);
+                };
+                // Borde separador: se dibuja tanto al iniciar un merge como al salir de uno
+                // (fila standalone que viene después de un bloque fusionado).
+                const hasMergeBoundaryAbove = (rowIdx: number): boolean => {
+                  if (rowIdx === 0) return false;
+                  if (isGroupStart(rowIdx)) return true;
                   const prevRow = table.templateRows[rowIdx - 1];
                   if (!prevRow) return false;
-                  return table.columns.some(col => {
-                    const prevSpan = spanAt(prevRow, col.key);
-                    return prevSpan > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`);
-                  }) && !table.columns.some(col => coveredCells.has(`${rowIdx}:${col.key}`));
+                  return table.columns.some(col =>
+                    spanAt(prevRow, col.key) > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`)
+                  );
                 };
                 return table.templateRows.map((row: TableCatalogEntry['templateRows'][number], idx: number) => (
                   row.isTitle ? (
@@ -172,6 +176,7 @@ export const TablePreview = ({ table }: Props) => {
                     </tr>);
                   })() : (() => {
                     const groupStart = isGroupStart(idx);
+                    const boundaryAbove = hasMergeBoundaryAbove(idx);
                     return (
                     <tr key={row.rowId}>
                       {table.columns.map((col: TableCatalogEntry['columns'][number]) => {
@@ -187,9 +192,9 @@ export const TablePreview = ({ table }: Props) => {
                             rowSpan={isSpanning ? colSpan : undefined}
                             className={[
                               'px-3 py-2 border border-slate-200 text-slate-700',
-                              isGroupCell ? 'align-middle font-semibold bg-slate-100 text-center border-r-2 border-r-slate-300'
+                              isGroupCell ? 'align-middle font-semibold bg-slate-100 text-center border-r border-r-slate-300'
                                 : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center',
-                              groupStart ? 'border-t-2 border-t-slate-400' : '',
+                              boundaryAbove ? 'border-t border-t-slate-300' : '',
                             ].join(' ')}
                           >
                             {row.cells[col.key] != null ? String(row.cells[col.key]) : '—'}

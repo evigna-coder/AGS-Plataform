@@ -338,6 +338,34 @@ export function useAppLogic(
     );
   };
 
+  const handleDuplicateRow = (tableId: string, originalRowId: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const idx = s.tableSnapshot.templateRows.findIndex(r => r.rowId === originalRowId);
+        if (idx === -1) return s;
+        const source = s.tableSnapshot.templateRows[idx];
+        const newRowId = `dup_${originalRowId}_${Date.now()}`;
+        const cloned = {
+          ...JSON.parse(JSON.stringify(source)),
+          rowId: newRowId,
+          rowSpan: undefined,
+          spanColumns: undefined,
+          columnSpans: undefined,
+        };
+        const nextRows = [...s.tableSnapshot.templateRows];
+        nextRows.splice(idx + 1, 0, cloned);
+        const emptyRow: Record<string, string> = {};
+        for (const col of s.tableSnapshot.columns) emptyRow[col.key] = '';
+        return {
+          ...s,
+          tableSnapshot: { ...s.tableSnapshot, templateRows: nextRows },
+          filledData: { ...s.filledData, [newRowId]: emptyRow },
+        };
+      })
+    );
+  };
+
   const handleRemoveRow = (tableId: string, rowId: string) => {
     setProtocolSelections(prev =>
       prev.map(s => {
@@ -950,7 +978,7 @@ export function useAppLogic(
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
     handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
-    handleAddRow, handleRemoveRow, handleHeaderDataChange,
+    handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange,
     handleChecklistAnswer, handleToggleChecklistSection,
     // Refs
     clientPadRef, engineerPadRef, qrRef,
