@@ -141,8 +141,12 @@ export const TablePreview = ({ table }: Props) => {
                     const dropdownCol = row.selectorColumn ?? 0;
                     return (
                     <tr key={row.rowId} className="bg-white">
-                      {table.columns.map((col: TableCatalogEntry['columns'][number], colIdx: number) => (
-                        <td key={col.key} className="px-3 py-2 border border-slate-200 text-slate-700">
+                      {table.columns.map((col: TableCatalogEntry['columns'][number], colIdx: number) => {
+                        const alignClass = colIdx === 0
+                          ? 'text-left'
+                          : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+                        return (
+                        <td key={col.key} className={`px-3 py-2 border border-slate-200 text-slate-700 ${alignClass}`}>
                           {splitSelector ? (
                             colIdx === 0 ? (
                               <span className="text-xs font-semibold text-slate-700">{row.selectorLabel}</span>
@@ -172,7 +176,8 @@ export const TablePreview = ({ table }: Props) => {
                             )
                           )}
                         </td>
-                      ))}
+                        );
+                      })}
                     </tr>);
                   })() : (() => {
                     const groupStart = isGroupStart(idx);
@@ -192,8 +197,12 @@ export const TablePreview = ({ table }: Props) => {
                             rowSpan={isSpanning ? colSpan : undefined}
                             className={[
                               'px-3 py-2 border border-slate-200 text-slate-700',
-                              isGroupCell ? 'align-middle font-semibold bg-slate-100 text-center border-r border-r-slate-300'
-                                : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center',
+                              (() => {
+                                const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+                                return isGroupCell
+                                  ? `align-middle font-semibold bg-slate-100 border-r border-r-slate-300 ${alignCls}`
+                                  : alignCls;
+                              })(),
                               boundaryAbove ? 'border-t border-t-slate-300' : '',
                             ].join(' ')}
                           >

@@ -780,8 +780,11 @@ export const CatalogTableView: React.FC<Props> = ({
       const trimmed = factoryVal.trim();
       const effUnit = (col.unit ?? col.label?.match(/\(\s*([^)]{1,15})\s*\)\s*$/)?.[1])?.trim();
       const isJustUnit = effUnit && trimmed === effUnit;
+      // "N/A" se trata como placeholder, no como label read-only — para que el técnico
+      // pueda completar el valor aunque el template marque N/A en una fila y vacío en otras.
+      const isNA = /^n\/?a$/i.test(trimmed);
       const hasContent = trimmed.length > 0 &&
-        /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed) && !isJustUnit;
+        /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed) && !isJustUnit && !isNA;
       if (hasContent) {
         // Para columnas text_input/number_input, verificar si el valor de fábrica
         // varía entre filas. Si cada fila tiene un valor distinto, es un label (read-only).
@@ -1119,10 +1122,16 @@ export const CatalogTableView: React.FC<Props> = ({
                       // Si no: label + dropdown juntos en col 0, resto editables
                       const splitSelector = (row.selectorColumn ?? 0) > 0;
                       const dropdownCol = row.selectorColumn ?? 0;
-                      return table.columns.map((col, colIdx) => (
+                      return table.columns.map((col, colIdx) => {
+                        // La columna del label (col 0) siempre va a la izquierda.
+                        // Las demás respetan col.align configurado en el catálogo (default: center).
+                        const alignClass = colIdx === 0
+                          ? 'text-left'
+                          : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+                        return (
                         <td
                           key={col.key}
-                          className={`px-2 py-1.5 align-middle ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}
+                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -1176,7 +1185,8 @@ export const CatalogTableView: React.FC<Props> = ({
                             )
                           )}
                         </td>
-                      ));
+                        );
+                      });
                     })()}
                     {(canDuplicate || canRemove) && (
                       <td className="px-1 py-1 align-middle w-12 whitespace-nowrap">
@@ -1232,7 +1242,8 @@ export const CatalogTableView: React.FC<Props> = ({
                     const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
                     // Label columns (first col or align:left) should NOT get centered/bold group styling
                     const isLabelCol = colIdx === 0 || col.align === 'left';
-                    const groupStyle = isGroupCell && !isLabelCol ? ' font-semibold text-center bg-slate-50' : isGroupCell ? ' bg-slate-50' : '';
+                    const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+                    const groupStyle = isGroupCell && !isLabelCol ? ` font-semibold bg-slate-50` : isGroupCell ? ' bg-slate-50' : '';
                     return (
                       <td
                         key={col.key}
@@ -1240,7 +1251,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         className={[
                           `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
                           `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
-                          !isGroupCell ? (col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center') : isLabelCol ? 'text-left' : '',
+                          alignCls,
                           boundaryAbove ? 'border-t border-t-slate-300' : '',
                         ].join(' ')}
                       >
