@@ -230,19 +230,28 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            {/* Cliente + Descripción */}
-            <div className="flex gap-3">
+            {/* Cliente (con contactos embebidos) + Descripción */}
+            <div className="flex gap-3 items-start">
               <Card className="flex-1">
-                <div className="p-4 space-y-1">
-                  <h3 className="text-[11px] font-medium text-slate-400 mb-1">Cliente</h3>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
-                    {lead.clienteId && (
-                      <Link to={`/clientes/${lead.clienteId}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:text-teal-800 font-medium shrink-0">
-                        Ver cliente →
-                      </Link>
-                    )}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h3 className="text-[11px] font-medium text-slate-400 mb-1">Cliente</h3>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
+                      {lead.clienteId && (
+                        <Link to={`/clientes/${lead.clienteId}`} state={{ from: pathname }} className="text-[11px] text-teal-600 hover:text-teal-800 font-medium shrink-0">
+                          Ver cliente →
+                        </Link>
+                      )}
+                    </div>
                   </div>
+                  <ContactosTicketSection
+                    inline
+                    contactos={lead.contactos || []}
+                    clienteId={lead.clienteId}
+                    readOnly={!isActive}
+                    onChange={(contactos: ContactoTicket[]) => handleFieldUpdate('contactos', contactos)}
+                  />
                 </div>
               </Card>
               {(lead.motivoContacto || lead.descripcion) && (
@@ -254,14 +263,6 @@ export const LeadDetail = () => {
                 </Card>
               )}
             </div>
-
-            {/* Contactos */}
-            <ContactosTicketSection
-              contactos={lead.contactos || []}
-              clienteId={lead.clienteId}
-              readOnly={!isActive}
-              onChange={(contactos: ContactoTicket[]) => handleFieldUpdate('contactos', contactos)}
-            />
 
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (

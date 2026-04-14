@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import type { Lead, UsuarioAGS } from '@ags/shared';
+import type { Lead, UsuarioAGS, Cliente } from '@ags/shared';
 import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor, LEAD_AREA_LABELS, LEAD_AREA_COLORS, MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
 import type { TicketPrioridad } from '@ags/shared';
 import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { clientesService } from '../../services/firebaseService';
 import { getDaysOpen, getDaysSinceLastActivity, getDaysUntilContacto, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 
 interface LeadSidebarProps {
@@ -24,6 +28,23 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
   // Local state for date input to avoid reload closing the picker
   const [localFechaContacto, setLocalFechaContacto] = useState(lead.proximoContacto || '');
   useEffect(() => { setLocalFechaContacto(lead.proximoContacto || ''); }, [lead.proximoContacto]);
+
+  // Vincular cliente (para tickets creados sin clienteId)
+  const [showVincular, setShowVincular] = useState(false);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [selectedClienteId, setSelectedClienteId] = useState('');
+  useEffect(() => {
+    if (!showVincular) return;
+    clientesService.getAll(false).then(setClientes).catch(() => setClientes([]));
+  }, [showVincular]);
+  const handleVincular = () => {
+    const cli = clientes.find(c => c.id === selectedClienteId);
+    if (!cli) return;
+    onFieldUpdate?.('clienteId', cli.id);
+    onFieldUpdate?.('razonSocial', cli.razonSocial);
+    setShowVincular(false);
+    setSelectedClienteId('');
+  };
 
   return (
     <div className="space-y-3">
@@ -106,6 +127,17 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
       </Card>
 
 
+      {/* Cliente — vincular si falta */}
+      {!lead.clienteId && isActive && (
+        <Card>
+          <div className="p-4 space-y-2">
+            <h3 className="text-[11px] font-medium text-slate-400">Cliente</h3>
+            <p className="text-[11px] text-slate-500">Este ticket no tiene cliente vinculado. Vinculalo para poder buscar sus contactos.</p>
+            <Button size="sm" variant="outline" onClick={() => setShowVincular(true)}>Vincular cliente</Button>
+          </div>
+        </Card>
+      )}
+
       {/* Sistema / Módulo */}
       {lead.sistemaId && (
         <Card>
@@ -124,6 +156,31 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate, moduloNombre }: Lea
           </div>
         </Card>
       )}
+
+      <Modal
+        open={showVincular}
+        onClose={() => setShowVincular(false)}
+        title="Vincular cliente"
+        subtitle="Buscá y elegí el cliente al que corresponde este ticket"
+        maxWidth="sm"
+        minimizable={false}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setShowVincular(false)}>Cancelar</Button>
+            <Button size="sm" onClick={handleVincular} disabled={!selectedClienteId}>Vincular</Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <label className="block text-[11px] font-medium text-slate-400">Cliente</label>
+          <SearchableSelect
+            value={selectedClienteId}
+            onChange={setSelectedClienteId}
+            options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))}
+            placeholder="Buscar cliente..."
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

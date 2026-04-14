@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import type { ContactoTicket } from '@ags/shared';
+import { useEffect, useState } from 'react';
+import type { ContactoTicket, ContactoCliente } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService } from '../../services/firebaseService';
 
 const emptyForm: Omit<ContactoTicket, 'id'> = {
@@ -23,7 +24,33 @@ export function ContactosTicketSection({ contactos, clienteId, onChange, readOnl
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ContactoTicket | null>(null);
   const [form, setForm] = useState<Omit<ContactoTicket, 'id'>>(emptyForm);
-  const [importing, setImporting] = useState(false);
+  const [clienteContactos, setClienteContactos] = useState<ContactoCliente[]>([]);
+
+  useEffect(() => {
+    if (!showModal || !clienteId) { setClienteContactos([]); return; }
+    let active = true;
+    clientesService.getContactos(clienteId)
+      .then(list => { if (active) setClienteContactos(list); })
+      .catch(() => { if (active) setClienteContactos([]); });
+    return () => { active = false; };
+  }, [showModal, clienteId]);
+
+  const handlePickFromCliente = (nombre: string) => {
+    const match = clienteContactos.find(c => c.nombre === nombre);
+    if (match) {
+      setForm(prev => ({
+        ...prev,
+        nombre: match.nombre,
+        cargo: match.cargo || prev.cargo,
+        sector: match.sector || prev.sector,
+        telefono: match.telefono || prev.telefono,
+        interno: match.interno || prev.interno,
+        email: match.email || prev.email,
+      }));
+    } else {
+      setForm(prev => ({ ...prev, nombre }));
+    }
+  };
 
   const openNew = () => { setEditing(null); setForm({ ...emptyForm, esPrincipal: contactos.length === 0 }); setShowModal(true); };
   const openEdit = (c: ContactoTicket) => {
@@ -78,55 +105,13 @@ export function ContactosTicketSection({ contactos, clienteId, onChange, readOnl
     onChange(next);
   };
 
-  const handleImport = async () => {
-    if (!clienteId) return;
-    setImporting(true);
-    try {
-      const fromCliente = await clientesService.getContactos(clienteId);
-      const seenEmails = new Set(contactos.map(c => c.email?.toLowerCase()).filter(Boolean));
-      const seenNombres = new Set(contactos.map(c => c.nombre.toLowerCase().trim()));
-      const nuevos: ContactoTicket[] = fromCliente
-        .filter(c => {
-          const em = c.email?.toLowerCase();
-          if (em && seenEmails.has(em)) return false;
-          return !seenNombres.has((c.nombre || '').toLowerCase().trim());
-        })
-        .map(c => ({
-          id: newId(),
-          nombre: c.nombre || '(Sin nombre)',
-          cargo: c.cargo || undefined,
-          telefono: c.telefono || undefined,
-          email: c.email || undefined,
-          esPrincipal: false,
-        }));
-      if (nuevos.length === 0) { alert('No hay contactos nuevos para importar.'); return; }
-      let next = [...contactos, ...nuevos];
-      if (!next.some(c => c.esPrincipal)) next = applyPrincipal(next, next[0].id);
-      onChange(next);
-    } catch (err) {
-      console.error('Error importando contactos:', err);
-      alert('Error al importar contactos');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   return (
     <>
       <Card>
         <div className="p-3 md:p-4">
           <div className="flex justify-between items-center mb-2 md:mb-3">
             <h3 className="text-[11px] font-medium text-slate-400">Contactos</h3>
-            {!readOnly && (
-              <div className="flex gap-1.5 flex-wrap justify-end">
-                {clienteId && (
-                  <Button size="sm" variant="outline" onClick={handleImport} disabled={importing}>
-                    {importing ? 'Importando...' : 'Importar'}
-                  </Button>
-                )}
-                <Button size="sm" onClick={openNew}>+ Agregar</Button>
-              </div>
-            )}
+            {!readOnly && <Button size="sm" onClick={openNew}>+ Agregar</Button>}
           </div>
           {contactos.length === 0 ? (
             <p className="text-slate-400 text-xs py-2">Sin contactos registrados.</p>
@@ -171,8 +156,23 @@ export function ContactosTicketSection({ contactos, clienteId, onChange, readOnl
         }
       >
         <div className="space-y-3">
-          <Input label="Nombre *" value={form.nombre}
-            onChange={e => setForm({ ...form, nombre: e.target.value })} required />
+          {!editing && clienteId ? (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre *</label>
+              <SearchableSelect
+                value={form.nombre}
+                onChange={handlePickFromCliente}
+                options={clienteContactos.map(c => ({ value: c.nombre, label: `${c.nombre}${c.cargo ? ` — ${c.cargo}` : ''}` }))}
+                placeholder="Buscar contacto del cliente o escribir nuevo..."
+                creatable
+                createLabel="Nuevo contacto"
+                emptyMessage="Sin contactos en el cliente — escribí uno nuevo"
+              />
+            </div>
+          ) : (
+            <Input label="Nombre *" value={form.nombre}
+              onChange={e => setForm({ ...form, nombre: e.target.value })} required />
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Input label="Cargo" value={form.cargo ?? ''}
               onChange={e => setForm({ ...form, cargo: e.target.value })} />

@@ -202,10 +202,11 @@ export const contactosService = {
       estIds.add(d.id);
       return true;
     });
-    console.log('[contactos] establecimientos encontrados:', estDocs.length);
+    console.log('[contactos] establecimientos encontrados:', estDocs.length, estDocs.map(d => ({ id: d.id, nombre: d.data().nombre, clienteCuit: d.data().clienteCuit, clienteId: d.data().clienteId })));
     const estContactos: ContactoCliente[] = [];
     for (const estDoc of estDocs) {
       const ctSnap = await getDocs(collection(db, 'establecimientos', estDoc.id, 'contactos'));
+      console.log(`[contactos] establecimiento ${estDoc.id} (${estDoc.data().nombre}) → ${ctSnap.size} contactos`);
       ctSnap.docs.forEach(d => {
         const data = d.data();
         estContactos.push({

@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import type { ContactoTicket } from '@ags/shared';
+import { useEffect, useState } from 'react';
+import type { ContactoTicket, ContactoCliente } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { contactosService } from '../../services/firebaseService';
 
 const emptyForm: Omit<ContactoTicket, 'id'> = {
@@ -15,15 +16,45 @@ interface Props {
   clienteId: string | null;
   onChange: (contactos: ContactoTicket[]) => void;
   readOnly?: boolean;
+  /** Si es true, renderiza sin la Card envolvente ni el título — para embeber dentro de otra card. */
+  inline?: boolean;
 }
 
 const newId = () => `ct-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-export const ContactosTicketSection = ({ contactos, clienteId, onChange, readOnly }: Props) => {
+export const ContactosTicketSection = ({ contactos, clienteId, onChange, readOnly, inline }: Props) => {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ContactoTicket | null>(null);
   const [form, setForm] = useState<Omit<ContactoTicket, 'id'>>(emptyForm);
-  const [importing, setImporting] = useState(false);
+  const [clienteContactos, setClienteContactos] = useState<ContactoCliente[]>([]);
+
+  // Cargar contactos del cliente cuando se abre el modal (para sugerir/autocompletar).
+  useEffect(() => {
+    console.log('[ContactosTicketSection] modal abierto:', showModal, '| clienteId:', clienteId);
+    if (!showModal || !clienteId) { setClienteContactos([]); return; }
+    let active = true;
+    contactosService.getByCliente(clienteId)
+      .then(list => { if (active) { console.log('[ContactosTicketSection] contactos del cliente:', list.length, list); setClienteContactos(list); } })
+      .catch(err => { console.error('[ContactosTicketSection] error:', err); if (active) setClienteContactos([]); });
+    return () => { active = false; };
+  }, [showModal, clienteId]);
+
+  const handlePickFromCliente = (nombre: string) => {
+    const match = clienteContactos.find(c => c.nombre === nombre);
+    if (match) {
+      setForm(prev => ({
+        ...prev,
+        nombre: match.nombre,
+        cargo: match.cargo || prev.cargo,
+        sector: match.sector || prev.sector,
+        telefono: match.telefono || prev.telefono,
+        interno: match.interno || prev.interno,
+        email: match.email || prev.email,
+      }));
+    } else {
+      setForm(prev => ({ ...prev, nombre }));
+    }
+  };
 
   const openNew = () => { setEditing(null); setForm({ ...emptyForm, esPrincipal: contactos.length === 0 }); setShowModal(true); };
   const openEdit = (c: ContactoTicket) => {
@@ -79,88 +110,46 @@ export const ContactosTicketSection = ({ contactos, clienteId, onChange, readOnl
     onChange(next);
   };
 
-  const handleImport = async () => {
-    if (!clienteId) return;
-    setImporting(true);
-    try {
-      const fromCliente = await contactosService.getByCliente(clienteId);
-      const seenEmails = new Set(contactos.map(c => c.email?.toLowerCase()).filter(Boolean));
-      const seenNombres = new Set(contactos.map(c => c.nombre.toLowerCase().trim()));
-      const nuevos: ContactoTicket[] = fromCliente
-        .filter(c => {
-          const em = c.email?.toLowerCase();
-          if (em && seenEmails.has(em)) return false;
-          return !seenNombres.has(c.nombre.toLowerCase().trim());
-        })
-        .map(c => ({
-          id: newId(),
-          nombre: c.nombre || '(Sin nombre)',
-          cargo: c.cargo || undefined,
-          sector: c.sector || undefined,
-          telefono: c.telefono || undefined,
-          interno: c.interno || undefined,
-          email: c.email || undefined,
-          esPrincipal: false,
-        }));
-      if (nuevos.length === 0) { alert('No hay contactos nuevos para importar.'); return; }
-      let next = [...contactos, ...nuevos];
-      if (!next.some(c => c.esPrincipal)) next = applyPrincipal(next, next[0].id);
-      onChange(next);
-    } catch (err) {
-      console.error('Error importando contactos:', err);
-      alert('Error al importar contactos');
-    } finally {
-      setImporting(false);
-    }
-  };
+  const list = (
+    <>
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="text-[11px] font-medium text-slate-400">Contactos</h4>
+        {!readOnly && <Button size="sm" variant="ghost" onClick={openNew}>+ Agregar</Button>}
+      </div>
+      {contactos.length === 0 ? (
+        <p className="text-slate-400 text-xs py-1">Sin contactos registrados.</p>
+      ) : (
+        <div className="space-y-1">
+          {contactos.map(c => (
+            <div key={c.id} className="flex justify-between items-center px-2 py-1.5 bg-slate-50 rounded-md border border-slate-100">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-medium text-slate-900 truncate">{c.nombre}</p>
+                  {c.esPrincipal && (
+                    <span className="text-[9px] font-medium px-1 py-0.5 rounded-full bg-teal-50 text-teal-700">Principal</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 truncate">
+                  {[c.cargo, c.sector, c.email, c.telefono && (c.interno ? `${c.telefono} (Int: ${c.interno})` : c.telefono)]
+                    .filter(Boolean).join(' · ') || '—'}
+                </p>
+              </div>
+              {!readOnly && (
+                <div className="flex gap-1 shrink-0 ml-2">
+                  <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>Editar</Button>
+                  <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(c.id)}>Eliminar</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <>
-      <Card>
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-[11px] font-medium text-slate-400">Contactos</h3>
-            {!readOnly && (
-              <div className="flex gap-1.5">
-                {clienteId && (
-                  <Button size="sm" variant="outline" onClick={handleImport} disabled={importing}>
-                    {importing ? 'Importando...' : 'Importar desde cliente'}
-                  </Button>
-                )}
-                <Button size="sm" onClick={openNew}>+ Agregar</Button>
-              </div>
-            )}
-          </div>
-          {contactos.length === 0 ? (
-            <p className="text-slate-400 text-xs py-2">Sin contactos registrados.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {contactos.map(c => (
-                <div key={c.id} className="flex justify-between items-center px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-medium text-slate-900 truncate">{c.nombre}</p>
-                      {c.esPrincipal && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700">Principal</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 truncate">
-                      {[c.cargo, c.sector, c.email, c.telefono && (c.interno ? `${c.telefono} (Int: ${c.interno})` : c.telefono)]
-                        .filter(Boolean).join(' · ') || '—'}
-                    </p>
-                  </div>
-                  {!readOnly && (
-                    <div className="flex gap-1.5 shrink-0 ml-2">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>Editar</Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(c.id)}>Eliminar</Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Card>
+      {inline ? list : <Card><div className="p-4">{list}</div></Card>}
 
       <Modal
         open={showModal}
@@ -176,8 +165,23 @@ export const ContactosTicketSection = ({ contactos, clienteId, onChange, readOnl
         }
       >
         <div className="space-y-3">
-          <Input inputSize="sm" label="Nombre *" value={form.nombre}
-            onChange={e => setForm({ ...form, nombre: e.target.value })} required />
+          {!editing && clienteId ? (
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-0.5">Nombre *</label>
+              <SearchableSelect
+                value={form.nombre}
+                onChange={handlePickFromCliente}
+                options={clienteContactos.map(c => ({ value: c.nombre, label: `${c.nombre}${c.cargo ? ` — ${c.cargo}` : ''}` }))}
+                placeholder="Buscar contacto del cliente o escribir nuevo..."
+                creatable
+                createLabel="Nuevo contacto"
+                emptyMessage="Sin contactos en el cliente — escribí uno nuevo"
+              />
+            </div>
+          ) : (
+            <Input inputSize="sm" label="Nombre *" value={form.nombre}
+              onChange={e => setForm({ ...form, nombre: e.target.value })} required />
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Input inputSize="sm" label="Cargo" value={form.cargo ?? ''}
               onChange={e => setForm({ ...form, cargo: e.target.value })} />
