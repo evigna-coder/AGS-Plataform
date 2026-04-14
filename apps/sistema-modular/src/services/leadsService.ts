@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, ContactoTicket } from '@ags/shared';
+import { LEAD_MAX_ADJUNTOS, getContactoPrincipal } from '@ags/shared';
 import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
 
 // ── Mapeo de estados: presupuesto → lead ──────────────────────────────
@@ -72,6 +72,27 @@ function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
   return migration[raw] || (raw as LeadArea);
 }
 
+/**
+ * Hidrata `contactos[]` desde los campos planos (`contacto/email/telefono`) cuando
+ * el ticket es previo al refactor o se creó con los campos planos solamente.
+ * La hidratación es en memoria — no se persiste hasta que el usuario edite contactos.
+ */
+function hydrateContactos(data: any): ContactoTicket[] {
+  const existing: ContactoTicket[] = Array.isArray(data.contactos) ? data.contactos : [];
+  if (existing.length > 0) return existing;
+  const nombre = (data.contacto ?? '').trim();
+  const email = (data.email ?? '').trim();
+  const telefono = (data.telefono ?? '').trim();
+  if (!nombre && !email && !telefono) return [];
+  return [{
+    id: 'legacy-principal',
+    nombre: nombre || '(Sin nombre)',
+    email: email || undefined,
+    telefono: telefono || undefined,
+    esPrincipal: true,
+  }];
+}
+
 function parseLeadDoc(d: { id: string; data: () => any }): Lead {
   const data = d.data();
   return {
@@ -79,6 +100,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     clienteId: data.clienteId ?? null,
     contactoId: data.contactoId ?? null,
     razonSocial: data.razonSocial ?? '',
+    contactos: hydrateContactos(data),
     contacto: data.contacto ?? '',
     email: data.email ?? '',
     telefono: data.telefono ?? '',
@@ -107,9 +129,24 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
   };
 }
 
+/**
+ * Si el payload incluye `contactos`, refleja el contacto principal en los campos planos
+ * (`contacto/email/telefono`) para preservar listas, búsquedas y compat con tickets viejos.
+ */
+function syncFlatFromContactos<T extends Record<string, any>>(data: T): T {
+  if (!('contactos' in data) || !Array.isArray(data.contactos)) return data;
+  const principal = getContactoPrincipal(data.contactos as ContactoTicket[]);
+  return {
+    ...data,
+    contacto: principal?.nombre ?? '',
+    email: principal?.email ?? '',
+    telefono: principal?.telefono ?? '',
+  };
+}
+
 export const leadsService = {
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) {
-    const payload = deepCleanForFirestore({
+    const payload = deepCleanForFirestore(syncFlatFromContactos({
       ...data,
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
@@ -118,7 +155,7 @@ export const leadsService = {
       otIds: data.otIds || [],
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    });
+    }));
     const leadRef = newDocRef('leads');
     const batch = createBatch();
     batch.set(leadRef, payload);
@@ -175,11 +212,11 @@ export const leadsService = {
   },
 
   async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) {
-    const payload = deepCleanForFirestore({
+    const payload = deepCleanForFirestore(syncFlatFromContactos({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+    }));
     const batch = createBatch();
     batch.update(docRef('leads', id), payload);
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: payload as any });

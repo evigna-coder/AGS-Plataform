@@ -19,7 +19,8 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead, NotificationPreferences, FCMTokenRecord } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, ContactoTicket, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead, NotificationPreferences, FCMTokenRecord } from '@ags/shared';
+import { getContactoPrincipal } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
 
@@ -239,12 +240,40 @@ function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
   return migration[raw] || (raw as LeadArea);
 }
 
+function hydrateContactosTicket(data: Record<string, unknown>): ContactoTicket[] {
+  const existing = Array.isArray(data.contactos) ? (data.contactos as ContactoTicket[]) : [];
+  if (existing.length > 0) return existing;
+  const nombre = ((data.contacto as string) ?? '').trim();
+  const email = ((data.email as string) ?? '').trim();
+  const telefono = ((data.telefono as string) ?? '').trim();
+  if (!nombre && !email && !telefono) return [];
+  return [{
+    id: 'legacy-principal',
+    nombre: nombre || '(Sin nombre)',
+    email: email || undefined,
+    telefono: telefono || undefined,
+    esPrincipal: true,
+  }];
+}
+
+function syncFlatFromContactosData<T extends Record<string, any>>(data: T): T {
+  if (!('contactos' in data) || !Array.isArray(data.contactos)) return data;
+  const principal = getContactoPrincipal(data.contactos as ContactoTicket[]);
+  return {
+    ...data,
+    contacto: principal?.nombre ?? '',
+    email: principal?.email ?? '',
+    telefono: principal?.telefono ?? '',
+  };
+}
+
 function parseLead(id: string, data: Record<string, unknown>): Lead {
   return {
     id,
     clienteId: (data.clienteId as string) ?? null,
     contactoId: (data.contactoId as string) ?? null,
     razonSocial: (data.razonSocial as string) ?? '',
+    contactos: hydrateContactosTicket(data),
     contacto: (data.contacto as string) ?? '',
     email: (data.email as string) ?? '',
     telefono: (data.telefono as string) ?? '',
@@ -273,8 +302,9 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
 
 export const leadsService = {
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const synced = syncFlatFromContactosData(data as Record<string, any>);
     const payload = {
-      ...cleanFirestoreData(data as Record<string, unknown>),
+      ...cleanFirestoreData(synced),
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
       postas: data.postas || [],
@@ -339,8 +369,9 @@ export const leadsService = {
   },
 
   async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<void> {
+    const synced = syncFlatFromContactosData(data as Record<string, any>);
     await updateDoc(doc(db, 'leads', id), {
-      ...cleanFirestoreData(data as Record<string, unknown>),
+      ...cleanFirestoreData(synced),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });

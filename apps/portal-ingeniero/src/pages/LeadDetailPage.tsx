@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import type { Lead, Posta } from '@ags/shared';
+import type { Lead, Posta, ContactoTicket } from '@ags/shared';
 import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card';
 import { LeadSidebar } from '../components/leads/LeadSidebar';
 import LeadTimeline from '../components/leads/LeadTimeline';
 import LeadAdjuntosSection from '../components/leads/LeadAdjuntosSection';
+import { ContactosTicketSection } from '../components/leads/ContactosTicketSection';
 import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 
@@ -174,18 +175,23 @@ export default function LeadDetailPage() {
         {mobileTab === 'info' && (
           <>
             <LeadSidebar lead={lead} usuarios={usuarios} onFieldUpdate={handleFieldUpdate} />
-            {/* Contacto */}
+            {/* Cliente */}
             <Card>
               <div className="p-3 space-y-1">
-                <h3 className="text-[11px] font-medium text-slate-400">Contacto</h3>
+                <h3 className="text-[11px] font-medium text-slate-400">Cliente</h3>
                 <p className="text-sm font-semibold text-slate-800">{lead.razonSocial}</p>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
-                  {lead.contacto && <span>{lead.contacto}</span>}
-                  {lead.email && <a href={`mailto:${lead.email}`} className="text-teal-600">{lead.email}</a>}
-                  {lead.telefono && <span>{lead.telefono}</span>}
-                </div>
               </div>
             </Card>
+            {/* Contactos */}
+            <ContactosTicketSection
+              contactos={lead.contactos || []}
+              clienteId={lead.clienteId}
+              readOnly={!isActive}
+              onChange={(contactos: ContactoTicket[]) => {
+                setLead(prev => prev ? { ...prev, contactos } : prev);
+                leadsService.update(lead.id, { contactos }).catch(err => console.error('Error actualizando contactos:', err));
+              }}
+            />
             {lead.descripcion && (
               <Card><div className="p-3"><h3 className="text-[11px] font-medium text-slate-400 mb-1">Descripción</h3><p className="text-xs text-slate-700 whitespace-pre-wrap">{lead.descripcion}</p></div></Card>
             )}
@@ -231,17 +237,12 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            {/* Contacto + Descripción */}
+            {/* Cliente + Descripción */}
             <div className="flex gap-3">
               <Card className="flex-1">
-                <div className="p-4 space-y-2">
-                  <h3 className="text-[11px] font-medium text-slate-400 mb-2">Contacto</h3>
+                <div className="p-4 space-y-1">
+                  <h3 className="text-[11px] font-medium text-slate-400 mb-1">Cliente</h3>
                   <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-                    {lead.contacto && <span>{lead.contacto}</span>}
-                    {lead.email && <a href={`mailto:${lead.email}`} className="text-teal-600 hover:text-teal-800">{lead.email}</a>}
-                    {lead.telefono && <span>{lead.telefono}</span>}
-                  </div>
                 </div>
               </Card>
               {(lead.motivoContacto || lead.descripcion) && (
@@ -253,6 +254,17 @@ export default function LeadDetailPage() {
                 </Card>
               )}
             </div>
+
+            {/* Contactos */}
+            <ContactosTicketSection
+              contactos={lead.contactos || []}
+              clienteId={lead.clienteId}
+              readOnly={!isActive}
+              onChange={(contactos: ContactoTicket[]) => {
+                setLead(prev => prev ? { ...prev, contactos } : prev);
+                leadsService.update(lead.id, { contactos }).catch(err => console.error('Error actualizando contactos:', err));
+              }}
+            />
 
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (

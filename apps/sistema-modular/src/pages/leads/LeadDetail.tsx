@@ -11,6 +11,8 @@ import { LeadTimeline } from '../../components/leads/LeadTimeline';
 import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
 import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
 import { LeadAdjuntosSection } from '../../components/leads/LeadAdjuntosSection';
+import { ContactosTicketSection } from '../../components/leads/ContactosTicketSection';
+import type { ContactoTicket } from '@ags/shared';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 import { TicketPendientesChips } from '../../components/pendientes/TicketPendientesChips';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -228,11 +230,11 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            {/* Contacto + Descripción */}
+            {/* Cliente + Descripción */}
             <div className="flex gap-3">
               <Card className="flex-1">
-                <div className="p-4 space-y-2">
-                  <h3 className="text-[11px] font-medium text-slate-400 mb-2">Contacto</h3>
+                <div className="p-4 space-y-1">
+                  <h3 className="text-[11px] font-medium text-slate-400 mb-1">Cliente</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-sm font-semibold text-slate-800">{lead.razonSocial}</span>
                     {lead.clienteId && (
@@ -240,11 +242,6 @@ export const LeadDetail = () => {
                         Ver cliente →
                       </Link>
                     )}
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-                    {lead.contacto && <span>{lead.contacto}</span>}
-                    {lead.email && <a href={`mailto:${lead.email}`} className="text-teal-600 hover:text-teal-800">{lead.email}</a>}
-                    {lead.telefono && <span>{lead.telefono}</span>}
                   </div>
                 </div>
               </Card>
@@ -257,6 +254,14 @@ export const LeadDetail = () => {
                 </Card>
               )}
             </div>
+
+            {/* Contactos */}
+            <ContactosTicketSection
+              contactos={lead.contactos || []}
+              clienteId={lead.clienteId}
+              readOnly={!isActive}
+              onChange={(contactos: ContactoTicket[]) => handleFieldUpdate('contactos', contactos)}
+            />
 
             {/* Acción pendiente banner */}
             {lead.accionPendiente && isActive && (

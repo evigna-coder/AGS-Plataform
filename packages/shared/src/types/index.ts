@@ -650,14 +650,39 @@ export interface AdjuntoTicket {
 
 export const TICKET_MAX_ADJUNTOS = 10;
 
+// --- Contacto de Ticket (array embebido en el ticket) ---
+// Reusa shape de ContactoEstablecimiento pero sin establecimientoId porque
+// vive embebido en el ticket (no es subcolección propia).
+export interface ContactoTicket {
+  id: string;
+  nombre: string;
+  cargo?: string;
+  sector?: string;
+  telefono?: string;
+  interno?: string;
+  email?: string;
+  esPrincipal: boolean;
+}
+
+/** Devuelve el contacto marcado como principal, o el primero del array si ninguno lo está. */
+export function getContactoPrincipal(contactos: ContactoTicket[] | undefined | null): ContactoTicket | null {
+  if (!contactos || contactos.length === 0) return null;
+  return contactos.find(c => c.esPrincipal) ?? contactos[0];
+}
+
 // --- Ticket ---
 export interface Ticket {
   id: string;
   clienteId: string | null;
   contactoId: string | null;
   razonSocial: string;
+  /** Contactos del ticket. El marcado `esPrincipal` se refleja en los campos planos `contacto/email/telefono`. */
+  contactos?: ContactoTicket[];
+  /** @deprecated Usar `contactos` con `esPrincipal`. Se mantiene sincronizado desde el principal para compat. */
   contacto: string;
+  /** @deprecated Usar `contactos` con `esPrincipal`. Se mantiene sincronizado desde el principal para compat. */
   email: string;
+  /** @deprecated Usar `contactos` con `esPrincipal`. Se mantiene sincronizado desde el principal para compat. */
   telefono: string;
   motivoLlamado: MotivoLlamado;
   motivoOtros?: string | null;
