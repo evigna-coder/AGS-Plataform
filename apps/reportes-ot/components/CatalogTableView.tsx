@@ -1189,29 +1189,31 @@ export const CatalogTableView: React.FC<Props> = ({
                       });
                     })()}
                     {(canDuplicate || canRemove) && (
-                      <td className="px-1 py-1 align-middle w-12 whitespace-nowrap">
-                        {canDuplicate && (
-                          <button
-                            onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
-                            className="text-teal-500 hover:text-teal-700 transition-colors mr-1"
-                            title="Duplicar fila"
-                          >
-                            <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
-                        )}
-                        {canRemove && (
-                          <button
-                            onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
-                            className="text-slate-300 hover:text-red-500 transition-colors"
-                            title="Quitar fila duplicada"
-                          >
-                            <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
+                      <td className="p-0 m-0 relative" style={{ width: 0 }}>
+                        <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center gap-1 whitespace-nowrap">
+                          {canDuplicate && (
+                            <button
+                              onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
+                              className="text-teal-500 hover:text-teal-700 transition-colors"
+                              title="Duplicar fila"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          )}
+                          {canRemove && (
+                            <button
+                              onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
+                              className="text-slate-300 hover:text-red-500 transition-colors"
+                              title="Quitar fila duplicada"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -1261,29 +1263,31 @@ export const CatalogTableView: React.FC<Props> = ({
                   })}
                   {/* Acciones: duplicar (filas marcadas) / quitar (extras o duplicadas) */}
                   {(canDuplicate || canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
-                    <td className="px-1 py-1 align-middle w-12 whitespace-nowrap">
-                      {canDuplicate && (
-                        <button
-                          onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
-                          className="text-teal-500 hover:text-teal-700 transition-colors mr-1"
-                          title="Duplicar fila"
-                        >
-                          <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      )}
-                      {(canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
-                        <button
-                          onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
-                          className="text-slate-300 hover:text-red-500 transition-colors"
-                          title={canRemoveDup ? 'Quitar fila duplicada' : 'Quitar fila'}
-                        >
-                          <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
+                    <td className="p-0 m-0 relative" style={{ width: 0 }}>
+                      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center gap-1 whitespace-nowrap">
+                        {canDuplicate && (
+                          <button
+                            onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
+                            className="text-teal-500 hover:text-teal-700 transition-colors"
+                            title="Duplicar fila"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        )}
+                        {(canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
+                          <button
+                            onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
+                            className="text-slate-300 hover:text-red-500 transition-colors"
+                            title={canRemoveDup ? 'Quitar fila duplicada' : 'Quitar fila'}
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
