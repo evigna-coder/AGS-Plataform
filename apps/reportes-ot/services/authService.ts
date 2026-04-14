@@ -2,10 +2,41 @@
  * Servicio de autenticación Firebase (Google Sign-In).
  * Solo proveedor Google como método primario.
  */
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged as firebaseOnAuthStateChanged, type User, type Unsubscribe } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+  signOut as firebaseSignOut,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  type User,
+  type Unsubscribe,
+} from 'firebase/auth';
 import { app } from './firebaseService';
 
 const auth = getAuth(app);
+
+// Persistencia explícita: prioriza IndexedDB (resistente a ITP), fallback a localStorage.
+// Evita que Firebase caiga silenciosamente a inMemoryPersistence si IndexedDB falla.
+setPersistence(auth, indexedDBLocalPersistence)
+  .catch(() => setPersistence(auth, browserLocalPersistence))
+  .catch((err) => {
+    console.warn('⚠️ No se pudo configurar persistencia de Firebase Auth:', err);
+  });
+
+// Procesar resultado de signInWithRedirect si lo hubo (mobile flow)
+getRedirectResult(auth).catch((err) => {
+  console.warn('⚠️ Error procesando redirect de auth:', err);
+});
+
+function isMobileUA(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
 
 /** Suscripción al estado de auth; usa la instancia correcta de Auth del mismo módulo. */
 export function onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe {
@@ -38,9 +69,15 @@ export function isAllowedDomain(user: User | null): boolean {
 /**
  * Inicia sesión con Google (popup).
  */
-export async function signInWithGoogle(): Promise<User> {
+export async function signInWithGoogle(): Promise<User | null> {
   try {
     const provider = new GoogleAuthProvider();
+    // En mobile usar redirect (popup tiene problemas en Safari iOS y Chrome Android).
+    // En desktop mantener popup (mejor UX).
+    if (isMobileUA()) {
+      await signInWithRedirect(auth, provider);
+      return null; // El usuario volverá vía getRedirectResult al recargar
+    }
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: unknown) {
