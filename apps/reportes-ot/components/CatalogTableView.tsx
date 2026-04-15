@@ -205,6 +205,8 @@ interface Props {
   onRemoveRow?: (tableId: string, rowId: string) => void;
   onDuplicateRow?: (tableId: string, originalRowId: string) => void;
   onChangeHeaderData?: (tableId: string, fieldId: string, value: string) => void;
+  /** Toggle de visibilidad de columna en la instancia (sobrescribe hiddenByDefault del template) */
+  onChangeColumnVisibility?: (tableId: string, colKey: string, visible: boolean) => void;
   /** Variables del reporte para auto-rellenar filas con variable binding */
   variables?: Record<string, string>;
   /** Filas del catálogo vivo — usadas como fallback si el snapshot no tiene 'variable' actualizado */
@@ -415,6 +417,7 @@ export const CatalogTableView: React.FC<Props> = ({
   onRemoveRow,
   onDuplicateRow,
   onChangeHeaderData,
+  onChangeColumnVisibility,
   variables,
   liveTemplateRows,
   siblingSelections,
@@ -422,6 +425,23 @@ export const CatalogTableView: React.FC<Props> = ({
   const table = selection.tableSnapshot;
   const compact = table.compactDisplay ?? false;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
+
+  // ── Visibilidad por columna (default = !hiddenByDefault, overrideable por instancia) ──
+  const isColumnVisible = (col: TableCatalogColumn): boolean =>
+    selection.columnVisibility?.[col.key] ?? !col.hiddenByDefault;
+  const visibleColumns = table.columns.filter(isColumnVisible);
+  // Recalcular columnGroups para reflejar solo columnas visibles (span y startCol ajustados)
+  const visibleGroups: Array<{ startCol: number; span: number; label: string }> = [];
+  for (const g of (table.columnGroups ?? [])) {
+    const groupCols = table.columns.slice(g.startCol, g.startCol + g.span);
+    const visibleInGroup = groupCols.filter(isColumnVisible);
+    if (visibleInGroup.length === 0) continue;
+    const firstVisibleIdx = visibleColumns.indexOf(visibleInGroup[0]);
+    visibleGroups.push({ startCol: firstVisibleIdx, span: visibleInGroup.length, label: g.label });
+  }
+  const [showColMenu, setShowColMenu] = React.useState(false);
+  const hasHiddenCapableCols = table.columns.some(c => c.hiddenByDefault) ||
+    Object.keys(selection.columnVisibility ?? {}).length > 0;
 
   /** Resuelve opciones para una columna multi_select desde una tabla hermana del protocolo.
    *  Retorna { value: string (se guarda), label: string (se muestra) }[] */
@@ -653,7 +673,7 @@ export const CatalogTableView: React.FC<Props> = ({
     if (rowVariable && variables) {
       const resolved = variables[rowVariable];
       if (resolved !== undefined) {
-        const isLabelCol = table.columns[0]?.key === col.key;
+        const isLabelCol = visibleColumns[0]?.key === col.key;
         if (!isLabelCol) {
           // Todas las columnas excepto la primera (label) → mostrar valor resuelto
           if (isPrint) return <span className="text-[10px] whitespace-pre-wrap">{resolved || '—'}</span>;
@@ -852,6 +872,47 @@ export const CatalogTableView: React.FC<Props> = ({
             </label>
           )}
 
+          {/* Menú mostrar/ocultar columnas (solo si hay columnas ocultables) */}
+          {!isPrint && !readOnly && hasHiddenCapableCols && onChangeColumnVisibility && (
+            <div className="relative">
+              <button
+                onClick={() => setShowColMenu(v => !v)}
+                className="text-slate-400 hover:text-teal-600 transition-colors p-1"
+                title="Mostrar/ocultar columnas"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              {showColMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowColMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[200px]">
+                    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-bold text-slate-500 border-b border-slate-100">
+                      Columnas
+                    </div>
+                    {table.columns.map(col => {
+                      const visible = isColumnVisible(col);
+                      return (
+                        <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs">
+                          <input
+                            type="checkbox"
+                            checked={visible}
+                            onChange={e => onChangeColumnVisibility(selection.tableId, col.key, e.target.checked)}
+                            className="accent-teal-600"
+                          />
+                          <span className="text-slate-700">{col.label || col.key}</span>
+                          {col.hiddenByDefault && <span className="ml-auto text-[9px] text-slate-400">oculta def.</span>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Botón duplicar tabla */}
           {!isPrint && !readOnly && onDuplicate && (
             <button
@@ -937,17 +998,17 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Tabla */}
       <div className={isPrint || readOnly ? '' : 'overflow-x-auto'}>
-        <table className="w-full text-left border-collapse" style={table.columns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
-          {table.columns.some(c => c.width) && (
+        <table className="w-full text-left border-collapse" style={visibleColumns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
+          {visibleColumns.some(c => c.width) && (
             <colgroup>
-              {table.columns.map(col => (
+              {visibleColumns.map(col => (
                 <col key={col.key} style={col.width ? { width: `${col.width}mm` } : undefined} />
               ))}
             </colgroup>
           )}
           <thead>
             {(() => {
-              const groups = table.columnGroups ?? [];
+              const groups = visibleGroups;
               const hasGroups = groups.length > 0;
               const groupTitle = table.columnGroupTitle ?? null;
               // Set de índices de columna cubiertos por un grupo
@@ -956,12 +1017,12 @@ export const CatalogTableView: React.FC<Props> = ({
 
               const thClass = (colIdx: number) =>
                 `px-2 font-semibold ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} text-center ${
-                  `text-slate-600${colIdx < table.columns.length - 1 ? ' border-r border-slate-200' : ''}`
+                  `text-slate-600${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-200' : ''}`
                 }`;
 
               const titleRow = groupTitle ? (
                 <tr className="bg-slate-100">
-                  <th colSpan={table.columns.length}
+                  <th colSpan={visibleColumns.length}
                     className={`px-2 font-bold text-center ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} text-slate-700 border-b border-slate-200`}>
                     {groupTitle}
                   </th>
@@ -974,7 +1035,7 @@ export const CatalogTableView: React.FC<Props> = ({
                   <>
                     {titleRow}
                     <tr className="bg-slate-100 border-b border-slate-200">
-                      {table.columns.map((col, colIdx) => (
+                      {visibleColumns.map((col, colIdx) => (
                         <th key={col.key} className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''}`}
                           style={col.width ? { width: `${col.width}mm` } : undefined}>
                           {col.label || null}
@@ -998,7 +1059,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 <>
                   {titleRow}
                   <tr className={trClass}>
-                    {table.columns.map((col, colIdx) => {
+                    {visibleColumns.map((col, colIdx) => {
                       // Si esta columna es parte de un grupo pero NO es la primera del grupo, skip
                       if (groupedCols.has(colIdx)) {
                         const group = groups.find(g => g.startCol === colIdx);
@@ -1029,10 +1090,10 @@ export const CatalogTableView: React.FC<Props> = ({
                   </tr>
                   <tr className={`${trClass} ${isPrint ? '' : 'border-b border-slate-200'}`}>
                     {groups.flatMap(g =>
-                      table.columns.slice(g.startCol, g.startCol + g.span).map((col, i) => {
+                      visibleColumns.slice(g.startCol, g.startCol + g.span).map((col, i) => {
                         const colIdx = g.startCol + i;
                         const isLastInGroup = i === g.span - 1;
-                        const isLastCol = colIdx === table.columns.length - 1;
+                        const isLastCol = colIdx === visibleColumns.length - 1;
                         return (
                           <th key={col.key}
                             className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''} ${!isPrint && isLastInGroup && !isLastCol ? 'border-r border-slate-200' : ''}`}
@@ -1059,7 +1120,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 return 1;
               };
               table.templateRows.forEach((row, idx) => {
-                for (const col of table.columns) {
+                for (const col of visibleColumns) {
                   const span = spanAt(row, col.key);
                   if (span > 1) {
                     for (let offset = 1; offset < span; offset++) {
@@ -1073,7 +1134,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 if (rowIdx === 0) return false;
                 const r = table.templateRows[rowIdx];
                 if (!r) return false;
-                return table.columns.some(col => spanAt(r, col.key) > 1);
+                return visibleColumns.some(col => spanAt(r, col.key) > 1);
               };
               // Borde separador: se dibuja tanto al iniciar un merge como al salir de uno
               // (fila standalone que viene después de un bloque fusionado).
@@ -1082,7 +1143,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 if (isGroupStart(rowIdx)) return true;
                 const prevRow = table.templateRows[rowIdx - 1];
                 if (!prevRow) return false;
-                return table.columns.some(col =>
+                return visibleColumns.some(col =>
                   spanAt(prevRow, col.key) > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`)
                 );
               };
@@ -1096,7 +1157,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 return (
                   <tr key={row.rowId} className="bg-slate-50">
                     <td
-                      colSpan={table.columns.length}
+                      colSpan={visibleColumns.length}
                       className="px-2 py-1 font-semibold text-xs text-slate-700 border-b border-slate-200"
                     >
                       {row.titleText ?? ''}
@@ -1122,18 +1183,18 @@ export const CatalogTableView: React.FC<Props> = ({
                       // Si no: label + dropdown juntos en col 0, resto editables
                       const splitSelector = (row.selectorColumn ?? 0) > 0;
                       const dropdownCol = row.selectorColumn ?? 0;
-                      return table.columns.map((col, colIdx) => {
+                      return visibleColumns.map((col, colIdx) => {
                         // La columna del label (col 0) siempre va a la izquierda.
                         // Las demás respetan col.align configurado en el catálogo (default: center).
                         const alignClass = colIdx === 0
                           ? 'text-left'
                           : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
-                        const isLastCol = colIdx === table.columns.length - 1;
+                        const isLastCol = colIdx === visibleColumns.length - 1;
                         const showActionsHere = isLastCol && (canDuplicate || canRemove);
                         return (
                         <td
                           key={col.key}
-                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
+                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -1237,10 +1298,10 @@ export const CatalogTableView: React.FC<Props> = ({
                     const hasActions = canDuplicate || canRemoveDup || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
                     // Última celda renderizada (última columna no cubierta por un span).
                     let lastRenderedIdx = -1;
-                    for (let i = table.columns.length - 1; i >= 0; i--) {
-                      if (!coveredCells.has(`${idx}:${table.columns[i].key}`)) { lastRenderedIdx = i; break; }
+                    for (let i = visibleColumns.length - 1; i >= 0; i--) {
+                      if (!coveredCells.has(`${idx}:${visibleColumns[i].key}`)) { lastRenderedIdx = i; break; }
                     }
-                    return table.columns.map((col, colIdx) => {
+                    return visibleColumns.map((col, colIdx) => {
                       if (coveredCells.has(`${idx}:${col.key}`)) return null;
                       const colSpan = spanAt(row, col.key);
                       const isSpanning = colSpan > 1;
@@ -1256,7 +1317,7 @@ export const CatalogTableView: React.FC<Props> = ({
                           rowSpan={isSpanning ? colSpan : undefined}
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
-                            `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
+                            `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
                             alignCls,
                             boundaryAbove ? 'border-t border-t-slate-300' : '',
                             showActionsHere ? 'relative pr-4' : '',

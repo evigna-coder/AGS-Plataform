@@ -394,6 +394,17 @@ export function useAppLogic(
     );
   };
 
+  const handleColumnVisibilityChange = (tableId: string, colKey: string, visible: boolean) => {
+    setProtocolSelections(prev =>
+      prev.map(s =>
+        s.tableId !== tableId ? s : {
+          ...s,
+          columnVisibility: { ...(s.columnVisibility ?? {}), [colKey]: visible },
+        }
+      )
+    );
+  };
+
   const handleChecklistAnswer = (tableId: string, itemId: string, answer: ChecklistItemAnswer) => {
     setProtocolSelections(prev =>
       prev.map(s =>
@@ -885,7 +896,13 @@ export function useAppLogic(
         copyObservations: options.copyObservations,
         copyReportTecnico: options.copyReportTecnico,
         newOtSuffix: options.newOtSuffix
-      });
+      }, modal.showConfirm);
+
+      if (!newOt) {
+        // Usuario canceló la sobreescritura — dejar el modal abierto para que ajuste la OT
+        return;
+      }
+
       setShowDuplicateModal(false);
 
       // Reconstruir entity selectors si se copió cliente/equipo
@@ -978,7 +995,7 @@ export function useAppLogic(
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
     handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
-    handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange,
+    handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange, handleColumnVisibilityChange,
     handleChecklistAnswer, handleToggleChecklistSection,
     // Refs
     clientPadRef, engineerPadRef, qrRef,

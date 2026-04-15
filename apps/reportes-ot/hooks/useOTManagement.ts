@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { auth } from '../services/authService';
 import { FirebaseService } from '../services/firebaseService';
 import { Part, ProtocolData } from '../types';
-import { uid, incrementSuffix, findNextAvailableOT } from '../services/utils';
+import { uid, incrementSuffix } from '../services/utils';
 import { UseReportFormReturn } from './useReportForm';
 import { createEmptyProtocolDataForTemplate } from '../data/sampleProtocol';
 import { getProtocolTemplateForServiceType } from '../utils/protocolSelector';
@@ -95,7 +95,7 @@ export interface UseOTManagementReturn {
   loadOT: (otValue: string) => Promise<void>;
   createNewOT: (otValue: string) => void;
   newReport: (showConfirmModal: (options: { title?: string; message: string; onConfirm: () => void; onCancel?: () => void; confirmText?: string; cancelText?: string; confirmType?: 'info' | 'warning' | 'error' | 'success' }) => Promise<boolean>) => Promise<void>;
-  duplicateOT: (options: DuplicateOptions) => Promise<string>;
+  duplicateOT: (options: DuplicateOptions, showConfirmModal?: (options: { title?: string; message: string; onConfirm: () => void; onCancel?: () => void; confirmText?: string; cancelText?: string; confirmType?: 'info' | 'warning' | 'error' | 'success' }) => Promise<boolean>) => Promise<string | null>;
   
   // Estados de modales
   modals: {
@@ -448,27 +448,45 @@ export const useOTManagement = (
   };
 
   // Duplicar OT
-  const duplicateOT = async (options: DuplicateOptions) => {
-    // Verificar que la OT sugerida esté disponible antes de crear
+  const duplicateOT = async (
+    options: DuplicateOptions,
+    showConfirmModal?: (options: { title?: string; message: string; onConfirm: () => void; onCancel?: () => void; confirmText?: string; cancelText?: string; confirmType?: 'info' | 'warning' | 'error' | 'success' }) => Promise<boolean>
+  ): Promise<string | null> => {
     let newOt = options.newOtSuffix || incrementSuffix(otNumber);
-    
-    // Verificar si la OT ya existe y está finalizada
+
+    // Guarda dura contra pisar trabajo existente. Cualquier OT que ya exista
+    // (BORRADOR o FINALIZADO) requiere confirmación explícita para sobreescribir.
     try {
       const existingReport = await firebase.getReport(newOt);
       if (existingReport) {
-        if (existingReport.status === 'FINALIZADO') {
-          // Si está finalizada, buscar la siguiente disponible
-          logger.debug(`⚠️ OT ${newOt} ya existe y está FINALIZADA. Buscando siguiente OT disponible...`);
-          newOt = await findNextAvailableOT(otNumber, firebase);
-          logger.debug(`✅ OT disponible encontrada: ${newOt}`);
+        const statusLabel = existingReport.status === 'FINALIZADO'
+          ? 'FINALIZADA'
+          : (existingReport.status === 'BORRADOR' || !existingReport.status)
+            ? 'en BORRADOR (posiblemente con trabajo sin guardar)'
+            : `con status ${existingReport.status}`;
+
+        if (showConfirmModal) {
+          const overwrite = await showConfirmModal({
+            title: 'OT existente — ¿Sobreescribir?',
+            message: `La OT ${newOt} ya existe ${statusLabel}. Si continuás, su contenido será reemplazado y no se podrá recuperar.\n\n¿Querés sobreescribirla igual?`,
+            confirmText: 'Sí, sobreescribir',
+            cancelText: 'No, cancelar',
+            confirmType: 'warning',
+            onConfirm: () => {},
+            onCancel: () => {},
+          });
+          if (!overwrite) {
+            logger.debug(`🚫 Duplicación cancelada por el usuario (OT ${newOt} ya existe)`);
+            return null;
+          }
+          logger.debug(`⚠️ Usuario confirmó sobreescribir OT ${newOt} (${statusLabel})`);
         } else {
-          // Si existe pero está en BORRADOR, está disponible para editar
-          logger.debug(`ℹ️ OT ${newOt} ya existe pero está en BORRADOR, se puede editar`);
+          logger.warn(`OT ${newOt} ya existe (${statusLabel}) pero no hay showConfirmModal; abortando por seguridad.`);
+          return null;
         }
       }
     } catch (error) {
       logger.warn(`Error al verificar OT ${newOt}, continuando con la creación:`, error);
-      // Si hay error al verificar, continuar con la OT sugerida
     }
     
     const today = new Date().toISOString().split('T')[0];

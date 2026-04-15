@@ -32,18 +32,14 @@ export const incrementSuffix = (ot: string): string => {
 };
 
 /**
- * Busca la siguiente OT disponible que no exista o que esté en BORRADOR
- * Si la OT sugerida ya existe y está FINALIZADA, busca la siguiente disponible
- * 
- * @param baseOt - OT base (ej: "30000.01")
- * @param firebase - Instancia de FirebaseService
- * @param maxAttempts - Número máximo de intentos para evitar loops infinitos (default: 10)
- * @returns Promise con la siguiente OT disponible
+ * Busca la siguiente OT que NO exista en Firestore.
+ * Cualquier OT existente (BORRADOR o FINALIZADO) se trata como colisión y se salta,
+ * para evitar sobreescribir trabajo en curso al duplicar.
  */
 export const findNextAvailableOT = async (
   baseOt: string,
   firebase: any,
-  maxAttempts: number = 10
+  maxAttempts: number = 50
 ): Promise<string> => {
   let currentOt = incrementSuffix(baseOt);
   let attempts = 0;
@@ -51,36 +47,35 @@ export const findNextAvailableOT = async (
   while (attempts < maxAttempts) {
     try {
       const report = await firebase.getReport(currentOt);
-      
-      // Si la OT no existe, está disponible
-      if (!report) {
-        return currentOt;
-      }
-
-      // Si la OT existe pero está en BORRADOR, está disponible (se puede editar)
-      if (report.status === 'BORRADOR' || !report.status) {
-        return currentOt;
-      }
-
-      // Si la OT existe y está FINALIZADA, buscar la siguiente
-      if (report.status === 'FINALIZADO') {
-        currentOt = incrementSuffix(currentOt);
-        attempts++;
-        continue;
-      }
-
-      // Por defecto, si tiene otro status, considerar disponible
-      return currentOt;
+      if (!report) return currentOt;
+      currentOt = incrementSuffix(currentOt);
+      attempts++;
     } catch (error) {
-      // Si hay error al consultar, asumir que no existe y está disponible
       console.warn(`Error al verificar OT ${currentOt}:`, error);
       return currentOt;
     }
   }
 
-  // Si se agotaron los intentos, retornar la última OT calculada
   console.warn(`Se alcanzó el máximo de intentos buscando OT disponible. Retornando: ${currentOt}`);
   return currentOt;
+};
+
+/**
+ * Verifica si una OT ya existe en Firestore y devuelve su status.
+ * Retorna null si no existe, o el status ('BORRADOR' | 'FINALIZADO' | string) si existe.
+ */
+export const checkOTExists = async (
+  ot: string,
+  firebase: any
+): Promise<string | null> => {
+  try {
+    const report = await firebase.getReport(ot);
+    if (!report) return null;
+    return report.status || 'BORRADOR';
+  } catch (error) {
+    console.warn(`Error al verificar existencia de OT ${ot}:`, error);
+    return null;
+  }
 };
 
 /**

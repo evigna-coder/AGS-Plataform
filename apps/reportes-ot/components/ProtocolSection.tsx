@@ -42,6 +42,7 @@ interface ProtocolSectionProps {
   handleRemoveRow: (tableId: string, rowId: string) => void;
   handleDuplicateRow: (tableId: string, originalRowId: string) => void;
   handleHeaderDataChange: (tableId: string, fieldId: string, value: string) => void;
+  handleColumnVisibilityChange: (tableId: string, colKey: string, visible: boolean) => void;
   handleChecklistAnswer: (tableId: string, itemId: string, answer: ChecklistItemAnswer) => void;
   handleToggleChecklistSection: (tableId: string, itemId: string, isNA: boolean) => void;
   // Signatures for catalog
@@ -89,7 +90,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   protocolSelections, setProtocolSelections, suggestedTables, setSuggestedTables,
   handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
   handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
-  handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange,
+  handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange, handleColumnVisibilityChange,
   handleChecklistAnswer, handleToggleChecklistSection,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin,
@@ -235,6 +236,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onRemoveRow={handleRemoveRow}
                 onDuplicateRow={handleDuplicateRow}
                 onChangeHeaderData={handleHeaderDataChange}
+                onChangeColumnVisibility={handleColumnVisibilityChange}
                 variables={{
                   ...variables,
                   'equipo.modelo': coverData?.sistemaNombre || sistema || '',

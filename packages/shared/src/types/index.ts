@@ -1253,6 +1253,11 @@ export interface TableCatalogColumn {
   /** Cuando es true, la columna actúa como etiqueta fija: las filas con valor vacío muestran celda en blanco. */
   isLabelColumn?: boolean;
   /**
+   * Si true, la columna arranca oculta en reportes-ot. El ingeniero puede mostrarla por instancia
+   * vía el toggle de visibilidad de columnas. Los datos se siguen almacenando (fórmulas funcionan).
+   */
+  hiddenByDefault?: boolean;
+  /**
    * Para multi_select: referencia a otra tabla del protocolo para obtener opciones dinámicas.
    * tableName = nombre exacto de la tabla fuente; columnKey = key de la columna cuyos valores se usan como opciones.
    * Si no se define, usa `options[]` estáticas.
@@ -1587,6 +1592,11 @@ export interface ProtocolSelection {
   collapsedSections?: string[];
   /** Valores seleccionados en los campos de encabezado (fieldId → valor) */
   headerData?: Record<string, string>;
+  /**
+   * Override de visibilidad por columna para esta instancia. Si no está la key,
+   * se usa `!col.hiddenByDefault`. true = visible, false = oculta.
+   */
+  columnVisibility?: Record<string, boolean>;
 }
 
 // --- RenderSpec (especificación determinística para regenerar el PDF) ---

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FirebaseService } from '../services/firebaseService';
-import { findNextAvailableOT } from '../services/utils';
+import { findNextAvailableOT, checkOTExists } from '../services/utils';
 
 export interface DuplicateOptions {
   copyClientEquipment: boolean;
@@ -26,11 +26,13 @@ export const DuplicateOTModal: React.FC<DuplicateOTModalProps> = ({ isOpen, onCl
   const [copyReportTecnico, setCopyReportTecnico] = useState(false);
   const [newOtSuffix, setNewOtSuffix] = useState('');
   const [isFindingOT, setIsFindingOT] = useState(false);
+  const [existingStatus, setExistingStatus] = useState<string | null>(null);
+  const [isCheckingExistence, setIsCheckingExistence] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      // Buscar la siguiente OT disponible (que no exista o que esté en BORRADOR)
       setIsFindingOT(true);
+      setExistingStatus(null);
       findNextAvailableOT(otNumber, firebase)
         .then((availableOT) => {
           setNewOtSuffix(availableOT);
@@ -38,12 +40,27 @@ export const DuplicateOTModal: React.FC<DuplicateOTModalProps> = ({ isOpen, onCl
         })
         .catch((error) => {
           console.error("Error buscando OT disponible:", error);
-          // Fallback a incrementSuffix si hay error
           setNewOtSuffix(incrementSuffix(otNumber));
           setIsFindingOT(false);
         });
     }
   }, [isOpen, otNumber, incrementSuffix, firebase]);
+
+  // Verifica en vivo si la OT tipeada manualmente ya existe, para avisar al usuario
+  useEffect(() => {
+    if (!isOpen || isFindingOT || !newOtSuffix) {
+      setExistingStatus(null);
+      return;
+    }
+    let cancelled = false;
+    setIsCheckingExistence(true);
+    const handle = setTimeout(() => {
+      checkOTExists(newOtSuffix, firebase)
+        .then((status) => { if (!cancelled) setExistingStatus(status); })
+        .finally(() => { if (!cancelled) setIsCheckingExistence(false); });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [isOpen, isFindingOT, newOtSuffix, firebase]);
 
   const handleDuplicate = () => {
     onDuplicate({
@@ -120,6 +137,31 @@ export const DuplicateOTModal: React.FC<DuplicateOTModalProps> = ({ isOpen, onCl
           />
           {isFindingOT && (
             <p className="text-xs text-slate-500 mt-1">Verificando OT disponible...</p>
+          )}
+          {!isFindingOT && isCheckingExistence && (
+            <p className="text-xs text-slate-400 mt-1">Comprobando...</p>
+          )}
+          {!isFindingOT && !isCheckingExistence && existingStatus && (
+            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+              <p className="text-xs text-amber-800 font-semibold">
+                ⚠️ La OT {newOtSuffix} ya existe {existingStatus === 'FINALIZADO' ? 'y está FINALIZADA' : `(${existingStatus})`}.
+              </p>
+              <p className="text-[11px] text-amber-700 mt-1">
+                Si confirmás, se <strong>sobreescribirá</strong> el contenido actual. Pedirá confirmación.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsFindingOT(true);
+                  const next = await findNextAvailableOT(otNumber, firebase).catch(() => incrementSuffix(newOtSuffix));
+                  setNewOtSuffix(next);
+                  setIsFindingOT(false);
+                }}
+                className="mt-2 text-[11px] font-bold uppercase tracking-wider text-amber-900 underline hover:text-amber-950"
+              >
+                Usar siguiente disponible
+              </button>
+            </div>
           )}
         </div>
 

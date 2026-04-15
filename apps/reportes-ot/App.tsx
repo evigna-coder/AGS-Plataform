@@ -162,6 +162,7 @@ const App: React.FC = () => {
             handleRemoveSection={app.handleRemoveSection}
             handleAddRow={app.handleAddRow} handleRemoveRow={app.handleRemoveRow} handleDuplicateRow={app.handleDuplicateRow}
             handleHeaderDataChange={app.handleHeaderDataChange}
+            handleColumnVisibilityChange={app.handleColumnVisibilityChange}
             handleChecklistAnswer={app.handleChecklistAnswer}
             handleToggleChecklistSection={app.handleToggleChecklistSection}
             signatureClient={app.signatureClient} signatureEngineer={app.signatureEngineer}
@@ -474,6 +475,7 @@ const App: React.FC = () => {
             handleRemoveSection={app.handleRemoveSection}
         handleAddRow={app.handleAddRow} handleRemoveRow={app.handleRemoveRow} handleDuplicateRow={app.handleDuplicateRow}
         handleHeaderDataChange={app.handleHeaderDataChange}
+        handleColumnVisibilityChange={app.handleColumnVisibilityChange}
         handleChecklistAnswer={app.handleChecklistAnswer}
         handleToggleChecklistSection={app.handleToggleChecklistSection}
         signatureClient={app.signatureClient} signatureEngineer={app.signatureEngineer}

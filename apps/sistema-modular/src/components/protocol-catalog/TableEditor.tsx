@@ -75,6 +75,10 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
             <input type="checkbox" checked={!!d.isLabelColumn} onChange={e => setD({ ...d, isLabelColumn: e.target.checked || undefined })} />
             Etiqueta fija
           </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="La columna existe y guarda datos, pero arranca oculta en reportes-ot. El ingeniero puede mostrarla por instancia.">
+            <input type="checkbox" checked={!!d.hiddenByDefault} onChange={e => setD({ ...d, hiddenByDefault: e.target.checked || undefined })} />
+            Oculta por defecto
+          </label>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Ancho (mm)</label>
             <input
