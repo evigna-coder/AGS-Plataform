@@ -107,8 +107,9 @@ export function onForegroundNotification(handler: OnForegroundMessage): () => vo
   if (!messaging) return () => {};
 
   const unsubscribe = onMessage(messaging, (payload: MessagePayload) => {
-    const title = payload.notification?.title || 'AGS Sistema';
-    const body = payload.notification?.body || '';
+    // Payload data-only: title/body vienen en payload.data (ver Cloud Function notifications.ts).
+    const title = payload.data?.title || payload.notification?.title || 'AGS Sistema';
+    const body = payload.data?.body || payload.notification?.body || '';
     const data: NotificationData = {
       leadId: payload.data?.leadId || undefined,
       type: (payload.data?.type as NotificationType) || 'generic',

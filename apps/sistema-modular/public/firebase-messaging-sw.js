@@ -22,12 +22,11 @@ const messaging = firebase.messaging();
 
 // Background message handler — cuando la app NO está en foreground
 messaging.onBackgroundMessage((payload) => {
-  const notification = payload.notification || {};
   const data = payload.data || {};
 
-  const title = notification.title || 'Portal AGS';
+  const title = data.title || 'Portal AGS';
   const options = {
-    body: notification.body || '',
+    body: data.body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: data.leadId || 'default',
