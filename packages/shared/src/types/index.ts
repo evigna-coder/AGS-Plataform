@@ -1446,7 +1446,14 @@ export type ChecklistItemAnswer =
 export interface TableHeaderField {
   fieldId: string;
   label: string;
+  /** Opciones para inputType='select' (legacy: required si inputType omitido o 'select') */
   options: string[];
+  /** Tipo de input. Default: 'select' (dropdown con options). 'number' renderiza input numérico. */
+  inputType?: 'select' | 'number';
+  /** Unidad a mostrar al lado del input numérico (ej. "mAU", "%") */
+  unit?: string | null;
+  /** Placeholder opcional para inputs numéricos */
+  placeholder?: string | null;
 }
 
 export interface TableCatalogEntry {

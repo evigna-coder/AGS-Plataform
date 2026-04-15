@@ -93,6 +93,69 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
   return '';
 }
 
+/**
+ * Resuelve variables y expresiones aritméticas simples en una especificación.
+ * - Substituye `{fieldId}` con valores de headerData
+ * - Evalúa multiplicaciones simples `a*b` o `a×b` (ej. "1600*0.5" → "800")
+ * - Se respetan operadores de comparación (≥, ≤, >, <, ±, NMT, NLT, rangos)
+ *
+ * Ejemplos:
+ *   "≥ 1600*{ruido}" + {ruido: "0.5"}  →  "≥ 800"
+ *   "≤ {ruido}*6.0"  + {ruido: "0.5"}  →  "≤ 3"
+ *   "95 – 105"                          →  "95 – 105" (sin cambios)
+ *
+ * Si una variable no tiene valor o no se puede resolver, devuelve null (spec incompleta).
+ */
+function resolveSpecExpression(
+  spec: string,
+  headerData?: Record<string, string>,
+  headerFields?: { fieldId: string; label: string }[],
+): string | null {
+  if (!spec) return spec;
+  // Normalizador: lowercase + remueve espacios/acentos para matchear {ruido} contra label "Ruido" o "Ruido Base"
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+  const resolveToken = (token: string): string | undefined => {
+    if (!headerData) return undefined;
+    // 1. Match exacto por fieldId
+    if (headerData[token] !== undefined) return headerData[token];
+    // 2. Match case-insensitive por fieldId
+    const ntoken = norm(token);
+    for (const k of Object.keys(headerData)) {
+      if (norm(k) === ntoken) return headerData[k];
+    }
+    // 3. Match por label del header field
+    if (headerFields) {
+      const field = headerFields.find(f => norm(f.label) === ntoken);
+      if (field && headerData[field.fieldId] !== undefined) return headerData[field.fieldId];
+    }
+    return undefined;
+  };
+  // 1. Substituir {token}
+  let resolved = spec;
+  const varMatches = Array.from(spec.matchAll(/\{(\w+)\}/g));
+  for (const m of varMatches) {
+    const val = resolveToken(m[1])?.trim();
+    if (!val) return null; // variable sin valor
+    resolved = resolved.replace(m[0], val);
+  }
+  // 2. Evaluar multiplicaciones simples (a*b o a×b). Se aplica iterativamente mientras haya coincidencias.
+  //    Permite números con coma decimal.
+  const mulRe = /(-?\d+(?:[.,]\d+)?)\s*[*×x]\s*(-?\d+(?:[.,]\d+)?)/;
+  let safety = 10;
+  while (mulRe.test(resolved) && safety-- > 0) {
+    resolved = resolved.replace(mulRe, (_, a: string, b: string) => {
+      const na = parseFloat(a.replace(',', '.'));
+      const nb = parseFloat(b.replace(',', '.'));
+      if (isNaN(na) || isNaN(nb)) return _;
+      const product = na * nb;
+      // Normalizar: entero si corresponde, o 6 decimales max
+      const rounded = Math.round(product * 1e6) / 1e6;
+      return String(rounded);
+    });
+  }
+  return resolved;
+}
+
 // ─── Multi-select cell ────────────────────────────────────────────────────────
 
 function MultiSelectCell({ options, selected, readOnly, onToggle, getDisplay }: {
@@ -607,7 +670,8 @@ export const CatalogTableView: React.FC<Props> = ({
         const currentNominal = rRefCol
           ? (colKey === rRefCol ? value : (selection.filledData[rowId]?.[rRefCol] ?? getFactoryValue(rowId, rRefCol)))
           : undefined;
-        const conclusion = computeConclusion(currentResultado, currentSpec, currentNominal);
+        const resolvedSpec = resolveSpecExpression(currentSpec, selection.headerData, table.headerFields) ?? '';
+        const conclusion = computeConclusion(currentResultado, resolvedSpec, currentNominal);
         if (conclusion !== '') {
           onChangeData(selection.tableId, rowId, rTgtCol, conclusion);
         } else if (!currentResultado.trim()) {
@@ -616,6 +680,39 @@ export const CatalogTableView: React.FC<Props> = ({
       }
     }
   };
+
+  // ── Recomputar conclusiones cuando cambian variables del encabezado ──
+  // Si el spec usa {fieldId} y el ingeniero cambia ese valor, las conclusiones de las filas
+  // afectadas tienen que recalcular. Se ejecuta cuando headerData cambia.
+  const headerDataKey = JSON.stringify(selection.headerData ?? {});
+  React.useEffect(() => {
+    if (!specColKey || vsSpecRules.length === 0) return;
+    for (const rule of vsSpecRules) {
+      const rSrcCol = rule.sourceColumn;
+      const rTgtCol = rule.targetColumn;
+      const rSpecCol = rule.specColumn || String(rule.factoryThreshold) || '';
+      if (!rSrcCol || !rTgtCol || !rSpecCol) continue;
+      for (const row of table.templateRows) {
+        if (row.isTitle || row.isSelector) continue;
+        if (!ruleAppliesToRow(rule, row.rowId)) continue;
+        const specRaw = (clientSpecEnabled && selection.filledData[row.rowId]?.[rSpecCol])
+          || getFactoryValue(row.rowId, rSpecCol);
+        if (!/\{\w+\}/.test(specRaw)) continue; // sin variables: no aplica
+        const resultado = selection.filledData[row.rowId]?.[rSrcCol] ?? '';
+        if (!resultado.trim()) continue;
+        const nominal = rule.referenceColumn
+          ? (selection.filledData[row.rowId]?.[rule.referenceColumn] ?? getFactoryValue(row.rowId, rule.referenceColumn))
+          : undefined;
+        const resolvedSpec = resolveSpecExpression(specRaw, selection.headerData, table.headerFields) ?? '';
+        const newConclusion = computeConclusion(resultado, resolvedSpec, nominal);
+        const currentConclusion = selection.filledData[row.rowId]?.[rTgtCol] ?? '';
+        if (newConclusion !== currentConclusion) {
+          onChangeData(selection.tableId, row.rowId, rTgtCol, newConclusion);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headerDataKey]);
 
   /** Renderiza una celda con lógica especial para columnas spec y conclusion */
   const renderTableCell = (col: TableCatalogColumn, rowId: string): React.ReactNode => {
@@ -701,10 +798,27 @@ export const CatalogTableView: React.FC<Props> = ({
     // ── Columna Especificación ──────────────────────────────────────────────
     if (allSpecColKeys.has(col.key)) {
       const factoryVal = getFactorySpec(rowId);
+      const hasSpecVars = /\{\w+\}/.test(factoryVal);
+      const resolvedSpec = hasSpecVars ? resolveSpecExpression(factoryVal, selection.headerData, table.headerFields) : null;
 
       if (!clientSpecEnabled) {
-        // Solo lectura: muestra valor de fábrica
-        if (isPrint) return <span className="text-[10px]">{factoryVal || '—'}</span>;
+        // Solo lectura: muestra valor de fábrica (con resolución si tiene variables)
+        if (isPrint) {
+          return <span className="text-[10px]">{resolvedSpec || factoryVal || '—'}</span>;
+        }
+        if (hasSpecVars) {
+          return (
+            <div className="flex flex-col items-center leading-tight">
+              <span className="text-[10px] text-slate-600 select-none" title="Fórmula (template)">
+                {factoryVal}
+              </span>
+              <span className={`text-[9px] font-semibold ${resolvedSpec ? 'text-teal-600' : 'text-amber-500'}`}
+                title={resolvedSpec ? 'Valor resuelto con variables del encabezado' : 'Cargar variable para resolver'}>
+                {resolvedSpec ? `= ${resolvedSpec}` : '(cargar variable)'}
+              </span>
+            </div>
+          );
+        }
         return (
           <span className="text-[10px] text-slate-600 select-none" title="Especificación de fábrica (no editable)">
             {factoryVal || '—'}
@@ -888,8 +1002,8 @@ export const CatalogTableView: React.FC<Props> = ({
               {showColMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowColMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[200px]">
-                    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-bold text-slate-500 border-b border-slate-100">
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[220px] max-h-[70vh] overflow-y-auto">
+                    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-bold text-slate-500 border-b border-slate-100 sticky top-0 bg-white">
                       Columnas
                     </div>
                     {table.columns.map(col => {
@@ -975,9 +1089,26 @@ export const CatalogTableView: React.FC<Props> = ({
                   </span>
                 )}
                 {isPrint ? (
-                  <span className="text-[9px]">{printValue || '—'}</span>
+                  <span className="text-[9px]">
+                    {(hf.inputType === 'number' ? value : printValue) || '—'}
+                    {hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
+                  </span>
                 ) : readOnly ? (
-                  <span className="text-xs text-slate-600">{value || '—'}</span>
+                  <span className="text-xs text-slate-600">
+                    {value || '—'}{hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
+                  </span>
+                ) : hf.inputType === 'number' ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="any"
+                      value={value}
+                      placeholder={hf.placeholder ?? ''}
+                      onChange={e => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value)}
+                      className="border border-slate-300 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-500 outline-none w-24"
+                    />
+                    {hf.unit && <span className="text-[10px] text-slate-500">{hf.unit}</span>}
+                  </div>
                 ) : (
                   <select
                     value={value}

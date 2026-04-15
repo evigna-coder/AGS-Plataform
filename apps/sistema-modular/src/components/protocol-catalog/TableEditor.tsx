@@ -524,27 +524,62 @@ interface HeaderFieldFormProps {
 const HeaderFieldForm = ({ field, onSave, onCancel }: HeaderFieldFormProps) => {
   const [label, setLabel] = useState(field.label);
   const [optionsText, setOptionsText] = useState(field.options.join(', '));
+  const [inputType, setInputType] = useState<'select' | 'number'>(field.inputType ?? 'select');
+  const [unit, setUnit] = useState(field.unit ?? '');
+  const [placeholder, setPlaceholder] = useState(field.placeholder ?? '');
 
   const handleSave = () => {
-    const options = optionsText.split(',').map(o => o.trim()).filter(Boolean);
-    if (!label || options.length < 2) return;
-    onSave({ ...field, label, options });
+    if (!label) return;
+    if (inputType === 'select') {
+      const options = optionsText.split(',').map(o => o.trim()).filter(Boolean);
+      if (options.length < 2) return;
+      onSave({ ...field, label, options, inputType: 'select', unit: null, placeholder: null });
+    } else {
+      onSave({
+        ...field,
+        label,
+        options: [],
+        inputType: 'number',
+        unit: unit.trim() || null,
+        placeholder: placeholder.trim() || null,
+      });
+    }
   };
+
+  const disabled = !label || (inputType === 'select' &&
+    optionsText.split(',').map(o => o.trim()).filter(Boolean).length < 2);
 
   return (
     <div className="border border-slate-900 rounded-lg p-3 space-y-2 bg-slate-50 mt-2">
-      <Input placeholder="Etiqueta (ej: Inyector)" value={label}
-        onChange={e => setLabel(e.target.value)} />
-      <Input placeholder="Opciones separadas por coma (ej: ALS, SSL, PTV, COC)" value={optionsText}
-        onChange={e => setOptionsText(e.target.value)} />
+      <div className="flex gap-2">
+        <Input placeholder="Etiqueta (ej: Inyector, Ruido)" value={label}
+          onChange={e => setLabel(e.target.value)} />
+        <select value={inputType} onChange={e => setInputType(e.target.value as 'select' | 'number')}
+          className="border border-slate-300 rounded-lg px-2 text-xs bg-white">
+          <option value="select">Dropdown</option>
+          <option value="number">Numérico</option>
+        </select>
+      </div>
+      {inputType === 'select' ? (
+        <Input placeholder="Opciones separadas por coma (ej: ALS, SSL, PTV, COC)" value={optionsText}
+          onChange={e => setOptionsText(e.target.value)} />
+      ) : (
+        <div className="flex gap-2">
+          <Input placeholder="Unidad (ej: mAU, %)" value={unit}
+            onChange={e => setUnit(e.target.value)} />
+          <Input placeholder="Placeholder (ej: 0.5)" value={placeholder}
+            onChange={e => setPlaceholder(e.target.value)} />
+        </div>
+      )}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-slate-400">Mínimo 2 opciones</span>
+        <span className="text-[10px] text-slate-400">
+          {inputType === 'select'
+            ? 'Mínimo 2 opciones'
+            : `Uso en specs: referenciar como {${field.fieldId || 'fieldId'}} (ej. "≥ 1600*{${field.fieldId || 'ruido'}}")`}
+        </span>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button size="sm" onClick={handleSave}
-            disabled={!label || optionsText.split(',').map(o => o.trim()).filter(Boolean).length < 2}>
-            Guardar
-          </Button>
+          <Button size="sm" onClick={handleSave} disabled={disabled}>Guardar</Button>
         </div>
       </div>
     </div>
