@@ -39,6 +39,20 @@ body.pdf-generating .visual-page-break-indicator {
   display: block;
 }
 
+/* Para tablas del catálogo (CatalogTableView) que pueden superar una página:
+   NO se aplica break-inside a nivel de tabla (eso obligaría a pasar toda la
+   tabla a la siguiente página y causa cortes raros con html2pdf). En cambio,
+   se protege SOLO a nivel de fila y <thead>: las filas nunca se parten a la
+   mitad, y el header no queda huérfano al pie de página. */
+.catalog-table-rowsafe tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.catalog-table-rowsafe thead {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
 /* Bordes más oscuros en headers/subheaders (fidelidad Word) */
 .protocol-table-wrapper thead th,
 .protocol-table-wrapper td.protocol-cell-header,

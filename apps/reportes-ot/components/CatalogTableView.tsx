@@ -821,7 +821,7 @@ export const CatalogTableView: React.FC<Props> = ({
   };
 
   return (
-    <div className={`mb-6 ${isPrint ? 'rounded-xl border border-slate-200 overflow-hidden' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
+    <div className={`catalog-table-rowsafe mb-6 ${isPrint ? 'rounded-xl border border-slate-200 overflow-hidden' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
 
       {/* Encabezado de tabla (ocultar si showTitle === false) */}
       {table.showTitle !== false ? (
@@ -1128,10 +1128,12 @@ export const CatalogTableView: React.FC<Props> = ({
                         const alignClass = colIdx === 0
                           ? 'text-left'
                           : col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+                        const isLastCol = colIdx === table.columns.length - 1;
+                        const showActionsHere = isLastCol && (canDuplicate || canRemove);
                         return (
                         <td
                           key={col.key}
-                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}`}
+                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -1184,38 +1186,36 @@ export const CatalogTableView: React.FC<Props> = ({
                               renderTableCell(col, row.rowId)
                             )
                           )}
+                          {showActionsHere && (
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 whitespace-nowrap">
+                              {canDuplicate && (
+                                <button
+                                  onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
+                                  className="text-teal-500 hover:text-teal-700 transition-colors"
+                                  title="Duplicar fila"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                </button>
+                              )}
+                              {canRemove && (
+                                <button
+                                  onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
+                                  className="text-slate-300 hover:text-red-500 transition-colors"
+                                  title="Quitar fila duplicada"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         );
                       });
                     })()}
-                    {(canDuplicate || canRemove) && (
-                      <td className="p-0 m-0 relative" style={{ width: 0 }}>
-                        <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center gap-1 whitespace-nowrap">
-                          {canDuplicate && (
-                            <button
-                              onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
-                              className="text-teal-500 hover:text-teal-700 transition-colors"
-                              title="Duplicar fila"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
-                          )}
-                          {canRemove && (
-                            <button
-                              onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
-                              className="text-slate-300 hover:text-red-500 transition-colors"
-                              title="Quitar fila duplicada"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    )}
                   </tr>
                 );
               }
@@ -1233,63 +1233,66 @@ export const CatalogTableView: React.FC<Props> = ({
                     : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                   }
                 >
-                  {table.columns.map((col, colIdx) => {
-                    // Skip cells covered by a previous row's span
-                    if (coveredCells.has(`${idx}:${col.key}`)) return null;
-                    const colSpan = spanAt(row, col.key);
-                    const isSpanning = colSpan > 1;
-                    // A cell is "group-like" if it spans OR if it's a single-row group
-                    // in a column that HAS spans elsewhere (e.g. μECD in the "detector" column)
-                    const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
-                    const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
-                    // Label columns (first col or align:left) should NOT get centered/bold group styling
-                    const isLabelCol = colIdx === 0 || col.align === 'left';
-                    const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
-                    const groupStyle = isGroupCell && !isLabelCol ? ` font-semibold bg-slate-50` : isGroupCell ? ' bg-slate-50' : '';
-                    return (
-                      <td
-                        key={col.key}
-                        rowSpan={isSpanning ? colSpan : undefined}
-                        className={[
-                          `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
-                          `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
-                          alignCls,
-                          boundaryAbove ? 'border-t border-t-slate-300' : '',
-                        ].join(' ')}
-                      >
-                        {renderTableCell(col, row.rowId)}
-                      </td>
-                    );
-                  })}
-                  {/* Acciones: duplicar (filas marcadas) / quitar (extras o duplicadas) */}
-                  {(canDuplicate || canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
-                    <td className="p-0 m-0 relative" style={{ width: 0 }}>
-                      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center gap-1 whitespace-nowrap">
-                        {canDuplicate && (
-                          <button
-                            onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
-                            className="text-teal-500 hover:text-teal-700 transition-colors"
-                            title="Duplicar fila"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
-                        )}
-                        {(canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
-                          <button
-                            onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
-                            className="text-slate-300 hover:text-red-500 transition-colors"
-                            title={canRemoveDup ? 'Quitar fila duplicada' : 'Quitar fila'}
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
+                  {(() => {
+                    const hasActions = canDuplicate || canRemoveDup || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
+                    // Última celda renderizada (última columna no cubierta por un span).
+                    let lastRenderedIdx = -1;
+                    for (let i = table.columns.length - 1; i >= 0; i--) {
+                      if (!coveredCells.has(`${idx}:${table.columns[i].key}`)) { lastRenderedIdx = i; break; }
+                    }
+                    return table.columns.map((col, colIdx) => {
+                      if (coveredCells.has(`${idx}:${col.key}`)) return null;
+                      const colSpan = spanAt(row, col.key);
+                      const isSpanning = colSpan > 1;
+                      const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
+                      const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
+                      const isLabelCol = colIdx === 0 || col.align === 'left';
+                      const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
+                      const groupStyle = isGroupCell && !isLabelCol ? ` font-semibold` : '';
+                      const showActionsHere = hasActions && colIdx === lastRenderedIdx;
+                      return (
+                        <td
+                          key={col.key}
+                          rowSpan={isSpanning ? colSpan : undefined}
+                          className={[
+                            `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
+                            `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < table.columns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
+                            alignCls,
+                            boundaryAbove ? 'border-t border-t-slate-300' : '',
+                            showActionsHere ? 'relative pr-4' : '',
+                          ].join(' ')}
+                        >
+                          {renderTableCell(col, row.rowId)}
+                          {showActionsHere && (
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 whitespace-nowrap">
+                              {canDuplicate && (
+                                <button
+                                  onClick={() => onDuplicateRow!(selection.tableId, row.rowId)}
+                                  className="text-teal-500 hover:text-teal-700 transition-colors"
+                                  title="Duplicar fila"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                </button>
+                              )}
+                              {(canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
+                                <button
+                                  onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
+                                  className="text-slate-300 hover:text-red-500 transition-colors"
+                                  title={canRemoveDup ? 'Quitar fila duplicada' : 'Quitar fila'}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    });
+                  })()}
                 </tr>
               );
             });

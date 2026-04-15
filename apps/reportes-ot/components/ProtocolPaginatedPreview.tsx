@@ -91,6 +91,8 @@ interface ContentItem {
   glueWithPrev?: boolean;
   measuredHeight?: number;
   sliceOffset?: number;
+  /** Alto visible de este slice — permite cortes exactos a límite de fila en vez de cortes por píxeles fijos. */
+  sliceHeight?: number;
   /** Si es una carátula (página completa sin header/footer) */
   isCover?: boolean;
   /** Título del protocolo (viene del tableSnapshot.headerTitle) */
@@ -465,18 +467,55 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
             currentPageItems = [];
             currentHeight = 0;
           }
+
+          // Intento corte alineado a filas: si el nodo contiene una <table>, cortamos
+          // sólo DESPUÉS de una fila de <tbody> (nunca después del <thead> — evita que
+          // el header quede huérfano al pie de la página). Si no hay tabla o no hay
+          // cortes válidos, fallback al corte por píxeles (comportamiento viejo).
+          const childEl = children[i];
+          const tableEl = childEl?.querySelector('table') as HTMLTableElement | null;
+          const bodyRowEls = tableEl
+            ? Array.from(tableEl.querySelectorAll('tbody > tr'))
+            : [];
+          const cutPoints: number[] = []; // offsets (en px desde el top del item) donde se puede cortar
+          if (tableEl && bodyRowEls.length > 0) {
+            const itemTop = childEl.getBoundingClientRect().top;
+            for (const tr of bodyRowEls) {
+              const rect = tr.getBoundingClientRect();
+              const bottomRel = rect.bottom - itemTop;
+              // Candidato válido: después de una fila de datos (bottom de tbody > tr).
+              if (bottomRel > 0 && !cutPoints.includes(bottomRel)) cutPoints.push(bottomRel);
+            }
+            cutPoints.sort((a, b) => a - b);
+          }
+
           let offset = 0;
           let sliceIdx = 0;
           while (offset < itemHeight) {
+            const remaining = itemHeight - offset;
+            let sliceHeight: number;
+            if (cutPoints.length > 0 && remaining > CONTENT_HEIGHT_PX) {
+              // Elegir el corte válido más grande que entre en una página.
+              const target = offset + CONTENT_HEIGHT_PX;
+              let chosen = -1;
+              for (const cp of cutPoints) {
+                if (cp <= target && cp > offset) chosen = cp;
+                if (cp > target) break;
+              }
+              sliceHeight = chosen > offset ? chosen - offset : CONTENT_HEIGHT_PX;
+            } else {
+              sliceHeight = Math.min(CONTENT_HEIGHT_PX, remaining);
+            }
             pagesResult.push({
               items: [{
                 ...item,
                 key: `${item.key}__slice${sliceIdx}`,
-                measuredHeight: Math.min(CONTENT_HEIGHT_PX, itemHeight - offset),
+                measuredHeight: sliceHeight,
                 sliceOffset: offset,
+                sliceHeight,
               }],
             });
-            offset += CONTENT_HEIGHT_PX;
+            offset += sliceHeight;
             sliceIdx++;
           }
         } else {
@@ -494,7 +533,10 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         pagesResult.push({ items: currentPageItems });
       }
 
-      // Glue fix: if first item on a page has glueWithPrev, pull from previous page
+      // Glue fix: if first item on a page has glueWithPrev, pull from previous page.
+      // IMPORTANTE: no mover slices (una porción de una tabla grande no puede
+      // "pegarse" a nada; mover un slice arruina la paginación). Si el item a mover
+      // es un slice, se omite — se rompe el glue en ese borde.
       let changed = true;
       while (changed) {
         changed = false;
@@ -503,6 +545,12 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
           if (page.items.length > 0 && page.items[0].glueWithPrev) {
             const prevPage = pagesResult[p - 1];
             if (prevPage.items.length > 0) {
+              const candidate = prevPage.items[prevPage.items.length - 1];
+              if (candidate.sliceOffset !== undefined) {
+                // Slice: no mover. Romper glue para que este borde no intente pegarse.
+                page.items[0] = { ...page.items[0], glueWithPrev: false };
+                continue;
+              }
               const movedItem = prevPage.items.pop()!;
               page.items.unshift(movedItem);
               changed = true;
@@ -607,7 +655,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
                     className={isSlice ? 'protocol-slice-container' : undefined}
                     data-slice-offset={isSlice ? item.sliceOffset : undefined}
                     style={isSlice ? {
-                      height: `${CONTENT_HEIGHT_PX}px`,
+                      height: `${item.sliceHeight ?? CONTENT_HEIGHT_PX}px`,
                       overflow: 'hidden',
                     } : {
                       marginBottom: item.glueWithPrev ? '0px' : '12px',

@@ -200,7 +200,7 @@ export const TablePreview = ({ table }: Props) => {
                               (() => {
                                 const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
                                 return isGroupCell
-                                  ? `align-middle font-semibold bg-slate-100 border-r border-r-slate-300 ${alignCls}`
+                                  ? `align-middle font-semibold border-r border-r-slate-300 ${alignCls}`
                                   : alignCls;
                               })(),
                               boundaryAbove ? 'border-t border-t-slate-300' : '',
