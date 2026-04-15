@@ -7,6 +7,7 @@ import {
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
   canUserModifyLead,
+  getUserTicketAreas,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,8 +28,15 @@ const thBase = 'px-2 py-1.5 text-center text-[10px] font-medium text-slate-400 t
 export default function LeadsPage() {
   const navigate = useNavigate();
   const { usuario, hasRole } = useAuth();
-  // Only admin and admin_ing_soporte can see all tickets; others are locked to their own
-  const canSeeAll = hasRole('admin', 'admin_ing_soporte');
+  const isAdmin = hasRole('admin');
+  // Áreas de tickets que el usuario puede gestionar (además de los propios)
+  const extraAreas = useMemo(() => {
+    if (!usuario || isAdmin) return null;
+    const areas = getUserTicketAreas(usuario);
+    return areas.length > 0 ? new Set(areas) : null;
+  }, [usuario, isAdmin]);
+  // Admin ve todo; roles con áreas asignadas pueden destildar "Mis tickets" para ver su área
+  const canSeeAll = isAdmin || !!extraAreas;
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -50,13 +58,13 @@ export default function LeadsPage() {
   // Build Firestore query filters
   // Estado: se filtra client-side porque "en_proceso" agrupa múltiples estados internos.
   const queryFilters = useMemo(() => {
-    // Non-admin: always lock to own tickets at query level
+    // Sin acceso ampliado: lock estricto a tickets propios a nivel query
     if (!canSeeAll && usuario) {
       if (filters.misCreados) return { createdBy: usuario.id };
       if (filters.misDerivados) return { derivadoPor: usuario.id };
       return { asignadoA: usuario.id };
     }
-    // Admin: soloMios filters by asignadoA; misCreados/misDerivados fetch all and filter client-side
+    // Admin o con áreas: soloMios → asignadoA; misCreados/misDerivados → fetch all y filtrar client-side
     const responsableFilter = filters.soloMios && usuario
       ? usuario.id
       : (filters.misCreados || filters.misDerivados)
@@ -84,6 +92,15 @@ export default function LeadsPage() {
 
   const leadsFiltered = useMemo(() => {
     let result = leads;
+    // Visibilidad por rol: no-admin con áreas solo ve sus tickets + tickets de sus áreas
+    if (!isAdmin && usuario && extraAreas) {
+      result = result.filter(l =>
+        l.asignadoA === usuario.id ||
+        l.createdBy === usuario.id ||
+        l.derivadoPor === usuario.id ||
+        (l.areaActual && extraAreas.has(l.areaActual))
+      );
+    }
     // Ocultar finalizados salvo que el checkbox esté tildado
     if (!filters.mostrarFinalizados) {
       result = result.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
@@ -117,7 +134,7 @@ export default function LeadsPage() {
       );
     }
     return result;
-  }, [leads, usuario, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
+  }, [leads, usuario, isAdmin, extraAreas, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search]);
 
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pi-tickets-list');
 

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Spinner } from './components/ui/Spinner';
-import { ToastContainer, showToast } from './components/ui/Toast';
+import { ToastContainer } from './components/ui/Toast';
 import { onForegroundNotification } from './services/notificationService';
 import { TokenAutoRefresher } from './components/notifications/TokenAutoRefresher';
 import AppShell from './components/layout/AppShell';
@@ -23,10 +23,7 @@ function ForegroundNotificationListener() {
   useEffect(() => {
     try {
       const unsub = onForegroundNotification(({ title, body, data }) => {
-        // 1. Toast in-app (UX rápido dentro de la app)
-        showToast(title, body, data);
-
-        // 2. Notificación nativa del SO (Windows/Android)
+        // Notificación nativa del SO (Windows/Android).
         // En foreground, FCM no dispara showNotification automáticamente —
         // lo hacemos manualmente via el Service Worker registrado.
         if ('serviceWorker' in navigator && Notification.permission === 'granted') {
