@@ -122,6 +122,16 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Patrones (colección nueva, estándares con lotes)
+    match /patrones/{patronId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Columnas cromatográficas (GC, HPLC)
+    match /columnas/{columnaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Marcas (catálogo compartido)
     match /marcas/{marcaId} {
       allow read, write: if true; // Temporal para desarrollo
@@ -296,6 +306,11 @@ service cloud.firestore {
 
     // Catálogo de sectores (contactos de establecimientos)
     match /catalogoSectores/{sectorId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Certificados de ingenieros (habilitaciones y capacitaciones)
+    match /certificadosIngeniero/{certId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 

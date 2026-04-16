@@ -163,6 +163,8 @@ async function sendPushNotifications(event) {
     if (recipientIds.length === 0)
         return;
     // Obtener tokens y preferencias de cada destinatario
+    // Data-only payload: evita doble display en iOS/Android (auto-display del SW + onBackgroundMessage).
+    // El SW construye la notificación desde data.title/data.body en firebase-messaging-sw.js.
     const messages = [];
     for (const userId of recipientIds) {
         // Leer preferencias del usuario
@@ -182,11 +184,9 @@ async function sendPushNotifications(event) {
             const tokenData = tokenDoc.data();
             messages.push({
                 token: tokenData.token,
-                notification: {
+                data: {
                     title: event.title,
                     body: event.body,
-                },
-                data: {
                     leadId: event.leadId,
                     type: event.type,
                     url: `/leads/${event.leadId}`,

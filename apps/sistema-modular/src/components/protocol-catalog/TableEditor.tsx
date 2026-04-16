@@ -517,23 +517,38 @@ const RuleForm = ({ rule, columns, rows = [], onSave, onCancel }: RuleFormProps)
 // ─── Sub-componente: formulario de campo de encabezado ────────────────────────
 interface HeaderFieldFormProps {
   field: TableHeaderField;
+  allFields: TableHeaderField[];
   onSave: (field: TableHeaderField) => void;
   onCancel: () => void;
 }
 
-const HeaderFieldForm = ({ field, onSave, onCancel }: HeaderFieldFormProps) => {
+const HeaderFieldForm = ({ field, allFields, onSave, onCancel }: HeaderFieldFormProps) => {
   const [label, setLabel] = useState(field.label);
   const [optionsText, setOptionsText] = useState(field.options.join(', '));
   const [inputType, setInputType] = useState<'select' | 'number'>(field.inputType ?? 'select');
   const [unit, setUnit] = useState(field.unit ?? '');
   const [placeholder, setPlaceholder] = useState(field.placeholder ?? '');
+  const [multiSelect, setMultiSelect] = useState<boolean>(!!field.multiSelect);
+  const [visTriggerField, setVisTriggerField] = useState<string>(field.visibleWhenSelector?.headerFieldId ?? '');
+  const [visValues, setVisValues] = useState<string[]>(field.visibleWhenSelector?.values ?? []);
+
+  // Sólo se puede disparar desde otros campos tipo 'select' (dropdowns con options)
+  const triggerCandidates = allFields.filter(f =>
+    f.fieldId !== field.fieldId &&
+    (f.inputType ?? 'select') === 'select' &&
+    f.options.length > 0,
+  );
+  const triggerField = triggerCandidates.find(f => f.fieldId === visTriggerField) ?? null;
 
   const handleSave = () => {
     if (!label) return;
+    const visibility = visTriggerField && visValues.length > 0
+      ? { headerFieldId: visTriggerField, values: visValues }
+      : null;
     if (inputType === 'select') {
       const options = optionsText.split(',').map(o => o.trim()).filter(Boolean);
       if (options.length < 2) return;
-      onSave({ ...field, label, options, inputType: 'select', unit: null, placeholder: null });
+      onSave({ ...field, label, options, inputType: 'select', unit: null, placeholder: null, multiSelect, visibleWhenSelector: visibility });
     } else {
       onSave({
         ...field,
@@ -542,6 +557,8 @@ const HeaderFieldForm = ({ field, onSave, onCancel }: HeaderFieldFormProps) => {
         inputType: 'number',
         unit: unit.trim() || null,
         placeholder: placeholder.trim() || null,
+        multiSelect: false,
+        visibleWhenSelector: visibility,
       });
     }
   };
@@ -561,14 +578,58 @@ const HeaderFieldForm = ({ field, onSave, onCancel }: HeaderFieldFormProps) => {
         </select>
       </div>
       {inputType === 'select' ? (
-        <Input placeholder="Opciones separadas por coma (ej: ALS, SSL, PTV, COC)" value={optionsText}
-          onChange={e => setOptionsText(e.target.value)} />
+        <div className="space-y-2">
+          <Input placeholder="Opciones separadas por coma (ej: ALS, SSL, PTV, COC)" value={optionsText}
+            onChange={e => setOptionsText(e.target.value)} />
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <input type="checkbox" checked={multiSelect} onChange={e => setMultiSelect(e.target.checked)} />
+            Selección múltiple (el ingeniero puede elegir varias opciones; las filas se agrupan por valor)
+          </label>
+        </div>
       ) : (
         <div className="flex gap-2">
           <Input placeholder="Unidad (ej: mAU, %)" value={unit}
             onChange={e => setUnit(e.target.value)} />
           <Input placeholder="Placeholder (ej: 0.5)" value={placeholder}
             onChange={e => setPlaceholder(e.target.value)} />
+        </div>
+      )}
+      {/* Visibilidad condicional */}
+      {triggerCandidates.length > 0 && (
+        <div className="border-t border-slate-200 pt-2 space-y-1.5">
+          <label className="text-[10px] font-bold uppercase text-slate-500">Visibilidad condicional (opcional)</label>
+          <div className="flex gap-2">
+            <select
+              value={visTriggerField}
+              onChange={e => { setVisTriggerField(e.target.value); setVisValues([]); }}
+              className="border border-slate-300 rounded-lg px-2 py-1 text-xs bg-white flex-1"
+            >
+              <option value="">Siempre visible</option>
+              {triggerCandidates.map(f => (
+                <option key={f.fieldId} value={f.fieldId}>Mostrar cuando {f.label} =</option>
+              ))}
+            </select>
+          </div>
+          {triggerField && (
+            <div className="flex flex-wrap gap-1.5">
+              {triggerField.options.map(opt => {
+                const checked = visValues.includes(opt);
+                return (
+                  <label key={opt} className={`text-[10px] px-2 py-0.5 rounded-full border cursor-pointer ${
+                    checked ? 'bg-teal-600 text-white border-teal-600' : 'bg-white border-slate-300 text-slate-600'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setVisValues(checked ? visValues.filter(v => v !== opt) : [...visValues, opt])}
+                      className="hidden"
+                    />
+                    {opt}
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
       <div className="flex items-center justify-between">
@@ -1026,7 +1087,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
           {headerFields.map((hf, i) => (
             <div key={hf.fieldId}>
               {editingHeaderIdx === i ? (
-                <HeaderFieldForm field={hf}
+                <HeaderFieldForm field={hf} allFields={headerFields}
                   onSave={f => { upd('headerFields', headerFields.map((h, j) => j === i ? f : h)); setEditingHeaderIdx(null); }}
                   onCancel={() => setEditingHeaderIdx(null)} />
               ) : (
@@ -1050,6 +1111,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
           {addingHeader && (
             <HeaderFieldForm
               field={{ fieldId: '', label: '', options: [] }}
+              allFields={headerFields}
               onSave={f => { upd('headerFields', [...headerFields, { ...f, fieldId: crypto.randomUUID().slice(0, 8) }]); setAddingHeader(false); }}
               onCancel={() => setAddingHeader(false)} />
           )}

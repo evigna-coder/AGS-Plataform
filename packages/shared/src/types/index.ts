@@ -1450,10 +1450,23 @@ export interface TableHeaderField {
   options: string[];
   /** Tipo de input. Default: 'select' (dropdown con options). 'number' renderiza input numérico. */
   inputType?: 'select' | 'number';
+  /**
+   * Permite seleccionar múltiples valores (solo aplica a inputType='select').
+   * Cuando es true, el valor en headerData se guarda como JSON array.
+   * Las filas con visibleWhenSelector apuntando a este field se muestran si cualquiera
+   * de los valores seleccionados coincide, y se agrupan visualmente por valor.
+   */
+  multiSelect?: boolean;
   /** Unidad a mostrar al lado del input numérico (ej. "mAU", "%") */
   unit?: string | null;
   /** Placeholder opcional para inputs numéricos */
   placeholder?: string | null;
+  /**
+   * Visibilidad condicional: solo muestra este header field cuando otro headerField
+   * (por fieldId) tiene alguno de estos valores. Útil ej: mostrar "Ruido" solo si
+   * Combinación = SSL+ECD | SSL+µECD.
+   */
+  visibleWhenSelector?: { headerFieldId: string; values: string[] } | null;
 }
 
 export interface TableCatalogEntry {

@@ -116,18 +116,17 @@ export const EstablecimientoDetail = () => {
   useEffect(() => {
     if (!id) return;
     const loadRefs = async () => {
-      try {
-        const [contactosData, condicionesData, sectoresCat] = await Promise.all([
-          contactosEstablecimientoService.getByEstablecimiento(id),
-          condicionesPagoService.getAll(),
-          sectoresCatalogService.getAll(),
-        ]);
-        setContactos(contactosData);
-        setCondicionesPago(condicionesData);
-        setSectorCatalog(sectoresCat);
-      } catch (error) {
-        console.error('Error cargando referencias:', error);
-      }
+      const [contactosRes, condicionesRes, sectoresRes] = await Promise.allSettled([
+        contactosEstablecimientoService.getByEstablecimiento(id),
+        condicionesPagoService.getAll(),
+        sectoresCatalogService.getAll(),
+      ]);
+      if (contactosRes.status === 'fulfilled') setContactos(contactosRes.value);
+      else console.error('Error cargando contactos:', contactosRes.reason);
+      if (condicionesRes.status === 'fulfilled') setCondicionesPago(condicionesRes.value);
+      else console.error('Error cargando condiciones de pago:', condicionesRes.reason);
+      if (sectoresRes.status === 'fulfilled') setSectorCatalog(sectoresRes.value);
+      else console.error('Error cargando sectores:', sectoresRes.reason);
     };
     loadRefs();
   }, [id]);

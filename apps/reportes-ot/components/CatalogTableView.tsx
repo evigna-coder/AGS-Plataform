@@ -106,54 +106,252 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
  *
  * Si una variable no tiene valor o no se puede resolver, devuelve null (spec incompleta).
  */
+/**
+ * Tokens soportados:
+ *   {fieldId} o {Label}        → headerData (match por fieldId, o label normalizado)
+ *   {@rowId} o {@RowLabel}     → filledData[rowId][currentColKey] (valor de otra fila, misma columna)
+ * Aritmética:
+ *   multiplicación (a*b, a×b), suma (a+b), resta (a-b). Se evalúan en orden: *, +, -.
+ */
 function resolveSpecExpression(
   spec: string,
   headerData?: Record<string, string>,
   headerFields?: { fieldId: string; label: string }[],
+  ctx?: {
+    filledData?: Record<string, Record<string, string>>;
+    templateRows?: { rowId: string; cells: Record<string, string | number | boolean | null> }[];
+    currentColKey?: string;
+    labelColKey?: string;
+  },
 ): string | null {
   if (!spec) return spec;
-  // Normalizador: lowercase + remueve espacios/acentos para matchear {ruido} contra label "Ruido" o "Ruido Base"
-  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
-  const resolveToken = (token: string): string | undefined => {
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s()]+/g, '');
+
+  const resolveHeaderToken = (token: string): string | undefined => {
     if (!headerData) return undefined;
-    // 1. Match exacto por fieldId
     if (headerData[token] !== undefined) return headerData[token];
-    // 2. Match case-insensitive por fieldId
     const ntoken = norm(token);
     for (const k of Object.keys(headerData)) {
       if (norm(k) === ntoken) return headerData[k];
     }
-    // 3. Match por label del header field
     if (headerFields) {
       const field = headerFields.find(f => norm(f.label) === ntoken);
       if (field && headerData[field.fieldId] !== undefined) return headerData[field.fieldId];
     }
     return undefined;
   };
-  // 1. Substituir {token}
+
+  const resolveCellToken = (token: string): string | undefined => {
+    if (!ctx?.filledData || !ctx?.currentColKey) return undefined;
+    const ntoken = norm(token);
+    // 1. Match por rowId exacto
+    if (ctx.filledData[token]?.[ctx.currentColKey] !== undefined) {
+      return ctx.filledData[token][ctx.currentColKey];
+    }
+    // 2. Match por rowId normalizado
+    for (const rowId of Object.keys(ctx.filledData)) {
+      if (norm(rowId) === ntoken) return ctx.filledData[rowId][ctx.currentColKey];
+    }
+    // 3. Match por label de cualquier columna del template row (primera coincidencia)
+    if (ctx.templateRows) {
+      const row = ctx.templateRows.find(r => {
+        for (const val of Object.values(r.cells ?? {})) {
+          if (val != null && norm(String(val)) === ntoken) return true;
+        }
+        return false;
+      });
+      if (row) return ctx.filledData[row.rowId]?.[ctx.currentColKey];
+    }
+    return undefined;
+  };
+
+  // 1. Substituir tokens
   let resolved = spec;
-  const varMatches = Array.from(spec.matchAll(/\{(\w+)\}/g));
+  const varMatches = Array.from(spec.matchAll(/\{(@?[\w]+)\}/g));
   for (const m of varMatches) {
-    const val = resolveToken(m[1])?.trim();
-    if (!val) return null; // variable sin valor
-    resolved = resolved.replace(m[0], val);
+    const raw = m[1];
+    const isCellRef = raw.startsWith('@');
+    const key = isCellRef ? raw.slice(1) : raw;
+    const val = (isCellRef ? resolveCellToken(key) : resolveHeaderToken(key))?.trim();
+    if (!val) return null;
+    resolved = resolved.replaceAll(m[0], val);
   }
-  // 2. Evaluar multiplicaciones simples (a*b o a×b). Se aplica iterativamente mientras haya coincidencias.
-  //    Permite números con coma decimal.
-  const mulRe = /(-?\d+(?:[.,]\d+)?)\s*[*×x]\s*(-?\d+(?:[.,]\d+)?)/;
-  let safety = 10;
-  while (mulRe.test(resolved) && safety-- > 0) {
-    resolved = resolved.replace(mulRe, (_, a: string, b: string) => {
-      const na = parseFloat(a.replace(',', '.'));
-      const nb = parseFloat(b.replace(',', '.'));
-      if (isNaN(na) || isNaN(nb)) return _;
-      const product = na * nb;
-      // Normalizar: entero si corresponde, o 6 decimales max
-      const rounded = Math.round(product * 1e6) / 1e6;
-      return String(rounded);
-    });
-  }
+  // 2. Aritmética: multiplicación → suma → resta (iterativo)
+  const evalOp = (re: RegExp, op: (a: number, b: number) => number) => {
+    let safety = 20;
+    while (re.test(resolved) && safety-- > 0) {
+      resolved = resolved.replace(re, (_, a: string, b: string) => {
+        const na = parseFloat(a.replace(',', '.'));
+        const nb = parseFloat(b.replace(',', '.'));
+        if (isNaN(na) || isNaN(nb)) return _;
+        const r = op(na, nb);
+        return String(Math.round(r * 1e6) / 1e6);
+      });
+    }
+  };
+  evalOp(/(\d+(?:[.,]\d+)?)\s*[*×x]\s*(\d+(?:[.,]\d+)?)/, (a, b) => a * b);
+  // Suma y resta: solo cuando NO hay un operador de comparación inmediatamente antes (para no consumir "≥ 5")
+  evalOp(/(\d+(?:[.,]\d+)?)\s*\+\s*(\d+(?:[.,]\d+)?)/, (a, b) => a + b);
+  // Resta: evita consumir "≥ -5" o "±-5"; solo consume "a-b" con a numérico
+  evalOp(/(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)/, (a, b) => a - b);
   return resolved;
+}
+
+// ─── Dropdown multi-select para header field (portal) ────────────────────────
+function MultiSelectHeaderDropdown({
+  label, options, selected, onToggle,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = React.useState<
+    { top?: number; bottom?: number; left: number; width: number; maxHeight: number } | null
+  >(null);
+
+  React.useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const gap = 4;
+    const spaceBelow = vh - r.bottom - gap - 8;
+    const spaceAbove = r.top - gap - 8;
+    // Abrir hacia abajo si hay >= 200px de espacio O más espacio que arriba
+    const openDown = spaceBelow >= 200 || spaceBelow >= spaceAbove;
+    const width = Math.max(r.width, 220);
+    if (openDown) {
+      setPos({ top: r.bottom + gap, left: r.left, width, maxHeight: Math.max(150, spaceBelow) });
+    } else {
+      setPos({ bottom: vh - r.top + gap, left: r.left, width, maxHeight: Math.max(150, spaceAbove) });
+    }
+  }, [open]);
+
+  const display = selected.join(', ');
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen(!open)}
+        className="border border-slate-300 rounded px-2 py-1 text-xs bg-white hover:border-teal-400 min-w-[160px] text-left truncate"
+        title={display || label}
+      >
+        {display || 'Seleccionar...'}
+      </button>
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[1000]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[1001] bg-white border border-slate-200 rounded-lg shadow-xl py-1 overflow-y-auto"
+            style={{
+              top: pos.top,
+              bottom: pos.bottom,
+              left: pos.left,
+              width: pos.width,
+              maxHeight: pos.maxHeight,
+            }}
+          >
+            {options.map(opt => {
+              const checked = selected.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggle(opt)}
+                    className="accent-teal-600"
+                  />
+                  <span className="text-slate-700 flex-1 truncate">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+// ─── Menú mostrar/ocultar columnas (portal) ───────────────────────────────────
+// Se renderiza en document.body para escapar cualquier `overflow: hidden` de padres.
+function ColumnVisibilityMenu({
+  open, setOpen, columns, isColumnVisible, onToggle,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  columns: TableCatalogColumn[];
+  isColumnVisible: (col: TableCatalogColumn) => boolean;
+  onToggle: (colKey: string, visible: boolean) => void;
+}) {
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = React.useState<
+    { top?: number; bottom?: number; left: number; maxHeight: number } | null
+  >(null);
+
+  React.useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const gap = 4;
+    const menuWidth = 240;
+    const left = Math.max(8, r.right - menuWidth);
+    const spaceBelow = vh - r.bottom - gap - 8;
+    const spaceAbove = r.top - gap - 8;
+    const openDown = spaceBelow >= 200 || spaceBelow >= spaceAbove;
+    if (openDown) {
+      setPos({ top: r.bottom + gap, left, maxHeight: Math.max(150, spaceBelow) });
+    } else {
+      setPos({ bottom: vh - r.top + gap, left, maxHeight: Math.max(150, spaceAbove) });
+    }
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen(!open)}
+        className="text-slate-400 hover:text-teal-600 transition-colors p-1"
+        title="Mostrar/ocultar columnas"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      </button>
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[1000]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[1001] bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-[240px] overflow-y-auto"
+            style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxHeight }}
+          >
+            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-bold text-slate-500 border-b border-slate-100 sticky top-0 bg-white">
+              Columnas
+            </div>
+            {columns.map(col => {
+              const visible = isColumnVisible(col);
+              return (
+                <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={visible}
+                    onChange={e => onToggle(col.key, e.target.checked)}
+                    className="accent-teal-600"
+                  />
+                  <span className="text-slate-700 flex-1 truncate">{col.label || col.key}</span>
+                  {col.hiddenByDefault && <span className="text-[9px] text-slate-400">oculta def.</span>}
+                </label>
+              );
+            })}
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
+  );
 }
 
 // ─── Multi-select cell ────────────────────────────────────────────────────────
@@ -506,6 +704,39 @@ export const CatalogTableView: React.FC<Props> = ({
   const hasHiddenCapableCols = table.columns.some(c => c.hiddenByDefault) ||
     Object.keys(selection.columnVisibility ?? {}).length > 0;
 
+  // ── Multi-select de header fields ───────────────────────────────────────
+  /** Devuelve los valores seleccionados de un header field como array (maneja multi y single). */
+  const getSelectedHeaderValues = (fieldId: string): string[] => {
+    const raw = selection.headerData?.[fieldId] ?? '';
+    if (!raw) return [];
+    if (raw.startsWith('[')) {
+      try { return JSON.parse(raw); } catch { return []; }
+    }
+    return [raw];
+  };
+  /** Toggle de un valor en un header multi-select. */
+  const toggleHeaderValue = (fieldId: string, value: string) => {
+    const current = getSelectedHeaderValues(fieldId);
+    const next = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
+    onChangeHeaderData?.(selection.tableId, fieldId, next.length > 0 ? JSON.stringify(next) : '');
+  };
+  /** Verifica si un header field es visible dado su visibleWhenSelector (soporta multi-select trigger). */
+  const isHeaderFieldVisible = (hf: import('@ags/shared').TableHeaderField): boolean => {
+    if (!hf.visibleWhenSelector) return true;
+    const triggerValues = getSelectedHeaderValues(hf.visibleWhenSelector.headerFieldId);
+    return triggerValues.some(v => hf.visibleWhenSelector!.values.includes(v));
+  };
+  /** Verifica si un visibleWhenSelector de fila se cumple con los headers seleccionados. */
+  const doesRowSelectorMatch = (sel: { headerFieldId: string; values: string[] }): boolean => {
+    const triggerValues = getSelectedHeaderValues(sel.headerFieldId);
+    return triggerValues.some(v => sel.values.includes(v));
+  };
+  /** Header field que actúa como trigger primario de agrupación (primer multi-select con ≥2 valores). */
+  const groupingField = (table.headerFields ?? []).find(hf =>
+    hf.multiSelect && getSelectedHeaderValues(hf.fieldId).length >= 2
+  ) ?? null;
+  const groupingSelectedValues = groupingField ? getSelectedHeaderValues(groupingField.fieldId) : [];
+
   /** Resuelve opciones para una columna multi_select desde una tabla hermana del protocolo.
    *  Retorna { value: string (se guarda), label: string (se muestra) }[] */
   const resolveMultiSelectOptions = (col: TableCatalogColumn): { value: string; label: string }[] => {
@@ -670,12 +901,52 @@ export const CatalogTableView: React.FC<Props> = ({
         const currentNominal = rRefCol
           ? (colKey === rRefCol ? value : (selection.filledData[rowId]?.[rRefCol] ?? getFactoryValue(rowId, rRefCol)))
           : undefined;
-        const resolvedSpec = resolveSpecExpression(currentSpec, selection.headerData, table.headerFields) ?? '';
+        // Para resolver {@rowRef}, usamos filledData con el valor actual ya reflejado (aún no commiteado)
+        const effectiveFilledData = {
+          ...selection.filledData,
+          [rowId]: { ...(selection.filledData[rowId] ?? {}), [colKey]: value },
+        };
+        const resolvedSpec = resolveSpecExpression(currentSpec, selection.headerData, table.headerFields, {
+          filledData: effectiveFilledData,
+          templateRows: table.templateRows,
+          currentColKey: rSrcCol,
+        }) ?? '';
         const conclusion = computeConclusion(currentResultado, resolvedSpec, currentNominal);
         if (conclusion !== '') {
           onChangeData(selection.tableId, rowId, rTgtCol, conclusion);
         } else if (!currentResultado.trim()) {
           onChangeData(selection.tableId, rowId, rTgtCol, '');
+        }
+      }
+
+      // Recalcular OTRAS filas cuya spec referencia esta celda vía {@rowRef}
+      // Solo si la celda cambiada es una columna fuente de alguna regla (Front/Back típicamente)
+      if (rSrcCol === colKey) {
+        for (const otherRow of table.templateRows) {
+          if (otherRow.rowId === rowId || otherRow.isTitle || otherRow.isSelector) continue;
+          if (!ruleAppliesToRow(rule, otherRow.rowId)) continue;
+          const otherSpec = (clientSpecEnabled && selection.filledData[otherRow.rowId]?.[rSpecCol])
+            || getFactoryValue(otherRow.rowId, rSpecCol);
+          if (!/\{@/.test(otherSpec)) continue; // solo filas con referencia a celda
+          const otherResultado = selection.filledData[otherRow.rowId]?.[rSrcCol] ?? '';
+          if (!otherResultado.trim()) continue;
+          const otherNominal = rRefCol
+            ? (selection.filledData[otherRow.rowId]?.[rRefCol] ?? getFactoryValue(otherRow.rowId, rRefCol))
+            : undefined;
+          const effectiveFilledData = {
+            ...selection.filledData,
+            [rowId]: { ...(selection.filledData[rowId] ?? {}), [colKey]: value },
+          };
+          const otherResolved = resolveSpecExpression(otherSpec, selection.headerData, table.headerFields, {
+            filledData: effectiveFilledData,
+            templateRows: table.templateRows,
+            currentColKey: rSrcCol,
+          }) ?? '';
+          const otherConclusion = computeConclusion(otherResultado, otherResolved, otherNominal);
+          const currentOtherConclusion = selection.filledData[otherRow.rowId]?.[rTgtCol] ?? '';
+          if (otherConclusion !== currentOtherConclusion) {
+            onChangeData(selection.tableId, otherRow.rowId, rTgtCol, otherConclusion);
+          }
         }
       }
     }
@@ -703,7 +974,11 @@ export const CatalogTableView: React.FC<Props> = ({
         const nominal = rule.referenceColumn
           ? (selection.filledData[row.rowId]?.[rule.referenceColumn] ?? getFactoryValue(row.rowId, rule.referenceColumn))
           : undefined;
-        const resolvedSpec = resolveSpecExpression(specRaw, selection.headerData, table.headerFields) ?? '';
+        const resolvedSpec = resolveSpecExpression(specRaw, selection.headerData, table.headerFields, {
+          filledData: selection.filledData,
+          templateRows: table.templateRows,
+          currentColKey: rSrcCol,
+        }) ?? '';
         const newConclusion = computeConclusion(resultado, resolvedSpec, nominal);
         const currentConclusion = selection.filledData[row.rowId]?.[rTgtCol] ?? '';
         if (newConclusion !== currentConclusion) {
@@ -798,8 +1073,14 @@ export const CatalogTableView: React.FC<Props> = ({
     // ── Columna Especificación ──────────────────────────────────────────────
     if (allSpecColKeys.has(col.key)) {
       const factoryVal = getFactorySpec(rowId);
-      const hasSpecVars = /\{\w+\}/.test(factoryVal);
-      const resolvedSpec = hasSpecVars ? resolveSpecExpression(factoryVal, selection.headerData, table.headerFields) : null;
+      const hasSpecVars = /\{@?\w+\}/.test(factoryVal);
+      // Para display, resolvemos usando la columna fuente de la primera regla aplicable
+      const displayColKey = vsSpecRules.find(r => ruleAppliesToRow(r, rowId))?.sourceColumn ?? '';
+      const resolvedSpec = hasSpecVars ? resolveSpecExpression(factoryVal, selection.headerData, table.headerFields, {
+        filledData: selection.filledData,
+        templateRows: table.templateRows,
+        currentColKey: displayColKey,
+      }) : null;
 
       if (!clientSpecEnabled) {
         // Solo lectura: muestra valor de fábrica (con resolución si tiene variables)
@@ -988,43 +1269,13 @@ export const CatalogTableView: React.FC<Props> = ({
 
           {/* Menú mostrar/ocultar columnas (solo si hay columnas ocultables) */}
           {!isPrint && !readOnly && hasHiddenCapableCols && onChangeColumnVisibility && (
-            <div className="relative">
-              <button
-                onClick={() => setShowColMenu(v => !v)}
-                className="text-slate-400 hover:text-teal-600 transition-colors p-1"
-                title="Mostrar/ocultar columnas"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </button>
-              {showColMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowColMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[220px] max-h-[70vh] overflow-y-auto">
-                    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-bold text-slate-500 border-b border-slate-100 sticky top-0 bg-white">
-                      Columnas
-                    </div>
-                    {table.columns.map(col => {
-                      const visible = isColumnVisible(col);
-                      return (
-                        <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs">
-                          <input
-                            type="checkbox"
-                            checked={visible}
-                            onChange={e => onChangeColumnVisibility(selection.tableId, col.key, e.target.checked)}
-                            className="accent-teal-600"
-                          />
-                          <span className="text-slate-700">{col.label || col.key}</span>
-                          {col.hiddenByDefault && <span className="ml-auto text-[9px] text-slate-400">oculta def.</span>}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
+            <ColumnVisibilityMenu
+              open={showColMenu}
+              setOpen={setShowColMenu}
+              columns={table.columns}
+              isColumnVisible={isColumnVisible}
+              onToggle={(key, vis) => onChangeColumnVisibility(selection.tableId, key, vis)}
+            />
           )}
 
           {/* Botón duplicar tabla */}
@@ -1075,9 +1326,9 @@ export const CatalogTableView: React.FC<Props> = ({
       ) : null}
 
       {/* Campos de encabezado (selectores pre-tabla) */}
-      {(table.headerFields ?? []).length > 0 && (
+      {(table.headerFields ?? []).filter(isHeaderFieldVisible).length > 0 && (
         <div className="flex flex-wrap gap-4 px-3 py-2 border-b border-slate-200 bg-white">
-          {(table.headerFields ?? []).map(hf => {
+          {(table.headerFields ?? []).filter(isHeaderFieldVisible).map(hf => {
             const value = selection.headerData?.[hf.fieldId] ?? '';
             // En print/PDF: texto entre paréntesis se oculta (ej. "DAD (1260)" → "DAD")
             const printValue = value.replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -1088,16 +1339,41 @@ export const CatalogTableView: React.FC<Props> = ({
                     {hf.label}:
                   </span>
                 )}
-                {isPrint ? (
-                  <span className="text-[9px]">
-                    {(hf.inputType === 'number' ? value : printValue) || '—'}
-                    {hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
-                  </span>
-                ) : readOnly ? (
-                  <span className="text-xs text-slate-600">
-                    {value || '—'}{hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
-                  </span>
-                ) : hf.inputType === 'number' ? (
+                {(() => {
+                  const selectedVals = getSelectedHeaderValues(hf.fieldId);
+                  const isMulti = hf.multiSelect && (hf.inputType ?? 'select') === 'select';
+                  const displayMulti = isMulti ? selectedVals.join(', ') : '';
+                  if (isPrint) {
+                    return (
+                      <span className="text-[9px]">
+                        {(isMulti
+                          ? (displayMulti || '—')
+                          : (hf.inputType === 'number' ? value : printValue) || '—')}
+                        {hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
+                      </span>
+                    );
+                  }
+                  if (readOnly) {
+                    return (
+                      <span className="text-xs text-slate-600">
+                        {(isMulti ? displayMulti : value) || '—'}
+                        {hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
+                      </span>
+                    );
+                  }
+                  if (isMulti) {
+                    return (
+                      <MultiSelectHeaderDropdown
+                        label={hf.label}
+                        options={hf.options}
+                        selected={selectedVals}
+                        onToggle={(opt) => toggleHeaderValue(hf.fieldId, opt)}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+                {!isPrint && !readOnly && !hf.multiSelect && hf.inputType === 'number' ? (
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
@@ -1109,7 +1385,7 @@ export const CatalogTableView: React.FC<Props> = ({
                     />
                     {hf.unit && <span className="text-[10px] text-slate-500">{hf.unit}</span>}
                   </div>
-                ) : (
+                ) : (!isPrint && !readOnly && !hf.multiSelect && (hf.inputType ?? 'select') === 'select') ? (
                   <select
                     value={value}
                     onChange={e => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value)}
@@ -1120,7 +1396,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
-                )}
+                ) : null}
               </div>
             );
           })}
@@ -1278,12 +1554,57 @@ export const CatalogTableView: React.FC<Props> = ({
                   spanAt(prevRow, col.key) > 1 || coveredCells.has(`${rowIdx - 1}:${col.key}`)
                 );
               };
-              return table.templateRows.map((row, idx) => {
-              // Visibilidad condicional por header field
-              if (row.visibleWhenSelector) {
-                const selVal = selection.headerData?.[row.visibleWhenSelector.headerFieldId] ?? '';
-                if (!selVal || !row.visibleWhenSelector.values.includes(selVal)) return null;
+              // Construir lista de filas con dividers por grupo (multi-select header)
+              type RowItem = { kind: 'row'; row: typeof table.templateRows[number]; origIdx: number }
+                           | { kind: 'divider'; value: string; id: string };
+              const items: RowItem[] = [];
+              const rowMatchesGroup = (row: typeof table.templateRows[number], groupVal: string): boolean => {
+                if (!row.visibleWhenSelector) return false;
+                if (groupingField && row.visibleWhenSelector.headerFieldId === groupingField.fieldId) {
+                  return row.visibleWhenSelector.values.includes(groupVal);
+                }
+                return false;
+              };
+              if (groupingField && groupingSelectedValues.length >= 2) {
+                // Primero, filas sin visibleWhenSelector o que NO usan el grouping field
+                table.templateRows.forEach((row, origIdx) => {
+                  if (row.visibleWhenSelector && row.visibleWhenSelector.headerFieldId === groupingField.fieldId) return;
+                  if (row.visibleWhenSelector && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
+                  items.push({ kind: 'row', row, origIdx });
+                });
+                // Luego, un grupo por cada valor seleccionado. Cada fila se asigna a UN solo grupo
+                // (el primero que matchee), para evitar duplicación de rowId.
+                const placed = new Set<string>();
+                for (const groupVal of groupingSelectedValues) {
+                  const groupRows = table.templateRows
+                    .map((row, origIdx) => ({ row, origIdx }))
+                    .filter(({ row }) => rowMatchesGroup(row, groupVal) && !placed.has(row.rowId));
+                  if (groupRows.length === 0) continue;
+                  items.push({ kind: 'divider', value: groupVal, id: `div-${groupingField.fieldId}-${groupVal}` });
+                  for (const { row, origIdx } of groupRows) {
+                    items.push({ kind: 'row', row, origIdx });
+                    placed.add(row.rowId);
+                  }
+                }
+              } else {
+                table.templateRows.forEach((row, origIdx) => {
+                  if (row.visibleWhenSelector && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
+                  items.push({ kind: 'row', row, origIdx });
+                });
               }
+              return items.map((item) => {
+              if (item.kind === 'divider') {
+                return (
+                  <tr key={item.id} className="bg-teal-50">
+                    <td colSpan={visibleColumns.length}
+                      className="px-3 py-1.5 text-xs font-bold text-teal-800 border-y border-teal-200 uppercase tracking-wide">
+                      {item.value}
+                    </td>
+                  </tr>
+                );
+              }
+              const row = item.row;
+              const idx = item.origIdx;
               if (row.isTitle) {
                 return (
                   <tr key={row.rowId} className="bg-slate-50">
