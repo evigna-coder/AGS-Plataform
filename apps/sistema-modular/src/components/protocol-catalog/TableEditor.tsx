@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -677,6 +677,40 @@ export const TableEditor = ({ table, onChange }: Props) => {
   const [editingHeaderIdx, setEditingHeaderIdx] = useState<number | null>(null);
   const [addingHeader, setAddingHeader] = useState(false);
   const [unitOverrideColKey, setUnitOverrideColKey] = useState<string | null>(null);
+  const [rowSelectMode, setRowSelectMode] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const rowRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
+  const rowsContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const setRowRef = useCallback((rowId: string) => (el: HTMLDivElement | null) => {
+    if (el) rowRefsMap.current.set(rowId, el);
+    else rowRefsMap.current.delete(rowId);
+  }, []);
+
+  /** Scroll dentro del contenedor de filas (sin mover la página) */
+  const scrollToRowInContainer = useCallback((rowId: string, position: 'start' | 'center') => {
+    requestAnimationFrame(() => {
+      const container = rowsContainerRef.current;
+      const el = rowRefsMap.current.get(rowId);
+      if (!container || !el) return;
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const offsetTop = elRect.top - containerRect.top + container.scrollTop;
+      if (position === 'start') {
+        container.scrollTo({ top: offsetTop - 8, behavior: 'smooth' });
+      } else {
+        const centered = offsetTop - container.clientHeight / 2 + elRect.height / 2;
+        container.scrollTo({ top: Math.max(0, centered), behavior: 'smooth' });
+      }
+    });
+  }, []);
+
+  // Scroll al panel de edición cuando se abre una fila
+  useEffect(() => {
+    if (selectedRow) {
+      scrollToRowInContainer(selectedRow.rowId, 'start');
+    }
+  }, [selectedRow, scrollToRowInContainer]);
 
   const upd = (key: keyof TableCatalogEntry, value: any) => onChange({ ...table, [key]: value });
 
@@ -716,6 +750,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
       ? table.templateRows.map(r => r.rowId === row.rowId ? row : r)
       : [...table.templateRows, row]);
     setSelectedRow(null);
+    scrollToRowInContainer(row.rowId, 'center');
   };
 
   const moveRow = (idx: number, dir: -1 | 1) => {
@@ -930,8 +965,162 @@ export const TableEditor = ({ table, onChange }: Props) => {
       {activeTab === 'rows' && (
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-slate-500">{table.templateRows.length} filas template</span>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">{table.templateRows.length} filas template</span>
+              {table.templateRows.length > 0 && (
+                <button
+                  onClick={() => { setRowSelectMode(v => !v); setSelectedRowIds(new Set()); }}
+                  className={`text-xs font-bold px-2 py-0.5 rounded transition-colors ${
+                    rowSelectMode
+                      ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                      : 'text-slate-500 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  {rowSelectMode ? 'Cancelar selección' : 'Seleccionar para eliminar'}
+                </button>
+              )}
+            </div>
+            {rowSelectMode ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (selectedRowIds.size === table.templateRows.length) {
+                      setSelectedRowIds(new Set());
+                    } else {
+                      setSelectedRowIds(new Set(table.templateRows.map(r => r.rowId)));
+                    }
+                  }}
+                  className="text-xs text-slate-600 hover:text-slate-900 font-medium"
+                >
+                  {selectedRowIds.size === table.templateRows.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                </button>
+                <Button size="sm" variant="outline"
+                  className="!border-red-300 !text-red-700 hover:!bg-red-50"
+                  disabled={selectedRowIds.size === 0}
+                  onClick={() => {
+                    upd('templateRows', table.templateRows.filter(r => !selectedRowIds.has(r.rowId)));
+                    setSelectedRowIds(new Set());
+                    setRowSelectMode(false);
+                  }}
+                >
+                  Eliminar {selectedRowIds.size > 0 ? `(${selectedRowIds.size})` : ''}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline"
+                  onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isTitle: true, titleText: '' })}>
+                  + Título sección
+                </Button>
+                <Button size="sm" variant="outline"
+                  onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isSelector: true, selectorLabel: '', selectorOptions: [] })}>
+                  + Fila selector
+                </Button>
+                <Button size="sm"
+                  onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {} })}>
+                  + Fila
+                </Button>
+              </div>
+            )}
+          </div>
+          <div ref={rowsContainerRef} className="max-h-[480px] overflow-y-auto space-y-2 pr-1">
+            {table.templateRows.map((row, i) => (
+              <div key={row.rowId} ref={setRowRef(row.rowId)}>
+                {selectedRow?.rowId === row.rowId ? (
+                  <RowFormPanel row={selectedRow} columns={table.columns}
+                    totalRows={table.templateRows.length} rowIndex={i}
+                    headerFields={table.headerFields ?? []}
+                    onSave={saveRow}
+                    onDelete={() => { upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId)); setSelectedRow(null); }}
+                    onCancel={() => { setSelectedRow(null); scrollToRowInContainer(row.rowId, 'center'); }} />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    {rowSelectMode ? (
+                      <input
+                        type="checkbox"
+                        checked={selectedRowIds.has(row.rowId)}
+                        onChange={() => {
+                          const next = new Set(selectedRowIds);
+                          if (next.has(row.rowId)) next.delete(row.rowId);
+                          else next.add(row.rowId);
+                          setSelectedRowIds(next);
+                        }}
+                        className="w-4 h-4 accent-red-600 shrink-0 ml-1 cursor-pointer"
+                      />
+                    ) : (
+                      <div className="flex flex-col shrink-0">
+                        <button onClick={() => moveRow(i, -1)} disabled={i === 0}
+                          className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Subir">▲</button>
+                        <button onClick={() => moveRow(i, 1)} disabled={i === table.templateRows.length - 1}
+                          className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Bajar">▼</button>
+                      </div>
+                    )}
+                    <div onClick={() => { if (rowSelectMode) {
+                        const next = new Set(selectedRowIds);
+                        if (next.has(row.rowId)) next.delete(row.rowId);
+                        else next.add(row.rowId);
+                        setSelectedRowIds(next);
+                      } else { setSelectedRow(row); }
+                    }}
+                      className={`flex-1 flex items-center justify-between p-2 border rounded-lg cursor-pointer ${
+                        rowSelectMode && selectedRowIds.has(row.rowId)
+                          ? 'border-red-300 bg-red-50'
+                          : 'border-slate-200 hover:border-slate-400'
+                      }`}>
+                      <span className="text-sm text-slate-700">
+                        {row.isTitle
+                          ? <span className="font-bold text-slate-500 uppercase text-xs">📌 {row.titleText || '(título vacío)'}</span>
+                          : row.isSelector
+                          ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
+                          : <>
+                              {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
+                              {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
+                            </>}
+                      </span>
+                      {!rowSelectMode && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const duplicated = {
+                                ...JSON.parse(JSON.stringify(row)),
+                                rowId: crypto.randomUUID(),
+                                rowSpan: undefined,
+                                spanColumns: undefined,
+                                columnSpans: undefined,
+                              };
+                              const next = [...table.templateRows];
+                              next.splice(i + 1, 0, duplicated);
+                              upd('templateRows', next);
+                            }}
+                            className="text-slate-500 hover:text-teal-700 text-xs font-medium"
+                            title="Duplicar fila"
+                          >Duplicar</button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId));
+                            }}
+                            className="text-red-500 hover:text-red-700 text-xs font-bold"
+                            title="Eliminar fila"
+                          >Eliminar</button>
+                          <span className="text-blue-600 text-xs font-bold">Editar</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {selectedRow && !table.templateRows.some(r => r.rowId === selectedRow.rowId) && (
+              <RowFormPanel row={selectedRow} columns={table.columns}
+                totalRows={table.templateRows.length} rowIndex={table.templateRows.length}
+                headerFields={table.headerFields ?? []}
+                onSave={saveRow} onCancel={() => setSelectedRow(null)} />
+            )}
+          </div>
+          {!rowSelectMode && (
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <Button size="sm" variant="outline"
                 onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isTitle: true, titleText: '' })}>
                 + Título sección
@@ -945,83 +1134,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
                 + Fila
               </Button>
             </div>
-          </div>
-          <div className="max-h-[480px] overflow-y-auto space-y-2 pr-1">
-            {table.templateRows.map((row, i) => (
-              <div key={row.rowId}>
-                {selectedRow?.rowId === row.rowId ? (
-                  <RowFormPanel row={selectedRow} columns={table.columns}
-                    totalRows={table.templateRows.length} rowIndex={i}
-                    headerFields={table.headerFields ?? []}
-                    onSave={saveRow}
-                    onDelete={() => { upd('templateRows', table.templateRows.filter(r => r.rowId !== row.rowId)); setSelectedRow(null); }}
-                    onCancel={() => setSelectedRow(null)} />
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <div className="flex flex-col shrink-0">
-                      <button onClick={() => moveRow(i, -1)} disabled={i === 0}
-                        className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Subir">▲</button>
-                      <button onClick={() => moveRow(i, 1)} disabled={i === table.templateRows.length - 1}
-                        className="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs px-1" title="Bajar">▼</button>
-                    </div>
-                    <div onClick={() => setSelectedRow(row)}
-                      className="flex-1 flex items-center justify-between p-2 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-400">
-                      <span className="text-sm text-slate-700">
-                        {row.isTitle
-                          ? <span className="font-bold text-slate-500 uppercase text-xs">📌 {row.titleText || '(título vacío)'}</span>
-                          : row.isSelector
-                          ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
-                          : <>
-                              {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
-                              {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
-                            </>}
-                      </span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const duplicated = {
-                              ...JSON.parse(JSON.stringify(row)),
-                              rowId: crypto.randomUUID(),
-                              rowSpan: undefined,
-                              spanColumns: undefined,
-                              columnSpans: undefined,
-                            };
-                            const next = [...table.templateRows];
-                            next.splice(i + 1, 0, duplicated);
-                            upd('templateRows', next);
-                          }}
-                          className="text-slate-500 hover:text-teal-700 text-xs font-medium"
-                          title="Duplicar fila"
-                        >Duplicar</button>
-                        <span className="text-blue-600 text-xs font-bold">Editar</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            {selectedRow && !table.templateRows.some(r => r.rowId === selectedRow.rowId) && (
-              <RowFormPanel row={selectedRow} columns={table.columns}
-                totalRows={table.templateRows.length} rowIndex={table.templateRows.length}
-                headerFields={table.headerFields ?? []}
-                onSave={saveRow} onCancel={() => setSelectedRow(null)} />
-            )}
-          </div>
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-            <Button size="sm" variant="outline"
-              onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isTitle: true, titleText: '' })}>
-              + Título sección
-            </Button>
-            <Button size="sm" variant="outline"
-              onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isSelector: true, selectorLabel: '', selectorOptions: [] })}>
-              + Fila selector
-            </Button>
-            <Button size="sm"
-              onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {} })}>
-              + Fila
-            </Button>
-          </div>
+          )}
         </div>
       )}
 
