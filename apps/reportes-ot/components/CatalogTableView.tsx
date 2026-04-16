@@ -167,7 +167,7 @@ function resolveSpecExpression(
 
   // 1. Substituir tokens
   let resolved = spec;
-  const varMatches = Array.from(spec.matchAll(/\{(@?[\w]+)\}/g));
+  const varMatches = Array.from(spec.matchAll(/\{(@?[^}]+)\}/g));
   for (const m of varMatches) {
     const raw = m[1];
     const isCellRef = raw.startsWith('@');
@@ -968,7 +968,7 @@ export const CatalogTableView: React.FC<Props> = ({
         if (!ruleAppliesToRow(rule, row.rowId)) continue;
         const specRaw = (clientSpecEnabled && selection.filledData[row.rowId]?.[rSpecCol])
           || getFactoryValue(row.rowId, rSpecCol);
-        if (!/\{\w+\}/.test(specRaw)) continue; // sin variables: no aplica
+        if (!/\{[^}]+\}/.test(specRaw)) continue; // sin variables: no aplica
         const resultado = selection.filledData[row.rowId]?.[rSrcCol] ?? '';
         if (!resultado.trim()) continue;
         const nominal = rule.referenceColumn
@@ -1073,7 +1073,7 @@ export const CatalogTableView: React.FC<Props> = ({
     // ── Columna Especificación ──────────────────────────────────────────────
     if (allSpecColKeys.has(col.key)) {
       const factoryVal = getFactorySpec(rowId);
-      const hasSpecVars = /\{@?\w+\}/.test(factoryVal);
+      const hasSpecVars = /\{@?[^}]+\}/.test(factoryVal);
       // Para display, resolvemos usando la columna fuente de la primera regla aplicable
       const displayColKey = vsSpecRules.find(r => ruleAppliesToRow(r, rowId))?.sourceColumn ?? '';
       const resolvedSpec = hasSpecVars ? resolveSpecExpression(factoryVal, selection.headerData, table.headerFields, {

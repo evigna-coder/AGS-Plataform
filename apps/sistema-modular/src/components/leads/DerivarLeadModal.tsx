@@ -256,7 +256,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
                   <option value="">Sin equipo específico</option>
                   {equipos.map(e => (
                     <option key={e.id} value={e.id}>
-                      {e.nombre}{e.agsVisibleId ? ` (${e.agsVisibleId})` : ''}
+                      {e.codigoInternoCliente} — {e.nombre}{e.agsVisibleId ? ` (${e.agsVisibleId})` : ''}
                     </option>
                   ))}
                 </select>

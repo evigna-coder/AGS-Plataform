@@ -716,6 +716,15 @@ export const TableEditor = ({ table, onChange }: Props) => {
 
   const headerFields = table.headerFields ?? [];
 
+  /** Reemplaza {fieldId} por {label} en textos de display */
+  const displaySpec = useCallback((text: string): string => {
+    if (!text || !headerFields.length) return text;
+    return text.replace(/\{([^}]+)\}/g, (match, id) => {
+      const field = headerFields.find(f => f.fieldId === id);
+      return field ? `{${field.label}}` : match;
+    });
+  }, [headerFields]);
+
   const tabs: Tab[] = table.tableType === 'validation'
     ? ['columns', 'rows', 'rules', 'headers']
     : ['columns', 'rows', 'headers'];
@@ -1074,7 +1083,7 @@ export const TableEditor = ({ table, onChange }: Props) => {
                           ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
                           : <>
                               {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
-                              {Object.values(row.cells).filter(Boolean).slice(0, 3).join(' | ') || '(fila vacía)'}
+                              {Object.values(row.cells).filter(Boolean).slice(0, 3).map(v => displaySpec(String(v))).join(' | ') || '(fila vacía)'}
                             </>}
                       </span>
                       {!rowSelectMode && (
