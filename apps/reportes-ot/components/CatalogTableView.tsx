@@ -459,13 +459,13 @@ interface Props {
   onChangeData: (tableId: string, rowId: string, colKey: string, value: string) => void;
   onChangeObservaciones?: (tableId: string, value: string) => void;
   onChangeResultado?: (tableId: string, value: ProtocolSelection['resultado']) => void;
-  onToggleClientSpec?: (tableId: string, enabled: boolean) => void;
+  onToggleClientSpec?: (tableId: string, enabled: boolean, instanceValue?: string) => void;
   onRemove?: (tableId: string) => void;
   onDuplicate?: (tableId: string) => void;
   onAddRow?: (tableId: string) => void;
   onRemoveRow?: (tableId: string, rowId: string) => void;
   onDuplicateRow?: (tableId: string, originalRowId: string) => void;
-  onChangeHeaderData?: (tableId: string, fieldId: string, value: string) => void;
+  onChangeHeaderData?: (tableId: string, fieldId: string, value: string, instanceValue?: string) => void;
   /** Toggle de visibilidad de columna en la instancia (sobrescribe hiddenByDefault del template) */
   onChangeColumnVisibility?: (tableId: string, colKey: string, visible: boolean) => void;
   /** Variables del reporte para auto-rellenar filas con variable binding */
@@ -737,6 +737,39 @@ export const CatalogTableView: React.FC<Props> = ({
   ) ?? null;
   const groupingSelectedValues = groupingField ? getSelectedHeaderValues(groupingField.fieldId) : [];
 
+  // ── Helpers para datos por instancia (sub-tablas) ──
+  /** Lee headerData por instancia, con fallback al global. */
+  const getInstanceHeaderValue = (instanceValue: string, fieldId: string): string =>
+    selection.instanceHeaderData?.[instanceValue]?.[fieldId]
+    ?? selection.headerData?.[fieldId]
+    ?? '';
+  /** Lee clientSpec por instancia, con fallback al global. */
+  const getInstanceClientSpec = (instanceValue: string): boolean =>
+    selection.instanceClientSpec?.[instanceValue]
+    ?? selection.clientSpecEnabled
+    ?? false;
+  /** Determina a qué instancia pertenece una fila (por visibleWhenSelector del groupingField). */
+  const getRowInstanceValue = (rowId: string): string | undefined => {
+    if (!groupingField) return undefined;
+    const row = table.templateRows.find(r => r.rowId === rowId);
+    if (!row?.visibleWhenSelector) return undefined;
+    if (row.visibleWhenSelector.headerFieldId !== groupingField.fieldId) return undefined;
+    // Devuelve el primer valor del grouping que matchee
+    return groupingSelectedValues.find(v => row.visibleWhenSelector!.values.includes(v));
+  };
+  /** Headers internos (excluye el groupingField) para una instancia dada. */
+  const getInstanceHeaderFields = (instanceValue: string) =>
+    (table.headerFields ?? []).filter(hf => {
+      if (!groupingField) return false;
+      if (hf.fieldId === groupingField.fieldId) return false;
+      if (!hf.visibleWhenSelector) return true;
+      // Solo mostrar si el visibleWhenSelector incluye esta instancia
+      if (hf.visibleWhenSelector.headerFieldId === groupingField.fieldId) {
+        return hf.visibleWhenSelector.values.includes(instanceValue);
+      }
+      return true;
+    });
+
   /** Resuelve opciones para una columna multi_select desde una tabla hermana del protocolo.
    *  Retorna { value: string (se guarda), label: string (se muestra) }[] */
   const resolveMultiSelectOptions = (col: TableCatalogColumn): { value: string; label: string }[] => {
@@ -873,6 +906,9 @@ export const CatalogTableView: React.FC<Props> = ({
 
   const handleCellChange = (rowId: string, colKey: string, value: string) => {
     onChangeData(selection.tableId, rowId, colKey, value);
+    // Determinar clientSpec efectivo (por instancia si aplica)
+    const rowInstance = getRowInstanceValue(rowId);
+    const effectiveCellClientSpec = rowInstance ? getInstanceClientSpec(rowInstance) : clientSpecEnabled;
 
     // Run compute rules (e.g. ΔP = Valor Final - Valor Inicial)
     const computedValues = runComputeRules(rowId, colKey, value);
@@ -887,7 +923,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
       const computedResultado = computedValues.get(rSrcCol);
       const isResultadoChange = colKey === rSrcCol || computedResultado !== undefined;
-      const isSpecChange = colKey === rSpecCol && clientSpecEnabled;
+      const isSpecChange = colKey === rSpecCol && effectiveCellClientSpec;
       const isReferenceChange = colKey === rRefCol;
 
       if (isResultadoChange || isSpecChange || isReferenceChange) {
@@ -895,7 +931,7 @@ export const CatalogTableView: React.FC<Props> = ({
           ?? (colKey === rSrcCol ? value : (selection.filledData[rowId]?.[rSrcCol] ?? ''));
         const currentSpec = isSpecChange
           ? value
-          : (clientSpecEnabled && rSpecCol
+          : (effectiveCellClientSpec && rSpecCol
             ? (selection.filledData[rowId]?.[rSpecCol] || getFactoryValue(rowId, rSpecCol))
             : getFactoryValue(rowId, rSpecCol));
         const currentNominal = rRefCol
@@ -925,7 +961,9 @@ export const CatalogTableView: React.FC<Props> = ({
         for (const otherRow of table.templateRows) {
           if (otherRow.rowId === rowId || otherRow.isTitle || otherRow.isSelector) continue;
           if (!ruleAppliesToRow(rule, otherRow.rowId)) continue;
-          const otherSpec = (clientSpecEnabled && selection.filledData[otherRow.rowId]?.[rSpecCol])
+          const otherInstance = getRowInstanceValue(otherRow.rowId);
+          const otherClientSpec = otherInstance ? getInstanceClientSpec(otherInstance) : clientSpecEnabled;
+          const otherSpec = (otherClientSpec && selection.filledData[otherRow.rowId]?.[rSpecCol])
             || getFactoryValue(otherRow.rowId, rSpecCol);
           if (!/\{@/.test(otherSpec)) continue; // solo filas con referencia a celda
           const otherResultado = selection.filledData[otherRow.rowId]?.[rSrcCol] ?? '';
@@ -955,7 +993,7 @@ export const CatalogTableView: React.FC<Props> = ({
   // ── Recomputar conclusiones cuando cambian variables del encabezado ──
   // Si el spec usa {fieldId} y el ingeniero cambia ese valor, las conclusiones de las filas
   // afectadas tienen que recalcular. Se ejecuta cuando headerData cambia.
-  const headerDataKey = JSON.stringify(selection.headerData ?? {});
+  const headerDataKey = JSON.stringify(selection.headerData ?? {}) + JSON.stringify(selection.instanceClientSpec ?? {}) + JSON.stringify(selection.instanceHeaderData ?? {});
   React.useEffect(() => {
     if (!specColKey || vsSpecRules.length === 0) return;
     for (const rule of vsSpecRules) {
@@ -966,7 +1004,9 @@ export const CatalogTableView: React.FC<Props> = ({
       for (const row of table.templateRows) {
         if (row.isTitle || row.isSelector) continue;
         if (!ruleAppliesToRow(rule, row.rowId)) continue;
-        const specRaw = (clientSpecEnabled && selection.filledData[row.rowId]?.[rSpecCol])
+        const rowInst = getRowInstanceValue(row.rowId);
+        const rowClientSpec = rowInst ? getInstanceClientSpec(rowInst) : clientSpecEnabled;
+        const specRaw = (rowClientSpec && selection.filledData[row.rowId]?.[rSpecCol])
           || getFactoryValue(row.rowId, rSpecCol);
         if (!/\{[^}]+\}/.test(specRaw)) continue; // sin variables: no aplica
         const resultado = selection.filledData[row.rowId]?.[rSrcCol] ?? '';
@@ -990,8 +1030,10 @@ export const CatalogTableView: React.FC<Props> = ({
   }, [headerDataKey]);
 
   /** Renderiza una celda con lógica especial para columnas spec y conclusion */
-  const renderTableCell = (col: TableCatalogColumn, rowId: string): React.ReactNode => {
+  const renderTableCell = (col: TableCatalogColumn, rowId: string, instanceValue?: string): React.ReactNode => {
     const rawValue = selection.filledData[rowId]?.[col.key] ?? '';
+    // Client spec efectivo: por instancia si aplica, sino global
+    const effectiveClientSpec = instanceValue ? getInstanceClientSpec(instanceValue) : clientSpecEnabled;
 
     // ── Columna de etiqueta fija: solo lectura para filas con valor, en blanco si vacío ──
     // Solo cuando el admin marcó isLabelColumn=true en esta columna, y no es fila extra.
@@ -1086,7 +1128,7 @@ export const CatalogTableView: React.FC<Props> = ({
       // Para display: ocultar el @ de referencias a celdas ({@Señal (OFF)} → {Señal (OFF)})
       const displayFactoryVal = factoryVal.replace(/\{@/g, '{');
 
-      if (!clientSpecEnabled) {
+      if (!effectiveClientSpec) {
         // Solo lectura: muestra valor de fábrica (con resolución si tiene variables)
         if (isPrint) {
           return <span className="text-[10px]">{resolvedSpec || displayFactoryVal || '—'}</span>;
@@ -1255,8 +1297,8 @@ export const CatalogTableView: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {/* Toggle "Ver especificación del cliente" */}
-          {table.allowClientSpec && !isPrint && (
+          {/* Toggle "Ver especificación del cliente" — ocultar si hay instancias (cada sección tiene el suyo) */}
+          {table.allowClientSpec && !isPrint && !groupingField && (
             <label className="flex items-center gap-1.5 cursor-pointer select-none group">
               <input
                 type="checkbox"
@@ -1330,9 +1372,10 @@ export const CatalogTableView: React.FC<Props> = ({
       ) : null}
 
       {/* Campos de encabezado (selectores pre-tabla) */}
-      {(table.headerFields ?? []).filter(isHeaderFieldVisible).length > 0 && (
+      {/* Cuando hay groupingField, solo mostrar el groupingField aquí; los demás van por instancia */}
+      {(table.headerFields ?? []).filter(hf => isHeaderFieldVisible(hf) && (!groupingField || hf.fieldId === groupingField.fieldId)).length > 0 && (
         <div className="flex flex-wrap gap-4 px-3 py-2 border-b border-slate-200 bg-white">
-          {(table.headerFields ?? []).filter(isHeaderFieldVisible).map(hf => {
+          {(table.headerFields ?? []).filter(hf => isHeaderFieldVisible(hf) && (!groupingField || hf.fieldId === groupingField.fieldId)).map(hf => {
             const value = selection.headerData?.[hf.fieldId] ?? '';
             // En print/PDF: texto entre paréntesis se oculta (ej. "DAD (1260)" → "DAD")
             const printValue = value.replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -1559,7 +1602,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 );
               };
               // Construir lista de filas con dividers por grupo (multi-select header)
-              type RowItem = { kind: 'row'; row: typeof table.templateRows[number]; origIdx: number }
+              type RowItem = { kind: 'row'; row: typeof table.templateRows[number]; origIdx: number; instanceValue?: string }
                            | { kind: 'divider'; value: string; id: string };
               const items: RowItem[] = [];
               const rowMatchesGroup = (row: typeof table.templateRows[number], groupVal: string): boolean => {
@@ -1586,7 +1629,7 @@ export const CatalogTableView: React.FC<Props> = ({
                   if (groupRows.length === 0) continue;
                   items.push({ kind: 'divider', value: groupVal, id: `div-${groupingField.fieldId}-${groupVal}` });
                   for (const { row, origIdx } of groupRows) {
-                    items.push({ kind: 'row', row, origIdx });
+                    items.push({ kind: 'row', row, origIdx, instanceValue: groupVal });
                     placed.add(row.rowId);
                   }
                 }
@@ -1598,13 +1641,75 @@ export const CatalogTableView: React.FC<Props> = ({
               }
               return items.map((item) => {
               if (item.kind === 'divider') {
+                const instVal = item.value;
+                const instHeaders = getInstanceHeaderFields(instVal);
+                const instClientSpec = getInstanceClientSpec(instVal);
                 return (
-                  <tr key={item.id} className="bg-teal-50">
-                    <td colSpan={visibleColumns.length}
-                      className="px-3 py-1.5 text-xs font-bold text-teal-800 border-y border-teal-200 uppercase tracking-wide">
-                      {item.value}
-                    </td>
-                  </tr>
+                  <React.Fragment key={item.id}>
+                    <tr className="bg-teal-50 border-y border-teal-200">
+                      <td colSpan={visibleColumns.length} className="px-3 py-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold text-teal-800 uppercase tracking-wide">
+                            {instVal}
+                          </span>
+                          {/* Toggle specs por instancia */}
+                          {table.allowClientSpec && !isPrint && !readOnly && (
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={instClientSpec}
+                                onChange={(e) => onToggleClientSpec?.(selection.tableId, e.target.checked, instVal)}
+                                className="w-3 h-3 accent-blue-600 cursor-pointer"
+                              />
+                              <span className="text-[9px] font-medium text-slate-500">
+                                Especificaciones ampliadas por el cliente
+                              </span>
+                            </label>
+                          )}
+                        </div>
+                        {/* Headers internos de esta instancia */}
+                        {instHeaders.length > 0 && (
+                          <div className="flex flex-wrap gap-3 mt-1.5">
+                            {instHeaders.map(hf => {
+                              const hfValue = getInstanceHeaderValue(instVal, hf.fieldId);
+                              return (
+                                <div key={hf.fieldId} className="flex items-center gap-1.5">
+                                  {hf.label?.trim() && (
+                                    <span className={`font-semibold ${isPrint ? 'text-[9px]' : 'text-[10px] text-slate-600'}`}>
+                                      {hf.label}:
+                                    </span>
+                                  )}
+                                  {isPrint || readOnly ? (
+                                    <span className="text-[10px] text-slate-600">{hfValue || '—'}</span>
+                                  ) : (hf.inputType ?? 'select') === 'select' ? (
+                                    <select
+                                      value={hfValue}
+                                      onChange={(e) => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value, instVal)}
+                                      className="text-[10px] border border-slate-300 rounded px-1.5 py-0.5 bg-white"
+                                    >
+                                      <option value="">Seleccionar...</option>
+                                      {hf.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      value={hfValue}
+                                      onChange={(e) => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value, instVal)}
+                                      placeholder={hf.placeholder ?? ''}
+                                      className="w-20 text-[10px] border border-slate-300 rounded px-1.5 py-0.5 bg-white text-center"
+                                    />
+                                  )}
+                                  {hf.inputType === 'number' && hf.unit && (
+                                    <span className="text-[10px] text-slate-400">{hf.unit}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  </React.Fragment>
                 );
               }
               const row = item.row;
@@ -1674,7 +1779,7 @@ export const CatalogTableView: React.FC<Props> = ({
                                 </select>
                               )
                             ) : (
-                              renderTableCell(col, row.rowId)
+                              renderTableCell(col, row.rowId, item.kind === 'row' ? item.instanceValue : undefined)
                             )
                           ) : (
                             // ── Default: label+dropdown en col 0, resto editables ──
@@ -1700,7 +1805,7 @@ export const CatalogTableView: React.FC<Props> = ({
                                 </div>
                               )
                             ) : (
-                              renderTableCell(col, row.rowId)
+                              renderTableCell(col, row.rowId, item.kind === 'row' ? item.instanceValue : undefined)
                             )
                           )}
                           {showActionsHere && (
@@ -1779,7 +1884,7 @@ export const CatalogTableView: React.FC<Props> = ({
                             showActionsHere ? 'relative pr-4' : '',
                           ].join(' ')}
                         >
-                          {renderTableCell(col, row.rowId)}
+                          {renderTableCell(col, row.rowId, item.kind === 'row' ? item.instanceValue : undefined)}
                           {showActionsHere && (
                             <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 whitespace-nowrap">
                               {canDuplicate && (

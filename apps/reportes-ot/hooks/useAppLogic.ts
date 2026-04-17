@@ -208,9 +208,17 @@ export function useAppLogic(
     );
   };
 
-  const handleCatalogToggleClientSpec = (tableId: string, enabled: boolean) => {
+  const handleCatalogToggleClientSpec = (tableId: string, enabled: boolean, instanceValue?: string) => {
     setProtocolSelections(
-      protocolSelections.map(s => s.tableId !== tableId ? s : { ...s, clientSpecEnabled: enabled })
+      protocolSelections.map(s => {
+        if (s.tableId !== tableId) return s;
+        if (instanceValue) {
+          // Per-instance client spec
+          const prev = s.instanceClientSpec ?? {};
+          return { ...s, instanceClientSpec: { ...prev, [instanceValue]: enabled } };
+        }
+        return { ...s, clientSpecEnabled: enabled };
+      })
     );
   };
 
@@ -383,14 +391,21 @@ export function useAppLogic(
     );
   };
 
-  const handleHeaderDataChange = (tableId: string, fieldId: string, value: string) => {
+  const handleHeaderDataChange = (tableId: string, fieldId: string, value: string, instanceValue?: string) => {
     setProtocolSelections(prev =>
-      prev.map(s =>
-        s.tableId !== tableId ? s : {
-          ...s,
-          headerData: { ...(s.headerData ?? {}), [fieldId]: value },
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        if (instanceValue) {
+          // Per-instance header data
+          const prevInst = s.instanceHeaderData ?? {};
+          const prevFields = prevInst[instanceValue] ?? {};
+          return {
+            ...s,
+            instanceHeaderData: { ...prevInst, [instanceValue]: { ...prevFields, [fieldId]: value } },
+          };
         }
-      )
+        return { ...s, headerData: { ...(s.headerData ?? {}), [fieldId]: value } };
+      })
     );
   };
 

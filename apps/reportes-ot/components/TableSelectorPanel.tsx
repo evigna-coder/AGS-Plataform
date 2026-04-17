@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { TableCatalogEntry, ProtocolSelection } from '../types/tableCatalog';
 import { FirebaseService } from '../services/firebaseService';
 
@@ -29,28 +29,84 @@ export const TableSelectorPanel: React.FC<Props> = ({
   const [open, setOpen] = useState(hasSuggestions);
   const [availableTables, setAvailableTables] = useState<TableCatalogEntry[]>(suggestedTables ?? []);
   const [loading, setLoading] = useState(false);
-  const [checked, setChecked] = useState<Set<string>>(() => new Set([
-    ...existingSelections.map(s => s.tableId),
-    ...(suggestedTables ?? []).map(t => t.id),
-  ]));
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(
+    existingSelections.map(s => s.tableId),
+  ));
+  const [projectNames, setProjectNames] = useState<Map<string, string>>(new Map());
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  // Detectar proyectos distintos entre las tablas disponibles
+  const projectGroups = useMemo(() => {
+    const groups = new Map<string, TableCatalogEntry[]>();
+    for (const t of availableTables) {
+      const pid = t.projectId ?? '__none__';
+      if (!groups.has(pid)) groups.set(pid, []);
+      groups.get(pid)!.push(t);
+    }
+    return groups;
+  }, [availableTables]);
+
+  // ¿Hay múltiples proyectos? (solo contar proyectos reales, no __none__)
+  const realProjectIds = [...projectGroups.keys()].filter(k => k !== '__none__');
+  const hasMultipleProjects = realProjectIds.length > 1;
+
+  // Tablas visibles según proyecto seleccionado
+  const visibleTables = useMemo(() => {
+    if (!hasMultipleProjects) return availableTables;
+    if (!selectedProjectId) return [];
+    return availableTables.filter(t => t.projectId === selectedProjectId);
+  }, [availableTables, hasMultipleProjects, selectedProjectId]);
+
+  // Cargar nombres de proyectos
+  useEffect(() => {
+    if (!hasMultipleProjects || projectNames.size > 0) return;
+    firebase.getProjects().then(projects => {
+      const map = new Map<string, string>();
+      for (const p of projects) {
+        if (p.name) map.set(p.id, p.name);
+      }
+      setProjectNames(map);
+    }).catch(() => {});
+  }, [hasMultipleProjects, firebase, projectNames.size]);
 
   // Cuando llegan nuevas sugerencias desde el padre (cambio de tipoServicio):
-  // abrir panel, cargar tablas y pre-tildar las sugeridas.
+  // abrir panel, cargar tablas y pre-tildar las sugeridas (solo si un proyecto).
   useEffect(() => {
     if (!suggestedTables || suggestedTables.length === 0) return;
     setOpen(true);
     setAvailableTables(suggestedTables);
-    setChecked(prev => {
-      const next = new Set(prev);
-      suggestedTables.forEach(t => next.add(t.id));
-      return next;
-    });
+    setSelectedProjectId(null);
+
+    // Detectar si hay múltiples proyectos
+    const pids = new Set(suggestedTables.map(t => t.projectId).filter(Boolean));
+    if (pids.size <= 1) {
+      // Un solo proyecto (o ninguno): pre-tildar todo como antes
+      setChecked(prev => {
+        const next = new Set(prev);
+        suggestedTables.forEach(t => next.add(t.id));
+        return next;
+      });
+    } else {
+      // Múltiples proyectos: solo mantener las existentes, no pre-tildar
+      setChecked(new Set(existingSelections.map(s => s.tableId)));
+    }
   }, [suggestedTables]);
 
   // Sincronizar checked cuando cambian existingSelections desde afuera
   useEffect(() => {
     setChecked(new Set(existingSelections.map(s => s.tableId)));
   }, [existingSelections]);
+
+  // Al seleccionar un proyecto, pre-tildar sus tablas
+  const handleSelectProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    const projectTables = availableTables.filter(t => t.projectId === projectId);
+    setChecked(prev => {
+      const next = new Set(prev);
+      projectTables.forEach(t => next.add(t.id));
+      return next;
+    });
+  };
 
   // Abrir panel: cargar tablas del catálogo (solo si no hay sugeridas ya cargadas)
   const handleOpen = async () => {
@@ -227,7 +283,9 @@ export const TableSelectorPanel: React.FC<Props> = ({
           <p className="text-sm font-semibold text-blue-900">Selección de tablas del catálogo</p>
           {hasSuggestions ? (
             <p className="text-xs text-blue-600 mt-0.5">
-              Tablas sugeridas para este tipo de servicio — confirmá o modificá la selección.
+              {hasMultipleProjects
+                ? 'Seleccioná el protocolo a utilizar para este servicio.'
+                : 'Tablas sugeridas para este tipo de servicio — confirmá o modificá la selección.'}
             </p>
           ) : sysType ? (
             <p className="text-xs text-blue-600 mt-0.5">
@@ -245,18 +303,52 @@ export const TableSelectorPanel: React.FC<Props> = ({
         </button>
       </div>
 
+      {/* Selector de proyecto (solo cuando hay múltiples proyectos) */}
+      {hasMultipleProjects && (
+        <div className="px-4 py-3 border-b border-blue-100 bg-blue-50/50">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Protocolo</p>
+          <div className="flex flex-wrap gap-2">
+            {realProjectIds.map(pid => {
+              const name = projectNames.get(pid) || pid.slice(0, 8);
+              const count = projectGroups.get(pid)?.length ?? 0;
+              const isSelected = selectedProjectId === pid;
+              return (
+                <button
+                  key={pid}
+                  onClick={() => handleSelectProject(pid)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-600 text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  {name}
+                  <span className={`ml-1.5 text-[10px] ${isSelected ? 'text-blue-200' : 'text-slate-400'}`}>
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Lista de tablas */}
       <div className="px-4 py-3 max-h-64 overflow-y-auto">
         {loading ? (
           <p className="text-xs text-slate-400 text-center py-4">Cargando catálogo...</p>
-        ) : availableTables.length === 0 ? (
+        ) : hasMultipleProjects && !selectedProjectId ? (
+          <p className="text-xs text-slate-400 text-center py-4">
+            Seleccioná un protocolo para ver las tablas disponibles.
+          </p>
+        ) : visibleTables.length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-4">
             No hay tablas publicadas en el catálogo
             {sysType ? ` para "${sysType}"` : ''}.
           </p>
         ) : (
           <div className="space-y-1.5">
-            {availableTables.map(table => {
+            {visibleTables.map(table => {
               const isChecked = checked.has(table.id);
               const wasAlready = existingSelections.some(s => s.tableId === table.id);
               return (
@@ -321,7 +413,7 @@ export const TableSelectorPanel: React.FC<Props> = ({
           </button>
           <button
             onClick={handleApply}
-            disabled={availableTables.length === 0}
+            disabled={hasMultipleProjects && !selectedProjectId}
             className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Confirmar selección

@@ -1617,6 +1617,18 @@ export interface ProtocolSelection {
    * se usa `!col.hiddenByDefault`. true = visible, false = oculta.
    */
   columnVisibility?: Record<string, boolean>;
+  /**
+   * Datos de encabezado por instancia cuando el primer header multiSelect actúa como divisor.
+   * key = valor de la instancia (ej. "µECD (1Hz=1UD)"), value = headerData de esa sub-tabla.
+   * Solo se usa cuando hay un header multiSelect con múltiples valores seleccionados.
+   * Fallback: si no existe, se usa headerData global.
+   */
+  instanceHeaderData?: Record<string, Record<string, string>>;
+  /**
+   * Toggle de especificaciones del cliente por instancia.
+   * key = valor de la instancia, value = true/false.
+   */
+  instanceClientSpec?: Record<string, boolean>;
 }
 
 // --- RenderSpec (especificación determinística para regenerar el PDF) ---

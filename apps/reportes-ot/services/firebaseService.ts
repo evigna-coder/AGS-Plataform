@@ -265,13 +265,13 @@ export class FirebaseService {
   /**
    * Obtiene todos los proyectos de tablas (para resolver headerTitle/footerQF a nivel proyecto).
    */
-  async getProjects(): Promise<{ id: string; headerTitle?: string | null; footerQF?: string | null }[]> {
+  async getProjects(): Promise<{ id: string; name?: string | null; headerTitle?: string | null; footerQF?: string | null }[]> {
     try {
       const q = query(collection(db, 'tableProjects'));
       const snap = await getDocs(q);
       return snap.docs.map(d => {
         const data = d.data();
-        return { id: d.id, headerTitle: data.headerTitle ?? null, footerQF: data.footerQF ?? null };
+        return { id: d.id, name: data.name ?? null, headerTitle: data.headerTitle ?? null, footerQF: data.footerQF ?? null };
       });
     } catch (error: any) {
       console.error('Error al leer tableProjects:', error);

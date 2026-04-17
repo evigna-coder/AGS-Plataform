@@ -33,7 +33,7 @@ interface ProtocolSectionProps {
   handleCatalogCellChange: (tableId: string, rowId: string, colKey: string, value: string) => void;
   handleCatalogObservaciones: (tableId: string, value: string) => void;
   handleCatalogResultado: (tableId: string, resultado: ProtocolSelection['resultado']) => void;
-  handleCatalogToggleClientSpec: (tableId: string, enabled: boolean) => void;
+  handleCatalogToggleClientSpec: (tableId: string, enabled: boolean, instanceValue?: string) => void;
   handleRemoveCatalogTable: (tableId: string) => void;
   handleDuplicateTable: (tableId: string) => void;
   handleDuplicateSection: (tableId: string, sectionItemId: string) => void;
@@ -41,7 +41,7 @@ interface ProtocolSectionProps {
   handleAddRow: (tableId: string) => void;
   handleRemoveRow: (tableId: string, rowId: string) => void;
   handleDuplicateRow: (tableId: string, originalRowId: string) => void;
-  handleHeaderDataChange: (tableId: string, fieldId: string, value: string) => void;
+  handleHeaderDataChange: (tableId: string, fieldId: string, value: string, instanceValue?: string) => void;
   handleColumnVisibilityChange: (tableId: string, colKey: string, visible: boolean) => void;
   handleChecklistAnswer: (tableId: string, itemId: string, answer: ChecklistItemAnswer) => void;
   handleToggleChecklistSection: (tableId: string, itemId: string, isNA: boolean) => void;
