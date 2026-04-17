@@ -125,7 +125,7 @@ function resolveSpecExpression(
   },
 ): string | null {
   if (!spec) return spec;
-  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s()]+/g, '');
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s()=:]+/g, '');
 
   const resolveHeaderToken = (token: string): string | undefined => {
     if (!headerData) return undefined;
@@ -647,8 +647,8 @@ function renderDefaultCell(
   // Input con unidad fija integrada: parece un solo campo, la unidad no es editable
   return (
     <div className={compact
-      ? `flex items-center gap-0.5 ${readOnly ? '' : ''}`
-      : `flex items-center border border-slate-300 rounded bg-white px-1 py-0.5 gap-0.5 focus-within:ring-1 focus-within:ring-blue-500 ${readOnly ? 'bg-slate-50' : ''}`}>
+      ? `relative ${readOnly ? '' : ''}`
+      : `relative border border-slate-300 rounded bg-white px-1 py-0.5 focus-within:ring-1 focus-within:ring-blue-500 ${readOnly ? 'bg-slate-50' : ''}`}>
       <input
         type="text"
         value={displayValue}
@@ -656,9 +656,9 @@ function renderDefaultCell(
         placeholder={placeholder}
         onChange={handleChange}
         onFocus={selectAll}
-        className="flex-1 min-w-0 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300"
+        className="w-full text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300"
       />
-      <span className="text-[10px] text-slate-400 select-none shrink-0 pointer-events-none">
+      <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 select-none pointer-events-none">
         {effectiveUnit}
       </span>
     </div>
@@ -994,9 +994,10 @@ export const CatalogTableView: React.FC<Props> = ({
     const rawValue = selection.filledData[rowId]?.[col.key] ?? '';
 
     // ── Columna de etiqueta fija: solo lectura para filas con valor, en blanco si vacío ──
-    // Solo cuando el admin marcó isLabelColumn=true en esta columna, y no es fila extra
+    // Solo cuando el admin marcó isLabelColumn=true en esta columna, y no es fila extra.
+    // Excluir columnas de spec y conclusión — necesitan su propio procesamiento.
     const isExtraRow = rowId.startsWith('extra_');
-    if (!isExtraRow && col.isLabelColumn) {
+    if (!isExtraRow && col.isLabelColumn && !allSpecColKeys.has(col.key) && !allConclusionColKeys.has(col.key)) {
       const labelVal = String(table.templateRows.find(r => r.rowId === rowId)?.cells[col.key] ?? '').trim();
       if (!labelVal) return <span />;
       if (isPrint) return <span className="text-[10px]">{labelVal}</span>;
@@ -1082,16 +1083,19 @@ export const CatalogTableView: React.FC<Props> = ({
         currentColKey: displayColKey,
       }) : null;
 
+      // Para display: ocultar el @ de referencias a celdas ({@Señal (OFF)} → {Señal (OFF)})
+      const displayFactoryVal = factoryVal.replace(/\{@/g, '{');
+
       if (!clientSpecEnabled) {
         // Solo lectura: muestra valor de fábrica (con resolución si tiene variables)
         if (isPrint) {
-          return <span className="text-[10px]">{resolvedSpec || factoryVal || '—'}</span>;
+          return <span className="text-[10px]">{resolvedSpec || displayFactoryVal || '—'}</span>;
         }
         if (hasSpecVars) {
           return (
             <div className="flex flex-col items-center leading-tight">
               <span className="text-[10px] text-slate-600 select-none" title="Fórmula (template)">
-                {factoryVal}
+                {displayFactoryVal}
               </span>
               <span className={`text-[9px] font-semibold ${resolvedSpec ? 'text-teal-600' : 'text-amber-500'}`}
                 title={resolvedSpec ? 'Valor resuelto con variables del encabezado' : 'Cargar variable para resolver'}>
@@ -1135,8 +1139,8 @@ export const CatalogTableView: React.FC<Props> = ({
             )}
           </div>
           {factoryVal && (
-            <div className="text-[9px] font-semibold text-blue-600 bg-blue-50 rounded px-1 py-0.5 mt-0.5 truncate" title={`Especificación de fábrica: ${factoryVal}`}>
-              Ref. fábrica: {factoryVal}
+            <div className="text-[9px] font-semibold text-blue-600 bg-blue-50 rounded px-1 py-0.5 mt-0.5 truncate" title={`Especificación de fábrica: ${displayFactoryVal}`}>
+              Ref. fábrica: {displayFactoryVal}
             </div>
           )}
         </div>

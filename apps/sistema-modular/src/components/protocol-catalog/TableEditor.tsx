@@ -716,13 +716,17 @@ export const TableEditor = ({ table, onChange }: Props) => {
 
   const headerFields = table.headerFields ?? [];
 
-  /** Reemplaza {fieldId} por {label} en textos de display */
+  /** Reemplaza {fieldId} por {label} y oculta @ en textos de display */
   const displaySpec = useCallback((text: string): string => {
-    if (!text || !headerFields.length) return text;
-    return text.replace(/\{([^}]+)\}/g, (match, id) => {
-      const field = headerFields.find(f => f.fieldId === id);
-      return field ? `{${field.label}}` : match;
-    });
+    if (!text) return text;
+    let result = text.replace(/\{@/g, '{');
+    if (headerFields.length) {
+      result = result.replace(/\{([^}]+)\}/g, (match, id) => {
+        const field = headerFields.find(f => f.fieldId === id);
+        return field ? `{${field.label}}` : match;
+      });
+    }
+    return result;
   }, [headerFields]);
 
   const tabs: Tab[] = table.tableType === 'validation'
