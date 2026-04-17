@@ -203,7 +203,7 @@ export const LeadsList = () => {
 
   const formatDate = (d?: string) => {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }); } catch { return d; }
+    try { return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch { return d; }
   };
 
   const getRowStyle = (lead: Lead) => {

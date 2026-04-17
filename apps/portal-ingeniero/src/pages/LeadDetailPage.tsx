@@ -67,6 +67,24 @@ export default function LeadDetailPage() {
   const handleFieldUpdate = async (field: string, value: any) => {
     if (!lead) return;
     setLead(prev => prev ? { ...prev, [field]: value } : prev);
+    // Registrar posta al cambiar próximo contacto
+    if (field === 'proximoContacto' && usuario && value !== lead.proximoContacto) {
+      const fechaLabel = value
+        ? new Date(value + 'T12:00:00').toLocaleDateString('es-AR')
+        : 'sin definir';
+      const posta: Posta = {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: usuario.id,
+        deUsuarioNombre: usuario.displayName,
+        aUsuarioId: lead.asignadoA || usuario.id,
+        aUsuarioNombre: usuarios.find(u => u.id === (lead.asignadoA || usuario.id))?.displayName || usuario.displayName,
+        comentario: `Próximo contacto cambiado a ${fechaLabel}`,
+        estadoAnterior: lead.estado,
+        estadoNuevo: lead.estado,
+      };
+      leadsService.agregarComentario(lead.id, posta).catch(err => console.error('Error registrando cambio:', err));
+    }
     leadsService.update(lead.id, { [field]: value }).catch(err => console.error('Error updating field:', err));
   };
 

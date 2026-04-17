@@ -5,6 +5,7 @@ import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
 import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero, Patron, Columna } from '../types/instrumentos';
 import { deepCleanForFirestore } from '@ags/shared';
+import { auth } from './authService';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -617,6 +618,7 @@ export class FirebaseService {
     }
 
     const now = new Date().toISOString();
+    const currentUser = auth.currentUser;
     const docRef = await addDoc(collection(db, 'leads'), {
       razonSocial: data.razonSocial,
       contacto: data.contacto,
@@ -640,6 +642,7 @@ export class FirebaseService {
       adjuntos: [],
       proximoContacto: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       source: 'manual',
+      createdBy: currentUser?.uid || null,
       createdAt: now,
       updatedAt: now,
     });
