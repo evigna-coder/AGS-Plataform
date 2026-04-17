@@ -165,25 +165,38 @@ function PatronesTab({
     return <p className="text-xs text-slate-400 text-center py-6">No hay patrones activos registrados.</p>;
   }
 
+  // Agrupar por codigoArticulo: juntar todos los lotes bajo un mismo header
+  const grouped = useMemo(() => {
+    const map = new Map<string, { first: Patron; entries: { patron: Patron; loteIdx: number; lote: Patron['lotes'][number] }[] }>();
+    for (const p of patrones) {
+      const key = p.codigoArticulo;
+      if (!map.has(key)) map.set(key, { first: p, entries: [] });
+      const group = map.get(key)!;
+      p.lotes.forEach((lote, idx) => group.entries.push({ patron: p, loteIdx: idx, lote }));
+    }
+    return [...map.values()];
+  }, [patrones]);
+
   return (
     <div className="space-y-2">
-      {patrones.map(p => {
-        const isOpen = expandidos.has(p.id);
-        const selCount = p.lotes.filter((_, idx) => selectedKeys.has(`${p.id}__${idx}`)).length;
+      {grouped.map(({ first, entries }) => {
+        const groupKey = first.codigoArticulo;
+        const isOpen = expandidos.has(groupKey);
+        const selCount = entries.filter(e => selectedKeys.has(`${e.patron.id}__${e.loteIdx}`)).length;
         return (
-          <div key={p.id} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+          <div key={groupKey} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <button
-              onClick={() => togglePatron(p.id)}
+              onClick={() => togglePatron(groupKey)}
               className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
             >
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <span className="text-[10px] text-slate-400 shrink-0">{isOpen ? '▼' : '▶'}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 font-mono truncate">{p.codigoArticulo}</p>
+                  <p className="text-xs font-semibold text-slate-800 font-mono truncate">{first.codigoArticulo}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-600 truncate">{p.descripcion}</span>
-                    {p.marca && <span className="text-[10px] text-slate-400 shrink-0">· {p.marca}</span>}
-                    <span className="text-[10px] text-slate-400 shrink-0">· {p.lotes.length} lote(s)</span>
+                    <span className="text-[10px] text-slate-600 truncate">{first.descripcion}</span>
+                    {first.marca && <span className="text-[10px] text-slate-400 shrink-0">· {first.marca}</span>}
+                    <span className="text-[10px] text-slate-400 shrink-0">· {entries.length} lote(s)</span>
                   </div>
                 </div>
               </div>
@@ -195,31 +208,31 @@ function PatronesTab({
             </button>
             {isOpen && (
               <div className="p-2 space-y-1.5 border-t border-slate-100 bg-slate-50/30">
-                {p.lotes.length === 0 ? (
+                {entries.length === 0 ? (
                   <p className="text-[10px] text-slate-400 italic px-2">Sin lotes cargados</p>
                 ) : (
-                  p.lotes.map((lote, idx) => {
-                    const key = `${p.id}__${idx}`;
+                  entries.map(e => {
+                    const key = `${e.patron.id}__${e.loteIdx}`;
                     const isChecked = selectedKeys.has(key);
-                    const estado = estadoCert(lote.fechaVencimiento);
+                    const estado = estadoCert(e.lote.fechaVencimiento);
                     const badge = ESTADO_BADGE[estado];
                     return (
-                      <label key={idx} className={`flex items-start gap-3 p-2 rounded border cursor-pointer transition-colors ${
+                      <label key={key} className={`flex items-start gap-3 p-2 rounded border cursor-pointer transition-colors ${
                         isChecked ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
                       }`}>
                         <input type="checkbox" checked={isChecked}
-                          onChange={() => onToggle(p.id, idx)}
+                          onChange={() => onToggle(e.patron.id, e.loteIdx)}
                           className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-mono text-slate-700">Lote: {lote.lote}</span>
-                            {lote.fechaVencimiento && (
-                              <span className="text-[10px] text-slate-500">Vence: {lote.fechaVencimiento}</span>
+                            <span className="text-[11px] font-mono text-slate-700">Lote: {e.lote.lote}</span>
+                            {e.lote.fechaVencimiento && (
+                              <span className="text-[10px] text-slate-500">Vence: {e.lote.fechaVencimiento}</span>
                             )}
                             <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${badge.cls}`}>{badge.label}</span>
                           </div>
-                          {lote.certificadoEmisor && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">Emisor: {lote.certificadoEmisor}</p>
+                          {e.lote.certificadoEmisor && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">Emisor: {e.lote.certificadoEmisor}</p>
                           )}
                         </div>
                       </label>
@@ -259,25 +272,38 @@ function ColumnasTab({
     return <p className="text-xs text-slate-400 text-center py-6">No hay columnas activas registradas.</p>;
   }
 
+  // Agrupar por codigoArticulo: juntar todas las series bajo un mismo header
+  const grouped = useMemo(() => {
+    const map = new Map<string, { first: Columna; entries: { col: Columna; serieIdx: number; serie: Columna['series'][number] }[] }>();
+    for (const c of columnas) {
+      const key = c.codigoArticulo;
+      if (!map.has(key)) map.set(key, { first: c, entries: [] });
+      const group = map.get(key)!;
+      c.series.forEach((s, idx) => group.entries.push({ col: c, serieIdx: idx, serie: s }));
+    }
+    return [...map.values()];
+  }, [columnas]);
+
   return (
     <div className="space-y-2">
-      {columnas.map(c => {
-        const isOpen = expandidos.has(c.id);
-        const selCount = c.series.filter((_, idx) => selectedKeys.has(`${c.id}__${idx}`)).length;
+      {grouped.map(({ first, entries }) => {
+        const groupKey = first.codigoArticulo;
+        const isOpen = expandidos.has(groupKey);
+        const selCount = entries.filter(e => selectedKeys.has(`${e.col.id}__${e.serieIdx}`)).length;
         return (
-          <div key={c.id} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+          <div key={groupKey} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <button
-              onClick={() => toggleCol(c.id)}
+              onClick={() => toggleCol(groupKey)}
               className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
             >
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <span className="text-[10px] text-slate-400 shrink-0">{isOpen ? '▼' : '▶'}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 font-mono truncate">{c.codigoArticulo}</p>
+                  <p className="text-xs font-semibold text-slate-800 font-mono truncate">{first.codigoArticulo}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-600 truncate">{c.descripcion}</span>
-                    {c.marca && <span className="text-[10px] text-slate-400 shrink-0">· {c.marca}</span>}
-                    <span className="text-[10px] text-slate-400 shrink-0">· {c.series.length} serie(s)</span>
+                    <span className="text-[10px] text-slate-600 truncate">{first.descripcion}</span>
+                    {first.marca && <span className="text-[10px] text-slate-400 shrink-0">· {first.marca}</span>}
+                    <span className="text-[10px] text-slate-400 shrink-0">· {entries.length} serie(s)</span>
                   </div>
                 </div>
               </div>
@@ -289,33 +315,33 @@ function ColumnasTab({
             </button>
             {isOpen && (
               <div className="p-2 space-y-1.5 border-t border-slate-100 bg-slate-50/30">
-                {c.series.length === 0 ? (
+                {entries.length === 0 ? (
                   <p className="text-[10px] text-slate-400 italic px-2">Sin series cargadas</p>
                 ) : (
-                  c.series.map((s, idx) => {
-                    const key = `${c.id}__${idx}`;
+                  entries.map(e => {
+                    const key = `${e.col.id}__${e.serieIdx}`;
                     const isChecked = selectedKeys.has(key);
-                    const estado = estadoCert(s.fechaVencimiento);
+                    const estado = estadoCert(e.serie.fechaVencimiento);
                     const badge = ESTADO_BADGE[estado];
                     return (
-                      <label key={idx} className={`flex items-start gap-3 p-2 rounded border cursor-pointer transition-colors ${
+                      <label key={key} className={`flex items-start gap-3 p-2 rounded border cursor-pointer transition-colors ${
                         isChecked ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
                       }`}>
                         <input type="checkbox" checked={isChecked}
-                          onChange={() => onToggle(c.id, idx)}
+                          onChange={() => onToggle(e.col.id, e.serieIdx)}
                           className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-mono text-slate-700">S/N: {s.serie}</span>
-                            {s.fechaVencimiento && (
+                            <span className="text-[11px] font-mono text-slate-700">S/N: {e.serie.serie}</span>
+                            {e.serie.fechaVencimiento && (
                               <>
-                                <span className="text-[10px] text-slate-500">Vence: {s.fechaVencimiento}</span>
+                                <span className="text-[10px] text-slate-500">Vence: {e.serie.fechaVencimiento}</span>
                                 <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${badge.cls}`}>{badge.label}</span>
                               </>
                             )}
                           </div>
-                          {s.notas && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">{s.notas}</p>
+                          {e.serie.notas && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">{e.serie.notas}</p>
                           )}
                         </div>
                       </label>
@@ -357,11 +383,14 @@ export const InstrumentoSelectorPanel: React.FC<Props> = ({
   const [checkedColumnasKeys, setCheckedColumnasKeys] = useState<Set<string>>(new Set());
 
   // Sincronizar cuando cambia el selected desde afuera
+  const instrumentosSelectedKey = JSON.stringify(instrumentosSelected.map(i => i.id));
   useEffect(() => {
     setCheckedInstrumentos(new Set(instrumentosSelected.map(i => i.id)));
-  }, [instrumentosSelected]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instrumentosSelectedKey]);
 
   // Cuando hay available + selected, calcular las keys de patrones/columnas seleccionados
+  const patronesSelectedKey = JSON.stringify(patronesSelected.map(p => `${p.patronId}:${p.lote}`));
   useEffect(() => {
     if (availablePatrones.length === 0) return;
     const keys = new Set<string>();
@@ -372,8 +401,10 @@ export const InstrumentoSelectorPanel: React.FC<Props> = ({
       if (idx >= 0) keys.add(`${patron.id}__${idx}`);
     }
     setCheckedPatronesKeys(keys);
-  }, [availablePatrones, patronesSelected]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availablePatrones, patronesSelectedKey]);
 
+  const columnasSelectedKey = JSON.stringify(columnasSelected.map(c => `${c.columnaId}:${c.serie}`));
   useEffect(() => {
     if (availableColumnas.length === 0) return;
     const keys = new Set<string>();
@@ -384,7 +415,8 @@ export const InstrumentoSelectorPanel: React.FC<Props> = ({
       if (idx >= 0) keys.add(`${col.id}__${idx}`);
     }
     setCheckedColumnasKeys(keys);
-  }, [availableColumnas, columnasSelected]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableColumnas, columnasSelectedKey]);
 
   const handleOpen = async () => {
     if (readOnly) return;

@@ -135,6 +135,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Certificados de ingeniero (calibración personal)
+    match /certificadosIngeniero/{certId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Marcas (catálogo compartido)
     match /marcas/{marcaId} {
       allow read, write: if true; // Temporal para desarrollo
