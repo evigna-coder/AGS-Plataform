@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ProtocolSelection } from '../types/tableCatalog';
 
 interface Props {
@@ -5,6 +6,89 @@ interface Props {
   readOnly?: boolean;
   isPrint?: boolean;
   onRemove?: (tableId: string) => void;
+  onChangeData?: (tableId: string, rowId: string, colKey: string, value: string) => void;
+}
+
+/** Parsea texto con variables {nombre} y devuelve fragmentos de texto y variables */
+function parseTextWithVars(text: string): Array<{ type: 'text'; value: string } | { type: 'var'; name: string }> {
+  const parts: Array<{ type: 'text'; value: string } | { type: 'var'; name: string }> = [];
+  const regex = /\{([^}]+)\}/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'var', name: match[1] });
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', value: text.slice(lastIndex) });
+  }
+  return parts;
+}
+
+/** Renderiza contenido HTML con soporte para variables {nombre} como inputs inline */
+function TextContentWithVars({
+  html,
+  filledData,
+  tableId,
+  readOnly,
+  isPrint,
+  onChangeData,
+  className,
+}: {
+  html: string;
+  filledData: Record<string, Record<string, string>>;
+  tableId: string;
+  readOnly: boolean;
+  isPrint: boolean;
+  onChangeData?: (tableId: string, rowId: string, colKey: string, value: string) => void;
+  className?: string;
+}) {
+  const hasVars = /\{[^}]+\}/.test(html);
+
+  if (!hasVars) {
+    return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  }
+
+  // Extraer texto plano del HTML para parsear variables
+  const tempDiv = typeof document !== 'undefined' ? document.createElement('div') : null;
+  if (tempDiv) tempDiv.innerHTML = html;
+  const plainText = tempDiv?.textContent ?? html.replace(/<[^>]*>/g, '');
+  const parts = parseTextWithVars(plainText);
+  const ROW_KEY = '_text_vars_';
+
+  return (
+    <div className={className}>
+      {parts.map((part, i) => {
+        if (part.type === 'text') {
+          return <span key={i}>{part.value}</span>;
+        }
+        const varKey = part.name.toLowerCase().replace(/\s+/g, '_');
+        const value = filledData[ROW_KEY]?.[varKey] ?? '';
+        if (isPrint) {
+          return (
+            <span key={i} className="font-semibold">
+              {value || '___'}
+            </span>
+          );
+        }
+        return (
+          <input
+            key={i}
+            type="text"
+            value={value}
+            disabled={readOnly}
+            placeholder={part.name}
+            onChange={(e) => onChangeData?.(tableId, ROW_KEY, varKey, e.target.value)}
+            className="inline-block border-b border-blue-400 bg-blue-50/50 text-center px-1 mx-0.5 outline-none focus:border-blue-600 focus:bg-blue-50 disabled:bg-transparent disabled:border-slate-300"
+            style={{ width: `${Math.max(value.length + 2, part.name.length + 2)}ch`, fontSize: 'inherit' }}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 export const CatalogTextView: React.FC<Props> = ({
@@ -12,6 +96,7 @@ export const CatalogTextView: React.FC<Props> = ({
   readOnly = false,
   isPrint = false,
   onRemove,
+  onChangeData,
 }) => {
   const table = selection.tableSnapshot;
   const textContent = table.textContent ?? '';
@@ -21,7 +106,6 @@ export const CatalogTextView: React.FC<Props> = ({
   if (isInline) {
     return (
       <div className={`mb-4 ${isPrint ? '' : 'relative group'}`}>
-        {/* Botón quitar (solo en modo edición) */}
         {!isPrint && !readOnly && onRemove && (
           <button
             onClick={() => onRemove(selection.tableId)}
@@ -34,17 +118,20 @@ export const CatalogTextView: React.FC<Props> = ({
           </button>
         )}
 
-        {/* Título como heading simple */}
         {table.name && (
           <p className={`font-semibold mb-1 ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
             {table.name}
           </p>
         )}
 
-        {/* Contenido HTML suelto */}
-        <div
+        <TextContentWithVars
+          html={textContent}
+          filledData={selection.filledData}
+          tableId={selection.tableId}
+          readOnly={readOnly}
+          isPrint={isPrint}
+          onChangeData={onChangeData}
           className={`catalog-text-content ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-          dangerouslySetInnerHTML={{ __html: textContent }}
         />
       </div>
     );
@@ -53,7 +140,6 @@ export const CatalogTextView: React.FC<Props> = ({
   // ─── Modo card: con encabezado y borde (default) ──────────────────────
   return (
     <div className={`mb-6 ${isPrint ? 'border border-slate-300' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden'} bg-white`}>
-      {/* Encabezado */}
       <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'border-b border-slate-300' : 'bg-slate-50 border-b border-slate-200'}`}>
         <div className="min-w-0">
           <p className={`font-semibold truncate ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
@@ -79,10 +165,14 @@ export const CatalogTextView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Contenido de texto (HTML enriquecido) */}
-      <div
+      <TextContentWithVars
+        html={textContent}
+        filledData={selection.filledData}
+        tableId={selection.tableId}
+        readOnly={readOnly}
+        isPrint={isPrint}
+        onChangeData={onChangeData}
         className={`catalog-text-content px-3 py-2 ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-        dangerouslySetInnerHTML={{ __html: textContent }}
       />
     </div>
   );

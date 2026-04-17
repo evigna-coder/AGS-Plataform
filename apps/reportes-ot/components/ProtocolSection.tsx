@@ -199,6 +199,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 readOnly={readOnly}
                 isPrint={false}
                 onRemove={handleRemoveCatalogTable}
+                onChangeData={handleCatalogCellChange}
               />
             ) : sel.tableSnapshot.tableType === 'checklist' ? (
               <CatalogChecklistView

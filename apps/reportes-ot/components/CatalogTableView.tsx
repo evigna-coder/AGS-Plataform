@@ -1490,16 +1490,16 @@ export const CatalogTableView: React.FC<Props> = ({
       {/* Tabla */}
       <div className={isPrint ? '' : readOnly ? '' : 'overflow-x-auto'}>
         {(() => {
-          // Solo usar table-layout: fixed en print para tablas de validación con 5+ columnas
+          // Usar table-layout: fixed para tablas de validación con 5+ columnas (print y edición)
           // Las tablas informacionales (2-3 cols) funcionan mejor con auto
-          const useFixedLayout = isPrint && table.tableType === 'validation' && visibleColumns.length >= 5;
-          const hasExplicitWidths = visibleColumns.some(c => c.width);
+          const useFixedLayout = table.tableType === 'validation' && visibleColumns.length >= 5;
+          const hasExplicitWidths = !useFixedLayout && visibleColumns.some(c => c.width);
           const tableLayout = useFixedLayout || hasExplicitWidths ? 'fixed' as const : undefined;
           return (
         <table className="w-full text-left border-collapse" style={{ tableLayout }}>
           {(() => {
             if (useFixedLayout) {
-              // Validación en print: distribuir proporcionalmente
+              // Validación con muchas columnas: distribuir proporcionalmente
               const weights = visibleColumns.map(c => {
                 if (c.width) return c.width;
                 const label = (c.label ?? '') + (c.unit ? ` (${c.unit})` : '');
@@ -1532,10 +1532,10 @@ export const CatalogTableView: React.FC<Props> = ({
               groups.forEach(g => { for (let i = g.startCol; i < g.startCol + g.span; i++) groupedCols.add(i); });
 
               const thClass = (colIdx: number) =>
-                `px-1 font-semibold ${compact || isPrint ? 'py-1 text-[8px] leading-tight' : 'py-1.5 text-xs'} text-center ${
+                `px-1 font-semibold ${compact || isPrint ? 'py-1 text-[8px] leading-tight' : useFixedLayout ? 'py-1 text-[10px] leading-tight' : 'py-1.5 text-xs'} text-center ${
                   `text-slate-600${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-200' : ''}`
                 }`;
-              const thStyle: React.CSSProperties = isPrint ? { overflowWrap: 'anywhere', wordBreak: 'break-word' } : {};
+              const thStyle: React.CSSProperties = isPrint || useFixedLayout ? { overflowWrap: 'anywhere', wordBreak: 'break-word' } : {};
 
               const titleRow = groupTitle ? (
                 <tr className="bg-slate-100">
