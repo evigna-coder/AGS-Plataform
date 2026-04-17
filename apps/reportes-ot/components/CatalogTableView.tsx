@@ -1282,7 +1282,7 @@ export const CatalogTableView: React.FC<Props> = ({
   };
 
   return (
-    <div className={`catalog-table-rowsafe mb-6 ${isPrint ? 'rounded-xl border border-slate-200 overflow-hidden' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
+    <div className={`catalog-table-rowsafe mb-6 ${isPrint ? 'rounded-xl border border-slate-200' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
 
       {/* Encabezado de tabla (ocultar si showTitle === false) */}
       {table.showTitle !== false ? (
@@ -1451,15 +1451,40 @@ export const CatalogTableView: React.FC<Props> = ({
       )}
 
       {/* Tabla */}
-      <div className={isPrint || readOnly ? '' : 'overflow-x-auto'}>
-        <table className="w-full text-left border-collapse" style={visibleColumns.some(c => c.width) ? { tableLayout: 'fixed' } : undefined}>
-          {visibleColumns.some(c => c.width) && (
-            <colgroup>
-              {visibleColumns.map(col => (
-                <col key={col.key} style={col.width ? { width: `${col.width}mm` } : undefined} />
-              ))}
-            </colgroup>
-          )}
+      <div className={isPrint ? '' : readOnly ? '' : 'overflow-x-auto'}>
+        {(() => {
+          // Solo usar table-layout: fixed en print para tablas de validación con 5+ columnas
+          // Las tablas informacionales (2-3 cols) funcionan mejor con auto
+          const useFixedLayout = isPrint && table.tableType === 'validation' && visibleColumns.length >= 5;
+          const hasExplicitWidths = visibleColumns.some(c => c.width);
+          const tableLayout = useFixedLayout || hasExplicitWidths ? 'fixed' as const : undefined;
+          return (
+        <table className="w-full text-left border-collapse" style={{ tableLayout }}>
+          {(() => {
+            if (useFixedLayout) {
+              // Validación en print: distribuir proporcionalmente
+              const weights = visibleColumns.map(c => {
+                if (c.width) return c.width;
+                const label = (c.label ?? '') + (c.unit ? ` (${c.unit})` : '');
+                return Math.max(label.length * 1.5, 8);
+              });
+              const total = weights.reduce((a, b) => a + b, 0);
+              return (
+                <colgroup>
+                  {visibleColumns.map((col, i) => (
+                    <col key={col.key} style={{ width: `${(weights[i] / total * 100).toFixed(1)}%` }} />
+                  ))}
+                </colgroup>
+              );
+            }
+            return (
+              <colgroup>
+                {visibleColumns.map(col => (
+                  <col key={col.key} style={col.width ? { width: `${col.width}mm` } : undefined} />
+                ))}
+              </colgroup>
+            );
+          })()}
           <thead>
             {(() => {
               const groups = visibleGroups;
@@ -1470,9 +1495,10 @@ export const CatalogTableView: React.FC<Props> = ({
               groups.forEach(g => { for (let i = g.startCol; i < g.startCol + g.span; i++) groupedCols.add(i); });
 
               const thClass = (colIdx: number) =>
-                `px-2 font-semibold ${compact ? 'py-1 text-[10px]' : 'py-1.5 text-xs'} text-center ${
+                `px-1 font-semibold ${compact || isPrint ? 'py-1 text-[8px] leading-tight' : 'py-1.5 text-xs'} text-center ${
                   `text-slate-600${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-200' : ''}`
                 }`;
+              const thStyle: React.CSSProperties = isPrint ? { overflowWrap: 'anywhere', wordBreak: 'break-word' } : {};
 
               const titleRow = groupTitle ? (
                 <tr className="bg-slate-100">
@@ -1491,7 +1517,7 @@ export const CatalogTableView: React.FC<Props> = ({
                     <tr className="bg-slate-100 border-b border-slate-200">
                       {visibleColumns.map((col, colIdx) => (
                         <th key={col.key} className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''}`}
-                          style={col.width ? { width: `${col.width}mm` } : undefined}>
+                          style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                           {col.label || null}
                           {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
                           {col.label && col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
@@ -1522,7 +1548,8 @@ export const CatalogTableView: React.FC<Props> = ({
                         const lastGroupColIdx = group.startCol + group.span - 1;
                         return (
                           <th key={`group-${colIdx}`} colSpan={group.span}
-                            className={`${thClass(lastGroupColIdx)} ${isPrint ? '' : 'border-b border-slate-200'}`}>
+                            className={`${thClass(lastGroupColIdx)} ${isPrint ? '' : 'border-b border-slate-200'}`}
+                            style={thStyle}>
                             {group.label}
                           </th>
                         );
@@ -1531,7 +1558,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       return (
                         <th key={col.key} rowSpan={2}
                           className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''} ${isPrint ? '' : 'border-b border-slate-200'}`}
-                          style={col.width ? { width: `${col.width}mm` } : undefined}>
+                          style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                           {col.label || null}
                           {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
                           {col.label && col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
@@ -1551,7 +1578,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         return (
                           <th key={col.key}
                             className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''} ${!isPrint && isLastInGroup && !isLastCol ? 'border-r border-slate-200' : ''}`}
-                            style={col.width ? { width: `${col.width}mm` } : undefined}>
+                            style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                             {col.label || null}
                             {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
                           </th>
@@ -1755,7 +1782,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         return (
                         <td
                           key={col.key}
-                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
+                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${!isPrint && colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -1878,9 +1905,9 @@ export const CatalogTableView: React.FC<Props> = ({
                           rowSpan={isSpanning ? colSpan : undefined}
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
-                            `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''} border-b border-b-slate-100${groupStyle}`,
+                            `${isPrint ? 'text-[10px]' : 'text-xs'}${!isPrint && colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
                             alignCls,
-                            boundaryAbove ? 'border-t border-t-slate-300' : '',
+                            !isPrint && boundaryAbove ? 'border-t border-t-slate-300' : '',
                             showActionsHere ? 'relative pr-4' : '',
                           ].join(' ')}
                         >
@@ -1921,6 +1948,8 @@ export const CatalogTableView: React.FC<Props> = ({
             })()}
           </tbody>
         </table>
+          );
+        })()}
       </div>
 
       {/* Botón agregar fila (solo si la tabla lo permite) */}
