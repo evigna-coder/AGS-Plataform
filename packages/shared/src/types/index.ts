@@ -1287,6 +1287,11 @@ export interface TableCatalogRow {
    */
   visibleWhenSelector?: { headerFieldId: string; values: string[] } | null;
   /**
+   * Cuando true, la fila se muestra por defecto aunque su visibleWhenSelector no matchee.
+   * Útil para filas que deben aparecer siempre sin importar qué opción del selector se eligió.
+   */
+  defaultVisible?: boolean;
+  /**
    * Variable del reporte que auto-rellena esta fila (ej. 'cliente.razonSocial').
    * Cuando está seteada, la columna de valor se resuelve automáticamente desde el contexto del reporte.
    */

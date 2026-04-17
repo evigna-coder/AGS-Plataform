@@ -44,6 +44,9 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   // Permitir que el técnico duplique esta fila al llenar el protocolo
   const [duplicableEnProtocolo, setDuplicableEnProtocolo] = useState(row.duplicableEnProtocolo ?? false);
 
+  // Mostrar por defecto (visible sin importar selector)
+  const [defaultVisible, setDefaultVisible] = useState(row.defaultVisible ?? false);
+
   // Unidades por columna (override de col.unit para esta fila)
   const [cellUnits, setCellUnits] = useState<Record<string, string>>(
     () => Object.fromEntries(Object.entries(row.cellUnits ?? {}).filter(([, v]) => v !== ''))
@@ -90,6 +93,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         variable: variable || null,
         cellUnits: Object.keys(cleanCellUnits).length > 0 ? cleanCellUnits : null,
         duplicableEnProtocolo: duplicableEnProtocolo || undefined,
+        defaultVisible: defaultVisible || undefined,
       });
     }
   };
@@ -139,17 +143,30 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
       </div>
 
       {mode !== 'title' && (
-        <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
-          <input
-            type="checkbox"
-            checked={duplicableEnProtocolo}
-            onChange={e => setDuplicableEnProtocolo(e.target.checked)}
-          />
-          <span>
-            <span className="font-bold uppercase tracking-wide text-[10px] text-teal-800">Duplicable en protocolo</span>
-            <span className="block text-[10px] text-slate-500">El técnico podrá agregar copias de esta fila al llenar el reporte (p.ej. un segundo inyector).</span>
-          </span>
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+            <input
+              type="checkbox"
+              checked={duplicableEnProtocolo}
+              onChange={e => setDuplicableEnProtocolo(e.target.checked)}
+            />
+            <span>
+              <span className="font-bold uppercase tracking-wide text-[10px] text-teal-800">Duplicable en protocolo</span>
+              <span className="block text-[10px] text-slate-500">El técnico podrá agregar copias de esta fila al llenar el reporte (p.ej. un segundo inyector).</span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+            <input
+              type="checkbox"
+              checked={defaultVisible}
+              onChange={e => setDefaultVisible(e.target.checked)}
+            />
+            <span>
+              <span className="font-bold uppercase tracking-wide text-[10px] text-blue-800">Mostrar por defecto</span>
+              <span className="block text-[10px] text-slate-500">La fila se muestra siempre, aunque no coincida con el valor seleccionado en el encabezado.</span>
+            </span>
+          </label>
+        </div>
       )}
 
       {mode === 'title' ? (

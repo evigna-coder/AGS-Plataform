@@ -1153,7 +1153,21 @@ export const CatalogTableView: React.FC<Props> = ({
         );
       }
 
-      // Cliente: editable + referencia de fábrica
+      // Cliente: editable — solo el número, operador y unidad fijos
+      // Parsear spec en: prefijo (operador), número(s), sufijo (unidad)
+      const parseSpec = (val: string) => {
+        if (!val) return { prefix: '', number: '', suffix: '' };
+        // Match: operador + número(s) con rangos + unidad
+        // Ej: "≤ 25 pA" → prefix="≤ ", number="25", suffix=" pA"
+        // Ej: "± 4.0 °C" → prefix="± ", number="4.0", suffix=" °C"
+        // Ej: "95 – 105" → prefix="", number="95 – 105", suffix=""
+        // Ej: "≥1600*{ruido}" → devolver todo como number (tiene variable)
+        if (/\{/.test(val)) return { prefix: '', number: val, suffix: '' };
+        const m = val.match(/^([^\d+-]*?)\s*([+-]?\d[\d.,\s–\-]*\d|\d+(?:[.,]\d+)?)\s*(.*)$/);
+        if (!m) return { prefix: '', number: val, suffix: '' };
+        return { prefix: m[1].trim(), number: m[2].trim(), suffix: m[3].trim() };
+      };
+
       if (isPrint) {
         const printVal = rawValue || factoryVal || '—';
         return (
@@ -1162,22 +1176,45 @@ export const CatalogTableView: React.FC<Props> = ({
           </span>
         );
       }
+
+      const parsed = parseSpec(rawValue);
+      const hasStructure = parsed.prefix || parsed.suffix;
+
       return (
         <div className="space-y-0.5">
-          <div className={`flex items-center border border-blue-300 rounded bg-blue-50/60 px-1 py-0.5 gap-0.5 focus-within:ring-1 focus-within:ring-blue-500 ${readOnly ? 'bg-slate-50' : ''}`}>
-            <input
-              type="text"
-              value={rawValue}
-              disabled={readOnly}
-              placeholder="Especificación del cliente..."
-              onChange={(e) => handleCellChange(rowId, col.key, e.target.value)}
-              onFocus={e => e.target.select()}
-              className="flex-1 min-w-0 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-blue-300"
-            />
-            {col.unit && (
-              <span className="text-[10px] text-blue-400 select-none shrink-0 pointer-events-none">
-                {col.unit}
-              </span>
+          <div className={`flex items-center border border-blue-300 rounded bg-blue-50/60 px-1 py-0.5 focus-within:ring-1 focus-within:ring-blue-500 ${readOnly ? 'bg-slate-50' : ''}`}>
+            {hasStructure ? (
+              <>
+                {parsed.prefix && (
+                  <span className="text-[10px] text-blue-500 select-none shrink-0 font-medium">{parsed.prefix}</span>
+                )}
+                <input
+                  type="text"
+                  value={parsed.number}
+                  disabled={readOnly}
+                  placeholder="—"
+                  onChange={(e) => {
+                    const newVal = [parsed.prefix, e.target.value, parsed.suffix].filter(Boolean).join(' ');
+                    handleCellChange(rowId, col.key, newVal);
+                  }}
+                  onFocus={e => e.target.select()}
+                  className="min-w-0 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-blue-300"
+                  style={{ width: `${Math.max(parsed.number.length + 1, 3)}ch` }}
+                />
+                {parsed.suffix && (
+                  <span className="text-[10px] text-blue-400 select-none shrink-0">{parsed.suffix}</span>
+                )}
+              </>
+            ) : (
+              <input
+                type="text"
+                value={rawValue}
+                disabled={readOnly}
+                placeholder="Especificación del cliente..."
+                onChange={(e) => handleCellChange(rowId, col.key, e.target.value)}
+                onFocus={e => e.target.select()}
+                className="flex-1 min-w-0 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-blue-300"
+              />
             )}
           </div>
           {factoryVal && (
@@ -1643,7 +1680,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 // Primero, filas sin visibleWhenSelector o que NO usan el grouping field
                 table.templateRows.forEach((row, origIdx) => {
                   if (row.visibleWhenSelector && row.visibleWhenSelector.headerFieldId === groupingField.fieldId) return;
-                  if (row.visibleWhenSelector && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
+                  if (row.visibleWhenSelector && !row.defaultVisible && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
                   items.push({ kind: 'row', row, origIdx });
                 });
                 // Luego, un grupo por cada valor seleccionado. Cada fila se asigna a UN solo grupo
@@ -1662,7 +1699,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 }
               } else {
                 table.templateRows.forEach((row, origIdx) => {
-                  if (row.visibleWhenSelector && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
+                  if (row.visibleWhenSelector && !row.defaultVisible && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
                   items.push({ kind: 'row', row, origIdx });
                 });
               }
@@ -1754,7 +1791,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 );
               }
               if (row.isSelector) {
-                const selectorValue = selection.filledData[row.rowId]?.['__selector__'] ?? '';
+                const selectorValue = selection.filledData[row.rowId]?.['_selector_'] ?? '';
                 const isDup = row.rowId.startsWith('dup_');
                 const canDuplicate = !!row.duplicableEnProtocolo && !!onDuplicateRow && !readOnly && !isPrint;
                 const canRemove = isDup && !!onRemoveRow && !readOnly && !isPrint;
@@ -1796,7 +1833,7 @@ export const CatalogTableView: React.FC<Props> = ({
                               ) : (
                                 <select
                                   value={selectorValue}
-                                  onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
+                                  onChange={(e) => onChangeData(selection.tableId, row.rowId, '_selector_', e.target.value)}
                                   className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 >
                                   <option value="">Seleccionar...</option>
@@ -1821,7 +1858,7 @@ export const CatalogTableView: React.FC<Props> = ({
                                   <span className="text-[10px] font-semibold text-slate-700 shrink-0">{row.selectorLabel}:</span>
                                   <select
                                     value={selectorValue}
-                                    onChange={(e) => onChangeData(selection.tableId, row.rowId, '__selector__', e.target.value)}
+                                    onChange={(e) => onChangeData(selection.tableId, row.rowId, '_selector_', e.target.value)}
                                     className="text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   >
                                     <option value="">Seleccionar...</option>

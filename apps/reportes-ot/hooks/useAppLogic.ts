@@ -212,12 +212,30 @@ export function useAppLogic(
     setProtocolSelections(
       protocolSelections.map(s => {
         if (s.tableId !== tableId) return s;
-        if (instanceValue) {
-          // Per-instance client spec
-          const prev = s.instanceClientSpec ?? {};
-          return { ...s, instanceClientSpec: { ...prev, [instanceValue]: enabled } };
+        const updated = instanceValue
+          ? { ...s, instanceClientSpec: { ...(s.instanceClientSpec ?? {}), [instanceValue]: enabled } }
+          : { ...s, clientSpecEnabled: enabled };
+
+        // Al activar: pre-llenar campos de spec con valores de fábrica si están vacíos
+        if (enabled) {
+          const table = s.tableSnapshot;
+          const specRule = (table.validationRules ?? []).find(r => r.operator === 'vs_spec' && r.specColumn);
+          const specColKey = specRule?.specColumn;
+          if (specColKey) {
+            const filledData = { ...updated.filledData };
+            for (const row of table.templateRows) {
+              if (row.isTitle || row.isSelector) continue;
+              const factoryVal = String(row.cells?.[specColKey] ?? '').trim();
+              if (!factoryVal) continue;
+              const currentVal = filledData[row.rowId]?.[specColKey] ?? '';
+              if (!currentVal || currentVal === 'N/A') {
+                filledData[row.rowId] = { ...(filledData[row.rowId] ?? {}), [specColKey]: factoryVal };
+              }
+            }
+            updated.filledData = filledData;
+          }
         }
-        return { ...s, clientSpecEnabled: enabled };
+        return updated;
       })
     );
   };

@@ -103,7 +103,7 @@ function PrivateApp() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/ordenes-trabajo" replace />} />
+        <Route index element={<Navigate to="/leads" replace />} />
         <Route path="ordenes-trabajo" element={<OTListPage />} />
         <Route path="ordenes-trabajo/:otNumber" element={<OTDetailPage />} />
         <Route path="historial" element={<HistorialPage />} />
@@ -113,7 +113,7 @@ function PrivateApp() {
         <Route path="reportes" element={<ReportesPage />} />
         <Route path="viaticos" element={<ViaticosPage />} />
         <Route path="perfil" element={<PerfilPage />} />
-        <Route path="*" element={<Navigate to="/ordenes-trabajo" replace />} />
+        <Route path="*" element={<Navigate to="/leads" replace />} />
       </Route>
     </Routes>
   );
