@@ -205,6 +205,21 @@ export default function LeadDetailPage() {
               </div>
             )}
             {isActive && (
+              <Card>
+                <div className="p-3">
+                  <h3 className="text-[11px] font-medium text-slate-400 mb-2">Agregar observación</h3>
+                  <div className="flex gap-2">
+                    <textarea value={comentario} onChange={e => setComentario(e.target.value)}
+                      rows={2} placeholder="Ej: Se envió mail al cliente, a la espera de respuesta..."
+                      className="flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" />
+                    <Button size="sm" onClick={handleAgregarComentario} disabled={!comentario.trim() || enviandoComentario}>
+                      {enviandoComentario ? '...' : 'Enviar'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+            {isActive && (
               <Button size="sm" variant="ghost" className="w-full text-red-500 md:hidden" onClick={() => setShowFinalizar(true)}>Finalizar ticket</Button>
             )}
           </>
