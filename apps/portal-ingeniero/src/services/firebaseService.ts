@@ -297,6 +297,7 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
     updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
     createdBy: (data.createdBy as string) ?? null,
     finalizadoAt: (data.finalizadoAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? null,
+    adjuntos: (data.adjuntos as AdjuntoLead[]) ?? [],
   };
 }
 
