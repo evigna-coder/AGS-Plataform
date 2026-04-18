@@ -468,6 +468,8 @@ interface Props {
   onChangeHeaderData?: (tableId: string, fieldId: string, value: string, instanceValue?: string) => void;
   /** Toggle de visibilidad de columna en la instancia (sobrescribe hiddenByDefault del template) */
   onChangeColumnVisibility?: (tableId: string, colKey: string, visible: boolean) => void;
+  /** Cambio del input editable en el encabezado de una columna (feature headerEditable) */
+  onChangeColumnHeader?: (tableId: string, colKey: string, value: string) => void;
   /** Variables del reporte para auto-rellenar filas con variable binding */
   variables?: Record<string, string>;
   /** Filas del catálogo vivo — usadas como fallback si el snapshot no tiene 'variable' actualizado */
@@ -679,6 +681,7 @@ export const CatalogTableView: React.FC<Props> = ({
   onDuplicateRow,
   onChangeHeaderData,
   onChangeColumnVisibility,
+  onChangeColumnHeader,
   variables,
   liveTemplateRows,
   siblingSelections,
@@ -733,7 +736,7 @@ export const CatalogTableView: React.FC<Props> = ({
   };
   /** Header field que actúa como trigger primario de agrupación (primer multi-select con ≥2 valores). */
   const groupingField = (table.headerFields ?? []).find(hf =>
-    hf.multiSelect && getSelectedHeaderValues(hf.fieldId).length >= 2
+    hf.multiSelect && !hf.suppressGrouping && getSelectedHeaderValues(hf.fieldId).length >= 2
   ) ?? null;
   const groupingSelectedValues = groupingField ? getSelectedHeaderValues(groupingField.fieldId) : [];
 
@@ -1489,6 +1492,12 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Tabla */}
       <div className={isPrint ? '' : readOnly ? '' : 'overflow-x-auto'}>
+        {table.fontSize ? (
+          <style>{`
+            table[data-catalog-table-id="${selection.tableId}"] tbody td,
+            table[data-catalog-table-id="${selection.tableId}"] tbody td * { font-size: ${table.fontSize}px !important; line-height: 1.35 !important; }
+          `}</style>
+        ) : null}
         {(() => {
           // Usar table-layout: fixed para tablas de validación con 5+ columnas (print y edición)
           // Las tablas informacionales (2-3 cols) funcionan mejor con auto
@@ -1496,7 +1505,7 @@ export const CatalogTableView: React.FC<Props> = ({
           const hasExplicitWidths = !useFixedLayout && visibleColumns.some(c => c.width);
           const tableLayout = useFixedLayout || hasExplicitWidths ? 'fixed' as const : undefined;
           return (
-        <table className="w-full text-left border-collapse" style={{ tableLayout }}>
+        <table className="w-full text-left border-collapse" data-catalog-table-id={selection.tableId} style={{ tableLayout }}>
           {(() => {
             if (useFixedLayout) {
               // Validación con muchas columnas: distribuir proporcionalmente
@@ -1557,6 +1566,29 @@ export const CatalogTableView: React.FC<Props> = ({
                           style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                           {col.label || null}
                           {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
+                          {col.headerEditable && (() => {
+                            const _hv = selection.columnHeaderData?.[col.key] ?? '';
+                            const _pc = isPrint ? 'text-slate-500' : 'text-slate-400';
+                            return (
+                              <span className="inline-block whitespace-nowrap ml-1 font-normal align-baseline">
+                                <span className={_pc}>(</span>
+                                {isPrint || readOnly ? (
+                                  <span>{_hv}</span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    maxLength={15}
+                                    value={_hv}
+                                    onChange={(e) => onChangeColumnHeader?.(selection.tableId, col.key, e.target.value.slice(0, 15))}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-block border-b border-slate-400 bg-transparent text-xs font-normal focus:outline-none focus:border-blue-500 m-0 min-w-0"
+                                    style={{ width: `${Math.max(_hv.length, 1)}ch`, padding: 0, minWidth: '1ch' }}
+                                  />
+                                )}
+                                <span className={_pc}>)</span>
+                              </span>
+                            );
+                          })()}
                           {col.label && col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
                           {allConclusionColKeys.has(col.key) && !isPrint && !readOnly && <span className="ml-1 text-blue-400 font-normal text-[9px]">auto</span>}
                           {computeRules.some(r => r.targetColumn === col.key) && !isPrint && !readOnly && <span className="ml-1 text-purple-400 font-normal text-[9px]">calc</span>}
@@ -1598,6 +1630,29 @@ export const CatalogTableView: React.FC<Props> = ({
                           style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                           {col.label || null}
                           {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
+                          {col.headerEditable && (() => {
+                            const _hv = selection.columnHeaderData?.[col.key] ?? '';
+                            const _pc = isPrint ? 'text-slate-500' : 'text-slate-400';
+                            return (
+                              <span className="inline-block whitespace-nowrap ml-1 font-normal align-baseline">
+                                <span className={_pc}>(</span>
+                                {isPrint || readOnly ? (
+                                  <span>{_hv}</span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    maxLength={15}
+                                    value={_hv}
+                                    onChange={(e) => onChangeColumnHeader?.(selection.tableId, col.key, e.target.value.slice(0, 15))}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-block border-b border-slate-400 bg-transparent text-xs font-normal focus:outline-none focus:border-blue-500 m-0 min-w-0"
+                                    style={{ width: `${Math.max(_hv.length, 1)}ch`, padding: 0, minWidth: '1ch' }}
+                                  />
+                                )}
+                                <span className={_pc}>)</span>
+                              </span>
+                            );
+                          })()}
                           {col.label && col.required && !isPrint && <span className="text-red-400 ml-0.5">*</span>}
                           {allConclusionColKeys.has(col.key) && !isPrint && !readOnly && <span className="ml-1 text-blue-400 font-normal text-[9px]">auto</span>}
                           {computeRules.some(r => r.targetColumn === col.key) && !isPrint && !readOnly && <span className="ml-1 text-purple-400 font-normal text-[9px]">calc</span>}
@@ -1618,6 +1673,29 @@ export const CatalogTableView: React.FC<Props> = ({
                             style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                             {col.label || null}
                             {col.label && col.unit && <span className={`font-normal ml-1 ${isPrint ? 'text-slate-300' : 'text-slate-400'}`}>({col.unit})</span>}
+                            {col.headerEditable && (() => {
+                              const _hv = selection.columnHeaderData?.[col.key] ?? '';
+                              const _pc = isPrint ? 'text-slate-500' : 'text-slate-400';
+                              return (
+                                <span className="inline-block whitespace-nowrap ml-1 font-normal align-baseline">
+                                  <span className={_pc}>(</span>
+                                  {isPrint || readOnly ? (
+                                    <span>{_hv}</span>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      maxLength={15}
+                                      value={_hv}
+                                      onChange={(e) => onChangeColumnHeader?.(selection.tableId, col.key, e.target.value.slice(0, 15))}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-block border-b border-slate-400 bg-transparent text-xs font-normal focus:outline-none focus:border-blue-500 m-0 min-w-0"
+                                      style={{ width: `${Math.max(_hv.length, 1)}ch`, padding: 0, minWidth: '1ch' }}
+                                    />
+                                  )}
+                                  <span className={_pc}>)</span>
+                                </span>
+                              );
+                            })()}
                           </th>
                         );
                       })

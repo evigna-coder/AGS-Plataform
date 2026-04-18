@@ -79,6 +79,10 @@ const ColumnForm = ({ col, onSave, onCancel }: ColFormProps) => {
             <input type="checkbox" checked={!!d.hiddenByDefault} onChange={e => setD({ ...d, hiddenByDefault: e.target.checked || undefined })} />
             Oculta por defecto
           </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="En el encabezado, agrega un input entre paréntesis para que el ingeniero lo complete durante el protocolo. Máximo 15 caracteres. Ej: 'Valor medido (Benzaldehído)'.">
+            <input type="checkbox" checked={!!d.headerEditable} onChange={e => setD({ ...d, headerEditable: e.target.checked || undefined })} />
+            Editable en encabezado
+          </label>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Ancho (mm)</label>
             <input

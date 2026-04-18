@@ -21,6 +21,7 @@ import { CrearLeadModal } from '../../components/leads/CrearLeadModal';
 import { DerivarLeadModal } from '../../components/leads/DerivarLeadModal';
 import { FinalizarLeadModal } from '../../components/leads/FinalizarLeadModal';
 import { LeadQuickNoteModal } from '../../components/leads/LeadQuickNoteModal';
+import { ReporteVentasInsumosModal } from '../../components/leads/ReporteVentasInsumosModal';
 import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -42,6 +43,7 @@ export const LeadsList = () => {
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showCreate, setShowCreate] = useState(false);
+  const [showReporte, setShowReporte] = useState(false);
   const [derivarLead, setDerivarLead] = useState<Lead | null>(null);
   const [finalizarLead, setFinalizarLead] = useState<Lead | null>(null);
   const [quickNoteLead, setQuickNoteLead] = useState<Lead | null>(null);
@@ -260,7 +262,12 @@ export const LeadsList = () => {
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader title="Tickets" count={isInitialLoad ? undefined : leadsFiltered.length}
         subtitle={pipelineTotal > 0 ? `Pipeline: ${formatCurrencyARS(pipelineTotal)}` : undefined}
-        actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>}>
+        actions={
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setShowReporte(true)}>Reporte Ventas Insumos</Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Ticket</Button>
+          </div>
+        }>
         <LeadFilters search={filters.search} onSearchChange={v => setFilter('search', v)}
           estadoFilter={filters.estadoFilter as 'nuevo' | 'en_proceso' | 'finalizado' | ''} onEstadoChange={v => setFilter('estadoFilter', v)}
           filters={leadFiltersState} onFiltersChange={handleLeadFiltersChange}
@@ -407,6 +414,7 @@ export const LeadsList = () => {
       </div>
 
       {showCreate && <CrearLeadModal onClose={() => setShowCreate(false)} onCreated={loadLeads} />}
+      <ReporteVentasInsumosModal open={showReporte} onClose={() => setShowReporte(false)} usuarios={usuarios} />
       {derivarLead && <DerivarLeadModal lead={derivarLead} onClose={() => setDerivarLead(null)} onDerived={() => { setDerivarLead(null); loadLeads(); }} />}
       {finalizarLead && <FinalizarLeadModal lead={finalizarLead} onClose={() => setFinalizarLead(null)} onFinalized={() => { setFinalizarLead(null); loadLeads(); }} />}
       {quickNoteLead && <LeadQuickNoteModal lead={quickNoteLead} onClose={() => setQuickNoteLead(null)} onAdded={() => { setQuickNoteLead(null); loadLeads(); }} />}

@@ -1,0 +1,167 @@
+[
+  {
+    "name": "Puertos de inyección",
+    "description": "Configuración de puertos de inyección del cromatógrafo. Por defecto muestra Front. El técnico puede agregar Back y/o Aux desde el selector de encabezado.",
+    "sysType": "GC",
+    "isDefault": false,
+    "tableType": "informational",
+    "orden": 10,
+    "headerFields": [
+      {
+        "fieldId": "puertos_adicionales",
+        "label": "Puertos adicionales",
+        "options": ["Back", "Aux"],
+        "inputType": "select",
+        "multiSelect": true,
+        "suppressGrouping": true
+      }
+    ],
+    "columns": [
+      {
+        "key": "posicion",
+        "label": "Posición",
+        "type": "fixed_text",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "fixedValue": null,
+        "width": 22,
+        "align": "center",
+        "isLabelColumn": true
+      },
+      {
+        "key": "puerto_inyeccion",
+        "label": "Puerto de inyección",
+        "type": "text_input",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "width": null,
+        "align": "center"
+      },
+      {
+        "key": "detector",
+        "label": "Detector",
+        "type": "text_input",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "width": null,
+        "align": "center"
+      },
+      {
+        "key": "gas_carrier",
+        "label": "Gas Carrier",
+        "type": "text_input",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "width": null,
+        "align": "center"
+      }
+    ],
+    "templateRows": [
+      {
+        "rowId": "row_front",
+        "cells": { "posicion": "Front", "puerto_inyeccion": null, "detector": null, "gas_carrier": null }
+      },
+      {
+        "rowId": "row_back",
+        "cells": { "posicion": "Back", "puerto_inyeccion": null, "detector": null, "gas_carrier": null },
+        "visibleWhenSelector": { "headerFieldId": "puertos_adicionales", "values": ["Back"] }
+      },
+      {
+        "rowId": "row_aux",
+        "cells": { "posicion": "Aux", "puerto_inyeccion": null, "detector": null, "gas_carrier": null },
+        "visibleWhenSelector": { "headerFieldId": "puertos_adicionales", "values": ["Aux"] }
+      }
+    ],
+    "validationRules": [],
+    "status": "draft",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "createdBy": "admin"
+  },
+  {
+    "name": "Equipamiento auxiliar",
+    "description": "Modelo, puerto y número de serie del equipamiento accesorio. Por defecto muestra ALS y Tray. El técnico puede agregar HSS (Head Space Sampler) y/o MSD (Mass Selective Detector) desde el selector de encabezado.",
+    "sysType": "GC",
+    "isDefault": false,
+    "tableType": "informational",
+    "orden": 11,
+    "headerFields": [
+      {
+        "fieldId": "equipamiento_opcional",
+        "label": "Equipamiento adicional",
+        "options": ["HSS", "MSD"],
+        "inputType": "select",
+        "multiSelect": true,
+        "suppressGrouping": true
+      }
+    ],
+    "columns": [
+      {
+        "key": "equipo",
+        "label": "Equipo",
+        "type": "fixed_text",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "fixedValue": null,
+        "width": 28,
+        "align": "center",
+        "isLabelColumn": true
+      },
+      {
+        "key": "puerto",
+        "label": "Puerto",
+        "type": "select_input",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "options": ["Front", "Back", "Aux"],
+        "width": 22,
+        "align": "center"
+      },
+      {
+        "key": "modelo",
+        "label": "Modelo",
+        "type": "text_input",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "width": null,
+        "align": "center"
+      },
+      {
+        "key": "serie",
+        "label": "Serie (SN)",
+        "type": "text_input",
+        "unit": null,
+        "required": false,
+        "expectedValue": null,
+        "width": null,
+        "align": "center"
+      }
+    ],
+    "templateRows": [
+      { "rowId": "row_als",  "cells": { "equipo": "ALS",  "puerto": null, "modelo": null, "serie": null } },
+      { "rowId": "row_tray", "cells": { "equipo": "Tray", "puerto": null, "modelo": null, "serie": null } },
+      {
+        "rowId": "row_hss",
+        "cells": { "equipo": "HSS", "puerto": null, "modelo": null, "serie": null },
+        "visibleWhenSelector": { "headerFieldId": "equipamiento_opcional", "values": ["HSS"] }
+      },
+      {
+        "rowId": "row_msd",
+        "cells": { "equipo": "MSD", "puerto": null, "modelo": null, "serie": null },
+        "visibleWhenSelector": { "headerFieldId": "equipamiento_opcional", "values": ["MSD"] }
+      }
+    ],
+    "validationRules": [],
+    "status": "draft",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "createdBy": "admin"
+  }
+]

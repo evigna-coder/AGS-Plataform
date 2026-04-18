@@ -301,6 +301,19 @@ export const TableCatalogEditorPage = () => {
                   Modo compacto (estilo Instrumentos/Patrones)
                 </label>
               )}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Tamaño de texto (contenido)</label>
+                <select
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  value={entry.fontSize ?? ''}
+                  onChange={e => setMeta('fontSize', e.target.value === '' ? null : Number(e.target.value))}
+                >
+                  <option value="">Normal (defecto)</option>
+                  <option value="13">Mediano (13px)</option>
+                  <option value="15">Grande (15px)</option>
+                  <option value="17">Muy grande (17px)</option>
+                </select>
+              </div>
             </div>
 
             {/* Header / Footer del protocolo */}

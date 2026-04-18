@@ -427,6 +427,17 @@ export function useAppLogic(
     );
   };
 
+  const handleColumnHeaderDataChange = (tableId: string, colKey: string, value: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s =>
+        s.tableId !== tableId ? s : {
+          ...s,
+          columnHeaderData: { ...(s.columnHeaderData ?? {}), [colKey]: value },
+        }
+      )
+    );
+  };
+
   const handleColumnVisibilityChange = (tableId: string, colKey: string, visible: boolean) => {
     setProtocolSelections(prev =>
       prev.map(s =>
@@ -1028,7 +1039,7 @@ export function useAppLogic(
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
     handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
-    handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange, handleColumnVisibilityChange,
+    handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange, handleColumnVisibilityChange, handleColumnHeaderDataChange,
     handleChecklistAnswer, handleToggleChecklistSection,
     // Refs
     clientPadRef, engineerPadRef, qrRef,

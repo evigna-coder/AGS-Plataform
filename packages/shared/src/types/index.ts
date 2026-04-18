@@ -1263,6 +1263,15 @@ export interface TableCatalogColumn {
    * Si no se define, usa `options[]` estáticas.
    */
   optionsFromTable?: { tableName: string; columnKey: string } | null;
+  /**
+   * Si true, el encabezado de la columna muestra un input editable en paréntesis.
+   * El ingeniero lo completa en la ejecución del protocolo. Útil para identificar
+   * compuestos químicos o identificadores específicos por columna.
+   * Ejemplo visual: "Valor medido (Benzaldehído)"
+   */
+  headerEditable?: boolean;
+  /** Max caracteres del input editable del encabezado. Default: 15. */
+  headerEditableMaxLength?: number | null;
 }
 
 export interface TableCatalogRow {
@@ -1462,6 +1471,12 @@ export interface TableHeaderField {
    * de los valores seleccionados coincide, y se agrupan visualmente por valor.
    */
   multiSelect?: boolean;
+  /**
+   * Si true, este multiSelect NO actúa como agrupador visual (no muestra los dividers teal).
+   * Usar cuando el multiSelect se usa como toggle de visibilidad para filas opcionales,
+   * en vez de como separador de sub-tablas por instancia.
+   */
+  suppressGrouping?: boolean;
   /** Unidad a mostrar al lado del input numérico (ej. "mAU", "%") */
   unit?: string | null;
   /** Placeholder opcional para inputs numéricos */
@@ -1555,6 +1570,11 @@ export interface TableCatalogEntry {
    */
   compactDisplay?: boolean;
   /**
+   * Tamaño de texto del contenido de las celdas (en px). Si no se define, usa el default del tipo de tabla.
+   * Presets UI: 11 (Normal) / 13 (Mediano) / 15 (Grande) / 17 (Muy grande).
+   */
+  fontSize?: number | null;
+  /**
    * Título que abarca TODAS las columnas como primera fila del header.
    * Ej: "Configuración de sistema" → <th colspan=N> en la primera fila.
    */
@@ -1622,6 +1642,11 @@ export interface ProtocolSelection {
    * se usa `!col.hiddenByDefault`. true = visible, false = oculta.
    */
   columnVisibility?: Record<string, boolean>;
+  /**
+   * Valor editable del encabezado de cada columna marcada con `headerEditable`.
+   * key = col.key, value = texto que escribe el ingeniero en la ejecución.
+   */
+  columnHeaderData?: Record<string, string>;
   /**
    * Datos de encabezado por instancia cuando el primer header multiSelect actúa como divisor.
    * key = valor de la instancia (ej. "µECD (1Hz=1UD)"), value = headerData de esa sub-tabla.

@@ -203,6 +203,27 @@ export const leadsService = {
     return parseLeadDoc(snap);
   },
 
+  /**
+   * Tickets con motivoLlamado='ventas_insumos' que entran en el reporte:
+   * creados en el rango, o modificados en el rango, o que siguen abiertos fuera.
+   * El filtro OR se resuelve en cliente — Firestore no compone OR entre campos distintos.
+   */
+  async queryForVentasInsumosReport(rango: { desde: string; hasta: string }): Promise<Lead[]> {
+    const q = query(
+      collection(db, 'leads'),
+      where('motivoLlamado', '==', 'ventas_insumos'),
+      orderBy('createdAt', 'desc'),
+    );
+    const snap = await getDocs(q);
+    const all = snap.docs.map(d => parseLeadDoc(d));
+    return all.filter(lead => {
+      const createdIn = lead.createdAt >= rango.desde && lead.createdAt <= rango.hasta;
+      const updatedIn = lead.updatedAt >= rango.desde && lead.updatedAt <= rango.hasta;
+      const stillOpen = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';
+      return createdIn || updatedIn || stillOpen;
+    });
+  },
+
   /** Real-time subscription to a single lead. Returns unsubscribe function. */
   subscribeById(id: string, callback: (lead: Lead | null) => void, onError?: (err: Error) => void): () => void {
     return onSnapshot(doc(db, 'leads', id), snap => {
