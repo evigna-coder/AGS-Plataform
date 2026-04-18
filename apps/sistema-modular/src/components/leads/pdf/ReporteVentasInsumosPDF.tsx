@@ -75,16 +75,17 @@ const styles = StyleSheet.create({
 });
 
 const COL_WIDTHS = {
-  ticket: 42,
-  fecha: 52,
-  cliente: 140,
-  contacto: 90,
-  responsable: 85,
-  estado: 80,
-  ultimo: 52,
-  valor: 60,
-  descripcion: 150,
-  resultado: 58,
+  ticket: 40,
+  fecha: 48,
+  cliente: 120,
+  contacto: 80,
+  creado: 72,
+  responsable: 72,
+  estado: 72,
+  ultimo: 48,
+  valor: 55,
+  descripcion: 130,
+  resultado: 55,
 };
 
 const totalWidth = Object.values(COL_WIDTHS).reduce((a, b) => a + b, 0);
@@ -156,6 +157,7 @@ export function ReporteVentasInsumosPDF({ rows, range, generadoPor }: Props) {
               <Text style={[styles.th, { width: COL_WIDTHS.fecha }]}>Creación</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.cliente }]}>Razón social</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.contacto }]}>Contacto</Text>
+              <Text style={[styles.th, { width: COL_WIDTHS.creado }]}>Creado por</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.responsable }]}>Responsable</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.estado }]}>Estado</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.ultimo }]}>Últ. mov.</Text>
@@ -179,6 +181,9 @@ export function ReporteVentasInsumosPDF({ rows, range, generadoPor }: Props) {
                   </Text>
                   <Text style={[...baseTd, { width: COL_WIDTHS.contacto }]}>
                     {r.contacto}
+                  </Text>
+                  <Text style={[...baseTd, { width: COL_WIDTHS.creado }]}>
+                    {r.creadoPor}
                   </Text>
                   <Text style={[...baseTd, { width: COL_WIDTHS.responsable }]}>
                     {r.responsable}

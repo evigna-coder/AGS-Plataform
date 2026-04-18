@@ -7,6 +7,7 @@ const AUTO_HEADERS = [
   'Fecha creación',
   'Razón social',
   'Contacto',
+  'Creado por',
   'Responsable',
   'Estado actual',
   'Último movimiento',
@@ -36,6 +37,7 @@ export function exportVentasInsumosExcel(
       fmtDateShort(r.fechaCreacion),
       r.razonSocial,
       r.contacto,
+      r.creadoPor,
       r.responsable,
       r.estadoActual,
       fmtDateShort(r.ultimoMovimiento),
@@ -49,9 +51,9 @@ export function exportVentasInsumosExcel(
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-  // Column widths
+  // Column widths (auto: 11, manual: 5)
   ws['!cols'] = [
-    { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 22 }, { wch: 20 },
+    { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 22 }, { wch: 20 }, { wch: 20 },
     { wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 40 }, { wch: 12 },
     { wch: 15 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 40 },
   ];

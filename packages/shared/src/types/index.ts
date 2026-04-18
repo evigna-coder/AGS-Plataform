@@ -709,6 +709,10 @@ export interface Ticket {
   adjuntos?: AdjuntoTicket[];
   source?: 'qr' | 'portal' | 'manual' | null;
   sistemaAgsVisibleId?: string | null;
+  /** Usuario que transicionó motivoLlamado a ventas_insumos. Solo se setea al cambio. */
+  ventasInsumosCreadoPor?: string | null;
+  /** Timestamp ISO del cambio a motivoLlamado=ventas_insumos. */
+  ventasInsumosCreadoEn?: string | null;
 }
 
 // --- Backward compat aliases ---

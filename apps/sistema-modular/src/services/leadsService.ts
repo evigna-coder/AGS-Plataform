@@ -4,6 +4,15 @@ import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, A
 import { LEAD_MAX_ADJUNTOS, getContactoPrincipal } from '@ags/shared';
 import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
 
+/** Si el payload crea/transiciona a motivoLlamado=ventas_insumos, devuelve los campos de stamp. */
+function ventasInsumosStamp(incomingMotivo: MotivoLlamado | undefined, currentMotivo?: MotivoLlamado, hasStamp?: boolean): { ventasInsumosCreadoPor: string; ventasInsumosCreadoEn: string } | null {
+  if (incomingMotivo !== 'ventas_insumos') return null;
+  if (hasStamp && currentMotivo === 'ventas_insumos') return null;
+  const user = getCurrentUserTrace();
+  if (!user) return null;
+  return { ventasInsumosCreadoPor: user.uid, ventasInsumosCreadoEn: new Date().toISOString() };
+}
+
 // ── Mapeo de estados: presupuesto → lead ──────────────────────────────
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
   enviado: 'presupuesto_enviado',
@@ -146,6 +155,7 @@ function syncFlatFromContactos<T extends Record<string, any>>(data: T): T {
 
 export const leadsService = {
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) {
+    const stamp = ventasInsumosStamp(data.motivoLlamado);
     const payload = deepCleanForFirestore(syncFlatFromContactos({
       ...data,
       ...getCreateTrace(),
@@ -155,6 +165,7 @@ export const leadsService = {
       otIds: data.otIds || [],
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+      ...(stamp || {}),
     }));
     const leadRef = newDocRef('leads');
     const batch = createBatch();
@@ -235,10 +246,22 @@ export const leadsService = {
   },
 
   async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>) {
+    // Si el update toca motivoLlamado=ventas_insumos, leemos el estado actual para decidir si stampear.
+    let stamp: ReturnType<typeof ventasInsumosStamp> = null;
+    if (data.motivoLlamado === 'ventas_insumos') {
+      const current = await getDoc(doc(db, 'leads', id));
+      const currentData = current.data();
+      stamp = ventasInsumosStamp(
+        data.motivoLlamado,
+        currentData?.motivoLlamado as MotivoLlamado | undefined,
+        !!currentData?.ventasInsumosCreadoPor,
+      );
+    }
     const payload = deepCleanForFirestore(syncFlatFromContactos({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
+      ...(stamp || {}),
     }));
     const batch = createBatch();
     batch.update(docRef('leads', id), payload);

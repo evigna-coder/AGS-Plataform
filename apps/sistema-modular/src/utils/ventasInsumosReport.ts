@@ -6,6 +6,7 @@ export interface VentasInsumosReportRow {
   fechaCreacion: string;       // ISO
   razonSocial: string;
   contacto: string;
+  creadoPor: string;            // usuario que creó el ticket con motivo ventas_insumos
   responsable: string;          // último que movió el ticket, fallback createdBy
   estadoActual: string;         // label humano
   ultimoMovimiento: string;    // ISO
@@ -50,6 +51,7 @@ export function buildVentasInsumosRows(leads: Lead[], usuarios: UsuarioAGS[]): V
     fechaCreacion: lead.createdAt,
     razonSocial: lead.razonSocial || '—',
     contacto: resolveContactoPrincipal(lead),
+    creadoPor: resolveUserName(lead.ventasInsumosCreadoPor || lead.createdBy, usuarios),
     responsable: resolveResponsable(lead, usuarios),
     estadoActual: TICKET_ESTADO_LABELS[lead.estado] || lead.estado,
     ultimoMovimiento: lead.updatedAt,
