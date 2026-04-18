@@ -209,19 +209,21 @@ export const leadsService = {
    * El filtro OR se resuelve en cliente — Firestore no compone OR entre campos distintos.
    */
   async queryForVentasInsumosReport(rango: { desde: string; hasta: string }): Promise<Lead[]> {
+    // Sin orderBy para evitar requerir un composite index (motivoLlamado + createdAt).
+    // El subset es acotado; se ordena client-side abajo.
     const q = query(
       collection(db, 'leads'),
       where('motivoLlamado', '==', 'ventas_insumos'),
-      orderBy('createdAt', 'desc'),
     );
     const snap = await getDocs(q);
     const all = snap.docs.map(d => parseLeadDoc(d));
-    return all.filter(lead => {
+    const filtered = all.filter(lead => {
       const createdIn = lead.createdAt >= rango.desde && lead.createdAt <= rango.hasta;
       const updatedIn = lead.updatedAt >= rango.desde && lead.updatedAt <= rango.hasta;
       const stillOpen = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';
       return createdIn || updatedIn || stillOpen;
     });
+    return filtered.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   },
 
   /** Real-time subscription to a single lead. Returns unsubscribe function. */
