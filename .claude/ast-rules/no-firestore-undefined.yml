@@ -1,0 +1,25 @@
+id: no-firestore-undefined
+message: |
+  Firestore write receives an object literal with a field set to `undefined`.
+  Firestore rejects undefined at runtime. Use cleanFirestoreData() for flat payloads
+  or deepCleanForFirestore() for nested, or omit the field entirely.
+  See .claude/rules/firestore.md
+severity: warning
+language: tsx
+rule:
+  all:
+    - kind: call_expression
+    - has:
+        field: function
+        regex: '^(setDoc|updateDoc|addDoc|setDocs)$'
+    - has:
+        field: arguments
+        has:
+          kind: object
+          stopBy: end
+          has:
+            kind: pair
+            stopBy: end
+            has:
+              field: value
+              kind: undefined

@@ -17,12 +17,14 @@
     "build:all": "pnpm --filter \"./apps/*\" build",
     "dev:portal": "pnpm --filter @ags/portal-ingeniero dev",
     "build:portal": "pnpm --filter @ags/portal-ingeniero build",
-    "type-check": "pnpm --filter \"./packages/*\" type-check"
+    "type-check": "pnpm --filter \"./packages/*\" type-check",
+    "lint:ast": "ast-grep scan --config sgconfig.yml apps packages"
   },
   "dependencies": {
     "google-auth-library": "^9.0.0"
   },
   "devDependencies": {
+    "@ast-grep/cli": "^0.42.1",
     "typescript": "~5.8.2"
   },
   "packageManager": "pnpm@9.15.4",
