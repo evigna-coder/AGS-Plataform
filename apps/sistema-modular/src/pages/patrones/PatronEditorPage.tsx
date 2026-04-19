@@ -120,11 +120,28 @@ export const PatronEditorPage = () => {
 
   const handleCertUpload = async (loteIdx: number, file: File) => {
     if (!id) { alert('Guarde el patrón primero antes de subir certificados'); return; }
+    if (!lotes[loteIdx]?.lote.trim()) {
+      alert('El lote necesita un código antes de subir el certificado');
+      return;
+    }
     setUploadingLoteIdx(loteIdx);
     try {
-      await uploadCertificadoLote(id, loteIdx, file);
-      // Recargar patrón
-      const refreshed = await getPatron(id);
+      // Persistir estado local antes del upload: el service lee los lotes
+      // desde Firestore, así que lotes recién agregados o ediciones no
+      // guardadas quedarían fuera del índice o se perderían al refrescar.
+      const savedId = await savePatron(
+        {
+          codigoArticulo: codigoArticulo.trim(),
+          descripcion: descripcion.trim(),
+          marca: marca.trim(),
+          categorias,
+          lotes,
+          activo: true,
+        },
+        id,
+      );
+      await uploadCertificadoLote(savedId, loteIdx, file);
+      const refreshed = await getPatron(savedId);
       if (refreshed) setLotes(refreshed.lotes);
     } catch {
       alert('Error al subir el certificado');

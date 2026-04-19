@@ -4,6 +4,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -31,8 +32,14 @@ export const ArticulosList = () => {
     marcaId: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
     showInactive: { type: 'boolean' as const, default: false },
+    sortField: { type: 'string' as const, default: 'codigo' },
+    sortDir:   { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
+  };
   const debouncedSearch = useDebounce(filters.search, 300);
 
   const [articulos, setArticulos] = useState<Articulo[]>([]);
@@ -93,12 +100,15 @@ export const ArticulosList = () => {
   };
 
   const filtered = useMemo(() => {
-    if (!debouncedSearch) return articulos;
-    const term = debouncedSearch.toLowerCase();
-    return articulos.filter(a =>
-      a.codigo.toLowerCase().includes(term) || a.descripcion.toLowerCase().includes(term)
-    );
-  }, [articulos, debouncedSearch]);
+    let list = articulos;
+    if (debouncedSearch) {
+      const term = debouncedSearch.toLowerCase();
+      list = list.filter(a =>
+        a.codigo.toLowerCase().includes(term) || a.descripcion.toLowerCase().includes(term)
+      );
+    }
+    return sortByField(list, filters.sortField, filters.sortDir as SortDir);
+  }, [articulos, debouncedSearch, filters.sortField, filters.sortDir]);
 
   // ─── Selection helpers ──────────────────────────────────────────────────────
   const toggleSelect = useCallback((id: string) => {
@@ -279,41 +289,34 @@ export const ArticulosList = () => {
                       />
                       <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                     </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(1)}`}>
+                    <SortableHeader label="Codigo" field="codigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(1)}`}>
                       <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
-                      Codigo
                       <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(2)}`}>
+                    </SortableHeader>
+                    <SortableHeader label="Descripcion" field="descripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(2)}`}>
                       <ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />
-                      Descripcion
                       <div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}>
+                    </SortableHeader>
+                    <SortableHeader label="Marca" field="marcaId" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}>
                       <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
-                      Marca
                       <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(4)}`}>
+                    </SortableHeader>
+                    <SortableHeader label="Categoria" field="categoriaEquipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(4)}`}>
                       <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
-                      Categoria
                       <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(5)}`}>
+                    </SortableHeader>
+                    <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(5)}`}>
                       <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
-                      Tipo
                       <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(6)}`}>
+                    </SortableHeader>
+                    <SortableHeader label="Stock min." field="stockMinimo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(6)}`}>
                       <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
-                      Stock min.
                       <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
-                    <th className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(7)}`}>
+                    </SortableHeader>
+                    <SortableHeader label="Precio ref." field="precioReferencia" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(7)}`}>
                       <ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />
-                      Precio ref.
                       <div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                    </th>
+                    </SortableHeader>
                     <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider relative">
                       Acciones
                       <div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />

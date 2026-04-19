@@ -4,6 +4,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -26,8 +27,14 @@ export const DispositivosList = () => {
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('dispositivos-list');
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'marca' },
+    sortDir:   { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
+  };
 
   const [items, setItems] = useState<Dispositivo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,13 +56,16 @@ export const DispositivosList = () => {
   const loadData = useCallback(() => {}, []);
 
   const filtered = useMemo(() => {
-    if (!debouncedSearch) return items;
-    const t = debouncedSearch.toLowerCase();
-    return items.filter(d =>
-      d.marca.toLowerCase().includes(t) || d.modelo.toLowerCase().includes(t) ||
-      d.serie.toLowerCase().includes(t) || (d.asignadoANombre ?? '').toLowerCase().includes(t)
-    );
-  }, [items, debouncedSearch]);
+    let list = items;
+    if (debouncedSearch) {
+      const t = debouncedSearch.toLowerCase();
+      list = list.filter(d =>
+        d.marca.toLowerCase().includes(t) || d.modelo.toLowerCase().includes(t) ||
+        d.serie.toLowerCase().includes(t) || (d.asignadoANombre ?? '').toLowerCase().includes(t)
+      );
+    }
+    return sortByField(list, filters.sortField, filters.sortDir as SortDir);
+  }, [items, debouncedSearch, filters.sortField, filters.sortDir]);
 
   const handleDelete = async (d: Dispositivo) => {
     if (!await confirm(`Eliminar dispositivo "${d.marca} ${d.modelo}"?`)) return;
@@ -104,10 +114,10 @@ export const DispositivosList = () => {
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}>Tipo<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}>Marca / Modelo<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}>Serie<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}>Asignado a<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Marca / Modelo" field="marca" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Serie" field="serie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Asignado a" field="asignadoANombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>

@@ -10,7 +10,7 @@ import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from 
 import { EquiposList, EquipoDetail, CategoriasEquipo } from '../../pages/equipos';
 import { OTList, OTNew, OTDetail, TiposServicio } from '../../pages/ordenes-trabajo';
 import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio } from '../../pages/presupuestos';
-import { TableCatalogPage, TableCatalogEditorPage } from '../../pages/protocol-catalog';
+import { TableCatalogPage, TableCatalogEditorPage, MigrateRenameConclusion } from '../../pages/protocol-catalog';
 import { InstrumentosListPage, InstrumentoEditorPage } from '../../pages/instrumentos';
 import { PatronesListPage, PatronEditorPage } from '../../pages/patrones';
 import { ColumnasListPage, ColumnaEditorPage } from '../../pages/columnas';
@@ -94,6 +94,7 @@ function AppRoutes() {
       <Route path="/table-catalog" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogPage /></ProtectedRoute>} />
       <Route path="/table-catalog/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogEditorPage /></ProtectedRoute>} />
       <Route path="/table-catalog/:tableId/edit" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogEditorPage /></ProtectedRoute>} />
+      <Route path="/table-catalog/migrar-conclusion" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte']}><MigrateRenameConclusion /></ProtectedRoute>} />
       {/* Ingreso a Empresas */}
       <Route path="/ingreso-empresas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><IngresoEmpresasList /></ProtectedRoute>} />
       {/* Dispositivos */}

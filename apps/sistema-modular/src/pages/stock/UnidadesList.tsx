@@ -7,6 +7,7 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 
@@ -21,6 +22,13 @@ interface AggRow { articuloId: string; codigo: string; descripcion: string; disp
 
 const UnidadesAggregatedTable = ({ rows }: { rows: AggRow[] }) => {
   const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
+  const [sortField, setSortField] = useState<string>('codigo');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(rows, sortField, sortDir), [rows, sortField, sortDir]);
   if (rows.length === 0) return (
     <Card><div className="text-center py-12"><p className="text-slate-400">No hay unidades cargadas</p></div></Card>
   );
@@ -29,16 +37,16 @@ const UnidadesAggregatedTable = ({ rows }: { rows: AggRow[] }) => {
       <table className="w-full">
         <thead className="sticky top-0 z-10">
           <tr className="bg-slate-50 border-b border-slate-200">
-            <th className={thClass}>Código</th>
-            <th className={thClass}>Descripción</th>
-            <th className={thClass + ' text-right'}>Disponible</th>
-            <th className={thClass + ' text-right'}>Reservado</th>
-            <th className={thClass + ' text-right'}>Asignado</th>
-            <th className={thClass + ' text-right'}>Total</th>
+            <SortableHeader label="Código" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+            <SortableHeader label="Descripción" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
+            <SortableHeader label="Disponible" field="disponible" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
+            <SortableHeader label="Reservado" field="reservado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
+            <SortableHeader label="Asignado" field="asignado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
+            <SortableHeader label="Total" field="total" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {rows.map(row => (
+          {sorted.map(row => (
             <tr key={row.articuloId} className="hover:bg-slate-50 transition-colors">
               <td className="px-3 py-2 text-[10px] font-mono text-slate-500 whitespace-nowrap">{row.codigo}</td>
               <td className="px-3 py-2 text-xs text-slate-700 truncate max-w-[220px]">{row.descripcion}</td>
@@ -60,8 +68,14 @@ export const UnidadesList = () => {
     estado: { type: 'string' as const, default: '' },
     condicion: { type: 'string' as const, default: '' },
     showInactive: { type: 'boolean' as const, default: false },
+    sortField: { type: 'string' as const, default: 'articuloCodigo' },
+    sortDir:   { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
+  };
   const [groupByArticulo, setGroupByArticulo] = useState(false);
 
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
@@ -86,13 +100,16 @@ export const UnidadesList = () => {
   }, [filters.estado, filters.condicion, filters.showInactive]);
 
   const filtered = useMemo(() => {
-    if (!debouncedSearch) return unidades;
-    const term = debouncedSearch.toLowerCase();
-    return unidades.filter(u =>
-      u.articuloCodigo.toLowerCase().includes(term) ||
-      u.articuloDescripcion.toLowerCase().includes(term)
-    );
-  }, [unidades, debouncedSearch]);
+    let list = unidades;
+    if (debouncedSearch) {
+      const term = debouncedSearch.toLowerCase();
+      list = list.filter(u =>
+        u.articuloCodigo.toLowerCase().includes(term) ||
+        u.articuloDescripcion.toLowerCase().includes(term)
+      );
+    }
+    return sortByField(list, filters.sortField, filters.sortDir as SortDir);
+  }, [unidades, debouncedSearch, filters.sortField, filters.sortDir]);
 
   const aggregated = useMemo((): AggRow[] => {
     const byArticulo = new Map<string, { articuloId: string; codigo: string; descripcion: string; disponible: number; reservado: number; asignado: number }>();
@@ -195,13 +212,13 @@ export const UnidadesList = () => {
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}>Codigo articulo<ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}>Descripcion<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}>Nro serie<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}>Nro lote<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(4)}`}>Condicion<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(5)}`}>Estado<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(6)}`}>Ubicacion<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Codigo articulo" field="articuloCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Descripcion" field="articuloDescripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Nro serie" field="nroSerie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Nro lote" field="nroLote" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Condicion" field="condicion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Ubicacion" field="ubicacion.tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(6)}`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
