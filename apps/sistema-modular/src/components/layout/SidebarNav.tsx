@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabs, getNavMeta } from '../../contexts/TabsContext';
-import { navigation, NavItem } from './navigation';
+import { getNavigation, NavItem } from './navigation';
 
 interface SidebarNavProps {
   collapsed: boolean;
@@ -25,7 +25,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
 
   const isStockExpanded = expandedGroups['/stock'] || pathname.startsWith('/stock');
 
-  const visibleNav = navigation.filter(item =>
+  const visibleNav = getNavigation().filter(item =>
     !item.modulo || canAccess(item.modulo)
   );
 

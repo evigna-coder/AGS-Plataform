@@ -220,7 +220,17 @@ export default function EquipoPublicPage() {
             <div>
               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">Equipo registrado</p>
               <p className="text-base font-semibold text-slate-900">{sistema.nombre}</p>
-              {sistema.software && <p className="text-xs text-slate-500 mt-0.5">{sistema.software}</p>}
+              {(() => {
+                const list = Array.isArray(sistema.softwares) && sistema.softwares.length > 0
+                  ? sistema.softwares
+                  : (sistema.software ? [{ nombre: sistema.software, revision: sistema.softwareRevision }] : []);
+                if (list.length === 0) return null;
+                return (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {list.map(sw => sw.revision ? `${sw.nombre} (Rev. ${sw.revision})` : sw.nombre).join(' · ')}
+                  </p>
+                );
+              })()}
             </div>
             <span className="text-[10px] font-semibold text-teal-600 bg-teal-50 px-2 py-1 rounded-lg font-mono">
               {agsId}

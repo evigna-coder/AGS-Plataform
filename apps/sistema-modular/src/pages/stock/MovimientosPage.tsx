@@ -6,6 +6,7 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import type { MovimientoStock, TipoMovimiento } from '@ags/shared';
 
@@ -33,8 +34,14 @@ export const MovimientosPage = () => {
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'createdAt' },
+    sortDir:   { type: 'string' as const, default: 'desc' },
   }), []);
   const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
+  };
 
   const [items, setItems] = useState<MovimientoStock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,11 +64,16 @@ export const MovimientosPage = () => {
 
   const load = useCallback(() => {}, []);
 
-  const filtered = useMemo(() => debouncedSearch
-    ? items.filter(m =>
-        m.articuloCodigo.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        m.articuloDescripcion.toLowerCase().includes(debouncedSearch.toLowerCase()))
-    : items, [items, debouncedSearch]);
+  const filtered = useMemo(() => {
+    let list = items;
+    if (debouncedSearch) {
+      const term = debouncedSearch.toLowerCase();
+      list = list.filter(m =>
+        m.articuloCodigo.toLowerCase().includes(term) ||
+        m.articuloDescripcion.toLowerCase().includes(term));
+    }
+    return sortByField(list, filters.sortField, filters.sortDir as SortDir);
+  }, [items, debouncedSearch, filters.sortField, filters.sortDir]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -109,15 +121,15 @@ export const MovimientosPage = () => {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="text-left border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Fecha</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Cant.</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Origen</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Destino</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Motivo</th>
-                  <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Usuario</th>
+                  <SortableHeader label="Fecha" field="createdAt" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Codigo" field="articuloCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Descripcion" field="articuloDescripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Cant." field="cantidad" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center" />
+                  <SortableHeader label="Origen" field="origenNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Destino" field="destinoNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Motivo" field="motivo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Usuario" field="creadoPor" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
                   <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Ref.</th>
                 </tr>
               </thead>

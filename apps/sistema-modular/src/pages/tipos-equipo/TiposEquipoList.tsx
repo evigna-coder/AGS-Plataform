@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { tiposEquipoService } from '../../services/tiposEquipoService';
 import type { TipoEquipoPlantilla, TipoEquipoComponente, TipoEquipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -32,6 +33,13 @@ export const TiposEquipoList = () => {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [sortField, setSortField] = useState<string>('nombre');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(plantillas, sortField, sortDir), [plantillas, sortField, sortDir]);
 
   const handleSeed = async () => {
     if (!await confirm('Cargar 7 plantillas iniciales (HPLC 1100/1200/1260, UV/VIS 8453/G6860A, GC 6890/8890A). Podés editarlas después. ¿Continuar?')) return;
@@ -201,16 +209,16 @@ export const TiposEquipoList = () => {
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />Nombre<div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />Descripción<div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Descripción" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Componentes<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Servicios<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Estado<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Estado" field="activo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   <th className="px-3 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-slate-500 relative">Acciones<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {plantillas.map(p => (
+                {sorted.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50">
                     <td className={`px-3 py-2.5 font-semibold text-slate-900 ${getAlignClass(0)}`}>{p.nombre}</td>
                     <td className={`px-3 py-2.5 text-xs text-slate-600 ${getAlignClass(1)}`}>{p.descripcion || <span className="text-slate-400">—</span>}</td>

@@ -123,7 +123,25 @@ export const OTInfoSidebar: React.FC<OTInfoSidebarProps> = ({
             <span className={lbl}>Codigo Interno</span>
             <input type="text" value={codigoInternoCliente} onChange={F('codigoInternoCliente')} disabled={roTecnico} className={`${inp} font-mono`} />
           </div>
-          {sistema?.software && <div><span className={lbl}>Software</span><p className="text-xs text-slate-700">{sistema.software}</p></div>}
+          {(() => {
+            const list = Array.isArray(sistema?.softwares) && sistema!.softwares!.length > 0
+              ? sistema!.softwares!
+              : (sistema?.software ? [{ nombre: sistema.software, revision: sistema.softwareRevision }] : []);
+            if (list.length === 0) return null;
+            return (
+              <div>
+                <span className={lbl}>Software</span>
+                <ul className="space-y-0.5">
+                  {list.map((sw, i) => (
+                    <li key={i} className="text-xs text-slate-700">
+                      {sw.nombre}
+                      {sw.revision && <span className="text-slate-400 font-normal ml-1">Rev. {sw.revision}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
           <div>
             <span className={lbl}>Modulo</span>
             <SearchableSelect value={moduloId || ''} onChange={onModuloChange} options={[{ value: '', label: 'Sin modulo' }, ...modulosFiltrados.map(m => ({ value: m.id, label: `${m.nombre || 'Sin nombre'}${m.serie ? ` - S/N: ${m.serie}` : ''}` }))]} placeholder="Seleccionar..." disabled={roTecnico || !sistemaId} />

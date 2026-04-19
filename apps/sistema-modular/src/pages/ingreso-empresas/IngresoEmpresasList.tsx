@@ -10,6 +10,7 @@ import { TIPO_INGRESO_LABELS, DOCUMENTACION_INGRESO_KEYS } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 
 const STATUS_ICON: Record<DocumentoIngresoStatus, { symbol: string; cls: string }> = {
   no_requerido: { symbol: '—', cls: 'text-slate-300' },
@@ -25,8 +26,14 @@ export const IngresoEmpresasList = () => {
   const FILTER_SCHEMA = useMemo(() => ({
     search: { type: 'string' as const, default: '' },
     tipo: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'clienteNombre' },
+    sortDir:   { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter, , ] = useUrlFilters(FILTER_SCHEMA);
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
+    setFilter('sortField', s.field); setFilter('sortDir', s.dir);
+  };
 
   const [items, setItems] = useState<IngresoEmpresa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +57,14 @@ export const IngresoEmpresasList = () => {
   const filtered = useMemo(() => {
     let result = items;
     if (filters.tipo) result = result.filter(i => i.tipo !== filters.tipo ? false : true);
-    if (!debouncedSearch) return result;
-    const t = debouncedSearch.toLowerCase();
-    return result.filter(i =>
-      i.clienteNombre.toLowerCase().includes(t) || i.contacto.toLowerCase().includes(t)
-    );
-  }, [items, filters.tipo, debouncedSearch]);
+    if (debouncedSearch) {
+      const t = debouncedSearch.toLowerCase();
+      result = result.filter(i =>
+        i.clienteNombre.toLowerCase().includes(t) || i.contacto.toLowerCase().includes(t)
+      );
+    }
+    return sortByField(result, filters.sortField, filters.sortDir as SortDir);
+  }, [items, filters.tipo, debouncedSearch, filters.sortField, filters.sortDir]);
 
   const handleEdit = (item: IngresoEmpresa) => {
     setEditItem(item);
@@ -132,10 +141,10 @@ export const IngresoEmpresasList = () => {
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider sticky left-0 bg-slate-50 z-10 relative ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />Cliente<div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`px-2 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />Tipo<div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`px-2 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Induc.<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`px-2 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Contacto<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Cliente" field="clienteNombre" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider sticky left-0 bg-slate-50 z-10 relative ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Tipo" field="tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-2 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Induc." field="induccion.requerida" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-2 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
+                  <SortableHeader label="Contacto" field="contacto" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`px-2 py-2 text-[11px] font-medium text-slate-400 tracking-wider relative ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
                   {DOCUMENTACION_INGRESO_KEYS.map(({ key, label }, idx) => (
                     <th key={key} className={`px-1.5 py-2 text-[10px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(4 + idx)}`}><ColAlignIcon align={colAligns?.[4 + idx] || 'left'} onClick={() => cycleAlign(4 + idx)} />{label}<div onMouseDown={e => onResizeStart(4 + idx, e)} onDoubleClick={() => onAutoFit(4 + idx)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   ))}

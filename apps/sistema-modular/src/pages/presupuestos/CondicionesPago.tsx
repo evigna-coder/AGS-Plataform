@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { condicionesPagoService } from '../../services/firebaseService';
 import type { CondicionPago } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -21,6 +22,13 @@ export const CondicionesPago = () => {
     activo: true,
   });
   const [saving, setSaving] = useState(false);
+  const [sortField, setSortField] = useState<string>('nombre');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(condiciones, sortField, sortDir), [condiciones, sortField, sortDir]);
 
   useEffect(() => {
     loadData();
@@ -241,15 +249,15 @@ export const CondicionesPago = () => {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider">Nombre</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider">Plazo</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider">Descripción</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider">Estado</th>
+                    <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Plazo" field="dias" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Descripción" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Estado" field="activo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider" />
                     <th className="px-3 py-2 text-center text-xs font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {condiciones.map((cond) => (
+                  {sorted.map((cond) => (
                     <tr key={cond.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <div className="font-bold text-slate-900">{cond.nombre}</div>

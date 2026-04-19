@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { proveedoresService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateProveedorModal } from '../../components/stock/CreateProveedorModal';
 import type { Proveedor } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -17,6 +18,13 @@ export const ProveedoresPage = () => {
   const [showInactive, setShowInactive] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [filterTipo, setFilterTipo] = useState('');
+  const [sortField, setSortField] = useState<string>('nombre');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(items, sortField, sortDir), [items, sortField, sortDir]);
 
   const unsubRef = useRef<(() => void) | null>(null);
   const [allItems, setAllItems] = useState<Proveedor[]>([]);
@@ -82,16 +90,16 @@ export const ProveedoresPage = () => {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Nombre</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Tipo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Contacto</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">País</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">CUIT</th>
+                  <SortableHeader label="Nombre" field="nombre" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Contacto" field="contacto" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="País" field="pais" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="CUIT" field="cuit" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {items.map(p => (
+                {sorted.map(p => (
                   <tr key={p.id} className={`hover:bg-slate-50 ${!p.activo ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-2">
                       <span className="font-medium text-slate-900 text-xs">{p.nombre}</span>

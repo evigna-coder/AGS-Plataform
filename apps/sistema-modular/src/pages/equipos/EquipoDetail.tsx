@@ -60,6 +60,9 @@ export const EquipoDetail = () => {
           codigoInternoCliente: sistemaData.codigoInternoCliente,
           software: sistemaData.software || '',
           softwareRevision: sistemaData.softwareRevision || '',
+          softwares: Array.isArray(sistemaData.softwares) && sistemaData.softwares.length > 0
+            ? sistemaData.softwares
+            : (sistemaData.software ? [{ nombre: sistemaData.software, revision: sistemaData.softwareRevision || '' }] : []),
           sector: sistemaData.sector || '',
           observaciones: sistemaData.observaciones || '',
           configuracionGC: sistemaData.configuracionGC ?? {},
@@ -117,10 +120,22 @@ export const EquipoDetail = () => {
     try {
       setSaving(true);
       const { descripcion, ...dataToSave } = formData;
+
+      const rawSoftwares: Array<{ nombre?: string; revision?: string }> = Array.isArray(formData.softwares) ? formData.softwares : [];
+      const cleanedSoftwares = rawSoftwares
+        .map(s => ({ nombre: (s.nombre || '').trim(), revision: (s.revision || '').trim() }))
+        .filter(s => s.nombre.length > 0)
+        .map(s => s.revision ? { nombre: s.nombre, revision: s.revision } : { nombre: s.nombre });
+      const legacyNombre = cleanedSoftwares[0]?.nombre ?? (formData.software?.trim() || '');
+      const legacyRevision = cleanedSoftwares[0]?.revision ?? (formData.softwareRevision?.trim() || '');
+
       await sistemasService.update(id, {
         ...dataToSave,
         establecimientoId: formData.establecimientoId || null,
         clienteId: formData.clienteId || null,
+        softwares: cleanedSoftwares,
+        software: legacyNombre || null,
+        softwareRevision: legacyRevision || null,
       });
       // Subscription will auto-update the sistema state
       setEditing(false);

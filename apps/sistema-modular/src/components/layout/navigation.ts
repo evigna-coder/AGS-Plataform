@@ -9,14 +9,19 @@ export interface NavItem {
 }
 
 export const navigation: NavItem[] = [
-  { name: 'Clientes', path: '/clientes', icon: '🏢', modulo: 'clientes' },
-  { name: 'Establecimientos', path: '/establecimientos', icon: '🏭', modulo: 'establecimientos' },
+  {
+    name: 'Clientes', path: '/clientes', icon: '🏢', modulo: 'clientes',
+    children: [
+      { name: 'Todos los clientes', path: '/clientes' },
+      { name: 'Ingreso Empresas', path: '/ingreso-empresas' },
+    ],
+  },
+  // Establecimientos se accede desde el detalle de cada Cliente — no tiene entrada propia en el sidebar.
   { name: 'Equipos', path: '/equipos', icon: '⚙️', modulo: 'equipos' },
   { name: 'Ordenes de Trabajo', path: '/ordenes-trabajo', icon: '📝', modulo: 'ordenes-trabajo' },
   { name: 'Tickets', path: '/leads', icon: '👥', modulo: 'leads' },
   { name: 'Presupuestos', path: '/presupuestos', icon: '📋', modulo: 'presupuestos' },
   { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐', modulo: 'table-catalog' },
-  { name: 'Ingreso Empresas', path: '/ingreso-empresas', icon: '🪪', modulo: 'ingreso-empresas' },
   { name: 'Dispositivos', path: '/dispositivos', icon: '📱', modulo: 'dispositivos' },
   { name: 'Vehículos', path: '/vehiculos', icon: '🚗', modulo: 'vehiculos' },
   { name: 'Instrumentos', path: '/instrumentos', icon: '🔬', modulo: 'instrumentos' },
@@ -61,3 +66,24 @@ export const MODULE_ROOTS = new Set(
     item.children ? item.children.map(c => c.path) : [item.path]
   )
 );
+
+/**
+ * MVP Desktop: solo estos módulos se muestran en el sidebar cuando
+ * `VITE_DESKTOP_MVP=true`. El resto sigue existiendo en código pero sin entrada.
+ * Establecimientos queda fuera — se accede desde el detalle de cada Cliente.
+ */
+const DESKTOP_MVP_ALLOWED = new Set<string>([
+  '/clientes',
+  '/equipos',
+  '/leads',           // Tickets
+  '/table-catalog',   // Biblioteca de Tablas
+  '/pendientes',
+  '/usuarios',        // Solo admin (filtrado por rol en SidebarNav)
+]);
+
+/** Devuelve la navegación filtrada según el flag de build. */
+export function getNavigation(): NavItem[] {
+  const isDesktopMvp = import.meta.env.VITE_DESKTOP_MVP === 'true';
+  if (!isDesktopMvp) return navigation;
+  return navigation.filter(item => DESKTOP_MVP_ALLOWED.has(item.path));
+}

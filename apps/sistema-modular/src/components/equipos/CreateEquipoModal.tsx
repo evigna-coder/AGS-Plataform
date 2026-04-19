@@ -102,8 +102,10 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
         configuracionGC: isGC ? {
           puertoInyeccionFront: gcConfig.puertoInyeccionFront || null,
           puertoInyeccionBack: gcConfig.puertoInyeccionBack || null,
+          puertoInyeccionAux: gcConfig.puertoInyeccionAux || null,
           detectorFront: gcConfig.detectorFront || null,
           detectorBack: gcConfig.detectorBack || null,
+          detectorAux: gcConfig.detectorAux || null,
         } : null,
         activo: true,
         ubicaciones: [],

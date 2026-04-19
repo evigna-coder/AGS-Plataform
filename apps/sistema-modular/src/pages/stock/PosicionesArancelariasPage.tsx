@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { posicionesArancelariasService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { PosicionArancelaria, TratamientoArancelario } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -77,6 +78,13 @@ export const PosicionesArancelariasPage = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
+  const [sortField, setSortField] = useState<string>('codigo');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(items, sortField, sortDir), [items, sortField, sortDir]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -189,19 +197,19 @@ export const PosicionesArancelariasPage = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Codigo</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Descripcion</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">DI%</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">Est%</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IVA%</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IVA Ad%</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">Gan%</th>
-                  <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2">IIBB%</th>
+                  <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3" />
+                  <SortableHeader label="Descripcion" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3" />
+                  <SortableHeader label="DI%" field="tratamiento.derechoImportacion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2" />
+                  <SortableHeader label="Est%" field="tratamiento.estadistica" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2" />
+                  <SortableHeader label="IVA%" field="tratamiento.iva" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2" />
+                  <SortableHeader label="IVA Ad%" field="tratamiento.ivaAdicional" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2" />
+                  <SortableHeader label="Gan%" field="tratamiento.ganancias" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2" />
+                  <SortableHeader label="IIBB%" field="tratamiento.ingresosBrutos" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-2" />
                   <th className="text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {items.map(p => (
+                {sorted.map(p => (
                   <tr key={p.id} className={!p.activo ? 'opacity-50' : ''}>
                     {editingId === p.id ? (
                       <EditRow form={editForm} setForm={setEditForm} onSave={() => handleUpdate(p.id)} onCancel={() => setEditingId(null)} numInput={numInput} />

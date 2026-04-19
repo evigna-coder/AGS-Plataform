@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useTableCatalog } from '../../hooks/useTableCatalog';
 import { useTableProjects } from '../../hooks/useTableProjects';
 import { Button } from '../../components/ui/Button';
@@ -48,6 +49,13 @@ export const TableCatalogPage = () => {
   const [cloneName, setCloneName] = useState('');
   const [cloneSysType, setCloneSysType] = useState('');
   const [cloneProjectId, setCloneProjectId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<string>('orden');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sortedTables = useMemo(() => sortByField(tables, sortField, sortDir), [tables, sortField, sortDir]);
 
   const selectProject = useCallback((pid: string | null | undefined) => {
     setActiveProjectId(pid);
@@ -226,13 +234,24 @@ export const TableCatalogPage = () => {
                         ref={el => { if (el) el.indeterminate = someSelected; }}
                         onChange={toggleAll} className="w-4 h-4 accent-blue-600 cursor-pointer" />
                     </th>
-                    {['#', 'Nombre', 'SysType', 'Modelos', 'Tipo', 'Cols', 'Filas', 'Default', 'Estado', 'Acciones'].map(h => (
-                      <th key={h} className="px-3 py-2 text-center font-medium text-slate-400 tracking-wider text-xs">{h}</th>
+                    {([
+                      ['#', 'orden'],
+                      ['Nombre', 'name'],
+                      ['SysType', 'sysType'],
+                      ['Modelos', 'modelos'],
+                      ['Tipo', 'tableType'],
+                      ['Cols', 'columns.length'],
+                      ['Filas', 'templateRows.length'],
+                      ['Default', 'isDefault'],
+                      ['Estado', 'status'],
+                    ] as [string, string][]).map(([label, field]) => (
+                      <SortableHeader key={field} label={label} field={field} currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center font-medium text-slate-400 tracking-wider text-xs" />
                     ))}
+                    <th className="px-3 py-2 text-center font-medium text-slate-400 tracking-wider text-xs">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {[...tables].sort((a, b) => (a.orden || 999) - (b.orden || 999)).map(t => {
+                  {sortedTables.map(t => {
                     const sel = selectedIds.has(t.id);
                     return (
                       <tr key={t.id} className={`hover:bg-slate-50 ${sel ? 'bg-blue-50/60' : ''}`}>

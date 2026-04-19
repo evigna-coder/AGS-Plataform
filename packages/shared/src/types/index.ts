@@ -295,7 +295,8 @@ export interface Ubicacion {
 export type InletType =
   | 'SSL'   // Split/Splitless
   | 'COC'   // Cool on Column
-  | 'PTV';  // Programmed Temperature Vaporization
+  | 'PTV'   // Programmed Temperature Vaporization
+  | 'PP';   // Purged Packed
 
 /** Tipos de detector para GC */
 export type DetectorType =
@@ -311,8 +312,16 @@ export type DetectorType =
 export interface ConfiguracionGC {
   puertoInyeccionFront?: InletType | null;
   puertoInyeccionBack?: InletType | null;
+  puertoInyeccionAux?: InletType | null;
   detectorFront?: DetectorType | null;
   detectorBack?: DetectorType | null;
+  detectorAux?: DetectorType | null;
+}
+
+/** Software instalado en un sistema (un sistema puede tener varios: uno para GC, otro para MS, etc.) */
+export interface SoftwareInstalado {
+  nombre: string;
+  revision?: string;
 }
 
 /** Helper: devuelve true si el nombre del sistema o categoría indica que es un GC */
@@ -326,6 +335,7 @@ export const INLET_LABELS: Record<InletType, string> = {
   SSL: 'SSL (Split/Splitless)',
   COC: 'COC (Cool on Column)',
   PTV: 'PTV (Programmed Temperature Vaporization)',
+  PP: 'PP (Purged Packed)',
 };
 
 /** Etiquetas legibles para DetectorType */
@@ -365,8 +375,9 @@ export interface Sistema {
   nombre: string; // ej. HPLC 1260 (ahora viene de modelos de categoría)
   descripcion?: string; // Campo eliminado - el nombre del modelo es suficiente
   codigoInternoCliente: string; // asignado por cliente o provisorio editable
-  software?: string; // Nombre del software (ej: ChemStation, OpenLab, MassHunter)
-  softwareRevision?: string; // Revisión del software (ej: B.04.03)
+  software?: string; // Legacy: primer software (se mantiene sincronizado con softwares[0])
+  softwareRevision?: string; // Legacy: revisión del primer software
+  softwares?: SoftwareInstalado[];
   observaciones?: string;
   /** Sector/área del establecimiento al que pertenece (ej: "Control de Calidad") */
   sector?: string | null;

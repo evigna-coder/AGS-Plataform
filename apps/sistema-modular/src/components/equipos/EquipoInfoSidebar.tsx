@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
+import type { Sistema, CategoriaEquipo, Cliente, Establecimiento, SoftwareInstalado } from '@ags/shared';
 import { esGaseoso } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
@@ -13,6 +13,14 @@ import QREquipoModal from './QREquipoModal';
 
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5';
 const val = 'text-xs text-slate-700';
+
+function resolveSoftwares(sistema: Sistema): SoftwareInstalado[] {
+  if (Array.isArray(sistema.softwares) && sistema.softwares.length > 0) {
+    return sistema.softwares.filter(s => s && (s.nombre?.trim() || s.revision?.trim()));
+  }
+  if (sistema.software) return [{ nombre: sistema.software, revision: sistema.softwareRevision }];
+  return [];
+}
 
 interface EquipoInfoSidebarProps {
   sistema: Sistema;
@@ -149,10 +157,20 @@ const ViewFields: React.FC<ViewFieldsProps> = ({ sistema, cliente, establecimien
     </div>
     <div>
       <p className={lbl}>Software</p>
-      <p className={`${val} font-semibold`}>
-        {sistema.software || '-'}
-        {sistema.softwareRevision && <span className="text-slate-400 font-normal ml-1">Rev. {sistema.softwareRevision}</span>}
-      </p>
+      {(() => {
+        const list = resolveSoftwares(sistema);
+        if (list.length === 0) return <p className={`${val} font-semibold`}>-</p>;
+        return (
+          <ul className="space-y-0.5">
+            {list.map((sw, i) => (
+              <li key={i} className={`${val} font-semibold`}>
+                {sw.nombre}
+                {sw.revision && <span className="text-slate-400 font-normal ml-1">Rev. {sw.revision}</span>}
+              </li>
+            ))}
+          </ul>
+        );
+      })()}
     </div>
     <div>
       <p className={lbl}>Sector</p>
@@ -308,23 +326,66 @@ const EditForm: React.FC<EditFormProps> = ({
         />
       </div>
       <div>
-        <label className={lbl}>Software *</label>
-        <Input
-          inputSize="sm"
-          value={formData.software}
-          onChange={(e) => setFormData({ ...formData, software: e.target.value })}
-          placeholder="Ej: OpenLab, ChemStation, MassHunter..."
-          required
-        />
-      </div>
-      <div>
-        <label className={lbl}>Revisión Software</label>
-        <Input
-          inputSize="sm"
-          value={formData.softwareRevision || ''}
-          onChange={(e) => setFormData({ ...formData, softwareRevision: e.target.value })}
-          placeholder="Ej: B.04.03"
-        />
+        <div className="flex items-center justify-between mb-1">
+          <label className={lbl}>Software</label>
+          <button
+            type="button"
+            onClick={() => {
+              const list: SoftwareInstalado[] = Array.isArray(formData.softwares) ? [...formData.softwares] : [];
+              list.push({ nombre: '', revision: '' });
+              setFormData({ ...formData, softwares: list });
+            }}
+            className="text-[10px] text-teal-600 hover:text-teal-800 font-medium"
+          >
+            + Agregar
+          </button>
+        </div>
+        {(() => {
+          const list: SoftwareInstalado[] = Array.isArray(formData.softwares) && formData.softwares.length > 0
+            ? formData.softwares
+            : [{ nombre: formData.software || '', revision: formData.softwareRevision || '' }];
+          return (
+            <div className="space-y-2">
+              {list.map((sw, idx) => (
+                <div key={idx} className="space-y-1 border border-slate-200 rounded p-1.5 bg-slate-50/50 relative">
+                  <Input
+                    inputSize="sm"
+                    value={sw.nombre}
+                    onChange={(e) => {
+                      const next = [...list];
+                      next[idx] = { ...next[idx], nombre: e.target.value };
+                      setFormData({ ...formData, softwares: next });
+                    }}
+                    placeholder="Ej: OpenLab, ChemStation, MassHunter..."
+                  />
+                  <Input
+                    inputSize="sm"
+                    value={sw.revision || ''}
+                    onChange={(e) => {
+                      const next = [...list];
+                      next[idx] = { ...next[idx], revision: e.target.value };
+                      setFormData({ ...formData, softwares: next });
+                    }}
+                    placeholder="Revisión (ej: B.04.03)"
+                  />
+                  {list.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = list.filter((_, i) => i !== idx);
+                        setFormData({ ...formData, softwares: next });
+                      }}
+                      className="absolute top-1 right-1 text-[10px] text-rose-500 hover:text-rose-700 font-medium px-1"
+                      title="Quitar"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
       <div>
         <label className={lbl}>Sector</label>

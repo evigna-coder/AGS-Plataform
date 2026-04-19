@@ -9,6 +9,7 @@
     "dev:electron": "concurrently -k -n \"VITE,ELECTRON\" -c \"blue,green\" \"vite --port 3001\" \"node scripts/wait-and-start-electron.cjs\" || exit 0",
     "build": "vite build && electron-builder",
     "build:web": "vite build",
+    "build:desktop": "vite build --mode desktop && electron-builder",
     "preview": "vite preview",
     "electron": "node scripts/start-electron.cjs",
     "electron:dev": "node scripts/start-electron.cjs --dev",

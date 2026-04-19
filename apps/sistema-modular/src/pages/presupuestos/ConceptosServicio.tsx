@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { conceptosServicioService, categoriasPresupuestoService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { ConceptoServicio, CategoriaPresupuesto, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -31,6 +32,13 @@ export function ConceptosServicio() {
   const [catId, setCatId] = useState('');
   const [activo, setActivo] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sortField, setSortField] = useState<string>('descripcion');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(conceptos, sortField, sortDir), [conceptos, sortField, sortDir]);
 
   const loadData = async () => {
     const [c, cats] = await Promise.all([conceptosServicioService.getAll(), categoriasPresupuestoService.getAll()]);
@@ -136,19 +144,19 @@ export function ConceptosServicio() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Codigo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24">Valor base</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Moneda</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Factor</th>
+                  <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28" />
+                  <SortableHeader label="Descripcion" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider" />
+                  <SortableHeader label="Valor base" field="valorBase" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24" />
+                  <SortableHeader label="Moneda" field="moneda" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16" />
+                  <SortableHeader label="Factor" field="factorActualizacion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16" />
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Precio efectivo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28">Categoria</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16">Estado</th>
+                  <SortableHeader label="Categoria" field="categoriaPresupuestoId" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-28" />
+                  <SortableHeader label="Estado" field="activo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-16" />
                   <th className="px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider w-24">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {conceptos.map(c => {
+                {sorted.map(c => {
                   const precioEfectivo = c.valorBase * c.factorActualizacion;
                   return (
                     <tr key={c.id} className="hover:bg-slate-50">

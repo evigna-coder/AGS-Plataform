@@ -124,7 +124,8 @@ export const EquiposList = () => {
           clienteName.toLowerCase().includes(q) ||
           (est?.nombre || '').toLowerCase().includes(q) ||
           (s.codigoInternoCliente || '').toLowerCase().includes(q) ||
-          (s.software || '').toLowerCase().includes(q)
+          (s.software || '').toLowerCase().includes(q) ||
+          (s.softwares || []).some(sw => (sw.nombre || '').toLowerCase().includes(q))
         );
       });
     }

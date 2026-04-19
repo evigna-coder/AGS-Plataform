@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { articulosService, unidadesService } from '../../services/firebaseService';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { Articulo } from '@ags/shared';
 
 interface ArticuloConStock extends Articulo {
@@ -13,6 +14,13 @@ interface ArticuloConStock extends Articulo {
 export const AlertasStockPage = () => {
   const [items, setItems] = useState<ArticuloConStock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortField, setSortField] = useState<string>('deficit');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const sorted = useMemo(() => sortByField(items, sortField, sortDir), [items, sortField, sortDir]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -75,17 +83,17 @@ export const AlertasStockPage = () => {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="text-left border-b border-slate-200">
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Codigo</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Descripcion</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Categoria</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Stock actual</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Minimo</th>
-                    <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center">Deficit</th>
+                    <SortableHeader label="Codigo" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Descripcion" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Categoria" field="categoriaEquipo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider" />
+                    <SortableHeader label="Stock actual" field="stockActual" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center" />
+                    <SortableHeader label="Minimo" field="stockMinimo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center" />
+                    <SortableHeader label="Deficit" field="deficit" currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center" />
                     <th className="px-4 py-2 text-[11px] font-medium text-slate-400 tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map(art => (
+                  {sorted.map(art => (
                     <tr key={art.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-4 py-2">
                         <Link to={`/stock/articulos/${art.id}`} className="font-mono text-xs text-teal-600 hover:underline font-medium">
