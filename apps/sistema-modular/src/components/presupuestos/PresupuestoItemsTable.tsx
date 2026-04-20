@@ -164,7 +164,9 @@ export const PresupuestoItemsTable = ({
       {showModal && (
         <AddItemModal newItem={newItem} setNewItem={setNewItem} categoriasPresupuesto={categoriasPresupuesto}
           conceptosServicio={conceptosServicio} moneda={moneda} onAdd={handleAdd} onClose={() => setShowModal(false)}
-          tipoPresupuesto={tipoPresupuesto} sistemas={sistemas} loadModulos={loadModulos} />
+          tipoPresupuesto={tipoPresupuesto}
+          sistemas={tipoPresupuesto === 'contrato' ? sistemas : undefined}
+          loadModulos={tipoPresupuesto === 'contrato' ? loadModulos : undefined} />
       )}
     </div>
   );
