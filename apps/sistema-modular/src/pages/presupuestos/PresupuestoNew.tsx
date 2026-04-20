@@ -83,9 +83,14 @@ export const PresupuestoNew = () => {
     try {
       setLoading(true);
       
-      // Crear presupuesto básico - los items se agregarán en el detalle
+      // Crear presupuesto básico - los items se agregarán en el detalle.
+      // tipo: 'servicio' explícito — el wizard standalone crea presupuestos
+      // per_incident por default. Contrato se inicia desde otro flow.
+      // moneda: 'USD' por default (el editor permite cambiar a ARS/EUR/MIXTA).
       const presupuestoData = {
         numero: '',
+        tipo: 'servicio' as const,
+        moneda: 'USD' as const,
         clienteId: formData.clienteId,
         sistemaId: formData.sistemaId || null,
         contactoId: formData.contactoId || null,
