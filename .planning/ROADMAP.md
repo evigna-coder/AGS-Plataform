@@ -73,13 +73,13 @@ Plans:
   3. El workspace `functions/` existe en el monorepo y despliega una función de ejemplo sin errores
   4. La colección `featureFlags` existe en Firestore y la UI admin permite togglear módulos sin rebuild — un admin puede activar/desactivar un módulo y el cambio se refleja en la sidebar sin recarga
 
-**Plans:** TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 05-01: Migración batch clienteId null — script + UI de revisión admin
-- [ ] 05-02: Migración batch contactos planos → contactos[]
-- [ ] 05-03: Bootstrap workspace functions/ + Cloud Function de ejemplo
-- [ ] 05-04: featureFlags en Firestore + UI admin de módulos
+- [ ] 05-01-PLAN.md — Migración batch clienteId null — script + UI revisión admin + type extensions
+- [ ] 05-02-PLAN.md — Migración batch contactos planos → contactos[] (idempotente)
+- [ ] 05-03-PLAN.md — Bootstrap workspace functions/ + helloPing Cloud Function (southamerica-east1)
+- [ ] 05-04-PLAN.md — featureFlags en Firestore + useNavigation() reactivo + /admin/modulos
 
 #### Phase 6: Catálogo de Servicios con Precios
 **Goal:** El catálogo de servicios está completo con zonas geográficas, reglas de precio por zona y contrato, y la disciplina de snapshot de precios está establecida desde el primer día.
