@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, ContactoTicket } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, ContactoTicket, Ticket } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS, getContactoPrincipal } from '@ags/shared';
 import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
 
@@ -496,5 +496,55 @@ export const leadsService = {
     });
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'removeAdjunto', adjuntoId: adjunto.id } as any });
     await batch.commit();
+  },
+
+  /**
+   * Resuelve manualmente el clienteId de un ticket pendiente (flujo UI /admin/revision-clienteid).
+   * Setea clienteId + trazabilidad (clienteIdMigradoAt/Por) y limpia pendienteClienteId + candidatosPropuestos.
+   */
+  async resolverClienteIdPendiente(ticketId: string, clienteId: string): Promise<void> {
+    const trace = getCurrentUserTrace();
+    const payload = deepCleanForFirestore({
+      clienteId,
+      clienteIdMigradoAt: Timestamp.now(),
+      clienteIdMigradoPor: trace?.uid ?? null,
+      pendienteClienteId: false,
+      candidatosPropuestos: [],
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    const ref = doc(db, 'leads', ticketId);
+    await updateDoc(ref, payload);
+  },
+
+  /**
+   * Marca un ticket como "no se puede resolver, ignorar" desde la UI admin.
+   * No asigna clienteId; solo saca al ticket de la lista de pendientes.
+   */
+  async descartarRevisionClienteId(ticketId: string): Promise<void> {
+    const payload = deepCleanForFirestore({
+      revisionDescartada: true,
+      pendienteClienteId: false,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    const ref = doc(db, 'leads', ticketId);
+    await updateDoc(ref, payload);
+  },
+
+  /**
+   * Lista tickets con pendienteClienteId == true, excluyendo los marcados como descartados.
+   * Firestore no soporta `!=` compound eficiente con otro where; filtramos client-side.
+   * NOTA: este query usa un único `where` de igualdad sobre un field indexado automáticamente
+   * — NO requiere composite index. Si en el futuro se agrega un segundo `where` o un
+   * `orderBy` combinado con otro filter, Firestore pedirá crear un composite index via
+   * el error message del primer run.
+   */
+  async listarPendientesClienteId(): Promise<Ticket[]> {
+    const q = query(collection(db, 'leads'), where('pendienteClienteId', '==', true));
+    const snap = await getDocs(q);
+    return snap.docs
+      .map(d => parseLeadDoc(d))
+      .filter(t => t.revisionDescartada !== true);
   },
 };
