@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: planning
-stopped_at: Phase 5 context gathered (auto flow)
-last_updated: "2026-04-20T02:35:11.345Z"
+stopped_at: "Completed 05-02 script; awaiting user --dry-run/--run execution (checkpoint:human-verify)"
+last_updated: "2026-04-20T12:10:22.678Z"
 last_activity: 2026-04-19 — Roadmap v2.0 created; 41 requirements mapped to Phases 5-11
 progress:
   total_phases: 11
   completed_phases: 2
-  total_plans: 15
-  completed_plans: 13
-  percent: 0
+  total_plans: 19
+  completed_plans: 14
+  percent: 74
 ---
 
 # Project State
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 5 of 11 (Pre-condiciones — Migración + Infra)
-Plan: — (not started)
-Status: Ready to plan
-Last activity: 2026-04-19 — Roadmap v2.0 created; 41 requirements mapped to Phases 5-11
+Plan: 2 of 4 completed (awaiting user checkpoint on --run execution); 05-03 next
+Status: In Progress
+Last activity: 2026-04-20 — Plan 05-02 script created + committed; human-verify checkpoint pending
 
-Progress: [░░░░░░░░░░] 0% (v2.0 milestone)
+Progress: [███████░░░] 74% (v2.0 milestone)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed (v2.0): 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed (v2.0): 1 (Plan 05-02 script-side; user checkpoint pending)
+- Average duration: 2min
+- Total execution time: 2min
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| v2.0 not started | — | — | — |
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 05-pre-condiciones-migracion-infra | 02 | 2min | 1 | 1 |
 
 *Updated after each plan completion*
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0 milestone)
 - **TC MIXTA snapshot (confirmado):** El tipo de cambio USD-ARS se congela al recibirse la OC, consistente con la política general de precios. Establecer en Phase 6.
 - **Revisiones de presupuesto:** Al crear revisión (item 2, item 3...), por defecto se anula la anterior. Nuevo requerimiento REV-01: agregar pregunta "¿mantener ambas revisiones activas?" para casos donde el cliente recibe dos opciones (ej: con/sin una parte). Establecer en Phase 8.
 - **Sin cache en stock views:** Las vistas de planificación de stock nunca usan serviceCache.ts (Pitfall 3-C). Aplicar en Phase 9.
+- [Phase 05-pre-condiciones-migracion-infra]: Script migración contactos[] defaults a --dry-run; --run requiere flag explícito y ejecución manual del usuario (no se incluye service-account en repo)
 
 ### Pending Todos
 
@@ -72,6 +73,6 @@ Progress: [░░░░░░░░░░] 0% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-20T02:35:11.334Z
-Stopped at: Phase 5 context gathered (auto flow)
-Resume file: .planning/phases/05-pre-condiciones-migracion-infra/05-CONTEXT.md
+Last session: 2026-04-20T12:10:22.675Z
+Stopped at: Completed 05-02 script; awaiting user --dry-run/--run execution (checkpoint:human-verify)
+Resume file: None

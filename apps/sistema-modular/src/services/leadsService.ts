@@ -135,6 +135,15 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     prioridad: data.prioridad === 'media' ? 'normal' : (data.prioridad ?? null),
     proximoContacto: data.proximoContacto ?? null,
     valorEstimado: data.valorEstimado ?? null,
+    // Hidratación de campos de migración clienteId (ver Ticket type en @ags/shared):
+    // - `pendienteClienteId` / `revisionDescartada`: boolean (no nullable) — default false
+    // - `candidatosPropuestos`: array (no nullable) — default []
+    // - `clienteIdMigradoAt` / `clienteIdMigradoPor`: string | null — default null
+    pendienteClienteId: data.pendienteClienteId === true,
+    candidatosPropuestos: Array.isArray(data.candidatosPropuestos) ? data.candidatosPropuestos : [],
+    clienteIdMigradoAt: data.clienteIdMigradoAt?.toDate?.()?.toISOString() ?? (typeof data.clienteIdMigradoAt === 'string' ? data.clienteIdMigradoAt : null),
+    clienteIdMigradoPor: typeof data.clienteIdMigradoPor === 'string' ? data.clienteIdMigradoPor : null,
+    revisionDescartada: data.revisionDescartada === true,
   };
 }
 
