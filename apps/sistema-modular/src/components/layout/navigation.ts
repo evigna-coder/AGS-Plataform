@@ -1,4 +1,5 @@
 import type { ModuloId } from '@ags/shared';
+import { useFeatureFlags } from '../../contexts/FeatureFlagsContext';
 
 export interface NavItem {
   name: string;
@@ -77,8 +78,11 @@ export const MODULE_ROOTS = new Set(
  * MVP Desktop: solo estos módulos se muestran en el sidebar cuando
  * `VITE_DESKTOP_MVP=true`. El resto sigue existiendo en código pero sin entrada.
  * Establecimientos queda fuera — se accede desde el detalle de cada Cliente.
+ *
+ * Exportado (antes era privado) para que la UI admin de `/admin/modulos` calcule
+ * el "default" de cada módulo sin duplicar el set localmente — ver `isMvpDefault()`.
  */
-const DESKTOP_MVP_ALLOWED = new Set<string>([
+export const DESKTOP_MVP_ALLOWED = new Set<string>([
   '/clientes',
   '/equipos',
   '/leads',           // Tickets
@@ -87,9 +91,61 @@ const DESKTOP_MVP_ALLOWED = new Set<string>([
   '/usuarios',        // Solo admin (filtrado por rol en SidebarNav)
 ]);
 
-/** Devuelve la navegación filtrada según el flag de build. */
+/**
+ * Devuelve la navegación filtrada según el flag de build (VITE_DESKTOP_MVP).
+ * NO combina con Firestore — mantiene el comportamiento legacy para callers fuera de React.
+ * Los componentes React deben usar `useNavigation()` para el filtro reactivo.
+ */
 export function getNavigation(): NavItem[] {
   const isDesktopMvp = import.meta.env.VITE_DESKTOP_MVP === 'true';
   if (!isDesktopMvp) return navigation;
   return navigation.filter(item => DESKTOP_MVP_ALLOWED.has(item.path));
+}
+
+/**
+ * Hook reactivo: combina build flag (VITE_DESKTOP_MVP) con featureFlags de Firestore.
+ * Override Firestore (si existe para un `item.path`) gana sobre env. Es el entry point
+ * nuevo del sidebar; `getNavigation()` se mantiene para compat con call sites fuera de
+ * React.
+ *
+ * Orden de precedencia:
+ *   1. Firestore override → `enabled` del override
+ *   2. Fallback env: si `VITE_DESKTOP_MVP === 'true'` → DESKTOP_MVP_ALLOWED.has(path)
+ *   3. Si ninguno aplica → visible
+ *
+ * Mientras el context devuelve `null` (primer snapshot pendiente) se cae directo al
+ * fallback env, evitando flicker.
+ */
+export function useNavigation(): NavItem[] {
+  const flags = useFeatureFlags();
+  const isDesktopMvp = import.meta.env.VITE_DESKTOP_MVP === 'true';
+
+  return navigation.filter(item => {
+    const override = flags?.modules?.[item.path];
+    if (override) return override.enabled;
+    if (isDesktopMvp) return DESKTOP_MVP_ALLOWED.has(item.path);
+    return true;
+  });
+}
+
+/**
+ * Lista completa de paths + nombres + icons (para la UI admin de toggles).
+ * No filtra por MVP — el admin ve TODOS los módulos para poder activarlos/desactivarlos.
+ */
+export function getAllModulePaths(): Array<{ path: string; name: string; icon: string }> {
+  return navigation.map(n => ({ path: n.path, name: n.name, icon: n.icon }));
+}
+
+/**
+ * Devuelve el valor default de `enabled` para un módulo cuando NO hay override en Firestore.
+ * Combina env flag con el set MVP. Usado por la UI admin para mostrar el estado "base" del
+ * toggle antes de que el admin lo modifique.
+ *
+ *   - Si VITE_DESKTOP_MVP === 'true' → `DESKTOP_MVP_ALLOWED.has(path)`
+ *   - Si no                          → `true` (todos visibles por default)
+ */
+export function isMvpDefault(path: string): boolean {
+  const isDesktopMvp = import.meta.env.VITE_DESKTOP_MVP === 'true';
+  if (!isDesktopMvp) return true;
+  return DESKTOP_MVP_ALLOWED.has(path);
 }
