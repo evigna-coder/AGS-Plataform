@@ -715,6 +715,16 @@ export interface Ticket {
   prioridad?: TicketPrioridad | null;
   proximoContacto?: string | null;
   valorEstimado?: number | null;
+  /** True si la migración clienteId batch no pudo resolver un único candidato. Visible en /admin/revision-clienteid. Hidratado default `false` en parseLeadDoc cuando el campo falta en Firestore. */
+  pendienteClienteId?: boolean;
+  /** Candidatos propuestos por el script de migración cuando hay ambigüedad. Array opcional; default `[]` en hidratación si el campo falta. `score` indica por qué criterio matcheó el candidato. */
+  candidatosPropuestos?: Array<{ clienteId: string; razonSocial: string; score: 'cuit' | 'razonSocial' }>;
+  /** ISO timestamp de cuando se resolvió clienteId (por script o manualmente). `null` si nunca se migró. En Firestore se persiste como Timestamp; se lee como ISO string via .toDate().toISOString(). */
+  clienteIdMigradoAt?: string | null;
+  /** uid del usuario que resolvió manualmente, o literal "script" si vino del batch. `null` si nunca se migró. */
+  clienteIdMigradoPor?: string | null;
+  /** Admin marcó el ticket como "no se puede resolver, ignorar de la lista de pendientes". Default `false` en hidratación. */
+  revisionDescartada?: boolean;
   presupuestosIds?: string[];
   otIds?: string[];
   adjuntos?: AdjuntoTicket[];
