@@ -533,6 +533,7 @@ const HeaderFieldForm = ({ field, allFields, onSave, onCancel }: HeaderFieldForm
   const [unit, setUnit] = useState(field.unit ?? '');
   const [placeholder, setPlaceholder] = useState(field.placeholder ?? '');
   const [multiSelect, setMultiSelect] = useState<boolean>(!!field.multiSelect);
+  const [hideInPrint, setHideInPrint] = useState<boolean>(!!field.hideInPrint);
   const [visTriggerField, setVisTriggerField] = useState<string>(field.visibleWhenSelector?.headerFieldId ?? '');
   const [visValues, setVisValues] = useState<string[]>(field.visibleWhenSelector?.values ?? []);
 
@@ -551,8 +552,8 @@ const HeaderFieldForm = ({ field, allFields, onSave, onCancel }: HeaderFieldForm
       : null;
     if (inputType === 'select') {
       const options = optionsText.split(',').map(o => o.trim()).filter(Boolean);
-      if (options.length < 2) return;
-      onSave({ ...field, label, options, inputType: 'select', unit: null, placeholder: null, multiSelect, visibleWhenSelector: visibility });
+      if (options.length < 1) return;
+      onSave({ ...field, label, options, inputType: 'select', unit: null, placeholder: null, multiSelect, hideInPrint: hideInPrint || undefined, visibleWhenSelector: visibility });
     } else {
       onSave({
         ...field,
@@ -562,13 +563,14 @@ const HeaderFieldForm = ({ field, allFields, onSave, onCancel }: HeaderFieldForm
         unit: unit.trim() || null,
         placeholder: placeholder.trim() || null,
         multiSelect: false,
+        hideInPrint: hideInPrint || undefined,
         visibleWhenSelector: visibility,
       });
     }
   };
 
   const disabled = !label || (inputType === 'select' &&
-    optionsText.split(',').map(o => o.trim()).filter(Boolean).length < 2);
+    optionsText.split(',').map(o => o.trim()).filter(Boolean).length < 1);
 
   return (
     <div className="border border-slate-900 rounded-lg p-3 space-y-2 bg-slate-50 mt-2">
@@ -598,6 +600,10 @@ const HeaderFieldForm = ({ field, allFields, onSave, onCancel }: HeaderFieldForm
             onChange={e => setPlaceholder(e.target.value)} />
         </div>
       )}
+      <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer" title="El selector solo aparece durante la carga del protocolo. En el PDF y preview de impresión no se muestra.">
+        <input type="checkbox" checked={hideInPrint} onChange={e => setHideInPrint(e.target.checked)} />
+        Ocultar en PDF / preview (solo visible durante la carga)
+      </label>
       {/* Visibilidad condicional */}
       {triggerCandidates.length > 0 && (
         <div className="border-t border-slate-200 pt-2 space-y-1.5">
@@ -639,7 +645,7 @@ const HeaderFieldForm = ({ field, allFields, onSave, onCancel }: HeaderFieldForm
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-slate-400">
           {inputType === 'select'
-            ? 'Mínimo 2 opciones'
+            ? 'Mínimo 1 opción'
             : `Uso en specs: referenciar como {${field.fieldId || 'fieldId'}} (ej. "≥ 1600*{${field.fieldId || 'ruido'}}")`}
         </span>
         <div className="flex gap-2">

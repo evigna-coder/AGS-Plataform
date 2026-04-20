@@ -163,7 +163,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
             />
             <span>
               <span className="font-bold uppercase tracking-wide text-[10px] text-blue-800">Mostrar por defecto</span>
-              <span className="block text-[10px] text-slate-500">La fila se muestra siempre, aunque no coincida con el valor seleccionado en el encabezado.</span>
+              <span className="block text-[10px] text-slate-500">Si el selector de encabezado está vacío, la fila se muestra. Cuando el técnico elige un valor, la fila se oculta salvo que coincida con "Visible cuando el valor es…".</span>
             </span>
           </label>
         </div>

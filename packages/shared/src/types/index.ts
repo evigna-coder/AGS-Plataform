@@ -1492,6 +1492,12 @@ export interface TableHeaderField {
    * en vez de como separador de sub-tablas por instancia.
    */
   suppressGrouping?: boolean;
+  /**
+   * Si true, este header field NO se muestra en modo print/PDF (ni en preview de impresión).
+   * Útil para selectores que solo sirven para condicionar filas durante la carga del protocolo
+   * pero no deben aparecer en el documento final.
+   */
+  hideInPrint?: boolean;
   /** Unidad a mostrar al lado del input numérico (ej. "mAU", "%") */
   unit?: string | null;
   /** Placeholder opcional para inputs numéricos */

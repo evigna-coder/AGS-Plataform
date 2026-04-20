@@ -725,6 +725,7 @@ export const CatalogTableView: React.FC<Props> = ({
   };
   /** Verifica si un header field es visible dado su visibleWhenSelector (soporta multi-select trigger). */
   const isHeaderFieldVisible = (hf: import('@ags/shared').TableHeaderField): boolean => {
+    if (isPrint && hf.hideInPrint) return false;
     if (!hf.visibleWhenSelector) return true;
     const triggerValues = getSelectedHeaderValues(hf.visibleWhenSelector.headerFieldId);
     return triggerValues.some(v => hf.visibleWhenSelector!.values.includes(v));
@@ -733,6 +734,17 @@ export const CatalogTableView: React.FC<Props> = ({
   const doesRowSelectorMatch = (sel: { headerFieldId: string; values: string[] }): boolean => {
     const triggerValues = getSelectedHeaderValues(sel.headerFieldId);
     return triggerValues.some(v => sel.values.includes(v));
+  };
+  /**
+   * Resuelve la visibilidad de una fila considerando visibleWhenSelector + defaultVisible.
+   * Semántica: defaultVisible sólo aplica cuando el header selector está vacío.
+   * Si el técnico selecciona un valor, gana el match exacto; los "default" no forzados.
+   */
+  const shouldShowRow = (row: { visibleWhenSelector?: { headerFieldId: string; values: string[] } | null; defaultVisible?: boolean }): boolean => {
+    if (!row.visibleWhenSelector) return true;
+    const selected = getSelectedHeaderValues(row.visibleWhenSelector.headerFieldId);
+    if (selected.length === 0) return !!row.defaultVisible;
+    return doesRowSelectorMatch(row.visibleWhenSelector);
   };
   /** Header field que actúa como trigger primario de agrupación (primer multi-select con ≥2 valores). */
   const groupingField = (table.headerFields ?? []).find(hf =>
@@ -1758,7 +1770,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 // Primero, filas sin visibleWhenSelector o que NO usan el grouping field
                 table.templateRows.forEach((row, origIdx) => {
                   if (row.visibleWhenSelector && row.visibleWhenSelector.headerFieldId === groupingField.fieldId) return;
-                  if (row.visibleWhenSelector && !row.defaultVisible && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
+                  if (!shouldShowRow(row)) return;
                   items.push({ kind: 'row', row, origIdx });
                 });
                 // Luego, un grupo por cada valor seleccionado. Cada fila se asigna a UN solo grupo
@@ -1777,7 +1789,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 }
               } else {
                 table.templateRows.forEach((row, origIdx) => {
-                  if (row.visibleWhenSelector && !row.defaultVisible && !doesRowSelectorMatch(row.visibleWhenSelector)) return;
+                  if (!shouldShowRow(row)) return;
                   items.push({ kind: 'row', row, origIdx });
                 });
               }
