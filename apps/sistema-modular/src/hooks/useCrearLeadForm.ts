@@ -142,8 +142,15 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         ...(descripcion.trim() ? { comentario: descripcion.trim() } : {}),
       } : null;
 
+      let resolvedClienteId = clienteId;
+      if (!resolvedClienteId) {
+        const target = razonSocial.trim().toLowerCase();
+        const matches = clientes.filter(c => c.razonSocial.trim().toLowerCase() === target);
+        if (matches.length === 1) resolvedClienteId = matches[0].id;
+      }
+
       const leadId = await leadsService.create({
-        clienteId: clienteId || null, contactoId: null,
+        clienteId: resolvedClienteId || null, contactoId: null,
         razonSocial: razonSocial.trim(), contacto: contacto.trim(),
         email: email.trim(), telefono: telefono.trim(),
         motivoLlamado, motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,

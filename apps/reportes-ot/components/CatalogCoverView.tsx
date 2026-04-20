@@ -44,7 +44,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   const formatFecha = (iso?: string) => {
     if (!iso) return '—';
     try {
-      return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return new Date(iso).toLocaleDateString('es-AR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch { return iso; }
   };
 
@@ -58,7 +58,7 @@ export const CatalogCoverView: React.FC<Props> = ({
     { label: 'Modelo', value: sistemaNombre || sistemaModelo || '—' },
     { label: 'ID', value: agsVisibleId || '—', mono: true },
     { label: 'N° de Serie', value: numeroSerie || '—', mono: true },
-    { label: 'Realizado por', value: ingenieroNombre || '—' },
+    { label: 'Ing. de Soporte Técnico', value: ingenieroNombre || '—' },
   ];
 
   // Footer data from catalog entry
@@ -122,7 +122,10 @@ export const CatalogCoverView: React.FC<Props> = ({
       {/* Fondo degradé diagonal azul — mitad inferior */}
       <div style={{
         position: 'absolute',
-        inset: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
         background: 'linear-gradient(150deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 40%, rgba(30,58,95,0.09) 65%, rgba(14,165,233,0.06) 85%, rgba(255,255,255,0) 100%)',
         pointerEvents: 'none',
       }} />

@@ -516,6 +516,7 @@ export const usePDFGeneration = (
 
     try {
       await nextTwoFrames();
+      await document.fonts.ready;
       await Promise.all([
         preloadFromContainer(document.getElementById('pdf-container-tablas-pdf')),
         preloadFromContainer(document.getElementById('pdf-container-fotos-pdf')),
