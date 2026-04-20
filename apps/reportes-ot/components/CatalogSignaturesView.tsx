@@ -38,10 +38,14 @@ export const CatalogSignaturesView: React.FC<Props> = ({
   const formatDate = (iso: string) => {
     if (!iso) return '—';
     try {
-      // Parsear como fecha local (no UTC) para evitar desfase de timezone
-      const [y, m, d] = iso.split('-').map(Number);
-      const date = new Date(y, m - 1, d);
-      return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+      // Extraer YYYY-MM-DD del inicio de la string (maneja fecha pura y ISO con tiempo)
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+      if (m) {
+        const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+      // Fallback: forzar UTC para evitar desfase de timezone
+      return new Date(iso).toLocaleDateString('es-AR', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
     } catch { return iso; }
   };
 

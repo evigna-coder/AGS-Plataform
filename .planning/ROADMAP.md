@@ -113,11 +113,11 @@ Plans (diferidos):
   3. `EnviarPresupuestoModal` aplica **token-first order**: valida/obtiene OAuth token ANTES de cambiar estado en Firestore. Si el token falla o expira, el presupuesto NO transiciona a `enviado`; el usuario ve el error con opción de reintentar sin quedar el doc en estado inconsistente.
   4. Al transicionar a `enviado` por primera vez, se setea `fechaEnvio` (ya existe el comportamiento; verificarlo). **No hay snapshot técnico de precio** — la cláusula "oferta válida por N días" del PDF es la protección contractual (decisión 2026-04-20).
 
-**Plans:** TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 07-01: Audit + fixes del flow tipo `'servicio'` end-to-end (crear desde ticket + catálogo + estados)
-- [ ] 07-02: Token-first order en `EnviarPresupuestoModal` + polish final de `PresupuestoPDFEstandar` para tipo `'servicio'`
+- [ ] 07-01-PLAN.md — Audit + fixes flow `'servicio'` end-to-end: gate del panel equipo/módulo del AddItemModal a tipo=contrato, polish PDF estándar (validez prominente, cleanup header huérfano), PresupuestoNew con tipo:'servicio' explícito. Cubre PTYP-01 + FMT-01.
+- [ ] 07-02-PLAN.md — Token-first order: `markEnviado()` atómico en service, EnviarPresupuestoModal reestructurado con etapas (auth/pdf/send/update) y errores diferenciados, EditPresupuestoModal.onSent simplificado. Cubre FMT-02 + cierre de PTYP-01.
 
 #### Phase 8: Estados + OC + Flujo Automático de Derivación
 **Goal:** El ciclo comercial completo funciona con derivaciones automáticas: presupuesto sin ticket genera ticket, OC recibida deriva a coordinador OT, cierre OT avisa a facturación — con transacciones atómicas para prevenir race conditions.
@@ -208,7 +208,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 4. Presupuestos — Anexo consumibles | v1.0 | TBD | Deferred | - |
 | 5. Pre-condiciones — Migración + Infra | v2.0 | 3/4 | In Progress | - |
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
-| 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/3 | Not started | - |
+| 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |
 | 8. Estados + OC + Flujo Automático | v2.0 | 0/5 | Not started | - |
 | 9. Stock ATP Extendido | v2.0 | 0/3 | Not started | - |
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | v2.0 | 0/5 | Not started | - |
