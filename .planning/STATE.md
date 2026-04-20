@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
 stopped_at: "Completed 05-04 end-to-end (feature flags runtime + admin UI); awaiting user human-verify: /admin/modulos toggle reflects in sidebar live. Phase 5 Wave 2 complete at code level (05-03 functions + 05-04 featureFlags). Pending user actions: run migration scripts 05-01/05-02 (--dry-run/--run), deploy functions 05-03, verify admin UI 05-04."
-last_updated: "2026-04-20T12:40:55.696Z"
+last_updated: "2026-04-20T13:37:02.012Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
