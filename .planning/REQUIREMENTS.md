@@ -7,7 +7,7 @@
 
 ### Pre-conditions — Data + Infra
 
-- [ ] **PREC-01**: Migración batch de tickets con `clienteId: null` — intenta resolver por razón social exacta; los no resueltos quedan marcados para revisión manual.
+- [x] **PREC-01**: Migración batch de tickets con `clienteId: null` — intenta resolver por razón social exacta; los no resueltos quedan marcados para revisión manual.
 - [x] **PREC-02**: Migración batch de tickets con `contacto/email/telefono` planos → array estructurado `contactos[]` con principal marcado.
 - [ ] **PREC-03**: Bootstrap del workspace `functions/` en el monorepo con una primera Cloud Function de ejemplo (base para resumenStock posterior).
 - [ ] **PREC-04**: Colección `featureFlags` en Firestore + UI admin para togglear módulos sin rebuild (extiende VITE_DESKTOP_MVP con flags remotos).
@@ -108,7 +108,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PREC-01 | Phase 5 | Pending |
+| PREC-01 | Phase 5 | Complete |
 | PREC-02 | Phase 5 | Complete |
 | PREC-03 | Phase 5 | Pending |
 | PREC-04 | Phase 5 | Pending |
