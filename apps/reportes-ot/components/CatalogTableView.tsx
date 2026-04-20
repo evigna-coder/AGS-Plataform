@@ -1896,7 +1896,7 @@ export const CatalogTableView: React.FC<Props> = ({
                   <tr
                     key={row.rowId}
                     className={isPrint
-                      ? 'border-b border-slate-200'
+                      ? `border-b border-slate-200${idx % 2 === 0 ? '' : ' bg-slate-50'}`
                       : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                     }
                   >
@@ -1916,7 +1916,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         return (
                         <td
                           key={col.key}
-                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${!isPrint && colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
+                          className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
                         >
                           {splitSelector ? (
                             // ── Selector separado: label en col 0, dropdown en dropdownCol ──
@@ -2012,7 +2012,7 @@ export const CatalogTableView: React.FC<Props> = ({
                 <tr
                   key={row.rowId}
                   className={isPrint
-                    ? 'border-b border-slate-200'
+                    ? `border-b border-slate-200${idx % 2 === 0 ? '' : ' bg-slate-50'}`
                     : `${idx % 2 === 0 ? '' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors`
                   }
                 >
@@ -2039,7 +2039,7 @@ export const CatalogTableView: React.FC<Props> = ({
                           rowSpan={isSpanning ? colSpan : undefined}
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
-                            `${isPrint ? 'text-[10px]' : 'text-xs'}${!isPrint && colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
+                            `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
                             alignCls,
                             !isPrint && boundaryAbove ? 'border-t border-t-slate-300' : '',
                             showActionsHere ? 'relative pr-4' : '',

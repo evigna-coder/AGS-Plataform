@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { enqueuePdfjs } from '../utils/pdfjsQueue';
 import type { AdjuntoMeta } from '../types/instrumentos';
 
 interface Props {
@@ -43,27 +44,29 @@ export const PdfAdjuntoPreview: React.FC<Props> = ({ adjuntos, firebase }) => {
         try {
           const blob = await firebase.downloadStorageBlob(adj.url);
           const arrayBuf = await blob.arrayBuffer();
-          const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-
-          for (let i = 1; i <= pdfDoc.numPages; i++) {
-            const page = await pdfDoc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.5 });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d')!;
-            await page.render({ canvasContext: ctx, viewport }).promise;
-
-            allPages.push({
-              adjuntoId: adj.id,
-              fileName: adj.fileName,
-              pageNum: i,
-              totalPages: pdfDoc.numPages,
-              dataUrl: canvas.toDataURL('image/jpeg', 0.85),
-            });
-          }
-
-          pdfDoc.destroy();
+          const rendered = await enqueuePdfjs(async () => {
+            const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+            const out: RenderedPage[] = [];
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+              const page = await pdfDoc.getPage(i);
+              const viewport = page.getViewport({ scale: 1.5 });
+              const canvas = document.createElement('canvas');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              const ctx = canvas.getContext('2d')!;
+              await page.render({ canvasContext: ctx, viewport }).promise;
+              out.push({
+                adjuntoId: adj.id,
+                fileName: adj.fileName,
+                pageNum: i,
+                totalPages: pdfDoc.numPages,
+                dataUrl: canvas.toDataURL('image/jpeg', 0.85),
+              });
+            }
+            pdfDoc.destroy();
+            return out;
+          });
+          allPages.push(...rendered);
         } catch (err) {
           console.warn(`[PdfAdjuntoPreview] Error renderizando ${adj.fileName}:`, err);
         }

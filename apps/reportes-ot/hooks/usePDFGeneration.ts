@@ -7,6 +7,7 @@ import { FirebaseService } from '../services/firebaseService';
 import { UseReportFormReturn } from './useReportForm';
 import { SignaturePadHandle } from '../components/SignaturePad';
 import { getPDFOptions } from '../utils/pdfOptions';
+import { enqueuePdfjs } from '../utils/pdfjsQueue';
 import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -429,12 +430,13 @@ export const usePDFGeneration = (
       })
     );
 
-    // Paso 2: renderizar secuencialmente (pdfjs-dist worker no es thread-safe)
+    // Paso 2: renderizar a través de la cola global pdfjs (serializa entre todos
+    // los grupos, no solo dentro de este)
     const results: Blob[] = [];
     for (const buffer of buffers) {
       if (!buffer) continue;
       try {
-        const rendered = await renderExternalPdfToBlob(buffer, label);
+        const rendered = await enqueuePdfjs(() => renderExternalPdfToBlob(buffer, label));
         if (rendered) {
           results.push(rendered);
         } else {
