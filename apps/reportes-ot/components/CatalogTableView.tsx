@@ -687,6 +687,19 @@ export const CatalogTableView: React.FC<Props> = ({
   siblingSelections,
 }) => {
   const table = selection.tableSnapshot;
+  // Inyectar CSS de fontSize en <head> en vez de inline dentro de la tabla,
+  // para evitar que html2canvas vea el <style> en el árbol capturado y falle en renderBackgroundImage.
+  React.useEffect(() => {
+    if (!table.fontSize) return;
+    const styleEl = document.createElement('style');
+    styleEl.setAttribute('data-ags-table-font', selection.tableId);
+    styleEl.textContent = `
+      table[data-catalog-table-id="${selection.tableId}"] tbody td,
+      table[data-catalog-table-id="${selection.tableId}"] tbody td * { font-size: ${table.fontSize}px !important; line-height: 1.35 !important; }
+    `;
+    document.head.appendChild(styleEl);
+    return () => { styleEl.remove(); };
+  }, [table.fontSize, selection.tableId]);
   const compact = table.compactDisplay ?? false;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
 
@@ -1504,12 +1517,6 @@ export const CatalogTableView: React.FC<Props> = ({
 
       {/* Tabla */}
       <div className={isPrint ? '' : readOnly ? '' : 'overflow-x-auto'}>
-        {table.fontSize ? (
-          <style>{`
-            table[data-catalog-table-id="${selection.tableId}"] tbody td,
-            table[data-catalog-table-id="${selection.tableId}"] tbody td * { font-size: ${table.fontSize}px !important; line-height: 1.35 !important; }
-          `}</style>
-        ) : null}
         {(() => {
           // Usar table-layout: fixed para tablas de validación con 5+ columnas (print y edición)
           // Las tablas informacionales (2-3 cols) funcionan mejor con auto
