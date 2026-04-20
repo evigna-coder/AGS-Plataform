@@ -21,7 +21,7 @@ import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
 import { UsuariosList } from '../../pages/usuarios';
-import { ImportacionDatos, RevisionClienteIdPage } from '../../pages/admin';
+import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
@@ -169,6 +169,7 @@ function AppRoutes() {
       {/* Admin */}
       <Route path="/admin/importar" element={<ProtectedRoute allowedRoles={['admin']}><ImportacionDatos /></ProtectedRoute>} />
       <Route path="/admin/revision-clienteid" element={<ProtectedRoute allowedRoles={['admin']}><RevisionClienteIdPage /></ProtectedRoute>} />
+      <Route path="/admin/modulos" element={<ProtectedRoute allowedRoles={['admin']}><ModulosAdminPage /></ProtectedRoute>} />
     </Routes>
   );
 }

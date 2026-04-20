@@ -65,6 +65,7 @@ export const navigation: NavItem[] = [
       { name: 'Revisión clienteId', path: '/admin/revision-clienteid' },
     ],
   },
+  { name: 'Módulos', path: '/admin/modulos', icon: '🧩', modulo: 'admin' },
 ];
 
 /** Module root paths — used by keyboard shortcuts to know when to stop navigating up */
