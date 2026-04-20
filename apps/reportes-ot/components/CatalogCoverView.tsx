@@ -119,14 +119,16 @@ export const CatalogCoverView: React.FC<Props> = ({
       boxSizing: 'border-box',
       overflow: 'hidden',
     }}>
-      {/* Fondo degradé diagonal azul — mitad inferior */}
+      {/* Fondo degradé diagonal azul — mitad inferior (SVG para compatibilidad con html2canvas) */}
       <div style={{
         position: 'absolute',
         top: 0,
         right: 0,
         bottom: 0,
         left: 0,
-        background: 'linear-gradient(150deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 40%, rgba(30,58,95,0.09) 65%, rgba(14,165,233,0.06) 85%, rgba(255,255,255,0) 100%)',
+        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' preserveAspectRatio='none' viewBox='0 0 100 100'><defs><linearGradient id='g' gradientUnits='userSpaceOnUse' x1='25' y1='-10' x2='75' y2='110'><stop offset='0' stop-color='rgb(255,255,255)' stop-opacity='0'/><stop offset='0.4' stop-color='rgb(255,255,255)' stop-opacity='0'/><stop offset='0.65' stop-color='rgb(30,58,95)' stop-opacity='0.09'/><stop offset='0.85' stop-color='rgb(14,165,233)' stop-opacity='0.06'/><stop offset='1' stop-color='rgb(255,255,255)' stop-opacity='0'/></linearGradient></defs><rect width='100' height='100' fill='url(%23g)'/></svg>")`,
+        backgroundSize: '100% 100%',
+        backgroundRepeat: 'no-repeat',
         pointerEvents: 'none',
       }} />
 
@@ -242,7 +244,9 @@ export const CatalogCoverView: React.FC<Props> = ({
             <div style={{
               width: '100%',
               height: 1,
-              background: 'linear-gradient(90deg, #1e293b, #0EA5E9, #1e293bCC)',
+              backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='1' preserveAspectRatio='none' viewBox='0 0 100 1'><defs><linearGradient id='d' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='%231e293b'/><stop offset='0.5' stop-color='%230EA5E9'/><stop offset='1' stop-color='%231e293b' stop-opacity='0.8'/></linearGradient></defs><rect width='100' height='1' fill='url(%23d)'/></svg>")`,
+              backgroundSize: '100% 100%',
+              backgroundRepeat: 'no-repeat',
             }} />
             <div style={{
               display: 'flex',
