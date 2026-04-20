@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
-import { sendGmail } from '../../services/gmailService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEnviarPresupuesto } from '../../hooks/useEnviarPresupuesto';
 import type { GeneratePDFParams } from './pdf';
+import type { PresupuestoEstado } from '@ags/shared';
 
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 const inputClass = "w-full border border-[#E5E5E5] rounded-md px-3 py-1.5 text-xs";
@@ -17,6 +17,11 @@ interface Props {
   defaultTo: string;
   defaultContactoNombre: string;
   presupuestoNumero: string;
+  // NEW — FINDING-D: props needed to call markEnviado with a proper hint.
+  presupuestoId: string;
+  presupuestoEstado: PresupuestoEstado;
+  origenTipo?: string | null;
+  origenId?: string | null;
 }
 
 function buildDefaultBody(contactoNombre: string, numero: string): string {
@@ -26,31 +31,29 @@ function buildDefaultBody(contactoNombre: string, numero: string): string {
 <p>Saludos cordiales,<br/>AGS Analítica</p>`;
 }
 
-async function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]); // Remove data:...;base64, prefix
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 export const EnviarPresupuestoModal: React.FC<Props> = ({
   open, onClose, onSent, pdfParams, defaultTo, defaultContactoNombre, presupuestoNumero,
+  presupuestoId, presupuestoEstado, origenTipo, origenId,
 }) => {
   const { usuario } = useAuth();
-  const { requestToken, loading: oauthLoading } = useGoogleOAuth();
 
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'generating_pdf' | 'authorizing' | 'sending' | 'sent' | 'error'>('idle');
-  const [error, setError] = useState('');
+
+  const { send, status, error, sending } = useEnviarPresupuesto({
+    presupuestoId,
+    presupuestoEstado,
+    presupuestoNumero,
+    pdfParams,
+    origenTipo,
+    origenId,
+    onSuccess: () => {
+      onSent();
+      onClose();
+    },
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -58,63 +61,20 @@ export const EnviarPresupuestoModal: React.FC<Props> = ({
     setCc('');
     setSubject(`Presupuesto ${presupuestoNumero} — AGS Analítica`);
     setBody(buildDefaultBody(defaultContactoNombre || 'cliente', presupuestoNumero));
-    setStatus('idle');
-    setError('');
   }, [open, defaultTo, defaultContactoNombre, presupuestoNumero]);
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!to.trim()) { alert('Ingrese al menos un destinatario'); return; }
-
-    try {
-      setSending(true);
-      setError('');
-
-      // 1. Request OAuth token
-      setStatus('authorizing');
-      const accessToken = await requestToken();
-
-      // 2. Generate PDF
-      setStatus('generating_pdf');
-      const { generatePresupuestoPDF } = await import('./pdf');
-      const pdfBlob = await generatePresupuestoPDF(pdfParams);
-      const pdfBase64 = await blobToBase64(pdfBlob);
-
-      // 3. Send email
-      setStatus('sending');
-      const toList = to.split(',').map(e => e.trim()).filter(Boolean);
-      const ccList = cc ? cc.split(',').map(e => e.trim()).filter(Boolean) : [];
-
-      await sendGmail({
-        accessToken,
-        to: toList,
-        cc: ccList.length > 0 ? ccList : undefined,
-        subject,
-        htmlBody: body,
-        attachments: [{
-          filename: `${presupuestoNumero}.pdf`,
-          mimeType: 'application/pdf',
-          base64Data: pdfBase64,
-        }],
-      });
-
-      setStatus('sent');
-      setTimeout(() => {
-        onSent();
-        onClose();
-      }, 1500);
-    } catch (err) {
-      console.error('Error enviando presupuesto:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-      setStatus('error');
-    } finally {
-      setSending(false);
-    }
+    const toList = to.split(',').map(e => e.trim()).filter(Boolean);
+    const ccList = cc ? cc.split(',').map(e => e.trim()).filter(Boolean) : [];
+    send({ to: toList, cc: ccList, subject, htmlBody: body });
   };
 
   const statusMessages: Record<string, string> = {
     authorizing: 'Autorizando con Google...',
     generating_pdf: 'Generando PDF...',
     sending: 'Enviando email...',
+    updating_firestore: 'Actualizando estado...',
     sent: 'Email enviado correctamente',
   };
 
@@ -187,7 +147,7 @@ export const EnviarPresupuestoModal: React.FC<Props> = ({
 
       <div className="flex items-center justify-end px-5 py-3 border-t border-[#E5E5E5] bg-[#F0F0F0] rounded-b-xl -mx-5 -mb-4 mt-3 gap-2">
         <Button variant="secondary" size="sm" onClick={onClose} disabled={sending}>Cancelar</Button>
-        <Button variant="primary" size="sm" onClick={handleSend} disabled={sending || oauthLoading || !to.trim()}>
+        <Button variant="primary" size="sm" onClick={handleSend} disabled={sending || !to.trim()}>
           {sending ? statusMessages[status] || 'Enviando...' : 'Enviar email'}
         </Button>
       </div>
