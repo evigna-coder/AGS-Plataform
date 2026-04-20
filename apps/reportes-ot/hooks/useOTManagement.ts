@@ -179,6 +179,7 @@ export const useOTManagement = (
     setHoraFin,
     setHorasTrabajadas,
     setTiempoViaje,
+    setManualHoras,
     setReporteTecnico,
     setAccionesTomar,
     setAccionesInternaOnly,
@@ -268,6 +269,7 @@ export const useOTManagement = (
         setHoraFin(data.horaFin || '');
         setHorasTrabajadas(data.horasTrabajadas || '');
         setTiempoViaje(data.tiempoViaje || '');
+        setManualHoras(!!data.manualHoras);
         setReporteTecnico(data.reporteTecnico || '');
         setAccionesTomar(data.accionesTomar || '');
         setAccionesInternaOnly(data.accionesInternaOnly !== false); // default true
@@ -416,6 +418,7 @@ export const useOTManagement = (
     setHoraFin('');
     setHorasTrabajadas('');
     setTiempoViaje('');
+    setManualHoras(false);
     setReporteTecnico('');
     setAccionesTomar('');
     setAccionesInternaOnly(true);
@@ -567,6 +570,7 @@ export const useOTManagement = (
     setHoraFin(newState.horaFin);
     setHorasTrabajadas(newState.horasTrabajadas);
     setTiempoViaje(newState.tiempoViaje);
+    setManualHoras(false);
     setReporteTecnico(newState.reporteTecnico);
     setAccionesTomar(newState.accionesTomar);
     setAccionesInternaOnly(newState.accionesInternaOnly);

@@ -41,6 +41,8 @@ export interface ReportFormState {
   horaFin: string;
   horasTrabajadas: string;
   tiempoViaje: string;
+  /** Si true, el ingeniero editó manualmente Hs Lab — el auto-cálculo queda inhibido */
+  manualHoras: boolean;
 
   // Reporte
   reporteTecnico: string;
@@ -99,6 +101,7 @@ export interface ReportState {
   horaFin: string;
   horasTrabajadas: string;
   tiempoViaje: string;
+  manualHoras: boolean;
   reporteTecnico: string;
   accionesTomar: string;
   accionesInternaOnly: boolean;
@@ -152,6 +155,7 @@ export interface UseReportFormReturn {
     setHoraFin: (value: string) => void;
     setHorasTrabajadas: (value: string) => void;
     setTiempoViaje: (value: string) => void;
+    setManualHoras: (value: boolean) => void;
     setReporteTecnico: (value: string) => void;
     setAccionesTomar: (value: string) => void;
     setAccionesInternaOnly: (value: boolean) => void;
@@ -207,6 +211,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [horaFin, setHoraFin] = useState('');
   const [horasTrabajadas, setHorasTrabajadas] = useState('');
   const [tiempoViaje, setTiempoViaje] = useState('');
+  const [manualHoras, setManualHoras] = useState(false);
   const [reporteTecnico, setReporteTecnico] = useState('');
   const [accionesTomar, setAccionesTomar] = useState('');
   const [accionesInternaOnly, setAccionesInternaOnly] = useState(true);
@@ -248,7 +253,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
@@ -258,7 +263,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, emailPrincipal, signatureEngineer,
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
@@ -295,6 +300,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     horaFin,
     horasTrabajadas,
     tiempoViaje,
+    manualHoras,
     reporteTecnico,
     accionesTomar,
     accionesInternaOnly,
@@ -344,6 +350,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setHoraFin,
       setHorasTrabajadas,
       setTiempoViaje,
+      setManualHoras,
       setReporteTecnico,
       setAccionesTomar,
       setAccionesInternaOnly,

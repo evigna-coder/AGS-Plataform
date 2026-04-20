@@ -1560,7 +1560,7 @@ export const CatalogTableView: React.FC<Props> = ({
               groups.forEach(g => { for (let i = g.startCol; i < g.startCol + g.span; i++) groupedCols.add(i); });
 
               const thClass = (colIdx: number) =>
-                `px-1 font-semibold ${compact || isPrint ? 'py-1 text-[8px] leading-tight' : useFixedLayout ? 'py-1 text-[10px] leading-tight' : 'py-1.5 text-xs'} text-center ${
+                `px-1 font-semibold align-middle ${isPrint ? 'py-2 text-[8px] leading-tight' : compact ? 'py-1 text-[8px] leading-tight' : useFixedLayout ? 'py-1 text-[10px] leading-tight' : 'py-1.5 text-xs'} text-center ${
                   `text-slate-600${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-200' : ''}`
                 }`;
               const thStyle: React.CSSProperties = isPrint || useFixedLayout ? { overflowWrap: 'anywhere', wordBreak: 'break-word' } : {};

@@ -61,12 +61,14 @@ export function useAppLogic(
     esFacturable, tieneContrato, esGarantia, razonSocial, contacto, sector,
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
-    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, reporteTecnico,
+    fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
     accionesTomar, accionesInternaOnly, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
     certificadosIngenieroSeleccionados, resolvedIngenieroId
   } = formState;
+
+  const { setManualHoras } = reportForm.setters;
 
   /** Plantilla actual: por id guardado o por tipo de servicio (para fallback) */
   const protocolTemplate =
@@ -89,25 +91,8 @@ export function useAppLogic(
     setFechaFinDisplay(fechaFin ? formatDateToDDMMYYYY(fechaFin) : '');
   }, [fechaFin]);
 
-  const [manualHoras, setManualHoras] = useState(false);
-
-  // Detectar horas manuales al cargar un reporte:
-  // Si horasTrabajadas tiene valor y difiere del cálculo automático, activar manualHoras
-  const prevOtForManualRef = useRef<string>('');
-  useEffect(() => {
-    if (otNumber && otNumber !== prevOtForManualRef.current) {
-      prevOtForManualRef.current = otNumber;
-      if (horasTrabajadas && fechaInicio && fechaFin && horaInicio && horaFin &&
-          isValidTimeHHMM(horaInicio) && isValidTimeHHMM(horaFin)) {
-        const autoCalc = String(calcHours(fechaInicio, horaInicio, fechaFin, horaFin));
-        if (horasTrabajadas !== autoCalc) {
-          setManualHoras(true);
-          return;
-        }
-      }
-      setManualHoras(false);
-    }
-  }, [otNumber, horasTrabajadas, fechaInicio, fechaFin, horaInicio, horaFin]);
+  // manualHoras ahora vive en useReportForm (persistido en Firestore).
+  // Solo mantenemos el auto-calc cuando manualHoras es false.
 
   // Auto-calcular horas trabajadas cuando manualHoras es false y las cuatro fechas/horas son válidas
   useEffect(() => {

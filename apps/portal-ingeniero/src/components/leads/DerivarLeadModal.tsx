@@ -216,7 +216,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
                 <select value={equipoId} onChange={e => setEquipoId(e.target.value)} className={selectClass}>
                   <option value="">Sin equipo específico</option>
                   {equipos.map(e => (
-                    <option key={e.id} value={e.id}>{e.nombre} — {e.codigoInternoCliente || 'sin código'}{e.agsVisibleId ? ` · ${e.agsVisibleId}` : ''}</option>
+                    <option key={e.id} value={e.id}>{e.nombre} ({e.codigoInternoCliente || 'sin código'})</option>
                   ))}
                 </select>
               </div>
