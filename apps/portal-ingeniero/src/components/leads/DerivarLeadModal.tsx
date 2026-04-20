@@ -33,7 +33,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
 
   // Sistema flow
   const [pendienteTipo, setPendienteTipo] = useState<PendienteTipo>('ambos');
-  const [equipos, setEquipos] = useState<{ id: string; nombre: string; agsVisibleId: string | null }[]>([]);
+  const [equipos, setEquipos] = useState<{ id: string; nombre: string; codigoInternoCliente: string | null; agsVisibleId: string | null }[]>([]);
   const [equipoId, setEquipoId] = useState(lead.sistemaId || '');
   const [resolvedClienteId, setResolvedClienteId] = useState<string | null>(lead.clienteId || null);
   const [resolvingCliente, setResolvingCliente] = useState(false);
@@ -60,7 +60,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
   useEffect(() => {
     if (!isSistema || !resolvedClienteId) { setEquipos([]); return; }
     sistemasService.getByCliente(resolvedClienteId).then(list =>
-      setEquipos(list.map(s => ({ id: s.id, nombre: s.nombre, agsVisibleId: s.agsVisibleId ?? null })))
+      setEquipos(list.map(s => ({ id: s.id, nombre: s.nombre, codigoInternoCliente: s.codigoInternoCliente ?? null, agsVisibleId: s.agsVisibleId ?? null })))
     ).catch(() => {});
   }, [isSistema, resolvedClienteId]);
 
@@ -216,7 +216,7 @@ export default function DerivarTicketModal({ lead, onClose, onSuccess }: Props) 
                 <select value={equipoId} onChange={e => setEquipoId(e.target.value)} className={selectClass}>
                   <option value="">Sin equipo específico</option>
                   {equipos.map(e => (
-                    <option key={e.id} value={e.id}>{e.nombre}{e.agsVisibleId ? ` (${e.agsVisibleId})` : ''}</option>
+                    <option key={e.id} value={e.id}>{e.nombre} — {e.codigoInternoCliente || 'sin código'}{e.agsVisibleId ? ` · ${e.agsVisibleId}` : ''}</option>
                   ))}
                 </select>
               </div>
