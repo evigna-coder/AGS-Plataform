@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: planning
+stopped_at: Phase 5 context gathered (auto flow)
+last_updated: "2026-04-20T02:35:11.345Z"
+last_activity: 2026-04-19 — Roadmap v2.0 created; 41 requirements mapped to Phases 5-11
+progress:
+  total_phases: 11
+  completed_phases: 2
+  total_plans: 15
+  completed_plans: 13
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
@@ -56,6 +72,6 @@ Progress: [░░░░░░░░░░] 0% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-19
-Stopped at: Roadmap v2.0 creado y aprobado — ROADMAP.md, STATE.md y REQUIREMENTS.md actualizados
-Resume file: None
+Last session: 2026-04-20T02:35:11.334Z
+Stopped at: Phase 5 context gathered (auto flow)
+Resume file: .planning/phases/05-pre-condiciones-migracion-infra/05-CONTEXT.md
