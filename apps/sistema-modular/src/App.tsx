@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TabsProvider } from './contexts/TabsContext';
 import { BackgroundTasksProvider } from './contexts/BackgroundTasksContext';
 import { FloatingPresupuestoProvider } from './contexts/FloatingPresupuestoContext';
+import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -69,6 +70,7 @@ function AuthGate() {
       <QRNotificationListener />
       <LeadNotificationListener />
       <ConfirmDialogProvider>
+      <FeatureFlagsProvider>
       <BackgroundTasksProvider>
       <FloatingPresupuestoProvider>
       <TabsProvider>
@@ -76,6 +78,7 @@ function AuthGate() {
       </TabsProvider>
       </FloatingPresupuestoProvider>
       </BackgroundTasksProvider>
+      </FeatureFlagsProvider>
       </ConfirmDialogProvider>
     </>
   );
