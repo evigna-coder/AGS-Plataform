@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
 stopped_at: Phase 7 planned + researched (2 plans, 1 wave)
-last_updated: "2026-04-20T17:18:09.914Z"
+last_updated: "2026-04-20T20:05:33.920Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 21
-  completed_plans: 16
+  completed_plans: 18
   percent: 84
 ---
 
