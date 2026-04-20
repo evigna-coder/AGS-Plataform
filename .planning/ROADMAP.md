@@ -81,20 +81,21 @@ Plans:
 - [ ] 05-03-PLAN.md — Bootstrap workspace functions/ + helloPing Cloud Function (southamerica-east1)
 - [x] 05-04-PLAN.md — featureFlags en Firestore + useNavigation() reactivo + /admin/modulos
 
-#### Phase 6: Catálogo de Servicios con Precios
-**Goal:** El catálogo de servicios está completo con zonas geográficas, reglas de precio por zona y contrato, y la disciplina de snapshot de precios está establecida desde el primer día.
+#### Phase 6: Catálogo de Servicios con Precios ⏸ DIFERIDA (2026-04-20)
+**Status:** Motor de reglas de precios diferido a post-v2.0. Decisión tomada 2026-04-20: cada precio es manual (surge de comparación con año anterior + competencia + negociación; no reducible a reglas). Ver [memory/project_pricing_strategy.md] para los 4 anclajes de diseño cuando se retome. El snapshot al `oc_recibida` (PRIC-01) y la disciplina de precio manual (PRIC-03, PRIC-04 TC MIXTA) se mueven a ser parte del trabajo per_incident en Phase 7.
+**Goal (original):** El catálogo de servicios está completo con zonas geográficas, reglas de precio por zona y contrato, y la disciplina de snapshot de precios está establecida desde el primer día.
 **Depends on:** Phase 5
-**Requirements:** CSVC-01, CSVC-02, CSVC-03, CSVC-04, CSVC-05, PRIC-01, PRIC-02, PRIC-03, PRIC-04, PRIC-05
-**Success Criteria** (what must be TRUE):
+**Requirements (originales, diferidos):** CSVC-01, CSVC-02, CSVC-03, CSVC-04, CSVC-05, PRIC-01, PRIC-02, PRIC-03, PRIC-04, PRIC-05
+**Success Criteria** (what must be TRUE — se retomarán en post-v2.0):
   1. Un admin puede crear, editar y desactivar servicios con categoría, precio base, y flags (requiereImportacion, generaOT) desde la UI — el servicio aparece disponible para usar en presupuestos
   2. Un admin puede definir zonas geográficas (AMBA / Interior BA / Interior país) con tarifas propias y asignar una zona a un establecimiento existente
   3. Un servicio puede tener un precio de override por zona o por contrato de cliente — al construir un presupuesto, el precio aplicado es el más específico disponible (contrato > zona > base)
   4. Al transicionar un presupuesto a estado `enviado`, cada ítem congela su `precioUnitarioSnapshot` — cambios posteriores en el catálogo no modifican el presupuesto ya enviado
   5. Un usuario puede editar manualmente el precio de un ítem; el flag `precioManual: true` lo protege de recálculos automáticos — la UI muestra un indicador visual de "precio personalizado"
 
-**Plans:** TBD
+**Plans:** DEFERRED — retomar post-v2.0
 
-Plans:
+Plans (diferidos):
 - [ ] 06-01: Tipos y colecciones — ConceptoServicio extendido + categorías + zonas geográficas
 - [ ] 06-02: CRUD categorías de servicios (list + editor)
 - [ ] 06-03: CRUD servicios — lista con filtros + editor con flags y reglas de precio
@@ -104,7 +105,7 @@ Plans:
 
 #### Phase 7: Presupuesto Per-Incident — Editor, PDF y Mail
 **Goal:** El tipo de presupuesto de mayor volumen está completo: el vendedor puede crear, editar, generar PDF y enviar por mail un presupuesto per_incident — estableciendo el pipeline PDF+mail reutilizable para todos los tipos restantes.
-**Depends on:** Phase 6
+**Depends on:** Phase 5 (Phase 6 diferido — precios manuales)
 **Requirements:** PTYP-01, FMT-01, FMT-02
 **Success Criteria** (what must be TRUE):
   1. Un vendedor puede crear un presupuesto per_incident desde un ticket existente o desde cero, agregar ítems desde el catálogo con precios auto-calculados por zona/contrato, y guardarlo como borrador
