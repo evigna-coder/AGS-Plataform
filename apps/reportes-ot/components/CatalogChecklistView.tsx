@@ -356,9 +356,12 @@ function ChecklistItemRow({
     const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const fmtDate = (raw?: string) => {
       if (!raw) return null;
+      // Extraer YYYY-MM-DD del inicio (maneja fecha pura y ISO con tiempo, evita desfase de timezone)
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+      if (m) return `${Number(m[3])} de ${MESES[Number(m[2]) - 1]} de ${Number(m[1])}`;
       const d = new Date(raw);
       if (isNaN(d.getTime())) return raw;
-      return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+      return `${d.getUTCDate()} de ${MESES[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
     };
 
     // Construir bloques de fecha según configuración
