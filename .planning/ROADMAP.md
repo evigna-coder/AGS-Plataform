@@ -79,7 +79,7 @@ Plans:
 - [x] 05-01-PLAN.md — Migración batch clienteId null — script + UI revisión admin + type extensions
 - [x] 05-02-PLAN.md — Migración batch contactos planos → contactos[] (idempotente)
 - [ ] 05-03-PLAN.md — Bootstrap workspace functions/ + helloPing Cloud Function (southamerica-east1)
-- [ ] 05-04-PLAN.md — featureFlags en Firestore + useNavigation() reactivo + /admin/modulos
+- [x] 05-04-PLAN.md — featureFlags en Firestore + useNavigation() reactivo + /admin/modulos
 
 #### Phase 6: Catálogo de Servicios con Precios
 **Goal:** El catálogo de servicios está completo con zonas geográficas, reglas de precio por zona y contrato, y la disciplina de snapshot de precios está establecida desde el primer día.
@@ -206,7 +206,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 2. Comex — Importaciones y Despachos | v1.0 | 6/6 | Complete | 2026-04-10 |
 | 3. Presupuestos — Plantillas rich text | v1.0 | TBD | Deferred | - |
 | 4. Presupuestos — Anexo consumibles | v1.0 | TBD | Deferred | - |
-| 5. Pre-condiciones — Migración + Infra | v2.0 | 0/4 | Not started | - |
+| 5. Pre-condiciones — Migración + Infra | v2.0 | 3/4 | In Progress | - |
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/3 | Not started | - |
 | 8. Estados + OC + Flujo Automático | v2.0 | 0/5 | Not started | - |
