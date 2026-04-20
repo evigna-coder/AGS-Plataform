@@ -66,7 +66,6 @@ function PDFHeader({ data }: { data: PresupuestoPDFData }) {
       {/* Título central */}
       <View style={S.titleSection}>
         <View style={S.titleBox}>
-          <Text style={S.titleIcon}>X</Text>
           <Text style={S.titleLabel}>PRESUPUESTO</Text>
           <Text style={S.titleSubLabel}>Documento no válido{'\n'}como factura</Text>
         </View>
@@ -232,10 +231,12 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
         </View>
       )}
 
-      {/* Validez */}
-      <Text style={S.validez}>
-        Oferta válida por {presupuesto.validezDias || 15} días.
-      </Text>
+      {/* Validez — bloque de protección contractual prominente */}
+      <View style={S.validezBox}>
+        <Text style={S.validezText}>
+          OFERTA VÁLIDA POR {presupuesto.validezDias || 15} DÍAS desde la fecha de emisión
+        </Text>
+      </View>
 
       {/* Disclaimer + Totales */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -397,10 +398,6 @@ export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
         <PDFClienteInfo data={data} />
         <PDFItemsTable data={data} />
         <PDFTotals data={data} />
-        <View style={S.separator} />
-        <Text style={{ fontSize: 7, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
-          NOTAS TÉCNICAS:
-        </Text>
         <PDFFooter />
       </Page>
 

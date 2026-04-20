@@ -14,6 +14,7 @@ export const COLORS = {
   textMuted: '#64748b',     // Texto secundario
   sectionBg: '#f1f5f9',     // Fondo secciones
   sectionBorder: '#1a5276', // Borde izquierdo secciones
+  validezBg: '#eaf2f8',     // Fondo card "oferta válida por" (teal-50 equiv para primary azul)
   white: '#ffffff',
   black: '#000000',
   red: '#dc2626',
@@ -302,6 +303,22 @@ export const baseStyles = StyleSheet.create({
     color: COLORS.textMuted,
     marginBottom: 8,
     textAlign: 'center',
+  },
+  validezBox: {
+    borderWidth: 0.8,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.validezBg,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginVertical: 6,
+    borderRadius: 3,
+  },
+  validezText: {
+    fontSize: 7.5,
+    color: COLORS.primary,
+    fontWeight: 700,
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
 
   // --- Moneda en letras ---
