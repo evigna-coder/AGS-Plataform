@@ -385,6 +385,63 @@ export const presupuestosService = {
     }
   },
 
+  /**
+   * Atomic state transition to `enviado` — called from EnviarPresupuestoModal after the email has
+   * been successfully sent (FMT-02 token-first order). A single updateDoc sets `estado + fechaEnvio`
+   * without re-serializing the full form state.
+   *
+   * The optional `hint` lets the caller (modal / hook) pass origenTipo/origenId/numero it already
+   * has in scope — avoids a wasted getById read. `numero` is required for the lead posta log to
+   * render legible entries ("Presupuesto PRE-0001.01 → Enviado"); if absent we fall back to getById.
+   *
+   * The lead-sync side effect is replicated from update() but wrapped in its own try/catch:
+   * post-send we must not throw back to the UI — the email already went out and estado is already
+   * committed. Sync failure is a soft error (logged + swallowed).
+   */
+  async markEnviado(
+    id: string,
+    hint?: { origenTipo?: string | null; origenId?: string | null; numero?: string }
+  ): Promise<void> {
+    // YYYY-MM-DD — consistent with usePresupuestoEdit.handleEstadoChange + existing fechaEnvio reads.
+    const today = new Date().toISOString().split('T')[0];
+    const raw = {
+      estado: 'enviado' as PresupuestoEstado,
+      fechaEnvio: Timestamp.fromDate(new Date(today)),
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    };
+    const cleaned = deepCleanForFirestore(raw);
+    const batch = createBatch();
+    batch.update(docRef('presupuestos', id), cleaned);
+    batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned as any });
+    await batch.commit();
+
+    // Lead sync: prefer the hint; if any piece is missing, fall back to getById once.
+    let origenTipo = hint?.origenTipo ?? undefined;
+    let origenId = hint?.origenId ?? undefined;
+    let numero = hint?.numero;
+    if (!origenTipo || !origenId || !numero) {
+      try {
+        const pres = await this.getById(id);
+        origenTipo = origenTipo || pres?.origenTipo || undefined;
+        origenId = origenId || pres?.origenId || undefined;
+        numero = numero || pres?.numero || '';
+      } catch (err) {
+        console.error('[presupuestosService.markEnviado] getById fallback failed:', err);
+      }
+    }
+    if (origenTipo === 'lead' && origenId) {
+      try {
+        // TODO(FLOW-06): replace with pendingActions[] in Phase 8.
+        // For now: don't block the send outcome if lead sync fails (mail already sent + estado already committed).
+        // N1: pass numero so the lead posta entry shows "Presupuesto ${numero} → Enviado" instead of blank.
+        await leadsService.syncFromPresupuesto(origenId, numero || '', 'enviado');
+      } catch (err) {
+        console.error('[markEnviado] leadsService.syncFromPresupuesto failed:', err);
+      }
+    }
+  },
+
   // Crear revisión de un presupuesto (anula el original)
   async createRevision(id: string, motivo: string): Promise<{ id: string; numero: string }> {
     const original = await this.getById(id);
