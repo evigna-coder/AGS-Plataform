@@ -77,7 +77,7 @@ Plans:
 
 Plans:
 - [ ] 05-01-PLAN.md — Migración batch clienteId null — script + UI revisión admin + type extensions
-- [ ] 05-02-PLAN.md — Migración batch contactos planos → contactos[] (idempotente)
+- [x] 05-02-PLAN.md — Migración batch contactos planos → contactos[] (idempotente)
 - [ ] 05-03-PLAN.md — Bootstrap workspace functions/ + helloPing Cloud Function (southamerica-east1)
 - [ ] 05-04-PLAN.md — featureFlags en Firestore + useNavigation() reactivo + /admin/modulos
 
