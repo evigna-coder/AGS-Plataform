@@ -103,22 +103,21 @@ Plans (diferidos):
 - [ ] 06-05: computePrecioServicio() — pure function con jerarquía contrato > zona > base
 - [ ] 06-06: Disciplina snapshot — precioUnitarioSnapshot + precioManual + recálculo en borrador
 
-#### Phase 7: Presupuesto Per-Incident — Editor, PDF y Mail
-**Goal:** El tipo de presupuesto de mayor volumen está completo: el vendedor puede crear, editar, generar PDF y enviar por mail un presupuesto per_incident — estableciendo el pipeline PDF+mail reutilizable para todos los tipos restantes.
+#### Phase 7: Presupuesto per_incident — cerrar flow + token-first mail
+**Goal:** El flow end-to-end del presupuesto tipo `'servicio'` (alias interno de per_incident) está validado y pulido — crear, editar, PDF estándar, mail OAuth con token-first order, transiciones de estado formalizadas. El pipeline PDF+mail reutilizable para los tipos `partes`, `mixto` y `ventas` de Phase 10 queda consolidado.
 **Depends on:** Phase 5 (Phase 6 diferido — precios manuales)
 **Requirements:** PTYP-01, FMT-01, FMT-02
 **Success Criteria** (what must be TRUE):
-  1. Un vendedor puede crear un presupuesto per_incident desde un ticket existente o desde cero, agregar ítems desde el catálogo con precios auto-calculados por zona/contrato, y guardarlo como borrador
-  2. El vendedor puede generar un PDF del presupuesto en formato teal (template adaptado del contrato) con todos los datos del cliente, ítems, totales y condiciones comerciales
-  3. El vendedor puede enviar el presupuesto por mail OAuth — el token se valida ANTES de cambiar el estado en Firestore; si el token expira, se ve un error con opción de reintentar sin pisar el estado
-  4. Al hacer clic en "Enviar", el presupuesto transiciona a estado `enviado` y los precios quedan congelados — no se pueden modificar desde la UI
+  1. Un vendedor puede crear un presupuesto tipo `'servicio'` desde un ticket existente o desde cero, agregar ítems desde el catálogo `ConceptoServicio` (precio base = referencia editable), y guardarlo como borrador. El flow end-to-end está probado.
+  2. El PDF del presupuesto tipo `'servicio'` se genera con `PresupuestoPDFEstandar` en formato Editorial Teal, con cliente/ítems/totales/condiciones comerciales, y se descarga correctamente.
+  3. `EnviarPresupuestoModal` aplica **token-first order**: valida/obtiene OAuth token ANTES de cambiar estado en Firestore. Si el token falla o expira, el presupuesto NO transiciona a `enviado`; el usuario ve el error con opción de reintentar sin quedar el doc en estado inconsistente.
+  4. Al transicionar a `enviado` por primera vez, se setea `fechaEnvio` (ya existe el comportamiento; verificarlo). **No hay snapshot técnico de precio** — la cláusula "oferta válida por N días" del PDF es la protección contractual (decisión 2026-04-20).
 
 **Plans:** TBD
 
 Plans:
-- [ ] 07-01: Tipos compartidos y editor base per_incident — form + items desde catálogo
-- [ ] 07-02: PDF template teal adaptado para per_incident
-- [ ] 07-03: Mail OAuth con token-first order + EnviarPresupuestoModal generalizado
+- [ ] 07-01: Audit + fixes del flow tipo `'servicio'` end-to-end (crear desde ticket + catálogo + estados)
+- [ ] 07-02: Token-first order en `EnviarPresupuestoModal` + polish final de `PresupuestoPDFEstandar` para tipo `'servicio'`
 
 #### Phase 8: Estados + OC + Flujo Automático de Derivación
 **Goal:** El ciclo comercial completo funciona con derivaciones automáticas: presupuesto sin ticket genera ticket, OC recibida deriva a coordinador OT, cierre OT avisa a facturación — con transacciones atómicas para prevenir race conditions.
