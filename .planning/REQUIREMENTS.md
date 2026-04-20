@@ -22,10 +22,10 @@
 
 ### Pricing Discipline
 
-- [ ] **PRIC-01**: Snapshot de precio al transicionar a estado `enviado` — guarda `precioUnitarioSnapshot` en cada ítem del presupuesto. Nunca se recalcula retroactivamente.
-- [ ] **PRIC-02**: Recálculo automático mientras está en borrador — cambios en catálogo/zona/contrato actualizan items del presupuesto solo si no están manualmente editados.
+- [ ] **PRIC-01**: Snapshot de precio al transicionar a estado `oc_recibida` — guarda `precioUnitarioSnapshot` en cada ítem del presupuesto. Antes de OC los precios pueden recalcularse (útil para negociaciones). Al recibirse la OC, los precios quedan congelados y nunca se recalculan retroactivamente.
+- [ ] **PRIC-02**: Recálculo automático mientras está en borrador o `enviado` (antes de OC) — cambios en catálogo/zona/contrato actualizan items del presupuesto solo si no están manualmente editados.
 - [ ] **PRIC-03**: Override manual de precio — usuario puede editar precio, flag `precioManual: boolean` lo marca; tiene prioridad sobre reglas automáticas.
-- [ ] **PRIC-04**: Snapshot de tipo de cambio USD-ARS al transicionar a `enviado` para presupuestos MIXTA. Se guarda `tipoCambioSnapshot` en el presupuesto.
+- [ ] **PRIC-04**: Snapshot de tipo de cambio USD-ARS al transicionar a `oc_recibida` para presupuestos MIXTA. Se guarda `tipoCambioSnapshot` en el presupuesto. (Decisión confirmada: el TC se congela cuando llega la OC, no al enviar.)
 - [ ] **PRIC-05**: Descuento porcentual sobre tarifa base (validar que el flag ya existente funciona con las nuevas reglas de zona/contrato).
 
 ### Tipos de Presupuesto
@@ -34,6 +34,11 @@
 - [ ] **PTYP-02**: Implementación de presupuesto **partes** — similar a per_incident pero con items de stock; disparador del cruce ATP al aceptar.
 - [ ] **PTYP-03**: Implementación de presupuesto **mixto simple** — combina servicios + partes en un solo documento. (Orquestación multi-OT queda para v2.1).
 - [ ] **PTYP-04**: Implementación de presupuesto **ventas de equipos** — genera OT (correcciones: sí genera OT), PDF, envío.
+
+### Revisiones de Presupuesto
+
+- [ ] **REV-01**: Al crear una revisión (item 2, item 3…) el sistema debe preguntar si se anula el presupuesto anterior o se mantienen ambas revisiones activas simultáneamente. Default: anular anterior (comportamiento actual). Caso de uso de "mantener ambas": enviar al cliente dos opciones — una con parte X y otra sin la parte — y que elija.
+- [ ] **REV-02**: UI del presupuesto muestra claramente qué revisiones están activas y cuáles anuladas, con link entre revisiones hermanas.
 
 ### Flujo Automático de Derivación
 
@@ -120,6 +125,8 @@
 | PTYP-01 | Phase 7 | Pending |
 | FMT-01 | Phase 7 | Pending |
 | FMT-02 | Phase 7 | Pending |
+| REV-01 | Phase 8 | Pending |
+| REV-02 | Phase 8 | Pending |
 | FLOW-01 | Phase 8 | Pending |
 | FLOW-02 | Phase 8 | Pending |
 | FLOW-03 | Phase 8 | Pending |
@@ -146,9 +153,9 @@
 | TEST-05 | Phase 11 | Pending |
 
 **Coverage:**
-- v2.0 requirements: **41 total** (4 PREC + 5 CSVC + 5 PRIC + 4 PTYP + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
-- Mapped: **41/41** ✓ — no orphaned requirements
+- v2.0 requirements: **43 total** (4 PREC + 5 CSVC + 5 PRIC + 4 PTYP + 2 REV + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
+- Mapped: **43/43** ✓ — no orphaned requirements
 
 ---
 *Requirements defined: 2026-04-19*
-*Last updated: 2026-04-19 — traceability populated by gsd-roadmapper*
+*Last updated: 2026-04-19 — added REV-01/02 (revisiones con opción de mantener anterior) + confirmed TC MIXTA snapshot at oc_recibida*
