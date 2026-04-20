@@ -201,12 +201,13 @@ export const sistemasService = {
       updatedAt: d.data()['updatedAt']?.toDate().toISOString(),
     } as Sistema;
   },
-  async getByCliente(clienteId: string): Promise<Pick<Sistema, 'id' | 'nombre' | 'agsVisibleId' | 'activo'>[]> {
+  async getByCliente(clienteId: string): Promise<Pick<Sistema, 'id' | 'nombre' | 'codigoInternoCliente' | 'agsVisibleId' | 'activo'>[]> {
     const q = query(collection(db, 'sistemas'), where('clienteId', '==', clienteId), where('activo', '==', true));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({
       id: d.id,
       nombre: (d.data().nombre as string) ?? '',
+      codigoInternoCliente: (d.data().codigoInternoCliente as string) ?? '',
       agsVisibleId: (d.data().agsVisibleId as string) ?? null,
       activo: true,
     }));
