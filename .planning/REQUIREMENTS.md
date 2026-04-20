@@ -101,15 +101,54 @@
 
 ## Traceability
 
-Populada por gsd-roadmapper al crear ROADMAP.md.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (pending roadmap) | — | Pending |
+| PREC-01 | Phase 5 | Pending |
+| PREC-02 | Phase 5 | Pending |
+| PREC-03 | Phase 5 | Pending |
+| PREC-04 | Phase 5 | Pending |
+| CSVC-01 | Phase 6 | Pending |
+| CSVC-02 | Phase 6 | Pending |
+| CSVC-03 | Phase 6 | Pending |
+| CSVC-04 | Phase 6 | Pending |
+| CSVC-05 | Phase 6 | Pending |
+| PRIC-01 | Phase 6 | Pending |
+| PRIC-02 | Phase 6 | Pending |
+| PRIC-03 | Phase 6 | Pending |
+| PRIC-04 | Phase 6 | Pending |
+| PRIC-05 | Phase 6 | Pending |
+| PTYP-01 | Phase 7 | Pending |
+| FMT-01 | Phase 7 | Pending |
+| FMT-02 | Phase 7 | Pending |
+| FLOW-01 | Phase 8 | Pending |
+| FLOW-02 | Phase 8 | Pending |
+| FLOW-03 | Phase 8 | Pending |
+| FLOW-04 | Phase 8 | Pending |
+| FLOW-05 | Phase 8 | Pending |
+| FLOW-06 | Phase 8 | Pending |
+| FLOW-07 | Phase 8 | Pending |
+| STKP-01 | Phase 9 | Pending |
+| STKP-02 | Phase 9 | Pending |
+| STKP-03 | Phase 9 | Pending |
+| STKP-04 | Phase 9 | Pending |
+| STKP-05 | Phase 9 | Pending |
+| PTYP-02 | Phase 10 | Pending |
+| PTYP-03 | Phase 10 | Pending |
+| PTYP-04 | Phase 10 | Pending |
+| FMT-03 | Phase 10 | Pending |
+| FMT-04 | Phase 10 | Pending |
+| FMT-05 | Phase 10 | Pending |
+| FMT-06 | Phase 10 | Pending |
+| TEST-01 | Phase 11 | Pending |
+| TEST-02 | Phase 11 | Pending |
+| TEST-03 | Phase 11 | Pending |
+| TEST-04 | Phase 11 | Pending |
+| TEST-05 | Phase 11 | Pending |
 
 **Coverage:**
-- v2.0 requirements: **40 total** (4 PREC + 5 CSVC + 5 PRIC + 4 PTYP + 7 FLOW + 5 STKP + 6 FMT + 5 TEST) — to be validated by roadmapper.
+- v2.0 requirements: **41 total** (4 PREC + 5 CSVC + 5 PRIC + 4 PTYP + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
+- Mapped: **41/41** ✓ — no orphaned requirements
 
 ---
 *Requirements defined: 2026-04-19*
-*Last updated: 2026-04-19 after research synthesis + scoping*
+*Last updated: 2026-04-19 — traceability populated by gsd-roadmapper*
