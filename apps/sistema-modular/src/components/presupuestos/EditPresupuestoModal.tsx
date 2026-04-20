@@ -47,7 +47,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
     clienteSistemas, loadModulosBySistema,
     calculateTotals, calculateItemTaxes,
-    save, updateItem, addItem, addItems, removeItem, removeItemsByGrupo, addAdjunto, removeAdjunto,
+    save, load, updateItem, addItem, addItems, removeItem, removeItemsByGrupo, addAdjunto, removeAdjunto,
     handleEstadoChange: rawEstadoChange,
   } = usePresupuestoEdit(open ? presupuestoId : null);
 
@@ -320,18 +320,22 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           open={showEnviarEmail}
           onClose={() => setShowEnviarEmail(false)}
           onSent={async () => {
+            // markEnviado already committed estado='enviado' atomically inside EnviarPresupuestoModal.
+            // FINDING-I / R4: usePresupuestoEdit has a dirty-guard (line 197) that skips snapshots
+            // when dirty.current === true (user has unsaved local edits). We must explicitly reload
+            // to bypass the guard; the server is the source of truth after a successful send.
             setShowEnviarEmail(false);
-            // Mark as enviado if still borrador
-            if (form.estado === 'borrador') {
-              actions.handleEstadoChange('enviado');
-              await actions.handleSave();
-            }
+            await load();  // resets dirty flag; subscription will repopulate form with enviado estado
             onUpdated?.();
           }}
           pdfParams={actions.buildPDFParams()}
           defaultTo={contactos.find(c => c.id === form.contactoId)?.email || ''}
           defaultContactoNombre={contactos.find(c => c.id === form.contactoId)?.nombre || ''}
           presupuestoNumero={form.numero}
+          presupuestoId={presupuestoId}
+          presupuestoEstado={form.estado}
+          origenTipo={form.origenTipo}
+          origenId={form.origenId}
         />
       )}
       {showReservar && itemsConStock.length > 0 && (
