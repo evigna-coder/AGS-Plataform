@@ -57,7 +57,13 @@ export const navigation: NavItem[] = [
   { name: 'Pendientes', path: '/pendientes', icon: '📝', modulo: 'pendientes' },
   { name: 'Contratos', path: '/contratos', icon: '📑', modulo: 'contratos' },
   { name: 'Facturacion', path: '/facturacion', icon: '💰', modulo: 'facturacion' },
-  { name: 'Importar Datos', path: '/admin/importar', icon: '📥', modulo: 'admin' },
+  {
+    name: 'Importar Datos', path: '/admin/importar', icon: '📥', modulo: 'admin',
+    children: [
+      { name: 'Importar Excel', path: '/admin/importar' },
+      { name: 'Revisión clienteId', path: '/admin/revision-clienteid' },
+    ],
+  },
 ];
 
 /** Module root paths — used by keyboard shortcuts to know when to stop navigating up */
