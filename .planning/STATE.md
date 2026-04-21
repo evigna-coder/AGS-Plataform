@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 08-00 (Wave 0 RED baseline specs + firestore-assert helper)
-last_updated: "2026-04-21T11:41:05.549Z"
+stopped_at: Completed 08-01 (Wave 1 — types foundation + services + sidebar)
+last_updated: "2026-04-21T11:53:20.916Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 27
-  completed_plans: 19
+  completed_plans: 20
   percent: 84
 ---
 
@@ -50,6 +50,7 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 *Updated after each plan completion*
 | Phase 08-flujo-automatico-derivacion P00 | 55min | 3 tasks | 6 files |
+| Phase 08-flujo-automatico-derivacion P01 | 7min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Progress: [████████░░] 84% (v2.0 milestone)
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-00]: Wave 0 testing strategy: Playwright client SDK (not Admin) via fixtures/firebase-e2e.ts. Specs fail RED hasta Wave 1-3. Local type aliases en firestore-assert.ts para tipos que landea 08-01.
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-00]: e2e/helpers/ pattern establecido: readers tipados compartidos entre specs, 192 líneas bajo budget, pollUntil para eventual consistency.
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-00]: sistema-modular no tiene script type-check; Wave 3 (plan 08-05) podría agregarlo. Verificación manual via temp tsconfig+tsc --noEmit.
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-01]: 'oc_recibida' landed en TicketEstado con color 'bg-orange-200 text-orange-900' (bg-amber-100 ya era pendiente_facturacion). PendingAction/OrdenCompraCliente/AdminConfigFlujos exportados. getSimplifiedEstado no se tocó (whitelist fallback ya cubre 'en_proceso').
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-01]: Sidebar consolidado en un único root 'Admin' (/admin, icon ⚙️) con 5 children. Antes había 2 items separados ('Importar Datos' + 'Módulos'). getAllModulePaths() ahora expone '/admin' unificado; overrides Firestore para '/admin/importar' y '/admin/modulos' quedan orphan (no bloqueante).
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-01]: ordenesCompraClienteService.cargarOC implementado como stub que THROWS 'NOT_IMPLEMENTED — plan 08-02'. Esto falla loud cualquier caller prematuro, mejor que fake data. Plan 08-02 reemplaza con runTransaction real.
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-21T11:41:05.546Z
-Stopped at: Completed 08-00 (Wave 0 RED baseline specs + firestore-assert helper)
+Last session: 2026-04-21T11:53:20.913Z
+Stopped at: Completed 08-01 (Wave 1 — types foundation + services + sidebar)
 Resume file: None
