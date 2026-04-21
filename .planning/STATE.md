@@ -4,6 +4,21 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
 stopped_at: Completed 08-04 (Wave 3 — FLOW-03 aceptarConRequerimientos transaccional + cleanup condicionales + ATP wiring + RequerimientosList UI)
+last_updated: "2026-04-21T19:48:56.764Z"
+last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
+progress:
+  total_phases: 11
+  completed_phases: 4
+  total_plans: 27
+  completed_plans: 24
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
+stopped_at: Completed 08-04 (Wave 3 — FLOW-03 aceptarConRequerimientos transaccional + cleanup condicionales + ATP wiring + RequerimientosList UI)
 last_updated: "2026-04-21T12:34:11.465Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
