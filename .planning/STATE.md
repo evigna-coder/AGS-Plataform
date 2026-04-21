@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 08-03-PLAN.md (FLOW-01 auto-ticket + FLOW-06 pendingActions retry)
-last_updated: "2026-04-21T12:09:06.014Z"
+stopped_at: Completed 08-02 (Wave 2 — FLOW-02 cargarOC transactional + CargarOCModal UI + list/detail wiring)
+last_updated: "2026-04-21T12:14:58.523Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 27
-  completed_plans: 21
+  completed_plans: 22
   percent: 84
 ---
 
@@ -52,6 +52,7 @@ Progress: [████████░░] 84% (v2.0 milestone)
 | Phase 08-flujo-automatico-derivacion P00 | 55min | 3 tasks | 6 files |
 | Phase 08-flujo-automatico-derivacion P01 | 7min | 3 tasks | 8 files |
 | Phase 08-flujo-automatico-derivacion P03 | ~35min | 3 tasks | 3 files |
+| Phase 08-flujo-automatico-derivacion P02 | 14min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Progress: [████████░░] 84% (v2.0 milestone)
 - [Phase 08-flujo-automatico-derivacion]: 08-03: Lazy import presupuestosService inside leadsService to break circular dependency for retry-after-resolve trigger
 - [Phase 08-flujo-automatico-derivacion]: 08-03: Auto-ticket uses motivoLlamado='ventas_equipos', areaActual='ventas', estado='esperando_oc'; asignadoA=adminConfig.usuarioSeguimientoId
 - [Phase 08-flujo-automatico-derivacion]: 08-03: v2.0 no-op success for derivar_comex and notificar_coordinador_ot retry handlers; 08-04/08-05 can extend
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-02]: cargarOC implementado con runTransaction multi-colección — reads-first + merge manual de arrays (NO arrayUnion) + writes inline (NO nested tx). 269 líneas; post-commit notifyCoordinadorOTBestEffort extraído a cargarOCHelpers.ts. NO appendea pendingAction 'derivar_comex' (W1 fix; 08-04 responsable); 'notificar_coordinador_ot' solo se appendea cuando el side-effect falla.
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-02]: Modal CargarOCModal (201 + 135 Parts) con tabs 'Existente' (default si hay OCs previas) / 'Nueva' + upload multi-archivo + checkbox N:M filtrado por estado aceptado-sin-OC. Pre-genera ocId en client antes del upload a Storage → mismo id que la tx. Wire en PresupuestosList (row action gated) + EditPresupuestoModal footer (NO PresupuestoDetail.tsx: es redirector de 49 líneas, detail real es el floating modal).
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-21T12:09:06.011Z
-Stopped at: Completed 08-03-PLAN.md (FLOW-01 auto-ticket + FLOW-06 pendingActions retry)
+Last session: 2026-04-21T12:14:58.518Z
+Stopped at: Completed 08-02 (Wave 2 — FLOW-02 cargarOC transactional + CargarOCModal UI + list/detail wiring)
 Resume file: None
