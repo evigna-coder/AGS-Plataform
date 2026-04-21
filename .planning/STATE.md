@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Phase 8 context gathered (3 areas + wrap-up)
-last_updated: "2026-04-21T02:18:21.370Z"
+stopped_at: Completed 08-00 (Wave 0 RED baseline specs + firestore-assert helper)
+last_updated: "2026-04-21T11:41:05.549Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
   completed_phases: 3
-  total_plans: 21
-  completed_plans: 18
+  total_plans: 27
+  completed_plans: 19
   percent: 84
 ---
 
@@ -49,6 +49,7 @@ Progress: [████████░░] 84% (v2.0 milestone)
 | 05-pre-condiciones-migracion-infra | 04 | 5min | 3 | 8 |
 
 *Updated after each plan completion*
+| Phase 08-flujo-automatico-derivacion P00 | 55min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Progress: [████████░░] 84% (v2.0 milestone)
 - [Phase 05-01]: Plan 05-01 estableció que tickets con `clienteId: null` se matchean por CUIT (≥8 dígitos) → razón social exacta (NFD normalizada). Ambiguos quedan con `pendienteClienteId: true` + `candidatosPropuestos` con `score: 'cuit' | 'razonSocial'` para UI de revisión admin en `/admin/revision-clienteid`.
 - [Phase 05-04]: Feature flags runtime vía colección Firestore `/featureFlags/modules` + `FeatureFlagsContext` + hook `useNavigation()` reactivo. `VITE_DESKTOP_MVP` queda como default de build; Firestore override por módulo gana. UI admin en `/admin/modulos` (icon 🧩). `DESKTOP_MVP_ALLOWED` ahora exportado desde `navigation.ts` con helper `isMvpDefault(path)` — source of truth única (no duplicar el set en la admin UI).
 - [Phase 05-04]: `useAuth()` retorna `{ firebaseUser, usuario, ... }`; el uid real vive en `firebaseUser.uid`. Usar ese campo para `updatedBy` en writes (no `usuario.id`, que en transiciones puede ser null).
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-00]: Wave 0 testing strategy: Playwright client SDK (not Admin) via fixtures/firebase-e2e.ts. Specs fail RED hasta Wave 1-3. Local type aliases en firestore-assert.ts para tipos que landea 08-01.
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-00]: e2e/helpers/ pattern establecido: readers tipados compartidos entre specs, 192 líneas bajo budget, pollUntil para eventual consistency.
+- [Phase 08-flujo-automatico-derivacion]: [Phase 08-00]: sistema-modular no tiene script type-check; Wave 3 (plan 08-05) podría agregarlo. Verificación manual via temp tsconfig+tsc --noEmit.
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-21T02:18:21.356Z
-Stopped at: Phase 8 context gathered (3 areas + wrap-up)
-Resume file: .planning/phases/08-flujo-automatico-derivacion/08-CONTEXT.md
+Last session: 2026-04-21T11:41:05.546Z
+Stopped at: Completed 08-00 (Wave 0 RED baseline specs + firestore-assert helper)
+Resume file: None

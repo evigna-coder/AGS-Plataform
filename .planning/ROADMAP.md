@@ -134,7 +134,7 @@ Plans:
 **Plans:** 6 plans
 
 Plans:
-- [ ] 08-00-PLAN.md — Wave 0 test specs + firestore-assert helper (specs RED baseline pre-impl)
+- [x] 08-00-PLAN.md — Wave 0 test specs + firestore-assert helper (specs RED baseline pre-impl)
 - [ ] 08-01-PLAN.md — Tipos + servicios base (TicketEstado+oc_recibida, PendingAction, OrdenCompraCliente, AdminConfigFlujos) + sidebar Admin root + rutas placeholder
 - [ ] 08-02-PLAN.md — FLOW-02/05: cargarOC atómico (runTransaction) + CargarOCModal + wire list/detail
 - [ ] 08-03-PLAN.md — FLOW-01/06 base: auto-ticket al markEnviado + pendingActions + retry retroactivo desde /admin/revision-clienteid
