@@ -519,6 +519,7 @@ export type TicketEstado =
   | 'en_seguimiento'
   | 'presupuesto_enviado'
   | 'esperando_oc'
+  | 'oc_recibida'
   | 'espera_importacion'
   | 'pendiente_entrega'
   | 'en_coordinacion'
@@ -536,6 +537,7 @@ export const TICKET_ESTADO_LABELS: Record<TicketEstado, string> = {
   en_seguimiento: 'En seguimiento',
   presupuesto_enviado: 'Presupuesto enviado',
   esperando_oc: 'Esperando OC',
+  oc_recibida: 'OC recibida',
   espera_importacion: 'Espera importación',
   pendiente_entrega: 'Pendiente entrega',
   en_coordinacion: 'En coordinación',
@@ -554,6 +556,7 @@ export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
   en_seguimiento: 'bg-sky-100 text-sky-800',
   presupuesto_enviado: 'bg-violet-100 text-violet-800',
   esperando_oc: 'bg-orange-100 text-orange-800',
+  oc_recibida: 'bg-orange-200 text-orange-900',
   espera_importacion: 'bg-yellow-100 text-yellow-800',
   pendiente_entrega: 'bg-lime-100 text-lime-800',
   en_coordinacion: 'bg-cyan-100 text-cyan-800',
@@ -569,7 +572,7 @@ export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
 export const TICKET_ESTADO_ORDER: TicketEstado[] = [
   'nuevo', 'relevamiento_pendiente', 'presupuesto_pendiente',
   'en_seguimiento', 'presupuesto_enviado',
-  'esperando_oc', 'espera_importacion', 'pendiente_entrega',
+  'esperando_oc', 'oc_recibida', 'espera_importacion', 'pendiente_entrega',
   'en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada',
   'pendiente_facturacion', 'finalizado', 'no_concretado',
 ];
@@ -894,6 +897,59 @@ export interface AdjuntoPresupuesto {
   notas?: string | null;
 }
 
+// --- Flujo Automático de Derivación (Phase 8) ---
+
+/**
+ * Acción pendiente registrada cuando una derivación automática falla o no se puede
+ * completar en el momento del disparo. Se almacena en `Presupuesto.pendingActions[]` y
+ * se resuelve manualmente desde `/admin/acciones-pendientes` o automáticamente cuando
+ * la condición bloqueante se resuelve (ej: al resolver `clienteId` pendiente).
+ */
+export interface PendingAction {
+  id: string;
+  type: 'crear_ticket_seguimiento' | 'derivar_comex' | 'enviar_mail_facturacion' | 'notificar_coordinador_ot';
+  reason: string;
+  createdAt: string;
+  resolvedAt?: string;
+  attempts: number;
+}
+
+/**
+ * Orden de compra emitida por el CLIENTE hacia AGS (FLOW-02). Separada de `OrdenCompra`
+ * que son OCs internas a proveedores. Relación N:M con presupuestos via `presupuestosIds`
+ * (y back-ref en `Presupuesto.ordenesCompraIds`).
+ */
+export interface OrdenCompraCliente {
+  id: string;
+  numero: string;
+  fecha: string;
+  clienteId: string;
+  presupuestosIds: string[];
+  adjuntos: Array<{ id: string; url: string; tipo: 'pdf' | 'jpg' | 'png'; nombre: string; fechaCarga: string }>;
+  notas?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
+/**
+ * Configuración global de flujos automáticos. Doc único en `adminConfig/flujos`,
+ * editado desde `/admin/config-flujos`. `mailFacturacion` es required (el servicio
+ * asegura default 'mbarrios@agsanalitica.com' via `ADMIN_CONFIG_DEFAULTS`).
+ */
+export interface AdminConfigFlujos {
+  usuarioSeguimientoId?: string | null;
+  usuarioCoordinadorOTId?: string | null;
+  usuarioResponsableComexId?: string | null;
+  mailFacturacion: string;
+  updatedAt: string;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 // --- Orden de Compra (OC) ---
 export type EstadoOC = 'borrador' | 'pendiente_aprobacion' | 'aprobada' | 'enviada_proveedor'
   | 'confirmada' | 'en_transito' | 'recibida_parcial' | 'recibida' | 'cancelada';
@@ -1120,6 +1176,9 @@ export interface Presupuesto {
   contratoFechaInicio?: string | null;
   /** Fecha de fin de vigencia del contrato (ISO). Solo aplica para tipo === 'contrato'. */
   contratoFechaFin?: string | null;
+  // --- Flujo Automático de Derivación (Phase 8) ---
+  /** Acciones automáticas que no pudieron completarse en el momento del disparo. Se resuelven manual/automáticamente desde `/admin/acciones-pendientes`. */
+  pendingActions?: PendingAction[];
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
@@ -2662,6 +2721,14 @@ export interface RequerimientoCompra {
   presupuestoId?: string | null;
   presupuestoNumero?: string | null;
   notas?: string | null;
+  /**
+   * (Phase 8 FLOW-03) Si true, el requerimiento está ligado al acceptance del presupuesto
+   * y se cancela automáticamente si éste se anula. Solo aplica a requerimientos generados
+   * desde `aceptado` de un presupuesto con ítems de importación.
+   */
+  condicional?: boolean;
+  /** Razón de cancelación automática (p.ej. al anular el presupuesto origen). */
+  canceladoPor?: 'presupuesto_anulado' | 'manual' | string | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: string | null;
