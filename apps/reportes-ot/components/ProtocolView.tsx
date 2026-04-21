@@ -417,11 +417,12 @@ const ProtocolView: React.FC<ProtocolViewProps> = ({
     return (
       <div
         ref={sectionsContainerRef}
+        className={tablesAsCards ? 'protocol-cards-mode' : ''}
         style={{
-          width: '210mm',
-          padding: '10mm',
+          width: tablesAsCards ? '100%' : '210mm',
+          padding: tablesAsCards ? '0' : '10mm',
           boxSizing: 'border-box',
-          background: 'white',
+          background: tablesAsCards ? 'transparent' : 'white',
         }}
       >
         <div className={sectionsSpacingClass}>
