@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 08-01 (Wave 1 — types foundation + services + sidebar)
-last_updated: "2026-04-21T11:53:20.916Z"
+stopped_at: Completed 08-03-PLAN.md (FLOW-01 auto-ticket + FLOW-06 pendingActions retry)
+last_updated: "2026-04-21T12:09:06.014Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 27
-  completed_plans: 20
+  completed_plans: 21
   percent: 84
 ---
 
@@ -51,6 +51,7 @@ Progress: [████████░░] 84% (v2.0 milestone)
 *Updated after each plan completion*
 | Phase 08-flujo-automatico-derivacion P00 | 55min | 3 tasks | 6 files |
 | Phase 08-flujo-automatico-derivacion P01 | 7min | 3 tasks | 8 files |
+| Phase 08-flujo-automatico-derivacion P03 | ~35min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Progress: [████████░░] 84% (v2.0 milestone)
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-01]: 'oc_recibida' landed en TicketEstado con color 'bg-orange-200 text-orange-900' (bg-amber-100 ya era pendiente_facturacion). PendingAction/OrdenCompraCliente/AdminConfigFlujos exportados. getSimplifiedEstado no se tocó (whitelist fallback ya cubre 'en_proceso').
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-01]: Sidebar consolidado en un único root 'Admin' (/admin, icon ⚙️) con 5 children. Antes había 2 items separados ('Importar Datos' + 'Módulos'). getAllModulePaths() ahora expone '/admin' unificado; overrides Firestore para '/admin/importar' y '/admin/modulos' quedan orphan (no bloqueante).
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-01]: ordenesCompraClienteService.cargarOC implementado como stub que THROWS 'NOT_IMPLEMENTED — plan 08-02'. Esto falla loud cualquier caller prematuro, mejor que fake data. Plan 08-02 reemplaza con runTransaction real.
+- [Phase 08-flujo-automatico-derivacion]: 08-03: Lazy import presupuestosService inside leadsService to break circular dependency for retry-after-resolve trigger
+- [Phase 08-flujo-automatico-derivacion]: 08-03: Auto-ticket uses motivoLlamado='ventas_equipos', areaActual='ventas', estado='esperando_oc'; asignadoA=adminConfig.usuarioSeguimientoId
+- [Phase 08-flujo-automatico-derivacion]: 08-03: v2.0 no-op success for derivar_comex and notificar_coordinador_ot retry handlers; 08-04/08-05 can extend
 
 ### Pending Todos
 
@@ -89,6 +93,6 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-21T11:53:20.913Z
-Stopped at: Completed 08-01 (Wave 1 — types foundation + services + sidebar)
+Last session: 2026-04-21T12:09:06.011Z
+Stopped at: Completed 08-03-PLAN.md (FLOW-01 auto-ticket + FLOW-06 pendingActions retry)
 Resume file: None
