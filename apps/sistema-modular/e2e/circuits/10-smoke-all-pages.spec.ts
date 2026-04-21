@@ -16,6 +16,19 @@ const STOCK_SUBITEMS = [
   'Posiciones', 'Marcas',
 ];
 
+/**
+ * Admin routes smoke — FLOW-07 lands /admin/config-flujos (plan 08-05)
+ * and /admin/acciones-pendientes (plan 08-05). Navegación directa vía URL
+ * (aún no hay sidebar children bajo "Admin" root consolidado — la decisión
+ * del Research queda abierta).
+ *
+ * RED baseline: both routes return 404/"Not Found" until plan 08-05 lands.
+ */
+const ADMIN_ROUTES: Array<{ path: string; expectedHeading: RegExp }> = [
+  { path: '/admin/config-flujos', expectedHeading: /config.*fluj|flujos autom/i },
+  { path: '/admin/acciones-pendientes', expectedHeading: /acciones pendientes|pending actions/i },
+];
+
 test.describe('Circuito 10: Smoke Test — Todas las páginas', () => {
   for (const item of ALL_SIDEBAR_ITEMS) {
     test(`Smoke: ${item}`, async ({ app, nav }) => {
@@ -34,6 +47,22 @@ test.describe('Circuito 10: Smoke Test — Todas las páginas', () => {
       await app.waitForTimeout(2000);
       await expect(app.locator('body')).not.toContainText('Something went wrong');
       await expect(app.locator('nav, aside').first()).toBeVisible();
+    });
+  }
+
+  for (const { path: routePath, expectedHeading } of ADMIN_ROUTES) {
+    test(`Smoke: Admin ${routePath}`, async ({ app }) => {
+      await app.goto(`http://localhost:3001${routePath}`);
+      await app.waitForTimeout(2000);
+      await expect(app.locator('body')).not.toContainText('Something went wrong');
+      // Sidebar visible = app no crasheó.
+      await expect(app.locator('nav, aside').first()).toBeVisible();
+      // El heading de la página admin debe aparecer (RED hasta plan 08-05).
+      const heading = app
+        .locator('h1, h2')
+        .filter({ hasText: expectedHeading })
+        .first();
+      await expect(heading).toBeVisible({ timeout: 10_000 });
     });
   }
 });

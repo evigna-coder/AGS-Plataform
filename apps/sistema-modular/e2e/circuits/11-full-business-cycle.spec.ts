@@ -1,4 +1,5 @@
 import { test, expect, TEST_PREFIX, timestamp } from '../fixtures/test-base';
+import { getMailQueueDocs, pollUntil } from '../helpers/firestore-assert';
 
 /**
  * CIRCUITO 11: Ciclo Comercial Completo
@@ -384,6 +385,33 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
       await estadoSelect.selectOption('CIERRE_ADMINISTRATIVO');
       await app.waitForTimeout(2500);
     }
+    await expect(app.locator('body')).not.toContainText('Something went wrong');
+  });
+
+  // FLOW-04 — Aviso a Facturación al CIERRE_ADMINISTRATIVO
+  //
+  // RED baseline: plan 08-05 implementa `otService.cerrarAdministrativamente`
+  // que encola el mail en `mailQueue` con type='cierre_admin_ot' y crea un
+  // ticket admin. Hasta entonces este test permanece test.fixme — el
+  // executor del plan 08-05 lo desfixmea.
+  test('11.13b — FLOW-04: mailQueue doc + ticket admin al CIERRE_ADMINISTRATIVO', async ({ app }) => {
+    test.fixme(true, 'FLOW-04 aún no implementado — plan 08-05 desfixmea');
+
+    // Assert 1: un doc en mailQueue con type='cierre_admin_ot' y status='pending'.
+    await pollUntil(
+      () => getMailQueueDocs({ type: 'cierre_admin_ot', status: 'pending', limit: 5 }),
+      (docs) => docs.length >= 1,
+      { timeout: 10_000 },
+    );
+
+    // Assert 2: ticket admin creado (area === 'administracion') con refencia
+    // al número de OT recién cerrada. Consulta pendiente — el plan 08-05
+    // puede extender firestore-assert con un helper `getTicketsByArea`.
+    //
+    //   const adminTickets = await getTicketsByArea({ area: 'administracion' });
+    //   expect(adminTickets.some(t => (t.descripcion || '').includes(otNumber)))
+    //     .toBeTruthy();
+
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
