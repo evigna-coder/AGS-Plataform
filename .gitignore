@@ -48,3 +48,6 @@ scripts/serviceAccountKey.json
 
 # OS
 Thumbs.db
+
+# Playwright CLI (artefactos de testing manual)
+.playwright-cli/

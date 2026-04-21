@@ -1,4 +1,7 @@
 import type { ProtocolSelection } from '../types/tableCatalog';
+import { useAccordionCard } from '../hooks/useAccordionCard';
+import { useIsCompact } from '../hooks/useIsMobile';
+import { AccordionHeaderChrome, AccordionConfirmButton } from './protocol/AccordionChrome';
 
 interface Props {
   selection: ProtocolSelection;
@@ -63,23 +66,33 @@ export const CatalogSignaturesView: React.FC<Props> = ({
     dateBlocks.push({ label: showDate === 'both' ? 'Fecha de finalización' : (dateLabelShort || 'Fecha de finalización'), value: formatDate(fechaFin) });
   }
 
+  const isCompact = useIsCompact();
+  const { expanded, toggle, completed, markCompleted } = useAccordionCard(selection.tableId);
+  const accordionActive = isCompact && !isPrint;
+  const showBody = !accordionActive || expanded;
+  const isCompletedStyle = accordionActive && completed;
+  const renderTitle = showTitle || accordionActive;
+
   return (
-    <div className={`mb-6 ${isPrint ? 'border border-slate-300' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden'} bg-white`}>
+    <div className={`mb-6 ${isPrint ? 'border border-slate-300' : `rounded-xl border shadow-sm overflow-hidden ${isCompletedStyle ? 'border-emerald-300' : 'border-slate-200'}`} bg-white`}>
 
       {/* Title bar */}
-      {showTitle && (
-        <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'border-b border-slate-300' : 'bg-slate-50 border-b border-slate-200'}`}>
-          <p className={`font-semibold truncate ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
-            {table.name}
-          </p>
+      {renderTitle && (
+        <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'border-b border-slate-300' : isCompletedStyle ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-slate-50 border-b border-slate-200'}`}>
+          <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
+            <p className={`font-semibold truncate ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
+              {table.name}
+            </p>
+          </AccordionHeaderChrome>
         </div>
       )}
 
+      <div hidden={!showBody}>
       {/* Content area: text left + signature right */}
-      <div className="px-4 py-3 flex gap-6 items-start">
+      <div className="px-4 py-3 flex flex-col lg:flex-row gap-6 items-start">
 
         {/* Left: text content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full">
           {textContent && (
             <div
               className="catalog-text-content text-[11px] leading-relaxed text-slate-700"
@@ -100,7 +113,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
         </div>
 
         {/* Right: signatures side by side */}
-        <div className="shrink-0 flex flex-row gap-6" style={{ width: '55%' }}>
+        <div className="shrink-0 flex flex-row gap-6 w-full lg:w-[55%]">
           {showClient && (
             <div className="flex-1 flex flex-col items-center">
               <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
@@ -133,6 +146,8 @@ export const CatalogSignaturesView: React.FC<Props> = ({
             </div>
           )}
         </div>
+      </div>
+      {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
       </div>
     </div>
   );

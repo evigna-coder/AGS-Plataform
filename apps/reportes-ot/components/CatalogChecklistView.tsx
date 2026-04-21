@@ -1,5 +1,8 @@
 import React from 'react';
 import type { ProtocolSelection, ChecklistItem, ChecklistItemAnswer } from '../types/tableCatalog';
+import { useAccordionCard } from '../hooks/useAccordionCard';
+import { useIsCompact } from '../hooks/useIsMobile';
+import { AccordionHeaderChrome, AccordionConfirmButton } from './protocol/AccordionChrome';
 
 interface Props {
   selection: ProtocolSelection;
@@ -144,7 +147,7 @@ function ChecklistItemRow({
             {item.label}
           </p>
         )}
-        <table className={`w-full text-xs border-collapse ${isNA ? 'opacity-40' : ''}`}>
+        <table data-checklist-internal-table className={`w-full text-xs border-collapse ${isNA ? 'opacity-40' : ''}`}>
           <thead>
             {hasGroups ? (
               <>
@@ -180,13 +183,13 @@ function ChecklistItemRow({
 
                   // Row header: siempre texto bold a la izquierda
                   if (col.isRowHeader) {
-                    return <td key={col.key} className={tdRowHeader}>{cellVal || '\u00A0'}</td>;
+                    return <td key={col.key} data-col-label={col.label || ''} className={tdRowHeader}>{cellVal || '\u00A0'}</td>;
                   }
 
                   // Radio buttons
                   if (hasOptions && col.displayAs === 'radio') {
                     return (
-                      <td key={col.key} className={`px-2 py-2 border ${isPrint ? 'border-slate-400' : 'border-slate-300'}`}>
+                      <td key={col.key} data-col-label={col.label || ''} className={`px-2 py-2 border ${isPrint ? 'border-slate-400' : 'border-slate-300'}`}>
                         <div className="flex items-center justify-center gap-3 flex-wrap">
                           {col.options!.map(opt => (
                             <label key={opt} className={`flex items-center gap-1 text-xs cursor-pointer whitespace-nowrap ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
@@ -209,10 +212,10 @@ function ChecklistItemRow({
                   // Selector (dropdown)
                   if (hasOptions) {
                     if (isPrint || readOnly) {
-                      return <td key={col.key} className={tdBase}>{cellVal || '\u00A0'}</td>;
+                      return <td key={col.key} data-col-label={col.label || ''} className={tdBase}>{cellVal || '\u00A0'}</td>;
                     }
                     return (
-                      <td key={col.key} className="px-1 py-1 text-center border border-slate-300">
+                      <td key={col.key} data-col-label={col.label || ''} className="px-1 py-1 text-center border border-slate-300">
                         <select
                           className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:cursor-not-allowed"
                           value={cellVal}
@@ -228,10 +231,10 @@ function ChecklistItemRow({
 
                   // Texto normal — editable
                   if (isPrint || readOnly || disabled) {
-                    return <td key={col.key} className={tdBase}>{cellVal || '\u00A0'}</td>;
+                    return <td key={col.key} data-col-label={col.label || ''} className={tdBase}>{cellVal || '\u00A0'}</td>;
                   }
                   return (
-                    <td key={col.key} className="px-1 py-1 border border-slate-300">
+                    <td key={col.key} data-col-label={col.label || ''} className="px-1 py-1 border border-slate-300">
                       <input
                         type="text"
                         value={cellVal}
@@ -670,17 +673,24 @@ export const CatalogChecklistView: React.FC<Props> = ({
 
   const showTitle = tableSnapshot.showTitle ?? true;
 
+  const isCompact = useIsCompact();
+  const { expanded, toggle, completed, markCompleted } = useAccordionCard(selection.tableId);
+  const accordionActive = isCompact && !isPrint && !readOnly;
+  const showBody = !accordionActive || expanded;
+  const isCompletedStyle = accordionActive && completed;
+  // Forzar título visible en mobile accordion aunque showTitle=false (fallback para header clickeable)
+  const renderTitle = showTitle || accordionActive;
+
   return (
-    <div className={`border border-slate-200 rounded-xl overflow-hidden ${isPrint ? 'mb-4' : ''}`}>
+    <div className={`border rounded-xl overflow-hidden ${isCompletedStyle ? 'border-emerald-300' : 'border-slate-200'} ${isPrint ? 'mb-4' : ''}`}>
       {/* Cabecera */}
-      {(showTitle || (!readOnly && !isPrint)) && (
-        <div className={`flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200 ${!showTitle && !isPrint ? 'py-1' : ''}`}>
-          {showTitle && (
-            <div className="flex items-center gap-3">
+      {(renderTitle || (!readOnly && !isPrint)) && (
+        <div className={`flex items-center justify-between px-4 py-2 ${isCompletedStyle ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-slate-50 border-b border-slate-200'} ${!renderTitle && !isPrint ? 'py-1' : ''}`}>
+          {renderTitle ? (
+            <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
               <span className="text-xs font-bold text-slate-800 tracking-tight">{tableSnapshot.name}</span>
-            </div>
-          )}
-          {!showTitle && <div />}
+            </AccordionHeaderChrome>
+          ) : <div />}
           <div className="flex items-center gap-3">
             {!readOnly && !isPrint && allCheckboxes.length > 0 && (
               <button
@@ -697,6 +707,8 @@ export const CatalogChecklistView: React.FC<Props> = ({
           </div>
         </div>
       )}
+
+      <div hidden={!showBody}>
 
       {/* Cuerpo — ítems del checklist */}
       <div className={`bg-white ${isPrint ? '' : 'divide-y divide-slate-50'}`}>
@@ -797,6 +809,10 @@ export const CatalogChecklistView: React.FC<Props> = ({
           </div>
         )
       )}
+
+      {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
+
+      </div>
     </div>
   );
 };

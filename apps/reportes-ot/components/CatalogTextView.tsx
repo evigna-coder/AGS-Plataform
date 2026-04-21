@@ -1,5 +1,8 @@
 import React from 'react';
 import type { ProtocolSelection } from '../types/tableCatalog';
+import { useAccordionCard } from '../hooks/useAccordionCard';
+import { useIsCompact } from '../hooks/useIsMobile';
+import { AccordionHeaderChrome, AccordionConfirmButton } from './protocol/AccordionChrome';
 
 interface Props {
   selection: ProtocolSelection;
@@ -138,17 +141,23 @@ export const CatalogTextView: React.FC<Props> = ({
   }
 
   // ─── Modo card: con encabezado y borde (default) ──────────────────────
+  const isCompact = useIsCompact();
+  const { expanded, toggle, completed, markCompleted } = useAccordionCard(selection.tableId);
+  const accordionActive = isCompact && !isPrint && !readOnly;
+  const showBody = !accordionActive || expanded;
+  const isCompletedStyle = accordionActive && completed;
+
   return (
-    <div className={`mb-6 ${isPrint ? 'border border-slate-300' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden'} bg-white`}>
-      <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'border-b border-slate-300' : 'bg-slate-50 border-b border-slate-200'}`}>
-        <div className="min-w-0">
+    <div className={`mb-6 ${isPrint ? 'border border-slate-300' : `rounded-xl border shadow-sm overflow-hidden ${isCompletedStyle ? 'border-emerald-300' : 'border-slate-200'}`} bg-white`}>
+      <div className={`flex items-center justify-between px-3 py-2 gap-3 ${isPrint ? 'border-b border-slate-300' : isCompletedStyle ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-slate-50 border-b border-slate-200'}`}>
+        <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
           <p className={`font-semibold truncate ${isPrint ? 'text-[10px]' : 'text-sm text-slate-900'}`}>
             {table.name}
           </p>
           {table.description && !isPrint && (
             <p className="text-xs text-slate-500 mt-0.5 truncate">{table.description}</p>
           )}
-        </div>
+        </AccordionHeaderChrome>
 
         <div className="flex items-center gap-3 shrink-0">
           {!isPrint && !readOnly && onRemove && (
@@ -165,15 +174,18 @@ export const CatalogTextView: React.FC<Props> = ({
         </div>
       </div>
 
-      <TextContentWithVars
-        html={textContent}
-        filledData={selection.filledData}
-        tableId={selection.tableId}
-        readOnly={readOnly}
-        isPrint={isPrint}
-        onChangeData={onChangeData}
-        className={`catalog-text-content px-3 py-2 ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-      />
+      <div hidden={!showBody}>
+        <TextContentWithVars
+          html={textContent}
+          filledData={selection.filledData}
+          tableId={selection.tableId}
+          readOnly={readOnly}
+          isPrint={isPrint}
+          onChangeData={onChangeData}
+          className={`catalog-text-content px-3 py-2 ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
+        />
+        {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
+      </div>
     </div>
   );
 };

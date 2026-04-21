@@ -1,5 +1,8 @@
 import React from 'react';
 import type { ProtocolSelection } from '../types/tableCatalog';
+import { useAccordionCard } from '../hooks/useAccordionCard';
+import { useIsCompact } from '../hooks/useIsMobile';
+import { AccordionHeaderChrome, AccordionConfirmButton } from './protocol/AccordionChrome';
 
 interface Props {
   selection: ProtocolSelection;
@@ -67,14 +70,26 @@ export const CatalogCoverView: React.FC<Props> = ({
   const coverFecha = table.coverFecha || '';
   const hasFooter = coverQF || coverRevision || coverFecha;
 
+  const isCompact = useIsCompact();
+  const { expanded, toggle, completed, markCompleted } = useAccordionCard(selection.tableId);
+  const accordionActive = isCompact && !isPrint;
+  const showBody = !accordionActive || expanded;
+  const isCompletedStyle = accordionActive && completed;
+
   if (!isPrint) {
     // Vista previa en formulario — card compacta
     return (
-      <div className="mb-6 rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white">
-        <div className="bg-slate-800 text-white px-4 py-2">
-          <p className="text-xs font-bold uppercase tracking-wide">Carátula</p>
+      <div className={`mb-6 rounded-xl border shadow-sm overflow-hidden bg-white ${isCompletedStyle ? 'border-emerald-300' : 'border-slate-200'}`}>
+        <div className={`text-white px-4 py-2 flex items-center gap-2 ${isCompletedStyle ? 'bg-emerald-700' : 'bg-slate-800'}`}>
+          {accordionActive ? (
+            <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
+              <p className="text-xs font-bold uppercase tracking-wide text-white">Carátula</p>
+            </AccordionHeaderChrome>
+          ) : (
+            <p className="text-xs font-bold uppercase tracking-wide">Carátula</p>
+          )}
         </div>
-        <div className="p-6">
+        <div className="p-6" hidden={!showBody}>
           <div className="flex items-start justify-between mb-4">
             {logoSrc && <img src={logoSrc} alt="AGS" style={{ width: 80 }} />}
           </div>
@@ -105,6 +120,7 @@ export const CatalogCoverView: React.FC<Props> = ({
             </div>
           )}
         </div>
+        {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
       </div>
     );
   }

@@ -1,6 +1,9 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import type { TableCatalogColumn, ProtocolSelection } from '../types/tableCatalog';
+import { useAccordionCard } from '../hooks/useAccordionCard';
+import { useIsCompact } from '../hooks/useIsMobile';
+import { AccordionHeaderChrome, AccordionConfirmButton } from './protocol/AccordionChrome';
 
 // ─── Auto-cómputo de Conclusión ───────────────────────────────────────────────
 
@@ -703,6 +706,13 @@ export const CatalogTableView: React.FC<Props> = ({
   const compact = table.compactDisplay ?? false;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
 
+  // ── Accordion (mobile/tablet only) ──────────────────────────────────────────
+  const isCompact = useIsCompact();
+  const { expanded, toggle, completed, markCompleted } = useAccordionCard(selection.tableId);
+  const accordionActive = isCompact && !isPrint && !readOnly;
+  const showBody = !accordionActive || expanded;
+  const isCompletedStyle = accordionActive && completed;
+
   // ── Visibilidad por columna (default = !hiddenByDefault, overrideable por instancia) ──
   const isColumnVisible = (col: TableCatalogColumn): boolean =>
     selection.columnVisibility?.[col.key] ?? !col.hiddenByDefault;
@@ -1347,23 +1357,23 @@ export const CatalogTableView: React.FC<Props> = ({
   };
 
   return (
-    <div className={`catalog-table-rowsafe mb-6 ${isPrint ? 'rounded-xl border border-slate-200' : 'rounded-xl border border-slate-200 shadow-sm overflow-hidden bg-white'}`}>
+    <div className={`catalog-table-rowsafe mb-6 ${isPrint ? 'rounded-xl border border-slate-200' : `rounded-xl border shadow-sm overflow-hidden bg-white ${isCompletedStyle ? 'border-emerald-300' : 'border-slate-200'}`}`}>
 
       {/* Encabezado de tabla (ocultar si showTitle === false) */}
       {table.showTitle !== false ? (
-      <div className={`flex items-center justify-between px-3 gap-3 ${compact ? 'py-1.5' : 'py-2'} bg-slate-50 border-b border-slate-200`}>
-        <div className="min-w-0">
+      <div className={`flex items-center justify-between px-3 gap-3 ${compact ? 'py-1.5' : 'py-2'} ${isCompletedStyle ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-slate-50 border-b border-slate-200'}`}>
+        <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
           <p className={`font-semibold truncate ${compact ? 'text-xs text-slate-900' : 'text-sm text-slate-900'}`}>
             {table.name}
           </p>
           {table.description && !isPrint && (
             <p className="text-xs text-slate-500 mt-0.5 truncate">{table.description}</p>
           )}
-        </div>
+        </AccordionHeaderChrome>
 
         <div className="flex items-center gap-3 shrink-0">
-          {/* Toggle "Ver especificación del cliente" — ocultar si hay instancias (cada sección tiene el suyo) */}
-          {table.allowClientSpec && !isPrint && !groupingField && (
+          {/* Toggle "Ver especificación del cliente" — en mobile accordion va al body, en desktop queda en el header */}
+          {table.allowClientSpec && !isPrint && !groupingField && !accordionActive && (
             <label className="flex items-center gap-1.5 cursor-pointer select-none group">
               <input
                 type="checkbox"
@@ -1416,8 +1426,33 @@ export const CatalogTableView: React.FC<Props> = ({
           )}
         </div>
       </div>
+      ) : accordionActive ? (
+        /* Mobile accordion: forzar título aunque showTitle === false (necesario para el header clickeable) */
+        <div className={`flex items-center justify-between px-3 gap-3 py-2 ${isCompletedStyle ? 'bg-emerald-50 border-b border-emerald-200' : 'bg-slate-50 border-b border-slate-200'}`}>
+          <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
+            <p className="font-semibold truncate text-sm text-slate-900">{table.name}</p>
+          </AccordionHeaderChrome>
+          <div className="flex items-center gap-2 shrink-0">
+            {onDuplicate && (
+              <button onClick={() => onDuplicate(selection.tableId)}
+                className="text-slate-400 hover:text-teal-600 transition-colors p-1" title="Duplicar tabla">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            )}
+            {onRemove && (
+              <button onClick={() => onRemove(selection.tableId)}
+                className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Quitar tabla">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
       ) : !isPrint && !readOnly && onRemove ? (
-        /* Título oculto: solo mostrar botón quitar en modo edición */
+        /* Desktop con título oculto: solo botones */
         <div className="flex justify-end px-2 py-1 bg-slate-50 border-b border-slate-100">
           {onDuplicate && (
             <button onClick={() => onDuplicate(selection.tableId)}
@@ -1435,6 +1470,26 @@ export const CatalogTableView: React.FC<Props> = ({
           </button>
         </div>
       ) : null}
+
+      <div hidden={!showBody}>
+
+      {/* Toggle "Ver especificación del cliente" — solo visible en mobile accordion (en desktop va arriba) */}
+      {table.allowClientSpec && !isPrint && !groupingField && accordionActive && (
+        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/60">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={clientSpecEnabled}
+              disabled={readOnly}
+              onChange={(e) => onToggleClientSpec?.(selection.tableId, e.target.checked)}
+              className="w-4 h-4 accent-blue-600 cursor-pointer"
+            />
+            <span className="text-xs font-medium text-slate-700">
+              Especificaciones ampliadas por el cliente
+            </span>
+          </label>
+        </div>
+      )}
 
       {/* Campos de encabezado (selectores pre-tabla) */}
       {/* Cuando hay groupingField, solo mostrar el groupingField aquí; los demás van por instancia */}
@@ -1916,6 +1971,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         return (
                         <td
                           key={col.key}
+                          data-col-label={col.label || ''}
                           className={`px-2 py-1.5 align-middle ${alignClass} ${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${showActionsHere ? ' relative pr-4' : ''}`}
                         >
                           {splitSelector ? (
@@ -2036,6 +2092,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       return (
                         <td
                           key={col.key}
+                          data-col-label={col.label || ''}
                           rowSpan={isSpanning ? colSpan : undefined}
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
@@ -2120,6 +2177,10 @@ export const CatalogTableView: React.FC<Props> = ({
           </span>
         </div>
       )}
+
+      {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
+
+      </div>
     </div>
   );
 };
