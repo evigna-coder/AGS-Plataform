@@ -286,7 +286,12 @@ export class FirebaseService {
       const q = query(collection(db, 'clientes'), where('activo', '==', true));
       const snap = await getDocs(q);
       return snap.docs
-        .map(d => ({ id: d.id, razonSocial: d.data().razonSocial, cuit: d.data().cuit ?? null } as ClienteOption))
+        .map(d => ({
+          id: d.id,
+          razonSocial: d.data().razonSocial,
+          cuit: d.data().cuit ?? null,
+          requiereTrazabilidad: d.data().requiereTrazabilidad ?? false,
+        } as ClienteOption))
         .sort((a, b) => a.razonSocial.localeCompare(b.razonSocial));
     } catch (e) { console.error('Error cargando clientes:', e); return []; }
   }
@@ -373,9 +378,22 @@ export class FirebaseService {
           certificadoEmisor: data.certificadoEmisor ?? null,
           certificadoVencimiento: data.certificadoVencimiento ?? null,
           certificadoUrl: data.certificadoUrl ?? null,
+          trazabilidadUrl: data.trazabilidadUrl ?? null,
         } as InstrumentoPatronOption;
       }).sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando instrumentos:', e); return []; }
+  }
+
+  /** Fallback: lee trazabilidadUrl fresh si el snapshot del reporte es viejo. */
+  async getInstrumentoTrazabilidadUrl(id: string): Promise<string | null> {
+    try {
+      const snap = await getDoc(doc(db, 'instrumentos', id));
+      if (!snap.exists()) return null;
+      return (snap.data() as any).trazabilidadUrl ?? null;
+    } catch (e) {
+      console.warn('Error leyendo trazabilidadUrl:', e);
+      return null;
+    }
   }
 
   // ── Patrones (colección /patrones) ──

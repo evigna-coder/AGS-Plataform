@@ -280,7 +280,7 @@ service cloud.firestore {
     }
 
     // Ingreso a empresas
-    match /ingreso_empresas/{ingresoId} {
+    match /ingresosEmpresas/{ingresoId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
@@ -300,7 +300,7 @@ service cloud.firestore {
     }
 
     // Calificaciones de proveedores
-    match /calificaciones_proveedores/{calificacionId} {
+    match /calificaciones_proveedor/{calificacionId} {
       allow read, write: if true; // Temporal para desarrollo
     }
 
@@ -319,6 +319,21 @@ service cloud.firestore {
       allow create: if true;           // Cualquier usuario autenticado puede escribir
       allow read: if true;             // Temporal para desarrollo
       allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
+    }
+
+    // Configuración global de flujos automáticos (FLOW-07)
+    match /adminConfig/{configId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Feature flags
+    match /featureFlags/{flagId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
+    // Órdenes de compra del cliente (OC que llegan para una OT)
+    match /ordenesCompraCliente/{ocId} {
+      allow read, write: if true; // Temporal para desarrollo
     }
 
     // Bloquear acceso a cualquier otra colección

@@ -3471,6 +3471,7 @@ export interface ClienteOption {
   id: string;
   razonSocial: string;
   cuit?: string | null;
+  requiereTrazabilidad?: boolean;
 }
 
 export interface EstablecimientoOption {
@@ -3531,6 +3532,8 @@ export interface InstrumentoPatronOption {
   certificadoEmisor?: string | null;
   certificadoVencimiento?: string | null;
   certificadoUrl?: string | null;
+  /** URL del documento de trazabilidad PDF — solo instrumentos */
+  trazabilidadUrl?: string | null;
 }
 
 /**

@@ -591,6 +591,7 @@ export function useAppLogic(
     instrumentosSeleccionados,
     certificadosIngenieroSeleccionados,
     adjuntos,
+    entitySelectors.clienteRequiereTrazabilidad,
   );
 
   // Hook de generación de PDF (después de validateBeforeClientConfirm)
@@ -610,6 +611,7 @@ export function useAppLogic(
     assetPreloader.cache,
     patronesSeleccionados,
     columnasSeleccionadas,
+    entitySelectors.clienteRequiereTrazabilidad,
   );
   const {
     generatePDFBlob: generatePDFBlobFromHook,

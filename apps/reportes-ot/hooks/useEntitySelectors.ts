@@ -430,6 +430,10 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setManualMode({ cliente: false, sistema: false });
   }, []);
 
+  // ── Derivados del cliente seleccionado ──
+  const clienteRequiereTrazabilidad =
+    !!clienteId && !!clientes.find(c => c.id === clienteId)?.requiereTrazabilidad;
+
   return {
     // IDs
     clienteId, establecimientoId, selectedSector, sistemaId, moduloId, contactoId,
@@ -443,6 +447,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     // Acciones
     selectCliente, selectEstablecimiento, selectSector,
     selectContacto, selectSistema, selectModulo,
+    // Derivados
+    clienteRequiereTrazabilidad,
     // Utilidades
     tryMatchExistingData, reset,
   };

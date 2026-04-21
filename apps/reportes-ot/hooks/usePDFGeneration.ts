@@ -78,6 +78,7 @@ export const usePDFGeneration = (
   assetCache?: Map<string, ArrayBuffer>,
   patronesSeleccionados: PatronSeleccionado[] = [],
   columnasSeleccionadas: ColumnaSeleccionada[] = [],
+  clienteRequiereTrazabilidad: boolean = false,
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
@@ -475,14 +476,35 @@ export const usePDFGeneration = (
   };
 
   // ── Generar blobs de certificados de instrumentos (paralelo) ──
+  // Si el cliente requiere trazabilidad, se intercala trazab_i inmediatamente después
+  // del cert_i del mismo instrumento (orden final: cert1, trazab1, cert2, trazab2, …).
   const generateCertInstBlobs = async (): Promise<Blob[]> => {
     console.log(`[PDF][CERT-INST] instrumentosSeleccionados total: ${instrumentosSeleccionados.length}`);
     const instrumentos = instrumentosSeleccionados.filter(i => i.tipo === 'instrumento');
     console.log(`[PDF][CERT-INST] Instrumentos (tipo=instrumento): ${instrumentos.length}`);
-    const certUrls = instrumentos
-      .map(i => i.certificadoUrl)
-      .filter((url): url is string => !!url);
-    return downloadAndRenderCerts(certUrls, 'CERT-INST');
+
+    if (instrumentos.length === 0) return [];
+
+    // Descarga + render por instrumento en paralelo; cada instrumento produce [cert?, trazab?]
+    const pairs = await Promise.all(
+      instrumentos.map(async (inst) => {
+        const certUrl = inst.certificadoUrl || null;
+        // Fallback: si el snapshot del reporte es viejo (sin trazabilidadUrl),
+        // re-consultar /instrumentos/{id} para obtener la URL actual.
+        let trazabUrl: string | null = null;
+        if (clienteRequiereTrazabilidad) {
+          trazabUrl = inst.trazabilidadUrl
+            ?? await firebase.getInstrumentoTrazabilidadUrl(inst.id);
+        }
+        const [certBlobs, trazabBlobs] = await Promise.all([
+          certUrl ? downloadAndRenderCerts([certUrl], 'CERT-INST') : Promise.resolve([]),
+          trazabUrl ? downloadAndRenderCerts([trazabUrl], 'TRAZAB-INST') : Promise.resolve([]),
+        ]);
+        return [...certBlobs, ...trazabBlobs];
+      })
+    );
+
+    return pairs.flat();
   };
 
   // ── Generar blobs de certificados de patrones (paralelo) ──

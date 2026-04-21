@@ -136,5 +136,8 @@
       "Bash(taskkill //F //PID 30516)",
       "Bash(node --experimental-vm-modules -e ':*)"
     ]
+  },
+  "env": {
+    "CLAUDE_ALLOW_REPORTES_OT": "1"
   }
 }

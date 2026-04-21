@@ -17,6 +17,7 @@ export const useAssetPreloader = (
   instrumentosSeleccionados: InstrumentoPatronOption[],
   certificadosIngenieroSeleccionados: CertificadoIngeniero[],
   adjuntos: AdjuntoMeta[],
+  clienteRequiereTrazabilidad: boolean = false,
 ): PreloaderState => {
   const [cache] = useState(() => new Map<string, ArrayBuffer>());
   const [isReady, setIsReady] = useState(false);
@@ -35,6 +36,9 @@ export const useAssetPreloader = (
     // Certificados de instrumentos y patrones
     instrumentosSeleccionados.forEach(i => {
       if (i.certificadoUrl) urls.add(i.certificadoUrl);
+      if (clienteRequiereTrazabilidad && i.tipo === 'instrumento' && i.trazabilidadUrl) {
+        urls.add(i.trazabilidadUrl);
+      }
     });
 
     // Adjuntos PDF
@@ -81,7 +85,7 @@ export const useAssetPreloader = (
     if (!controller.signal.aborted) {
       setIsReady(true);
     }
-  }, [firebase, instrumentosSeleccionados, certificadosIngenieroSeleccionados, adjuntos, cache]);
+  }, [firebase, instrumentosSeleccionados, certificadosIngenieroSeleccionados, adjuntos, cache, clienteRequiereTrazabilidad]);
 
   useEffect(() => {
     // Cancelar precarga anterior
