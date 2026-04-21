@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { RequerimientoCompra, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_COLORS, ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 import type { EditingCell } from '../../hooks/useRequerimientoInlineEdit';
@@ -71,6 +72,24 @@ export const RequerimientoRow = ({
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_REQUERIMIENTO_COLORS[r.estado]}`}>
           {ESTADO_REQUERIMIENTO_LABELS[r.estado]}
         </span>
+        {(r as any).condicional === true && (
+          (r as any).presupuestoId ? (
+            <Link
+              to={`/presupuestos/${(r as any).presupuestoId}`}
+              title={`Requerimiento condicional ligado al presupuesto ${r.presupuestoNumero ?? ''}`}
+              className="inline-block ml-2 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide bg-amber-100 text-amber-800 rounded hover:bg-amber-200"
+            >
+              Condicional
+            </Link>
+          ) : (
+            <span
+              title="Requerimiento condicional — se cancela si se anula el presupuesto origen"
+              className="inline-block ml-2 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide bg-amber-100 text-amber-800 rounded"
+            >
+              Condicional
+            </span>
+          )
+        )}
       </td>
       <td className={`px-4 py-2 ${getAlignClass(6)}`} onClick={() => isPendiente && startEdit(r, 'urgencia')}>
         {isEditingUrgencia ? (

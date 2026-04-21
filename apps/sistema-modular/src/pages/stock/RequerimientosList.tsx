@@ -16,9 +16,11 @@ import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/s
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const FILTER_SCHEMA = {
-  estado:   { type: 'string' as const, default: '' },
-  origen:   { type: 'string' as const, default: '' },
-  urgencia: { type: 'string' as const, default: '' },
+  estado:      { type: 'string' as const, default: '' },
+  origen:      { type: 'string' as const, default: '' },
+  urgencia:    { type: 'string' as const, default: '' },
+  // FLOW-03: '' = todos, 'true' = solo condicionales, 'false' = solo firmes
+  condicional: { type: 'string' as const, default: '' },
 };
 
 export const RequerimientosList = () => {
@@ -41,9 +43,14 @@ export const RequerimientosList = () => {
   };
 
   const filtered = useMemo(() => {
-    if (!filters.urgencia) return requerimientos;
-    return requerimientos.filter(r => r.urgencia === filters.urgencia);
-  }, [requerimientos, filters.urgencia]);
+    return requerimientos.filter(r => {
+      if (filters.urgencia && r.urgencia !== filters.urgencia) return false;
+      // FLOW-03: filtro por flag condicional
+      if (filters.condicional === 'true' && !(r as any).condicional) return false;
+      if (filters.condicional === 'false' && (r as any).condicional) return false;
+      return true;
+    });
+  }, [requerimientos, filters.urgencia, filters.condicional]);
   const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
   const toggleSelect = (id: string) => {
@@ -141,6 +148,12 @@ export const RequerimientosList = () => {
             {(Object.keys(URGENCIA_LABELS) as UrgenciaRequerimiento[]).map(k => (
               <option key={k} value={k}>{URGENCIA_LABELS[k]}</option>
             ))}
+          </select>
+          <select value={filters.condicional} onChange={e => setFilter('condicional', e.target.value)}
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="">Todos</option>
+            <option value="true">Solo condicionales</option>
+            <option value="false">Solo firmes</option>
           </select>
         </div>
       </PageHeader>
