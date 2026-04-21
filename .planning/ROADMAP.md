@@ -131,14 +131,15 @@ Plans:
   5. Un admin puede configurar desde la UI los usuarios fijos para seguimiento, coordinador OT y mail de facturación — los cambios se aplican a los flujos automáticos inmediatamente
   6. Los errores en derivaciones automáticas quedan registrados en `pendingActions[]` del presupuesto y son visibles en un dashboard de "acciones pendientes"
 
-**Plans:** TBD
+**Plans:** 6 plans
 
 Plans:
-- [ ] 08-01: PresupuestoEstado lifecycle completo — estados, transiciones, UI de estados
-- [ ] 08-02: OC tracking — carga de OC (número + adjunto) + cambio de estado atómico (runTransaction)
-- [ ] 08-03: Auto-ticket desde presupuesto sin origen + FLOW-07 configuración usuarios fijos
-- [ ] 08-04: Derivación a importaciones en acceptance + auto-requerimiento Comex
-- [ ] 08-05: Aviso a Facturación al cierre OT + pendingActions[] + dashboard errores
+- [ ] 08-00-PLAN.md — Wave 0 test specs + firestore-assert helper (specs RED baseline pre-impl)
+- [ ] 08-01-PLAN.md — Tipos + servicios base (TicketEstado+oc_recibida, PendingAction, OrdenCompraCliente, AdminConfigFlujos) + sidebar Admin root + rutas placeholder
+- [ ] 08-02-PLAN.md — FLOW-02/05: cargarOC atómico (runTransaction) + CargarOCModal + wire list/detail
+- [ ] 08-03-PLAN.md — FLOW-01/06 base: auto-ticket al markEnviado + pendingActions + retry retroactivo desde /admin/revision-clienteid
+- [ ] 08-04-PLAN.md — FLOW-03/05: aceptarConRequerimientos (tx) + cleanup condicionales al anular + itemRequiereImportacion en AddItemModal + badge/filter Condicional
+- [ ] 08-05-PLAN.md — FLOW-04/06/07: cerrarAdministrativamente (tx + mailQueue) + /admin/config-flujos UI + /admin/acciones-pendientes dashboard
 
 #### Phase 9: Stock ATP Extendido
 **Goal:** La planificación de stock muestra disponible + tránsito + reservas + comprometido en tiempo real — sin cache y con atomicidad garantizada — para que el equipo pueda decidir si derivar a Importaciones con datos confiables.
@@ -209,7 +210,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 5. Pre-condiciones — Migración + Infra | v2.0 | 3/4 | In Progress | - |
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |
-| 8. Estados + OC + Flujo Automático | v2.0 | 0/5 | Not started | - |
+| 8. Estados + OC + Flujo Automático | v2.0 | 0/6 | Not started | - |
 | 9. Stock ATP Extendido | v2.0 | 0/3 | Not started | - |
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | v2.0 | 0/5 | Not started | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |

@@ -36,7 +36,7 @@ Fuera de scope:
 - **Trigger:** al transicionar el presupuesto a `enviado` por primera vez. NO al crear `borrador`, NO al aceptado. Timing: dentro del `markEnviado` atómico (o inmediatamente después) del Phase 7.
 - **Skip si ya existe:** si `presupuesto.leadId` está seteado (el presupuesto vino de un ticket existente), NO crear uno nuevo. El ticket original se usa como seguimiento.
 - **Asignación:** usuario fijo configurable en `/admin/config-flujos` (ver área Config).
-- **Contenido inicial del ticket:** `motivoContacto: "Presupuesto PRE-XXXX.NN enviado — pendiente OC"`, `estado: 'pendiente_oc'`, `areaActual: 'comercial'`, `clienteId` / `contactos` desde el presupuesto.
+- **Contenido inicial del ticket:** `motivoContacto: "Presupuesto PRE-XXXX.NN enviado — pendiente OC"`, `estado: 'esperando_oc'`, `areaActual: 'comercial'`, `clienteId` / `contactos` desde el presupuesto.
 - **Si `presupuesto.clienteId === null`:** NO bloquear el envío. Registrar acción `{type: 'crear_ticket_seguimiento', reason: 'clienteId null', createdAt, attempts: 0}` en `presupuesto.pendingActions[]`. Cuando el admin resuelve el clienteId desde `/admin/revision-clienteid`, se dispara un retry automático de las pendingActions de ese presupuesto.
 
 ### FLOW-02 — Carga de OC
