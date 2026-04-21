@@ -501,8 +501,23 @@ export const leadsService = {
   /**
    * Resuelve manualmente el clienteId de un ticket pendiente (flujo UI /admin/revision-clienteid).
    * Setea clienteId + trazabilidad (clienteIdMigradoAt/Por) y limpia pendienteClienteId + candidatosPropuestos.
+   *
+   * FLOW-06 extension (plan 08-03): tras el update exitoso del ticket, dispara
+   * `presupuestosService.retryPendingActionsForCliente(clienteId)` para procesar todas las
+   * pendingActions no resueltas de presupuestos de ese cliente (típicamente
+   * `crear_ticket_seguimiento` encoladas cuando el presupuesto se envió con clienteId
+   * resuelto pero el usuarioSeguimiento no estaba activo, o similar).
+   *
+   * El retry falla soft: si `retryPendingActionsForCliente` lanza, se loguea y el resumen
+   * devuelve defaults ceros — NO rompe el resolve del ticket.
+   *
+   * Import dinámico de `presupuestosService` para romper el cycle
+   * `leadsService ↔ presupuestosService`.
    */
-  async resolverClienteIdPendiente(ticketId: string, clienteId: string): Promise<void> {
+  async resolverClienteIdPendiente(
+    ticketId: string,
+    clienteId: string,
+  ): Promise<{ retryResumen: { retried: number; successful: number; failed: number } }> {
     const trace = getCurrentUserTrace();
     const payload = deepCleanForFirestore({
       clienteId,
@@ -515,6 +530,16 @@ export const leadsService = {
     });
     const ref = doc(db, 'leads', ticketId);
     await updateDoc(ref, payload);
+
+    // FLOW-06: disparar retry retroactivo (lazy import rompe el cycle con presupuestosService)
+    let retryResumen = { retried: 0, successful: 0, failed: 0 };
+    try {
+      const { presupuestosService } = await import('./presupuestosService');
+      retryResumen = await presupuestosService.retryPendingActionsForCliente(clienteId);
+    } catch (err) {
+      console.error('[resolverClienteIdPendiente] retryPendingActionsForCliente failed:', err);
+    }
+    return { retryResumen };
   },
 
   /**

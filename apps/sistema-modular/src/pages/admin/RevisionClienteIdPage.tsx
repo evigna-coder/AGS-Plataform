@@ -29,11 +29,17 @@ const FILTERS_SCHEMA = {
   search: { type: 'string' as const, default: '' },
 };
 
+interface FeedbackState {
+  kind: 'success' | 'error';
+  message: string;
+}
+
 export default function RevisionClienteIdPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [clientes, setClientes] = useState<RawCliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilter] = useUrlFilters(FILTERS_SCHEMA);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,8 +90,26 @@ export default function RevisionClienteIdPage() {
   );
 
   async function handleResolver(ticketId: string, clienteId: string) {
-    await leadsService.resolverClienteIdPendiente(ticketId, clienteId);
-    setTickets(prev => prev.filter(t => t.id !== ticketId));
+    try {
+      const { retryResumen } = await leadsService.resolverClienteIdPendiente(ticketId, clienteId);
+      setTickets(prev => prev.filter(t => t.id !== ticketId));
+      if (retryResumen.retried > 0) {
+        setFeedback({
+          kind: 'success',
+          message: `ClienteId resuelto. ${retryResumen.retried} acciones pendientes reintentadas (${retryResumen.successful} OK, ${retryResumen.failed} falló).`,
+        });
+      } else {
+        setFeedback({ kind: 'success', message: 'ClienteId resuelto.' });
+      }
+      // Auto-dismiss success feedback after 6s
+      window.setTimeout(() => setFeedback(null), 6000);
+    } catch (err: any) {
+      console.error('[RevisionClienteIdPage] resolverClienteIdPendiente failed:', err);
+      setFeedback({
+        kind: 'error',
+        message: `Error al resolver: ${err?.message || 'desconocido'}`,
+      });
+    }
   }
 
   async function handleDescartar(ticketId: string) {
@@ -134,6 +158,26 @@ export default function RevisionClienteIdPage() {
           </span>
         </div>
       </div>
+
+      {feedback && (
+        <div
+          role="status"
+          className={`shrink-0 px-5 py-2 text-xs border-b flex items-center justify-between gap-3 ${
+            feedback.kind === 'success'
+              ? 'bg-teal-50 border-teal-200 text-teal-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <span className="font-mono">{feedback.message}</span>
+          <button
+            onClick={() => setFeedback(null)}
+            className="text-[10px] font-mono uppercase tracking-wide hover:underline"
+            aria-label="Cerrar"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-y-auto p-5">
         {visible.length === 0 ? (
