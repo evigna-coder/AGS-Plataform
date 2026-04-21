@@ -44,7 +44,7 @@
 
 - [x] **FLOW-01**: Auto-creación de ticket de seguimiento cuando un presupuesto se crea sin ticket previo. Asignado al usuario fijo configurable. Motivo/descripción: "Presupuesto N° XXX pendiente de aceptación/OC".
 - [x] **FLOW-02**: Al cargar OC del cliente (número + adjunto PDF obligatorio), el ticket de seguimiento se deriva automáticamente al coordinador fijo configurable para crear OT. Cambio de estado se dispara al adjuntar la OC.
-- [ ] **FLOW-03**: Cruce ATP en acceptance detecta items que requieren importación → auto-creación de requerimiento para Comex + derivación del ticket al área Importaciones.
+- [x] **FLOW-03**: Cruce ATP en acceptance detecta items que requieren importación → auto-creación de requerimiento para Comex + derivación del ticket al área Importaciones.
 - [x] **FLOW-04**: OT con `estadoAdmin: CIERRE_ADMINISTRATIVO` dispara aviso a Facturación — crea ticket interno al área administración + envía mail al contable (Miguel Barrios) con presupuesto, OC y datos de OTs.
 - [x] **FLOW-05**: `runTransaction` en transiciones críticas de estado (acceptance, OC, cierre) para prevenir race conditions multi-usuario.
 - [x] **FLOW-06**: Manejo robusto de errores en auto-derivación — reemplazar `.catch(console.error)` silenciosos por logs + campo `pendingActions[]` en el presupuesto para detectar y reintentar.
@@ -129,7 +129,7 @@
 | REV-02 | Phase 8 | Pending |
 | FLOW-01 | Phase 8 | Complete |
 | FLOW-02 | Phase 8 | Complete |
-| FLOW-03 | Phase 8 | Pending |
+| FLOW-03 | Phase 8 | Complete |
 | FLOW-04 | Phase 8 | Complete |
 | FLOW-05 | Phase 8 | Complete |
 | FLOW-06 | Phase 8 | Complete |
