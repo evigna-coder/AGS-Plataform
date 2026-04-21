@@ -73,6 +73,11 @@ interface ProtocolViewProps {
    * @deprecated Usar mode. Si no se pasa mode, se deriva: edit→edit, preview|pdf→print.
    */
   renderMode?: ProtocolRenderMode;
+  /**
+   * Si true, las tablas se renderizan como lista de tarjetas en vez de tabla.
+   * Pensado para mobile/tablet en modo edición. Nunca combinar con mode='print'.
+   */
+  wizardMode?: boolean;
 }
 
 function isTextSection(s: ProtocolSection): s is ProtocolTextSection {
@@ -126,10 +131,12 @@ const ProtocolView: React.FC<ProtocolViewProps> = ({
   showGuides = true,
   mode: modeProp,
   renderMode = 'edit',
+  wizardMode = false,
 }) => {
   const mode: ProtocolViewMode =
     modeProp ??
     (renderMode === 'edit' ? 'edit' : 'print');
+  const tablesAsCards = wizardMode && mode === 'edit';
 
   const sectionsContainerRef = useRef<HTMLDivElement>(null);
   const [printState, setPrintState] = useState<{
@@ -342,6 +349,7 @@ const ProtocolView: React.FC<ProtocolViewProps> = ({
                 caption={section.caption}
                 sectionId={section.id}
                 sectionIndex={sectionIndex}
+                wizardMode={tablesAsCards}
                 compositeTitleRowTitle={
                   (section.id === 'sec_19' || section.id === 'sec_18' || sectionIndex === 19) && isTableSection(section)
                     ? ((section as ProtocolTableSection).headers?.[0] ??

@@ -15,12 +15,15 @@ import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableC
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
 import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
+import { CargarOCModal } from './CargarOCModal';
 import { ReservarStockModal } from '../stock/ReservarStockModal';
 import { usePresupuestoEdit } from '../../hooks/usePresupuestoEdit';
 import { usePresupuestoSistemas } from '../../hooks/usePresupuestoSistemas';
 import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
 import { CreateOTModal } from '../ordenes-trabajo/CreateOTModal';
-import type { Presupuesto, PresupuestoCuota } from '@ags/shared';
+import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
+import { presupuestosService } from '../../services/presupuestosService';
+import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 
 interface Props {
@@ -38,6 +41,10 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
   const [showReservar, setShowReservar] = useState(false);
   const [showCrearOT, setShowCrearOT] = useState(false);
+  // FLOW-02: estado del modal "Cargar OC" + datos resueltos async para su select/checkbox.
+  const [showCargarOC, setShowCargarOC] = useState(false);
+  const [ocsExistentesOfCliente, setOcsExistentesOfCliente] = useState<OrdenCompraCliente[]>([]);
+  const [otrosPresupuestosParaOC, setOtrosPresupuestosParaOC] = useState<Presupuesto[]>([]);
   // Bumped whenever a save completes, to re-query requerimientos that may
   // have been auto-generated as a side effect. Auto-gen runs fire-and-forget
   // in the service layer so we refresh a few seconds later to catch up.
@@ -90,6 +97,44 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
       return () => clearTimeout(t);
     }
   }, [saving]);
+
+  // FLOW-02: cuando se abre el modal "Cargar OC", resuelve OCs previas del
+  // cliente + otros presupuestos `aceptado` sin OC del mismo cliente (N:M).
+  // Lazy — no pegamos a Firestore hasta que el usuario abra el modal.
+  useEffect(() => {
+    let cancelled = false;
+    if (!showCargarOC || !form.clienteId) {
+      if (!showCargarOC) {
+        setOcsExistentesOfCliente([]);
+        setOtrosPresupuestosParaOC([]);
+      }
+      return;
+    }
+    (async () => {
+      try {
+        const [ocs, todosDelCliente] = await Promise.all([
+          ordenesCompraClienteService.getByCliente(form.clienteId),
+          presupuestosService.getByCliente(form.clienteId).catch(() => [] as Presupuesto[]),
+        ]);
+        if (cancelled) return;
+        setOcsExistentesOfCliente(ocs);
+        setOtrosPresupuestosParaOC(
+          todosDelCliente.filter(p =>
+            p.id !== presupuestoId &&
+            p.estado === 'aceptado' &&
+            (!p.ordenesCompraIds || p.ordenesCompraIds.length === 0)
+          ),
+        );
+      } catch (err) {
+        console.error('Error resolviendo datos para Cargar OC:', err);
+        if (!cancelled) {
+          setOcsExistentesOfCliente([]);
+          setOtrosPresupuestosParaOC([]);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showCargarOC, form.clienteId, presupuestoId]);
 
   const itemsConStock = (form.items ?? [])
     .filter(i => i.stockArticuloId)
@@ -275,6 +320,11 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             ) : null}
           </div>
           <div className="flex gap-2 flex-wrap">
+            {form.estado === 'aceptado' && (
+              <Button variant="outline" size="sm" onClick={() => setShowCargarOC(true)} title="Cargar OC del cliente (FLOW-02)">
+                Cargar OC
+              </Button>
+            )}
             {FACTURACION_STATES.includes(form.estado) && (
               <Button variant="ghost" size="sm" onClick={() => setShowSolicitarFactura(true)}>
                 Solicitar facturacion
@@ -362,6 +412,30 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             presupuestoNumero: form.numero,
             ordenCompra: form.ordenCompraNumero || undefined,
           }}
+        />
+      )}
+      {showCargarOC && (
+        <CargarOCModal
+          open={showCargarOC}
+          presupuesto={{
+            id: presupuestoId,
+            numero: form.numero,
+            clienteId: form.clienteId,
+            estado: form.estado,
+            origenTipo: form.origenTipo as any,
+            origenId: form.origenId,
+            responsableNombre: form.responsableNombre,
+          } as Presupuesto}
+          onClose={() => setShowCargarOC(false)}
+          onSuccess={() => {
+            setShowCargarOC(false);
+            // subscribe en usePresupuestoEdit refresca el form automático; si no,
+            // onUpdated fuerza un re-fetch upstream (list / floating).
+            onUpdated?.();
+            load();
+          }}
+          ocsExistentes={ocsExistentesOfCliente}
+          otrosPresupuestosPendientes={otrosPresupuestosParaOC}
         />
       )}
     </>

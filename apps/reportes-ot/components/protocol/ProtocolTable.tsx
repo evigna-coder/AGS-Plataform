@@ -3,6 +3,7 @@ import type {
   ProtocolTableRow as ProtocolTableRowType,
   ProtocolTableCell as ProtocolTableCellType,
 } from '../../types';
+import { ProtocolCardList } from './ProtocolCardList';
 
 const GREY_ROW_ID = 'row_0_grey_sec19_sec18';
 
@@ -34,6 +35,8 @@ export interface ProtocolTableProps {
   sectionIndex?: number;
   /** Título para la fila gris cuando sectionId es sec_18 o sec_19 o sectionIndex es 19. */
   compositeTitleRowTitle?: string;
+  /** Si true, renderiza como lista de tarjetas mobile-friendly en vez de tabla. Ignora layout/columnWidths. */
+  wizardMode?: boolean;
 }
 
 type GridCell = ProtocolTableCellType & { rowIndex: number; cellIndex: number; logicalCol: number } | 'covered';
@@ -196,7 +199,24 @@ export const ProtocolTable: React.FC<ProtocolTableProps> = ({
   sectionId,
   sectionIndex,
   compositeTitleRowTitle,
+  wizardMode = false,
 }) => {
+  if (wizardMode) {
+    return (
+      <ProtocolCardList
+        headers={headers}
+        rows={rows}
+        editable={editable}
+        getCellValue={getCellValue}
+        onChangeCell={onChangeCell}
+        caption={caption}
+        sectionId={sectionId}
+        sectionIndex={sectionIndex}
+        compositeTitleRowTitle={compositeTitleRowTitle}
+      />
+    );
+  }
+
   const isCompositeSection = sectionId === 'sec_19' || sectionId === 'sec_18' || sectionIndex === 19;
   const effectiveRows = useMemo(() => {
     if (isCompositeSection && compositeTitleRowTitle && rows.length > 0) {

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { presupuestosService, clientesService, usuariosService, facturacionService } from '../../services/firebaseService';
+import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
-import type { Presupuesto, PresupuestoEstado, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -18,6 +19,7 @@ import { CondicionesPagoModal } from '../../components/presupuestos/CondicionesP
 import { PresupuestoDashboard } from '../../components/presupuestos/PresupuestoDashboard';
 import { SolicitarFacturaModal } from '../../components/presupuestos/SolicitarFacturaModal';
 import { AdjuntarOCModal } from '../../components/presupuestos/AdjuntarOCModal';
+import { CargarOCModal } from '../../components/presupuestos/CargarOCModal';
 import { CreateOTModal } from '../../components/ordenes-trabajo/CreateOTModal';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 import { useTabs } from '../../contexts/TabsContext';
@@ -42,6 +44,10 @@ export const PresupuestosList = () => {
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
   const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
   const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
+  // Target presupuesto para el nuevo modal de FLOW-02 "Cargar OC" (se activa solo en estado aceptado).
+  const [cargarOCTarget, setCargarOCTarget] = useState<Presupuesto | null>(null);
+  // OCs previas del cliente del cargarOCTarget — resuelto async al abrir.
+  const [ocsExistentesForTarget, setOcsExistentesForTarget] = useState<OrdenCompraCliente[]>([]);
   const [otTarget, setOtTarget] = useState<Presupuesto | null>(null);
   const floatingPres = useFloatingPresupuesto();
   const { navigateInActiveTab } = useTabs();
@@ -103,6 +109,35 @@ export const PresupuestosList = () => {
 
   // No-op: onSnapshot handles real-time updates. Kept for callback compatibility.
   const loadData = () => {};
+
+  // FLOW-02: al abrir el modal "Cargar OC" (target seteado) resuelve las OCs
+  // previas del mismo cliente para poblar el tab "Existente". Se limpia al cerrar.
+  useEffect(() => {
+    let cancelled = false;
+    if (!cargarOCTarget) {
+      setOcsExistentesForTarget([]);
+      return;
+    }
+    ordenesCompraClienteService.getByCliente(cargarOCTarget.clienteId)
+      .then(list => { if (!cancelled) setOcsExistentesForTarget(list); })
+      .catch(err => {
+        console.error('Error resolviendo OCs previas del cliente:', err);
+        if (!cancelled) setOcsExistentesForTarget([]);
+      });
+    return () => { cancelled = true; };
+  }, [cargarOCTarget?.clienteId, cargarOCTarget?.id]);
+
+  // Otros presupuestos del mismo cliente, `aceptado` y sin OC cargada aún — para
+  // el checkbox N:M del modal. Derivado de la lista ya cargada en memoria.
+  const otrosPresupuestosParaOC = useMemo<Presupuesto[]>(() => {
+    if (!cargarOCTarget) return [];
+    return presupuestos.filter(p =>
+      p.id !== cargarOCTarget.id &&
+      p.clienteId === cargarOCTarget.clienteId &&
+      p.estado === 'aceptado' &&
+      (!p.ordenesCompraIds || p.ordenesCompraIds.length === 0)
+    );
+  }, [presupuestos, cargarOCTarget]);
 
   const presupuestosFiltrados = useMemo(() => {
     let result = presupuestos.filter(p => {
@@ -375,6 +410,13 @@ export const PresupuestosList = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
                                 </svg>
                               </button>
+                              {p.estado === 'aceptado' && (
+                                <button onClick={() => setCargarOCTarget(p)}
+                                  title="Cargar OC del cliente (FLOW-02)"
+                                  className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50 border border-teal-100">
+                                  Cargar OC
+                                </button>
+                              )}
                               {(p.estado === 'borrador' || p.estado === 'enviado') && (
                                 <button onClick={() => handleQuickEstado(p, 'enviado')} title="Marcar como enviado"
                                   className="text-[10px] font-medium text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded hover:bg-blue-50">
@@ -449,6 +491,16 @@ export const PresupuestosList = () => {
           currentAdjuntos={ocTarget.adjuntos || []}
           onClose={() => setOcTarget(null)}
           onSaved={() => setOcTarget(null)}
+        />
+      )}
+      {cargarOCTarget && (
+        <CargarOCModal
+          open={!!cargarOCTarget}
+          presupuesto={cargarOCTarget}
+          onClose={() => setCargarOCTarget(null)}
+          onSuccess={() => setCargarOCTarget(null) /* subscribe refresca automático */}
+          ocsExistentes={ocsExistentesForTarget}
+          otrosPresupuestosPendientes={otrosPresupuestosParaOC}
         />
       )}
       {facturaTarget && (
