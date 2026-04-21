@@ -1,8 +1,10 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta } from '@ags/shared';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
+import { adminConfigService } from './adminConfigService';
+import { usuariosService } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
 
@@ -430,16 +432,135 @@ export const presupuestosService = {
         console.error('[presupuestosService.markEnviado] getById fallback failed:', err);
       }
     }
+    // ── Sincronizar ticket origen si aplica (FLOW-01: skip auto-ticket) ──
+    // N1: pass numero so the lead posta entry shows "Presupuesto ${numero} → Enviado" instead of blank.
     if (origenTipo === 'lead' && origenId) {
       try {
-        // TODO(FLOW-06): replace with pendingActions[] in Phase 8.
-        // For now: don't block the send outcome if lead sync fails (mail already sent + estado already committed).
-        // N1: pass numero so the lead posta entry shows "Presupuesto ${numero} → Enviado" instead of blank.
         await leadsService.syncFromPresupuesto(origenId, numero || '', 'enviado');
-      } catch (err) {
+      } catch (err: any) {
         console.error('[markEnviado] leadsService.syncFromPresupuesto failed:', err);
+        // FLOW-06: registrar pendingAction para retry manual desde /admin/acciones-pendientes
+        await this._appendPendingAction(id, {
+          type: 'crear_ticket_seguimiento',
+          reason: `sync lead existente falló: ${err?.message || 'unknown'}`,
+        }).catch(appendErr => console.error('[markEnviado] _appendPendingAction failed:', appendErr));
       }
     }
+
+    // ── FLOW-01: auto-ticket de seguimiento si el presupuesto no vino de un ticket ──
+    if (origenTipo !== 'lead' || !origenId) {
+      try {
+        const pres = await this.getById(id);
+        if (pres) {
+          await this._crearAutoTicketSeguimiento(pres);
+        }
+      } catch (err: any) {
+        console.error('[markEnviado] _crearAutoTicketSeguimiento failed:', err);
+        await this._appendPendingAction(id, {
+          type: 'crear_ticket_seguimiento',
+          reason: err?.message || 'auto-ticket fallido — causa desconocida',
+        }).catch(appendErr => console.error('[markEnviado] _appendPendingAction failed:', appendErr));
+      }
+    }
+  },
+
+  /**
+   * FLOW-01: crea el ticket de seguimiento auto-generado cuando un presupuesto pasa a
+   * `enviado` sin un ticket origen. El caller (`markEnviado`) envuelve esta llamada en
+   * try/catch y registra pendingAction si cualquiera de las precondiciones falla.
+   *
+   * Precondiciones:
+   * - Presupuesto NO debe tener origen `lead` (ese ticket ya existe → no se duplica)
+   * - `pres.clienteId` debe estar resuelto (si null, admin debe resolverlo en
+   *   /admin/revision-clienteid y el retry dispara desde `resolverClienteIdPendiente`)
+   * - `adminConfig/flujos.usuarioSeguimientoId` configurado
+   * - Usuario destino debe tener `status === 'activo'`
+   */
+  async _crearAutoTicketSeguimiento(pres: Presupuesto): Promise<{ leadId: string }> {
+    // Precondición: si ya tiene origen lead, skip — ese ticket hace las veces de seguimiento
+    if (pres.origenTipo === 'lead' && pres.origenId) {
+      throw new Error('Presupuesto ya tiene ticket origen — no se crea auto-ticket');
+    }
+    // Precondición: clienteId válido (shape del tipo dice string, pero runtime puede ser null/empty)
+    const clienteId = (pres.clienteId ?? '').toString().trim();
+    if (!clienteId) {
+      throw new Error('clienteId null — pendiente revisión manual en /admin/revision-clienteid');
+    }
+    // Read adminConfig/flujos
+    const cfg = await adminConfigService.getWithDefaults();
+    if (!cfg.usuarioSeguimientoId) {
+      throw new Error('adminConfig/flujos.usuarioSeguimientoId no configurado');
+    }
+    // Validar usuario activo (UserStatus union: 'pendiente' | 'activo' | 'deshabilitado')
+    const usuario = await usuariosService.getById(cfg.usuarioSeguimientoId);
+    if (!usuario || usuario.status !== 'activo') {
+      throw new Error(`usuario fijo seguimiento no activo: ${cfg.usuarioSeguimientoId}`);
+    }
+
+    // Crear lead (Ticket). Firma real: leadsService.create(data) → Promise<string>.
+    // El lead arranca en 'esperando_oc' — el presupuesto ya está enviado, paso siguiente es OC del cliente.
+    const leadPayload: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
+      clienteId,
+      contactoId: pres.contactoId ?? null,
+      razonSocial: '', // leadsService refresca si se pasa; el hidratador usa contactos/campos planos
+      contactos: [],
+      contacto: '',
+      email: '',
+      telefono: '',
+      motivoLlamado: 'ventas_equipos',
+      motivoContacto: `Presupuesto ${pres.numero} enviado — pendiente OC`,
+      descripcion: `Auto-generado por FLOW-01 al enviar ${pres.numero}.`,
+      sistemaId: pres.sistemaId ?? null,
+      moduloId: null,
+      estado: 'esperando_oc' as TicketEstado,
+      postas: [],
+      asignadoA: cfg.usuarioSeguimientoId,
+      asignadoNombre: usuario.displayName ?? null,
+      derivadoPor: null,
+      areaActual: 'ventas' as TicketArea,
+      accionPendiente: 'Esperar OC del cliente',
+      adjuntos: [],
+      presupuestosIds: [pres.id],
+      otIds: [],
+      finalizadoAt: null,
+      prioridad: 'normal',
+      proximoContacto: null,
+      valorEstimado: pres.total ?? null,
+    };
+    const leadId = await leadsService.create(leadPayload);
+    return { leadId };
+  },
+
+  /**
+   * FLOW-06: append una pendingAction al presupuesto. Usado por `markEnviado` cuando la
+   * creación del auto-ticket o el sync del lead origen falla, y por otros triggers
+   * (FLOW-02/03/04) en planes posteriores.
+   *
+   * Write simple con deepClean — NO transaccional (el caller ya committeó el estado principal).
+   * Idempotencia: cada action tiene un id único por `crypto.randomUUID()` — duplicados posibles
+   * si el caller reintenta, pero son visualmente distintos en el dashboard.
+   */
+  async _appendPendingAction(
+    presupuestoId: string,
+    action: Omit<PendingAction, 'id' | 'createdAt' | 'attempts'>,
+  ): Promise<void> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
+    const newAction: PendingAction = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+      ...action,
+    };
+    const updated = [...(pres.pendingActions || []), newAction];
+    await updateDoc(
+      doc(db, 'presupuestos', presupuestoId),
+      deepCleanForFirestore({
+        pendingActions: updated,
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }),
+    );
   },
 
   // Crear revisión de un presupuesto (anula el original)
