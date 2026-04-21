@@ -1,5 +1,5 @@
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea } from '@ags/shared';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
+import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, RequerimientoCompra } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
@@ -293,6 +293,44 @@ export const presupuestosService = {
 
   // Actualizar presupuesto
   async update(id: string, data: Partial<Presupuesto>) {
+    // ── FLOW-03 branching: si la transición es → 'aceptado' y el presupuesto tiene
+    // ítems con `itemRequiereImportacion: true`, delegar a aceptarConRequerimientos
+    // para usar runTransaction atómico (update presupuesto + crear requerimientos condicionales).
+    // Short-circuit returns antes de que el batch normal corra — el método delegado ya escribe.
+    if (data.estado === 'aceptado') {
+      const current = await this.getById(id);
+      if (current && current.estado !== 'aceptado') {
+        const hasImportItems = (current.items || []).some(
+          (it: any) => it?.itemRequiereImportacion === true && it?.stockArticuloId,
+        );
+        if (hasImportItems) {
+          // Pasar el resto de los campos junto con estado:aceptado requeriría mergear — pero
+          // el caller real (EditPresupuestoModal, usePresupuestoEdit) hace `update` con un
+          // diff pequeño (estado + motivoCambio). Aceptamos esta simplificación: cualquier
+          // otro campo en `data` (además de estado) se escribe en un update posterior FUERA
+          // del path transaccional — pero el caller típico solo pasa estado para transición.
+          await this.aceptarConRequerimientos(id);
+          // Si el caller pasó otros campos junto con el estado, escribirlos después
+          const { estado: _estado, ...otherFields } = data;
+          if (Object.keys(otherFields).length > 0) {
+            const raw2 = {
+              ...otherFields,
+              ...getUpdateTrace(),
+              updatedAt: Timestamp.now(),
+              ...((otherFields as any).fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date((otherFields as any).fechaEnvio)) } : {}),
+              ...((otherFields as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((otherFields as any).validUntil)) } : {}),
+            };
+            const cleaned2 = deepCleanForFirestore(raw2);
+            const batch2 = createBatch();
+            batch2.update(docRef('presupuestos', id), cleaned2);
+            batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
+            await batch2.commit();
+          }
+          return;
+        }
+      }
+    }
+
     // Convert date strings to Firestore Timestamps, then deep-clean
     const raw = {
       ...data,
@@ -306,6 +344,23 @@ export const presupuestosService = {
     batch.update(docRef('presupuestos', id), cleanedData);
     batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
     await batch.commit();
+
+    // ── FLOW-03 cleanup: al anular un presupuesto aceptado, cancelar requerimientos
+    // condicionales ligados (solo los `pendiente` / `aprobado` — los `comprado`/`en_compra`
+    // quedan intactos porque ya son gasto comprometido — Regla G del RESEARCH). Side-effect
+    // best-effort; si falla, log y sigue (admin puede limpiar manualmente).
+    if (data.estado === 'anulado') {
+      try {
+        const pres = await this.getById(id);
+        if (pres) {
+          await this._cancelarRequerimientosCondicionales(id).catch(err =>
+            console.error('[update anular] _cancelarRequerimientosCondicionales failed:', err),
+          );
+        }
+      } catch (err) {
+        console.error('[update anular] getById falló antes del cleanup:', err);
+      }
+    }
 
     // ── Auto-sync lead when presupuesto estado changes ──
     if (data.estado) {
@@ -715,6 +770,193 @@ export const presupuestosService = {
         fechaEnvio: toISO(data.fechaEnvio),
       } as Presupuesto;
     });
+  },
+
+  /**
+   * FLOW-03: Acepta un presupuesto y, si tiene ítems con `itemRequiereImportacion === true`,
+   * crea requerimientos condicionales atómicamente en una sola `runTransaction`:
+   *   - `tx.set` de 1 requerimiento por ítem con `condicional: true`
+   *   - `tx.update` del presupuesto a `estado: 'aceptado'`
+   *
+   * Invariantes:
+   *  - Numeros de requerimiento se pre-reservan FUERA de la tx (porque getNextNumber hace
+   *    un getDocs sequential read que NO se puede anidar en tx). Computamos el max base
+   *    una vez y generamos N+1, N+2, ..., N+k locally.
+   *  - NO `arrayUnion` / `increment` dentro de la tx (Firestore tx constraint — sentinel values
+   *    no son transaccionales).
+   *  - Idempotente: si el presupuesto ya está `aceptado`, la tx es no-op para el estado
+   *    y no se crean nuevos requerimientos.
+   *  - Post-commit side-effects (sync lead + intento de derivación a materiales_comex) se
+   *    ejecutan FUERA de la tx; fallos se registran como `pendingAction` via
+   *    `_appendPendingAction` (definido en plan 08-03).
+   *
+   * @returns `{ requerimientosIds }` — ids creados (puede ser [] si no hay items de import).
+   */
+  async aceptarConRequerimientos(
+    presupuestoId: string,
+    actor?: { uid: string; name?: string },
+  ): Promise<{ requerimientosIds: string[] }> {
+    // ── Paso 1: leer presupuesto + identificar ítems de importación ──
+    const pres = await this.getById(presupuestoId);
+    if (!pres) throw new Error('Presupuesto no encontrado');
+    if (pres.estado === 'aceptado') return { requerimientosIds: [] };
+
+    const itemsImport = (pres.items || []).filter(
+      (it: any) => it?.itemRequiereImportacion === true && it?.stockArticuloId,
+    );
+
+    // ── Paso 2: pre-reservar números de requerimiento (FUERA de tx) ──
+    // requerimientosService.getNextNumber hace getDocs sequential — no es seguro dentro de
+    // runTransaction (no se pueden anidar reads con writes de otras colecciones de forma
+    // arbitraria). Computamos el max una vez y generamos N numeros consecutivos.
+    const numerosReservados: string[] = [];
+    if (itemsImport.length > 0) {
+      const qReq = query(collection(db, 'requerimientos_compra'), orderBy('numero', 'desc'));
+      const snapReq = await getDocs(qReq);
+      let maxNum = 0;
+      snapReq.docs.forEach(d => {
+        const m = d.data().numero?.match(/REQ-(\d+)/);
+        if (m) { const n = parseInt(m[1]); if (n > maxNum) maxNum = n; }
+      });
+      for (let i = 1; i <= itemsImport.length; i++) {
+        numerosReservados.push(`REQ-${String(maxNum + i).padStart(4, '0')}`);
+      }
+    }
+
+    // ── Paso 3: pre-cargar datos de artículos para payload (FUERA de tx) ──
+    // Evita reads-during-writes conflict dentro de tx (reads primero, writes después es hard rule).
+    const articulosData = new Map<string, any>();
+    for (const item of itemsImport) {
+      const art = await articulosService.getById((item as any).stockArticuloId!).catch(() => null);
+      if (art) articulosData.set((item as any).stockArticuloId!, art);
+    }
+
+    // ── Paso 4: runTransaction atómico ──
+    const newReqIds: string[] = [];
+
+    await runTransaction(db, async (tx) => {
+      const presRef = doc(db, 'presupuestos', presupuestoId);
+      // Read-before-write (hard rule runTransaction)
+      const presSnap = await tx.get(presRef);
+      if (!presSnap.exists()) throw new Error('Presupuesto no encontrado');
+      const pp = presSnap.data() as Presupuesto;
+      // Idempotencia: si otra tx ya aceptó, salir
+      if (pp.estado === 'aceptado') return;
+
+      // Crear requerimientos condicionales (tx.set)
+      itemsImport.forEach((item: any, idx: number) => {
+        const reqRef = doc(collection(db, 'requerimientos_compra'));
+        newReqIds.push(reqRef.id);
+        const articulo = articulosData.get(item.stockArticuloId) || null;
+        const payload = deepCleanForFirestore({
+          numero: numerosReservados[idx],
+          articuloId: item.stockArticuloId,
+          articuloCodigo: item.codigoProducto || articulo?.codigo || null,
+          articuloDescripcion: item.descripcion || articulo?.descripcion || '',
+          cantidad: item.cantidad,
+          unidadMedida: item.unidad || articulo?.unidadMedida || 'unidad',
+          motivo: 'Auto — items sin stock en presupuesto aceptado',
+          origen: 'presupuesto',
+          origenRef: presupuestoId,
+          estado: 'pendiente',
+          condicional: true,
+          presupuestoId,
+          presupuestoNumero: pp.numero,
+          proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
+          proveedorSugeridoNombre: null,
+          ordenCompraId: null,
+          ordenCompraNumero: null,
+          solicitadoPor: actor?.name || 'Sistema',
+          fechaSolicitud: Timestamp.fromDate(new Date()),
+          fechaAprobacion: null,
+          urgencia: 'media',
+          notas: null,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          createdBy: actor?.uid ?? null,
+          createdByName: actor?.name ?? null,
+        });
+        tx.set(reqRef, payload);
+      });
+
+      // Update del presupuesto a 'aceptado'
+      tx.update(presRef, deepCleanForFirestore({
+        estado: 'aceptado',
+        updatedAt: Timestamp.now(),
+        updatedBy: actor?.uid ?? null,
+        updatedByName: actor?.name ?? null,
+      }));
+    });
+
+    // ── Paso 5: post-commit side-effects (best-effort, fuera de tx) ──
+    // Sync lead si aplica
+    if (pres.origenTipo === 'lead' && pres.origenId) {
+      try {
+        await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, 'aceptado');
+      } catch (err) {
+        console.error('[aceptarConRequerimientos] syncFromPresupuesto failed:', err);
+      }
+    }
+
+    // Intento de derivación a materiales_comex — area NO está en TicketArea v2.0,
+    // así que no podemos invocar derivar() con tipo estricto. Por pragmatismo, registramos
+    // pendingAction directamente (best-effort derivation es un no-op en v2.0 hasta que
+    // TicketArea incluya 'materiales_comex' — deferred para v2.1 o cuando se extienda shared).
+    if (itemsImport.length > 0) {
+      try {
+        await this._appendPendingAction(presupuestoId, {
+          type: 'derivar_comex',
+          reason: `Auto — ${itemsImport.length} items requieren importación; derivación a área materiales_comex pendiente (requiere extender TicketArea — v2.1).`,
+        });
+      } catch (err) {
+        console.error('[aceptarConRequerimientos] _appendPendingAction failed:', err);
+      }
+    }
+
+    return { requerimientosIds: newReqIds };
+  },
+
+  /**
+   * FLOW-03 cleanup: al anular un presupuesto aceptado, cancelar los requerimientos
+   * condicionales (`condicional: true`) ligados a él.
+   *
+   * Regla G (RESEARCH): solo cancelar los que están en `pendiente` o `aprobado`. Los que
+   * están en `comprado` o `en_compra` ya son gasto comprometido y se dejan intactos —
+   * el admin puede manejarlos manualmente si procede devolver / cancelar con proveedor.
+   *
+   * Usa `createBatch()` (no runTransaction) — el volumen esperado es bajo (<10 reqs) y
+   * no hay constraints de atomicidad multi-doc: cada requerimiento es independiente.
+   *
+   * @returns `{ cancelled, skipped }` — ambos counts para logging / UI.
+   */
+  async _cancelarRequerimientosCondicionales(
+    presupuestoId: string,
+    actor?: { uid: string; name?: string },
+  ): Promise<{ cancelled: number; skipped: number }> {
+    // Leer requerimientos asociados al presupuesto
+    const allReqs = await requerimientosService.getAll({ presupuestoId }).catch(() => [] as RequerimientoCompra[]);
+    const condicionales = allReqs.filter(r => (r as any).condicional === true);
+    const cancellables = condicionales.filter(r => r.estado === 'pendiente' || r.estado === 'aprobado');
+    const skipped = condicionales.length - cancellables.length;
+
+    if (cancellables.length === 0) return { cancelled: 0, skipped };
+
+    const batch = createBatch();
+    for (const r of cancellables) {
+      const payload = deepCleanForFirestore({
+        estado: 'cancelado',
+        canceladoPor: 'presupuesto_anulado',
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+        updatedBy: actor?.uid ?? null,
+        updatedByName: actor?.name ?? null,
+      });
+      batch.update(docRef('requerimientos_compra', r.id), payload);
+      batchAudit(batch, { action: 'update', collection: 'requerimientos_compra', documentId: r.id, after: payload as any });
+    }
+    await batch.commit();
+    console.log(`[_cancelarRequerimientosCondicionales] cancelled=${cancellables.length} skipped=${skipped} pres=${presupuestoId}`);
+    return { cancelled: cancellables.length, skipped };
   },
 
   // Crear revisión de un presupuesto (anula el original)
