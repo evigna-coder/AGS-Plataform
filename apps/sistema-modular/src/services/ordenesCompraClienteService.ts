@@ -1,19 +1,30 @@
 import {
   collection, doc, getDoc, getDocs, query, where, Timestamp,
-  updateDoc, deleteDoc,
+  updateDoc, deleteDoc, runTransaction,
 } from 'firebase/firestore';
-import type { OrdenCompraCliente } from '@ags/shared';
+import type {
+  OrdenCompraCliente, Presupuesto, Posta, TicketEstado, Ticket,
+} from '@ags/shared';
 import {
   db, deepCleanForFirestore, getUpdateTrace, onSnapshot,
 } from './firebase';
+import { notifyCoordinadorOTBestEffort } from './cargarOCHelpers';
 
 /**
  * Servicio para la colección `ordenesCompraCliente` (OCs emitidas por el CLIENTE hacia AGS — FLOW-02).
  * Separada de `ordenes_compra` (OCs internas a proveedores).
  *
- * CRUD baseline lista en plan 08-01. La operación transaccional `cargarOC` queda
- * como stub — el plan 08-02 implementa el `runTransaction` completo que toca
- * `ordenesCompraCliente` + `presupuesto.ordenesCompraIds` + `lead.estado`.
+ * CRUD baseline entregado en plan 08-01. La operación transaccional `cargarOC`
+ * es el core de FLOW-02 (plan 08-02): crea/actualiza la OC, linkea el/los
+ * presupuesto(s) (N:M) y transiciona el ticket de seguimiento a `oc_recibida`
+ * atómicamente. El presupuesto NO cambia de estado (lock Phase 7).
+ *
+ * Hard rules (RESEARCH):
+ * - NO `arrayUnion` dentro de `runTransaction` (no transaccional → merge manual).
+ * - NO llamar otros services que abran batch/tx (nested prohibido) — todas las
+ *   writes inline aquí.
+ * - Reads antes que writes (Firestore SDK constraint).
+ * - `deepCleanForFirestore` en cada write (no undefined).
  */
 
 const COLLECTION = 'ordenesCompraCliente';
@@ -102,19 +113,157 @@ export const ordenesCompraClienteService = {
   },
 
   /**
-   * STUB — plan 08-02 implementa el `runTransaction` completo.
+   * FLOW-02 core: carga atómica de una OC del cliente.
    *
-   * Debe:
-   *   1. Leer presupuesto(s) + lead(s) + OC existente (si `existingOcId`).
-   *   2. Crear/actualizar `ordenesCompraCliente` (merge de `presupuestosIds` manual — no `arrayUnion` en tx).
-   *   3. Append `ocRef.id` a `presupuesto.ordenesCompraIds`.
-   *   4. Transicionar `ticket.estado` a `'oc_recibida'` + append `Posta`.
-   *   5. Registrar `pendingAction` condicional (derivar_comex / notificar_coordinador_ot).
+   * Flow:
+   *   1. Lee todos los presupuestos target + lead (si hay) + OC existente (si hay).
+   *   2. Valida: cada presupuesto debe estar `aceptado` (si no → throw, tx rollback).
+   *   3. Crea nueva OC o mergea `presupuestosIds` en la existente.
+   *   4. Para cada presupuesto: mergea manualmente `ordenesCompraIds` (sin arrayUnion).
+   *   5. Si hay lead: transiciona a `oc_recibida` + appendea Posta.
+   *   6. Post-commit best-effort: notifica al coordinador OT. Si falla, appendea
+   *      `pendingAction 'notificar_coordinador_ot'` a cada presupuesto.
+   *
+   * NO appendea `pendingAction 'derivar_comex'` (W1 fix 2026-04-21: la derivación
+   * a Comex ocurre en acceptance vía plan 08-04 `aceptarConRequerimientos`).
    */
   async cargarOC(
-    _payload: Omit<OrdenCompraCliente, 'id' | 'createdAt' | 'updatedAt'>,
-    _context: { leadId?: string | null; presupuestosIds: string[]; existingOcId?: string | null },
+    payload: Omit<OrdenCompraCliente, 'id' | 'createdAt' | 'updatedAt'>,
+    context: {
+      leadId?: string | null;
+      presupuestosIds: string[];
+      existingOcId?: string | null;
+    },
+    actor?: { uid: string; name?: string },
   ): Promise<{ id: string; numero: string }> {
-    throw new Error('NOT_IMPLEMENTED — plan 08-02 implementa la runTransaction completa');
+    if (!context.presupuestosIds.length) {
+      throw new Error('cargarOC: al menos 1 presupuesto requerido');
+    }
+
+    const nowIso = new Date().toISOString();
+    const ocRef = context.existingOcId
+      ? doc(db, COLLECTION, context.existingOcId)
+      : doc(collection(db, COLLECTION));
+    const finalOcId = ocRef.id;
+    const actorUid = actor?.uid || null;
+    const actorName = actor?.name || null;
+
+    let finalNumero = payload.numero;
+
+    await runTransaction(db, async (tx) => {
+      // ── READS (todas primero) ─────────────────────────────────────────
+      const presSnaps = await Promise.all(
+        context.presupuestosIds.map(id => tx.get(doc(db, 'presupuestos', id))),
+      );
+      const leadSnap = context.leadId
+        ? await tx.get(doc(db, 'leads', context.leadId))
+        : null;
+      const ocSnap = context.existingOcId ? await tx.get(ocRef) : null;
+
+      // ── VALIDATIONS ───────────────────────────────────────────────────
+      const presupuestos = presSnaps.map((s, i) => {
+        if (!s.exists()) {
+          throw new Error(`Presupuesto ${context.presupuestosIds[i]} no encontrado`);
+        }
+        const p = { id: s.id, ...(s.data() as any) } as Presupuesto;
+        if (p.estado !== 'aceptado') {
+          throw new Error(
+            `Presupuesto ${p.numero || p.id} no está aceptado (estado actual: ${p.estado}). No se puede cargar OC.`,
+          );
+        }
+        return p;
+      });
+
+      // Si es OC existente, guarda el numero real (payload.numero puede venir vacío del caller).
+      if (context.existingOcId && ocSnap?.exists()) {
+        const existing = ocSnap.data() as OrdenCompraCliente;
+        finalNumero = existing.numero || finalNumero;
+      }
+
+      // ── WRITES ────────────────────────────────────────────────────────
+      if (context.existingOcId && ocSnap?.exists()) {
+        const existing = ocSnap.data() as OrdenCompraCliente;
+        const mergedPresIds = Array.from(new Set([
+          ...(existing.presupuestosIds || []),
+          ...context.presupuestosIds,
+        ]));
+        const mergedAdjuntos = [
+          ...(existing.adjuntos || []),
+          ...(payload.adjuntos || []),
+        ];
+        tx.update(ocRef, deepCleanForFirestore({
+          presupuestosIds: mergedPresIds,
+          adjuntos: mergedAdjuntos,
+          notas: payload.notas ?? existing.notas ?? null,
+          updatedAt: nowIso,
+          updatedBy: actorUid,
+          updatedByName: actorName,
+        }));
+      } else {
+        tx.set(ocRef, deepCleanForFirestore({
+          numero: payload.numero,
+          fecha: payload.fecha,
+          clienteId: payload.clienteId,
+          presupuestosIds: Array.from(new Set(context.presupuestosIds)),
+          adjuntos: payload.adjuntos || [],
+          notas: payload.notas ?? null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          createdBy: actorUid,
+          createdByName: actorName,
+          updatedBy: actorUid,
+          updatedByName: actorName,
+        }));
+      }
+
+      // Per-presupuesto: merge manual de ordenesCompraIds (NO arrayUnion).
+      for (const p of presupuestos) {
+        const currentOcIds = p.ordenesCompraIds || [];
+        const newOcIds = currentOcIds.includes(finalOcId)
+          ? currentOcIds
+          : [...currentOcIds, finalOcId];
+
+        tx.update(doc(db, 'presupuestos', p.id), deepCleanForFirestore({
+          ordenesCompraIds: newOcIds,
+          updatedAt: nowIso,
+          updatedBy: actorUid,
+          updatedByName: actorName,
+        }));
+      }
+
+      // Lead update + posta append (si hay lead).
+      if (leadSnap?.exists()) {
+        const lead = leadSnap.data() as Ticket;
+        const estadoAnterior: TicketEstado = lead.estado;
+        // Idempotencia: si el ticket ya está en 'oc_recibida', no cambiar estado
+        // pero sí appendear Posta (registra la 2da OC cargada).
+        const nuevaPosta: Posta = {
+          id: crypto.randomUUID(),
+          fecha: nowIso,
+          deUsuarioId: actorUid || '',
+          deUsuarioNombre: actorName || 'sistema',
+          aUsuarioId: lead.asignadoA || '',
+          aUsuarioNombre: lead.asignadoNombre || '',
+          aArea: lead.areaActual || undefined,
+          estadoAnterior,
+          estadoNuevo: 'oc_recibida' as TicketEstado,
+          comentario: `OC ${payload.numero} cargada para presupuesto(s) ${presupuestos.map(p => p.numero).filter(Boolean).join(', ')}`,
+        };
+        const nuevasPostas = [...(lead.postas || []), nuevaPosta];
+        tx.update(leadSnap.ref, deepCleanForFirestore({
+          estado: 'oc_recibida' as TicketEstado,
+          postas: nuevasPostas,
+          updatedAt: nowIso,
+          updatedBy: actorUid,
+          updatedByName: actorName,
+        }));
+      }
+    });
+
+    // ── POST-COMMIT best-effort: notificar coordinador OT ─────────────────
+    // Appendea pendingAction `'notificar_coordinador_ot'` SOLO si la notificación falla.
+    await notifyCoordinadorOTBestEffort(context.presupuestosIds);
+
+    return { id: finalOcId, numero: finalNumero };
   },
 };
