@@ -59,13 +59,15 @@ export const navigation: NavItem[] = [
   { name: 'Contratos', path: '/contratos', icon: '📑', modulo: 'contratos' },
   { name: 'Facturacion', path: '/facturacion', icon: '💰', modulo: 'facturacion' },
   {
-    name: 'Importar Datos', path: '/admin/importar', icon: '📥', modulo: 'admin',
+    name: 'Admin', path: '/admin', icon: '⚙️', modulo: 'admin',
     children: [
       { name: 'Importar Excel', path: '/admin/importar' },
       { name: 'Revisión clienteId', path: '/admin/revision-clienteid' },
+      { name: 'Módulos', path: '/admin/modulos' },
+      { name: 'Config Flujos', path: '/admin/config-flujos', separator: true },
+      { name: 'Acciones Pendientes', path: '/admin/acciones-pendientes' },
     ],
   },
-  { name: 'Módulos', path: '/admin/modulos', icon: '🧩', modulo: 'admin' },
 ];
 
 /** Module root paths — used by keyboard shortcuts to know when to stop navigating up */
