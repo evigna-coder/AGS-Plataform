@@ -563,6 +563,160 @@ export const presupuestosService = {
     );
   },
 
+  /**
+   * FLOW-06: retry de una `PendingAction` específica de un presupuesto.
+   *
+   * - Siempre incrementa `attempts` (éxito o falla).
+   * - Setea `resolvedAt` solo si el handler corrió sin lanzar.
+   * - Handler switcheado por `action.type`:
+   *   - `crear_ticket_seguimiento` → reintenta `_crearAutoTicketSeguimiento(pres)`.
+   *   - `derivar_comex` → v2.0 no-op success (el requerimiento condicional ya debería existir
+   *     por FLOW-03; si existe una action de este tipo es por versiones legacy).
+   *   - `notificar_coordinador_ot` → v2.0 no-op success (el posting al coordinador es best-effort;
+   *     la UI del dashboard marca "OK" al ejecutar).
+   *   - `enviar_mail_facturacion` → retorna error pidiendo retry desde el botón específico
+   *     del dashboard (implementado por plan 08-05 con OAuth del admin).
+   *   - default → retorna error 'tipo no soportado'.
+   *
+   * Usado por el dashboard `/admin/acciones-pendientes` (plan 08-05) y por
+   * `retryPendingActionsForCliente` (trigger retroactivo desde resolverClienteIdPendiente).
+   */
+  async retryPendingAction(
+    presupuestoId: string,
+    actionId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return { success: false, error: 'Presupuesto no encontrado' };
+    const action = (pres.pendingActions || []).find(a => a.id === actionId);
+    if (!action) return { success: false, error: 'Action no encontrada' };
+    if (action.resolvedAt) return { success: true };
+
+    let success = false;
+    let error: string | undefined;
+    try {
+      switch (action.type) {
+        case 'crear_ticket_seguimiento':
+          await this._crearAutoTicketSeguimiento(pres);
+          success = true;
+          break;
+        case 'derivar_comex':
+          // v2.0: no-op success. El requerimiento condicional ya se crea en FLOW-03 al `aceptado`.
+          // Este tipo de action solo quedaría registrado por un bug o una versión legacy —
+          // marcar resuelto sin side-effect. Plan 08-04 puede extender si detecta casos reales.
+          success = true;
+          break;
+        case 'notificar_coordinador_ot':
+          // v2.0: no-op success. El posting al coordinador es best-effort en el dashboard.
+          success = true;
+          break;
+        case 'enviar_mail_facturacion':
+          // Plan 08-05 implementa retry con OAuth del admin desde el dashboard específico.
+          return { success: false, error: 'retry desde /admin/acciones-pendientes botón específico (plan 08-05)' };
+        default:
+          return { success: false, error: `tipo no soportado: ${(action as PendingAction).type}` };
+      }
+    } catch (err: any) {
+      error = err?.message || 'Error desconocido';
+    }
+
+    // Update: attempts++ siempre; resolvedAt solo si success
+    const updatedActions = (pres.pendingActions || []).map(a => {
+      if (a.id !== actionId) return a;
+      return {
+        ...a,
+        attempts: (a.attempts || 0) + 1,
+        ...(success ? { resolvedAt: new Date().toISOString() } : {}),
+      };
+    });
+    await updateDoc(
+      doc(db, 'presupuestos', presupuestoId),
+      deepCleanForFirestore({
+        pendingActions: updatedActions,
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }),
+    );
+
+    if (!success) console.error(`[retryPendingAction] ${action.type} failed:`, error);
+    return success ? { success: true } : { success: false, error };
+  },
+
+  /**
+   * FLOW-06: retry retroactivo de todas las pendingActions no resueltas de los presupuestos
+   * asociados a un cliente. Disparado desde `leadsService.resolverClienteIdPendiente` cuando
+   * el admin resuelve un clienteId desde `/admin/revision-clienteid`.
+   *
+   * Nota: solo matchea presupuestos cuyo `clienteId === clienteId` (query where). Los
+   * presupuestos con `clienteId === null/empty` no aparecen aquí — esos requieren resolver
+   * el clienteId del presupuesto antes (scope fuera de 08-03).
+   */
+  async retryPendingActionsForCliente(
+    clienteId: string,
+  ): Promise<{ retried: number; successful: number; failed: number }> {
+    const presupuestos = await this.getByCliente(clienteId);
+    let retried = 0;
+    let successful = 0;
+    let failed = 0;
+    for (const pres of presupuestos) {
+      const pendientes = (pres.pendingActions || []).filter(a => !a.resolvedAt);
+      for (const action of pendientes) {
+        retried++;
+        const result = await this.retryPendingAction(pres.id, action.id);
+        if (result.success) successful++;
+        else failed++;
+      }
+    }
+    return { retried, successful, failed };
+  },
+
+  /**
+   * FLOW-06: marca una pendingAction como resuelta manualmente sin ejecutar la acción real.
+   * Uso: el admin ya hizo el trabajo afuera del sistema (ej: mandó el mail manualmente)
+   * y solo quiere cerrar la fila en el dashboard.
+   *
+   * Setea `resolvedAt` al timestamp actual — NO incrementa `attempts`.
+   */
+  async markPendingActionResolved(
+    presupuestoId: string,
+    actionId: string,
+  ): Promise<void> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
+    const updatedActions = (pres.pendingActions || []).map(a =>
+      a.id === actionId ? { ...a, resolvedAt: new Date().toISOString() } : a,
+    );
+    await updateDoc(
+      doc(db, 'presupuestos', presupuestoId),
+      deepCleanForFirestore({
+        pendingActions: updatedActions,
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }),
+    );
+  },
+
+  /**
+   * Lista los presupuestos de un cliente. Usado por `retryPendingActionsForCliente` para
+   * iterar pendingActions. `getAll({ clienteId })` ya existe — este helper es un alias con
+   * shape más directo para callers que solo necesitan los presupuestos crudos.
+   */
+  async getByCliente(clienteId: string): Promise<Presupuesto[]> {
+    const q = query(collection(db, 'presupuestos'), where('clienteId', '==', clienteId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        estado: migrateEstado(data.estado),
+        createdAt: toISO(data.createdAt, ''),
+        updatedAt: toISO(data.updatedAt, ''),
+        validUntil: toISO(data.validUntil),
+        fechaEnvio: toISO(data.fechaEnvio),
+      } as Presupuesto;
+    });
+  },
+
   // Crear revisión de un presupuesto (anula el original)
   async createRevision(id: string, motivo: string): Promise<{ id: string; numero: string }> {
     const original = await this.getById(id);
