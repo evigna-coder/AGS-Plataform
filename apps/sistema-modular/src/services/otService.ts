@@ -1,9 +1,41 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
-import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot } from './firebase';
+import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto } from '@ags/shared';
+import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
 import { agendaService } from './agendaService';
+import { adminConfigService } from './adminConfigService';
+
+/**
+ * FLOW-04: build a minimal plaintext body for the cierre_admin_ot mailQueue doc.
+ * The real HTML/PDF rendering + attachments resolution live in the Cloud Function
+ * consumer of `mailQueue` (deferred to Phase 9+). This body is enough for a human
+ * reader if the mail is sent as-is, and keeps the `mailQueue` doc self-describing.
+ */
+function buildAvisoFacturacionBody(
+  ot: WorkOrder,
+  presupuestos: Array<Presupuesto | null>,
+): string {
+  const presValid = presupuestos.filter((p): p is Presupuesto => !!p);
+  const lines: string[] = [
+    `OT ${ot.otNumber} cerrada administrativamente.`,
+    ``,
+    `Cliente: ${ot.razonSocial || ot.clienteId || '—'}`,
+    `Fecha de cierre: ${new Date().toLocaleDateString('es-AR')}`,
+    ``,
+    `Presupuestos vinculados:`,
+  ];
+  if (presValid.length === 0) {
+    lines.push('  (sin presupuesto vinculado — revisar manualmente)');
+  } else {
+    for (const p of presValid) {
+      lines.push(`  - ${p.numero} (${p.moneda}) — total ${p.total}`);
+    }
+  }
+  lines.push(``);
+  lines.push(`Adjuntos: PDF de presupuesto(s) + adjuntos de OC (resueltos por el consumer)`);
+  return lines.join('\n');
+}
 
 // Servicio para Órdenes de Trabajo (OTs) - usa la colección 'reportes' existente
 export const ordenesTrabajoService = {
@@ -337,7 +369,167 @@ export const ordenesTrabajoService = {
     await batch.commit();
   },
 
-  /** Encola un mail de aviso a administración para facturación */
+  /**
+   * FLOW-04: cierra una OT administrativamente atómicamente.
+   *
+   * Todo en una única `runTransaction`:
+   *   - `tx.update` OT: estadoAdmin='CIERRE_ADMINISTRATIVO' + fechaCierre
+   *   - `tx.set` ticket admin nuevo (colección `leads`, area='administracion')
+   *   - `tx.set` doc en `mailQueue` con type='cierre_admin_ot', status='pending'
+   *
+   * Post-commit (best-effort, fuera de tx):
+   *   - `leadsService.syncFromOT` en el lead origen si existe
+   *
+   * Error handling:
+   *   - Si la tx falla, el caller recibe el throw — registra `pendingAction`
+   *     type='enviar_mail_facturacion' en los presupuestos vinculados.
+   *   - Si el pre-read de la config falla, se usa hardcoded fallback mail y se continúa.
+   *
+   * NOTA: Esta operación NO llama a `otService.update` ni `leadsService.create` dentro
+   * de la tx (nested runTransaction prohibido) — todas las writes son inline con `tx.*`.
+   *
+   * El destinatario del mail proviene de `adminConfig/flujos.mailFacturacion` (default
+   * `mbarrios@agsanalitica.com` via `ADMIN_CONFIG_DEFAULTS`). Se lee FUERA de la tx.
+   */
+  async cerrarAdministrativamente(
+    otNumber: string,
+    cierreData: { notas?: string; fechaCierre?: string },
+    actor?: { uid: string; name?: string },
+  ): Promise<{ adminTicketId: string; mailQueueId: string }> {
+    // ── Pre-reads fuera de tx ─────────────────────────────────────
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) throw new Error('OT no encontrada');
+
+    // Config con defaults (fallback hardcoded si adminConfig lectura falla).
+    let mailTo = 'mbarrios@agsanalitica.com';
+    try {
+      const cfg = await adminConfigService.getWithDefaults();
+      mailTo = cfg.mailFacturacion || mailTo;
+    } catch (err) {
+      console.warn('[cerrarAdministrativamente] adminConfig read failed; using default mail:', err);
+    }
+
+    // Pre-cargar presupuestos vinculados para el body del mail. OT.budgets contiene
+    // los `numero` (PRE-XXXX.NN), pero los services se llaman por id — aquí asumimos
+    // que los `budgets[]` son numeros y filtramos matching. Si no se resuelve alguno,
+    // el body lo lista como "—".
+    const presupuestoNumeros = ot.budgets || [];
+    let presupuestosPorNumero: Array<Presupuesto | null> = [];
+    let presupuestoIds: string[] = [];
+    if (presupuestoNumeros.length > 0) {
+      try {
+        const all = await presupuestosService.getAll();
+        presupuestosPorNumero = presupuestoNumeros.map(num => all.find(p => p.numero === num) ?? null);
+        presupuestoIds = presupuestosPorNumero.filter((p): p is Presupuesto => !!p).map(p => p.id);
+      } catch (err) {
+        console.warn('[cerrarAdministrativamente] presupuestos read failed:', err);
+      }
+    }
+
+    const ocIds = Array.from(new Set(
+      presupuestosPorNumero.flatMap(p => (p?.ordenesCompraIds || [])),
+    ));
+
+    const subject = `Aviso facturación — OT ${otNumber}`;
+    const body = buildAvisoFacturacionBody(ot, presupuestosPorNumero);
+
+    const nowIso = new Date().toISOString();
+    const newAdminTicketRef = newDocRef('leads');
+    const newMailQueueRef = newDocRef('mailQueue');
+
+    // ── Transaction: 3 writes atómicos ─────────────────────────────
+    await runTransaction(db, async (tx) => {
+      const otRef = doc(db, 'reportes', otNumber);
+      const otSnap = await tx.get(otRef);
+      if (!otSnap.exists()) throw new Error(`OT ${otNumber} no encontrada (tx)`);
+
+      // Write 1: update OT a CIERRE_ADMINISTRATIVO
+      tx.update(otRef, deepCleanForFirestore({
+        estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
+        fechaCierre: cierreData.fechaCierre ?? nowIso,
+        updatedAt: nowIso,
+        updatedBy: actor?.uid ?? null,
+        updatedByName: actor?.name ?? null,
+      }));
+
+      // Write 2: ticket admin nuevo (area='administracion')
+      const adminTicketPayload: Omit<Lead, 'id'> & { createdAt: string; updatedAt: string } = {
+        clienteId: ot.clienteId ?? null,
+        contactoId: null,
+        razonSocial: ot.razonSocial || '',
+        contactos: [],
+        contacto: ot.contacto || '',
+        email: ot.emailPrincipal || '',
+        telefono: '',
+        motivoLlamado: 'administracion',
+        motivoContacto: `Aviso facturación — OT ${otNumber}`,
+        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.` : 'Sin presupuesto vinculado.'} Revisar facturación.`,
+        sistemaId: ot.sistemaId ?? null,
+        moduloId: ot.moduloId ?? null,
+        estado: 'nuevo' as TicketEstado,
+        postas: [],
+        asignadoA: null,
+        asignadoNombre: null,
+        derivadoPor: actor?.uid ?? null,
+        areaActual: 'administracion' as TicketArea,
+        accionPendiente: 'Revisar facturación y emitir',
+        adjuntos: [],
+        presupuestosIds: presupuestoIds,
+        otIds: [otNumber],
+        finalizadoAt: null,
+        prioridad: 'normal',
+        proximoContacto: null,
+        valorEstimado: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        createdBy: actor?.uid ?? undefined,
+      };
+      tx.set(newAdminTicketRef, deepCleanForFirestore(adminTicketPayload));
+
+      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending')
+      tx.set(newMailQueueRef, deepCleanForFirestore({
+        type: 'cierre_admin_ot',
+        status: 'pending',
+        data: {
+          to: mailTo,
+          subject,
+          body,
+          otNumber,
+          presupuestoIds,
+          presupuestoNumeros,
+          ocIds,
+          attachments: [
+            ...presupuestoIds.map(pid => ({ type: 'pdf_presupuesto', presupuestoId: pid })),
+            // OC attachments se resuelven en el consumer via `ocIds`
+          ],
+          razonSocial: ot.razonSocial || '',
+          clienteId: ot.clienteId ?? null,
+        },
+        createdAt: nowIso,
+        createdBy: actor?.uid ?? null,
+      }));
+    });
+
+    // ── Post-commit side-effects (best-effort, NO bloquea) ────────
+    try {
+      if (ot.leadId) {
+        await leadsService.syncFromOT(ot.leadId, otNumber, 'CIERRE_ADMINISTRATIVO');
+      }
+    } catch (err) {
+      console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
+    }
+
+    return { adminTicketId: newAdminTicketRef.id, mailQueueId: newMailQueueRef.id };
+  },
+
+  /**
+   * @deprecated Usar `cerrarAdministrativamente` — esta función NO es transaccional
+   * (solo encola el mail; no crea ticket admin ni actualiza OT). Queda para retry manual
+   * desde el dashboard `/admin/acciones-pendientes` cuando el mailQueue consumer ya procesó
+   * el doc pero falló el envío real.
+   *
+   * Mantener para backward compatibility y fallback.
+   */
   async enviarAvisoCierreAdmin(otNumber: string, data: {
     razonSocial: string;
     tipoServicio: string;

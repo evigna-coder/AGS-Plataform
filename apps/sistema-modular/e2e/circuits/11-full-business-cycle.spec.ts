@@ -390,13 +390,10 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
 
   // FLOW-04 — Aviso a Facturación al CIERRE_ADMINISTRATIVO
   //
-  // RED baseline: plan 08-05 implementa `otService.cerrarAdministrativamente`
-  // que encola el mail en `mailQueue` con type='cierre_admin_ot' y crea un
-  // ticket admin. Hasta entonces este test permanece test.fixme — el
-  // executor del plan 08-05 lo desfixmea.
+  // Plan 08-05 implementa `otService.cerrarAdministrativamente` que encola el mail
+  // en `mailQueue` con type='cierre_admin_ot' y crea un ticket admin atómicamente.
+  // Este test desfixmeado en plan 08-05.
   test('11.13b — FLOW-04: mailQueue doc + ticket admin al CIERRE_ADMINISTRATIVO', async ({ app }) => {
-    test.fixme(true, 'FLOW-04 aún no implementado — plan 08-05 desfixmea');
-
     // Assert 1: un doc en mailQueue con type='cierre_admin_ot' y status='pending'.
     await pollUntil(
       () => getMailQueueDocs({ type: 'cierre_admin_ot', status: 'pending', limit: 5 }),
