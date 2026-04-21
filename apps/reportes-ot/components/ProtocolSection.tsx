@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useIsCompact } from '../hooks/useIsMobile';
 import { FirebaseService } from '../services/firebaseService';
 import { TableSelectorPanel } from './TableSelectorPanel';
 import { CatalogTableView } from './CatalogTableView';
@@ -104,6 +105,11 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   variables,
   allPublishedTables,
 }) => {
+  // En viewports <1024px (mobile + tablet portrait) el protocolo pasa a modo tarjetas.
+  // Preview mode y PDF export siempre usan scroll clásico (tabla real para fidelidad del PDF).
+  const isCompact = useIsCompact();
+  const wizardMode = isCompact && !isPreviewMode;
+
   // Fetch fresh table data by ID (bypasses published filter) for liveTemplateRows fallback
   const [freshTables, setFreshTables] = useState<TableCatalogEntry[]>([]);
   useEffect(() => {
@@ -390,10 +396,20 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
         </div>
       )}
 
-      {/* Anexo edición: scroll de página (solo si hay template) */}
+      {/* Anexo edición: tabla (desktop) o tarjetas (mobile/tablet portrait) */}
       {protocolTemplate && (
-        <div className="mt-6 bg-[#f1f5f9] py-6 w-full flex justify-center overflow-x-auto overflow-y-visible max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2">
-          <div id="pdf-container-anexo" className="shrink-0 min-h-0" style={{ width: '210mm' }}>
+        <div
+          className={
+            wizardMode
+              ? 'mt-4 w-full mx-auto px-3'
+              : 'mt-6 bg-[#f1f5f9] py-6 w-full flex justify-center overflow-x-auto overflow-y-visible max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2'
+          }
+        >
+          <div
+            id="pdf-container-anexo"
+            className={wizardMode ? 'w-full' : 'shrink-0 min-h-0'}
+            style={wizardMode ? undefined : { width: '210mm' }}
+          >
             <ProtocolView
               template={protocolTemplate}
               readOnly={readOnly}
@@ -404,6 +420,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
               }}
               showGuides={true}
               mode="edit"
+              wizardMode={wizardMode}
             />
           </div>
         </div>
