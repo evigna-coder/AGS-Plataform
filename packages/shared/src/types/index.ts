@@ -877,6 +877,18 @@ export interface PresupuestoItem {
   itemNotasAdicionales?: string | null;
   /** Si es true, el ítem se renderiza como "S/L" (sin cargo) en la columna de cantidad. Usado para listar componentes de un sistema para trazabilidad. */
   esSinCargo?: boolean;
+  /**
+   * (Phase 8 FLOW-03) Si true, el artículo vinculado (`stockArticuloId`) no tiene stock disponible
+   * ni en tránsito ni reservado al momento de agregar el ítem al presupuesto. Se computa
+   * automáticamente al seleccionar el artículo (ver `atpHelpers.ts`). Al aceptar el presupuesto,
+   * se crea un `RequerimientoCompra` con `condicional: true` por cada item con este flag.
+   *
+   * NO aplica a items sin `stockArticuloId` (servicios, consumibles no-stock) — permanece `false`/undefined.
+   *
+   * TODO(STKP-01): el cálculo actual es suma simple de unidades por estado; Phase 9 lo
+   * reemplazará con `computeStockAmplio()` (source of truth consolidada).
+   */
+  itemRequiereImportacion?: boolean;
 }
 
 // --- Adjunto de Presupuesto ---

@@ -42,8 +42,9 @@ export const ContratoItemRow: React.FC<Props> = ({
 
   const toggleParte = () => {
     if (isParte) {
-      // Unbind from stock — keep free text
+      // Unbind from stock — keep free text + clear FLOW-03 import flag
       onUpdate('stockArticuloId', null);
+      onUpdate('itemRequiereImportacion', false);
     } else {
       // Mark as parte (autocomplete will fill stockArticuloId on pick)
       onUpdate('stockArticuloId', '');

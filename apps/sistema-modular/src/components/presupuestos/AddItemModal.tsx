@@ -5,6 +5,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { EquipoLinkPanel } from './EquipoLinkPanel';
+import { itemRequiresImportacion } from '../../services/atpHelpers';
 
 const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
   { value: '', label: 'Sin categoria' },
@@ -40,6 +41,9 @@ export const AddItemModal = ({
     const concepto = conceptosServicio.find(c => c.id === conceptoId);
     if (!concepto) return;
     const precio = concepto.valorBase * concepto.factorActualizacion;
+    // FLOW-03: conceptosServicio son items de catálogo (servicios/consumibles sin stock link).
+    // No tienen `stockArticuloId` → itemRequiereImportacion queda `false` por contrato
+    // (ver atpHelpers.itemRequiresImportacion: retorna false cuando articuloId es null/undefined).
     setNewItem({
       ...newItem,
       descripcion: concepto.descripcion,
@@ -47,8 +51,15 @@ export const AddItemModal = ({
       codigoProducto: concepto.codigo || newItem.codigoProducto || null,
       categoriaPresupuestoId: concepto.categoriaPresupuestoId || newItem.categoriaPresupuestoId,
       conceptoServicioId: concepto.id,
+      itemRequiereImportacion: false,
     });
   };
+
+  // FLOW-03: si algún día el modal agrega un selector directo de stockArticuloId, usar:
+  //   const requiere = await itemRequiresImportacion(articuloId);
+  //   setNewItem({...newItem, stockArticuloId: articuloId, itemRequiereImportacion: requiere});
+  // Exposed reference para evitar tree-shaking de helper en flows futuros.
+  void itemRequiresImportacion;
 
   const taxPreview = () => {
     if (!categoria) return null;

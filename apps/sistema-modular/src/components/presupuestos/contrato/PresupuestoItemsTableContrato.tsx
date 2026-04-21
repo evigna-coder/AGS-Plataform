@@ -5,6 +5,7 @@ import { ContratoSistemaGroup } from './ContratoSistemaGroup';
 import { AgregarSistemaContratoModal } from './AgregarSistemaContratoModal';
 import { groupItemsForContrato, nextGrupoNumber, nextSubForGrupo, makeSubItem } from './contratoItemHelpers';
 import { articulosService } from '../../../services/firebaseService';
+import { itemRequiresImportacion } from '../../../services/atpHelpers';
 import type { ArticuloMini } from './ArticuloInlineAutocomplete';
 
 interface Props {
@@ -40,11 +41,21 @@ export const PresupuestoItemsTableContrato: React.FC<Props> = ({
   }, []);
 
   /** Called from ContratoItemRow when user picks an article from the autocomplete.
-   *  We need the itemId to know which row to update, so we build a closure per row. */
+   *  We need the itemId to know which row to update, so we build a closure per row.
+   *  FLOW-03: al seleccionar un artículo, consultamos ATP y seteamos itemRequiereImportacion
+   *  si ATP === 0 (suma simple de unidades por estado — ver atpHelpers.ts). */
   const handlePickArticulo = (itemId: string, art: ArticuloMini) => {
     onUpdateItem(itemId, 'stockArticuloId', art.id);
     onUpdateItem(itemId, 'codigoProducto', art.codigo);
     onUpdateItem(itemId, 'descripcion', art.descripcion);
+    // FLOW-03: ATP check — fire-and-forget; si falla, flag queda falsy y no se dispara
+    // requerimiento condicional (safe default).
+    itemRequiresImportacion(art.id)
+      .then(requiere => onUpdateItem(itemId, 'itemRequiereImportacion', requiere))
+      .catch(err => {
+        console.warn('[PresupuestoItemsTableContrato] ATP check failed:', err);
+        onUpdateItem(itemId, 'itemRequiereImportacion', false);
+      });
   };
 
   const grouped = useMemo(() => groupItemsForContrato(items), [items]);
