@@ -47,6 +47,9 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   // Mostrar por defecto (visible sin importar selector)
   const [defaultVisible, setDefaultVisible] = useState(row.defaultVisible ?? false);
 
+  // Conclusión manual: la celda pass_fail de esta fila se edita a mano (no vs_spec auto)
+  const [manualConclusion, setManualConclusion] = useState(row.manualConclusion ?? false);
+
   // Unidades por columna (override de col.unit para esta fila)
   const [cellUnits, setCellUnits] = useState<Record<string, string>>(
     () => Object.fromEntries(Object.entries(row.cellUnits ?? {}).filter(([, v]) => v !== ''))
@@ -94,6 +97,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         cellUnits: Object.keys(cleanCellUnits).length > 0 ? cleanCellUnits : null,
         duplicableEnProtocolo: duplicableEnProtocolo || undefined,
         defaultVisible: defaultVisible || undefined,
+        manualConclusion: manualConclusion || undefined,
       });
     }
   };
@@ -164,6 +168,17 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
             <span>
               <span className="font-bold uppercase tracking-wide text-[10px] text-blue-800">Mostrar por defecto</span>
               <span className="block text-[10px] text-slate-500">Si el selector de encabezado está vacío, la fila se muestra. Cuando el técnico elige un valor, la fila se oculta salvo que coincida con "Visible cuando el valor es…".</span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <input
+              type="checkbox"
+              checked={manualConclusion}
+              onChange={e => setManualConclusion(e.target.checked)}
+            />
+            <span>
+              <span className="font-bold uppercase tracking-wide text-[10px] text-amber-800">Conclusión manual</span>
+              <span className="block text-[10px] text-slate-500">El ingeniero elige Cumple / No cumple / N/A visualmente para esta fila, sin validación automática. Solo aplica a columnas tipo "Pasa/Falla".</span>
             </span>
           </label>
         </div>

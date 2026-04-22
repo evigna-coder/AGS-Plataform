@@ -271,6 +271,7 @@ function syncFlatFromContactosData<T extends Record<string, any>>(data: T): T {
 function parseLead(id: string, data: Record<string, unknown>): Lead {
   return {
     id,
+    numero: typeof data.numero === 'string' && data.numero ? (data.numero as string) : undefined,
     clienteId: (data.clienteId as string) ?? null,
     contactoId: (data.contactoId as string) ?? null,
     razonSocial: (data.razonSocial as string) ?? '',
@@ -302,11 +303,30 @@ function parseLead(id: string, data: Record<string, unknown>): Lead {
   };
 }
 
+/** Extrae la parte numérica de "TKT-00042" → 42. 0 si no matchea. */
+function extractTicketNumber(numero: unknown): number {
+  if (typeof numero !== 'string') return 0;
+  const match = numero.match(/TKT-(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+async function getNextTicketNumero(): Promise<string> {
+  const snap = await getDocs(collection(db, 'leads'));
+  let max = 0;
+  snap.docs.forEach(d => {
+    const n = extractTicketNumber(d.data().numero);
+    if (n > max) max = n;
+  });
+  return `TKT-${String(max + 1).padStart(5, '0')}`;
+}
+
 export const leadsService = {
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const synced = syncFlatFromContactosData(data as Record<string, any>);
+    const numero = data.numero || await getNextTicketNumero();
     const payload = {
       ...cleanFirestoreData(synced),
+      numero,
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
       postas: data.postas || [],

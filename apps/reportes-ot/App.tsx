@@ -15,7 +15,7 @@ import { DuplicateOTModal } from './components/DuplicateOTModal';
 import { MobileMenu } from './components/MobileMenu';
 import { AppModals } from './components/AppModals';
 import { WizardLayout, WizardStep } from './components/WizardLayout';
-import { useIsMobile } from './hooks/useIsMobile';
+import { useIsCompact } from './hooks/useIsMobile';
 import { incrementSuffix } from './services/utils';
 import { getProtocolTemplateForServiceType } from './utils/protocolSelector';
 import { createEmptyProtocolDataForTemplate } from './data/sampleProtocol';
@@ -59,7 +59,7 @@ const App: React.FC = () => {
     }
   };
 
-  const isMobile = useIsMobile();
+  const isMobile = useIsCompact();
 
   // ─── MOBILE WIZARD ──────────────────────────────────────────────────────────
   if (isMobile && !app.isPreviewMode) {

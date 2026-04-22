@@ -4,3 +4,4 @@ export { default as ModulosAdminPage } from './ModulosAdminPage';
 export { default as ConfigFlujosPage } from './ConfigFlujosPage';
 export { default as AccionesPendientesPage } from './AccionesPendientesPage';
 export { default as RelinkearArticulosPage } from './RelinkearArticulosPage';
+export { default as BackfillTicketNumerosPage } from './BackfillTicketNumerosPage';

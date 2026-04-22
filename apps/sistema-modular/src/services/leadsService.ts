@@ -106,6 +106,7 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
   const data = d.data();
   return {
     id: d.id,
+    numero: typeof data.numero === 'string' && data.numero ? data.numero : undefined,
     clienteId: data.clienteId ?? null,
     contactoId: data.contactoId ?? null,
     razonSocial: data.razonSocial ?? '',
@@ -163,10 +164,37 @@ function syncFlatFromContactos<T extends Record<string, any>>(data: T): T {
 }
 
 export const leadsService = {
+  /**
+   * Extrae la parte numérica de un numero de ticket: "TKT-00042" → 42.
+   * Devuelve 0 si el formato no matchea (tickets legacy sin numero).
+   */
+  _extractTicketNumber(numero: string | undefined | null): number {
+    if (!numero) return 0;
+    const match = numero.match(/TKT-(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  },
+
+  /**
+   * Genera el siguiente numero correlativo de ticket: TKT-00001, TKT-00002, ...
+   * Escanea toda la colección `leads` y saca el max + 1. Misma lógica que presupuestosService.getNextPresupuestoNumber.
+   * NO es atómico: si dos creates corren en paralelo pueden chocar. Aceptable para el volumen actual.
+   */
+  async getNextTicketNumero(): Promise<string> {
+    const snap = await getDocs(collection(db, 'leads'));
+    let max = 0;
+    snap.docs.forEach(d => {
+      const n = this._extractTicketNumber(d.data().numero);
+      if (n > max) max = n;
+    });
+    return `TKT-${String(max + 1).padStart(5, '0')}`;
+  },
+
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) {
     const stamp = ventasInsumosStamp(data.motivoLlamado);
+    const numero = data.numero || await this.getNextTicketNumero();
     const payload = deepCleanForFirestore(syncFlatFromContactos({
       ...data,
+      numero,
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
       postas: data.postas || [],
@@ -571,5 +599,43 @@ export const leadsService = {
     return snap.docs
       .map(d => parseLeadDoc(d))
       .filter(t => t.revisionDescartada !== true);
+  },
+
+  /**
+   * Asigna numero TKT-00001..N a todos los tickets que no lo tengan, ordenados por createdAt ASC.
+   * Respeta los numeros ya existentes: arranca desde max(existentes)+1 y solo escribe en los que
+   * faltan. Idempotente: re-ejecutarla no reasigna numeros ya asignados.
+   */
+  async backfillTicketNumeros(): Promise<{ total: number; yaNumerados: number; asignados: number }> {
+    const snap = await getDocs(collection(db, 'leads'));
+    const total = snap.docs.length;
+
+    let maxExistente = 0;
+    const sinNumero: { id: string; createdAt: any }[] = [];
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const n = this._extractTicketNumber(data.numero);
+      if (n > 0) {
+        if (n > maxExistente) maxExistente = n;
+      } else {
+        sinNumero.push({ id: d.id, createdAt: data.createdAt });
+      }
+    });
+
+    sinNumero.sort((a, b) => {
+      const ta = a.createdAt?.toMillis?.() ?? 0;
+      const tb = b.createdAt?.toMillis?.() ?? 0;
+      return ta - tb;
+    });
+
+    let next = maxExistente + 1;
+    for (const t of sinNumero) {
+      await updateDoc(doc(db, 'leads', t.id), {
+        numero: `TKT-${String(next).padStart(5, '0')}`,
+      });
+      next++;
+    }
+
+    return { total, yaNumerados: total - sinNumero.length, asignados: sinNumero.length };
   },
 };

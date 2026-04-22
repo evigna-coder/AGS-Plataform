@@ -11,6 +11,31 @@ import { getMessaging } from 'firebase-admin/messaging';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas' | 'sistema';
+
+/**
+ * Mapa de rol → áreas de ticket que ese rol puede gestionar.
+ * Debe mantenerse sincronizado con ROLE_TICKET_AREAS en packages/shared/src/types/index.ts.
+ * Se inlinea porque las Cloud Functions no consumen @ags/shared.
+ */
+const ROLE_TICKET_AREAS: Record<string, TicketArea[]> = {
+  admin: [],
+  admin_soporte: ['admin_soporte'],
+  admin_ing_soporte: ['ing_soporte'],
+  ingeniero_soporte: ['ing_soporte'],
+  ventas: ['ventas'],
+  admin_contable: ['administracion'],
+  administracion: ['administracion'],
+};
+
+const AREA_LABELS: Record<TicketArea, string> = {
+  admin_soporte: 'Administración de soporte',
+  ing_soporte: 'Ing. de soporte',
+  administracion: 'Administración',
+  ventas: 'Ventas',
+  sistema: 'Sistema',
+};
+
 interface Posta {
   deUsuarioId: string;
   deUsuarioNombre: string;
@@ -46,6 +71,8 @@ interface NotificationEvent {
   title: string;
   body: string;
   recipientIds: string[];
+  /** Área destino cuando el ticket va al sector sin un asignado específico. Se resuelve a userIds en sendPushNotifications. */
+  recipientArea?: TicketArea | null;
   actorId: string | null;
   leadId: string;
 }
@@ -77,15 +104,31 @@ function detectEvent(
   if (!beforeData) {
     const asignadoA = afterData.asignadoA;
     const createdBy = afterData.createdBy;
-    if (!asignadoA) return null;
-    return {
-      type: 'lead_created',
-      title: 'Nuevo ticket asignado',
-      body: label,
-      recipientIds: [asignadoA],
-      actorId: createdBy || null,
-      leadId,
-    };
+    const area = afterData.areaActual as TicketArea | null | undefined;
+    if (asignadoA) {
+      return {
+        type: 'lead_created',
+        title: 'Nuevo ticket asignado',
+        body: label,
+        recipientIds: [asignadoA],
+        actorId: createdBy || null,
+        leadId,
+      };
+    }
+    // Sin asignado específico, pero dirigido a un sector → notificar al sector
+    if (area) {
+      const areaLabel = AREA_LABELS[area] || area;
+      return {
+        type: 'lead_created',
+        title: `Nuevo ticket para ${areaLabel}`,
+        body: label,
+        recipientIds: [],
+        recipientArea: area,
+        actorId: createdBy || null,
+        leadId,
+      };
+    }
+    return null;
   }
 
   // Comparar postas para detectar eventos de derivación/comentario
@@ -95,7 +138,7 @@ function detectEvent(
   if (afterPostas.length > beforePostas.length) {
     const newPosta = afterPostas[afterPostas.length - 1];
 
-    // 2. Ticket derivado (cambió el asignado)
+    // 2a. Ticket derivado a un usuario específico (cambió el asignado)
     if (newPosta.aUsuarioId && newPosta.aUsuarioId !== beforeData.asignadoA) {
       const recipients = new Set<string>();
       recipients.add(newPosta.aUsuarioId);
@@ -108,6 +151,25 @@ function detectEvent(
         title: 'Ticket derivado',
         body: `${label} — de ${newPosta.deUsuarioNombre || 'alguien'}`,
         recipientIds: Array.from(recipients),
+        actorId: newPosta.deUsuarioId,
+        leadId,
+      };
+    }
+
+    // 2b. Ticket derivado a un sector sin usuario específico → notificar al sector
+    const postaArea = newPosta.aArea as TicketArea | null | undefined;
+    if (!newPosta.aUsuarioId && postaArea && postaArea !== beforeData.areaActual) {
+      const recipients = new Set<string>();
+      if (afterData.createdBy && afterData.createdBy !== newPosta.deUsuarioId) {
+        recipients.add(afterData.createdBy);
+      }
+      const areaLabel = AREA_LABELS[postaArea] || postaArea;
+      return {
+        type: 'lead_derived',
+        title: `Ticket derivado a ${areaLabel}`,
+        body: `${label} — de ${newPosta.deUsuarioNombre || 'alguien'}`,
+        recipientIds: Array.from(recipients),
+        recipientArea: postaArea,
         actorId: newPosta.deUsuarioId,
         leadId,
       };
@@ -180,14 +242,56 @@ function shouldNotify(prefs: NotificationPreferences, type: NotificationType): b
   }
 }
 
+// ─── Area → userIds resolution ───────────────────────────────────────────────
+
+/**
+ * Resuelve el área destino a los IDs de usuarios activos cuyo `role` o roles[] pueden
+ * gestionar esa área. Usa ROLE_TICKET_AREAS (sincronizado con packages/shared).
+ */
+async function resolveAreaUserIds(
+  db: FirebaseFirestore.Firestore,
+  area: TicketArea,
+): Promise<string[]> {
+  const rolesForArea = Object.entries(ROLE_TICKET_AREAS)
+    .filter(([, areas]) => areas.includes(area))
+    .map(([role]) => role);
+  if (rolesForArea.length === 0) return [];
+
+  const ids = new Set<string>();
+  const usuariosRef = db.collection('usuarios');
+
+  // rol principal — Firestore `in` soporta hasta 30 valores; alcanza
+  const byRolePrimary = await usuariosRef.where('role', 'in', rolesForArea).get();
+  byRolePrimary.forEach(doc => {
+    if (doc.data().status === 'activo') ids.add(doc.id);
+  });
+
+  // roles[] adicionales (array-contains-any): un query por rol posible,
+  // ya que array-contains-any no combina bien con el where('role','in', …) de arriba.
+  for (const role of rolesForArea) {
+    const byRoleExtra = await usuariosRef.where('roles', 'array-contains', role).get();
+    byRoleExtra.forEach(doc => {
+      if (doc.data().status === 'activo') ids.add(doc.id);
+    });
+  }
+
+  return Array.from(ids);
+}
+
 // ─── Send notifications ──────────────────────────────────────────────────────
 
 async function sendPushNotifications(event: NotificationEvent): Promise<void> {
   const db = getFirestore();
   const messaging = getMessaging();
 
+  const ids = new Set<string>(event.recipientIds);
+  if (event.recipientArea) {
+    const areaIds = await resolveAreaUserIds(db, event.recipientArea);
+    areaIds.forEach(id => ids.add(id));
+  }
+
   // Filtrar: nunca notificar al actor de la acción
-  const recipientIds = event.recipientIds.filter(id => id !== event.actorId);
+  const recipientIds = Array.from(ids).filter(id => id !== event.actorId);
   if (recipientIds.length === 0) return;
 
   // Obtener tokens y preferencias de cada destinatario

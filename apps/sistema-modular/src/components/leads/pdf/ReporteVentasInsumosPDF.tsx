@@ -78,9 +78,9 @@ const COL_WIDTHS = {
   ticket: 40,
   fecha: 48,
   cliente: 120,
-  contacto: 80,
-  creado: 72,
-  responsable: 72,
+  creador: 72,
+  derivador: 72,
+  asignado: 72,
   estado: 72,
   ultimo: 48,
   valor: 55,
@@ -156,9 +156,9 @@ export function ReporteVentasInsumosPDF({ rows, range, generadoPor }: Props) {
               <Text style={[styles.th, { width: COL_WIDTHS.ticket }]}>Ticket</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.fecha }]}>Creación</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.cliente }]}>Razón social</Text>
-              <Text style={[styles.th, { width: COL_WIDTHS.contacto }]}>Contacto</Text>
-              <Text style={[styles.th, { width: COL_WIDTHS.creado }]}>Creado por</Text>
-              <Text style={[styles.th, { width: COL_WIDTHS.responsable }]}>Responsable</Text>
+              <Text style={[styles.th, { width: COL_WIDTHS.creador }]}>Creador</Text>
+              <Text style={[styles.th, { width: COL_WIDTHS.derivador }]}>Derivador</Text>
+              <Text style={[styles.th, { width: COL_WIDTHS.asignado }]}>Asignado</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.estado }]}>Estado</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.ultimo }]}>Últ. mov.</Text>
               <Text style={[styles.th, { width: COL_WIDTHS.valor }]}>Valor est.</Text>
@@ -179,14 +179,14 @@ export function ReporteVentasInsumosPDF({ rows, range, generadoPor }: Props) {
                   <Text style={[...baseTd, { width: COL_WIDTHS.cliente }]}>
                     {r.razonSocial}
                   </Text>
-                  <Text style={[...baseTd, { width: COL_WIDTHS.contacto }]}>
-                    {r.contacto}
+                  <Text style={[...baseTd, { width: COL_WIDTHS.creador }]}>
+                    {r.creador}
                   </Text>
-                  <Text style={[...baseTd, { width: COL_WIDTHS.creado }]}>
-                    {r.creadoPor}
+                  <Text style={[...baseTd, { width: COL_WIDTHS.derivador }]}>
+                    {r.derivador}
                   </Text>
-                  <Text style={[...baseTd, { width: COL_WIDTHS.responsable }]}>
-                    {r.responsable}
+                  <Text style={[...baseTd, { width: COL_WIDTHS.asignado }]}>
+                    {r.asignado}
                   </Text>
                   <Text style={[...baseTd, { width: COL_WIDTHS.estado }]}>
                     {r.estadoActual}

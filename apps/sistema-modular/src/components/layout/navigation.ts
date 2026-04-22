@@ -68,6 +68,7 @@ export const navigation: NavItem[] = [
       { name: 'Config Flujos', path: '/admin/config-flujos', separator: true },
       { name: 'Acciones Pendientes', path: '/admin/acciones-pendientes' },
       { name: 'Re-linkear artículos', path: '/admin/relinkear-articulos' },
+      { name: 'Backfill numeros tickets', path: '/admin/backfill-ticket-numeros' },
     ],
   },
 ];

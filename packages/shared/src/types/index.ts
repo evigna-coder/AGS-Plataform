@@ -687,6 +687,8 @@ export function getContactoPrincipal(contactos: ContactoTicket[] | undefined | n
 // --- Ticket ---
 export interface Ticket {
   id: string;
+  /** Numero correlativo TKT-00001. Opcional en hidratación para compat con tickets legacy sin numero asignado. */
+  numero?: string;
   clienteId: string | null;
   contactoId: string | null;
   razonSocial: string;
@@ -1453,6 +1455,13 @@ export interface TableCatalogRow {
    * y no modifican la plantilla de la biblioteca.
    */
   duplicableEnProtocolo?: boolean;
+  /**
+   * Si true, la celda de la columna pass_fail para esta fila se edita manualmente
+   * (dropdown Cumple / No cumple / N/A), ignorando cualquier vs_spec rule que
+   * pudiera aplicar. Útil para filas de observación visual donde no hay validación
+   * automática posible.
+   */
+  manualConclusion?: boolean;
 }
 
 export interface TableCatalogRule {

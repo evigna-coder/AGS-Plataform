@@ -1264,6 +1264,32 @@ export const CatalogTableView: React.FC<Props> = ({
       );
     }
 
+    // ── Conclusión manual (marcada en la biblioteca) ────────────────────────
+    // Fila con manualConclusion=true + columna pass_fail: el ingeniero elige
+    // Cumple/No cumple/N/A visualmente. Tiene prioridad sobre cualquier vs_spec.
+    if (col.type === 'pass_fail' && templateRow?.manualConclusion === true) {
+      if (isPrint) {
+        return (
+          <span className={`text-[10px] font-semibold ${rawValue === 'PASS' ? 'text-emerald-700' : rawValue === 'FAIL' ? 'text-red-700' : 'text-slate-500'}`}>
+            {(PASS_PRINT_CHARS[rawValue] ?? rawValue) || '—'}
+          </span>
+        );
+      }
+      return (
+        <select
+          value={rawValue}
+          disabled={readOnly}
+          onChange={(e) => handleCellChange(rowId, col.key, e.target.value)}
+          className={`w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500 ${PASS_COLORS[rawValue] ?? 'text-slate-600'}`}
+        >
+          <option value="">—</option>
+          <option value="PASS">Cumple</option>
+          <option value="FAIL">No cumple</option>
+          <option value="NA">N/A</option>
+        </select>
+      );
+    }
+
     // ── Columna Conclusión (pass_fail calculado) — soporta múltiples reglas ─
     // Solo renderizar como conclusión si al menos una regla vs_spec aplica a esta fila
     const conclusionRuleApplies = vsSpecRules.some(r => r.targetColumn === col.key && ruleAppliesToRow(r, rowId));

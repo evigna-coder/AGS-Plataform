@@ -13,13 +13,25 @@ interface FinalizarLeadModalProps {
   onFinalized: () => void;
 }
 
-const MOTIVOS_FINALIZACION = [
+type MotivoCierre = { value: 'finalizado' | 'no_concretado'; label: string };
+
+const MOTIVOS_VENTAS: readonly MotivoCierre[] = [
   { value: 'finalizado', label: 'Consulta resuelta / Presupuesto generado' },
   { value: 'no_concretado', label: 'No concretado / Sin interés' },
-] as const;
+];
+
+const MOTIVOS_NO_VENTAS: readonly MotivoCierre[] = [
+  { value: 'finalizado', label: 'Consulta resuelta' },
+];
+
+function getMotivosParaMotivoLlamado(motivoLlamado: Lead['motivoLlamado']): readonly MotivoCierre[] {
+  const esVentas = motivoLlamado === 'ventas_insumos' || motivoLlamado === 'ventas_equipos';
+  return esVentas ? MOTIVOS_VENTAS : MOTIVOS_NO_VENTAS;
+}
 
 export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLeadModalProps) => {
   const { usuario } = useAuth();
+  const motivosDisponibles = getMotivosParaMotivoLlamado(lead.motivoLlamado);
   const [estadoFinal, setEstadoFinal] = useState<'finalizado' | 'no_concretado'>('finalizado');
   const [comentario, setComentario] = useState('');
   const [saving, setSaving] = useState(false);
@@ -96,17 +108,23 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
 
         <div>
           <label className="text-[11px] font-medium text-slate-400 mb-1 block">Motivo de cierre</label>
-          <select
-            value={estadoFinal}
-            onChange={e => setEstadoFinal(e.target.value as 'finalizado' | 'no_concretado')}
-            className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            {MOTIVOS_FINALIZACION.map(m => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          {motivosDisponibles.length === 1 ? (
+            <div className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-slate-50 text-slate-600">
+              {motivosDisponibles[0].label}
+            </div>
+          ) : (
+            <select
+              value={estadoFinal}
+              onChange={e => setEstadoFinal(e.target.value as 'finalizado' | 'no_concretado')}
+              className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              {motivosDisponibles.map(m => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div>

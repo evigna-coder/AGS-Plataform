@@ -5,9 +5,9 @@ export interface VentasInsumosReportRow {
   ticketId: string;
   fechaCreacion: string;       // ISO
   razonSocial: string;
-  contacto: string;
-  creadoPor: string;            // usuario que creó el ticket con motivo ventas_insumos
-  responsable: string;          // último que movió el ticket, fallback createdBy
+  creador: string;              // usuario que creó originalmente el ticket (createdBy)
+  derivador: string;            // usuario que derivó el ticket a ventas_insumos (ventasInsumosCreadoPor)
+  asignado: string;             // usuario asignado actual (asignadoA)
   estadoActual: string;         // label humano
   ultimoMovimiento: string;    // ISO
   valorEstimado: number | null;
@@ -27,16 +27,9 @@ function resolveUserName(userId: string | undefined | null, usuarios: UsuarioAGS
   return u?.displayName || u?.email || userId;
 }
 
-function resolveResponsable(lead: Lead, usuarios: UsuarioAGS[]): string {
-  const lastPosta = (lead.postas || []).slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))[0];
-  if (lastPosta?.deUsuarioNombre) return lastPosta.deUsuarioNombre;
-  return resolveUserName(lead.createdBy, usuarios);
-}
-
-function resolveContactoPrincipal(lead: Lead): string {
-  const principal = (lead.contactos || []).find(c => c.esPrincipal);
-  if (principal?.nombre) return principal.nombre;
-  return lead.contacto || '—';
+function resolveAsignado(lead: Lead, usuarios: UsuarioAGS[]): string {
+  if (lead.asignadoNombre) return lead.asignadoNombre;
+  return resolveUserName(lead.asignadoA, usuarios);
 }
 
 function resolveResultado(lead: Lead): VentasInsumosReportRow['resultado'] {
@@ -50,9 +43,11 @@ export function buildVentasInsumosRows(leads: Lead[], usuarios: UsuarioAGS[]): V
     ticketId: lead.id,
     fechaCreacion: lead.createdAt,
     razonSocial: lead.razonSocial || '—',
-    contacto: resolveContactoPrincipal(lead),
-    creadoPor: resolveUserName(lead.ventasInsumosCreadoPor || lead.createdBy, usuarios),
-    responsable: resolveResponsable(lead, usuarios),
+    creador: resolveUserName(lead.createdBy, usuarios),
+    // El derivador y el creador coinciden cuando el ticket nació como ventas_insumos;
+    // solo difieren si alguien reclasificó el motivo después. Se muestra igual para trazabilidad.
+    derivador: resolveUserName(lead.ventasInsumosCreadoPor || lead.createdBy, usuarios),
+    asignado: resolveAsignado(lead, usuarios),
     estadoActual: TICKET_ESTADO_LABELS[lead.estado] || lead.estado,
     ultimoMovimiento: lead.updatedAt,
     valorEstimado: typeof lead.valorEstimado === 'number' ? lead.valorEstimado : null,
