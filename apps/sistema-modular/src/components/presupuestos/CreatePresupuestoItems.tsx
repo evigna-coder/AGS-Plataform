@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Articulo } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -123,7 +123,7 @@ const MONEDA_OPTIONS: { value: 'USD' | 'ARS' | 'EUR'; label: string }[] = [
 const EMPTY_ITEM: Partial<PresupuestoItem> = {
   descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
   categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
-  servicioCode: null, moneda: null,
+  servicioCode: null, moneda: null, stockArticuloId: null,
 };
 
 export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
@@ -173,6 +173,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       codigoProducto: newItem.codigoProducto || null,
       conceptoServicioId: newItem.conceptoServicioId || null,
       servicioCode: newItem.servicioCode || null,
+      stockArticuloId: newItem.stockArticuloId || null,
       subtotal,
       ...(isMixta ? { moneda: newItem.moneda || 'USD' } : {}),
     });
@@ -182,6 +183,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
   const handleSelectArticulo = (art: ArticuloCatalog) => {
     setNewItem(prev => ({
       ...prev,
+      stockArticuloId: art.id,
       codigoProducto: art.codigo,
       descripcion: art.descripcion,
     }));
@@ -257,7 +259,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
           <label className={lbl}>Código</label>
           <CodigoAutocomplete
             value={newItem.codigoProducto || ''}
-            onChange={val => setNewItem(prev => ({ ...prev, codigoProducto: val }))}
+            onChange={val => setNewItem(prev => ({ ...prev, codigoProducto: val, stockArticuloId: null }))}
             onSelect={handleSelectArticulo}
             catalog={articulosCatalog}
           />

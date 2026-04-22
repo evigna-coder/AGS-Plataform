@@ -9,6 +9,7 @@ import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PresupuestoFormHeader } from './PresupuestoFormHeader';
 import { PresupuestoFormCliente } from './PresupuestoFormCliente';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
+import { VentasMetadataSection } from './VentasMetadataSection';
 
 interface Props {
   open: boolean;
@@ -54,6 +55,13 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           selectedIds={h.selectedPendienteIds}
           onSelectionChange={h.setSelectedPendienteIds}
         />
+
+        {h.form.tipo === 'ventas' && (
+          <VentasMetadataSection
+            value={h.form.ventasMetadata}
+            onChange={patch => h.setForm({ ...h.form, ventasMetadata: { ...h.form.ventasMetadata, ...patch } })}
+          />
+        )}
 
         {/* Divider + Items */}
         <hr className="border-[#E5E5E5]" />

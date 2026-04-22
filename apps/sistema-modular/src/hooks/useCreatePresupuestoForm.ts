@@ -3,7 +3,7 @@ import { presupuestosService, clientesService, sistemasService, leadsService, or
 import { establecimientosService, contactosEstablecimientoService } from '../services/establecimientosService';
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
-import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket } from '@ags/shared';
+import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata } from '@ags/shared';
 
 export interface PresupuestoFormState {
   clienteId: string;
@@ -20,6 +20,7 @@ export interface PresupuestoFormState {
   tipoCambio: string;
   notasTecnicas: string;
   condicionesComerciales: string;
+  ventasMetadata: VentasMetadata;
 }
 
 export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
@@ -28,6 +29,7 @@ export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   origenTipo: '', origenId: '', origenRef: '',
   validezDias: 15, condicionPagoId: '', tipoCambio: '',
   notasTecnicas: '', condicionesComerciales: '',
+  ventasMetadata: { fechaEstimadaEntrega: null, lugarInstalacion: null, requiereEntrenamiento: false },
 };
 
 interface Prefill {
@@ -162,7 +164,14 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     const filtered = form.clienteId
       ? leadsCache.filter(l => l.clienteId === form.clienteId)
       : leadsCache;
-    setLeadOptions(filtered.map(l => ({ value: l.id, label: `${l.razonSocial} — ${l.motivoContacto}` })));
+    setLeadOptions(filtered.map(l => {
+      const parts = [
+        l.numero,
+        l.razonSocial,
+        (l.descripcion?.trim() || l.motivoContacto || '').trim(),
+      ].filter(Boolean);
+      return { value: l.id, label: parts.join(' · ') };
+    }));
   }, [leadsCache, form.clienteId]);
 
   // Auto-fill cliente/sistema from selected lead
@@ -209,6 +218,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         notasTecnicas: form.notasTecnicas || undefined,
         condicionesComerciales: form.condicionesComerciales || undefined,
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
+        ...(form.tipo === 'ventas' ? { ventasMetadata: form.ventasMetadata } : {}),
       };
       const { id: presupuestoId, numero } = await presupuestosService.create(data);
 
