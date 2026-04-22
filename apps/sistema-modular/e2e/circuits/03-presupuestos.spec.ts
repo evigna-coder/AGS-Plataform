@@ -1,7 +1,7 @@
 import { test, expect, TEST_PREFIX, timestamp } from '../fixtures/test-base';
 import {
   getPresupuesto,
-  getOTsByBudget,
+  getTicketsCoordinacionByPresupuesto,
   getRequerimientosByPresupuesto,
   pollUntil,
 } from '../helpers/firestore-assert';
@@ -210,7 +210,7 @@ test.describe('Circuito 3: Presupuestos', () => {
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('3.7 — Crear ppto ventas + VentasMetadata + aceptar → OT auto-creada', async ({ app, nav }) => {
+  test('3.7 — Crear ppto ventas + VentasMetadata + aceptar → ticket coordinación auto-creado', async ({ app, nav }) => {
 
     await nav.goToFresh('Presupuestos');
     await app.getByRole('button', { name: '+ Nuevo Presupuesto' }).click();
@@ -294,22 +294,25 @@ test.describe('Circuito 3: Presupuestos', () => {
       if (!pres) {
         console.warn('[RED] 3.7: ventasMetadata.fechaEstimadaEntrega not found — Wave 3 not landed');
       } else {
-        // Aceptar presupuesto para disparar auto-OT
+        // Aceptar presupuesto para disparar auto-ticket de coordinación
         const estadoSelect = app.locator('select, [role="combobox"]').filter({ has: app.locator('option, [role="option"]', { hasText: /aceptado/i }) }).first();
         if (await estadoSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
           await estadoSelect.selectOption('aceptado');
           await app.waitForTimeout(2000);
         }
 
-        // Verificar OT auto-creada en reportes collection
-        const ots = await pollUntil(
-          () => getOTsByBudget(pres.numero),
+        // Verificar ticket de coordinación auto-creado en leads collection.
+        // Decisión 2026-04-22: reemplazamos la auto-OT genérica (confusa para el
+        // coordinador cuando hay que armar múltiples OTs) por un ticket informativo
+        // asignado al usuarioCoordinadorOTId. Requiere adminConfig configurado.
+        const tickets = await pollUntil(
+          () => getTicketsCoordinacionByPresupuesto(pid),
           (arr) => arr.length >= 1,
           { timeout: 15_000 },
         ).catch(() => []);
 
-        if (ots.length === 0) {
-          console.warn('[RED] 3.7: No auto-OT found in reportes — Wave 3 (plan 10-04) trigger not landed');
+        if (tickets.length === 0) {
+          console.warn('[RED] 3.7: No auto-ticket coordinación found in leads — Wave 3 trigger or adminConfig.usuarioCoordinadorOTId not landed');
         }
       }
     }

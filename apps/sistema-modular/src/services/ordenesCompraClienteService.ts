@@ -22,7 +22,7 @@ import { notifyCoordinadorOTBestEffort } from './cargarOCHelpers';
  * **Regla de negocio (2026-04-22)**: adjuntar OC = señal de aceptación del cliente.
  * Si el ppto está en `borrador` o `enviado`, `cargarOC` ahora dispara
  * `aceptarConRequerimientos` antes del tx principal (pre-flight secuencial),
- * aplicando toda la lógica de aceptación (derivación Comex, auto-OT ventas Phase 10,
+ * aplicando toda la lógica de aceptación (derivación Comex, auto-ticket coordinación ventas,
  * requerimientos condicionales). Si está `aceptado`, comportamiento actual. Si está
  * `rechazado` o `vencido`, sigue fallando fast.
  *

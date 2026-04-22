@@ -257,6 +257,22 @@ export async function getOTsByBudget(budgetNumber: string): Promise<any[]> {
 }
 
 /**
+ * Lists tickets de coordinación (colección `leads`, estado `en_coordinacion`) linkeados
+ * a un presupuesto por ID. Phase 10 auto-creates these when a ventas ppto is accepted
+ * (reemplaza la auto-OT genérica por un ticket para que el coordinador arme las OTs
+ * específicas manualmente).
+ */
+export async function getTicketsCoordinacionByPresupuesto(presupuestoId: string): Promise<any[]> {
+  const q = query(
+    collection(db, 'leads'),
+    where('presupuestosIds', 'array-contains', presupuestoId),
+    where('estado', '==', 'en_coordinacion'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
  * Poll an async reader until `predicate(value)` returns true, or timeout.
  * Default: 10s total with 500ms interval. Throws the last value if predicate
  * never holds — specs get a clear failure instead of a generic timeout.
