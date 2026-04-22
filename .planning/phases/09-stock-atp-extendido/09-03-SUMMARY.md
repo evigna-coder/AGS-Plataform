@@ -62,7 +62,7 @@ completed: "2026-04-22"
 - **Duration:** ~25 min
 - **Started:** 2026-04-22T00:30:00Z
 - **Completed:** 2026-04-22T01:00:00Z
-- **Tasks:** 2 complete (Task 3 = checkpoint:human-verify, awaiting user)
+- **Tasks:** 3 complete (Task 3 = checkpoint:human-verify, APPROVED by user 2026-04-22)
 - **Files created:** 5
 - **Files modified:** 3
 
@@ -78,7 +78,7 @@ completed: "2026-04-22"
 
 1. **Task 1: useStockAmplio hook + StockAmplioIndicator component** - `3823ca4` (feat)
 2. **Task 2: /stock/planificacion page + row + 2-section drawer + nav wiring** - `006a589` (feat)
-3. **Task 3: Human verify** - PENDING checkpoint approval
+3. **Task 3: Human verify — planning view + STKP-04 cache bypass** - APPROVED (checkpoint:human-verify resolved 2026-04-22)
 
 ## Files Created/Modified
 
@@ -167,7 +167,7 @@ None — no external service configuration. The route is registered and accessib
 
 - Hook + indicator component are reusable for: ArticulosList ATP column, Reserva modal, AddItemModal in presupuesto (4 surfaces from CONTEXT.md)
 - Breakdown drawer can be extended when `breakdown.reservas` is populated by CF (add a 3rd `BreakdownSection` call)
-- Task 3 human-verify must pass before plan is considered complete
+- Task 3 human-verify PASSED — user confirmed live data, 2-section drawer, RBAC enforcement, and filter persistence
 
 ## Handoff Notes for /gsd:verify-work
 
@@ -180,7 +180,16 @@ Sample these paths:
 
 ---
 *Phase: 09-stock-atp-extendido*
-*Completed: 2026-04-22 (pending Task 3 human verify)*
+*Completed: 2026-04-22 — Task 3 human verify approved*
+
+## Human Verify Results (Task 3 — APPROVED 2026-04-22)
+
+User walkthrough confirmed:
+- Live data renders at `/stock/planificacion` with table showing all articulos
+- Drawer opens with exactly 2 sections (OCs pendientes + Requerimientos condicionales) — no Reservas section
+- RBAC enforced: `admin` and `admin_soporte` roles can access; `ingeniero_soporte` blocked (403/redirect)
+- Filters persist via URL params on refresh (useUrlFilters confirmed working)
+- STKP-04 verified live: data updates without 2-min cache delay
 
 ## Self-Check: PASSED
 
