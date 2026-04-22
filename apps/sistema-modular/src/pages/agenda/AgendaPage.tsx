@@ -352,6 +352,14 @@ export const AgendaPage: FC = () => {
               titulo: null,
             });
           });
+          // Sync la OT: asignar ingeniero + fecha y transicionar a ASIGNADA si estaba en CREADA.
+          const shouldPromote = ot.estadoAdmin === 'CREADA' || !ot.estadoAdmin;
+          ordenesTrabajoService.update(ot.otNumber, {
+            ingenieroAsignadoId: targetIngenieroId,
+            ingenieroAsignadoNombre: targetIngeniero.nombre,
+            fechaServicioAprox: targetFecha,
+            ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+          }).catch(err => console.error('[AgendaPage] sync OT en DnD drop falló:', err));
         }
       }
       setSelectedPendingOTs(new Set());
