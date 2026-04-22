@@ -3,6 +3,21 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Phase 10 context gathered (4 areas + 2 clarifiers)
+last_updated: "2026-04-22T01:48:50.952Z"
+last_activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
+progress:
+  total_phases: 11
+  completed_phases: 5
+  total_plans: 30
+  completed_plans: 27
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: "Completed 09-02 — Cloud Functions deployed + STKP-02 human-verified (resumenStock live, multi-articuloId OC confirmed)"
 last_updated: "2026-04-22T02:00:00.000Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
@@ -124,6 +139,6 @@ Progress: [█████████░] 90% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T02:00:00.000Z
-Stopped at: Completed 09-02 — STKP-02 human-verified (resumenStock live, multi-articuloId OC confirmed). Phase 9 complete (3/3 plans). Ready for Phase 10.
-Resume file: None
+Last session: 2026-04-22T01:48:50.938Z
+Stopped at: Phase 10 context gathered (4 areas + 2 clarifiers)
+Resume file: .planning/phases/10-presupuestos-partes-mixto-ventas/10-CONTEXT.md
