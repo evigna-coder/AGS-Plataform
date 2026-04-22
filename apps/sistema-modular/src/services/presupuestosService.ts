@@ -7,6 +7,7 @@ import { adminConfigService } from './adminConfigService';
 import { usuariosService } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
+import { computeStockAmplio } from './stockAmplioService';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -231,33 +232,22 @@ export const presupuestosService = {
     presupuestoNumero: string,
     items: Array<{ stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
   ) {
-    // Build map of qty in-transit per article from all active OCs (not cancelled/fully received)
-    const allOCs = await ordenesCompraService.getAll().catch(() => []);
-    const enTransitoMap = new Map<string, number>();
-    for (const oc of allOCs) {
-      if (oc.estado === 'cancelada' || oc.estado === 'recibida') continue;
-      for (const ocItem of oc.items || []) {
-        if (!ocItem.articuloId) continue;
-        const pendiente = Math.max(ocItem.cantidad - (ocItem.cantidadRecibida || 0), 0);
-        if (pendiente > 0) {
-          enTransitoMap.set(ocItem.articuloId, (enTransitoMap.get(ocItem.articuloId) || 0) + pendiente);
-        }
-      }
-    }
-
+    // Phase 9 (STKP-05 fix): replaced buggy inline formula (qtyDisponible - qtyReservado + qtyEnTransito)
+    // with computeStockAmplio() which correctly sums the 4 buckets without double-counting.
+    // The old formula counted OC pending items from a separate preloaded map, missing units.en_transito
+    // contribution. computeStockAmplio() is the single source of truth for ATP math.
     let count = 0;
     for (const item of items) {
       if (!item.stockArticuloId) continue;
-      const articulo = await articulosService.getById(item.stockArticuloId).catch(() => null);
+      const [articulo, sa] = await Promise.all([
+        articulosService.getById(item.stockArticuloId).catch(() => null),
+        computeStockAmplio(item.stockArticuloId).catch(() => null),
+      ]);
 
-      // All active units for this article
-      const todasUnidades = await unidadesService.getAll({ articuloId: item.stockArticuloId }).catch(() => []);
-      const qtyDisponible = todasUnidades.filter(u => u.estado === 'disponible').length;
-      const qtyReservado = todasUnidades.filter(u => u.estado === 'reservado').length;
-      const qtyEnTransito = enTransitoMap.get(item.stockArticuloId) || 0;
+      if (!sa) continue;  // computeStockAmplio failed — skip, don't create bad requerimiento
 
-      // Stock proyectado = disponible - reservado + en tránsito
-      const stockProyectado = qtyDisponible - qtyReservado + qtyEnTransito;
+      // stockProyectado uses the correct 4-bucket formula: disponible + enTransito - reservado - comprometido
+      const stockProyectado = sa.disponible + sa.enTransito - sa.reservado - sa.comprometido;
       const stockMinimo = articulo?.stockMinimo ?? 0;
       const qtyResultante = stockProyectado - item.cantidad;
 
@@ -269,7 +259,7 @@ export const presupuestosService = {
           articuloDescripcion: articulo?.descripcion ?? item.descripcion,
           cantidad: qtyReq,
           unidadMedida: articulo?.unidadMedida ?? 'unidad',
-          motivo: `Auto — presupuesto ${presupuestoNumero} | disp: ${qtyDisponible}, res: ${qtyReservado}, tránsito: ${qtyEnTransito}, necesario: ${item.cantidad}`,
+          motivo: `Auto — presupuesto ${presupuestoNumero} | disp: ${sa.disponible}, tráns: ${sa.enTransito}, res: ${sa.reservado}, comp: ${sa.comprometido}, necesario: ${item.cantidad}`,
           origen: 'presupuesto',
           origenRef: presupuestoId,
           estado: 'pendiente',

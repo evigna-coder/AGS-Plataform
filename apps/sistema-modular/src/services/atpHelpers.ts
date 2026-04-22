@@ -1,26 +1,23 @@
 /**
- * Phase 8 FLOW-03 ATP helpers
+ * Phase 8 FLOW-03 ATP helpers (refactored in Phase 9 per STKP-01).
  *
  * Determina si un artículo de stock requiere importación — usado al agregar ítems
  * a un presupuesto para flagear `itemRequiereImportacion: true`. Al aceptar el
  * presupuesto, estos flags disparan la creación automática de requerimientos
  * condicionales via `presupuestosService.aceptarConRequerimientos`.
  *
- * TODO(STKP-01): replace with computeStockAmplio() in Phase 9.
- *   Hoy contamos manualmente unidades por estado (disponible + reservado + en_transito + asignado).
- *   Phase 9 introducirá una función pure `computeStockAmplio(articuloId)` que consolida
- *   la fuente de verdad (unidades + OCs en tránsito + reservas explícitas). Cuando eso
- *   exista, `itemRequiresImportacion(articuloId)` debería llamar a esa API y eliminar
- *   la consulta directa a `unidades`.
+ * Phase 9 refactor: `itemRequiresImportacion` now delegates to `computeStockAmplio()`
+ * as established by STKP-01. The ATP formula is now: disponible + enTransito + reservado +
+ * comprometido. If the sum is 0, no stock is available or incoming → requires importation.
  */
 
-import { unidadesService } from './stockService';
+import { computeStockAmplio } from './stockAmplioService';
 
 /**
  * Retorna `true` si un artículo de stock tiene ATP === 0 y por lo tanto requiere importación.
  *
- * ATP (Available To Promise) = disponible + reservado + en_transito (+ asignado).
- * Si la suma es 0, el artículo no tiene stock ni camino — comprar / importar.
+ * ATP (Available To Promise) = disponible + enTransito + reservado + comprometido.
+ * `computeStockAmplio()` is the single source of truth for these 4 buckets (Phase 9).
  *
  * - Consumibles/servicios sin `stockArticuloId`: devolver `false` desde el caller (no aplica).
  * - Si la consulta falla (network / permisos): `false` (conservador — no flagear falsos positivos).
@@ -33,13 +30,11 @@ export async function itemRequiresImportacion(
 ): Promise<boolean> {
   if (!stockArticuloId) return false;
   try {
-    const unidades = await unidadesService.getAll({ articuloId: stockArticuloId, activoOnly: true });
-    // Estados que cuentan como ATP positivo — el artículo está o estará disponible.
-    const atpEstados = new Set<string>(['disponible', 'reservado', 'en_transito', 'asignado']);
-    const atp = unidades.reduce((acc, u) => acc + (atpEstados.has(u.estado) ? 1 : 0), 0);
-    return atp === 0;
+    const sa = await computeStockAmplio(stockArticuloId);
+    const total = sa.disponible + sa.enTransito + sa.reservado + sa.comprometido;
+    return total === 0;
   } catch (err) {
-    console.warn('[atpHelpers.itemRequiresImportacion] fallo al consultar unidades:', err);
+    console.warn('[atpHelpers.itemRequiresImportacion] fallo:', err);
     return false;
   }
 }
@@ -47,6 +42,7 @@ export async function itemRequiresImportacion(
 /**
  * Variante síncrona para cuando ya tenemos el array de unidades precargado (evita round-trip).
  * Usado por UI que ya suscribió a `unidadesService.subscribe` para rendering.
+ * KEEP as-is — called by handlePickArticulo with pre-loaded unidades (different caller path).
  */
 export function itemRequiresImportacionFromUnidades(
   unidades: Array<{ estado: string; activo?: boolean }>,
