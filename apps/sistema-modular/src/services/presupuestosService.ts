@@ -903,6 +903,65 @@ export const presupuestosService = {
       }
     }
 
+    // ── Paso 6: Phase 10 — si tipo === 'ventas', auto-crear 1 OT genérica (post-commit) ──
+    // Rationale: nested runTransaction está prohibido por Firebase SDK. getNextOtNumber()
+    // ya usa su propia tx para el counter — no anidable. Best-effort post-commit + pendingAction
+    // fallback. Precedente: Phase 8-03 _appendPendingAction retry path.
+    if (pres.tipo === 'ventas') {
+      try {
+        // Idempotency check: si alguna OT ya tiene este ppto en budgets, skip
+        const existingOTs = await getDocs(
+          query(collection(db, 'reportes'), where('budgets', 'array-contains', pres.numero)),
+        );
+        if (existingOTs.size > 0) {
+          console.log(`[aceptarConRequerimientos] OT ya existe para ppto ${pres.numero}, skip auto-create`);
+        } else {
+          const cfg = await adminConfigService.getWithDefaults();
+          const coordId = cfg.usuarioCoordinadorOTId;
+          if (!coordId) {
+            await this._appendPendingAction(presupuestoId, {
+              type: 'notificar_coordinador_ot',
+              reason: `Auto ventas — ppto ${pres.numero} aceptado; falta adminConfig.usuarioCoordinadorOTId. Configurar en /admin/config-flujos y reintentar desde /admin/acciones-pendientes.`,
+            });
+          } else {
+            // Lazy import rompe circular dep (otService ↔ presupuestosService) — precedente Phase 8-03
+            const { ordenesTrabajoService } = await import('./otService');
+            const otNumber = await ordenesTrabajoService.getNextOtNumber();
+            const fechaServicio = pres.ventasMetadata?.fechaEstimadaEntrega ?? null;
+            await ordenesTrabajoService.create({
+              otNumber,
+              clienteId: pres.clienteId,
+              razonSocial: pres.responsableNombre ?? '',
+              contactoId: pres.contactoId ?? null,
+              ingenieroAsignadoId: coordId,
+              ingenieroAsignadoNombre: null,
+              fechaServicioAprox: fechaServicio,
+              budgets: [pres.numero],
+              estadoAdmin: 'CREADA' as import('@ags/shared').OTEstadoAdmin,
+              status: 'BORRADOR',
+              leadId: pres.origenTipo === 'lead' ? pres.origenId : null,
+              descripcion: `Seguimiento venta equipo — ppto ${pres.numero}. Coordinador arma OTs específicas (bench, entrega, instalación, QI, QO) manualmente.`,
+            } as any);
+            // Back-link en el presupuesto
+            const prevOts = Array.isArray(pres.otsVinculadasNumbers) ? pres.otsVinculadasNumbers : [];
+            await updateDoc(doc(db, 'presupuestos', presupuestoId), deepCleanForFirestore({
+              otsVinculadasNumbers: [...prevOts, otNumber],
+              updatedAt: Timestamp.now(),
+              updatedBy: actor?.uid ?? null,
+              updatedByName: actor?.name ?? null,
+            }));
+            console.log(`[aceptarConRequerimientos] auto-OT ventas creada: ${otNumber} para ppto ${pres.numero}`);
+          }
+        }
+      } catch (err) {
+        console.error('[aceptarConRequerimientos] auto-create OT ventas failed:', err);
+        await this._appendPendingAction(presupuestoId, {
+          type: 'notificar_coordinador_ot',
+          reason: `Auto ventas — ppto ${pres.numero} aceptado; OT auto-create falló: ${err instanceof Error ? err.message : String(err)}. Reintentar desde /admin/acciones-pendientes.`,
+        }).catch(() => {});
+      }
+    }
+
     return { requerimientosIds: newReqIds };
   },
 
