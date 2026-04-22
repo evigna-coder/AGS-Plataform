@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 10-00-PLAN.md (Wave 0 RED baseline E2E specs)
-last_updated: "2026-04-22T03:57:31.783Z"
+stopped_at: Completed 10-02-PLAN.md (Wave 2 — ArticuloPickerPanel + VentasMetadataSection + ATP validation)
+last_updated: "2026-04-22T04:08:15.356Z"
 last_activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 37
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 ---
@@ -88,6 +88,7 @@ Progress: [█████████░] 90% (v2.0 milestone)
 | Phase 09-stock-atp-extendido P03 | 25min | 2 tasks | 8 files |
 | Phase 10-presupuestos-partes-mixto-ventas P01 | 4min | 2 tasks | 1 files |
 | Phase 10-presupuestos-partes-mixto-ventas P00 | 4min | 3 tasks | 5 files |
+| Phase 10-presupuestos-partes-mixto-ventas P02 | 8min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,8 @@ Progress: [█████████░] 90% (v2.0 milestone)
 - [Phase 10-presupuestos-partes-mixto-ventas]: 'enviada' intermediate SolicitudFacturacionEstado: represents mail sent to accountant but not yet facturada; color bg-blue-100 text-blue-800
 - [Phase 10-presupuestos-partes-mixto-ventas]: SolicitudFacturacion.ordenesCompraIds is snapshot at cierre admin — not synced with Presupuesto.ordenesCompraIds
 - [Phase 10-presupuestos-partes-mixto-ventas]: getOTsByBudget queries 'reportes' collection (not 'ordenesTrabajo') — per otService.ts:40 comment; Wave 0 fixme pattern established for Phase 10 tests: test.fixme(true, 'Wave N (plan 10-XX) lands...')
+- [Phase 10-presupuestos-partes-mixto-ventas]: ArticuloPickerPanel uses inline StockAmplioIndicator panel (not popup) for partes/mixto/ventas article selection — catalog loaded once in EditPresupuestoModal and passed as prop to avoid N re-fetches
+- [Phase 10-presupuestos-partes-mixto-ventas]: ATP validation before accepting presupuesto is UX-only (window.confirm, non-blocking) — FLOW-03 aceptarConRequerimientos remains authoritative for requirement creation
 
 ### Pending Todos
 
@@ -145,6 +148,6 @@ Progress: [█████████░] 90% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T03:57:31.779Z
-Stopped at: Completed 10-00-PLAN.md (Wave 0 RED baseline E2E specs)
+Last session: 2026-04-22T04:08:15.353Z
+Stopped at: Completed 10-02-PLAN.md (Wave 2 — ArticuloPickerPanel + VentasMetadataSection + ATP validation)
 Resume file: None
