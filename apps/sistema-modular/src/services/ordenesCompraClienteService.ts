@@ -17,7 +17,14 @@ import { notifyCoordinadorOTBestEffort } from './cargarOCHelpers';
  * CRUD baseline entregado en plan 08-01. La operación transaccional `cargarOC`
  * es el core de FLOW-02 (plan 08-02): crea/actualiza la OC, linkea el/los
  * presupuesto(s) (N:M) y transiciona el ticket de seguimiento a `oc_recibida`
- * atómicamente. El presupuesto NO cambia de estado (lock Phase 7).
+ * atómicamente.
+ *
+ * **Regla de negocio (2026-04-22)**: adjuntar OC = señal de aceptación del cliente.
+ * Si el ppto está en `borrador` o `enviado`, `cargarOC` ahora dispara
+ * `aceptarConRequerimientos` antes del tx principal (pre-flight secuencial),
+ * aplicando toda la lógica de aceptación (derivación Comex, auto-OT ventas Phase 10,
+ * requerimientos condicionales). Si está `aceptado`, comportamiento actual. Si está
+ * `rechazado` o `vencido`, sigue fallando fast.
  *
  * Hard rules (RESEARCH):
  * - NO `arrayUnion` dentro de `runTransaction` (no transaccional → merge manual).
@@ -138,6 +145,32 @@ export const ordenesCompraClienteService = {
   ): Promise<{ id: string; numero: string }> {
     if (!context.presupuestosIds.length) {
       throw new Error('cargarOC: al menos 1 presupuesto requerido');
+    }
+
+    // Pre-flight: OC adjunta = aceptación. Para cada ppto no-aceptado, disparar
+    // aceptarConRequerimientos antes del tx. Fallar fast en estados terminales.
+    // Lazy import para mantener consistencia con el pattern de plan 10-04 y evitar
+    // futura circular dep si presupuestosService importara este service.
+    const preflightSnaps = await Promise.all(
+      context.presupuestosIds.map(id => getDoc(doc(db, 'presupuestos', id))),
+    );
+    for (let i = 0; i < preflightSnaps.length; i++) {
+      const snap = preflightSnaps[i];
+      const pid = context.presupuestosIds[i];
+      if (!snap.exists()) {
+        throw new Error(`Presupuesto ${pid} no encontrado`);
+      }
+      const p = snap.data() as any;
+      if (p.estado === 'rechazado' || p.estado === 'vencido') {
+        throw new Error(
+          `Presupuesto ${p.numero || pid} está ${p.estado}; no se puede cargar OC.`,
+        );
+      }
+      if (p.estado === 'borrador' || p.estado === 'enviado') {
+        const { presupuestosService } = await import('./presupuestosService');
+        await presupuestosService.aceptarConRequerimientos(pid, actor);
+      }
+      // else: estado === 'aceptado' → proceed
     }
 
     const nowIso = new Date().toISOString();
