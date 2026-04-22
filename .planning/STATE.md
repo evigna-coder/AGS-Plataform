@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 10-02-PLAN.md (Wave 2 — ArticuloPickerPanel + VentasMetadataSection + ATP validation)
-last_updated: "2026-04-22T04:08:15.356Z"
+stopped_at: Completed 10-03-PLAN.md (PDF branching by tipo — checkpoint approved with migration-data limitation noted)
+last_updated: "2026-04-22T05:30:00.000Z"
 last_activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
 progress:
   total_phases: 11
@@ -55,12 +55,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 9 of 11 (Stock ATP Extendido) — ALL 3 PLANS COMPLETE
-Plan: 3 of 3 complete (09-01 computeStockAmplio, 09-02 Cloud Functions triggers, 09-03 /stock/planificacion UI)
-Status: Phase 9 complete. Next: Phase 10 (Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports)
-Last activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
+Phase: 10 of 11 (Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports) — IN PROGRESS
+Plan: 3 of 6 complete (10-01 tipos+schema, 10-02 ArticuloPickerPanel+VentasMetadataSection, 10-03 PDF branching)
+Status: Phase 10 plan 03 complete. Next: Plan 10-04 (Aviso Facturación)
+Last activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
 
-Progress: [█████████░] 90% (v2.0 milestone)
+Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Performance Metrics
 
@@ -135,6 +135,7 @@ Progress: [█████████░] 90% (v2.0 milestone)
 - [Phase 10-presupuestos-partes-mixto-ventas]: getOTsByBudget queries 'reportes' collection (not 'ordenesTrabajo') — per otService.ts:40 comment; Wave 0 fixme pattern established for Phase 10 tests: test.fixme(true, 'Wave N (plan 10-XX) lands...')
 - [Phase 10-presupuestos-partes-mixto-ventas]: ArticuloPickerPanel uses inline StockAmplioIndicator panel (not popup) for partes/mixto/ventas article selection — catalog loaded once in EditPresupuestoModal and passed as prop to avoid N re-fetches
 - [Phase 10-presupuestos-partes-mixto-ventas]: ATP validation before accepting presupuesto is UX-only (window.confirm, non-blocking) — FLOW-03 aceptarConRequerimientos remains authoritative for requirement creation
+- [Phase 10-presupuestos-partes-mixto-ventas]: splitItemsByTipo classifies by stockArticuloId (non-null = Partes); null defaults to Servicios. Historical Excel-migrated items have null stockArticuloId and fall into Servicios bucket in PDFs. Backfill via /admin/relinkear-articulos (separate commit). New items via ArticuloPickerPanel classified correctly from day one.
 
 ### Pending Todos
 
