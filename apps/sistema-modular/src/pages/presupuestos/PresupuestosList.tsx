@@ -4,9 +4,12 @@ import { ordenesCompraClienteService } from '../../services/ordenesCompraCliente
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useAuth } from '../../contexts/AuthContext';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import type { Presupuesto, PresupuestoEstado, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
+import { exportPresupuestosExcel, exportPresupuestosPDF, type PresupuestoExportRow } from '../../utils/exports/exportPresupuestos';
+import { exportOCsPendientesExcel, exportOCsPendientesPDF, type OCPendienteExportRow } from '../../utils/exports/exportOCsPendientes';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -32,6 +35,8 @@ const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion'];
 
 export const PresupuestosList = () => {
   const confirm = useConfirm();
+  const { hasRole } = useAuth();
+  const canExport = hasRole('admin', 'admin_soporte');
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
@@ -61,15 +66,16 @@ export const PresupuestosList = () => {
   };
 
   const FILTER_SCHEMA = useMemo(() => ({
-    search:      { type: 'string' as const, default: '' },
-    cliente:     { type: 'string' as const, default: '' },
-    estado:      { type: 'string' as const, default: '' },
-    tipo:        { type: 'string' as const, default: '' },
-    responsable: { type: 'string' as const, default: '' },
-    fechaDesde:  { type: 'string' as const, default: '' },
-    fechaHasta:  { type: 'string' as const, default: '' },
-    sortField:   { type: 'string' as const, default: 'createdAt' },
-    sortDir:     { type: 'string' as const, default: 'desc' },
+    search:      { type: 'string' as const,  default: '' },
+    cliente:     { type: 'string' as const,  default: '' },
+    estado:      { type: 'string' as const,  default: '' },
+    tipo:        { type: 'string' as const,  default: '' },
+    responsable: { type: 'string' as const,  default: '' },
+    fechaDesde:  { type: 'string' as const,  default: '' },
+    fechaHasta:  { type: 'string' as const,  default: '' },
+    sortField:   { type: 'string' as const,  default: 'createdAt' },
+    sortDir:     { type: 'string' as const,  default: 'desc' },
+    ocPendiente: { type: 'boolean' as const, default: false },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const debouncedSearch = useDebounce(filters.search, 300);
@@ -147,6 +153,11 @@ export const PresupuestosList = () => {
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
       if (filters.fechaDesde && p.createdAt < filters.fechaDesde) return false;
       if (filters.fechaHasta && p.createdAt > filters.fechaHasta + 'T23:59:59') return false;
+      // OCs pendientes: aceptado SIN OCs cargadas aun (esperando OC del cliente)
+      if (filters.ocPendiente) {
+        if (p.estado !== 'aceptado') return false;
+        if ((p.ordenesCompraIds || []).length > 0) return false;
+      }
       return true;
     });
     if (debouncedSearch.trim()) {
@@ -216,9 +227,44 @@ export const PresupuestosList = () => {
     floatingPres.open(newId, loadData);
   };
 
-  const hasFilters = filters.cliente || filters.estado || filters.tipo || filters.responsable || filters.fechaDesde || filters.fechaHasta;
+  const hasFilters = filters.cliente || filters.estado || filters.tipo || filters.responsable || filters.fechaDesde || filters.fechaHasta || filters.ocPendiente;
 
   const isInitialLoad = loading && presupuestos.length === 0;
+
+  // ---- Export helpers ----
+  function buildPresupuestoRows(rows: Presupuesto[], clientesList: Cliente[], usuariosList: UsuarioAGS[]): PresupuestoExportRow[] {
+    return rows.map(p => ({
+      presupuesto: p,
+      clienteNombre: clientesList.find(c => c.id === p.clienteId)?.razonSocial || '—',
+      responsableNombre: usuariosList.find(u => u.id === p.responsableId)?.displayName || p.responsableNombre || '—',
+    }));
+  }
+
+  function buildOCPendienteRows(rows: Presupuesto[], clientesList: Cliente[], usuariosList: UsuarioAGS[]): OCPendienteExportRow[] {
+    return rows.map(p => ({
+      presupuesto: p,
+      clienteNombre: clientesList.find(c => c.id === p.clienteId)?.razonSocial || '—',
+      ocNumero: 'N/A',
+      ocFecha: null,
+      adjuntosCount: (p.adjuntos || []).length,
+      diasDesdeCarga: Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86_400_000),
+      coordinadorNombre: usuariosList.find(u => u.id === p.responsableId)?.displayName || p.responsableNombre || '—',
+    }));
+  }
+
+  function buildFiltrosLabel(f: typeof filters, clientesList: Cliente[]): string {
+    const parts: string[] = [];
+    if (f.cliente) {
+      const nombre = clientesList.find(c => c.id === f.cliente)?.razonSocial;
+      if (nombre) parts.push(`cliente=${nombre}`);
+    }
+    if (f.estado) parts.push(`estado=${ESTADO_PRESUPUESTO_LABELS[f.estado as keyof typeof ESTADO_PRESUPUESTO_LABELS] || f.estado}`);
+    if (f.tipo) parts.push(`tipo=${f.tipo}`);
+    if (f.responsable) parts.push(`responsable=${f.responsable}`);
+    if (f.ocPendiente) parts.push('OCs pendientes');
+    return parts.length > 0 ? parts.join(', ') : 'Sin filtros';
+  }
+  // ---- End export helpers ----
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -229,6 +275,34 @@ export const PresupuestosList = () => {
             <Button size="sm" variant="outline" onClick={() => setShowCategorias(true)}>Categorías</Button>
             <Button size="sm" variant="outline" onClick={() => setShowCondiciones(true)}>Condiciones</Button>
             <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/tipos-equipo')}>Tipos de equipo</Button>
+            {canExport && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => {
+                  const filtrosLabel = buildFiltrosLabel(filters, clientes);
+                  if (filters.ocPendiente) {
+                    const ocRows = buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios);
+                    exportOCsPendientesExcel(ocRows, { filtrosLabel });
+                  } else {
+                    const rows = buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios);
+                    exportPresupuestosExcel(rows, { filtrosLabel });
+                  }
+                }}>
+                  Exportar Excel
+                </Button>
+                <Button size="sm" variant="outline" onClick={async () => {
+                  const filtrosLabel = buildFiltrosLabel(filters, clientes);
+                  if (filters.ocPendiente) {
+                    const ocRows = buildOCPendienteRows(presupuestosFiltrados, clientes, usuarios);
+                    await exportOCsPendientesPDF(ocRows, { filtrosLabel });
+                  } else {
+                    const rows = buildPresupuestoRows(presupuestosFiltrados, clientes, usuarios);
+                    await exportPresupuestosPDF(rows, { filtrosLabel });
+                  }
+                }}>
+                  Exportar PDF
+                </Button>
+              </>
+            )}
             <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Presupuesto</Button>
           </div>
         }>
@@ -259,6 +333,15 @@ export const PresupuestosList = () => {
             className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Desde" />
           <input type="date" value={filters.fechaHasta} onChange={e => setFilter('fechaHasta', e.target.value)}
             className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" title="Hasta" />
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filters.ocPendiente}
+              onChange={e => setFilter('ocPendiente', e.target.checked)}
+              className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+            />
+            OCs pendientes
+          </label>
           {hasFilters && (
             <Button size="sm" variant="ghost" onClick={() => resetFilters()}>Limpiar</Button>
           )}
