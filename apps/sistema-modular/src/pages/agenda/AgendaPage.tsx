@@ -18,6 +18,7 @@ const snapToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) =
 };
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { sistemasService } from '../../services/firebaseService';
+import { ordenesTrabajoService } from '../../services/otService';
 import { useAgenda } from '../../hooks/useAgenda';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
 import { AgendaHeader } from '../../components/agenda/AgendaHeader';
@@ -176,6 +177,15 @@ export const AgendaPage: FC = () => {
             titulo: null,
           });
         });
+        // Sync la OT: asignar ingeniero + fecha y, si estaba en CREADA, transicionar
+        // a ASIGNADA. Best-effort post-entry (no bloquea el drop si falla).
+        const shouldPromote = ot.estadoAdmin === 'CREADA' || !ot.estadoAdmin;
+        ordenesTrabajoService.update(ot.otNumber, {
+          ingenieroAsignadoId: cell.ingenieroId,
+          ingenieroAsignadoNombre: ingeniero.nombre,
+          fechaServicioAprox: fechaInicio,
+          ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
+        }).catch(err => console.error('[AgendaPage] sync OT al dropear pending falló:', err));
       }
     }
   }, [ingenieros, entries, createEntry, updateEntry]);
