@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Phase 10 context gathered (4 areas + 2 clarifiers)
-last_updated: "2026-04-22T01:48:50.952Z"
+stopped_at: Completed 10-01 — shared types foundation (VentasMetadata + SolicitudFacturacion.enviada)
+last_updated: "2026-04-22T03:55:02.263Z"
 last_activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
 progress:
   total_phases: 11
   completed_phases: 5
-  total_plans: 30
-  completed_plans: 27
+  total_plans: 37
+  completed_plans: 28
 ---
 
 ---
@@ -86,6 +86,7 @@ Progress: [█████████░] 90% (v2.0 milestone)
 | Phase 08-flujo-automatico-derivacion P04 | 14min | 3 tasks | 8 files |
 | Phase 09-stock-atp-extendido P01 | 7m 25s | 3 tasks | 11 files |
 | Phase 09-stock-atp-extendido P03 | 25min | 2 tasks | 8 files |
+| Phase 10-presupuestos-partes-mixto-ventas P01 | 4min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,9 @@ Progress: [█████████░] 90% (v2.0 milestone)
 - [Phase 09-02]: onOTCerrada is observational only in v2.0 — writes sentinel ot_cierre_idempotency/{otId}, no mail send; mailQueue consumer deferred post-v2.0. Phase 8 pendingActions[] retry path remains authoritative.
 - [Phase 09-02]: OC trigger extracts all articuloIds from before+after items union via Set<string>, fires parallel Promise.all() recomputes — multi-articuloId OC verified live in prod (STKP-02 confirmed 2026-04-21)
 - [Phase 09-02]: Sync-contract pattern established: when functions/ duplicates client-side constants, use explicit block comment listing every state value + referencing source of truth (3 locations to update on change)
+- [Phase 10-presupuestos-partes-mixto-ventas]: VentasMetadata as sub-object on Presupuesto (not 3 root fields): mirrors contratoFechaInicio/Fin pattern; keeps root clean
+- [Phase 10-presupuestos-partes-mixto-ventas]: 'enviada' intermediate SolicitudFacturacionEstado: represents mail sent to accountant but not yet facturada; color bg-blue-100 text-blue-800
+- [Phase 10-presupuestos-partes-mixto-ventas]: SolicitudFacturacion.ordenesCompraIds is snapshot at cierre admin — not synced with Presupuesto.ordenesCompraIds
 
 ### Pending Todos
 
@@ -139,6 +143,6 @@ Progress: [█████████░] 90% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T01:48:50.938Z
-Stopped at: Phase 10 context gathered (4 areas + 2 clarifiers)
-Resume file: .planning/phases/10-presupuestos-partes-mixto-ventas/10-CONTEXT.md
+Last session: 2026-04-22T03:55:02.260Z
+Stopped at: Completed 10-01 — shared types foundation (VentasMetadata + SolicitudFacturacion.enviada)
+Resume file: None

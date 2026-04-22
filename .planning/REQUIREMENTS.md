@@ -33,7 +33,7 @@
 - [ ] **PTYP-01**: Implementación completa de presupuesto **per_incident** — editor, PDF (template teal adaptado), envío por mail OAuth, flujo de estados.
 - [ ] **PTYP-02**: Implementación de presupuesto **partes** — similar a per_incident pero con items de stock; disparador del cruce ATP al aceptar.
 - [ ] **PTYP-03**: Implementación de presupuesto **mixto simple** — combina servicios + partes en un solo documento. (Orquestación multi-OT queda para v2.1).
-- [ ] **PTYP-04**: Implementación de presupuesto **ventas de equipos** — genera OT (correcciones: sí genera OT), PDF, envío.
+- [x] **PTYP-04**: Implementación de presupuesto **ventas de equipos** — genera OT (correcciones: sí genera OT), PDF, envío.
 
 ### Revisiones de Presupuesto
 
@@ -62,7 +62,7 @@
 
 - [ ] **FMT-01**: PDF generator para cada tipo de presupuesto (per_incident, partes, mixto, ventas) reusando el template teal del contrato con adaptaciones por tipo.
 - [ ] **FMT-02**: Envío de presupuesto por mail OAuth extendido para todos los tipos. Invertir orden: validar token ANTES de cambiar estado (Pitfall 5-A).
-- [ ] **FMT-03**: Template mail automático al contable para aviso facturación con PDF del presupuesto, OC adjunta y detalle OTs. Destinatario configurable desde UI (default: mbarrios@agsanalitica.com).
+- [x] **FMT-03**: Template mail automático al contable para aviso facturación con PDF del presupuesto, OC adjunta y detalle OTs. Destinatario configurable desde UI (default: mbarrios@agsanalitica.com).
 - [ ] **FMT-04**: Excel export de listado de presupuestos con filtros aplicados (xlsx ya instalado).
 - [ ] **FMT-05**: Excel export de OCs pendientes por cliente/coordinador.
 - [ ] **FMT-06**: Excel export de solicitudes de facturación pendientes (para reconciliación con Bejerman).
@@ -141,8 +141,8 @@
 | STKP-05 | Phase 9 | Complete |
 | PTYP-02 | Phase 10 | Pending |
 | PTYP-03 | Phase 10 | Pending |
-| PTYP-04 | Phase 10 | Pending |
-| FMT-03 | Phase 10 | Pending |
+| PTYP-04 | Phase 10 | Complete |
+| FMT-03 | Phase 10 | Complete |
 | FMT-04 | Phase 10 | Pending |
 | FMT-05 | Phase 10 | Pending |
 | FMT-06 | Phase 10 | Pending |
