@@ -19,7 +19,23 @@ const snapToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) =
 import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
 import { sistemasService } from '../../services/firebaseService';
 import { ordenesTrabajoService } from '../../services/otService';
+import type { OTEstadoAdmin } from '@ags/shared';
 import { useAgenda } from '../../hooks/useAgenda';
+
+/** Mapping EstadoAgenda → OT estadoAdmin target. Cancelado no tiene mapping
+ * (admin decide qué hacer con la OT). El update solo se aplica si la OT
+ * actual está en un estado anterior al target — nunca hace regresión. */
+const AGENDA_TO_OT_ESTADO: Partial<Record<EstadoAgenda, OTEstadoAdmin>> = {
+  pendiente: 'ASIGNADA',
+  tentativo: 'ASIGNADA',
+  confirmado: 'COORDINADA',
+  en_progreso: 'EN_CURSO',
+  completado: 'CIERRE_TECNICO',
+};
+const OT_ESTADO_ORDER: Record<OTEstadoAdmin, number> = {
+  CREADA: 0, ASIGNADA: 1, COORDINADA: 2, EN_CURSO: 3,
+  CIERRE_TECNICO: 4, CIERRE_ADMINISTRATIVO: 5, FINALIZADO: 6,
+};
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
 import { AgendaHeader } from '../../components/agenda/AgendaHeader';
 import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
@@ -551,7 +567,23 @@ export const AgendaPage: FC = () => {
         allEntries: selectedCell.allEntries.map(e => e.id === entryId ? { ...e, estadoAgenda: estado } : e),
       });
     }
-  }, [updateEntry, selectedCell]);
+    // Propagar al OT si el entry está linkeado. Solo avanzar (no regresar) en el
+    // lifecycle de estadoAdmin. Best-effort — no bloquea el cambio de agenda.
+    const entry = entries.find(e => e.id === entryId);
+    const targetOT = AGENDA_TO_OT_ESTADO[estado];
+    if (entry?.otNumber && targetOT) {
+      ordenesTrabajoService.getByOtNumber(entry.otNumber).then(ot => {
+        if (!ot) return;
+        const current = (ot.estadoAdmin || 'CREADA') as OTEstadoAdmin;
+        if (OT_ESTADO_ORDER[targetOT] > OT_ESTADO_ORDER[current]) {
+          return ordenesTrabajoService.update(entry.otNumber!, {
+            estadoAdmin: targetOT,
+            estadoAdminFecha: new Date().toISOString(),
+          });
+        }
+      }).catch(err => console.error('[AgendaPage] propagar estadoAgenda a OT falló:', err));
+    }
+  }, [updateEntry, selectedCell, entries]);
 
   const handleDeleteEntry = useCallback((entryId: string) => {
     deleteEntry(entryId);
