@@ -38,6 +38,12 @@ export interface PresupuestoPDFData {
 
 const S = baseStyles;
 
+/** Formato monetario es-AR: 1.234,56 — separador de miles punto, decimal coma. */
+function fmt(n: number | null | undefined): string {
+  if (n === null || n === undefined || isNaN(n)) return '0,00';
+  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function formatDate(dateValue: any): string {
   if (!dateValue) return '-';
   try {
@@ -65,10 +71,10 @@ function ItemRow({ item, index }: { item: PresupuestoItem; index: number }) {
         {String(index + 1).padStart(4, '0')}
       </Text>
       <Text style={[S.tableCell, { width: itemCols.producto }]}>{item.codigoProducto || '-'}</Text>
-      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.cantidad }]}>{item.cantidad?.toFixed(2) || '0.00'}</Text>
+      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.cantidad }]}>{fmt(item.cantidad)}</Text>
       <Text style={[S.tableCell, { width: itemCols.descripcion }]}>{item.descripcion}</Text>
-      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.precio }]}>{item.precioUnitario?.toFixed(2) || '0.00'}</Text>
-      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.total, fontWeight: 600 }]}>{item.subtotal?.toFixed(2) || '0.00'}</Text>
+      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.precio }]}>{fmt(item.precioUnitario)}</Text>
+      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.total, fontWeight: 600 }]}>{fmt(item.subtotal)}</Text>
     </View>
   );
 }
@@ -131,7 +137,7 @@ function MixtoItemsBlock({ items, moneda }: { items: PresupuestoItem[]; moneda: 
           </Text>
           <ItemsTable items={servicios} moneda={moneda} />
           <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
-            Subtotal servicios: {sym} {sumSubtotal(servicios).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+            Subtotal servicios: {sym} {fmt(sumSubtotal(servicios))}
           </Text>
         </View>
       )}
@@ -142,7 +148,7 @@ function MixtoItemsBlock({ items, moneda }: { items: PresupuestoItem[]; moneda: 
           </Text>
           <ItemsTable items={partes} moneda={moneda} />
           <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
-            Subtotal partes: {sym} {sumSubtotal(partes).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+            Subtotal partes: {sym} {fmt(sumSubtotal(partes))}
           </Text>
         </View>
       )}
@@ -356,43 +362,43 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
         <View style={S.totalsBox}>
           <View style={S.totalsRow}>
             <Text style={S.totalsLabel}>Subtotal:</Text>
-            <Text style={S.totalsValue}>{subtotal?.toFixed(2)}</Text>
+            <Text style={S.totalsValue}>{fmt(subtotal)}</Text>
           </View>
           {impuestos.iva105 > 0 && (
             <View style={S.totalsRow}>
               <Text style={S.totalsLabel}>I.V.A: 10,5%</Text>
-              <Text style={S.totalsValue}>{impuestos.iva105.toFixed(2)}</Text>
+              <Text style={S.totalsValue}>{fmt(impuestos.iva105)}</Text>
             </View>
           )}
           {impuestos.iva21 > 0 && (
             <View style={S.totalsRow}>
               <Text style={S.totalsLabel}>I.V.A: 21%</Text>
-              <Text style={S.totalsValue}>{impuestos.iva21.toFixed(2)}</Text>
+              <Text style={S.totalsValue}>{fmt(impuestos.iva21)}</Text>
             </View>
           )}
           {impuestos.ganancias > 0 && (
             <View style={S.totalsRow}>
               <Text style={S.totalsLabel}>Ganancias:</Text>
-              <Text style={S.totalsValue}>{impuestos.ganancias.toFixed(2)}</Text>
+              <Text style={S.totalsValue}>{fmt(impuestos.ganancias)}</Text>
             </View>
           )}
           {impuestos.iibb > 0 && (
             <View style={S.totalsRow}>
               <Text style={S.totalsLabel}>IIBB:</Text>
-              <Text style={S.totalsValue}>{impuestos.iibb.toFixed(2)}</Text>
+              <Text style={S.totalsValue}>{fmt(impuestos.iibb)}</Text>
             </View>
           )}
           {data.totalsByCurrency ? (
             Object.entries(data.totalsByCurrency).map(([m, t]) => (
               <View key={m} style={S.totalsRowFinal}>
                 <Text style={S.totalsLabelFinal}>TOTAL {m}</Text>
-                <Text style={S.totalsValueFinal}>{t?.toFixed(2)}</Text>
+                <Text style={S.totalsValueFinal}>{fmt(t)}</Text>
               </View>
             ))
           ) : (
             <View style={S.totalsRowFinal}>
               <Text style={S.totalsLabelFinal}>TOTAL {moneda}</Text>
-              <Text style={S.totalsValueFinal}>{total?.toFixed(2)}</Text>
+              <Text style={S.totalsValueFinal}>{fmt(total)}</Text>
             </View>
           )}
         </View>
@@ -418,7 +424,7 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
               <View key={i} style={{ flexDirection: 'row', padding: 2, borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: COLORS.border }}>
                 <Text style={{ fontSize: 6, width: '15%', textAlign: 'center' }}>{c.numero}</Text>
                 <Text style={{ fontSize: 6, width: '20%', textAlign: 'center' }}>{c.moneda}</Text>
-                <Text style={{ fontSize: 6, width: '30%', textAlign: 'right' }}>{c.monto?.toFixed(2)}</Text>
+                <Text style={{ fontSize: 6, width: '30%', textAlign: 'right' }}>{fmt(c.monto)}</Text>
                 <Text style={{ fontSize: 6, width: '35%', textAlign: 'left', paddingLeft: 6 }}>{c.descripcion || ''}</Text>
               </View>
             ))}
