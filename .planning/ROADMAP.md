@@ -168,7 +168,7 @@ Plans:
   3. Al llegar el aviso de facturación, el contable recibe un mail con el presupuesto PDF, la OC adjunta y el detalle de OTs vinculadas — el destinatario es configurable desde la UI
   4. Un admin puede exportar a Excel el listado de presupuestos con filtros aplicados, las OCs pendientes por cliente/coordinador, y las solicitudes de facturación pendientes
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 - [ ] 10-00-PLAN.md — Wave 0 E2E specs RED baseline + firestore-assert helpers (PTYP-02/03/04 + FMT-03/04/05/06)
@@ -214,5 +214,5 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |
 | 8. Estados + OC + Flujo Automático | v2.0 | 0/6 | Not started | - |
 | 9. Stock ATP Extendido | 3/3 | Complete   | 2026-04-22 | - |
-| 10. Presupuestos Partes/Mixto/Ventas + Exports | 5/7 | In Progress|  | - |
+| 10. Presupuestos Partes/Mixto/Ventas + Exports | 6/7 | In Progress|  | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 10-04-PLAN.md (Wave 3 — auto-OT ventas + solicitudesFacturacion tx + facturacionService methods)
-last_updated: "2026-04-22T04:45:52.757Z"
+stopped_at: Completed 10-05-PLAN.md (Wave 4 — export helpers XLSX+PDF + PresupuestosList integration)
+last_updated: "2026-04-22T04:57:55.964Z"
 last_activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 37
-  completed_plans: 32
+  completed_plans: 33
   percent: 86
 ---
 
@@ -106,6 +106,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 10-presupuestos-partes-mixto-ventas P00 | 4min | 3 tasks | 5 files |
 | Phase 10-presupuestos-partes-mixto-ventas P02 | 8min | 3 tasks | 6 files |
 | Phase 10-presupuestos-partes-mixto-ventas P04 | 6min | 3 tasks | 3 files |
+| Phase 10-presupuestos-partes-mixto-ventas P05 | 8min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,9 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 10-presupuestos-partes-mixto-ventas]: splitItemsByTipo classifies by stockArticuloId (non-null = Partes); null defaults to Servicios. Historical Excel-migrated items have null stockArticuloId and fall into Servicios bucket in PDFs. Backfill via /admin/relinkear-articulos (separate commit). New items via ArticuloPickerPanel classified correctly from day one.
 - [Phase 10-presupuestos-partes-mixto-ventas]: Lazy import de otService en presupuestosService para romper circular dep (post-commit auto-OT ventas, Phase 10-04)
 - [Phase 10-presupuestos-partes-mixto-ventas]: cerrarAdministrativamente READ PHASE / WRITE PHASE separados: solicitudesFacturacion sentinels leídos en loop READ PHASE, ID determinístico {otNumber}_{presupuestoId} (Phase 10-04)
+- [Phase 10-presupuestos-partes-mixto-ventas]: exportToExcel uses BOTH !views (xlsx free edition real freeze syntax) AND !freeze (legacy compat) for header freeze W8 dual-path
+- [Phase 10-presupuestos-partes-mixto-ventas]: OC pendiente criterion: estado=aceptado + ordenesCompraIds.length===0 (sin OC cargada del cliente aun)
+- [Phase 10-presupuestos-partes-mixto-ventas]: Export wrapper pattern: buildColumns() fn returns ExportColumn<T>[] used for both Excel and PDF helpers — single column definition drives both formats
 
 ### Pending Todos
 
@@ -168,6 +172,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T04:45:52.754Z
-Stopped at: Completed 10-04-PLAN.md (Wave 3 — auto-OT ventas + solicitudesFacturacion tx + facturacionService methods)
+Last session: 2026-04-22T04:57:55.961Z
+Stopped at: Completed 10-05-PLAN.md (Wave 4 — export helpers XLSX+PDF + PresupuestosList integration)
 Resume file: None
