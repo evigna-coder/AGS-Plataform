@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "serve": "pnpm build && firebase emulators:start --only functions",
+    "typecheck": "tsc --noEmit",
+    "serve": "pnpm build && firebase emulators:start --only functions,firestore",
     "deploy": "pnpm build && firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
