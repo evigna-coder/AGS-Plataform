@@ -1125,6 +1125,24 @@ export interface PresupuestoCuota {
   descripcion?: string;    // ej: "Cuota 1/12"
 }
 
+/**
+ * Datos de entrega e instalación — solo aplica cuando `Presupuesto.tipo === 'ventas'`.
+ * Se muestra en el editor en sección dedicada (`VentasMetadataSection`) y se renderiza
+ * en el PDF antes del detalle de items. Todos los campos son opcionales para permitir
+ * save incremental del borrador (el vendedor completa mientras negocia).
+ *
+ * Phase 10 (10-01). Precedente estructural: contratoFechaInicio / contratoFechaFin
+ * agrupados bajo un sub-objeto en vez de contaminar el root de Presupuesto.
+ */
+export interface VentasMetadata {
+  /** ISO date string — fecha estimada de entrega del equipo. */
+  fechaEstimadaEntrega?: string | null;
+  /** Dirección libre donde se instalará. Puede diferir del establecimiento declarado. */
+  lugarInstalacion?: string | null;
+  /** Si el cliente requiere entrenamiento post-instalación (bench/usuario). */
+  requiereEntrenamiento?: boolean;
+}
+
 // --- Presupuestos ---
 export interface Presupuesto {
   id: string;
@@ -1188,6 +1206,8 @@ export interface Presupuesto {
   contratoFechaInicio?: string | null;
   /** Fecha de fin de vigencia del contrato (ISO). Solo aplica para tipo === 'contrato'. */
   contratoFechaFin?: string | null;
+  /** Datos de entrega e instalación — solo aplica para tipo === 'ventas'. Ver VentasMetadata. */
+  ventasMetadata?: VentasMetadata | null;
   // --- Flujo Automático de Derivación (Phase 8) ---
   /** Acciones automáticas que no pudieron completarse en el momento del disparo. Se resuelven manual/automáticamente desde `/admin/acciones-pendientes`. */
   pendingActions?: PendingAction[];
