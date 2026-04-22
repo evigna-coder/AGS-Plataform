@@ -11,6 +11,7 @@ import type {
   CategoriaPresupuesto,
   PresupuestoItem,
   ModuloSistema,
+  VentasMetadata,
 } from '@ags/shared';
 
 export interface PresupuestoPDFData {
@@ -46,6 +47,134 @@ function formatDate(dateValue: any): string {
   } catch {
     return '-';
   }
+}
+
+const itemCols = {
+  item: '8%',
+  producto: '12%',
+  cantidad: '8%',
+  descripcion: '40%',
+  precio: '14%',
+  total: '18%',
+};
+
+function ItemRow({ item, index }: { item: PresupuestoItem; index: number }) {
+  return (
+    <View style={[S.tableRow, index % 2 === 1 ? S.tableRowAlt : {}]} wrap={false}>
+      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.item }]}>
+        {String(index + 1).padStart(4, '0')}
+      </Text>
+      <Text style={[S.tableCell, { width: itemCols.producto }]}>{item.codigoProducto || '-'}</Text>
+      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.cantidad }]}>{item.cantidad?.toFixed(2) || '0.00'}</Text>
+      <Text style={[S.tableCell, { width: itemCols.descripcion }]}>{item.descripcion}</Text>
+      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.precio }]}>{item.precioUnitario?.toFixed(2) || '0.00'}</Text>
+      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.total, fontWeight: 600 }]}>{item.subtotal?.toFixed(2) || '0.00'}</Text>
+    </View>
+  );
+}
+
+/**
+ * Phase 10: clasifica items de un ppto mixto/partes para rendering en 2 secciones.
+ * Reglas:
+ *   - Con `stockArticuloId` (no-null)    → 'partes'
+ *   - Con `conceptoServicioId` (no-null) → 'servicios'
+ *   - Sin ninguno (carga manual texto)   → 'servicios' (default, los partes tienen stock siempre)
+ */
+function splitItemsByTipo(items: PresupuestoItem[]): { servicios: PresupuestoItem[]; partes: PresupuestoItem[] } {
+  const servicios: PresupuestoItem[] = [];
+  const partes: PresupuestoItem[] = [];
+  for (const it of items) {
+    if (it.stockArticuloId) partes.push(it);
+    else servicios.push(it);
+  }
+  return { servicios, partes };
+}
+
+function sumSubtotal(items: PresupuestoItem[]): number {
+  return items.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+}
+
+/**
+ * Phase 10 — Tabla flat de items (sin agrupación por sistema).
+ * Reusada por MixtoItemsBlock y por el renderer default (servicio/ventas).
+ */
+function ItemsTable({ items, moneda: _moneda }: { items: PresupuestoItem[]; moneda: string }) {
+  return (
+    <View style={S.table}>
+      <View style={S.tableHeaderRow}>
+        <Text style={[S.tableHeaderCell, { width: itemCols.item }]}>Item</Text>
+        <Text style={[S.tableHeaderCell, { width: itemCols.producto }]}>Producto</Text>
+        <Text style={[S.tableHeaderCell, { width: itemCols.cantidad }]}>Cantidad</Text>
+        <Text style={[S.tableHeaderCell, { width: itemCols.descripcion, textAlign: 'left' }]}>Descripción</Text>
+        <Text style={[S.tableHeaderCell, { width: itemCols.precio }]}>Precio</Text>
+        <Text style={[S.tableHeaderCell, { width: itemCols.total }]}>TOTAL</Text>
+      </View>
+      {items.map((item, i) => <ItemRow key={item.id} item={item} index={i} />)}
+    </View>
+  );
+}
+
+/**
+ * Phase 10 — Renderea items en 2 secciones con headers + subtotales.
+ * Oculta la sección 'Servicios' si está vacía (caso partes puro).
+ * Reusa ItemsTable extraído en Step 0.
+ */
+function MixtoItemsBlock({ items, moneda }: { items: PresupuestoItem[]; moneda: string }) {
+  const { servicios, partes } = splitItemsByTipo(items);
+  const sym = (moneda || 'USD');
+  return (
+    <View>
+      {servicios.length > 0 && (
+        <View style={{ marginBottom: 10 }}>
+          <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
+            Servicios
+          </Text>
+          <ItemsTable items={servicios} moneda={moneda} />
+          <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
+            Subtotal servicios: {sym} {sumSubtotal(servicios).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+          </Text>
+        </View>
+      )}
+      {partes.length > 0 && (
+        <View style={{ marginBottom: 10 }}>
+          <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
+            Partes
+          </Text>
+          <ItemsTable items={partes} moneda={moneda} />
+          <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
+            Subtotal partes: {sym} {sumSubtotal(partes).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Phase 10 — Bloque "Datos de entrega e instalación" para ppto tipo 'ventas'.
+ * Se inserta ANTES del detalle de items.
+ */
+function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) {
+  const hasAny = metadata.fechaEstimadaEntrega || metadata.lugarInstalacion || metadata.requiereEntrenamiento;
+  if (!hasAny) return null;
+  const fechaStr = metadata.fechaEstimadaEntrega
+    ? formatDate(metadata.fechaEstimadaEntrega)
+    : '—';
+  return (
+    <View style={{ marginTop: 8, marginBottom: 10, padding: 6, borderWidth: 1, borderColor: COLORS.primary, borderStyle: 'solid' }}>
+      <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
+        Datos de entrega e instalación
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <Text style={{ fontSize: 9 }}><Text style={{ fontWeight: 'bold' }}>Fecha estimada: </Text>{fechaStr}</Text>
+        <Text style={{ fontSize: 9 }}><Text style={{ fontWeight: 'bold' }}>Lugar: </Text>{metadata.lugarInstalacion || '—'}</Text>
+      </View>
+      <Text style={{ fontSize: 9, marginTop: 2 }}>
+        <Text style={{ fontWeight: 'bold' }}>Entrenamiento post-instalación: </Text>
+        {metadata.requiereEntrenamiento ? 'Sí' : 'No'}
+      </Text>
+    </View>
+  );
 }
 
 function PDFHeader({ data }: { data: PresupuestoPDFData }) {
@@ -145,30 +274,6 @@ function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
         <Text style={[S.clienteLabelSmall, { width: 30 }]}>Mail:</Text>
         <Text style={[S.clienteValue, { flex: 0.6 }]}>{email}</Text>
       </View>
-    </View>
-  );
-}
-
-const itemCols = {
-  item: '8%',
-  producto: '12%',
-  cantidad: '8%',
-  descripcion: '40%',
-  precio: '14%',
-  total: '18%',
-};
-
-function ItemRow({ item, index }: { item: PresupuestoItem; index: number }) {
-  return (
-    <View style={[S.tableRow, index % 2 === 1 ? S.tableRowAlt : {}]} wrap={false}>
-      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.item }]}>
-        {String(index + 1).padStart(4, '0')}
-      </Text>
-      <Text style={[S.tableCell, { width: itemCols.producto }]}>{item.codigoProducto || '-'}</Text>
-      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.cantidad }]}>{item.cantidad?.toFixed(2) || '0.00'}</Text>
-      <Text style={[S.tableCell, { width: itemCols.descripcion }]}>{item.descripcion}</Text>
-      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.precio }]}>{item.precioUnitario?.toFixed(2) || '0.00'}</Text>
-      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.total, fontWeight: 600 }]}>{item.subtotal?.toFixed(2) || '0.00'}</Text>
     </View>
   );
 }
@@ -396,7 +501,21 @@ export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
       <Page size="A4" style={S.page}>
         <PDFHeader data={data} />
         <PDFClienteInfo data={data} />
-        <PDFItemsTable data={data} />
+
+        {/* Phase 10: bloque entrega/instalación solo para tipo 'ventas' */}
+        {data.presupuesto.tipo === 'ventas' && data.presupuesto.ventasMetadata && (
+          <VentasMetadataBlock metadata={data.presupuesto.ventasMetadata} />
+        )}
+
+        {/* Phase 10: mixto/partes → 2 secciones; contrato → PDFItemsTable con grupos; resto → tabla flat */}
+        {(data.presupuesto.tipo === 'mixto' || data.presupuesto.tipo === 'partes') ? (
+          <MixtoItemsBlock items={data.presupuesto.items} moneda={data.presupuesto.moneda} />
+        ) : data.presupuesto.tipo === 'contrato' ? (
+          <PDFItemsTable data={data} />
+        ) : (
+          <ItemsTable items={data.presupuesto.items} moneda={data.presupuesto.moneda} />
+        )}
+
         <PDFTotals data={data} />
         <PDFFooter />
       </Page>
