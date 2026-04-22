@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
-import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, LeadEstado, PresupuestoSeccionesVisibles } from '@ags/shared';
+import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, LeadEstado, PresupuestoSeccionesVisibles, VentasMetadata } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
@@ -59,6 +59,8 @@ export interface PresupuestoFormState {
   contratoFechaInicio: string | null;
   contratoFechaFin: string | null;
   cantidadCuotasPorMoneda: Record<string, number> | null;
+  // Ventas (Phase 10)
+  ventasMetadata: VentasMetadata | null;
 }
 
 export interface PresupuestoTotals {
@@ -86,6 +88,7 @@ const INITIAL_FORM: PresupuestoFormState = {
   ordenCompraNumero: null,
   otVinculadaNumber: null, otsVinculadasNumbers: null,
   contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
+  ventasMetadata: null,
 };
 
 /** Map a Presupuesto document snapshot to the local form state shape. */
@@ -117,6 +120,7 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     contratoFechaInicio: p.contratoFechaInicio ? p.contratoFechaInicio.split('T')[0] : null,
     contratoFechaFin: p.contratoFechaFin ? p.contratoFechaFin.split('T')[0] : null,
     cantidadCuotasPorMoneda: p.cantidadCuotasPorMoneda || null,
+    ventasMetadata: p.ventasMetadata || null,
   };
 }
 
@@ -291,6 +295,8 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         contratoFechaInicio: form.contratoFechaInicio,
         contratoFechaFin: form.contratoFechaFin,
         cantidadCuotasPorMoneda: form.cantidadCuotasPorMoneda,
+        // Ventas (Phase 10)
+        ventasMetadata: form.ventasMetadata || null,
       });
       // Sync lead estado
       if (form.origenTipo === 'lead' && form.origenId) {

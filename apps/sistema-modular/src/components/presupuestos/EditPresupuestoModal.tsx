@@ -12,6 +12,7 @@ import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
 import { PresupuestoRequerimientosSection } from './PresupuestoRequerimientosSection';
 import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
+import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
 import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
@@ -23,7 +24,9 @@ import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
 import { CreateOTModal } from '../ordenes-trabajo/CreateOTModal';
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
 import { presupuestosService } from '../../services/presupuestosService';
-import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente } from '@ags/shared';
+import { articulosService } from '../../services/stockService';
+import { computeStockAmplio } from '../../services/stockAmplioService';
+import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 
 interface Props {
@@ -49,6 +52,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   // have been auto-generated as a side effect. Auto-gen runs fire-and-forget
   // in the service layer so we refresh a few seconds later to catch up.
   const [requerimientosRefreshKey, setRequerimientosRefreshKey] = useState(0);
+  // Phase 10: articulos catalog for partes/mixto/ventas ArticuloPickerPanel
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
@@ -68,6 +73,34 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
 
   const handleRemoveSistema = (sistemaId: string) => {
     form.items.filter(i => i.sistemaId === sistemaId).forEach(i => removeItem(i.id));
+  };
+
+  // Phase 10: UX-only ATP validation before transitioning to 'aceptado' for non-contrato types.
+  // Non-blocking confirm — user can proceed; FLOW-03 creates conditional requirements either way.
+  const handleEstadoChangeWithValidation = async (nuevo: Presupuesto['estado']) => {
+    if (nuevo !== 'aceptado' || !['partes', 'mixto', 'ventas'].includes(form.tipo)) {
+      return actions.handleEstadoChange(nuevo);
+    }
+    const warnings: string[] = [];
+    for (const item of form.items.filter(i => i.stockArticuloId)) {
+      try {
+        const s = await computeStockAmplio(item.stockArticuloId!);
+        const atpNeto = s.disponible + s.enTransito - s.reservado - s.comprometido;
+        if ((item.cantidad || 0) > atpNeto) {
+          warnings.push(`${item.descripcion}: cantidad ${item.cantidad}, ATP disponible ${atpNeto}`);
+        }
+      } catch (err) {
+        console.warn('[EditPresupuestoModal] ATP check failed for', item.stockArticuloId, err);
+      }
+    }
+    if (warnings.length > 0) {
+      const ok = window.confirm(
+        `Advertencia — ATP insuficiente para:\n\n${warnings.join('\n')}\n\n` +
+        `Al aceptar, FLOW-03 creará requerimientos condicionales automáticos.\n\n¿Continuar?`,
+      );
+      if (!ok) return;
+    }
+    return actions.handleEstadoChange(nuevo);
   };
 
   const totals = calculateTotals();
@@ -97,6 +130,14 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
       return () => clearTimeout(t);
     }
   }, [saving]);
+
+  // Phase 10: load articulos catalog for non-contrato types that may link items to stock
+  useEffect(() => {
+    if (!open) return;
+    const needsCatalog = form.tipo && ['partes', 'mixto', 'ventas'].includes(form.tipo);
+    if (!needsCatalog) { setArticulos([]); return; }
+    articulosService.getAll().then(setArticulos).catch(() => setArticulos([]));
+  }, [open, form.tipo]);
 
   // FLOW-02: cuando se abre el modal "Cargar OC", resuelve OCs previas del
   // cliente + otros presupuestos `aceptado` sin OC del mismo cliente (N:M).
@@ -187,13 +228,21 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           contactos={contactos}
           condicionesPago={condicionesPago}
           usuarios={usuarios}
-          onEstadoChange={actions.handleEstadoChange}
+          onEstadoChange={handleEstadoChangeWithValidation}
         />
 
         <PresupuestoOTsVinculadas
           otsVinculadasNumbers={form.otsVinculadasNumbers}
           otVinculadaNumber={form.otVinculadaNumber}
         />
+
+        {/* Phase 10: Ventas delivery metadata — only shown for tipo 'ventas' */}
+        {form.tipo === 'ventas' && (
+          <VentasMetadataSection
+            value={form.ventasMetadata}
+            onChange={(patch) => setField('ventasMetadata', { ...form.ventasMetadata, ...patch })}
+          />
+        )}
 
         <PresupuestoRevisionHistory
           presupuestoId={presupuestoId}
@@ -249,6 +298,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             loadModulos={loadModulosBySistema}
             itemsByGrupo={itemsByGrupo}
             getGrupo={getGrupo}
+            articulos={articulos}
           />
         )}
 

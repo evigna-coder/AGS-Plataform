@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema, ModuloSistema } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema, ModuloSistema, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -35,6 +35,8 @@ interface PresupuestoItemsTableProps {
   loadModulos?: (sistemaId: string) => Promise<ModuloSistema[]>;
   itemsByGrupo?: GrupoSistema[];
   getGrupo?: (sistemaId: string | null | undefined) => number;
+  /** Phase 10 — catalog para ArticuloPickerPanel en AddItemModal (partes/mixto/ventas). */
+  articulos?: Articulo[];
 }
 
 const TABLE_HEADER = (
@@ -56,7 +58,7 @@ export const PresupuestoItemsTable = ({
   totals, notasTecnicas, condicionesComerciales,
   onAddItem, onUpdateItem, onRemoveItem,
   onNotasTecnicasChange, onCondicionesChange, calculateItemTaxes,
-  tipoPresupuesto, sistemas, loadModulos, itemsByGrupo, getGrupo,
+  tipoPresupuesto, sistemas, loadModulos, itemsByGrupo, getGrupo, articulos,
 }: PresupuestoItemsTableProps) => {
   const [showModal, setShowModal] = useState(false);
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({
@@ -166,7 +168,8 @@ export const PresupuestoItemsTable = ({
           conceptosServicio={conceptosServicio} moneda={moneda} onAdd={handleAdd} onClose={() => setShowModal(false)}
           tipoPresupuesto={tipoPresupuesto}
           sistemas={tipoPresupuesto === 'contrato' ? sistemas : undefined}
-          loadModulos={tipoPresupuesto === 'contrato' ? loadModulos : undefined} />
+          loadModulos={tipoPresupuesto === 'contrato' ? loadModulos : undefined}
+          articulos={articulos} />
       )}
     </div>
   );
