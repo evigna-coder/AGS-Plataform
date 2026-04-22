@@ -1,5 +1,5 @@
 import { test, expect, TEST_PREFIX, timestamp } from '../fixtures/test-base';
-import { getMailQueueDocs, pollUntil } from '../helpers/firestore-assert';
+import { getMailQueueDocs, getSolicitudesFacturacionByOt, pollUntil } from '../helpers/firestore-assert';
 
 /**
  * CIRCUITO 11: Ciclo Comercial Completo
@@ -393,7 +393,7 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
   // Plan 08-05 implementa `otService.cerrarAdministrativamente` que encola el mail
   // en `mailQueue` con type='cierre_admin_ot' y crea un ticket admin atómicamente.
   // Este test desfixmeado en plan 08-05.
-  test('11.13b — FLOW-04: mailQueue doc + ticket admin al CIERRE_ADMINISTRATIVO', async ({ app }) => {
+  test('11.13b — FLOW-04: mailQueue doc + ticket admin + solicitudFacturacion al CIERRE_ADMINISTRATIVO', async ({ app }) => {
     // Assert 1: un doc en mailQueue con type='cierre_admin_ot' y status='pending'.
     await pollUntil(
       () => getMailQueueDocs({ type: 'cierre_admin_ot', status: 'pending', limit: 5 }),
@@ -401,13 +401,34 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
       { timeout: 10_000 },
     );
 
-    // Assert 2: ticket admin creado (area === 'administracion') con refencia
+    // Assert 2: ticket admin creado (area === 'administracion') con referencia
     // al número de OT recién cerrada. Consulta pendiente — el plan 08-05
     // puede extender firestore-assert con un helper `getTicketsByArea`.
     //
     //   const adminTickets = await getTicketsByArea({ area: 'administracion' });
     //   expect(adminTickets.some(t => (t.descripcion || '').includes(otNumber)))
     //     .toBeTruthy();
+
+    // Assert 3 (Phase 10 / Wave 3 — plan 10-04): solicitudFacturacion auto-created.
+    // otService.cerrarAdministrativamente should create a solicitudFacturacion doc
+    // with estado 'pendiente' linking the closed OT number.
+    // test.fixme inline — Wave 3 (plan 10-04) desfixmeará este bloque.
+    //
+    // NOTE: otNumber is not directly accessible here since the OT was created in 11.07.
+    // Wave 3 executor should extract the OT number from the page or from Firestore
+    // and assert with getSolicitudesFacturacionByOt(otNumber).
+    //
+    // Expected assert (uncomment when Wave 3 lands):
+    //
+    //   const solicitudes = await pollUntil(
+    //     () => getSolicitudesFacturacionByOt(otNumber),
+    //     (docs) => docs.length >= 1,
+    //     { timeout: 15_000 },
+    //   );
+    //   expect(solicitudes[0].estado, '11.13c: solicitudFacturacion.estado should be pendiente').toBe('pendiente');
+    //   expect(solicitudes[0].presupuestoId, '11.13c: solicitudFacturacion.presupuestoId should be set').toBeTruthy();
+    //   expect(solicitudes[0].otNumbers, '11.13c: solicitudFacturacion.otNumbers should contain the OT number')
+    //     .toContain(otNumber);
 
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
