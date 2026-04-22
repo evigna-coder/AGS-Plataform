@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: "Checkpoint: Task 3 human-verify for 09-03 (planning view visual + live data + RBAC)"
-last_updated: "2026-04-22T00:42:03.618Z"
+stopped_at: "Completed 09-02 — Cloud Functions deployed + STKP-02 human-verified (resumenStock live, multi-articuloId OC confirmed)"
+last_updated: "2026-04-22T02:00:00.000Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
@@ -36,16 +36,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-19)
 
 **Core value:** Cerrar end-to-end el ciclo comercial desde la consulta inicial hasta el aviso de facturación — con trazabilidad, estados automáticos y sin datos que se pierdan entre áreas.
-**Current focus:** v2.0 Circuito Comercial Completo — Phase 5: Pre-condiciones
+**Current focus:** v2.0 Circuito Comercial Completo — Phase 9: Stock ATP Extendido (complete)
 
 ## Current Position
 
-Phase: 5 of 11 (Pre-condiciones — Migración + Infra)
-Plan: 4 of 4 completed at code level (05-01 clienteId, 05-02 contactos, 05-03 functions bootstrap, 05-04 featureFlags). Pending user actions: run migration scripts 05-01/05-02 (--dry-run/--run), deploy functions 05-03, human-verify admin UI 05-04.
-Status: In Progress (awaiting user human-verify + manual script runs)
-Last activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
+Phase: 9 of 11 (Stock ATP Extendido) — ALL 3 PLANS COMPLETE
+Plan: 3 of 3 complete (09-01 computeStockAmplio, 09-02 Cloud Functions triggers, 09-03 /stock/planificacion UI)
+Status: Phase 9 complete. Next: Phase 10 (Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports)
+Last activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
 
-Progress: [████████░░] 84% (v2.0 milestone)
+Progress: [█████████░] 90% (v2.0 milestone)
 
 ## Performance Metrics
 
@@ -108,6 +108,9 @@ Progress: [████████░░] 84% (v2.0 milestone)
 - [Phase 09-stock-atp-extendido]: proveedorIds is string[] on Articulo — planificacion filter uses .includes() not equality
 - [Phase 09-stock-atp-extendido]: marcaById lookup map in PlanificacionStockPage avoids N+1 per-row marca lookups; passed as prop to PlanificacionRow
 - [Phase 09-stock-atp-extendido]: StockAmplioBreakdownDrawer renders exactly 2 sections (OCs + Requerimientos); Reservas deferred until CF populates breakdown.reservas
+- [Phase 09-02]: onOTCerrada is observational only in v2.0 — writes sentinel ot_cierre_idempotency/{otId}, no mail send; mailQueue consumer deferred post-v2.0. Phase 8 pendingActions[] retry path remains authoritative.
+- [Phase 09-02]: OC trigger extracts all articuloIds from before+after items union via Set<string>, fires parallel Promise.all() recomputes — multi-articuloId OC verified live in prod (STKP-02 confirmed 2026-04-21)
+- [Phase 09-02]: Sync-contract pattern established: when functions/ duplicates client-side constants, use explicit block comment listing every state value + referencing source of truth (3 locations to update on change)
 
 ### Pending Todos
 
@@ -121,6 +124,6 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T00:40:07.200Z
-Stopped at: Checkpoint: Task 3 human-verify for 09-03 (planning view visual + live data + RBAC)
+Last session: 2026-04-22T02:00:00.000Z
+Stopped at: Completed 09-02 — STKP-02 human-verified (resumenStock live, multi-articuloId OC confirmed). Phase 9 complete (3/3 plans). Ready for Phase 10.
 Resume file: None

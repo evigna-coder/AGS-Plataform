@@ -154,9 +154,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 09-01-PLAN.md — computeStockAmplio() pure fn + fix double counting + reservasService.reservar() runTransaction (STKP-01, STKP-03, STKP-05)
-- [ ] 09-02-PLAN.md — Cloud Functions: updateResumenStock (3 triggers) + onOTCerrada safety net (STKP-02)
-- [ ] 09-03-PLAN.md — /stock/planificacion page + StockAmplioIndicator + useStockAmplio hook + no cache (STKP-04, STKP-01 consumer)
+- [x] 09-01-PLAN.md — computeStockAmplio() pure fn + fix double counting + reservasService.reservar() runTransaction (STKP-01, STKP-03, STKP-05)
+- [x] 09-02-PLAN.md — Cloud Functions: updateResumenStock (3 triggers) + onOTCerrada safety net (STKP-02)
+- [x] 09-03-PLAN.md — /stock/planificacion page + StockAmplioIndicator + useStockAmplio hook + no cache (STKP-04, STKP-01 consumer)
 
 #### Phase 10: Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports
 **Goal:** Todos los tipos de presupuesto están operativos con PDF y mail, el aviso de facturación cierra el circuito comercial, y los datos exportables permiten reconciliación con Bejerman.
