@@ -1,6 +1,6 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, EstadoUnidad, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
+import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
 
@@ -927,51 +927,76 @@ export const reservasService = {
     clienteNombre: string;
     solicitadoPorNombre: string;
   }): Promise<void> {
+    // Fetch RESERVAS position OUTSIDE tx — stable singleton, safe to prefetch.
+    // getOrCreateReservasPosition() is idempotent by 'RESERVAS' code lookup.
     const posReservas = await getOrCreateReservasPosition();
     const now = Timestamp.now();
-
-    const unitPayload = deepCleanForFirestore({
-      estado: 'reservado' as EstadoUnidad,
-      ubicacion: { tipo: 'posicion', referenciaId: posReservas.id, referenciaNombre: posReservas.nombre },
-      reservadoParaPresupuestoId: params.presupuestoId,
-      reservadoParaPresupuestoNumero: params.presupuestoNumero,
-      reservadoParaClienteId: params.clienteId,
-      reservadoParaClienteNombre: params.clienteNombre,
-      ...getUpdateTrace(),
-      updatedAt: now.toDate().toISOString(),
-    });
-
     const movId = crypto.randomUUID();
-    const movPayload = deepCleanForFirestore({
-      tipo: 'transferencia' as TipoMovimiento,
-      unidadId: params.unidadId,
-      articuloId: params.unidad.articuloId,
-      articuloCodigo: params.unidad.articuloCodigo,
-      articuloDescripcion: params.unidad.articuloDescripcion,
-      cantidad: 1,
-      origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
-      origenId: params.unidad.ubicacion.referenciaId,
-      origenNombre: params.unidad.ubicacion.referenciaNombre,
-      destinoTipo: 'posicion' as TipoOrigenDestino,
-      destinoId: posReservas.id,
-      destinoNombre: posReservas.nombre,
-      motivo: `Reservado para presupuesto ${params.presupuestoNumero} — ${params.clienteNombre}`,
-      creadoPor: params.solicitadoPorNombre,
-      ...getCreateTrace(),
-      createdAt: now,
+    const unidadRef = docRef('unidades', params.unidadId);
+    const movRef = doc(db, 'movimientosStock', movId);
+
+    await runTransaction(db, async (tx) => {
+      // READ FIRST (all reads before any write — Firestore tx requirement)
+      const unidadSnap = await tx.get(unidadRef);
+      if (!unidadSnap.exists()) {
+        throw new Error(`Unidad ${params.unidadId} no encontrada`);
+      }
+      const currentEstado = unidadSnap.data().estado;
+      if (currentEstado !== 'disponible') {
+        throw new Error(
+          `Unidad no disponible — estado actual '${currentEstado}' (reservada por otro usuario?)`,
+        );
+      }
+
+      // BUILD payloads (no external awaits between reads and writes)
+      const unitPayload = deepCleanForFirestore({
+        estado: 'reservado' as EstadoUnidad,
+        ubicacion: { tipo: 'posicion', referenciaId: posReservas.id, referenciaNombre: posReservas.nombre },
+        reservadoParaPresupuestoId: params.presupuestoId,
+        reservadoParaPresupuestoNumero: params.presupuestoNumero,
+        reservadoParaClienteId: params.clienteId,
+        reservadoParaClienteNombre: params.clienteNombre,
+        ...getUpdateTrace(),
+        updatedAt: now.toDate().toISOString(),
+      });
+
+      const movPayload = deepCleanForFirestore({
+        tipo: 'transferencia' as TipoMovimiento,
+        unidadId: params.unidadId,
+        articuloId: params.unidad.articuloId,
+        articuloCodigo: params.unidad.articuloCodigo,
+        articuloDescripcion: params.unidad.articuloDescripcion,
+        cantidad: 1,
+        origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+        origenId: params.unidad.ubicacion.referenciaId,
+        origenNombre: params.unidad.ubicacion.referenciaNombre,
+        destinoTipo: 'posicion' as TipoOrigenDestino,
+        destinoId: posReservas.id,
+        destinoNombre: posReservas.nombre,
+        motivo: `Reservado para presupuesto ${params.presupuestoNumero} — ${params.clienteNombre}`,
+        creadoPor: params.solicitadoPorNombre,
+        ...getCreateTrace(),
+        createdAt: now,
+      });
+
+      // THEN WRITE — atomic with unidad estado check above
+      tx.update(unidadRef, unitPayload);
+      tx.set(movRef, movPayload);
     });
 
-    const batch = createBatch();
-    batch.update(docRef('unidades', params.unidadId), unitPayload);
-    batch.set(doc(db, 'movimientosStock', movId), movPayload);
-    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: params.unidadId, after: unitPayload as any });
-    await batch.commit();
+    // Audit — post-tx best-effort (fire-and-forget, non-blocking).
+    // Audit is observational; losing it is acceptable vs. rolling back the reservation.
+    logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
   },
 
   /**
    * Releases a reserved UnidadStock back to disponible.
    * Moves unit back to its original position (or a default depot if unknown).
    * Creates an immutable MovimientoStock of type 'transferencia'.
+   *
+   * TODO(STKP-03 — liberar): liberar() is a lower-concurrency path (called only from
+   * controlled admin UI, typically by the same user who reserved). No competing writes
+   * observed. Migrate to runTransaction if concurrent liberar/reservar races emerge.
    */
   async liberar(params: {
     unidadId: string;
