@@ -70,6 +70,13 @@ export const AdjuntarOCModal: React.FC<Props> = ({
         ordenCompraNumero: ocNumero.trim() || null,
         adjuntos: allAdjuntos,
       });
+      // Regla 2026-04-22: adjuntar OC = aceptación. Si el ppto estaba en
+      // borrador o enviado, dispara el circuito completo de aceptación
+      // (idempotente: no-op si ya estaba aceptado).
+      const pres = await presupuestosService.getById(presupuestoId);
+      if (pres && (pres.estado === 'borrador' || pres.estado === 'enviado')) {
+        await presupuestosService.aceptarConRequerimientos(presupuestoId);
+      }
       onSaved?.();
       onClose();
     } catch {

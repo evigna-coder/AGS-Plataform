@@ -344,6 +344,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
                 onAdd={addAdjunto}
                 onRemove={removeAdjunto}
                 onSuggestAutorizado={actions.handleSuggestAutorizado}
+                ocNumero={form.ordenCompraNumero}
+                onOCNumeroChange={v => setField('ordenCompraNumero', v)}
               />
             </div>
           </CollapsibleSection>

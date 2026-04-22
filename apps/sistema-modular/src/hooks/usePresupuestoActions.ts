@@ -74,7 +74,10 @@ export function usePresupuestoActions({
   };
 
   const handleSuggestAutorizado = async () => {
-    if (form.estado !== 'aceptado' && await confirm('Se adjuntó una orden de compra. ¿Cambiar estado a "Aceptado"?')) {
+    // Regla 2026-04-22: adjuntar OC = aceptación automática, sin confirmación.
+    // El save del edit modal persiste el cambio; presupuestosService.update
+    // delega a aceptarConRequerimientos al transicionar a aceptado.
+    if (form.estado !== 'aceptado') {
       handleEstadoChange('aceptado');
     }
   };

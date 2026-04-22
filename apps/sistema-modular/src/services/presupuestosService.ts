@@ -290,34 +290,30 @@ export const presupuestosService = {
     if (data.estado === 'aceptado') {
       const current = await this.getById(id);
       if (current && current.estado !== 'aceptado') {
-        const hasImportItems = (current.items || []).some(
-          (it: any) => it?.itemRequiereImportacion === true && it?.stockArticuloId,
-        );
-        if (hasImportItems) {
-          // Pasar el resto de los campos junto con estado:aceptado requeriría mergear — pero
-          // el caller real (EditPresupuestoModal, usePresupuestoEdit) hace `update` con un
-          // diff pequeño (estado + motivoCambio). Aceptamos esta simplificación: cualquier
-          // otro campo en `data` (además de estado) se escribe en un update posterior FUERA
-          // del path transaccional — pero el caller típico solo pasa estado para transición.
-          await this.aceptarConRequerimientos(id);
-          // Si el caller pasó otros campos junto con el estado, escribirlos después
-          const { estado: _estado, ...otherFields } = data;
-          if (Object.keys(otherFields).length > 0) {
-            const raw2 = {
-              ...otherFields,
-              ...getUpdateTrace(),
-              updatedAt: Timestamp.now(),
-              ...((otherFields as any).fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date((otherFields as any).fechaEnvio)) } : {}),
-              ...((otherFields as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((otherFields as any).validUntil)) } : {}),
-            };
-            const cleaned2 = deepCleanForFirestore(raw2);
-            const batch2 = createBatch();
-            batch2.update(docRef('presupuestos', id), cleaned2);
-            batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
-            await batch2.commit();
-          }
-          return;
+        // Transición → aceptado: SIEMPRE delegar a aceptarConRequerimientos.
+        // Esto garantiza que las side-effects de aceptación (requerimientos
+        // condicionales para items de import, auto-OT ventas Phase 10 PTYP-04,
+        // derivación Comex) corran uniformemente sin importar el tipo ni si
+        // tiene items de import. El método es idempotente y maneja el caso
+        // sin import items retornando requerimientosIds:[].
+        await this.aceptarConRequerimientos(id);
+        // Si el caller pasó otros campos junto con el estado, escribirlos después
+        const { estado: _estado, ...otherFields } = data;
+        if (Object.keys(otherFields).length > 0) {
+          const raw2 = {
+            ...otherFields,
+            ...getUpdateTrace(),
+            updatedAt: Timestamp.now(),
+            ...((otherFields as any).fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date((otherFields as any).fechaEnvio)) } : {}),
+            ...((otherFields as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((otherFields as any).validUntil)) } : {}),
+          };
+          const cleaned2 = deepCleanForFirestore(raw2);
+          const batch2 = createBatch();
+          batch2.update(docRef('presupuestos', id), cleaned2);
+          batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
+          await batch2.commit();
         }
+        return;
       }
     }
 

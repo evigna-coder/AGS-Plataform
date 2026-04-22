@@ -12,6 +12,8 @@ interface Props {
   onAdd: (adjunto: AdjuntoPresupuesto) => void;
   onRemove: (adjuntoId: string) => void;
   onSuggestAutorizado?: () => void;
+  ocNumero?: string | null;
+  onOCNumeroChange?: (value: string | null) => void;
 }
 
 const TIPO_LABELS: Record<TipoAdjuntoPresupuesto, string> = {
@@ -26,7 +28,7 @@ const TIPO_COLORS: Record<TipoAdjuntoPresupuesto, string> = {
   otro: 'bg-slate-100 text-slate-600',
 };
 
-export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onRemove, onSuggestAutorizado }: Props) => {
+export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onRemove, onSuggestAutorizado, ocNumero, onOCNumeroChange }: Props) => {
   const [uploading, setUploading] = useState(false);
   const confirm = useConfirm();
   const [selectedTipo, setSelectedTipo] = useState<TipoAdjuntoPresupuesto>('orden_compra');
@@ -99,6 +101,14 @@ export const PresupuestoAdjuntosSection = ({ presupuestoId, adjuntos, onAdd, onR
             <option value="otro">Otro</option>
           </select>
         </div>
+        {selectedTipo === 'orden_compra' && onOCNumeroChange && (
+          <div className="min-w-[140px]">
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Numero OC</label>
+            <input value={ocNumero || ''} onChange={e => onOCNumeroChange(e.target.value || null)}
+              placeholder="Ej: O-000100445302"
+              className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" />
+          </div>
+        )}
         <div className="flex-1 min-w-[120px]">
           <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Notas</label>
           <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Notas opcionales..."

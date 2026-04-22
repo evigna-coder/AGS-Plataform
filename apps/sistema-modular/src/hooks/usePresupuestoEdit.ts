@@ -288,6 +288,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         validUntil: form.validUntil || undefined,
         fechaEnvio: fechaEnvioToSave || undefined,
         adjuntos: form.adjuntos,
+        ordenCompraNumero: form.ordenCompraNumero,
         proximoContacto: form.proximoContacto || null,
         responsableId: form.responsableId || null,
         responsableNombre: form.responsableNombre || null,
