@@ -27,3 +27,4 @@ export { AsignacionRapidaPage } from './AsignacionRapidaPage';
 export { AsignacionesList } from './AsignacionesList';
 export { AsignacionDetail } from './AsignacionDetail';
 export { InventarioIngenieroPage } from './InventarioIngenieroPage';
+export { PlanificacionStockPage } from './PlanificacionStockPage';

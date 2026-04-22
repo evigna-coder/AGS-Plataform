@@ -43,6 +43,7 @@ export const navigation: NavItem[] = [
       { name: 'Movimientos', path: '/stock/movimientos' },
       { name: 'Alertas', path: '/stock/alertas' },
       { name: 'Requerimientos', path: '/stock/requerimientos', separator: true },
+      { name: 'Planificación', path: '/stock/planificacion' },
       { name: 'Ordenes de Compra', path: '/stock/ordenes-compra' },
       { name: 'Importaciones', path: '/stock/importaciones' },
       { name: 'Ingenieros', path: '/stock/ingenieros', separator: true },
