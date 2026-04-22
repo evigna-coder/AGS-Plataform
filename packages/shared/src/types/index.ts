@@ -2137,6 +2137,32 @@ export interface Articulo {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+  /** Snapshot del stock extendido, poblado por Cloud Function (09-02). Optional — no breaking. */
+  resumenStock?: StockAmplio | null;
+}
+
+// --- StockAmplio — 4-bucket extended stock shape (Phase 9) ---
+
+export interface StockAmplioBreakdownEntry {
+  id: string;
+  cantidad: number;
+  referencia?: string | null;  // presupuestoId | OC numero | null
+}
+
+export interface StockAmplio {
+  disponible: number;
+  enTransito: number;
+  reservado: number;
+  comprometido: number;
+  breakdown: {
+    // Reservas section deferred — kept optional so the Cloud Function / client fn
+    // can omit it without breaking consumers. In v2.0 consumers render only
+    // requerimientosCondicionales + ocsAbiertas sections (see 09-03 drawer).
+    reservas?: StockAmplioBreakdownEntry[];
+    requerimientosCondicionales: StockAmplioBreakdownEntry[];
+    ocsAbiertas: StockAmplioBreakdownEntry[];
+  };
+  updatedAt?: string | null;  // ISO string when serialized; Timestamp.now() on CF write
 }
 
 // --- Unidades (instancia física de un artículo) ---
