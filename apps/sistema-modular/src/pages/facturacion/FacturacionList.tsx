@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { facturacionService } from '../../services/facturacionService';
 import { clientesService } from '../../services/firebaseService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useAuth } from '../../contexts/AuthContext';
+import { exportSolicitudesExcel, exportSolicitudesPDF } from '../../utils/exports/exportSolicitudesFacturacion';
 import type { SolicitudFacturacion, SolicitudFacturacionEstado, Cliente } from '@ags/shared';
 import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
@@ -17,17 +20,23 @@ const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tr
 
 export const FacturacionList = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('solicitudId');
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('facturacion-list');
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const { hasRole } = useAuth();
+  const canAdminAction = hasRole('admin', 'admin_soporte');
 
   const FILTER_SCHEMA = useMemo(() => ({
-    search:    { type: 'string' as const, default: '' },
-    cliente:   { type: 'string' as const, default: '' },
-    estado:    { type: 'string' as const, default: '' },
-    sortField: { type: 'string' as const, default: 'createdAt' },
-    sortDir:   { type: 'string' as const, default: 'desc' },
+    search:     { type: 'string' as const, default: '' },
+    cliente:    { type: 'string' as const, default: '' },
+    estado:     { type: 'string' as const, default: '' },
+    fechaDesde: { type: 'string' as const, default: '' },
+    fechaHasta: { type: 'string' as const, default: '' },
+    sortField:  { type: 'string' as const, default: 'createdAt' },
+    sortDir:    { type: 'string' as const, default: 'desc' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const debouncedSearch = useDebounce(filters.search, 300);
@@ -49,10 +58,34 @@ export const FacturacionList = () => {
     return () => { unsubRef.current?.(); };
   }, []);
 
+  // Deep link: ?solicitudId=xxx → navigate to detail via direct getById (avoids filter race)
+  useEffect(() => {
+    if (!deepLinkId) return;
+    let cancelled = false;
+    facturacionService.getById(deepLinkId)
+      .then(sol => {
+        if (cancelled) return;
+        if (sol) {
+          navigate(`/facturacion/${deepLinkId}`);
+        } else {
+          console.warn('[FacturacionList] deep link: solicitud not found', deepLinkId);
+          alert('Solicitud no encontrada');
+        }
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error('[FacturacionList] deep link resolve failed:', err);
+        alert('Error al abrir solicitud');
+      });
+    return () => { cancelled = true; };
+  }, [deepLinkId, navigate]);
+
   const filtradas = useMemo(() => {
     let result = solicitudes.filter(s => {
       if (filters.cliente && s.clienteId !== filters.cliente) return false;
       if (filters.estado && s.estado !== filters.estado) return false;
+      if (filters.fechaDesde && s.createdAt < filters.fechaDesde) return false;
+      if (filters.fechaHasta && s.createdAt > filters.fechaHasta + 'T23:59:59') return false;
       return true;
     });
     if (debouncedSearch.trim()) {
@@ -77,6 +110,16 @@ export const FacturacionList = () => {
     const d = new Date(iso);
     return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
+
+  const buildFiltrosLabel = () =>
+    [
+      filters.cliente && `cliente=${clientes.find(c => c.id === filters.cliente)?.razonSocial || filters.cliente}`,
+      filters.estado && `estado=${filters.estado}`,
+      filters.fechaDesde && `desde=${filters.fechaDesde}`,
+      filters.fechaHasta && `hasta=${filters.fechaHasta}`,
+    ].filter(Boolean).join(', ') || 'Sin filtros';
+
+  const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta);
 
   return (
     <div className="space-y-4">
@@ -132,10 +175,48 @@ export const FacturacionList = () => {
               ))}
             </select>
           </div>
-          {(filters.search || filters.cliente || filters.estado) && (
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400">Desde</label>
+            <input
+              type="date"
+              value={filters.fechaDesde}
+              onChange={e => setFilter('fechaDesde', e.target.value)}
+              className="border border-slate-200 rounded-md px-2 py-1.5 text-xs w-32"
+            />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400">Hasta</label>
+            <input
+              type="date"
+              value={filters.fechaHasta}
+              onChange={e => setFilter('fechaHasta', e.target.value)}
+              className="border border-slate-200 rounded-md px-2 py-1.5 text-xs w-32"
+            />
+          </div>
+          {hasActiveFilter && (
             <button onClick={resetFilters} className="text-[11px] text-teal-600 hover:text-teal-700 font-medium">
               Limpiar
             </button>
+          )}
+          {canAdminAction && (
+            <div className="flex gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportSolicitudesExcel(filtradas, { filtrosLabel: buildFiltrosLabel() })}
+              >
+                Exportar Excel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await exportSolicitudesPDF(filtradas, { filtrosLabel: buildFiltrosLabel() });
+                }}
+              >
+                Exportar PDF
+              </Button>
+            </div>
           )}
         </div>
       </Card>
