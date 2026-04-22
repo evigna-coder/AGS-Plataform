@@ -370,12 +370,19 @@ export const ordenesTrabajoService = {
   },
 
   /**
-   * FLOW-04: cierra una OT administrativamente atómicamente.
+   * FLOW-04 + Phase 10 FMT-03: cierra una OT administrativamente atómicamente.
    *
-   * Todo en una única `runTransaction`:
-   *   - `tx.update` OT: estadoAdmin='CIERRE_ADMINISTRATIVO' + fechaCierre
-   *   - `tx.set` ticket admin nuevo (colección `leads`, area='administracion')
-   *   - `tx.set` doc en `mailQueue` con type='cierre_admin_ot', status='pending'
+   * runTransaction — Firestore reads-before-writes invariant respetado estrictamente:
+   *   Reads (READ PHASE — todos los tx.get van aquí, ningún write antes):
+   *     R1. OT doc (validate existencia)
+   *     R2+. solicitudesFacturacion sentinel per presupuesto (Phase 10 idempotency)
+   *   Writes (WRITE PHASE — todos después del READ PHASE):
+   *     1. Update OT: estadoAdmin='CIERRE_ADMINISTRATIVO' + fechaCierre
+   *     2. Ticket admin nuevo (colección `leads`, area='administracion')
+   *     3. mailQueue doc (type='cierre_admin_ot') — body incluye CTA deep link /facturacion?solicitudId={id}
+   *     4+. (Phase 10) solicitudesFacturacion doc por cada presupuesto vinculado
+   *         - ID determinístico `{otNumber}_{presupuestoId}` — evita duplicados en race conditions
+   *         - Idempotency: tx.get sentinel en READ PHASE; skip tx.set si ya existe
    *
    * Post-commit (best-effort, fuera de tx):
    *   - `leadsService.syncFromOT` en el lead origen si existe
@@ -390,12 +397,16 @@ export const ordenesTrabajoService = {
    *
    * El destinatario del mail proviene de `adminConfig/flujos.mailFacturacion` (default
    * `mbarrios@agsanalitica.com` via `ADMIN_CONFIG_DEFAULTS`). Se lee FUERA de la tx.
+   *
+   * @returns `{ adminTicketId, mailQueueId, solicitudIds }` — solicitudIds son los IDs
+   *   determinísticos de solicitudesFacturacion. Callers existentes que ignoren el campo
+   *   nuevo siguen funcionando (backward compat).
    */
   async cerrarAdministrativamente(
     otNumber: string,
     cierreData: { notas?: string; fechaCierre?: string },
     actor?: { uid: string; name?: string },
-  ): Promise<{ adminTicketId: string; mailQueueId: string }> {
+  ): Promise<{ adminTicketId: string; mailQueueId: string; solicitudIds: string[] }> {
     // ── Pre-reads fuera de tx ─────────────────────────────────────
     const ot = await this.getByOtNumber(otNumber);
     if (!ot) throw new Error('OT no encontrada');
@@ -433,15 +444,43 @@ export const ordenesTrabajoService = {
     const subject = `Aviso facturación — OT ${otNumber}`;
     const body = buildAvisoFacturacionBody(ot, presupuestosPorNumero);
 
+    // Phase 10 — declarar antes del tx para disponibilidad en payload construction.
+    // nowIso es consistente para todo el bloque (no re-evaluar dentro del tx retry loop).
     const nowIso = new Date().toISOString();
+
+    // Phase 10 — IDs determinísticos para idempotency de solicitudesFacturacion.
+    // Pattern: Phase 9-02 (ot_cierre_idempotency sentinel). Evita duplicación si dos usuarios
+    // disparan cerrarAdministrativamente concurrentemente (race) o si el método se re-ejecuta.
+    const solicitudDeterministicIds: string[] = presupuestoIds.map(pid => `${otNumber}_${pid}`);
+
+    // Phase 10 — CTA deep link al dashboard. El consumer del mailQueue compone la URL base;
+    // el path va inline para que el doc sea self-describing aunque el consumer no esté listo.
+    const firstSolId = solicitudDeterministicIds[0] || '';
+    const deepLinkPath = firstSolId ? `/facturacion?solicitudId=${firstSolId}` : '/facturacion';
+    const bodyWithCTA = `${body}\n\n---\nVer en sistema: ${deepLinkPath}`;
+
     const newAdminTicketRef = newDocRef('leads');
     const newMailQueueRef = newDocRef('mailQueue');
 
-    // ── Transaction: 3 writes atómicos ─────────────────────────────
-    await runTransaction(db, async (tx) => {
+    // ── Transaction: reads-before-writes invariant (Firestore tx requiere READ PHASE completo
+    //    antes de cualquier tx.set/update — ver RESEARCH §4 y plan 10-04) ──────────────────
+    const txResult = await runTransaction(db, async (tx) => {
+      // ═══════════════ READ PHASE (todos los tx.get aquí — ningún write antes) ═══════════════
+
+      // R1: OT (existing)
       const otRef = doc(db, 'reportes', otNumber);
       const otSnap = await tx.get(otRef);
       if (!otSnap.exists()) throw new Error(`OT ${otNumber} no encontrada (tx)`);
+
+      // R2+: Phase 10 — idempotency pre-reads: ¿ya existe solicitudFacturacion para cada ppto?
+      const existingSolicitudes = new Map<string, boolean>();
+      for (const solId of solicitudDeterministicIds) {
+        const solRef = doc(db, 'solicitudesFacturacion', solId);
+        const existingSol = await tx.get(solRef);
+        existingSolicitudes.set(solId, existingSol.exists());
+      }
+
+      // ═══════════════ WRITE PHASE (todos los tx.set/update después de los reads) ═══════════════
 
       // Write 1: update OT a CIERRE_ADMINISTRATIVO
       tx.update(otRef, deepCleanForFirestore({
@@ -486,14 +525,14 @@ export const ordenesTrabajoService = {
       };
       tx.set(newAdminTicketRef, deepCleanForFirestore(adminTicketPayload));
 
-      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending')
+      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending') — body incluye CTA deep link
       tx.set(newMailQueueRef, deepCleanForFirestore({
         type: 'cierre_admin_ot',
         status: 'pending',
         data: {
           to: mailTo,
           subject,
-          body,
+          body: bodyWithCTA,  // Phase 10 — incluye deep link al dashboard
           otNumber,
           presupuestoIds,
           presupuestoNumeros,
@@ -508,6 +547,52 @@ export const ordenesTrabajoService = {
         createdAt: nowIso,
         createdBy: actor?.uid ?? null,
       }));
+
+      // Phase 10 Write 4+: solicitudesFacturacion (una por presupuesto, idempotent)
+      // ID determinístico `{otNumber}_{presupuestoId}` — idempotency via sentinel leído en READ PHASE
+      for (let i = 0; i < presupuestoIds.length; i++) {
+        const pid = presupuestoIds[i];
+        const p = presupuestosPorNumero.find(pres => pres?.id === pid);
+        if (!p) continue;
+        const solId = solicitudDeterministicIds[i];
+
+        // Skip si ya existe — sentinel leído en READ PHASE arriba
+        if (existingSolicitudes.get(solId)) {
+          console.log(`[cerrarAdministrativamente] solicitudFacturacion ${solId} ya existe, skip (idempotent)`);
+          continue;
+        }
+
+        const solRef = doc(db, 'solicitudesFacturacion', solId);
+        const solPayload = deepCleanForFirestore({
+          presupuestoId: pid,
+          presupuestoNumero: p.numero,
+          clienteId: p.clienteId,
+          clienteNombre: ot.razonSocial || '',
+          condicionPago: '',
+          items: (p.items || []).map(it => ({
+            id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            presupuestoItemId: it.id,
+            descripcion: it.descripcion,
+            cantidad: it.cantidad,
+            cantidadTotal: it.cantidad,
+            precioUnitario: it.precioUnitario,
+            subtotal: it.subtotal,
+          })),
+          montoTotal: p.total,
+          moneda: p.moneda,
+          estado: 'pendiente' as const,
+          otNumbers: [otNumber],
+          ordenesCompraIds: p.ordenesCompraIds || [],   // Wave 10-01 new field — snapshot al cierre
+          observaciones: `Auto — cierre administrativo de OT ${otNumber} (Phase 10 FMT-03).`,
+          solicitadoPor: actor?.uid ?? null,
+          solicitadoPorNombre: actor?.name ?? null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        });
+        tx.set(solRef, solPayload);
+      }
+
+      return { adminTicketId: newAdminTicketRef.id, mailQueueId: newMailQueueRef.id };
     });
 
     // ── Post-commit side-effects (best-effort, NO bloquea) ────────
@@ -519,7 +604,11 @@ export const ordenesTrabajoService = {
       console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
     }
 
-    return { adminTicketId: newAdminTicketRef.id, mailQueueId: newMailQueueRef.id };
+    return {
+      adminTicketId: txResult.adminTicketId,
+      mailQueueId: txResult.mailQueueId,
+      solicitudIds: solicitudDeterministicIds,  // Phase 10 addition — callers existentes que ignoren este campo siguen funcionando
+    };
   },
 
   /**
