@@ -114,4 +114,52 @@ export const facturacionService = {
       fechaCobro,
     });
   },
+
+  /**
+   * Phase 10 — Marcar solicitud como enviada (mail al contable ya fue disparado).
+   * Transiciona estado 'pendiente' → 'enviada' y registra timestamp de envío.
+   */
+  async marcarEnviada(id: string, actor?: { uid: string; name?: string }): Promise<void> {
+    const ref = docRef('solicitudesFacturacion', id);
+    const batch = createBatch();
+    const cleaned = cleanFirestoreData({
+      estado: 'enviada' as const,
+      enviadaAt: new Date().toISOString(),   // Wave 10-01 field
+      updatedAt: Timestamp.now(),
+      updatedBy: actor?.uid ?? null,
+      updatedByName: actor?.name ?? null,
+    });
+    batch.update(ref, cleaned);
+    await batch.commit();
+  },
+
+  /**
+   * Phase 10 — Marcar solicitud como facturada (alias semántico con más contexto que registrarFactura).
+   * Acepta datos opcionales — si se pasan, registra la factura completa; si no, solo cambia estado.
+   * Usable desde el row-action del dashboard sin requerir que el contable tenga los datos AFIP aún.
+   */
+  async marcarFacturada(
+    id: string,
+    actor?: { uid: string; name?: string },
+    datos?: { numeroFactura?: string; fechaFactura?: string },
+  ): Promise<void> {
+    await this.update(id, {
+      estado: 'facturada',
+      numeroFactura: datos?.numeroFactura ?? null,
+      fechaFactura: datos?.fechaFactura ?? null,
+      facturadoPor: actor?.uid ?? null,
+      facturadoPorNombre: actor?.name ?? null,
+    } as any);
+  },
+
+  /**
+   * Phase 10 — Agregar/reemplazar observaciones (nota del contable).
+   * NO es append — reemplaza. Si el caller quiere append, concatena en el UI antes de llamar.
+   * audit via getUpdateTrace ya incluido en update().
+   */
+  async agregarNota(id: string, nota: string, _actor?: { uid: string; name?: string }): Promise<void> {
+    await this.update(id, {
+      observaciones: nota,
+    });
+  },
 };
