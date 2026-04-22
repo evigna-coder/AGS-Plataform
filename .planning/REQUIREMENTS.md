@@ -52,11 +52,11 @@
 
 ### Stock Planning ATP
 
-- [ ] **STKP-01**: Pure function `computeStockAmplio(articuloId)` que calcula ATP: `disponible + tránsito + OCs abiertas - reservado`. Reusable desde detail views y triggers.
+- [x] **STKP-01**: Pure function `computeStockAmplio(articuloId)` que calcula ATP: `disponible + tránsito + OCs abiertas - reservado`. Reusable desde detail views y triggers.
 - [ ] **STKP-02**: Cloud Function `updateResumenStock` — denormaliza `resumenStock: { disponible, enTransito, reservado, comprometido }` en el doc del artículo cuando cambia cualquier unidad/reserva/OC. Alimenta la planning list view.
-- [ ] **STKP-03**: Conversión a `runTransaction` de las mutaciones críticas de stock (reservas, movimientos, requerimientos) para garantizar atomicidad.
+- [x] **STKP-03**: Conversión a `runTransaction` de las mutaciones críticas de stock (reservas, movimientos, requerimientos) para garantizar atomicidad.
 - [ ] **STKP-04**: Deshabilitar cache de 2 min en stock views (planning list, reserva modal) — datos siempre frescos.
-- [ ] **STKP-05**: Revisión y fix del pitfall en `presupuestosService.ts` líneas 252-258 (fórmula `disponible - reservado + enTransito` potencial doble conteo).
+- [x] **STKP-05**: Revisión y fix del pitfall en `presupuestosService.ts` líneas 252-258 (fórmula `disponible - reservado + enTransito` potencial doble conteo).
 
 ### Formatos
 
@@ -134,11 +134,11 @@
 | FLOW-05 | Phase 8 | Complete |
 | FLOW-06 | Phase 8 | Complete |
 | FLOW-07 | Phase 8 | Complete |
-| STKP-01 | Phase 9 | Pending |
+| STKP-01 | Phase 9 | Complete |
 | STKP-02 | Phase 9 | Pending |
-| STKP-03 | Phase 9 | Pending |
+| STKP-03 | Phase 9 | Complete |
 | STKP-04 | Phase 9 | Pending |
-| STKP-05 | Phase 9 | Pending |
+| STKP-05 | Phase 9 | Complete |
 | PTYP-02 | Phase 10 | Pending |
 | PTYP-03 | Phase 10 | Pending |
 | PTYP-04 | Phase 10 | Pending |

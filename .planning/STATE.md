@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Phase 9 context gathered (4 areas + 1 clarifier)
-last_updated: "2026-04-21T22:28:48.657Z"
+stopped_at: Completed 09-01 (Wave 1 — StockAmplio core + bug fix + atomicity)
+last_updated: "2026-04-22T00:28:36.795Z"
 last_activity: 2026-04-20 — Plan 05-04 executed (featureFlags runtime + /admin/modulos UI); PREC-04 desbloqueado
 progress:
   total_phases: 11
   completed_phases: 4
-  total_plans: 27
-  completed_plans: 24
+  total_plans: 30
+  completed_plans: 25
 ---
 
 ---
@@ -69,6 +69,7 @@ Progress: [████████░░] 84% (v2.0 milestone)
 | Phase 08-flujo-automatico-derivacion P03 | ~35min | 3 tasks | 3 files |
 | Phase 08-flujo-automatico-derivacion P02 | 14min | 3 tasks | 7 files |
 | Phase 08-flujo-automatico-derivacion P04 | 14min | 3 tasks | 8 files |
+| Phase 09-stock-atp-extendido P01 | 7m 25s | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,7 @@ Progress: [████████░░] 84% (v2.0 milestone)
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-04]: FLOW-03 implementado con runTransaction atómico. aceptarConRequerimientos pre-reserva numeros REQ-XXXX fuera de tx (getNextNumber no es safe en runTransaction) y pre-carga articulos. _cancelarRequerimientosCondicionales respeta Regla G (skip comprado/en_compra). Collection reutilizada: requerimientos_compra snake_case legacy.
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-04]: ATP check suma simple de unidades por estado (disponible+reservado+en_transito+asignado) en nuevo atpHelpers.ts. TODO(STKP-01) documentado para swap a computeStockAmplio() en Phase 9. Integration point real Task 2: PresupuestoItemsTableContrato.handlePickArticulo (no AddItemModal — ese modal no tiene selector de stock; solo conceptosServicio).
 - [Phase 08-flujo-automatico-derivacion]: [Phase 08-04]: Derivación real a TicketArea='materiales_comex' deferida v2.1 — el union no incluye ese valor hoy. En lugar de derivar, el post-commit de aceptarConRequerimientos appendea pendingAction 'derivar_comex' con reason descriptivo. Retry handler de 08-03 ya trata ese tipo como no-op success.
+- [Phase 09-stock-atp-extendido]: computeStockAmplio uses lazy Firebase import for tsx testability; enTransito = unit-estado + OC-pending (additive, not merged); reservar() uses runTransaction; audit is post-tx best-effort
 
 ### Pending Todos
 
@@ -115,6 +117,6 @@ Progress: [████████░░] 84% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-21T22:28:48.642Z
-Stopped at: Phase 9 context gathered (4 areas + 1 clarifier)
-Resume file: .planning/phases/09-stock-atp-extendido/09-CONTEXT.md
+Last session: 2026-04-22T00:28:36.791Z
+Stopped at: Completed 09-01 (Wave 1 — StockAmplio core + bug fix + atomicity)
+Resume file: None

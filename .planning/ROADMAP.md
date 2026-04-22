@@ -151,12 +151,12 @@ Plans:
   3. Las mutaciones críticas de stock (reservas, movimientos, requerimientos) usan `runTransaction` — no es posible reservar más unidades de las disponibles aunque dos usuarios actúen simultáneamente
   4. La Cloud Function `updateResumenStock` actualiza el campo denormalizado en el artículo cuando cambia cualquier unidad/reserva/OC — la lista de planificación lee solo la colección `articulos`
 
-**Plans:** TBD
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 09-01: computeStockAmplio() pure function + fix doble conteo + runTransaction en reservas
-- [ ] 09-02: Cloud Function updateResumenStock — trigger onDocumentWritten + denormalización
-- [ ] 09-03: StockAmplioIndicator component + vista de planificación sin cache
+- [ ] 09-01-PLAN.md — computeStockAmplio() pure fn + fix double counting + reservasService.reservar() runTransaction (STKP-01, STKP-03, STKP-05)
+- [ ] 09-02-PLAN.md — Cloud Functions: updateResumenStock (3 triggers) + onOTCerrada safety net (STKP-02)
+- [ ] 09-03-PLAN.md — /stock/planificacion page + StockAmplioIndicator + useStockAmplio hook + no cache (STKP-04, STKP-01 consumer)
 
 #### Phase 10: Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports
 **Goal:** Todos los tipos de presupuesto están operativos con PDF y mail, el aviso de facturación cierra el circuito comercial, y los datos exportables permiten reconciliación con Bejerman.
@@ -211,6 +211,6 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |
 | 8. Estados + OC + Flujo Automático | v2.0 | 0/6 | Not started | - |
-| 9. Stock ATP Extendido | v2.0 | 0/3 | Not started | - |
+| 9. Stock ATP Extendido | 1/3 | In Progress|  | - |
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | v2.0 | 0/5 | Not started | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
