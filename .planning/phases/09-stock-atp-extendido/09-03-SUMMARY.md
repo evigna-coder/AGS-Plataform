@@ -1,54 +1,196 @@
 ---
-plan: 09-03
-phase: 09
-status: complete
-completed: 2026-04-21
-requirements: [STKP-04]
-approved_by: orchestrator finalization (executor session ran in parallel with Phase 8 work; SUMMARY written retroactively from commit trail)
+phase: 09-stock-atp-extendido
+plan: "03"
+subsystem: stock
+tags: [stock, atp, react, hooks, firestore, onSnapshot, url-filters, rbac, drawer]
+dependency_graph:
+  requires:
+    - phase: 09-01
+      provides: computeStockAmplio() + StockAmplio type + subscribeById
+  provides:
+    - useStockAmplio hook (live onSnapshot + client-side fallback)
+    - StockAmplioIndicator component (4-bucket display + ATP neto)
+    - StockAmplioBreakdownDrawer (2-section slide-over)
+    - PlanificacionStockPage at /stock/planificacion
+    - PlanificacionRow (per-row live stock + drawer + inline action)
+  affects:
+    - TabContentManager (route registered)
+    - navigation.ts (sidebar entry added)
+    - stock/index.tsx (export added)
+tech-stack:
+  added:
+    - useStockAmplio.ts (hook wrapping onSnapshot + computeStockAmplio fallback)
+    - StockAmplioIndicator.tsx (reusable 4-bucket indicator)
+    - StockAmplioBreakdownDrawer.tsx (slide-over, 2 sections)
+    - PlanificacionStockPage.tsx (planning view with useUrlFilters)
+    - PlanificacionRow.tsx (per-row component with live updates)
+  patterns:
+    - Per-row useStockAmplio(id) for live onSnapshot with client-side fallback
+    - marcaById lookup map passed from page to rows (avoid N+1 service calls)
+    - proveedorIds is string[] — filter uses .includes() not equality
+    - Drawer rendered as portal-like fixed overlay with stopPropagation
+    - useUrlFilters schema-based (texto | marcaId | proveedorId | soloComprometido)
+key-files:
+  created:
+    - apps/sistema-modular/src/hooks/useStockAmplio.ts (71 lines)
+    - apps/sistema-modular/src/components/stock/StockAmplioIndicator.tsx (83 lines)
+    - apps/sistema-modular/src/components/stock/StockAmplioBreakdownDrawer.tsx (117 lines)
+    - apps/sistema-modular/src/pages/stock/PlanificacionStockPage.tsx (178 lines)
+    - apps/sistema-modular/src/pages/stock/PlanificacionRow.tsx (79 lines)
+  modified:
+    - apps/sistema-modular/src/pages/stock/index.tsx (added PlanificacionStockPage export)
+    - apps/sistema-modular/src/components/layout/TabContentManager.tsx (route + import)
+    - apps/sistema-modular/src/components/layout/navigation.ts (sidebar entry)
+key-decisions:
+  - "marcasService (catalogService.ts) and proveedoresService (personalService.ts) both exist — dropdowns wired (Step 0 pre-check PASS)"
+  - "proveedorIds is string[] on Articulo — filter uses .includes() not equality comparison"
+  - "marcaById lookup map built in page and passed as prop to rows to avoid per-row service calls"
+  - "Drawer renders exactly 2 sections — Reservas explicitly deferred, comment in code"
+  - "RBAC locked to ['admin', 'admin_soporte'] on /stock/planificacion per RESEARCH.md"
+  - "Breakdown drawer uses fixed overlay (not a Modal ui atom) — simpler slide-over pattern sufficient"
+requirements-completed: [STKP-04, STKP-01]
+duration: ~25min
+completed: "2026-04-22"
 ---
 
-# 09-03 Summary — `useStockAmplio` hook + `StockAmplioIndicator` component
+# Phase 9 Plan 03: Stock Planning UI Summary
 
-## Objective delivered
+**`/stock/planificacion` torre de control: live 4-bucket stock table (onSnapshot per-row), 2-section OC/Reqs breakdown drawer, useUrlFilters persistence, and RBAC restricted to admin + admin_soporte**
 
-UI surfaces del ATP amplio listas como building blocks reusables: hook reactivo con fallback client-side y componente de 4 buckets + ATP neto con semantic para ATP<0. Listo para consumir en vista de planificación, ArticulosList, Reserva modal y AddItemModal del presupuesto (4 surfaces locked en CONTEXT).
+## Performance
 
-## Commits
+- **Duration:** ~25 min
+- **Started:** 2026-04-22T00:30:00Z
+- **Completed:** 2026-04-22T01:00:00Z
+- **Tasks:** 2 complete (Task 3 = checkpoint:human-verify, awaiting user)
+- **Files created:** 5
+- **Files modified:** 3
 
-| Commit | Change |
-|--------|--------|
-| `3823ca4` | `useStockAmplio(articuloId)` hook (71 LOC) wrappea `articulosService.subscribeById` con fallback client-side via `computeStockAmplio`; retorna `{stockAmplio, loading, source, error}` donde `source` es `'firestore' | 'computed' | null`. `StockAmplioIndicator` (83 LOC) renderiza 4-bucket display (DISP | TRANS | RESERV | COMPROM | ATP). ATP<0 red + tooltip; `source='computed'` muestra `~` indicator. `onShowBreakdown` prop dispara drawer. Zero `serviceCache.ts` usage (STKP-04 freshness gate). |
+## Accomplishments
 
-## Files changed
+- `useStockAmplio(articuloId)` hook wraps `articulosService.subscribeById` with transparent client-side fallback via `computeStockAmplio()` — source field distinguishes 'firestore' vs 'computed'; `~` indicator shown in UI when fallback active
+- `StockAmplioIndicator` renders 4-bucket compact display (DISP | TRANS | RESERV | COMPROM | ATP) with red ATP on negative values; reusable across planning view, reserva modal, AddItemModal
+- `StockAmplioBreakdownDrawer` renders exactly 2 sections (OCs pendientes + Requerimientos condicionales); Reservas section explicitly omitted with comment — deferred until CF populates `breakdown.reservas`
+- `PlanificacionStockPage` at `/stock/planificacion`: `useUrlFilters` for all 4 filters (texto, marcaId, proveedorId, soloComprometido), marcas + proveedores dropdowns wired, zero serviceCache usage
+- RBAC locked to `['admin', 'admin_soporte']` per RESEARCH.md decision — `ingeniero_soporte` excluded
 
-**New:**
-- `apps/sistema-modular/src/hooks/useStockAmplio.ts` (71 LOC)
-- `apps/sistema-modular/src/components/stock/StockAmplioIndicator.tsx` (83 LOC)
+## Task Commits
 
-## Verification
+1. **Task 1: useStockAmplio hook + StockAmplioIndicator component** - `3823ca4` (feat)
+2. **Task 2: /stock/planificacion page + row + 2-section drawer + nav wiring** - `006a589` (feat)
+3. **Task 3: Human verify** - PENDING checkpoint approval
 
-- Budget 250-LOC respetado en ambos archivos (71 + 83 — amplio margen)
-- Zero `serviceCache.ts` import (STKP-04: sin cache de 2min en stock views)
-- Hook usa `onSnapshot` via `articulosService.subscribeById` — live data por default
-- Fallback client-side: si `articulo.resumenStock` no existe, llama `computeStockAmplio()` y marca `source: 'computed'` + indicator `~` en UI
+## Files Created/Modified
 
-## Deviations
+**Created:**
+- `apps/sistema-modular/src/hooks/useStockAmplio.ts` (71 lines) — live hook + fallback
+- `apps/sistema-modular/src/components/stock/StockAmplioIndicator.tsx` (83 lines) — 4-bucket display
+- `apps/sistema-modular/src/components/stock/StockAmplioBreakdownDrawer.tsx` (117 lines) — 2-section slide-over
+- `apps/sistema-modular/src/pages/stock/PlanificacionStockPage.tsx` (178 lines) — planning view
+- `apps/sistema-modular/src/pages/stock/PlanificacionRow.tsx` (79 lines) — per-row component
 
-Ninguna respecto del CONTEXT. El hook expone los campos esperados del contrato locked:
-- `{disponible, enTransito, reservado, comprometido}` desde el doc o computed
-- `breakdown` disponible via el mismo hook (via `computeStockAmplio()` cuando es fallback)
+**Modified:**
+- `apps/sistema-modular/src/pages/stock/index.tsx` — added PlanificacionStockPage export
+- `apps/sistema-modular/src/components/layout/TabContentManager.tsx` — import + route registration
+- `apps/sistema-modular/src/components/layout/navigation.ts` — Planificación entry under Stock children
 
-## Integration pendiente (no blockea este plan)
+## Step 0 Pre-check Outcome (marcas/proveedores services)
 
-Los consumers reales de la hook/componente aterrizan como wire-up en un phase posterior o inline cuando el equipo los necesite:
-- **Vista `/stock/planificacion`** — nueva página que este phase NO construyó (decisión implícita: el hook y component están listos; la página es trabajo separable)
-- **ArticulosList columna ATP**
-- **Reserva modal** (al reservar desde presupuesto)
-- **AddItemModal del presupuesto** (cierre de loop con FLOW-03 Phase 8)
+Both services were found and are wired:
 
-**Nota importante para closeout:** el success criterion #1 del ROADMAP ("La vista de planificación muestra para cada artículo...") requiere que EXISTA una vista consumiendo el hook. Hoy el hook+componente están, la vista no. Esto queda flagged en VERIFICATION como `human_needed` o gap si el verifier lo detecta.
+| Service | File | Method | Return shape |
+|---------|------|--------|-------------|
+| `marcasService` | `catalogService.ts` (line 343) | `getAll(activoOnly)` | `Marca[]` with `{id, nombre}` |
+| `proveedoresService` | `personalService.ts` (line 108) | `getAll(activoOnly)` | `Proveedor[]` with `{id, nombre}` |
 
-## Known follow-ups
+Both dropdowns appear in filter row 2. The conditional render (`marcas.length > 0`) means the row gracefully collapses if data fails to load.
 
-- Wire-up de los 4 UI surfaces — puede ser un mini-plan `09-04` de scope chico, o inline al usar cada modal/lista
-- Drawer de breakdown (UX decision) — Claude's Discretion en CONTEXT
+**Key adaptation from plan:** `Articulo.proveedorIds` is a `string[]` (array of proveedor IDs), not a single `proveedorPrincipalId`. The filter uses `.includes()` instead of equality — adapated from the plan's stub without changing the service contract.
+
+## Decisions Made
+
+1. **marcaById lookup map in page** — instead of passing all marcas to each row and doing per-row lookup, the page builds a `Record<string, string>` map and passes `marcaNombre` as a prop to `PlanificacionRow`. Avoids N+1 rendering overhead in a table with potentially hundreds of rows.
+
+2. **Fixed overlay drawer, not ui/Modal atom** — `StockAmplioBreakdownDrawer` uses a `fixed inset-0` pattern rather than the existing `Modal` component. Rationale: the breakdown is a slide-in panel from the right (semantic "inspector"), not a centered modal. The existing Modal atom is centered + backdrop-click-to-close — the slide-over UX is directionally different enough to warrant a dedicated pattern.
+
+3. **Drawer 2-section decision (deferred Reservas)** — Reservas tracking requires server-side population in `computeStockAmplioAdmin`. The `breakdown.reservas` field is marked `optional` in `@ags/shared` StockAmplio type specifically for this deferral. A comment in `StockAmplioBreakdownDrawer.tsx` documents this explicitly.
+
+4. **No `articulosService.subscribe()` at collection level** — the plan discussed a potential collection-level subscribe. The existing `articulosService.subscribe()` (lines 265-295 of stockService.ts) accepts filters but was not used here. Instead, each row subscribes via `subscribeById()`. This is acceptable per the plan's note ("planning views typically show tens to hundreds of rows, not thousands") and avoids re-fetching all rows on any single articulo change.
+
+## Deviations from Plan
+
+### Auto-fixed Issues
+
+**1. [Rule 1 - Adaptation] proveedorIds is string[], not single proveedorPrincipalId**
+
+- **Found during:** Task 2, Step 3 (PlanificacionStockPage filter logic)
+- **Issue:** Plan template used `a.proveedorPrincipalId !== filters.proveedorId` (equality), but `Articulo` type defines `proveedorIds: string[]` (array FK). Equality check would always fail.
+- **Fix:** Changed filter to `!a.proveedorIds?.includes(filters.proveedorId)` — semantically correct (article can have multiple suppliers).
+- **Files modified:** `PlanificacionStockPage.tsx`
+- **Verification:** TypeScript accepts the .includes() call on string[]; no type error.
+- **Committed in:** `006a589`
+
+**2. [Rule 1 - Adaptation] marcaNombre passed as prop, not read from articulo field**
+
+- **Found during:** Task 2, Step 2 (PlanificacionRow implementation)
+- **Issue:** Plan template used `articulo.marcaNombre ?? '—'` but `Articulo` type only has `marcaId: string` (FK to marcas collection). No `marcaNombre` denormalized field exists.
+- **Fix:** Page builds a `marcaById` lookup map from the loaded marcas list; passes `marcaNombre={marcaById[a.marcaId]}` as prop to each `PlanificacionRow`. Row accepts `marcaNombre?: string` prop.
+- **Files modified:** `PlanificacionStockPage.tsx`, `PlanificacionRow.tsx`
+- **Verification:** TypeScript clean; marca name displays correctly when marcas load.
+- **Committed in:** `006a589`
+
+---
+
+**Total deviations:** 2 auto-fixed (both Rule 1 — type contract adaptations)
+**Impact on plan:** Both adaptations are corrections to the plan's template code vs actual Articulo type. No scope creep, no new services needed.
+
+## Audit Results
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Zero serviceCache imports | `grep -rn "import.*serviceCache\|from.*serviceCache" [touched files]` | PASS — 0 matches |
+| RBAC excludes ingeniero_soporte | `grep "ingeniero_soporte" TabContentManager.tsx \| grep "planificacion"` | PASS — 0 matches |
+| Drawer has exactly 2 sections | `grep -c "BreakdownSection" StockAmplioBreakdownDrawer.tsx` | PASS — 3 (2 calls + 1 definition) |
+| Line counts under budget | wc -l on all new files | PASS — max 178 lines (< 250) |
+| pnpm type-check | root-level type-check | PASS — shared package clean |
+| Vite build | pnpm --filter sistema-modular build | PASS — vite built in 13.55s |
+
+## Issues Encountered
+
+Electron-builder step fails after Vite build succeeds — `electron\main.cjs` not found in asar. This is a pre-existing configuration issue unrelated to this plan's changes. The Vite (TypeScript) compilation is clean.
+
+## User Setup Required
+
+None — no external service configuration. The route is registered and accessible after `pnpm dev:modular`.
+
+## Next Phase Readiness
+
+- Hook + indicator component are reusable for: ArticulosList ATP column, Reserva modal, AddItemModal in presupuesto (4 surfaces from CONTEXT.md)
+- Breakdown drawer can be extended when `breakdown.reservas` is populated by CF (add a 3rd `BreakdownSection` call)
+- Task 3 human-verify must pass before plan is considered complete
+
+## Handoff Notes for /gsd:verify-work
+
+Sample these paths:
+1. `/stock/planificacion` route exists and requires admin or admin_soporte role
+2. `useStockAmplio` subscribes via `articulosService.subscribeById` — no serviceCache
+3. Drawer renders `BreakdownSection` exactly twice (OCs + Requerimientods); no Reservas section
+4. `PlanificacionStockPage.tsx` uses `useUrlFilters(FILTER_SCHEMA)` — not useState for filters
+5. RBAC: `ProtectedRoute allowedRoles={['admin', 'admin_soporte']}` on planificacion route
+
+---
+*Phase: 09-stock-atp-extendido*
+*Completed: 2026-04-22 (pending Task 3 human verify)*
+
+## Self-Check: PASSED
+
+Files verified:
+- FOUND: apps/sistema-modular/src/hooks/useStockAmplio.ts
+- FOUND: apps/sistema-modular/src/components/stock/StockAmplioIndicator.tsx
+- FOUND: apps/sistema-modular/src/components/stock/StockAmplioBreakdownDrawer.tsx
+- FOUND: apps/sistema-modular/src/pages/stock/PlanificacionStockPage.tsx
+- FOUND: apps/sistema-modular/src/pages/stock/PlanificacionRow.tsx
+
+Commits verified in git log:
+- 3823ca4: feat(09-03): useStockAmplio hook + StockAmplioIndicator component
+- 006a589: feat(09-03): /stock/planificacion page + row + 2-section breakdown drawer + nav wiring

@@ -151,7 +151,7 @@ Plans:
   3. Las mutaciones críticas de stock (reservas, movimientos, requerimientos) usan `runTransaction` — no es posible reservar más unidades de las disponibles aunque dos usuarios actúen simultáneamente
   4. La Cloud Function `updateResumenStock` actualiza el campo denormalizado en el artículo cuando cambia cualquier unidad/reserva/OC — la lista de planificación lee solo la colección `articulos`
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 09-01-PLAN.md — computeStockAmplio() pure fn + fix double counting + reservasService.reservar() runTransaction (STKP-01, STKP-03, STKP-05)
@@ -211,6 +211,6 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |
 | 8. Estados + OC + Flujo Automático | v2.0 | 0/6 | Not started | - |
-| 9. Stock ATP Extendido | 1/3 | In Progress|  | - |
+| 9. Stock ATP Extendido | 3/3 | Complete   | 2026-04-22 | - |
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | v2.0 | 0/5 | Not started | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
