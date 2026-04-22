@@ -270,6 +270,19 @@ export const OTList = () => {
     setFilters({ sortField: s.field, sortDir: s.dir });
   };
 
+  // Parents con al menos 1 child (cualquier OT con formato X.NN cuyo X tenga padre).
+  // Se computa sobre `ordenes` completo (no filtrado) — la regla "parent es contenedor"
+  // es estructural, no depende de los filtros en curso.
+  const parentsWithChildren = useMemo(() => {
+    const set = new Set<string>();
+    for (const ot of ordenes) {
+      if (ot.otNumber.includes('.')) {
+        set.add(ot.otNumber.split('.')[0]);
+      }
+    }
+    return set;
+  }, [ordenes]);
+
   // Agrupar: padres y sus items. Orphaned items (sin padre en lista) se muestran standalone.
   const grouped = useMemo(() => {
     let list = ordenes;
@@ -278,9 +291,14 @@ export const OTList = () => {
     } else if (filters.estadoAdmin) {
       list = list.filter(ot => resolveEstado(ot) === filters.estadoAdmin);
     }
-    if (debouncedBusquedaOT.trim()) {
+    const hasOtNumberSearch = !!debouncedBusquedaOT.trim();
+    if (hasOtNumberSearch) {
       const q = debouncedBusquedaOT.trim().toLowerCase();
       list = list.filter(ot => ot.otNumber.toLowerCase().includes(q));
+    } else {
+      // Sin búsqueda por número: ocultar parents que tengan al menos 1 child.
+      // Aparecen solo las children (X.NN) + parents standalone sin hijos.
+      list = list.filter(ot => !parentsWithChildren.has(ot.otNumber));
     }
     if (debouncedBusquedaModulo.trim()) {
       const q = debouncedBusquedaModulo.trim().toLowerCase();
@@ -363,7 +381,7 @@ export const OTList = () => {
     sortedOrphans.forEach(ot => result.push({ ot, isItem: false, hasItems: false }));
 
     return result;
-  }, [ordenes, filters.estadoAdmin, filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId, filters.fechaDesde, filters.fechaHasta, filters.soloFacturable, filters.soloContrato, filters.soloGarantia, debouncedBusquedaOT, debouncedBusquedaModulo, debouncedBusquedaEquipo, filters.sortField, filters.sortDir]);
+  }, [ordenes, parentsWithChildren, filters.estadoAdmin, filters.clienteId, filters.sistemaId, filters.tipoServicio, filters.ingenieroId, filters.fechaDesde, filters.fechaHasta, filters.soloFacturable, filters.soloContrato, filters.soloGarantia, debouncedBusquedaOT, debouncedBusquedaModulo, debouncedBusquedaEquipo, filters.sortField, filters.sortDir]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -428,7 +446,11 @@ export const OTList = () => {
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '—';
-    try { return new Date(dateString).toLocaleDateString('es-AR'); } catch { return dateString; }
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('es-AR');
+    } catch { return '—'; }
   };
 
   const estadoOptions = [

@@ -90,12 +90,25 @@ export function useAgenda(): UseAgendaReturn {
       .catch(err => console.error('Error loading pending OTs:', err));
   }, []);
 
-  // Derive pending OTs from candidates minus assigned (no Firestore re-read)
+  // Derive pending OTs from candidates minus assigned (no Firestore re-read).
+  // Regla 2026-04-22: ocultar OTs parent (sin punto) que tengan al menos 1
+  // child pendiente en la misma lista — el coordinador solo asigna las OTs
+  // "hijas" (X.NN), la parent es un contenedor no-accionable.
   const pendingOTs = useMemo(() => {
     const assignedOTNumbers = new Set(
       entries.filter(e => e.estadoAgenda !== 'cancelado').map(e => e.otNumber)
     );
-    return allCandidateOTs.filter(ot => !assignedOTNumbers.has(ot.otNumber));
+    const parentsWithChildren = new Set<string>();
+    for (const ot of allCandidateOTs) {
+      if (ot.otNumber.includes('.')) {
+        const base = ot.otNumber.split('.')[0];
+        parentsWithChildren.add(base);
+      }
+    }
+    return allCandidateOTs.filter(ot =>
+      !assignedOTNumbers.has(ot.otNumber) &&
+      !parentsWithChildren.has(ot.otNumber),
+    );
   }, [allCandidateOTs, entries]);
 
   // Navigation
