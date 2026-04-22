@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Completed 10-04-PLAN.md (Wave 3 — auto-OT ventas + solicitudesFacturacion tx + facturacionService methods)
+last_updated: "2026-04-22T04:45:52.757Z"
+last_activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
+progress:
+  total_phases: 11
+  completed_phases: 5
+  total_plans: 37
+  completed_plans: 32
+  percent: 86
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: Completed 10-03-PLAN.md (PDF branching by tipo — checkpoint approved with migration-data limitation noted)
 last_updated: "2026-04-22T05:30:00.000Z"
 last_activity: 2026-04-21 — Phase 9 complete; 09-02 STKP-02 human-verified (resumenStock live in prod, multi-articuloId OC confirmed)
 progress:
-  total_phases: 11
+  [█████████░] 86%
   completed_phases: 5
   total_plans: 37
   completed_plans: 30
@@ -89,6 +105,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 10-presupuestos-partes-mixto-ventas P01 | 4min | 2 tasks | 1 files |
 | Phase 10-presupuestos-partes-mixto-ventas P00 | 4min | 3 tasks | 5 files |
 | Phase 10-presupuestos-partes-mixto-ventas P02 | 8min | 3 tasks | 6 files |
+| Phase 10-presupuestos-partes-mixto-ventas P04 | 6min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -136,6 +153,8 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 10-presupuestos-partes-mixto-ventas]: ArticuloPickerPanel uses inline StockAmplioIndicator panel (not popup) for partes/mixto/ventas article selection — catalog loaded once in EditPresupuestoModal and passed as prop to avoid N re-fetches
 - [Phase 10-presupuestos-partes-mixto-ventas]: ATP validation before accepting presupuesto is UX-only (window.confirm, non-blocking) — FLOW-03 aceptarConRequerimientos remains authoritative for requirement creation
 - [Phase 10-presupuestos-partes-mixto-ventas]: splitItemsByTipo classifies by stockArticuloId (non-null = Partes); null defaults to Servicios. Historical Excel-migrated items have null stockArticuloId and fall into Servicios bucket in PDFs. Backfill via /admin/relinkear-articulos (separate commit). New items via ArticuloPickerPanel classified correctly from day one.
+- [Phase 10-presupuestos-partes-mixto-ventas]: Lazy import de otService en presupuestosService para romper circular dep (post-commit auto-OT ventas, Phase 10-04)
+- [Phase 10-presupuestos-partes-mixto-ventas]: cerrarAdministrativamente READ PHASE / WRITE PHASE separados: solicitudesFacturacion sentinels leídos en loop READ PHASE, ID determinístico {otNumber}_{presupuestoId} (Phase 10-04)
 
 ### Pending Todos
 
@@ -149,6 +168,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T04:08:15.353Z
-Stopped at: Completed 10-02-PLAN.md (Wave 2 — ArticuloPickerPanel + VentasMetadataSection + ATP validation)
+Last session: 2026-04-22T04:45:52.754Z
+Stopped at: Completed 10-04-PLAN.md (Wave 3 — auto-OT ventas + solicitudesFacturacion tx + facturacionService methods)
 Resume file: None
