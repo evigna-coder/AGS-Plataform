@@ -171,7 +171,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
 
       {/* Tablas y checklists seleccionados (modo edición) */}
       {protocolSelections.length > 0 && (
-        <div className="mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4">
+        <div className={`mt-4 max-w-full md:max-w-[calc(210mm+2rem)] mx-auto px-2 space-y-4${wizardMode ? ' protocol-cards-mode' : ''}`}>
           {[...protocolSelections].sort((a, b) => (a.tableSnapshot.orden || 999) - (b.tableSnapshot.orden || 999)).map(sel =>
             sel.tableSnapshot.tableType === 'cover' ? (
               <CatalogCoverView

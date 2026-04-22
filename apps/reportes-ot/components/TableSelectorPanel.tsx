@@ -97,12 +97,21 @@ export const TableSelectorPanel: React.FC<Props> = ({
     setChecked(new Set(existingSelections.map(s => s.tableId)));
   }, [existingSelections]);
 
-  // Al seleccionar un proyecto, pre-tildar sus tablas
+  // Al seleccionar un proyecto, pre-tildar sus tablas y destildar las de otros
+  // proyectos — los protocolos son mutuamente excluyentes para un mismo servicio.
   const handleSelectProject = (projectId: string) => {
     setSelectedProjectId(projectId);
+    const otherProjectTableIds = new Set(
+      availableTables
+        .filter(t => t.projectId && t.projectId !== projectId)
+        .map(t => t.id),
+    );
     const projectTables = availableTables.filter(t => t.projectId === projectId);
     setChecked(prev => {
-      const next = new Set(prev);
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (!otherProjectTableIds.has(id)) next.add(id);
+      }
       projectTables.forEach(t => next.add(t.id));
       return next;
     });

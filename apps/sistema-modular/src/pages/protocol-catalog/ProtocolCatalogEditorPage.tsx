@@ -14,7 +14,7 @@ import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
-const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'OTRO'];
 
 const SERVICIO_TYPES = [
   'Calibración',

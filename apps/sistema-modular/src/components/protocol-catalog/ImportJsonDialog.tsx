@@ -5,7 +5,7 @@ import { TablePreview } from './TablePreview';
 import { convertDocxToProtocolJson } from '../../utils/wordToProtocolJson';
 import type { TableCatalogEntry, TableCatalogColumn, TableCatalogRow, TableCatalogRule } from '@ags/shared';
 
-const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'OTRO'];
 
 // ─── Helpers de acceso a la estructura {id, cells:[]} del conversor ─────────
 

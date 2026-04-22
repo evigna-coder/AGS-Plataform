@@ -12,7 +12,7 @@ import { ProjectSelector } from '../../components/protocol-catalog/ProjectSelect
 import type { TableCatalogEntry } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
-const SYS_TYPES = ['HPLC', 'GC', 'UV', 'OSMOMETRO', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'OTRO'];
 const LS_KEY = 'ags:tableCatalog:activeProject';
 
 const STATUS_LABELS: Record<string, string> = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' };
