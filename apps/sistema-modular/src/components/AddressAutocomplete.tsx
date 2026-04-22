@@ -90,7 +90,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 types: ['address']
             });
 
-            autocompleteRef.current.addListener('place_changed', () => {
+            autocompleteRef.current.addListener('place_changed', async () => {
                 const place = autocompleteRef.current?.getPlace();
                 if (!place || !place.address_components) return;
 
@@ -100,7 +100,7 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
                 const street = getComponent(comps, 'route');
                 const number = getComponent(comps, 'street_number');
                 const pais = getComponent(comps, 'country');
-                const codigoPostal = getComponent(comps, 'postal_code');
+                let codigoPostal = getComponent(comps, 'postal_code');
 
                 const adminLevel1 = getComponent(comps, 'administrative_area_level_1');
                 const adminLevel2 = getComponent(comps, 'administrative_area_level_2');
@@ -124,6 +124,22 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
                 const lat = place.geometry?.location?.lat();
                 const lng = place.geometry?.location?.lng();
+
+                // Fallback: Places Autocomplete often omits postal_code for AR street-level
+                // addresses (el CP está asociado a la locality, no al street_address).
+                // Geocoding API por lat/lng sí lo devuelve en esos casos.
+                if (!codigoPostal && typeof lat === 'number' && typeof lng === 'number') {
+                    try {
+                        const geocoder = new (window as any).google.maps.Geocoder();
+                        const { results } = await geocoder.geocode({ location: { lat, lng } });
+                        for (const r of results ?? []) {
+                            const cp = getComponent(r.address_components ?? [], 'postal_code');
+                            if (cp) { codigoPostal = cp; break; }
+                        }
+                    } catch (err) {
+                        console.warn('Reverse-geocode for postal_code failed', err);
+                    }
+                }
 
                 const result: AutocompleteResult = {
                     formattedAddress,

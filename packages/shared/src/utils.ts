@@ -131,3 +131,89 @@ export function numberToWords(n: number, moneda: string = 'USD'): string {
 
   return `Son ${parteEntera} ${monedaLabel}${centavosTexto}.`;
 }
+
+/**
+ * Sufijos societarios típicos en razones sociales argentinas.
+ * Se quitan al normalizar para matchear clientes con nombres casi iguales
+ * ("DSM-Firmenich" ≡ "DSM Firmenich S.A.").
+ */
+const CORP_SUFFIXES = [
+  'sociedad anonima',
+  'sociedad anónima',
+  'saic', 's a i c',
+  'saci', 's a c i',
+  'sac', 's a c',
+  'sca', 's c a',
+  'sas', 's a s',
+  'srl', 's r l',
+  'sa', 's a',
+  'sh', 's h',
+  'sc', 's c',
+  'ltda',
+  'limitada',
+  'e hijos',
+  'hnos', 'hermanos',
+  'y cia', 'y compania', 'y compañia', 'y compañía',
+  'cia', 'compania', 'compañia', 'compañía',
+];
+
+/**
+ * Normaliza razón social para matching:
+ *   - lowercase
+ *   - sin acentos
+ *   - sin puntuación (quedan letras, dígitos y espacios)
+ *   - sin sufijos societarios al final
+ *   - whitespace colapsado
+ *
+ * Diseñada para ser idempotente y reproducible en el script .mjs (no depende de features TS-only).
+ */
+export function normalizeRazonSocial(s: string | null | undefined): string {
+  if (!s || typeof s !== 'string') return '';
+  let out = s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  // Quitar sufijos societarios al final, en iteraciones — "foo s a i c" → "foo" (no "foo sa" antes de "saic").
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const suf of CORP_SUFFIXES) {
+      if (out === suf) { out = ''; changed = true; break; }
+      if (out.endsWith(' ' + suf)) {
+        out = out.slice(0, -suf.length - 1).trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Busca candidatos de cliente para un razón social tipeado.
+ * Orden de criterios (se devuelven los de mejor criterio disponible):
+ *   1. match exacto normalizado (ignora acentos, puntuación, sufijos)
+ *   2. fallback: substring — el razón social del cliente contiene el tipeado o viceversa
+ *
+ * Devuelve TODOS los candidatos que matcheen con el mejor criterio encontrado; el caller decide:
+ *   - 0 candidatos → no matchea
+ *   - 1 candidato → match automático
+ *   - 2+ candidatos → ambiguo (UI de revisión)
+ */
+export function findClienteCandidatesByRazonSocial<T extends { razonSocial: string }>(
+  typed: string,
+  clientes: T[],
+): T[] {
+  const key = normalizeRazonSocial(typed);
+  if (!key) return [];
+  const exact = clientes.filter(c => normalizeRazonSocial(c.razonSocial) === key);
+  if (exact.length > 0) return exact;
+  return clientes.filter(c => {
+    const n = normalizeRazonSocial(c.razonSocial);
+    if (!n) return false;
+    return n.includes(key) || key.includes(n);
+  });
+}

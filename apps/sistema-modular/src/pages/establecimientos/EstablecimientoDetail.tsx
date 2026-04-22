@@ -221,6 +221,18 @@ export const EstablecimientoDetail = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id || !est) return;
+    if (!await confirm(`¿Eliminar el establecimiento "${est.nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
+    try {
+      await establecimientosService.delete(id);
+      navigate('/establecimientos');
+    } catch (e) {
+      console.error('Error eliminando establecimiento:', e);
+      alert('Error al eliminar el establecimiento');
+    }
+  };
+
   const closeContactoModal = () => { setShowContactoModal(false); setEditingContacto(null); setContactoForm(emptyContactoForm); };
 
   const handleSaveContacto = async () => {
@@ -273,7 +285,13 @@ export const EstablecimientoDetail = () => {
           <div className="flex gap-2 items-center">
             {saveMsg && <span className="text-xs text-green-600 font-medium">{saveMsg}</span>}
             {!editing ? (
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+              <>
+                <Button variant="outline" size="sm" onClick={handleDelete}
+                  className="!border-red-300 !text-red-600 hover:!bg-red-50">
+                  Eliminar
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+              </>
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>

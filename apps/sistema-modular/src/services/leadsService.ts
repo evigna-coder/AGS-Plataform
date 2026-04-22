@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, ContactoTicket, Ticket } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS, getContactoPrincipal } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, ContactoTicket, Ticket, Cliente } from '@ags/shared';
+import { LEAD_MAX_ADJUNTOS, getContactoPrincipal, findClienteCandidatesByRazonSocial } from '@ags/shared';
 import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
 
 /** Si el payload crea/transiciona a motivoLlamado=ventas_insumos, devuelve los campos de stamp. */
@@ -637,5 +637,64 @@ export const leadsService = {
     }
 
     return { total, yaNumerados: total - sinNumero.length, asignados: sinNumero.length };
+  },
+
+  /**
+   * Backfill de clienteId para tickets con `clienteId == null`.
+   * Busca candidatos por razón social normalizada (ignora acentos, puntuación, sufijos societarios).
+   *   - 1 candidato → asigna clienteId + clienteIdMigradoAt/Por='script-ui' + pendienteClienteId=false
+   *   - 2+ candidatos → pendienteClienteId=true + candidatosPropuestos (para /admin/revision-clienteid)
+   *   - 0 candidatos → pendienteClienteId=true + candidatosPropuestos=[] (queda en la lista para resolución manual)
+   *
+   * Idempotente: no toca tickets que ya tengan clienteId o estén marcados revisionDescartada.
+   */
+  async backfillClienteIds(
+    clientes: Cliente[],
+  ): Promise<{ total: number; matched: number; ambiguous: number; unmatched: number; skipped: number }> {
+    const snap = await getDocs(query(collection(db, 'leads'), where('clienteId', '==', null)));
+    const trace = getCurrentUserTrace();
+    let matched = 0, ambiguous = 0, unmatched = 0, skipped = 0;
+    const total = snap.docs.length;
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (data.revisionDescartada === true) { skipped++; continue; }
+
+      const razon = typeof data.razonSocial === 'string' ? data.razonSocial : '';
+      const candidatos = razon ? findClienteCandidatesByRazonSocial(razon, clientes) : [];
+      const ref = doc(db, 'leads', d.id);
+
+      if (candidatos.length === 1) {
+        await updateDoc(ref, deepCleanForFirestore({
+          clienteId: candidatos[0].id,
+          clienteIdMigradoAt: Timestamp.now(),
+          clienteIdMigradoPor: trace?.uid ?? 'script-ui',
+          pendienteClienteId: false,
+          candidatosPropuestos: [],
+          updatedAt: Timestamp.now(),
+        }));
+        matched++;
+      } else if (candidatos.length > 1) {
+        await updateDoc(ref, deepCleanForFirestore({
+          pendienteClienteId: true,
+          candidatosPropuestos: candidatos.map(c => ({
+            clienteId: c.id,
+            razonSocial: c.razonSocial,
+            score: 'razonSocial' as const,
+          })),
+          updatedAt: Timestamp.now(),
+        }));
+        ambiguous++;
+      } else {
+        await updateDoc(ref, deepCleanForFirestore({
+          pendienteClienteId: true,
+          candidatosPropuestos: [],
+          updatedAt: Timestamp.now(),
+        }));
+        unmatched++;
+      }
+    }
+
+    return { total, matched, ambiguous, unmatched, skipped };
   },
 };

@@ -69,6 +69,7 @@ export const navigation: NavItem[] = [
       { name: 'Acciones Pendientes', path: '/admin/acciones-pendientes' },
       { name: 'Re-linkear artículos', path: '/admin/relinkear-articulos' },
       { name: 'Backfill numeros tickets', path: '/admin/backfill-ticket-numeros' },
+      { name: 'Backfill clienteId tickets', path: '/admin/backfill-cliente-ids' },
     ],
   },
 ];

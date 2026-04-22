@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { VoiceTextarea } from '../ui/VoiceTextarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService, clientesService, usuariosService, ingenierosService } from '../../services/firebaseService';
-import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas } from '@ags/shared';
+import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, getUserTicketAreas, findClienteCandidatesByRazonSocial } from '@ags/shared';
 import type { MotivoLlamado, TicketArea, TicketPrioridad, Ticket, ContactoCliente, Posta } from '@ags/shared';
 
 interface Props {
@@ -134,6 +134,11 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         estadoAnterior: 'nuevo' as const,
         estadoNuevo: 'nuevo' as const,
       };
+      let resolvedClienteId = clienteId;
+      if (!resolvedClienteId) {
+        const candidatos = findClienteCandidatesByRazonSocial(razonSocial, clientes);
+        if (candidatos.length === 1) resolvedClienteId = candidatos[0].id;
+      }
       await leadsService.create({
         razonSocial: razonSocial.trim(),
         contacto: contacto.trim(),
@@ -143,7 +148,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         motivoOtros: motivoLlamado === 'otros' ? motivoOtros.trim() || null : null,
         motivoContacto: '',
         descripcion: descripcion.trim() || null,
-        clienteId: clienteId || null,
+        clienteId: resolvedClienteId || null,
         contactoId: null,
         sistemaId: null,
         estado: 'nuevo' as const,

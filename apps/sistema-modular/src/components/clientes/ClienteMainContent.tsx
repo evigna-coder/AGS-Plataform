@@ -5,6 +5,8 @@ import { modulosService, sistemasService } from '../../services/firebaseService'
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
+import { CreateEquipoModal } from '../equipos/CreateEquipoModal';
+import { CreateEstablecimientoModal } from '../establecimientos/CreateEstablecimientoModal';
 import { PendientesClienteSection } from '../pendientes/PendientesClienteSection';
 import { useConfirm } from '../ui/ConfirmDialog';
 
@@ -146,6 +148,8 @@ export const ClienteMainContent = ({
   const { pathname } = useLocation();
   const [selectedSistemaIds, setSelectedSistemaIds] = useState<Set<string>>(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
+  const [showCreateEst, setShowCreateEst] = useState(false);
+  const [showCreateEquipo, setShowCreateEquipo] = useState(false);
   // Deduplicar sistemas por ID (pueden venir duplicados por consultas legacy)
   const uniqueSistemas = sistemas.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
 
@@ -156,9 +160,7 @@ export const ClienteMainContent = ({
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Establecimientos</h3>
           <div className="flex gap-2">
-            <Link to={`/establecimientos/nuevo?cliente=${clienteId}`} state={{ from: pathname }}>
-              <Button variant="outline" size="sm">+ Agregar</Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={() => setShowCreateEst(true)}>+ Agregar</Button>
             <Link to={`/establecimientos?cliente=${clienteId}`}>
               <Button variant="ghost" size="sm">Ver todos</Button>
             </Link>
@@ -184,9 +186,7 @@ export const ClienteMainContent = ({
         ) : (
           <div className="text-center py-4">
             <p className="text-slate-400 text-xs mb-2">Sin establecimientos</p>
-            <Link to={`/establecimientos/nuevo?cliente=${clienteId}`} state={{ from: pathname }}>
-              <Button variant="outline" size="sm">+ Agregar</Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={() => setShowCreateEst(true)}>+ Agregar</Button>
           </div>
         )}
       </Card>
@@ -214,9 +214,7 @@ export const ClienteMainContent = ({
                 </Button>
               </>
             )}
-            <Link to={`/equipos/nuevo?cliente=${clienteId}`} state={{ from: pathname }}>
-              <Button variant="outline" size="sm">+ Agregar</Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
             <Link to={`/equipos?cliente=${clienteId}`}>
               <Button variant="ghost" size="sm">Ver todos</Button>
             </Link>
@@ -244,9 +242,7 @@ export const ClienteMainContent = ({
         ) : (
           <div className="text-center py-4">
             <p className="text-slate-400 text-xs mb-2">Sin sistemas registrados</p>
-            <Link to={`/equipos/nuevo?cliente=${clienteId}`} state={{ from: pathname }}>
-              <Button variant="outline" size="sm">+ Agregar</Button>
-            </Link>
+            <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
           </div>
         )}
       </Card>
@@ -284,6 +280,20 @@ export const ClienteMainContent = ({
           onMoved={() => { setShowMoveModal(false); setSelectedSistemaIds(new Set()); onRefresh?.(); }}
         />
       )}
+
+      <CreateEstablecimientoModal
+        open={showCreateEst}
+        onClose={() => setShowCreateEst(false)}
+        onCreated={() => onRefresh?.()}
+        preselectedClienteId={clienteId}
+      />
+
+      <CreateEquipoModal
+        open={showCreateEquipo}
+        onClose={() => setShowCreateEquipo(false)}
+        onCreated={() => onRefresh?.()}
+        defaultClienteId={clienteId}
+      />
     </div>
   );
 };

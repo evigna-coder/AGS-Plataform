@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema, ContactoCliente } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS } from '@ags/shared';
+import { LEAD_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS, findClienteCandidatesByRazonSocial } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService, contactosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -144,9 +144,8 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
 
       let resolvedClienteId = clienteId;
       if (!resolvedClienteId) {
-        const target = razonSocial.trim().toLowerCase();
-        const matches = clientes.filter(c => c.razonSocial.trim().toLowerCase() === target);
-        if (matches.length === 1) resolvedClienteId = matches[0].id;
+        const candidatos = findClienteCandidatesByRazonSocial(razonSocial, clientes);
+        if (candidatos.length === 1) resolvedClienteId = candidatos[0].id;
       }
 
       const leadId = await leadsService.create({
