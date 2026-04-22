@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Sistema, ModuloSistema } from '@ags/shared';
+import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Sistema, ModuloSistema, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { EquipoLinkPanel } from './EquipoLinkPanel';
-import { itemRequiresImportacion } from '../../services/atpHelpers';
+import { ArticuloPickerPanel } from './ArticuloPickerPanel';
 
 const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
   { value: '', label: 'Sin categoria' },
@@ -26,11 +26,13 @@ interface AddItemModalProps {
   loadModulos?: (sistemaId: string) => Promise<ModuloSistema[]>;
   /** Tipo de presupuesto — shows equipo fields when 'contrato' */
   tipoPresupuesto?: string;
+  /** Full catalog de articulos. Solo se usa cuando tipo ∈ {partes, mixto, ventas}. */
+  articulos?: Articulo[];
 }
 
 export const AddItemModal = ({
   newItem, setNewItem, categoriasPresupuesto, conceptosServicio, moneda,
-  onAdd, onClose, sistemas, loadModulos, tipoPresupuesto,
+  onAdd, onClose, sistemas, loadModulos, tipoPresupuesto, articulos,
 }: AddItemModalProps) => {
   const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
   const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
@@ -55,11 +57,34 @@ export const AddItemModal = ({
     });
   };
 
-  // FLOW-03: si algún día el modal agrega un selector directo de stockArticuloId, usar:
-  //   const requiere = await itemRequiresImportacion(articuloId);
-  //   setNewItem({...newItem, stockArticuloId: articuloId, itemRequiereImportacion: requiere});
-  // Exposed reference para evitar tree-shaking de helper en flows futuros.
-  void itemRequiresImportacion;
+  const handleSelectArticulo = (
+    art: Articulo | null,
+    meta: { itemRequiereImportacion: boolean },
+  ) => {
+    if (!art) {
+      setNewItem({
+        ...newItem,
+        stockArticuloId: null,
+        itemRequiereImportacion: false,
+      });
+      return;
+    }
+    setNewItem({
+      ...newItem,
+      stockArticuloId: art.id,
+      codigoProducto: art.codigo || newItem.codigoProducto || null,
+      descripcion: newItem.descripcion || art.descripcion,
+      precioUnitario: newItem.precioUnitario || art.precioReferencia || 0,
+      itemRequiereImportacion: meta.itemRequiereImportacion,
+    });
+  };
+
+  const showArticuloPicker = (
+    (tipoPresupuesto === 'partes' ||
+     tipoPresupuesto === 'mixto' ||
+     tipoPresupuesto === 'ventas') &&
+    !!articulos && articulos.length > 0
+  );
 
   const taxPreview = () => {
     if (!categoria) return null;
@@ -112,6 +137,14 @@ export const AddItemModal = ({
               setNewItem={setNewItem}
               sistemas={sistemas!}
               loadModulos={loadModulos!}
+            />
+          )}
+          {/* Article picker — partes/mixto/ventas */}
+          {showArticuloPicker && (
+            <ArticuloPickerPanel
+              articulos={articulos!}
+              articuloSeleccionadoId={newItem.stockArticuloId || null}
+              onSelect={handleSelectArticulo}
             />
           )}
 
