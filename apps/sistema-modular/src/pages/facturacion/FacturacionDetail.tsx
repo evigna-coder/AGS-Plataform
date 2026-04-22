@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { facturacionService } from '../../services/facturacionService';
+import { useAuth } from '../../contexts/AuthContext';
 import type { SolicitudFacturacion } from '@ags/shared';
 import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -16,10 +17,17 @@ export const FacturacionDetail = () => {
   const goBack = useNavigateBack();
   const confirm = useConfirm();
   const { pathname } = useLocation();
+  const { firebaseUser, usuario, hasRole } = useAuth();
+  const canAdminAction = hasRole('admin', 'admin_soporte');
+  const actor = { uid: firebaseUser?.uid || '', name: usuario?.displayName || undefined };
 
   const [solicitud, setSolicitud] = useState<SolicitudFacturacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Nota del contable (editable for admin/admin_soporte)
+  const [notaDraft, setNotaDraft] = useState('');
+  const [savingNota, setSavingNota] = useState(false);
 
   // Form for registering invoice
   const [factura, setFactura] = useState({
@@ -31,6 +39,13 @@ export const FacturacionDetail = () => {
     fechaVencimientoCae: '',
   });
   const [fechaCobro, setFechaCobro] = useState('');
+
+  const reload = async () => {
+    if (!id) return;
+    const fresh = await facturacionService.getById(id);
+    setSolicitud(fresh);
+    setNotaDraft(fresh?.observaciones || '');
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -47,10 +62,43 @@ export const FacturacionDetail = () => {
           fechaVencimientoCae: data.fechaVencimientoCae?.split('T')[0] || '',
         });
         setFechaCobro(data.fechaCobro?.split('T')[0] || '');
+        setNotaDraft(data.observaciones || '');
       }
       setLoading(false);
     });
   }, [id]);
+
+  const handleMarcarEnviada = async () => {
+    if (!solicitud) return;
+    if (!await confirm(`¿Marcar ${solicitud.presupuestoNumero} como enviada al contable?`)) return;
+    try {
+      setSaving(true);
+      await facturacionService.marcarEnviada(solicitud.id, actor);
+      await reload();
+    } catch { alert('Error al marcar como enviada'); }
+    finally { setSaving(false); }
+  };
+
+  const handleMarcarFacturada = async () => {
+    if (!solicitud) return;
+    if (!await confirm(`¿Marcar ${solicitud.presupuestoNumero} como facturada?`)) return;
+    try {
+      setSaving(true);
+      await facturacionService.marcarFacturada(solicitud.id, actor);
+      await reload();
+    } catch { alert('Error al marcar como facturada'); }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveNota = async () => {
+    if (!solicitud) return;
+    setSavingNota(true);
+    try {
+      await facturacionService.agregarNota(solicitud.id, notaDraft, actor);
+      await reload();
+    } catch { alert('Error al guardar nota'); }
+    finally { setSavingNota(false); }
+  };
 
   const handleRegistrarFactura = async () => {
     if (!id || !factura.numeroFactura || !factura.fechaFactura) {
@@ -66,8 +114,7 @@ export const FacturacionDetail = () => {
         cae: factura.cae || undefined,
         fechaVencimientoCae: factura.fechaVencimientoCae || undefined,
       });
-      const updated = await facturacionService.getById(id);
-      setSolicitud(updated);
+      await reload();
     } catch {
       alert('Error al registrar la factura');
     } finally {
@@ -80,8 +127,7 @@ export const FacturacionDetail = () => {
     try {
       setSaving(true);
       await facturacionService.registrarCobro(id, fechaCobro);
-      const updated = await facturacionService.getById(id);
-      setSolicitud(updated);
+      await reload();
     } catch {
       alert('Error al registrar el cobro');
     } finally {
@@ -94,8 +140,7 @@ export const FacturacionDetail = () => {
     try {
       setSaving(true);
       await facturacionService.update(id, { estado: 'anulada' });
-      const updated = await facturacionService.getById(id);
-      setSolicitud(updated);
+      await reload();
     } catch {
       alert('Error al anular');
     } finally {
@@ -142,11 +187,48 @@ export const FacturacionDetail = () => {
           <div><p className={lbl}>Condicion de pago</p><p className="text-xs text-slate-700">{solicitud.condicionPago || '—'}</p></div>
           <div><p className={lbl}>Monto total</p><p className="text-sm font-bold text-teal-700">{fmtMoney(solicitud.montoTotal)}</p></div>
         </div>
-        {solicitud.observaciones && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <p className={lbl}>Observaciones</p>
-            <p className="text-xs text-slate-600">{solicitud.observaciones}</p>
+      </Card>
+
+      {/* Admin quick-actions (Marcar enviada / facturada) */}
+      {canAdminAction && (solicitud.estado === 'pendiente' || solicitud.estado === 'enviada') && (
+        <Card>
+          <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest mb-3">Acciones</p>
+          <div className="flex gap-2">
+            {solicitud.estado === 'pendiente' && (
+              <Button variant="primary" size="sm" onClick={handleMarcarEnviada} disabled={saving}>
+                {saving ? 'Guardando...' : 'Marcar enviada'}
+              </Button>
+            )}
+            {(solicitud.estado === 'pendiente' || solicitud.estado === 'enviada') && (
+              <Button variant="primary" size="sm" onClick={handleMarcarFacturada} disabled={saving}>
+                {saving ? 'Guardando...' : 'Marcar facturada'}
+              </Button>
+            )}
           </div>
+        </Card>
+      )}
+
+      {/* Nota del contable */}
+      <Card>
+        <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest mb-3">Nota del contable</p>
+        {canAdminAction ? (
+          <>
+            <textarea
+              value={notaDraft}
+              onChange={e => setNotaDraft(e.target.value)}
+              rows={3}
+              className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
+              placeholder="Observaciones..."
+            />
+            <div className="flex gap-2 mt-2">
+              <Button size="sm" onClick={handleSaveNota}
+                disabled={savingNota || notaDraft === (solicitud.observaciones || '')}>
+                {savingNota ? 'Guardando...' : 'Guardar nota'}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-slate-600 whitespace-pre-wrap">{solicitud.observaciones || '—'}</p>
         )}
       </Card>
 
@@ -183,7 +265,7 @@ export const FacturacionDetail = () => {
         </table>
       </Card>
 
-      {/* Register invoice */}
+      {/* Register invoice (for pendiente state — detailed AFIP form) */}
       {solicitud.estado === 'pendiente' && (
         <Card>
           <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest mb-3">Registrar factura emitida</p>
