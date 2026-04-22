@@ -17,3 +17,11 @@ export const helloPing = functions.onRequest({ region: REGION }, (req, res) => {
     region: REGION,
   });
 });
+
+// Phase 9 — Stock ATP Extendido
+export {
+  updateResumenStockOnUnidad,
+  updateResumenStockOnOC,
+  updateResumenStockOnRequerimiento,
+} from './updateResumenStock';
+export { onOTCerrada } from './onOTCerrada';
