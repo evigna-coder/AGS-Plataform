@@ -27,7 +27,7 @@ import {
   orderBy,
   limit as qLimit,
 } from 'firebase/firestore';
-import type { TicketEstado, RequerimientoCompra } from '@ags/shared';
+import type { TicketEstado, RequerimientoCompra, SolicitudFacturacion } from '@ags/shared';
 
 // ── Local type aliases (upgrade to `@ags/shared` imports in Wave 1) ────────
 
@@ -162,6 +162,81 @@ export async function getRequerimientosByPresupuesto(
   const q = query(collection(db, 'requerimientosCompra'), ...clauses);
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<RequerimientoCompra, 'id'>) }));
+}
+
+// ── Phase 10 helpers (Wave 0 RED baseline) ─────────────────────────────────
+
+/**
+ * Reads a presupuesto doc by id.
+ * Returns full doc (any-typed — no canonical PresupuestoDoc in test layer) or null if missing.
+ */
+export async function getPresupuesto(id: string): Promise<any | null> {
+  const snap = await getDoc(doc(db, 'presupuestos', id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+/**
+ * Reads a solicitudFacturacion doc by id.
+ * TODO(Wave 1): tighten type once SolicitudFacturacion extension lands (add 'enviada' estado, enviadaAt, ordenesCompraIds).
+ */
+export async function getSolicitudFacturacion(
+  id: string,
+): Promise<(SolicitudFacturacion & { id: string }) | null> {
+  const snap = await getDoc(doc(db, 'solicitudesFacturacion', id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...(snap.data() as Omit<SolicitudFacturacion, 'id'>) };
+}
+
+/**
+ * Lists solicitudesFacturacion linked to a given OT number (via `otNumbers` array).
+ * Uses array-contains pattern consistent with getOCsByPresupuesto.
+ * TODO(Wave 1): tighten type once SolicitudFacturacion extension lands.
+ */
+export async function getSolicitudesFacturacionByOt(
+  otNumber: string,
+): Promise<Array<SolicitudFacturacion & { id: string }>> {
+  const q = query(
+    collection(db, 'solicitudesFacturacion'),
+    where('otNumbers', 'array-contains', otNumber),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<SolicitudFacturacion, 'id'>),
+  }));
+}
+
+/**
+ * Lists solicitudesFacturacion linked to a presupuesto by presupuestoId field.
+ * TODO(Wave 1): tighten type once SolicitudFacturacion extension lands.
+ */
+export async function getSolicitudesFacturacionByPresupuesto(
+  presupuestoId: string,
+): Promise<Array<SolicitudFacturacion & { id: string }>> {
+  const q = query(
+    collection(db, 'solicitudesFacturacion'),
+    where('presupuestoId', '==', presupuestoId),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<SolicitudFacturacion, 'id'>),
+  }));
+}
+
+/**
+ * Lists OTs (stored in `reportes` collection per otService.ts:40 comment) linked to a
+ * budget number (via `budgets` array-contains).
+ * Collection name: `reportes` (not `ordenesTrabajo`) — this is the canonical OT collection.
+ */
+export async function getOTsByBudget(budgetNumber: string): Promise<any[]> {
+  const q = query(
+    collection(db, 'reportes'),
+    where('budgets', 'array-contains', budgetNumber),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /**
