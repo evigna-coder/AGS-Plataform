@@ -168,14 +168,16 @@ Plans:
   3. Al llegar el aviso de facturación, el contable recibe un mail con el presupuesto PDF, la OC adjunta y el detalle de OTs vinculadas — el destinatario es configurable desde la UI
   4. Un admin puede exportar a Excel el listado de presupuestos con filtros aplicados, las OCs pendientes por cliente/coordinador, y las solicitudes de facturación pendientes
 
-**Plans:** TBD
+**Plans:** 7 plans (6 waves)
 
 Plans:
-- [ ] 10-01: Presupuesto partes — editor con ATP + reserva + PDF adaptado
-- [ ] 10-02: Presupuesto mixto básico (servicios + partes) — editor + PDF
-- [ ] 10-03: Presupuesto ventas de equipos — editor + PDF + generación OT
-- [ ] 10-04: Template mail aviso facturación + solicitudesFacturacion collection
-- [ ] 10-05: Excel exports — presupuestos, OCs pendientes, solicitudes facturación
+- [ ] 10-00-PLAN.md — Wave 0 E2E specs RED baseline + firestore-assert helpers (PTYP-02/03/04 + FMT-03/04/05/06)
+- [ ] 10-01-PLAN.md — @ags/shared extensions: VentasMetadata + SolicitudFacturacion.enviada/ordenesCompraIds + Presupuesto.ventasMetadata
+- [ ] 10-02-PLAN.md — Editor UI: ArticuloPickerPanel (ATP wire-up) + VentasMetadataSection + pre-accept UX validation
+- [ ] 10-03-PLAN.md — PDF PresupuestoPDFEstandar branching interno por tipo (mixto/partes/ventas bloques)
+- [ ] 10-04-PLAN.md — Services: aceptarConRequerimientos ventas (post-commit auto-OT) + cerrarAdministrativamente tx+solicitudesFacturacion + facturacionService methods
+- [ ] 10-05-PLAN.md — Export helpers genéricos XLSX+PDF + 3 wrappers específicos + integración PresupuestosList
+- [ ] 10-06-PLAN.md — /facturacion dashboard extensions (acciones admin + exports + deep link) + desfixme specs Wave 0
 
 #### Phase 11: Suite E2E Playwright
 **Goal:** El circuito comercial completo está cubierto por tests E2E confiables que corren en CI con emulador Firestore y mocks de servicios externos, garantizando que las ramas críticas del flujo no se rompen en futuras iteraciones.
