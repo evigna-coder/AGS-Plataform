@@ -161,7 +161,6 @@ test.describe('Circuito 3: Presupuestos', () => {
   });
 
   test('3.6 — Crear ppto mixto + generar PDF + verificar download', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 2 (plan 10-03) lands PDF branching por tipo. Desfixmear cuando mixto PDF esté implementado.');
 
     await nav.goToFresh('Presupuestos');
     await app.getByRole('button', { name: '+ Nuevo Presupuesto' }).click();
@@ -212,7 +211,6 @@ test.describe('Circuito 3: Presupuestos', () => {
   });
 
   test('3.7 — Crear ppto ventas + VentasMetadata + aceptar → OT auto-creada', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 3 (plan 10-04) lands VentasMetadataSection + auto-OT trigger. Desfixmear cuando ventas tipo esté implementado.');
 
     await nav.goToFresh('Presupuestos');
     await app.getByRole('button', { name: '+ Nuevo Presupuesto' }).click();
@@ -334,7 +332,7 @@ test.describe('Circuito 3: Presupuestos', () => {
   });
 
   test('3.9 — Botón Export oculto para rol no-admin', async ({ app, nav }) => {
-    test.fixme(true, 'Requires role fixture (ventas/tecnico login). Wave 4 (plan 10-05) will implement + desfixmear when RBAC export gate is landed.');
+    test.fixme(true, 'RBAC testing requires role-switching fixture — Phase 11 (TEST-01/TEST-05)');
     // Implementation when role fixture is available:
     // await nav.loginAs('ventas');
     // await nav.goToFresh('Presupuestos');

@@ -226,6 +226,23 @@ export async function getSolicitudesFacturacionByPresupuesto(
 }
 
 /**
+ * Lists solicitudesFacturacion filtered by optional estado.
+ * Used for assertions that do not have a specific ID or OT number (e.g. 11.13b).
+ */
+export async function getSolicitudesFacturacion(
+  filters?: { estado?: string; limit?: number },
+): Promise<Array<SolicitudFacturacion & { id: string }>> {
+  let q = query(collection(db, 'solicitudesFacturacion'));
+  if (filters?.estado) q = query(q, where('estado', '==', filters.estado));
+  const snap = await getDocs(q);
+  const items = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<SolicitudFacturacion, 'id'>),
+  }));
+  return filters?.limit ? items.slice(0, filters.limit) : items;
+}
+
+/**
  * Lists OTs (stored in `reportes` collection per otService.ts:40 comment) linked to a
  * budget number (via `budgets` array-contains).
  * Collection name: `reportes` (not `ordenesTrabajo`) — this is the canonical OT collection.

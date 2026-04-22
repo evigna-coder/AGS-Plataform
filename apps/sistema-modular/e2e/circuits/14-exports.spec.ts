@@ -21,7 +21,6 @@ test.describe('Circuito 14: Exports XLSX + PDF (FMT-04/05/06)', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('14.1 — /presupuestos: Exportar Excel descarga archivo .xlsx', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 4 (plan 10-05) lands Exportar Excel button + XLSX generation. Desfixmear when FMT-04 implemented.');
 
     await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
@@ -39,7 +38,6 @@ test.describe('Circuito 14: Exports XLSX + PDF (FMT-04/05/06)', () => {
   });
 
   test('14.2 — /presupuestos: Exportar PDF descarga archivo .pdf', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 4 (plan 10-05) lands Exportar PDF (lista) button. Desfixmear when FMT-04 implemented.');
 
     await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
@@ -57,7 +55,6 @@ test.describe('Circuito 14: Exports XLSX + PDF (FMT-04/05/06)', () => {
   });
 
   test('14.3 — /presupuestos: Export filter-aware — filtrar por cliente, exportar, smoke', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 4 (plan 10-05) lands filter-aware export. Desfixmear when filtering + XLSX generation is implemented.');
 
     await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
@@ -88,7 +85,6 @@ test.describe('Circuito 14: Exports XLSX + PDF (FMT-04/05/06)', () => {
   });
 
   test('14.4 — /facturacion: Exportar Excel + PDF solicitudes (FMT-06)', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 4 (plan 10-05) lands Facturacion export buttons (FMT-06). Desfixmear when implemented.');
 
     await nav.goToFresh('Facturacion');
     await app.waitForTimeout(2000);
@@ -125,7 +121,6 @@ test.describe('Circuito 14: Exports XLSX + PDF (FMT-04/05/06)', () => {
   });
 
   test('14.5 — OCs pendientes: Exportar Excel + PDF (FMT-05)', async ({ app, nav }) => {
-    test.fixme(true, 'Wave 4 (plan 10-05) decides OC pendientes view location (/presupuestos filter or subpage) and lands export. Desfixmear when FMT-05 implemented.');
 
     // Placeholder — Wave 4 executor decides and implements navigation to OC pendientes view.
     // Likely: nav.goToFresh('Presupuestos') + filter by estado='oc_recibida' or dedicated subpage.
@@ -139,7 +134,7 @@ test.describe('Circuito 14: Exports XLSX + PDF (FMT-04/05/06)', () => {
   });
 
   test('14.6 — Export buttons ocultos para rol no-admin', async ({ app, nav }) => {
-    test.fixme(true, 'Requires role fixture (ventas/tecnico login). Wave 4 (plan 10-05) will implement RBAC gate + desfixmear when complete.');
+    test.fixme(true, 'RBAC testing requires role-switching fixture — Phase 11 (TEST-01/TEST-05)');
 
     // Implementation when role fixture is available:
     // await nav.loginAs('ventas');
