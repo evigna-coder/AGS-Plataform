@@ -67,6 +67,7 @@ export const navigation: NavItem[] = [
       { name: 'Módulos', path: '/admin/modulos' },
       { name: 'Config Flujos', path: '/admin/config-flujos', separator: true },
       { name: 'Acciones Pendientes', path: '/admin/acciones-pendientes' },
+      { name: 'Re-linkear artículos', path: '/admin/relinkear-articulos' },
     ],
   },
 ];

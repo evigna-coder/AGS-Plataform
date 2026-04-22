@@ -21,7 +21,7 @@ import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
 import { UsuariosList } from '../../pages/usuarios';
-import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage } from '../../pages/admin';
+import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
@@ -174,6 +174,7 @@ function AppRoutes() {
       <Route path="/admin/modulos" element={<ProtectedRoute allowedRoles={['admin']}><ModulosAdminPage /></ProtectedRoute>} />
       <Route path="/admin/config-flujos" element={<ProtectedRoute allowedRoles={['admin']}><ConfigFlujosPage /></ProtectedRoute>} />
       <Route path="/admin/acciones-pendientes" element={<ProtectedRoute allowedRoles={['admin']}><AccionesPendientesPage /></ProtectedRoute>} />
+      <Route path="/admin/relinkear-articulos" element={<ProtectedRoute allowedRoles={['admin']}><RelinkearArticulosPage /></ProtectedRoute>} />
     </Routes>
   );
 }
