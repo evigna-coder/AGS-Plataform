@@ -1271,10 +1271,11 @@ export const TIPO_SERVICIO_PLANTILLA_LABELS: Record<TipoServicioPlantilla, strin
 
 // --- Facturación ---
 
-export type SolicitudFacturacionEstado = 'pendiente' | 'facturada' | 'cobrada' | 'anulada';
+export type SolicitudFacturacionEstado = 'pendiente' | 'enviada' | 'facturada' | 'cobrada' | 'anulada';
 
 export const SOLICITUD_FACTURACION_ESTADO_LABELS: Record<SolicitudFacturacionEstado, string> = {
   pendiente: 'Pendiente',
+  enviada: 'Enviada',                   // nueva — mail al contable ya fue disparado
   facturada: 'Facturada',
   cobrada: 'Cobrada',
   anulada: 'Anulada',
@@ -1282,6 +1283,7 @@ export const SOLICITUD_FACTURACION_ESTADO_LABELS: Record<SolicitudFacturacionEst
 
 export const SOLICITUD_FACTURACION_ESTADO_COLORS: Record<SolicitudFacturacionEstado, string> = {
   pendiente: 'bg-amber-100 text-amber-700',
+  enviada: 'bg-blue-100 text-blue-800',   // nueva — color neutro "en progreso"
   facturada: 'bg-blue-100 text-blue-700',
   cobrada: 'bg-emerald-100 text-emerald-700',
   anulada: 'bg-slate-200 text-slate-500',
@@ -1318,6 +1320,11 @@ export interface SolicitudFacturacion {
   cae?: string | null;
   fechaVencimientoCae?: string | null;
   fechaCobro?: string | null;
+  // --- Phase 10 (10-01) — aviso facturación automático desde cerrarAdministrativamente ---
+  /** OCs del cliente vinculadas. Back-ref al momento del cierre admin — no se mantiene sync con el ppto. */
+  ordenesCompraIds?: string[] | null;
+  /** ISO timestamp cuando el mail al contable fue marcado como enviado (estado 'enviada'). */
+  enviadaAt?: string | null;
   // Audit
   solicitadoPor?: string | null;
   solicitadoPorNombre?: string | null;
