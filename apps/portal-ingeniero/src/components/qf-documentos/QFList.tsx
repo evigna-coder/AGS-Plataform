@@ -1,4 +1,8 @@
+import { useState } from 'react';
 import type { QFDocumento, QFEstado } from '@ags/shared';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColAlignIcon } from '../ui/ColAlignIcon';
+import { sortByField, toggleSort, type SortDir } from '../ui/SortableHeader';
 
 interface Props {
   docs: QFDocumento[];
@@ -12,6 +16,8 @@ const ESTADO_BADGE: Record<QFEstado, string> = {
   obsoleto: 'bg-slate-100 text-slate-500 border border-slate-200',
 };
 
+const thBase = 'px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 relative select-none';
+
 function formatFecha(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' });
@@ -20,12 +26,35 @@ function formatFecha(iso: string): string {
   }
 }
 
+const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
+  active ? (
+    <svg className="w-3 h-3 text-teal-500 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d={dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+    </svg>
+  ) : (
+    <svg className="w-3 h-3 text-slate-300 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+    </svg>
+  );
+
 export default function QFList({ docs, onNuevaVersion, onHistorial, onEditar }: Props) {
+  const [sortField, setSortField] = useState<string>('fechaUltimaActualizacion');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const handleSort = (f: string) => {
+    const s = toggleSort(f, sortField, sortDir);
+    setSortField(s.field); setSortDir(s.dir);
+  };
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } =
+    useResizableColumns('pi-qf-documentos');
+
+  const sorted = sortByField(docs, sortField, sortDir);
+
   return (
     <>
       {/* Mobile cards (< md) */}
       <div className="md:hidden space-y-2">
-        {docs.map(d => (
+        {sorted.map(d => (
           <div key={d.id} className="bg-white rounded-xl border border-slate-200 p-3">
             <div className="flex items-start justify-between gap-2 mb-1">
               <div className="min-w-0">
@@ -50,9 +79,9 @@ export default function QFList({ docs, onNuevaVersion, onHistorial, onEditar }: 
         ))}
       </div>
 
-      {/* Tablet / small notebook (md–lg): card-style rows */}
+      {/* Tablet / small notebook (md–lg) */}
       <div className="hidden md:block lg:hidden space-y-2">
-        {docs.map(d => (
+        {sorted.map(d => (
           <div key={d.id} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
             <div className="flex items-start justify-between gap-3 mb-1.5">
               <div className="min-w-0 flex-1">
@@ -77,44 +106,78 @@ export default function QFList({ docs, onNuevaVersion, onHistorial, onEditar }: 
         ))}
       </div>
 
-      {/* Desktop table (lg+): fixed widths + horizontal scroll fallback */}
+      {/* Desktop table (lg+): resizable + sortable + alignable */}
       <div className="hidden lg:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto">
-        <table className="w-full table-fixed min-w-[920px]">
-          <colgroup>
-            <col className="w-[120px]" />
-            <col />
-            <col className="w-[90px]" />
-            <col className="w-[100px]" />
-            <col className="w-[170px]" />
-            <col className="w-[240px]" />
-          </colgroup>
+        <table ref={tableRef} className="w-full table-fixed min-w-[920px]">
+          {colWidths ? (
+            <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+          ) : (
+            <colgroup>
+              <col style={{ width: '13%' }} />{/* Número */}
+              <col style={{ width: '30%' }} />{/* Nombre */}
+              <col style={{ width: '10%' }} />{/* Estado */}
+              <col style={{ width: '11%' }} />{/* Actualizado */}
+              <col style={{ width: '18%' }} />{/* Usuario */}
+              <col style={{ width: '18%' }} />{/* Acciones */}
+            </colgroup>
+          )}
           <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
             <tr>
-              <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Número</th>
-              <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Nombre</th>
-              <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Estado</th>
-              <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Actualizado</th>
-              <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Usuario</th>
-              <th className="px-3 py-2 text-right text-[10px] font-mono uppercase tracking-wider text-slate-500">Acciones</th>
+              <th className={`${thBase} ${getAlignClass(0)}`}>
+                <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
+                <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('numeroCompleto')}>
+                  Número<SortIcon active={sortField === 'numeroCompleto'} dir={sortDir} />
+                </span>
+                <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+              </th>
+              <th className={`${thBase} ${getAlignClass(1)}`}>
+                <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
+                <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('nombre')}>
+                  Nombre<SortIcon active={sortField === 'nombre'} dir={sortDir} />
+                </span>
+                <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+              </th>
+              <th className={`${thBase} ${getAlignClass(2)}`}>
+                <ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />
+                <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('estado')}>
+                  Estado<SortIcon active={sortField === 'estado'} dir={sortDir} />
+                </span>
+                <div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+              </th>
+              <th className={`${thBase} ${getAlignClass(3)}`}>
+                <ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />
+                <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('fechaUltimaActualizacion')}>
+                  Actualizado<SortIcon active={sortField === 'fechaUltimaActualizacion'} dir={sortDir} />
+                </span>
+                <div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+              </th>
+              <th className={`${thBase} ${getAlignClass(4)}`}>
+                <ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />
+                <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('ultimoUsuarioNombre')}>
+                  Usuario<SortIcon active={sortField === 'ultimoUsuarioNombre'} dir={sortDir} />
+                </span>
+                <div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+              </th>
+              <th className={`${thBase} text-right`}>Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {docs.map(d => (
+            {sorted.map(d => (
               <tr key={d.id} className="hover:bg-slate-50">
-                <td className="px-3 py-2 font-mono text-xs font-semibold text-teal-700 truncate" title={`${d.numeroCompleto}.${d.versionActual}`}>
+                <td className={`px-3 py-2 font-mono text-xs font-semibold text-teal-700 truncate ${getAlignClass(0)}`} title={`${d.numeroCompleto}.${d.versionActual}`}>
                   {d.numeroCompleto}.{d.versionActual}
                 </td>
-                <td className="px-3 py-2 text-xs text-slate-800 min-w-0">
+                <td className={`px-3 py-2 text-xs text-slate-800 min-w-0 ${getAlignClass(1)}`}>
                   <div className="font-medium truncate" title={d.nombre}>{d.nombre}</div>
                   {d.descripcion && <div className="text-[10px] text-slate-400 truncate" title={d.descripcion}>{d.descripcion}</div>}
                 </td>
-                <td className="px-3 py-2">
+                <td className={`px-3 py-2 ${getAlignClass(2)}`}>
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_BADGE[d.estado]}`}>
                     {d.estado === 'vigente' ? 'Vigente' : 'Obsoleto'}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-xs text-slate-500 truncate">{formatFecha(d.fechaUltimaActualizacion)}</td>
-                <td className="px-3 py-2 text-xs text-slate-500 truncate" title={d.ultimoUsuarioEmail}>
+                <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(3)}`}>{formatFecha(d.fechaUltimaActualizacion)}</td>
+                <td className={`px-3 py-2 text-xs text-slate-500 truncate ${getAlignClass(4)}`} title={d.ultimoUsuarioEmail}>
                   {d.ultimoUsuarioNombre || d.ultimoUsuarioEmail}
                 </td>
                 <td className="px-2 py-2 text-right whitespace-nowrap">
