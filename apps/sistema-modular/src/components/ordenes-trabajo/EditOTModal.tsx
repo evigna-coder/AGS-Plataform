@@ -1,8 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useEditOTForm } from '../../hooks/useEditOTForm';
 import { OT_ESTADO_LABELS } from '@ags/shared';
-import type { OTEstadoAdmin } from '@ags/shared';
 import { EditOTEstadoBar } from './EditOTEstadoBar';
 import { EditOTFormFields } from './EditOTFormFields';
 
@@ -15,6 +15,12 @@ interface Props {
 
 export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved }) => {
   const h = useEditOTForm(open, otNumber, onClose, onSaved);
+  const navigate = useNavigate();
+
+  const openForCierreAdmin = () => {
+    onClose();
+    navigate(`/ordenes-trabajo/${otNumber}`);
+  };
 
   return (
     <Modal open={open} onClose={onClose} maxWidth="lg"
@@ -25,11 +31,11 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
         {h.form.estadoAdmin === 'CIERRE_TECNICO' && !h.readOnly && (
           <Button
             size="sm"
-            onClick={() => { h.set('estadoAdmin', 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin); h.handleSave(); }}
+            onClick={openForCierreAdmin}
             className="bg-cyan-600 hover:bg-cyan-700 text-white"
-            disabled={h.saving || h.loading}
+            disabled={h.loading}
           >
-            → Cierre administrativo
+            → Abrir para cierre administrativo
           </Button>
         )}
         <div className="flex-1" />
