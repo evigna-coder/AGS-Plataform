@@ -951,18 +951,58 @@ export const presupuestosService = {
             reason: `Auto ventas — ppto ${pres.numero} aceptado; falta adminConfig.usuarioCoordinadorOTId. Configurar en /admin/config-flujos y reintentar desde /admin/acciones-pendientes.`,
           });
         } else {
-          // Idempotency: si ya hay un ticket de coordinación linkeado a este ppto, skip
-          const existingTickets = await getDocs(
-            query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId), where('estado', '==', 'en_coordinacion')),
+          const coordinador = await usuariosService.getById(coordId);
+          if (!coordinador || coordinador.status !== 'activo') {
+            throw new Error(`coordinador OT ${coordId} no existe o no está activo`);
+          }
+          const fechaEntrega = pres.ventasMetadata?.fechaEstimadaEntrega ?? null;
+          // Circuito unificado: un solo ticket por oportunidad comercial que va
+          // cambiando de estado. Buscar ticket existente linkeado al ppto en
+          // estado no-terminal y TRANSICIONARLO a `en_coordinacion`. Si no hay
+          // ticket (user saltó `enviado` y fue directo a aceptado) → crear uno.
+          const existingSnap = await getDocs(
+            query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
           );
-          if (existingTickets.size > 0) {
-            console.log(`[aceptarConRequerimientos] ticket en_coordinacion ya existe para ppto ${pres.numero}, skip auto-create`);
+          const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+          const reusable = existingSnap.docs
+            .map(d => ({ ...(d.data() as Lead), id: d.id }))
+            .filter(t => !TERMINAL.includes(t.estado));
+          // Excluir tickets ya en `en_coordinacion` o estados posteriores
+          // (ot_creada/ot_coordinada/ot_realizada/pendiente_facturacion) — significa
+          // que el ticket ya pasó por este gate. Idempotency.
+          const POST_COORD: TicketEstado[] = ['en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada', 'pendiente_facturacion'];
+          const needsTransition = reusable.filter(t => !POST_COORD.includes(t.estado));
+          const alreadyCoord = reusable.filter(t => POST_COORD.includes(t.estado));
+
+          if (alreadyCoord.length > 0) {
+            console.log(`[aceptarConRequerimientos] ticket ya en coordinación+ para ppto ${pres.numero} (${alreadyCoord[0].id}), skip`);
+          } else if (needsTransition.length > 0) {
+            // Transicionar el primer ticket reusable (normalmente hay 1 solo).
+            const existing = needsTransition[0];
+            const posta: Posta = {
+              id: crypto.randomUUID(),
+              fecha: new Date().toISOString(),
+              deUsuarioId: actor?.uid ?? 'system',
+              deUsuarioNombre: actor?.name ?? 'Sistema',
+              aUsuarioId: coordId,
+              aUsuarioNombre: coordinador.displayName ?? '',
+              comentario: `Ppto ${pres.numero} aceptado — derivado a coordinación OT`,
+              estadoAnterior: existing.estado,
+              estadoNuevo: 'en_coordinacion' as TicketEstado,
+            };
+            await leadsService.update(existing.id, {
+              estado: 'en_coordinacion' as TicketEstado,
+              asignadoA: coordId,
+              asignadoNombre: coordinador.displayName ?? null,
+              areaActual: 'ing_soporte' as TicketArea,
+              accionPendiente: 'Crear OT(s) necesarias para el presupuesto aceptado',
+              proximoContacto: fechaEntrega,
+              valorEstimado: pres.total ?? null,
+              postas: [...(existing.postas || []), posta],
+            });
+            console.log(`[aceptarConRequerimientos] ticket ${existing.id} transicionado a en_coordinacion para ppto ${pres.numero}`);
           } else {
-            const coordinador = await usuariosService.getById(coordId);
-            if (!coordinador || coordinador.status !== 'activo') {
-              throw new Error(`coordinador OT ${coordId} no existe o no está activo`);
-            }
-            const fechaEntrega = pres.ventasMetadata?.fechaEstimadaEntrega ?? null;
+            // No existe ticket — crear uno (user saltó envío y fue directo a aceptado).
             const ticketPayload: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
               clienteId: clienteIdStr,
               contactoId: pres.contactoId ?? null,
@@ -992,7 +1032,7 @@ export const presupuestosService = {
               valorEstimado: pres.total ?? null,
             };
             const ticketId = await leadsService.create(ticketPayload);
-            console.log(`[aceptarConRequerimientos] auto-ticket coordinación creado: ${ticketId} para ppto ${pres.numero}`);
+            console.log(`[aceptarConRequerimientos] auto-ticket coordinación creado (sin predecesor): ${ticketId} para ppto ${pres.numero}`);
           }
         }
       } catch (err) {
