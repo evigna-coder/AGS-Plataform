@@ -14,7 +14,7 @@ interface Props {
   defaultFamilia?: number;
 }
 
-export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', defaultFamilia = 7 }: Props) {
+export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', defaultFamilia = 7 }: Props) {
   const [tipo, setTipo] = useState<QFTipo>(defaultTipo);
   const [familia, setFamilia] = useState<string>(String(defaultFamilia));
   const [numero, setNumero] = useState('');
@@ -50,12 +50,8 @@ export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = '
     setSaving(true);
     try {
       await qfDocumentosService.create({
-        tipo,
-        familia: familiaNum,
-        numero: numeroPadded,
-        nombre,
-        descripcion: descripcion || null,
-        cambiosIniciales: cambios,
+        tipo, familia: familiaNum, numero: numeroPadded,
+        nombre, descripcion: descripcion || null, cambiosIniciales: cambios,
         versionInicial: versionPadded,
       });
       reset();
@@ -72,6 +68,7 @@ export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = '
       open={open}
       onClose={handleClose}
       title="Nuevo documento QF"
+      maxWidth="md"
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={handleClose} disabled={saving}>Cancelar</Button>
@@ -86,7 +83,7 @@ export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = '
             <select
               value={tipo}
               onChange={(e) => setTipo(e.target.value as QFTipo)}
-              className="w-full border border-slate-300 rounded-xl px-3 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-700"
             >
               {(Object.keys(QF_TIPO_LABELS) as QFTipo[]).map(t => (
                 <option key={t} value={t}>{QF_TIPO_LABELS[t]}</option>
@@ -134,7 +131,7 @@ export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = '
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             rows={2}
-            className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
             placeholder="Breve detalle del documento"
           />
         </div>
@@ -147,7 +144,7 @@ export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = '
             value={cambios}
             onChange={(e) => setCambios(e.target.value)}
             rows={3}
-            className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-700"
             placeholder={versionPadded === '01' ? 'Qué contiene esta primera versión' : 'Qué contiene esta versión (resumen al día de alta)'}
           />
           <p className="mt-1 text-[10px] text-slate-400">

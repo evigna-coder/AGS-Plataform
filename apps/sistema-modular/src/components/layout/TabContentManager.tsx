@@ -27,6 +27,7 @@ import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
+import { QFDocumentosList } from '../../pages/qf-documentos';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -168,6 +169,8 @@ function AppRoutes() {
       {/* Contratos */}
       <Route path="/contratos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratosList /></ProtectedRoute>} />
       <Route path="/contratos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'admin_ing_soporte']}><ContratoDetail /></ProtectedRoute>} />
+      {/* Documentos QF — visible para todos los usuarios autenticados */}
+      <Route path="/qf-documentos" element={<ProtectedRoute><QFDocumentosList /></ProtectedRoute>} />
       {/* Admin */}
       <Route path="/admin/importar" element={<ProtectedRoute allowedRoles={['admin']}><ImportacionDatos /></ProtectedRoute>} />
       <Route path="/admin/revision-clienteid" element={<ProtectedRoute allowedRoles={['admin']}><RevisionClienteIdPage /></ProtectedRoute>} />

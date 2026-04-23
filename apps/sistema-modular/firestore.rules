@@ -339,6 +339,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Documentos QF (numeración controlada + historial de versiones)
+    match /qfDocumentos/{qfId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Bloquear acceso a cualquier otra colección
     match /{document=**} {
       allow read, write: if false;

@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import type { QFDocumento, QFEstado, QFHistorialEntry, QFTipo } from '@ags/shared';
 import { formatQFNumeroCompleto, incrementQFVersion } from '@ags/shared';
-import { db, cleanFirestoreData } from './firebaseService';
+import { db, cleanFirestoreData } from './firebase';
 import { getCurrentUser } from './currentUser';
 
 const COL = 'qfDocumentos';
@@ -78,7 +78,6 @@ export interface CreateQFInput {
 }
 
 export const qfDocumentosService = {
-  /** Real-time subscription ordenada por fecha desc. */
   subscribe(
     onData: (docs: QFDocumento[]) => void,
     onError: (err: Error) => void,
@@ -100,7 +99,6 @@ export const qfDocumentosService = {
     return toQFDocumento(snap.id, snap.data() as RawDocData);
   },
 
-  /** Crea un QF nuevo. Valida unicidad de `tipo+familia+numero` usando doc id = numeroCompleto. */
   async create(input: CreateQFInput): Promise<QFDocumento> {
     const user = getCurrentUser();
     if (!user) throw new Error('Usuario no autenticado');
@@ -148,7 +146,6 @@ export const qfDocumentosService = {
     return toQFDocumento(snap.id, snap.data() as RawDocData);
   },
 
-  /** Crea una nueva versión (+1), appendea historial y actualiza ultimo usuario. */
   async crearNuevaVersion(id: string, cambios: string): Promise<void> {
     const user = getCurrentUser();
     if (!user) throw new Error('Usuario no autenticado');
@@ -176,7 +173,6 @@ export const qfDocumentosService = {
     });
   },
 
-  /** Edita metadatos (nombre, descripción) sin crear versión. */
   async updateMetadata(
     id: string,
     data: { nombre?: string; descripcion?: string | null },
@@ -194,7 +190,6 @@ export const qfDocumentosService = {
     await updateDoc(doc(db, COL, id), payload);
   },
 
-  /** Cambia estado (vigente ↔ obsoleto). Preserva historial. */
   async setEstado(id: string, estado: QFEstado): Promise<void> {
     const user = getCurrentUser();
     if (!user) throw new Error('Usuario no autenticado');

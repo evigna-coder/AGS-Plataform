@@ -23,6 +23,7 @@ export const navigation: NavItem[] = [
   { name: 'Tickets', path: '/leads', icon: '👥', modulo: 'leads' },
   { name: 'Presupuestos', path: '/presupuestos', icon: '📋', modulo: 'presupuestos' },
   { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐', modulo: 'table-catalog' },
+  { name: 'Documentos QF', path: '/qf-documentos', icon: '📄' },
   { name: 'Dispositivos', path: '/dispositivos', icon: '📱', modulo: 'dispositivos' },
   { name: 'Vehículos', path: '/vehiculos', icon: '🚗', modulo: 'vehiculos' },
   { name: 'Instrumentos', path: '/instrumentos', icon: '🔬', modulo: 'instrumentos' },
