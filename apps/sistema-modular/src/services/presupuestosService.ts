@@ -976,6 +976,64 @@ export const presupuestosService = {
   },
 
   /**
+   * Intenta transicionar un presupuesto a `finalizado` verificando que TODAS las
+   * OTs work-unit (children, o parents standalone sin children) estén FINALIZADO
+   * AND todas las solicitudesFacturacion vinculadas estén en estado `facturada`.
+   *
+   * Se llama desde:
+   * - `otService.update` cuando una OT transiciona a FINALIZADO (replaces the
+   *   old `_syncPresupuestoOnFinalize` que solo miraba parents — bug: parents
+   *   son contenedores que nunca llegan a FINALIZADO).
+   * - `facturacionService.marcarFacturada` después de actualizar la solicitud.
+   *
+   * Idempotente — no-op si el ppto ya está `finalizado` o `anulado`.
+   * Si no hay solicitudesFacturacion vinculadas (caso: ppto que nunca pasó por
+   * cierre admin ni facturación anticipada), el check de facturación se skipea
+   * y solo se exige que las OTs estén FINALIZADO.
+   */
+  async trySyncFinalizacion(presupuestoId: string): Promise<void> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
+    if (pres.estado === 'finalizado' || pres.estado === 'anulado') return;
+
+    // Lazy import para romper circular dep (otService ↔ presupuestosService).
+    const { ordenesTrabajoService } = await import('./otService');
+    const { facturacionService } = await import('./facturacionService');
+
+    // ── Check 1: todas las work-unit OTs vinculadas en FINALIZADO ─────────
+    const allOTs = await ordenesTrabajoService.getAll();
+    const otsForPres = allOTs.filter(o => (o.budgets || []).includes(pres.numero));
+    if (otsForPres.length === 0) return; // sin OTs aún, nada que finalizar
+
+    // Work-unit = (tiene punto → child) OR (sin punto AND sin children entre los OTs).
+    const parentsWithChildren = new Set<string>();
+    for (const o of otsForPres) {
+      if (o.otNumber.includes('.')) {
+        parentsWithChildren.add(o.otNumber.split('.')[0]);
+      }
+    }
+    const workUnitOTs = otsForPres.filter(o => {
+      if (o.otNumber.includes('.')) return true; // child siempre es work-unit
+      return !parentsWithChildren.has(o.otNumber); // parent sin children = standalone
+    });
+    if (workUnitOTs.length === 0) return; // solo parents con children que quedaron afuera — raro, skip
+    const allOTsFinalized = workUnitOTs.every(o => o.estadoAdmin === 'FINALIZADO');
+    if (!allOTsFinalized) return;
+
+    // ── Check 2: todas las solicitudesFacturacion vinculadas en `facturada` ──
+    const solicitudes = await facturacionService.getByPresupuesto(presupuestoId).catch(() => []);
+    if (solicitudes.length > 0) {
+      const allFacturadas = solicitudes.every(s => s.estado === 'facturada');
+      if (!allFacturadas) return;
+    }
+    // (si solicitudes.length === 0, asumir que no hay facturación requerida y avanzar)
+
+    // ── Transicionar ppto a finalizado ────────────────────────────────────
+    await this.update(presupuestoId, { estado: 'finalizado' } as any);
+    console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado`);
+  },
+
+  /**
    * FLOW-03 cleanup: al anular un presupuesto aceptado, cancelar los requerimientos
    * condicionales (`condicional: true`) ligados a él.
    *

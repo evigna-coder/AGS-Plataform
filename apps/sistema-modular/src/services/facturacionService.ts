@@ -150,6 +150,18 @@ export const facturacionService = {
       facturadoPor: actor?.uid ?? null,
       facturadoPorNombre: actor?.name ?? null,
     } as any);
+    // Post-commit: intentar transicionar el ppto a `finalizado` si corresponde
+    // (OTs work-unit FINALIZADO + todas las solicitudes facturadas).
+    // Best-effort — no bloquea el update si falla.
+    try {
+      const sol = await this.getById(id);
+      if (sol?.presupuestoId) {
+        const { presupuestosService } = await import('./presupuestosService');
+        await presupuestosService.trySyncFinalizacion(sol.presupuestoId);
+      }
+    } catch (err) {
+      console.error('[marcarFacturada] trySyncFinalizacion failed:', err);
+    }
   },
 
   /**
