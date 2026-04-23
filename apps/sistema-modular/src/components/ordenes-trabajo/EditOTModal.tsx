@@ -1,10 +1,10 @@
-import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useEditOTForm } from '../../hooks/useEditOTForm';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 import { EditOTEstadoBar } from './EditOTEstadoBar';
 import { EditOTFormFields } from './EditOTFormFields';
+import { OTCierreAdminSection } from './OTCierreAdminSection';
 
 interface Props {
   open: boolean;
@@ -15,15 +15,12 @@ interface Props {
 
 export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved }) => {
   const h = useEditOTForm(open, otNumber, onClose, onSaved);
-  const navigate = useNavigate();
 
-  const openForCierreAdmin = () => {
-    onClose();
-    navigate(`/ordenes-trabajo/${otNumber}`);
-  };
+  const showCierreAdmin =
+    h.form.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || h.form.estadoAdmin === 'FINALIZADO';
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="lg"
+    <Modal open={open} onClose={onClose} maxWidth="xl"
       title={`OT-${otNumber}`}
       subtitle={h.loading ? 'Cargando...' : `${OT_ESTADO_LABELS[h.form.estadoAdmin] ?? h.form.estadoAdmin}`}
       footer={<>
@@ -31,18 +28,25 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
         {h.form.estadoAdmin === 'CIERRE_TECNICO' && !h.readOnly && (
           <Button
             size="sm"
-            onClick={openForCierreAdmin}
+            onClick={h.handleCierreAdminTransition}
             className="bg-cyan-600 hover:bg-cyan-700 text-white"
-            disabled={h.loading}
+            disabled={h.loading || h.saving}
           >
-            → Abrir para cierre administrativo
+            {h.saving ? 'Procesando...' : '→ Cierre administrativo'}
           </Button>
         )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={h.handleSave} disabled={h.saving || h.loading || h.readOnly}>
-          {h.saving ? 'Guardando...' : 'Guardar'}
-        </Button>
+        {!showCierreAdmin && (
+          <Button size="sm" onClick={h.handleSave} disabled={h.saving || h.loading || h.readOnly}>
+            {h.saving ? 'Guardando...' : 'Guardar'}
+          </Button>
+        )}
+        {showCierreAdmin && h.form.estadoAdmin !== 'FINALIZADO' && (
+          <Button size="sm" onClick={h.handleSave} disabled={h.saving || h.loading}>
+            {h.saving ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        )}
       </>}>
 
       {h.loading ? (
@@ -58,6 +62,26 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
             sistemasFiltrados={h.sistemasFiltrados} modulos={h.modulos}
             contactos={h.contactos} ingenieros={h.ingenieros}
           />
+          {showCierreAdmin && (
+            <OTCierreAdminSection
+              cierreAdmin={h.form.cierreAdmin}
+              onChange={h.handleCierreChange}
+              onConfirmarCierre={h.handleConfirmarCierre}
+              onReabrirOT={h.handleReabrirOT}
+              horasTrabajadas={h.form.horasTrabajadas}
+              tiempoViaje={h.form.tiempoViaje}
+              articulos={h.form.articulos}
+              readOnly={h.readOnly}
+              estadoAdmin={h.form.estadoAdmin}
+              razonSocial={h.otOriginal?.razonSocial}
+              tipoServicio={h.form.tipoServicio}
+              ingenieroNombre={h.otOriginal?.ingenieroAsignadoNombre}
+              otNumber={otNumber}
+              budgets={h.otOriginal?.budgets}
+              clienteId={h.form.clienteId}
+              clienteNombre={h.otOriginal?.razonSocial}
+            />
+          )}
           {/* Historial de estados */}
           {h.otOriginal?.estadoHistorial && h.otOriginal.estadoHistorial.length > 0 && (
             <div className="border-t border-slate-100 pt-2">

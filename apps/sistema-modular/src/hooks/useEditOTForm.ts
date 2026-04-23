@@ -4,7 +4,10 @@ import {
   tiposServicioService, contactosService, modulosService,
 } from '../services/firebaseService';
 import { ingenierosService } from '../services/personalService';
-import type { WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, OTEstadoAdmin } from '@ags/shared';
+import type {
+  WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema,
+  Ingeniero, OTEstadoAdmin, CierreAdministrativo, Part, OTEstadoHistorial,
+} from '@ags/shared';
 
 export interface EditOTFormState {
   clienteId: string;
@@ -21,13 +24,33 @@ export interface EditOTFormState {
   esFacturable: boolean;
   tieneContrato: boolean;
   esGarantia: boolean;
+  // Cierre administrativo
+  cierreAdmin: CierreAdministrativo;
+  articulos: Part[];
+  horasTrabajadas: string;
+  tiempoViaje: string;
+  status: 'BORRADOR' | 'FINALIZADO';
+  estadoHistorial: OTEstadoHistorial[];
 }
+
+const INITIAL_CIERRE: CierreAdministrativo = {
+  horasConfirmadas: false,
+  partesConfirmadas: false,
+  stockDeducido: false,
+  avisoAdminEnviado: false,
+};
 
 const INITIAL_FORM: EditOTFormState = {
   clienteId: '', sistemaId: '', moduloId: '', tipoServicio: '',
   contactoId: '', ingenieroId: '', presupuestos: [''], ordenCompra: '',
   fechaServicioAprox: '', problemaFallaInicial: '', estadoAdmin: 'CREADA',
   esFacturable: true, tieneContrato: false, esGarantia: false,
+  cierreAdmin: INITIAL_CIERRE,
+  articulos: [],
+  horasTrabajadas: '',
+  tiempoViaje: '',
+  status: 'BORRADOR',
+  estadoHistorial: [],
 };
 
 export function useEditOTForm(open: boolean, otNumber: string, onClose: () => void, onSaved: () => void) {
@@ -96,6 +119,12 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         esFacturable: ot.esFacturable ?? true,
         tieneContrato: ot.tieneContrato ?? false,
         esGarantia: ot.esGarantia ?? false,
+        cierreAdmin: ot.cierreAdmin || INITIAL_CIERRE,
+        articulos: ot.articulos || [],
+        horasTrabajadas: ot.horasTrabajadas || '',
+        tiempoViaje: ot.tiempoViaje || '',
+        status: (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'BORRADOR'),
+        estadoHistorial: ot.estadoHistorial || [],
       });
       setLoading(false);
     }).catch(() => { alert('Error al cargar la OT'); onClose(); });
@@ -125,6 +154,115 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
 
   const readOnly = form.estadoAdmin === 'FINALIZADO';
 
+  // ── Cierre admin: field change (local state only, persisted by handleSave or handleConfirmarCierre) ──
+  const handleCierreChange = (field: keyof CierreAdministrativo, value: any) => {
+    setForm(prev => ({ ...prev, cierreAdmin: { ...prev.cierreAdmin, [field]: value } }));
+  };
+
+  // ── Transition to CIERRE_ADMINISTRATIVO (atomic tx via service delegation) ──
+  const handleCierreAdminTransition = async () => {
+    // Idempotency: already in cierre or finalizado — no-op.
+    if (form.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || form.estadoAdmin === 'FINALIZADO') return;
+    setSaving(true);
+    try {
+      // otService.update delegates to cerrarAdministrativamente when target is CIERRE_ADMINISTRATIVO
+      // (commit 1fbecf8): crea solicitudFacturacion, mailQueue, admin ticket in one tx.
+      await ordenesTrabajoService.update(otNumber, {
+        estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
+      });
+      // Refetch to get server-written fields (estadoHistorial, cierreAdmin.avisoAdminEnviado, etc.)
+      const updated = await ordenesTrabajoService.getByOtNumber(otNumber);
+      if (updated) {
+        setOtOriginal(updated);
+        setForm(prev => ({
+          ...prev,
+          estadoAdmin: updated.estadoAdmin || 'CIERRE_ADMINISTRATIVO',
+          cierreAdmin: updated.cierreAdmin || prev.cierreAdmin,
+          estadoHistorial: updated.estadoHistorial || prev.estadoHistorial,
+          status: updated.status === 'FINALIZADO' ? 'FINALIZADO' : prev.status,
+        }));
+      } else {
+        // Optimistic update if fetch fails
+        setForm(prev => ({ ...prev, estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin }));
+      }
+    } catch (err) {
+      console.error('[useEditOTForm] handleCierreAdminTransition failed:', err);
+      alert('Error al transicionar a cierre administrativo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Confirm cierre (FINALIZADO transition — mail+ticket admin already ran in CIERRE_ADMINISTRATIVO) ──
+  const handleConfirmarCierre = async () => {
+    if (!form.cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
+    if (!form.cierreAdmin.partesConfirmadas && form.articulos.length > 0) {
+      alert('Debe confirmar los materiales/repuestos');
+      return;
+    }
+    const ahora = new Date().toISOString();
+    const cierreActualizado: CierreAdministrativo = { ...form.cierreAdmin, fechaCierreAdmin: ahora };
+    const historialActualizado: OTEstadoHistorial[] = [
+      ...form.estadoHistorial,
+      { estado: 'FINALIZADO' as OTEstadoAdmin, fecha: ahora },
+    ];
+    setSaving(true);
+    try {
+      await ordenesTrabajoService.update(otNumber, {
+        estadoAdmin: 'FINALIZADO' as OTEstadoAdmin,
+        estadoAdminFecha: ahora,
+        estadoHistorial: historialActualizado,
+        cierreAdmin: cierreActualizado,
+        status: 'FINALIZADO',
+      } as Partial<WorkOrder>);
+      setForm(prev => ({
+        ...prev,
+        estadoAdmin: 'FINALIZADO' as OTEstadoAdmin,
+        estadoAdminFecha: ahora,
+        estadoHistorial: historialActualizado,
+        cierreAdmin: cierreActualizado,
+        status: 'FINALIZADO',
+      }));
+      onSaved();
+    } catch (err) {
+      console.error('[useEditOTForm] handleConfirmarCierre failed:', err);
+      alert('Error al confirmar cierre');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Reabrir OT (FINALIZADO → CIERRE_ADMINISTRATIVO) ──
+  const handleReabrirOT = async () => {
+    if (form.estadoAdmin !== 'FINALIZADO') return;
+    const ahora = new Date().toISOString();
+    const historialActualizado: OTEstadoHistorial[] = [
+      ...form.estadoHistorial,
+      { estado: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin, fecha: ahora },
+    ];
+    setSaving(true);
+    try {
+      await ordenesTrabajoService.update(otNumber, {
+        estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
+        estadoAdminFecha: ahora,
+        estadoHistorial: historialActualizado,
+        status: 'BORRADOR',
+      } as Partial<WorkOrder>);
+      setForm(prev => ({
+        ...prev,
+        estadoAdmin: 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin,
+        estadoAdminFecha: ahora,
+        estadoHistorial: historialActualizado,
+        status: 'BORRADOR',
+      }));
+    } catch (err) {
+      console.error('[useEditOTForm] handleReabrirOT failed:', err);
+      alert('Error al reabrir la OT');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!form.clienteId) { alert('Seleccione un cliente'); return; }
     if (!form.tipoServicio) { alert('Seleccione un tipo de servicio'); return; }
@@ -140,7 +278,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
 
     let estadoHistorial = otOriginal?.estadoHistorial || [];
     let estadoAdminFecha = otOriginal?.estadoAdminFecha || '';
-    let status = otOriginal?.status || 'BORRADOR';
+    let status: 'BORRADOR' | 'FINALIZADO' = form.status;
 
     if (form.estadoAdmin !== otOriginal?.estadoAdmin) {
       const ahora = new Date().toISOString();
@@ -177,6 +315,11 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         tieneContrato: form.tieneContrato,
         esGarantia: form.esGarantia,
         status,
+        // Include cierre fields so edits in OTCierreAdminSection are persisted
+        cierreAdmin: form.cierreAdmin,
+        horasTrabajadas: form.horasTrabajadas,
+        tiempoViaje: form.tiempoViaje,
+        articulos: form.articulos,
       } as Partial<WorkOrder>);
       onSaved();
       onClose();
@@ -195,5 +338,6 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     loading, saving, form, set, readOnly,
     clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros,
     otOriginal, handleSave, openInReportesOT,
+    handleCierreChange, handleCierreAdminTransition, handleConfirmarCierre, handleReabrirOT,
   };
 }
