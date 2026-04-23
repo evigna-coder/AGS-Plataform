@@ -71,6 +71,15 @@ export const OTDetail = () => {
           </div>
           <div className="flex gap-2 items-center">
             {ot.saving && <span className="text-[11px] text-slate-400">Guardando...</span>}
+            {ot.estadoAdmin === 'CIERRE_TECNICO' && !ot.readOnly && (
+              <Button
+                size="sm"
+                onClick={() => ot.handleEstadoAdminChange('CIERRE_ADMINISTRATIVO' as OTEstadoAdmin)}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              >
+                → Cierre administrativo
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setShowCrearPresupuesto(true)}>
               Crear Presupuesto
             </Button>
