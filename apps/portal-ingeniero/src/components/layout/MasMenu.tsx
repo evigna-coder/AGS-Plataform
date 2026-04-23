@@ -1,8 +1,16 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-const MORE_ITEMS = [
+interface MoreItem {
+  to: string;
+  label: string;
+  adminOnly?: boolean;
+}
+
+const MORE_ITEMS: MoreItem[] = [
   { to: '/reportes', label: 'Reportes' },
   { to: '/viaticos', label: 'Viáticos' },
+  { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];
 
@@ -12,6 +20,10 @@ interface MasMenuProps {
 }
 
 export default function MasMenu({ open, onClose }: MasMenuProps) {
+  const { hasRole } = useAuth();
+  const canSeeQF = hasRole('admin', 'admin_ing_soporte');
+  const items = MORE_ITEMS.filter(i => !i.adminOnly || canSeeQF);
+
   if (!open) return null;
 
   return (
@@ -26,7 +38,7 @@ export default function MasMenu({ open, onClose }: MasMenuProps) {
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-2 mb-2">Más opciones</p>
         <nav className="space-y-1">
-          {MORE_ITEMS.map(item => (
+          {items.map(item => (
             <NavLink
               key={item.to}
               to={item.to}

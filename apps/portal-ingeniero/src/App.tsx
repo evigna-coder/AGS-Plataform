@@ -17,6 +17,7 @@ import ReportesPage from './pages/ReportesPage';
 import PerfilPage from './pages/PerfilPage';
 import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
+import QFDocumentosPage from './pages/QFDocumentosPage';
 
 /** Listener de notificaciones foreground — componente separado para respetar rules of hooks */
 function ForegroundNotificationListener() {
@@ -112,6 +113,7 @@ function PrivateApp() {
         <Route path="leads/:leadId" element={<LeadDetailPage />} />
         <Route path="reportes" element={<ReportesPage />} />
         <Route path="viaticos" element={<ViaticosPage />} />
+        <Route path="qf-documentos" element={<QFDocumentosPage />} />
         <Route path="perfil" element={<PerfilPage />} />
         <Route path="*" element={<Navigate to="/leads" replace />} />
       </Route>

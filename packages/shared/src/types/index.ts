@@ -3820,3 +3820,66 @@ export interface Contrato {
   updatedBy?: string | null;
   updatedByName?: string | null;
 }
+
+// =============================================
+// --- Documentos QF (registro y versionado) ---
+// =============================================
+
+/** Familias de documentos controlados. Por ahora solo QF; QI/QD/QP reservados para futura extensión. */
+export type QFTipo = 'QF' | 'QI' | 'QD' | 'QP';
+export type QFEstado = 'vigente' | 'obsoleto';
+
+export const QF_TIPO_LABELS: Record<QFTipo, string> = {
+  QF: 'QF',
+  QI: 'QI',
+  QD: 'QD',
+  QP: 'QP',
+};
+
+/** Entrada de historial — una por versión. */
+export interface QFHistorialEntry {
+  version: string;
+  fecha: string;
+  usuarioEmail: string;
+  usuarioNombre?: string | null;
+  cambios: string;
+}
+
+/**
+ * Documento controlado con numeración QF(fam).(numero).(version) — p.ej. QF7.0404.02.
+ * `numeroCompleto` actúa como clave natural (sin versión, tipo+familia+numero).
+ */
+export interface QFDocumento {
+  id: string;
+  tipo: QFTipo;
+  familia: number;
+  numero: string;
+  numeroCompleto: string;
+  versionActual: string;
+  nombre: string;
+  descripcion?: string | null;
+  estado: QFEstado;
+  fechaCreacion: string;
+  fechaUltimaActualizacion: string;
+  ultimoUsuarioEmail: string;
+  ultimoUsuarioNombre?: string | null;
+  historial: QFHistorialEntry[];
+}
+
+/** Formatea "QF7.0404" (sin versión). */
+export function formatQFNumeroCompleto(tipo: QFTipo, familia: number, numero: string): string {
+  return `${tipo}${familia}.${numero}`;
+}
+
+/** Formatea "QF7.0404.02" (completo con versión). */
+export function formatQFNumeroConVersion(tipo: QFTipo, familia: number, numero: string, version: string): string {
+  return `${tipo}${familia}.${numero}.${version}`;
+}
+
+/** Incrementa "02" → "03". Preserva padding a 2 dígitos. */
+export function incrementQFVersion(version: string): string {
+  const n = parseInt(version, 10);
+  if (isNaN(n)) return '01';
+  return String(n + 1).padStart(2, '0');
+}
+

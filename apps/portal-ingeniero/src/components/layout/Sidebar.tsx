@@ -2,18 +2,27 @@ import { NavLink } from 'react-router-dom';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
 
-const NAV_ITEMS = [
+interface NavItem {
+  to: string;
+  label: string;
+  adminOnly?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { to: '/ordenes-trabajo', label: 'Mis OTs' },
   { to: '/historial', label: 'Historial' },
   { to: '/agenda', label: 'Agenda' },
   { to: '/leads', label: 'Tickets' },
   { to: '/reportes', label: 'Reportes' },
   { to: '/viaticos', label: 'Viáticos' },
+  { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];
 
 export default function Sidebar() {
-  const { usuario } = useAuth();
+  const { usuario, hasRole } = useAuth();
+  const canSeeQF = hasRole('admin', 'admin_ing_soporte');
+  const navItems = NAV_ITEMS.filter(item => !item.adminOnly || canSeeQF);
 
   return (
     <aside className="hidden md:flex flex-col w-48 shrink-0 bg-slate-900 min-h-0">
@@ -25,7 +34,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(item => (
+        {navItems.map(item => (
           <NavLink
             key={item.to}
             to={item.to}
