@@ -283,6 +283,38 @@ export const presupuestosService = {
 
   // Actualizar presupuesto
   async update(id: string, data: Partial<Presupuesto>) {
+    // ── FLOW-01 branching: si la transición es borrador → enviado, delegar a
+    // markEnviado para que corra sus side-effects (auto-ticket de seguimiento
+    // FLOW-01, sync a lead origen si existe, fechaEnvio proper). Sin esto, un
+    // cambio manual de estado via dropdown salteaba la creación del ticket.
+    if (data.estado === 'enviado') {
+      const current = await this.getById(id);
+      // Solo delegar si viene desde `borrador` — estados posteriores (aceptado,
+      // en_ejecucion, finalizado, anulado) no deberían "volver" a enviado.
+      if (current && current.estado === 'borrador') {
+        await this.markEnviado(id, {
+          origenTipo: current.origenTipo ?? null,
+          origenId: current.origenId ?? null,
+          numero: current.numero ?? '',
+        });
+        const { estado: _estado, fechaEnvio: _fechaEnvio, ...otherFields } = data;
+        if (Object.keys(otherFields).length > 0) {
+          const raw2 = {
+            ...otherFields,
+            ...getUpdateTrace(),
+            updatedAt: Timestamp.now(),
+            ...((otherFields as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((otherFields as any).validUntil)) } : {}),
+          };
+          const cleaned2 = deepCleanForFirestore(raw2);
+          const batch2 = createBatch();
+          batch2.update(docRef('presupuestos', id), cleaned2);
+          batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
+          await batch2.commit();
+        }
+        return;
+      }
+    }
+
     // ── FLOW-03 branching: si la transición es → 'aceptado' y el presupuesto tiene
     // ítems con `itemRequiereImportacion: true`, delegar a aceptarConRequerimientos
     // para usar runTransaction atómico (update presupuesto + crear requerimientos condicionales).
