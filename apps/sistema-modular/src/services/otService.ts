@@ -293,6 +293,31 @@ export const ordenesTrabajoService = {
 
   // Actualizar OT
   async update(otNumber: string, data: Partial<WorkOrder>) {
+    // Branching: si la transición es → CIERRE_ADMINISTRATIVO, delegar a
+    // cerrarAdministrativamente para que corra la tx atómica (crea
+    // solicitudFacturacion, mailQueue, admin ticket). Sin esto, el dropdown
+    // del EditOTModal cambiaba estadoAdmin sin side-effects de Phase 10.
+    if (data.estadoAdmin === 'CIERRE_ADMINISTRATIVO') {
+      const current = await this.getByOtNumber(otNumber);
+      const currentEstado = current?.estadoAdmin;
+      if (currentEstado !== 'CIERRE_ADMINISTRATIVO' && currentEstado !== 'FINALIZADO') {
+        await this.cerrarAdministrativamente(otNumber, {});
+        const { estadoAdmin: _omit, estadoAdminFecha: _omit2, estadoHistorial: _omit3, ...otherFields } = data;
+        if (Object.keys(otherFields).length > 0) {
+          const cleaned2 = deepCleanForFirestore({
+            ...otherFields,
+            ...getUpdateTrace(),
+            updatedAt: Timestamp.now(),
+          });
+          const batch2 = createBatch();
+          batch2.update(docRef('reportes', otNumber), cleaned2);
+          batchAudit(batch2, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleaned2 as any });
+          await batch2.commit();
+        }
+        return;
+      }
+    }
+
     const cleanedData = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),

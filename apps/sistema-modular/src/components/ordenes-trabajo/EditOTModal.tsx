@@ -2,6 +2,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useEditOTForm } from '../../hooks/useEditOTForm';
 import { OT_ESTADO_LABELS } from '@ags/shared';
+import type { OTEstadoAdmin } from '@ags/shared';
 import { EditOTEstadoBar } from './EditOTEstadoBar';
 import { EditOTFormFields } from './EditOTFormFields';
 
@@ -21,6 +22,16 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
       subtitle={h.loading ? 'Cargando...' : `${OT_ESTADO_LABELS[h.form.estadoAdmin] ?? h.form.estadoAdmin}`}
       footer={<>
         <Button variant="outline" size="sm" onClick={h.openInReportesOT}>Abrir reporte</Button>
+        {h.form.estadoAdmin === 'CIERRE_TECNICO' && !h.readOnly && (
+          <Button
+            size="sm"
+            onClick={() => { h.set('estadoAdmin', 'CIERRE_ADMINISTRATIVO' as OTEstadoAdmin); h.handleSave(); }}
+            className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            disabled={h.saving || h.loading}
+          >
+            → Cierre administrativo
+          </Button>
+        )}
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
         <Button size="sm" onClick={h.handleSave} disabled={h.saving || h.loading || h.readOnly}>
