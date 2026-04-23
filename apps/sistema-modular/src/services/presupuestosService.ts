@@ -570,12 +570,24 @@ export const presupuestosService = {
       throw new Error(`usuario fijo seguimiento no activo: ${cfg.usuarioSeguimientoId}`);
     }
 
+    // Hidratar razonSocial desde el cliente — syncFlatFromContactos (usado por
+    // leadsService.create) solo rellena desde el array `contactos`, no desde
+    // clienteId. Sin esto, el ticket quedaba con razonSocial vacío y aparecía
+    // sin cliente en la lista.
+    let razonSocialHidrated = '';
+    try {
+      const { clientesService } = await import('./clientesService');
+      const cliente = await clientesService.getById(clienteId);
+      razonSocialHidrated = cliente?.razonSocial ?? '';
+    } catch (err) {
+      console.warn('[_crearAutoTicketSeguimiento] clientesService.getById failed:', err);
+    }
     // Crear lead (Ticket). Firma real: leadsService.create(data) → Promise<string>.
     // El lead arranca en 'esperando_oc' — el presupuesto ya está enviado, paso siguiente es OC del cliente.
     const leadPayload: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
       clienteId,
       contactoId: pres.contactoId ?? null,
-      razonSocial: '', // leadsService refresca si se pasa; el hidratador usa contactos/campos planos
+      razonSocial: razonSocialHidrated,
       contactos: [],
       contacto: '',
       email: '',
@@ -1003,10 +1015,18 @@ export const presupuestosService = {
             console.log(`[aceptarConRequerimientos] ticket ${existing.id} transicionado a en_coordinacion para ppto ${pres.numero}`);
           } else {
             // No existe ticket — crear uno (user saltó envío y fue directo a aceptado).
+            let razonSocialCoord = '';
+            try {
+              const { clientesService } = await import('./clientesService');
+              const cliente = await clientesService.getById(clienteIdStr);
+              razonSocialCoord = cliente?.razonSocial ?? '';
+            } catch (err) {
+              console.warn('[aceptarConRequerimientos] clientesService.getById failed:', err);
+            }
             const ticketPayload: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
               clienteId: clienteIdStr,
               contactoId: pres.contactoId ?? null,
-              razonSocial: '',
+              razonSocial: razonSocialCoord,
               contactos: [],
               contacto: '',
               email: '',
