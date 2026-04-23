@@ -120,17 +120,23 @@ export default function LeadsPage() {
         (l.areaActual && extraAreas.has(l.areaActual))
       );
     }
-    // Ocultar finalizados salvo que el checkbox esté tildado
-    if (!filters.mostrarFinalizados) {
+    // Filtro Finalizados — EXCLUSIVO:
+    //   checkbox ✓  → solo finalizados (finalizado + no_concretado)
+    //   checkbox ✗ → solo abiertos (oculta finalizados)
+    // Si el tab de estado avanzado pide 'finalizado', también activa el scope de finalizados.
+    const soloFinalizados = filters.mostrarFinalizados || estadoFilter === 'finalizado';
+    if (soloFinalizados) {
+      result = result.filter(l => l.estado === 'finalizado' || l.estado === 'no_concretado');
+    } else {
       result = result.filter(l => l.estado !== 'finalizado' && l.estado !== 'no_concretado');
     }
-    // Filtro de estado simplificado (nuevo / en_proceso / finalizado)
-    if (estadoFilter === 'nuevo') {
-      result = result.filter(l => l.estado === 'nuevo');
-    } else if (estadoFilter === 'en_proceso') {
-      result = result.filter(l => l.estado !== 'nuevo' && l.estado !== 'finalizado' && l.estado !== 'no_concretado');
-    } else if (estadoFilter === 'finalizado') {
-      result = result.filter(l => l.estado === 'finalizado' || l.estado === 'no_concretado');
+    // Sub-filtro de estado dentro de "abiertos" (solo aplica si NO estamos en scope finalizados)
+    if (!soloFinalizados) {
+      if (estadoFilter === 'nuevo') {
+        result = result.filter(l => l.estado === 'nuevo');
+      } else if (estadoFilter === 'en_proceso') {
+        result = result.filter(l => l.estado !== 'nuevo' && l.estado !== 'finalizado' && l.estado !== 'no_concretado');
+      }
     }
     if (filters.misCreados && usuario) {
       result = result.filter(l => l.createdBy === usuario.id);
