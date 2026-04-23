@@ -224,6 +224,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         status: 'FINALIZADO',
       }));
       onSaved();
+      onClose();
     } catch (err) {
       console.error('[useEditOTForm] handleConfirmarCierre failed:', err);
       alert('Error al confirmar cierre');
