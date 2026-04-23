@@ -698,6 +698,13 @@ export const usePDFGeneration = (
         signatureClient: clientSignature,
         signatureEngineer: engineerSignature,
         status: 'FINALIZADO',
+        // Phase 10 UAT fix (2026-04-22): avanzar estadoAdmin al finalizar el
+        // reporte técnico para que el lifecycle del OT quede sincronizado con
+        // el status del reporte. Sin esto, la OT queda en COORDINADA/EN_CURSO
+        // y el cierre admin (next step) no puede disparar las side-effects
+        // de Phase 10 (solicitudFacturacion, etc).
+        estadoAdmin: 'CIERRE_TECNICO',
+        estadoAdminFecha: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
