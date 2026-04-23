@@ -232,19 +232,34 @@ export class FirebaseService {
   }
 
   /**
-   * Busca el sector del sistema en ordenes_trabajo (fallback para OTs sin sector en reportes).
+   * Busca el sector del sistema en `reportes` (otNumber === doc id).
+   * Si es item ("29397.01") sin sector/sistemaId propios, hace fallback al padre.
    */
   async getSectorFromOrdenesTrabajo(otNumber: string): Promise<string> {
     try {
-      const q = query(collection(db, 'ordenes_trabajo'), where('otNumber', '==', otNumber));
-      const snap = await getDocs(q);
-      if (snap.empty) return '';
-      const data = snap.docs[0].data();
+      const snap = await getDoc(doc(db, 'reportes', otNumber));
+      let data = snap.exists() ? snap.data() : null;
+      if (!data && otNumber.includes('.')) {
+        const padreSnap = await getDoc(doc(db, 'reportes', otNumber.split('.')[0]));
+        data = padreSnap.exists() ? padreSnap.data() : null;
+      }
+      if (!data) return '';
       if (data.sector) return data.sector as string;
-      // Si tiene sistemaId, buscar el sector en el sistema
       if (data.sistemaId) {
         const sistemaSnap = await getDoc(doc(db, 'sistemas', data.sistemaId));
         if (sistemaSnap.exists()) return sistemaSnap.data().sector || '';
+      }
+      // Último intento: si sector/sistemaId faltan en el item, mirar el padre.
+      if (otNumber.includes('.')) {
+        const padreSnap = await getDoc(doc(db, 'reportes', otNumber.split('.')[0]));
+        if (padreSnap.exists()) {
+          const padreData = padreSnap.data();
+          if (padreData.sector) return padreData.sector as string;
+          if (padreData.sistemaId) {
+            const sistemaSnap = await getDoc(doc(db, 'sistemas', padreData.sistemaId));
+            if (sistemaSnap.exists()) return sistemaSnap.data().sector || '';
+          }
+        }
       }
       return '';
     } catch { return ''; }
@@ -624,11 +639,22 @@ export class FirebaseService {
     let clienteId: string | null = null;
     let sistemaId: string | null = null;
     try {
-      const otSnap = await getDocs(query(collection(db, 'ordenes_trabajo'), where('otNumber', '==', data.otNumber)));
-      if (!otSnap.empty) {
-        const otData = otSnap.docs[0].data();
+      // OTs viven en `reportes` (otNumber === doc id, sirve para padres "29397" e items "29397.01").
+      const otSnap = await getDoc(doc(db, 'reportes', data.otNumber));
+      if (otSnap.exists()) {
+        const otData = otSnap.data();
         clienteId = (otData.clienteId as string) || null;
         sistemaId = (otData.sistemaId as string) || null;
+        // Fallback: si es item ("29397.01") sin clienteId/sistemaId propios, heredar del padre.
+        if ((!clienteId || !sistemaId) && data.otNumber.includes('.')) {
+          const padre = data.otNumber.split('.')[0];
+          const padreSnap = await getDoc(doc(db, 'reportes', padre));
+          if (padreSnap.exists()) {
+            const padreData = padreSnap.data();
+            if (!clienteId) clienteId = (padreData.clienteId as string) || null;
+            if (!sistemaId) sistemaId = (padreData.sistemaId as string) || null;
+          }
+        }
       }
     } catch (e) {
       console.warn('No se pudo resolver clienteId/sistemaId desde OT:', e);
