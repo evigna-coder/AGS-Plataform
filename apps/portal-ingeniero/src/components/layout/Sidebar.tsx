@@ -19,13 +19,22 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/perfil', label: 'Perfil' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+}
+
+export default function Sidebar({ collapsed = false }: SidebarProps) {
   const { usuario, hasRole } = useAuth();
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
   const navItems = NAV_ITEMS.filter(item => !item.adminOnly || canSeeQF);
 
   return (
-    <aside className="hidden md:flex flex-col w-48 shrink-0 bg-slate-900 min-h-0">
+    <aside
+      className={`hidden md:flex flex-col shrink-0 bg-slate-900 min-h-0 overflow-hidden transition-[width] duration-200 ease-out ${
+        collapsed ? 'w-0' : 'w-48'
+      }`}
+      aria-hidden={collapsed}
+    >
       {/* Branding */}
       <div className="px-5 py-4 border-b border-slate-700">
         <p className="text-xs font-semibold text-slate-400 tracking-widest uppercase">AGS Analítica</p>
