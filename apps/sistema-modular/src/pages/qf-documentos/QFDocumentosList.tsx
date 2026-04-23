@@ -117,8 +117,16 @@ export function QFDocumentosList() {
             </div>
           </Card>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <table className="w-full">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto">
+            <table className="w-full table-fixed min-w-[920px]">
+              <colgroup>
+                <col className="w-[120px]" />
+                <col />
+                <col className="w-[90px]" />
+                <col className="w-[100px]" />
+                <col className="w-[170px]" />
+                <col className="w-[240px]" />
+              </colgroup>
               <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
                 <tr>
                   <th className="px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider text-slate-500">Número</th>
@@ -132,23 +140,23 @@ export function QFDocumentosList() {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(d => (
                   <tr key={d.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-mono text-xs font-semibold text-teal-700 whitespace-nowrap">
+                    <td className="px-3 py-2 font-mono text-xs font-semibold text-teal-700 truncate" title={`${d.numeroCompleto}.${d.versionActual}`}>
                       {d.numeroCompleto}.{d.versionActual}
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-800">
-                      <div className="font-medium">{d.nombre}</div>
-                      {d.descripcion && <div className="text-[10px] text-slate-400 line-clamp-1">{d.descripcion}</div>}
+                    <td className="px-3 py-2 text-xs text-slate-800 min-w-0">
+                      <div className="font-medium truncate" title={d.nombre}>{d.nombre}</div>
+                      {d.descripcion && <div className="text-[10px] text-slate-400 truncate" title={d.descripcion}>{d.descripcion}</div>}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="px-3 py-2">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_BADGE[d.estado]}`}>
                         {d.estado === 'vigente' ? 'Vigente' : 'Obsoleto'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{formatFecha(d.fechaUltimaActualizacion)}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500 truncate max-w-[160px]" title={d.ultimoUsuarioEmail}>
+                    <td className="px-3 py-2 text-xs text-slate-500 truncate">{formatFecha(d.fechaUltimaActualizacion)}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500 truncate" title={d.ultimoUsuarioEmail}>
                       {d.ultimoUsuarioNombre || d.ultimoUsuarioEmail}
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-2 py-2 text-right whitespace-nowrap">
                       <button onClick={() => setVersionTarget(d)} className="text-[10px] font-medium text-teal-700 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50 mr-1">Nueva versión</button>
                       <button onClick={() => setHistorialTarget(d)} className="text-[10px] font-medium text-slate-600 hover:text-slate-800 px-1.5 py-0.5 rounded hover:bg-slate-100 mr-1">Historial</button>
                       <button onClick={() => setEditTarget(d)} className="text-[10px] font-medium text-slate-400 hover:text-slate-600 px-1.5 py-0.5 rounded hover:bg-slate-100">Editar</button>
