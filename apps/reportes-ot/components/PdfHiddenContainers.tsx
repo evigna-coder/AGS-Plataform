@@ -53,7 +53,7 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
             <div key={sel.tableId} style={{ breakInside: 'avoid' }}>
               {sel.tableSnapshot.tableType === 'signatures' ? (
                 <CatalogSignaturesView
-                  selection={sel} readOnly
+                  selection={sel} readOnly isPrint
                   signatureClient={signatureClient} signatureEngineer={signatureEngineer}
                   aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
                   fechaInicio={fechaInicio} fechaFin={fechaFin}

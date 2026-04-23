@@ -366,7 +366,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       } else {
         const node = sel.tableSnapshot.tableType === 'signatures' ? (
           <CatalogSignaturesView
-            selection={sel} readOnly
+            selection={sel} readOnly isPrint
             signatureClient={signatureClient} signatureEngineer={signatureEngineer}
             aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
             fechaInicio={fechaInicio} fechaFin={fechaFin}
