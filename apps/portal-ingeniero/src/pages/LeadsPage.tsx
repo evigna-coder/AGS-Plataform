@@ -483,10 +483,6 @@ export default function LeadsPage() {
                                 </button>
                               </>
                             )}
-                            <Link to={`/leads/${lead.id}`}
-                              className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50">
-                              Ver
-                            </Link>
                           </div>
                         </td>
                       </tr>
