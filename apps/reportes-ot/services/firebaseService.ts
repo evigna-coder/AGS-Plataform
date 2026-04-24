@@ -114,29 +114,44 @@ const OT_TO_TICKET_ESTADO: Record<string, string> = {
 
 async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string, userTrace: { uid?: string; name?: string }) {
   try {
+    console.info(`[syncTicketFromOT] invoked: ot=${otNumber}, newEstadoAdmin=${newEstadoAdmin}`);
     const nuevoEstadoTicket = OT_TO_TICKET_ESTADO[newEstadoAdmin];
-    if (!nuevoEstadoTicket) return;
+    if (!nuevoEstadoTicket) {
+      console.info(`[syncTicketFromOT] no mapping for estadoAdmin=${newEstadoAdmin}, skip`);
+      return;
+    }
     // Fresh read de la OT para conseguir budgets
     const otSnap = await getDoc(doc(db, 'reportes', otNumber));
-    if (!otSnap.exists()) return;
+    if (!otSnap.exists()) {
+      console.info(`[syncTicketFromOT] OT ${otNumber} not found`);
+      return;
+    }
     const otData = otSnap.data();
     const budgets: string[] = Array.isArray(otData.budgets) ? otData.budgets : [];
-    if (budgets.length === 0) return;
+    console.info(`[syncTicketFromOT] OT budgets:`, budgets);
+    if (budgets.length === 0) {
+      console.info(`[syncTicketFromOT] OT has no budgets, cannot resolve tickets`);
+      return;
+    }
     // Query presupuestos por numero (limit 10 por Firestore 'in' operator)
     const presSnap = await getDocs(query(collection(db, 'presupuestos'), where('numero', 'in', budgets.slice(0, 10))));
     const presIds = presSnap.docs.map(d => d.id);
+    console.info(`[syncTicketFromOT] resolved ${presIds.length} presupuesto ids:`, presIds);
     if (presIds.length === 0) return;
     // Buscar tickets linkeados a cada ppto via presupuestosIds array-contains
     const ticketsToSync = new Set<string>();
     for (const pid of presIds) {
       const tksSnap = await getDocs(query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', pid)));
+      console.info(`[syncTicketFromOT] ppto ${pid} has ${tksSnap.docs.length} tickets linked`);
       for (const d of tksSnap.docs) {
         const t = d.data();
+        console.info(`[syncTicketFromOT] ticket ${d.id} estado=${t.estado}, target=${nuevoEstadoTicket}`);
         if (t.estado !== 'finalizado' && t.estado !== 'no_concretado' && t.estado !== nuevoEstadoTicket) {
           ticketsToSync.add(d.id);
         }
       }
     }
+    console.info(`[syncTicketFromOT] will update ${ticketsToSync.size} tickets:`, Array.from(ticketsToSync));
     if (ticketsToSync.size === 0) return;
     // Update cada ticket con nuevo estado + posta de audit
     const nowIso = new Date().toISOString();
@@ -184,11 +199,14 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     // linkeado (normalmente CIERRE_TECNICO cuando el técnico finaliza).
     // reportes-ot usa setDoc directo y bypasea el post-commit hook de
     // ordenesTrabajoService.update → hay que hacer el sync acá inline.
+    console.info('[saveReporte] post-save hook check: data.estadoAdmin =', data?.estadoAdmin);
     if (data?.estadoAdmin && typeof data.estadoAdmin === 'string') {
       await _syncTicketFromOTInline(ot, data.estadoAdmin, {
         uid: data.updatedBy || undefined,
         name: data.updatedByName || undefined,
       });
+    } else {
+      console.info('[saveReporte] skipping ticket sync — no estadoAdmin in payload');
     }
   } catch (error: any) {
     console.error('❌ Error al guardar reporte:', error);
