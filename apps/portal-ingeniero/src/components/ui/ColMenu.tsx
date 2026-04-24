@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ColAlign } from '../../hooks/useResizableColumns';
 
@@ -6,6 +6,11 @@ interface Props {
   align: ColAlign;
   onAlign: (a: ColAlign) => void;
   onHide: () => void;
+}
+
+export interface ColMenuHandle {
+  /** Abre el menú en coordenadas absolutas de viewport (e.g. desde un context menu). */
+  openAt: (x: number, y: number) => void;
 }
 
 const ALIGN_LABELS: Record<ColAlign, string> = {
@@ -20,17 +25,25 @@ const ALIGN_PATHS: Record<ColAlign, string> = {
   right:  'M3 6h18M9 12h12M5 18h16',
 };
 
-export function ColMenu({ align, onAlign, onHide }: Props) {
+export const ColMenu = forwardRef<ColMenuHandle, Props>(({ align, onAlign, onHide }, ref) => {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  useLayoutEffect(() => {
-    if (!open || !btnRef.current) return;
+  useImperativeHandle(ref, () => ({
+    openAt: (x, y) => {
+      setPos({ top: y, left: x });
+      setOpen(true);
+    },
+  }), []);
+
+  const openFromButton = () => {
+    if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
     setPos({ top: rect.bottom + 4, left: rect.left });
-  }, [open]);
+    setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -53,8 +66,8 @@ export function ColMenu({ align, onAlign, onHide }: Props) {
       <button
         ref={btnRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
-        title="Opciones de columna"
+        onClick={(e) => { e.stopPropagation(); if (open) setOpen(false); else openFromButton(); }}
+        title="Opciones de columna (click derecho en el header también)"
         aria-label="Opciones de columna"
         className="absolute left-0.5 top-0.5 p-0.5 rounded hover:bg-slate-200/60 text-slate-400 hover:text-teal-600 transition-colors"
       >
@@ -101,4 +114,4 @@ export function ColMenu({ align, onAlign, onHide }: Props) {
       )}
     </>
   );
-}
+});

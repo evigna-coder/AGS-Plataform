@@ -25,7 +25,7 @@ import { ReporteVentasInsumosModal } from '../../components/leads/ReporteVentasI
 import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
 import { useResizableColumns, type ColAlign } from '../../hooks/useResizableColumns';
-import { ColMenu } from '../../components/ui/ColMenu';
+import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
 
 const thBase = 'px-3 py-2 text-center text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
 
@@ -67,6 +67,15 @@ export const LeadsList = () => {
   const debouncedSearch = useDebounce(filters.search, 300);
 
   const unsubRef = useRef<(() => void) | null>(null);
+  const colMenuRefs = useRef(new Map<number, ColMenuHandle>());
+  const openColMenuAt = useCallback((i: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    colMenuRefs.current.get(i)?.openAt(e.clientX, e.clientY);
+  }, []);
+  const setColMenuRef = useCallback((i: number) => (handle: ColMenuHandle | null) => {
+    if (handle) colMenuRefs.current.set(i, handle);
+    else colMenuRefs.current.delete(i);
+  }, []);
 
   useEffect(() => {
     usuariosService.getAll().then(setUsuarios);
@@ -313,8 +322,9 @@ export const LeadsList = () => {
                 if (isHidden(i)) return null;
                 return (
                   <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(i)}`}
-                    onClick={() => toggleSort(sortKey)}>
-                    <ColMenu align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
+                    onClick={() => toggleSort(sortKey)}
+                    onContextMenu={(e) => openColMenuAt(i, e)}>
+                    <ColMenu ref={setColMenuRef(i)} align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
                     {label} <SortIcon col={sortKey} />
                     <div onMouseDown={e => { e.stopPropagation(); onResizeStart(i, e); }} onDoubleClick={() => onAutoFit(i)}
                       className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
@@ -340,8 +350,9 @@ export const LeadsList = () => {
                   {renderTh(7, 'createdAt', 'Fecha')}
                   {renderTh(8, 'proximoContacto', 'Seguim.')}
                   {!isHidden(9) && (
-                    <th className={`${thBase} text-slate-400 ${getAlignClass(9)}`}>
-                      <ColMenu align={getColAlign(9)} onAlign={(a) => setAlign(9, a)} onHide={() => hideCol(9)} />
+                    <th className={`${thBase} text-slate-400 ${getAlignClass(9)}`}
+                      onContextMenu={(e) => openColMenuAt(9, e)}>
+                      <ColMenu ref={setColMenuRef(9)} align={getColAlign(9)} onAlign={(a) => setAlign(9, a)} onHide={() => hideCol(9)} />
                       Observaciones
                       <div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)}
                         className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />

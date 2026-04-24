@@ -23,7 +23,7 @@ import { useUrlFilters } from '../hooks/useUrlFilters';
 import type { MotivoLlamado, TicketArea, TicketPrioridad } from '@ags/shared';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../utils/leadHelpers';
 import { useResizableColumns, type ColAlign } from '../hooks/useResizableColumns';
-import { ColMenu } from '../components/ui/ColMenu';
+import { ColMenu, type ColMenuHandle } from '../components/ui/ColMenu';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
 
 const thBase = 'px-2 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative select-none';
@@ -103,6 +103,15 @@ export default function LeadsPage() {
   };
 
   const unsubRef = useRef<(() => void) | null>(null);
+  const colMenuRefs = useRef(new Map<number, ColMenuHandle>());
+  const openColMenuAt = useCallback((i: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    colMenuRefs.current.get(i)?.openAt(e.clientX, e.clientY);
+  }, []);
+  const setColMenuRef = useCallback((i: number) => (handle: ColMenuHandle | null) => {
+    if (handle) colMenuRefs.current.set(i, handle);
+    else colMenuRefs.current.delete(i);
+  }, []);
 
   useEffect(() => {
     usuariosService.getIngenieros().then(setUsuarios);
@@ -328,8 +337,9 @@ export default function LeadsPage() {
                 const renderTh = (i: number, sortKey: string, label: string) => {
                   if (isHidden(i)) return null;
                   return (
-                    <th className={`${thBase} ${getAlignClass(i)}`}>
-                      <ColMenu align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
+                    <th className={`${thBase} ${getAlignClass(i)}`}
+                      onContextMenu={(e) => openColMenuAt(i, e)}>
+                      <ColMenu ref={setColMenuRef(i)} align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
                       <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort(sortKey)}>
                         {label}<SortIcon active={sortField === sortKey} dir={sortDir} />
                       </span>
