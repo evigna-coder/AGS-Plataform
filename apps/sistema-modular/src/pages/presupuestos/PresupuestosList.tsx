@@ -545,7 +545,16 @@ export const PresupuestosList = () => {
         )}
       </div>
 
-      <CreatePresupuestoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+      <CreatePresupuestoModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(newId) => {
+          loadData();
+          // Auto-abrir el edit modal para completar notas/condiciones/adjuntos
+          // antes de enviar — regla 2026-04-24: "se crea para ser enviado".
+          if (newId) floatingPres.open(newId, loadData);
+        }}
+      />
       <CreateRevisionModal open={!!revisionTarget} presupuesto={revisionTarget} onClose={() => setRevisionTarget(null)} onCreated={handleRevisionCreated} />
       <ConceptosServicioModal open={showConceptos} onClose={() => setShowConceptos(false)} />
       <CategoriasPresupuestoModal open={showCategorias} onClose={() => setShowCategorias(false)} />

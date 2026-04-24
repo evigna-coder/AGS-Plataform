@@ -14,7 +14,7 @@ import { VentasMetadataSection } from './VentasMetadataSection';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated?: () => void;
+  onCreated?: (newId?: string) => void;
   prefill?: {
     clienteId?: string;
     establecimientoId?: string;

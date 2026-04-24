@@ -63,7 +63,7 @@ async function expandItemsForAllSistemas(
   return expanded;
 }
 
-export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onCreated?: () => void, prefill?: Prefill) {
+export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onCreated?: (newId?: string) => void, prefill?: Prefill) {
   const { usuario } = useAuth();
   const [saving, setSaving] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -250,7 +250,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         await leadsService.linkPresupuesto(form.origenId, presupuestoId).catch(err => console.error('Error vinculando presupuesto al lead:', err));
       }
       handleClose();
-      onCreated?.();
+      onCreated?.(presupuestoId);
     } catch { alert('Error al crear el presupuesto'); }
     finally { setSaving(false); }
   };

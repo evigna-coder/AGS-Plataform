@@ -1,7 +1,16 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
-import type { Presupuesto, PresupuestoEstado, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, RequerimientoCompra } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
-import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
+
+/** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
+const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
+  servicio: 'soporte',
+  partes: 'ventas_insumos',
+  mixto: 'ventas_insumos',
+  ventas: 'ventas_equipos',
+  contrato: 'administracion',
+};
+import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, getCurrentUserTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
 import { adminConfigService } from './adminConfigService';
 import { usuariosService } from './personalService';
@@ -363,6 +372,19 @@ export const presupuestosService = {
     batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
     await batch.commit();
 
+    // ── Post-commit: si se setea ordenCompraNumero (truthy), transicionar el
+    // ticket linkeado a `oc_recibida` con posta de audit, y si hay coord en
+    // config, derivar a `en_coordinacion`. Best-effort — no bloquea el update.
+    if (data.ordenCompraNumero && typeof data.ordenCompraNumero === 'string' && data.ordenCompraNumero.trim()) {
+      try {
+        await this._transicionarTicketOCRecibida(id, data.ordenCompraNumero.trim()).catch(err =>
+          console.error('[update ocNumero] _transicionarTicketOCRecibida failed:', err),
+        );
+      } catch (err) {
+        console.error('[update ocNumero] ticket transition post-commit failed:', err);
+      }
+    }
+
     // ── FLOW-03 cleanup: al anular un presupuesto aceptado, cancelar requerimientos
     // condicionales ligados (solo los `pendiente` / `aprobado` — los `comprado`/`en_compra`
     // quedan intactos porque ya son gasto comprometido — Regla G del RESEARCH). Side-effect
@@ -570,11 +592,13 @@ export const presupuestosService = {
       throw new Error(`usuario fijo seguimiento no activo: ${cfg.usuarioSeguimientoId}`);
     }
 
-    // Hidratar razonSocial desde el cliente — syncFlatFromContactos (usado por
-    // leadsService.create) solo rellena desde el array `contactos`, no desde
-    // clienteId. Sin esto, el ticket quedaba con razonSocial vacío y aparecía
-    // sin cliente en la lista.
+    // Hidratar razonSocial + contacto desde clienteId/contactoId. syncFlatFromContactos
+    // solo rellena desde el array `contactos`, no desde los IDs. Sin esto el ticket
+    // quedaba con razonSocial/contacto/email vacíos y aparecía incompleto en la lista.
     let razonSocialHidrated = '';
+    let contactoNombre = '';
+    let contactoEmail = '';
+    let contactoTelefono = '';
     try {
       const { clientesService } = await import('./clientesService');
       const cliente = await clientesService.getById(clienteId);
@@ -582,6 +606,33 @@ export const presupuestosService = {
     } catch (err) {
       console.warn('[_crearAutoTicketSeguimiento] clientesService.getById failed:', err);
     }
+    if (pres.contactoId && pres.establecimientoId) {
+      try {
+        const { contactosEstablecimientoService } = await import('./establecimientosService');
+        const contactos = await contactosEstablecimientoService.getByEstablecimiento(pres.establecimientoId);
+        const c = contactos.find(x => x.id === pres.contactoId);
+        if (c) {
+          contactoNombre = c.nombre ?? '';
+          contactoEmail = c.email ?? '';
+          contactoTelefono = c.telefono ?? '';
+        }
+      } catch (err) {
+        console.warn('[_crearAutoTicketSeguimiento] contactos read failed:', err);
+      }
+    }
+    // Audit posta inicial — registra QUIÉN envió el ppto con fecha/hora.
+    const user = getCurrentUserTrace();
+    const postaInicial: Posta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      deUsuarioId: user?.uid ?? 'system',
+      deUsuarioNombre: user?.name ?? 'Sistema',
+      aUsuarioId: cfg.usuarioSeguimientoId,
+      aUsuarioNombre: usuario.displayName ?? '',
+      comentario: `Presupuesto ${pres.numero} enviado — pendiente OC`,
+      estadoAnterior: 'nuevo' as TicketEstado,
+      estadoNuevo: 'esperando_oc' as TicketEstado,
+    };
     // Crear lead (Ticket). Firma real: leadsService.create(data) → Promise<string>.
     // El lead arranca en 'esperando_oc' — el presupuesto ya está enviado, paso siguiente es OC del cliente.
     const leadPayload: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -589,16 +640,16 @@ export const presupuestosService = {
       contactoId: pres.contactoId ?? null,
       razonSocial: razonSocialHidrated,
       contactos: [],
-      contacto: '',
-      email: '',
-      telefono: '',
-      motivoLlamado: 'ventas_equipos',
+      contacto: contactoNombre,
+      email: contactoEmail,
+      telefono: contactoTelefono,
+      motivoLlamado: TIPO_PPTO_TO_MOTIVO[pres.tipo] ?? 'otros',
       motivoContacto: `Presupuesto ${pres.numero} enviado — pendiente OC`,
-      descripcion: `Auto-generado por FLOW-01 al enviar ${pres.numero}.`,
+      descripcion: `Auto-generado por FLOW-01 al enviar ${pres.numero} (tipo: ${pres.tipo}).`,
       sistemaId: pres.sistemaId ?? null,
       moduloId: null,
       estado: 'esperando_oc' as TicketEstado,
-      postas: [],
+      postas: [postaInicial],
       asignadoA: cfg.usuarioSeguimientoId,
       asignadoNombre: usuario.displayName ?? null,
       derivadoPor: null,
@@ -1016,6 +1067,9 @@ export const presupuestosService = {
           } else {
             // No existe ticket — crear uno (user saltó envío y fue directo a aceptado).
             let razonSocialCoord = '';
+            let contactoNombreCoord = '';
+            let contactoEmailCoord = '';
+            let contactoTelCoord = '';
             try {
               const { clientesService } = await import('./clientesService');
               const cliente = await clientesService.getById(clienteIdStr);
@@ -1023,21 +1077,46 @@ export const presupuestosService = {
             } catch (err) {
               console.warn('[aceptarConRequerimientos] clientesService.getById failed:', err);
             }
+            if (pres.contactoId && pres.establecimientoId) {
+              try {
+                const { contactosEstablecimientoService } = await import('./establecimientosService');
+                const contactos = await contactosEstablecimientoService.getByEstablecimiento(pres.establecimientoId);
+                const c = contactos.find(x => x.id === pres.contactoId);
+                if (c) {
+                  contactoNombreCoord = c.nombre ?? '';
+                  contactoEmailCoord = c.email ?? '';
+                  contactoTelCoord = c.telefono ?? '';
+                }
+              } catch (err) {
+                console.warn('[aceptarConRequerimientos] contactos read failed:', err);
+              }
+            }
+            const postaCreacion: Posta = {
+              id: crypto.randomUUID(),
+              fecha: new Date().toISOString(),
+              deUsuarioId: actor?.uid ?? 'system',
+              deUsuarioNombre: actor?.name ?? 'Sistema',
+              aUsuarioId: coordId,
+              aUsuarioNombre: coordinador.displayName ?? '',
+              comentario: `Ppto ${pres.numero} aceptado — derivado a coordinación OT`,
+              estadoAnterior: 'nuevo' as TicketEstado,
+              estadoNuevo: 'en_coordinacion' as TicketEstado,
+            };
             const ticketPayload: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
               clienteId: clienteIdStr,
               contactoId: pres.contactoId ?? null,
               razonSocial: razonSocialCoord,
               contactos: [],
-              contacto: '',
-              email: '',
-              telefono: '',
-              motivoLlamado: 'ventas_equipos',
-              motivoContacto: `Ppto ventas ${pres.numero} aceptado — coordinar OTs`,
-              descripcion: `Ppto ${pres.numero} (tipo: ventas) aceptado. Coordinar las OTs que correspondan (bench / entrega / instalación / QI / QO) según los items del presupuesto. Puede requerir 0, 1 o múltiples OTs — criterio operativo del coordinador.`,
+              contacto: contactoNombreCoord,
+              email: contactoEmailCoord,
+              telefono: contactoTelCoord,
+              motivoLlamado: TIPO_PPTO_TO_MOTIVO[pres.tipo] ?? 'otros',
+              motivoContacto: `Ppto ${pres.numero} aceptado — coordinar OTs`,
+              descripcion: `Ppto ${pres.numero} (tipo: ${pres.tipo}) aceptado. Coordinar las OTs que correspondan según los items del presupuesto.`,
               sistemaId: pres.sistemaId ?? null,
               moduloId: null,
               estado: 'en_coordinacion' as TicketEstado,
-              postas: [],
+              postas: [postaCreacion],
               asignadoA: coordId,
               asignadoNombre: coordinador.displayName ?? null,
               derivadoPor: null,
@@ -1065,6 +1144,70 @@ export const presupuestosService = {
     }
 
     return { requerimientosIds: newReqIds };
+  },
+
+  /**
+   * Post-commit al adjuntar OC: transiciona el ticket linkeado al ppto a
+   * `oc_recibida` + registra posta con QUIÉN cargó la OC y cuándo. Si hay
+   * `adminConfig.usuarioCoordinadorOTId` configurado, también deriva el ticket
+   * a `en_coordinacion` reasignado al coordinador. Idempotente — no-op si el
+   * ticket ya pasó por `oc_recibida` o estado posterior.
+   */
+  async _transicionarTicketOCRecibida(presupuestoId: string, ocNumero: string): Promise<void> {
+    const existingSnap = await getDocs(
+      query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
+    );
+    const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+    const POST_OC: TicketEstado[] = ['oc_recibida', 'espera_importacion', 'pendiente_entrega', 'en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada', 'pendiente_facturacion'];
+    const reusable = existingSnap.docs
+      .map(d => ({ ...(d.data() as Lead), id: d.id }))
+      .filter(t => !TERMINAL.includes(t.estado) && !POST_OC.includes(t.estado));
+    if (reusable.length === 0) return; // sin ticket reusable (nuevo o ya post-OC)
+    const ticket = reusable[0];
+    const user = getCurrentUserTrace();
+
+    // Lookup coord (best-effort) para derivación automática a coordinación.
+    let coordId: string | null = null;
+    let coordNombre: string | null = null;
+    try {
+      const cfg = await adminConfigService.getWithDefaults();
+      if (cfg.usuarioCoordinadorOTId) {
+        const coord = await usuariosService.getById(cfg.usuarioCoordinadorOTId);
+        if (coord && coord.status === 'activo') {
+          coordId = coord.id;
+          coordNombre = coord.displayName ?? null;
+        }
+      }
+    } catch (err) {
+      console.warn('[_transicionarTicketOCRecibida] coord lookup failed:', err);
+    }
+
+    const nuevoEstado: TicketEstado = coordId ? 'en_coordinacion' : 'oc_recibida';
+    const postaOC: Posta = {
+      id: crypto.randomUUID(),
+      fecha: new Date().toISOString(),
+      deUsuarioId: user?.uid ?? 'system',
+      deUsuarioNombre: user?.name ?? 'Sistema',
+      aUsuarioId: coordId ?? ticket.asignadoA ?? '',
+      aUsuarioNombre: coordNombre ?? ticket.asignadoNombre ?? '',
+      comentario: coordId
+        ? `OC ${ocNumero} cargada — derivado a coordinación`
+        : `OC ${ocNumero} cargada — a la espera del coordinador`,
+      estadoAnterior: ticket.estado,
+      estadoNuevo: nuevoEstado,
+    };
+    const updates: Partial<Lead> = {
+      estado: nuevoEstado,
+      postas: [...(ticket.postas || []), postaOC],
+    };
+    if (coordId) {
+      updates.asignadoA = coordId;
+      updates.asignadoNombre = coordNombre;
+      updates.areaActual = 'ing_soporte' as TicketArea;
+      updates.accionPendiente = `OC ${ocNumero} recibida — coordinar OTs`;
+    }
+    await leadsService.update(ticket.id, updates as any);
+    console.log(`[_transicionarTicketOCRecibida] ticket ${ticket.id} ${ticket.estado} → ${nuevoEstado} (ppto ${presupuestoId})`);
   },
 
   /**
