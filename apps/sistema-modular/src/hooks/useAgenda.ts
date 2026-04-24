@@ -137,10 +137,30 @@ export function useAgenda(): UseAgendaReturn {
   }, []);
 
   const deleteEntry = useCallback(async (id: string) => {
+    // Captura info de la entry antes de removerla para revertir la OT después.
+    const entry = entries.find(e => e.id === id);
+    const otNumber = entry?.otNumber || null;
     // Optimistic: remove immediately
     setEntries(prev => prev.filter(e => e.id !== id));
     agendaService.delete(id).catch(err => console.error('Error deleting entry:', err));
-  }, []);
+    // Revertir la OT si tenía una OT linkeada: clear ingeniero/fecha y bajar
+    // estadoAdmin a CREADA (solo si estaba en ASIGNADA o COORDINADA — no
+    // regresamos estados avanzados como EN_CURSO, CIERRE_TECNICO, etc).
+    // El sync del OT a ticket se encarga automaticamente en otService.update.
+    if (otNumber) {
+      ordenesTrabajoService.getByOtNumber(otNumber).then(ot => {
+        if (!ot) return;
+        const REVERTIBLE: string[] = ['ASIGNADA', 'COORDINADA'];
+        const shouldRevertEstado = REVERTIBLE.includes(ot.estadoAdmin || '');
+        return ordenesTrabajoService.update(otNumber, {
+          ingenieroAsignadoId: null,
+          ingenieroAsignadoNombre: null,
+          fechaServicioAprox: null as any,
+          ...(shouldRevertEstado ? { estadoAdmin: 'CREADA' as any, estadoAdminFecha: new Date().toISOString() } : {}),
+        });
+      }).catch(err => console.error('[useAgenda.deleteEntry] revert OT failed:', err));
+    }
+  }, [entries]);
 
   const upsertNota = useCallback(async (data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }) => {
     await agendaNotasService.upsert(data);
