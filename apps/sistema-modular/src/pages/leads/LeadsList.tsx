@@ -303,7 +303,7 @@ export const LeadsList = () => {
               </button>
             </div>
           )}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
             {(() => {
               const defaultPct = ['13%', '10%', '6%', '5%', '7%', '9%', '9%', '7%', '6%', '18%', '10%'];
               const colStyle = (i: number, base: string | number) => ({ width: isHidden(i) ? 0 : base });
@@ -319,7 +319,7 @@ export const LeadsList = () => {
                 </th>
               );
               return (
-            <table ref={tableRef} className="w-full table-fixed">
+            <table ref={tableRef} className="w-full table-fixed min-w-[1200px]">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={colStyle(i, w)} />)}</colgroup>
               ) : (

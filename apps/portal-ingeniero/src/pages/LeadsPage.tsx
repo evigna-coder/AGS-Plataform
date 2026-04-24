@@ -319,7 +319,7 @@ export default function LeadsPage() {
                 </button>
               </div>
             )}
-            <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+            <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
               {(() => {
                 const defaultPct = ['11%', '8%', '6%', '5%', '7%', '8%', '8%', '6%', '5%', '22%', '14%'];
                 const colStyle = (i: number, base: string | number) => ({ width: isHidden(i) ? 0 : base });
@@ -336,7 +336,7 @@ export default function LeadsPage() {
                   </th>
                 );
                 return (
-              <table ref={tableRef} className="w-full table-fixed">
+              <table ref={tableRef} className="w-full table-fixed min-w-[1200px]">
                 {colWidths ? (
                   <colgroup>{colWidths.map((w, i) => <col key={i} style={colStyle(i, w)} />)}</colgroup>
                 ) : (
