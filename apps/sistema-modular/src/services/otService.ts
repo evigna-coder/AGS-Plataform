@@ -333,6 +333,9 @@ export const ordenesTrabajoService = {
     if (data.estadoAdmin) {
       try {
         const ot = await this.getByOtNumber(otNumber);
+        console.info(`[otService.update] estadoAdmin → ${data.estadoAdmin} for OT ${otNumber}`, {
+          leadId: ot?.leadId, budgets: ot?.budgets,
+        });
         const leadIdsToSync = new Set<string>();
         if (ot?.leadId) leadIdsToSync.add(ot.leadId);
         // Fallback: si no hay leadId directo, buscar tickets linkeados al(los)
@@ -341,26 +344,36 @@ export const ordenesTrabajoService = {
         // no vía OT.leadId. Sin esto, transiciones de agenda/cierre técnico/
         // admin no propagaban al ticket.
         if (ot && (ot.budgets || []).length > 0) {
-          const pressSnap = await getDocs(
-            query(collection(db, 'presupuestos'), where('numero', 'in', ot.budgets!.slice(0, 10))),
-          ).catch(() => null);
-          if (pressSnap) {
+          const budgetsForQuery = ot.budgets!.slice(0, 10);
+          try {
+            const pressSnap = await getDocs(
+              query(collection(db, 'presupuestos'), where('numero', 'in', budgetsForQuery)),
+            );
             const presIds = pressSnap.docs.map(d => d.id);
+            console.info(`[otService.update] resolved ${presIds.length} presupuesto ids from budgets:`, budgetsForQuery, '→', presIds);
             for (const pid of presIds) {
-              const tksSnap = await getDocs(
-                query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', pid)),
-              ).catch(() => null);
-              if (tksSnap) {
+              try {
+                const tksSnap = await getDocs(
+                  query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', pid)),
+                );
+                console.info(`[otService.update] found ${tksSnap.docs.length} tickets for ppto ${pid}`);
                 for (const d of tksSnap.docs) {
                   const t = d.data() as any;
                   if (t.estado !== 'finalizado' && t.estado !== 'no_concretado') {
                     leadIdsToSync.add(d.id);
                   }
                 }
+              } catch (err) {
+                console.error(`[otService.update] tickets query for ppto ${pid} failed:`, err);
               }
             }
+          } catch (err) {
+            console.error('[otService.update] presupuestos query by numero failed:', err);
           }
+        } else {
+          console.info(`[otService.update] OT ${otNumber} has no budgets — cannot fallback-resolve tickets`);
         }
+        console.info(`[otService.update] will sync ${leadIdsToSync.size} ticket(s):`, Array.from(leadIdsToSync));
         for (const lid of leadIdsToSync) {
           await leadsService.syncFromOT(lid, otNumber, data.estadoAdmin as OTEstadoAdmin)
             .catch(err => console.error(`[otService] syncFromOT ${lid} failed:`, err));
