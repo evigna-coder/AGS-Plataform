@@ -143,7 +143,7 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
           {/* Mobile: grid 2-col compacto. Desktop: flex-wrap horizontal. */}
           <div className="grid grid-cols-2 gap-1.5 md:flex md:items-center md:gap-2 md:flex-wrap">
             {/* Estado select (mobile only) — ocupa fila completa */}
-            <div className="col-span-2 md:hidden">
+            <div className="col-span-2 md:hidden min-w-0">
               <select value={estadoFilter} onChange={e => onEstadoChange(e.target.value as EstadoFilterValue)}
                 className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
                 {ESTADO_TABS.map(tab => (
@@ -151,26 +151,26 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
                 ))}
               </select>
             </div>
-            <div className="md:min-w-[110px]">
+            <div className="min-w-0 md:min-w-[110px]">
               <SearchableSelect size="sm" value={filters.motivo}
                 onChange={v => set({ motivo: v as MotivoLlamado | '' })}
                 options={[{ value: '', label: 'Motivo: Todos' }, ...Object.entries(MOTIVO_LLAMADO_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
                 placeholder="Motivo" />
             </div>
-            <div className="md:min-w-[100px]">
+            <div className="min-w-0 md:min-w-[100px]">
               <SearchableSelect size="sm" value={filters.prioridad}
                 onChange={v => set({ prioridad: v as LeadPrioridad | '' })}
                 options={[{ value: '', label: 'Prioridad: Todas' }, ...Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
                 placeholder="Prioridad" />
             </div>
-            <div className="md:min-w-[110px]">
+            <div className="min-w-0 md:min-w-[110px]">
               <SearchableSelect size="sm" value={filters.area}
                 onChange={v => set({ area: v as LeadArea | '' })}
                 options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(TICKET_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
                 placeholder="Área" />
             </div>
             {!filters.soloMios && !filters.misCreados && (
-              <div className="md:min-w-[120px]">
+              <div className="min-w-0 md:min-w-[120px]">
                 <SearchableSelect size="sm" value={filters.responsable}
                   onChange={v => set({ responsable: v })}
                   options={[{ value: '', label: 'Responsable: Todos' }, ...usuarios.filter(u => u.displayName).map(u => ({ value: u.id, label: u.displayName }))]}
@@ -178,10 +178,10 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
               </div>
             )}
             <input type="date" value={filters.fechaDesde} onChange={e => set({ fechaDesde: e.target.value })}
-              className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-0"
+              className="w-full md:w-auto text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-0"
               title="Desde" />
             <input type="date" value={filters.fechaHasta} onChange={e => set({ fechaHasta: e.target.value })}
-              className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-0"
+              className="w-full md:w-auto text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-0"
               title="Hasta" />
             {hasAdvanced && (
               <button onClick={() => { onFiltersChange(INITIAL_FILTERS); onEstadoChange(''); }}
