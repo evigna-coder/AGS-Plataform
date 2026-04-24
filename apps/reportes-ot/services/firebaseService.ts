@@ -98,18 +98,98 @@ export { app };
  * @param ot Número de orden de trabajo (ID del documento)
  * @param data Datos del reporte a guardar
  */
+/** Phase 10 UAT fix (2026-04-24): mapping OT estadoAdmin → Ticket estado
+ *  usado para propagar transiciones al ticket linkeado cuando el técnico
+ *  cierra desde acá. Debe mantenerse alineado con sistema-modular/src/services/
+ *  leadsService.ts:OT_TO_LEAD_ESTADO. */
+const OT_TO_TICKET_ESTADO: Record<string, string> = {
+  CREADA: 'ot_creada',
+  ASIGNADA: 'ot_creada',
+  COORDINADA: 'ot_coordinada',
+  EN_CURSO: 'ot_coordinada',
+  CIERRE_TECNICO: 'ot_realizada',
+  CIERRE_ADMINISTRATIVO: 'pendiente_facturacion',
+  FINALIZADO: 'finalizado',
+};
+
+async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string, userTrace: { uid?: string; name?: string }) {
+  try {
+    const nuevoEstadoTicket = OT_TO_TICKET_ESTADO[newEstadoAdmin];
+    if (!nuevoEstadoTicket) return;
+    // Fresh read de la OT para conseguir budgets
+    const otSnap = await getDoc(doc(db, 'reportes', otNumber));
+    if (!otSnap.exists()) return;
+    const otData = otSnap.data();
+    const budgets: string[] = Array.isArray(otData.budgets) ? otData.budgets : [];
+    if (budgets.length === 0) return;
+    // Query presupuestos por numero (limit 10 por Firestore 'in' operator)
+    const presSnap = await getDocs(query(collection(db, 'presupuestos'), where('numero', 'in', budgets.slice(0, 10))));
+    const presIds = presSnap.docs.map(d => d.id);
+    if (presIds.length === 0) return;
+    // Buscar tickets linkeados a cada ppto via presupuestosIds array-contains
+    const ticketsToSync = new Set<string>();
+    for (const pid of presIds) {
+      const tksSnap = await getDocs(query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', pid)));
+      for (const d of tksSnap.docs) {
+        const t = d.data();
+        if (t.estado !== 'finalizado' && t.estado !== 'no_concretado' && t.estado !== nuevoEstadoTicket) {
+          ticketsToSync.add(d.id);
+        }
+      }
+    }
+    if (ticketsToSync.size === 0) return;
+    // Update cada ticket con nuevo estado + posta de audit
+    const nowIso = new Date().toISOString();
+    for (const tid of ticketsToSync) {
+      const tkSnap = await getDoc(doc(db, 'leads', tid));
+      if (!tkSnap.exists()) continue;
+      const tk = tkSnap.data();
+      const posta = {
+        id: crypto.randomUUID(),
+        fecha: nowIso,
+        deUsuarioId: userTrace.uid || 'tecnico',
+        deUsuarioNombre: userTrace.name || 'Técnico',
+        aUsuarioId: tk.asignadoA || '',
+        aUsuarioNombre: tk.asignadoNombre || '',
+        comentario: `OT-${otNumber} → ${newEstadoAdmin}`,
+        estadoAnterior: tk.estado,
+        estadoNuevo: nuevoEstadoTicket,
+      };
+      await updateDoc(doc(db, 'leads', tid), {
+        estado: nuevoEstadoTicket,
+        postas: [...(tk.postas || []), posta],
+        updatedAt: new Date(),
+      });
+      console.log(`✅ Ticket ${tid} sincronizado: ${tk.estado} → ${nuevoEstadoTicket}`);
+    }
+  } catch (err) {
+    console.error('❌ _syncTicketFromOTInline failed:', err);
+    // No bloquear el save del reporte por este fallo.
+  }
+}
+
 export const saveReporte = async (ot: string, data: any): Promise<void> => {
   if (!ot) {
     console.warn('⚠️ saveReporte: OT vacía, no se guardará');
     return;
   }
-  
+
   try {
     console.log('💾 Guardando reporte:', ot);
     console.log('📋 Datos a guardar:', JSON.stringify(data, null, 2));
     const docRef = doc(db, "reportes", ot);
     await setDoc(docRef, deepCleanForFirestore(data), { merge: true });
     console.log('✅ Reporte guardado exitosamente:', ot);
+    // Phase 10 UAT fix: si el save cambia estadoAdmin, propagar al ticket
+    // linkeado (normalmente CIERRE_TECNICO cuando el técnico finaliza).
+    // reportes-ot usa setDoc directo y bypasea el post-commit hook de
+    // ordenesTrabajoService.update → hay que hacer el sync acá inline.
+    if (data?.estadoAdmin && typeof data.estadoAdmin === 'string') {
+      await _syncTicketFromOTInline(ot, data.estadoAdmin, {
+        uid: data.updatedBy || undefined,
+        name: data.updatedByName || undefined,
+      });
+    }
   } catch (error: any) {
     console.error('❌ Error al guardar reporte:', error);
     console.error('Código de error:', error.code);
