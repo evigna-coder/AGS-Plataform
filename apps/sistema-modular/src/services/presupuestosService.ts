@@ -1430,6 +1430,40 @@ export const presupuestosService = {
   },
 
   async hardDelete(id: string) {
+    // Pre-delete: finalizar tickets linkeados. La oportunidad comercial se
+    // cierra cuando el ppto es eliminado. Best-effort — no bloquea el delete.
+    try {
+      const existingSnap = await getDocs(
+        query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', id)),
+      );
+      const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+      const pres = await this.getById(id).catch(() => null);
+      const numero = pres?.numero ?? id;
+      const user = getCurrentUserTrace();
+      for (const d of existingSnap.docs) {
+        const ticket = { ...(d.data() as Lead), id: d.id };
+        if (TERMINAL.includes(ticket.estado)) continue;
+        const posta: Posta = {
+          id: crypto.randomUUID(),
+          fecha: new Date().toISOString(),
+          deUsuarioId: user?.uid ?? 'system',
+          deUsuarioNombre: user?.name ?? 'Sistema',
+          aUsuarioId: ticket.asignadoA ?? '',
+          aUsuarioNombre: ticket.asignadoNombre ?? '',
+          comentario: `Presupuesto ${numero} eliminado por ${user?.name ?? 'Sistema'}`,
+          estadoAnterior: ticket.estado,
+          estadoNuevo: 'finalizado' as TicketEstado,
+        };
+        await leadsService.update(ticket.id, {
+          estado: 'finalizado' as TicketEstado,
+          finalizadoAt: new Date().toISOString(),
+          postas: [...(ticket.postas || []), posta],
+        } as any).catch(err => console.error(`[hardDelete] finalizar ticket ${ticket.id} failed:`, err));
+      }
+    } catch (err) {
+      console.error('[hardDelete] error finalizando tickets linkeados:', err);
+    }
+
     const batch = createBatch();
     batch.delete(docRef('presupuestos', id));
     batchAudit(batch, { action: 'delete', collection: 'presupuestos', documentId: id });
