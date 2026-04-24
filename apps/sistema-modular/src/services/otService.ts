@@ -333,8 +333,37 @@ export const ordenesTrabajoService = {
     if (data.estadoAdmin) {
       try {
         const ot = await this.getByOtNumber(otNumber);
-        if (ot?.leadId) {
-          await leadsService.syncFromOT(ot.leadId, otNumber, data.estadoAdmin as OTEstadoAdmin);
+        const leadIdsToSync = new Set<string>();
+        if (ot?.leadId) leadIdsToSync.add(ot.leadId);
+        // Fallback: si no hay leadId directo, buscar tickets linkeados al(los)
+        // ppto(s) de la OT via presupuestosIds array-contains. Necesario porque
+        // los tickets de FLOW-01 / Phase 10 se linkean vía presupuestosIds,
+        // no vía OT.leadId. Sin esto, transiciones de agenda/cierre técnico/
+        // admin no propagaban al ticket.
+        if (ot && (ot.budgets || []).length > 0) {
+          const pressSnap = await getDocs(
+            query(collection(db, 'presupuestos'), where('numero', 'in', ot.budgets!.slice(0, 10))),
+          ).catch(() => null);
+          if (pressSnap) {
+            const presIds = pressSnap.docs.map(d => d.id);
+            for (const pid of presIds) {
+              const tksSnap = await getDocs(
+                query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', pid)),
+              ).catch(() => null);
+              if (tksSnap) {
+                for (const d of tksSnap.docs) {
+                  const t = d.data() as any;
+                  if (t.estado !== 'finalizado' && t.estado !== 'no_concretado') {
+                    leadIdsToSync.add(d.id);
+                  }
+                }
+              }
+            }
+          }
+        }
+        for (const lid of leadIdsToSync) {
+          await leadsService.syncFromOT(lid, otNumber, data.estadoAdmin as OTEstadoAdmin)
+            .catch(err => console.error(`[otService] syncFromOT ${lid} failed:`, err));
         }
         // Sync presupuesto estado
         if (ot && data.estadoAdmin === 'FINALIZADO') {
