@@ -219,6 +219,9 @@ export const LeadDetail = () => {
               </svg>
             </button>
             <div>
+              {lead.numero && (
+                <span className="block text-[11px] font-mono text-slate-500 leading-tight">{lead.numero}</span>
+              )}
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-slate-900 tracking-tight">{lead.razonSocial}</h2>
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>

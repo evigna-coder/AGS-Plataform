@@ -321,18 +321,23 @@ async function getNextTicketNumero(): Promise<string> {
 }
 
 export const leadsService = {
-  async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  async create(data: Omit<Lead, 'id' | 'updatedAt'> & { createdAt?: string }): Promise<string> {
     const synced = syncFlatFromContactosData(data as Record<string, any>);
     const numero = data.numero || await getNextTicketNumero();
+    // Si se recibe createdAt como ISO string, respetarlo (override manual desde UI).
+    const createdTs = data.createdAt
+      ? Timestamp.fromDate(new Date(data.createdAt))
+      : Timestamp.now();
+    const { createdAt: _omit, ...syncedRest } = synced;
     const payload = {
-      ...cleanFirestoreData(synced),
+      ...cleanFirestoreData(syncedRest),
       numero,
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
       postas: data.postas || [],
       presupuestosIds: data.presupuestosIds || [],
       otIds: data.otIds || [],
-      createdAt: Timestamp.now(),
+      createdAt: createdTs,
       updatedAt: Timestamp.now(),
     };
     const ref = await addDoc(collection(db, 'leads'), payload);

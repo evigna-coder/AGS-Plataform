@@ -24,8 +24,8 @@ import { LeadQuickNoteModal } from '../../components/leads/LeadQuickNoteModal';
 import { ReporteVentasInsumosModal } from '../../components/leads/ReporteVentasInsumosModal';
 import { LeadFilters, type LeadFiltersState } from '../../components/leads/LeadFilters';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../../utils/leadHelpers';
-import { useResizableColumns } from '../../hooks/useResizableColumns';
-import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { useResizableColumns, type ColAlign } from '../../hooks/useResizableColumns';
+import { ColMenu } from '../../components/ui/ColMenu';
 
 const thBase = 'px-3 py-2 text-center text-[11px] font-medium tracking-wider whitespace-nowrap relative select-none';
 
@@ -151,6 +151,7 @@ export const LeadsList = () => {
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
+        (l.numero || '').toLowerCase().includes(q) ||
         l.razonSocial.toLowerCase().includes(q) ||
         l.contacto.toLowerCase().includes(q) ||
         (l.descripcion || '').toLowerCase().includes(q) ||
@@ -191,7 +192,12 @@ export const LeadsList = () => {
     return <span className="text-teal-500 ml-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('tickets-list');
+  const {
+    tableRef, colWidths, colAligns,
+    onResizeStart, onAutoFit, setAlign, getAlignClass,
+    hiddenCols, hideCol, showAllCols, isHidden,
+  } = useResizableColumns('tickets-list');
+  const getColAlign = (i: number): ColAlign => (colAligns?.[i] || 'left');
 
   const pipelineTotal = useMemo(() =>
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
@@ -285,37 +291,59 @@ export const LeadsList = () => {
             </button>
           </div></Card>
         ) : (
+          <>
+          {hiddenCols.length > 0 && (
+            <div className="flex items-center justify-end mb-1.5">
+              <button
+                onClick={showAllCols}
+                className="text-[11px] font-medium text-slate-500 hover:text-teal-700 bg-slate-100 hover:bg-teal-50 rounded-full px-2.5 py-0.5 transition-colors"
+                title="Mostrar todas las columnas"
+              >
+                {hiddenCols.length} {hiddenCols.length === 1 ? 'columna oculta' : 'columnas ocultas'} · Mostrar todas
+              </button>
+            </div>
+          )}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+            {(() => {
+              const defaultPct = ['13%', '10%', '6%', '5%', '7%', '9%', '9%', '7%', '6%', '18%', '10%'];
+              const colStyle = (i: number, base: string | number) => ({ width: isHidden(i) ? 0 : base });
+              const tdCls = (i: number, extra = '') =>
+                `${extra} ${isHidden(i) ? 'hidden' : getAlignClass(i)}`.trim();
+              const renderTh = (i: number, sortKey: SortKey, label: string) => (
+                <th className={`${thBase} ${isHidden(i) ? 'hidden' : `cursor-pointer hover:text-slate-600 ${getAlignClass(i)}`}`}
+                  onClick={() => toggleSort(sortKey)}>
+                  <ColMenu align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
+                  {label} <SortIcon col={sortKey} />
+                  <div onMouseDown={e => { e.stopPropagation(); onResizeStart(i, e); }} onDoubleClick={() => onAutoFit(i)}
+                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                </th>
+              );
+              return (
             <table ref={tableRef} className="w-full table-fixed">
               {colWidths ? (
-                <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+                <colgroup>{colWidths.map((w, i) => <col key={i} style={colStyle(i, w)} />)}</colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '13%' }} />{/* Cliente */}
-                  <col style={{ width: '10%' }} />{/* Contacto */}
-                  <col style={{ width: '6%' }} />{/* Motivo */}
-                  <col style={{ width: '5%' }} />{/* Prioridad */}
-                  <col style={{ width: '7%' }} />{/* Estado */}
-                  <col style={{ width: '9%' }} />{/* Área */}
-                  <col style={{ width: '9%' }} />{/* Asignado */}
-                  <col style={{ width: '7%' }} />{/* Fecha */}
-                  <col style={{ width: '6%' }} />{/* Seguimiento */}
-                  <col style={{ width: '18%' }} />{/* Observaciones */}
-                  <col style={{ width: '10%' }} />{/* Acciones */}
+                  {defaultPct.map((w, i) => <col key={i} style={colStyle(i, w)} />)}
                 </colgroup>
               )}
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(0)}`} onClick={() => toggleSort('razonSocial')}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />Cliente <SortIcon col="razonSocial" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(0, e); }} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(1)}`} onClick={() => toggleSort('contacto')}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />Contacto <SortIcon col="contacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(1, e); }} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(2)}`} onClick={() => toggleSort('motivoLlamado')}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Motivo <SortIcon col="motivoLlamado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(2, e); }} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(3)}`} onClick={() => toggleSort('prioridad')}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Prioridad <SortIcon col="prioridad" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(3, e); }} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(4)}`} onClick={() => toggleSort('estado')}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Estado <SortIcon col="estado" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(4, e); }} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(5)}`} onClick={() => toggleSort('areaActual')}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Área <SortIcon col="areaActual" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(5, e); }} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(6)}`} onClick={() => toggleSort('asignadoA')}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Asignado <SortIcon col="asignadoA" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(6, e); }} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(7)}`} onClick={() => toggleSort('createdAt')}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Fecha <SortIcon col="createdAt" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(7, e); }} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(8)}`} onClick={() => toggleSort('proximoContacto')}><ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} />Seguim. <SortIcon col="proximoContacto" /><div onMouseDown={e => { e.stopPropagation(); onResizeStart(8, e); }} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thBase} text-slate-400 ${getAlignClass(9)}`}><ColAlignIcon align={colAligns?.[9] || 'left'} onClick={() => cycleAlign(9)} />Observaciones<div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  {renderTh(0, 'razonSocial', 'Cliente')}
+                  {renderTh(1, 'contacto', 'Contacto')}
+                  {renderTh(2, 'motivoLlamado', 'Motivo')}
+                  {renderTh(3, 'prioridad', 'Prioridad')}
+                  {renderTh(4, 'estado', 'Estado')}
+                  {renderTh(5, 'areaActual', 'Área')}
+                  {renderTh(6, 'asignadoA', 'Asignado')}
+                  {renderTh(7, 'createdAt', 'Fecha')}
+                  {renderTh(8, 'proximoContacto', 'Seguim.')}
+                  <th className={`${thBase} ${isHidden(9) ? 'hidden' : `text-slate-400 ${getAlignClass(9)}`}`}>
+                    <ColMenu align={getColAlign(9)} onAlign={(a) => setAlign(9, a)} onHide={() => hideCol(9)} />
+                    Observaciones
+                    <div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)}
+                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
                   <th className={`${thBase} text-center text-slate-400`}>Acciones</th>
                 </tr>
               </thead>
@@ -328,54 +356,61 @@ export const LeadsList = () => {
                   return (
                     <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                       onClick={() => navigate(`/leads/${lead.id}`)}>
-                      <td className={`px-3 py-2 overflow-hidden ${getAlignClass(0)}`}>
-                        <Link to={`/leads/${lead.id}`} className="text-xs font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}
+                      <td className={tdCls(0, 'px-3 py-2 overflow-hidden')}>
+                        <Link to={`/leads/${lead.id}`} className="block" title={lead.numero ? `${lead.numero} · ${lead.razonSocial}` : lead.razonSocial}
                           onClick={e => e.stopPropagation()}>
-                          {lead.razonSocial}
+                          {lead.numero && (
+                            <span className="block text-[9px] font-mono text-slate-400 leading-tight truncate">{lead.numero}</span>
+                          )}
+                          <span className="block text-xs font-semibold text-teal-600 hover:text-teal-800 truncate">
+                            {lead.razonSocial}
+                          </span>
                         </Link>
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 truncate overflow-hidden ${getAlignClass(1)}`} title={lead.contacto}>
+                      <td className={tdCls(1, 'px-3 py-2 text-xs text-slate-600 truncate overflow-hidden')} title={lead.contacto}>
                         {lead.contacto}
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(2)}`}>
+                      <td className={tdCls(2, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                           {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                         </span>
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(3)}`}>
+                      <td className={tdCls(3, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                         {lead.prioridad ? (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
                             {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(4)}`}>
+                      <td className={tdCls(4, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
                           {getSimplifiedEstadoLabel(lead.estado)}
                         </span>
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(5)}`}>
+                      <td className={tdCls(5, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                         {lead.areaActual ? (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
                             {LEAD_AREA_LABELS[lead.areaActual]}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 truncate overflow-hidden ${getAlignClass(6)}`} title={getResponsableNombre(lead.asignadoA)}>
+                      <td className={tdCls(6, 'px-3 py-2 text-xs text-slate-500 truncate overflow-hidden')} title={getResponsableNombre(lead.asignadoA)}>
                         {getResponsableNombre(lead.asignadoA)}
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(7)}`}>
+                      <td className={tdCls(7, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                         <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
                         {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(8)}`}>
-                        {daysUntil !== null ? (
+                      <td className={tdCls(8, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                        {isClosed ? (
+                          <span className="text-[10px] text-slate-300">—</span>
+                        ) : daysUntil !== null ? (
                           <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
                             {getContactoStatusText(daysUntil)}
                           </span>
                         ) : <span className="text-[10px] text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 overflow-hidden ${getAlignClass(9)}`}>
+                      <td className={tdCls(9, 'px-3 py-2 overflow-hidden')}>
                         <span className="text-[10px] text-slate-500 truncate block" title={lead.descripcion || lead.motivoContacto || ''}>
                           {((lead.descripcion || lead.motivoContacto || '—').length > 30
                             ? (lead.descripcion || lead.motivoContacto || '').slice(0, 30) + '...'
@@ -409,7 +444,10 @@ export const LeadsList = () => {
                 })}
               </tbody>
             </table>
+              );
+            })()}
           </div>
+          </>
         )}
       </div>
 

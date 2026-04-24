@@ -51,6 +51,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
   const [descripcion, setDescripcion] = useState('');
   const [motivoOtros, setMotivoOtros] = useState('');
   const [fechaContactoCustom, setFechaContactoCustom] = useState('');
+  const [overrideFechaCreacion, setOverrideFechaCreacion] = useState(false);
+  const [fechaCreacionCustom, setFechaCreacionCustom] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +141,9 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         const candidatos = findClienteCandidatesByRazonSocial(razonSocial, clientes);
         if (candidatos.length === 1) resolvedClienteId = candidatos[0].id;
       }
+      const customCreatedAt = overrideFechaCreacion && fechaCreacionCustom
+        ? new Date(fechaCreacionCustom + 'T12:00:00').toISOString()
+        : undefined;
       await leadsService.create({
         razonSocial: razonSocial.trim(),
         contacto: contacto.trim(),
@@ -166,7 +171,8 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
           return d.toISOString().split('T')[0];
         })(),
         source: 'portal',
-      } as Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>);
+        ...(customCreatedAt ? { createdAt: customCreatedAt } : {}),
+      } as Omit<Ticket, 'id' | 'updatedAt'> & { createdAt?: string });
       // Upload adjuntos if any
       if (pendingFiles.length > 0) {
         // Get the created lead ID from the list (last created)
@@ -387,6 +393,34 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
     </div>
   );
 
+  const overrideFechaField = (
+    <div className="pt-1 border-t border-slate-100">
+      <label className="flex items-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={overrideFechaCreacion}
+          onChange={e => setOverrideFechaCreacion(e.target.checked)}
+          className="rounded border-slate-300"
+        />
+        Modificar fecha de creación
+      </label>
+      {overrideFechaCreacion && (
+        <div className="mt-1.5">
+          <input
+            type="date"
+            value={fechaCreacionCustom}
+            onChange={e => setFechaCreacionCustom(e.target.value)}
+            max={new Date().toISOString().slice(0, 10)}
+            className="text-xs border border-slate-300 rounded-lg px-2 py-1 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            El ticket quedará registrado con esta fecha en lugar del momento actual.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   const adjuntosField = (
     <div>
       <label className={labelClass}>Adjuntos ({pendingFiles.length}/10)</label>
@@ -457,6 +491,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
               </div>
               {descripcionField}
               {adjuntosField}
+              {overrideFechaField}
             </div>
           )}
         </div>
@@ -499,6 +534,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         </div>
         {descripcionField}
         {adjuntosField}
+        {overrideFechaField}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={handleSubmit} disabled={saving || !canSubmit}>

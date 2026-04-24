@@ -166,6 +166,33 @@ export const CrearLeadModal = ({ onClose, onCreated, prefill }: CrearLeadModalPr
           pendingFiles={h.pendingFiles} fileRef={h.fileRef}
           onFileChange={h.handleFileChange} onRemove={h.removeFile} />
 
+        {/* Bloque 7: Override fecha de creación (oculto por default) */}
+        <div className="pt-1 border-t border-slate-100">
+          <label className="flex items-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={h.overrideFechaCreacion}
+              onChange={e => h.setOverrideFechaCreacion(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Modificar fecha de creación
+          </label>
+          {h.overrideFechaCreacion && (
+            <div className="mt-1.5">
+              <input
+                type="date"
+                value={h.fechaCreacionCustom}
+                onChange={e => h.setFechaCreacionCustom(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                className="text-xs border border-slate-300 rounded-lg px-2 py-1 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                El ticket quedará registrado con esta fecha en lugar del momento actual.
+              </p>
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-end gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
           <Button size="sm" onClick={h.handleSubmit} disabled={h.saving}>

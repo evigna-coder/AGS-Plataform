@@ -163,6 +163,20 @@ export function useResizableColumns(storageKey?: string) {
     }
   }, [colAligns, storageKey]);
 
+  /** Set a column's alignment explicitly */
+  const setAlign = useCallback((colIndex: number, align: ColAlign) => {
+    if (!tableRef.current) return;
+    const colCount = tableRef.current.querySelectorAll('thead th').length;
+    const current = colAligns || new Array<ColAlign>(colCount).fill('left');
+    const next = [...current];
+    while (next.length < colCount) next.push('left');
+    next[colIndex] = align;
+    setColAligns(next);
+    if (storageKey) {
+      try { localStorage.setItem(`col-aligns:${storageKey}`, JSON.stringify(next)); } catch {}
+    }
+  }, [colAligns, storageKey]);
+
   /** Get the CSS text-align class for a column */
   const getAlignClass = useCallback((colIndex: number): string => {
     const align = colAligns?.[colIndex] || 'left';
@@ -171,17 +185,56 @@ export function useResizableColumns(storageKey?: string) {
     return 'text-left';
   }, [colAligns]);
 
-  // Reset to default widths/alignments and clear storage
+  // ── Hidden columns ──
+  const [hiddenCols, setHiddenCols] = useState<number[]>(() => {
+    if (!storageKey) return [];
+    try {
+      const saved = localStorage.getItem(`col-hidden:${storageKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const persistHidden = useCallback((list: number[]) => {
+    if (!storageKey) return;
+    try {
+      if (list.length === 0) localStorage.removeItem(`col-hidden:${storageKey}`);
+      else localStorage.setItem(`col-hidden:${storageKey}`, JSON.stringify(list));
+    } catch {}
+  }, [storageKey]);
+
+  const hideCol = useCallback((colIndex: number) => {
+    setHiddenCols(prev => {
+      if (prev.includes(colIndex)) return prev;
+      const next = [...prev, colIndex].sort((a, b) => a - b);
+      persistHidden(next);
+      return next;
+    });
+  }, [persistHidden]);
+
+  const showAllCols = useCallback(() => {
+    setHiddenCols([]);
+    persistHidden([]);
+  }, [persistHidden]);
+
+  const isHidden = useCallback((colIndex: number) => hiddenCols.includes(colIndex), [hiddenCols]);
+
+  // Reset to default widths/alignments/visibility and clear storage
   const resetWidths = useCallback(() => {
     setColWidths(null);
     setColAligns(null);
+    setHiddenCols([]);
     if (storageKey) {
       try {
         localStorage.removeItem(`col-widths:${storageKey}`);
         localStorage.removeItem(`col-aligns:${storageKey}`);
+        localStorage.removeItem(`col-hidden:${storageKey}`);
       } catch {}
     }
   }, [storageKey]);
 
-  return { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, resetWidths };
+  return {
+    tableRef, colWidths, colAligns,
+    onResizeStart, onAutoFit, cycleAlign, setAlign, getAlignClass, resetWidths,
+    hiddenCols, hideCol, showAllCols, isHidden,
+  };
 }

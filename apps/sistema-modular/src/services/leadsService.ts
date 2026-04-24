@@ -189,18 +189,24 @@ export const leadsService = {
     return `TKT-${String(max + 1).padStart(5, '0')}`;
   },
 
-  async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) {
+  async create(data: Omit<Lead, 'id' | 'updatedAt'> & { createdAt?: string }) {
     const stamp = ventasInsumosStamp(data.motivoLlamado);
     const numero = data.numero || await this.getNextTicketNumero();
+    // Si se recibe createdAt como ISO string, respetarlo (override manual desde UI).
+    // Si no, usar el momento actual.
+    const createdTs = data.createdAt
+      ? Timestamp.fromDate(new Date(data.createdAt))
+      : Timestamp.now();
+    const { createdAt: _omit, ...rest } = data;
     const payload = deepCleanForFirestore(syncFlatFromContactos({
-      ...data,
+      ...rest,
       numero,
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
       postas: data.postas || [],
       presupuestosIds: data.presupuestosIds || [],
       otIds: data.otIds || [],
-      createdAt: Timestamp.now(),
+      createdAt: createdTs,
       updatedAt: Timestamp.now(),
       ...(stamp || {}),
     }));

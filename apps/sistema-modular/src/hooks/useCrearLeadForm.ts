@@ -40,6 +40,8 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const [estadoInicial, setEstadoInicial] = useState<import('@ags/shared').TicketEstado>('nuevo');
   const [diasProximoContacto, setDiasProximoContacto] = useState('');
   const [fechaContactoCustom, setFechaContactoCustom] = useState('');
+  const [overrideFechaCreacion, setOverrideFechaCreacion] = useState(false);
+  const [fechaCreacionCustom, setFechaCreacionCustom] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -148,6 +150,11 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         if (candidatos.length === 1) resolvedClienteId = candidatos[0].id;
       }
 
+      // Override manual de fecha de creación: si el usuario tildó y completó, usar esa fecha.
+      // Se toma a las 12:00 del día elegido (evita timezone hopping).
+      const customCreatedAt = overrideFechaCreacion && fechaCreacionCustom
+        ? new Date(fechaCreacionCustom + 'T12:00:00').toISOString()
+        : undefined;
       const leadId = await leadsService.create({
         clienteId: resolvedClienteId || null, contactoId: null,
         razonSocial: razonSocial.trim(), contacto: contacto.trim(),
@@ -165,6 +172,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
         proximoContacto: calcProximoContacto(),
         valorEstimado: null, createdBy: usuario?.id,
         finalizadoAt: null, presupuestosIds: [], otIds: [],
+        ...(customCreatedAt ? { createdAt: customCreatedAt } : {}),
       });
       if (pendingFiles.length > 0) await leadsService.uploadAdjuntos(leadId, pendingFiles, 0);
       onCreated?.(leadId);
@@ -182,6 +190,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
     asignadoA, setAsignadoA, areaActual, setAreaActual,
     accionPendiente, setAccionPendiente, prioridad, setPrioridad, estadoInicial, setEstadoInicial,
     diasProximoContacto, setDiasProximoContacto, fechaContactoCustom, setFechaContactoCustom,
+    overrideFechaCreacion, setOverrideFechaCreacion, fechaCreacionCustom, setFechaCreacionCustom,
     clienteSearch, setClienteSearch, showClienteDropdown, setShowClienteDropdown,
     filteredClientes, sistemasFiltrados, contactosCliente, handleSelectContacto,
     handleSelectCliente, handleClearCliente, handleSistemaChange,

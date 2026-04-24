@@ -18,10 +18,12 @@ import CrearLeadModal from '../components/leads/CrearLeadModal';
 import DerivarLeadModal from '../components/leads/DerivarLeadModal';
 import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 import LeadQuickNoteModal from '../components/leads/LeadQuickNoteModal';
-import { LeadFilters, INITIAL_FILTERS, type LeadFiltersState, type EstadoFilterValue } from '../components/leads/LeadFilters';
+import { LeadFilters, type LeadFiltersState, type EstadoFilterValue } from '../components/leads/LeadFilters';
+import { useUrlFilters } from '../hooks/useUrlFilters';
+import type { MotivoLlamado, TicketArea, TicketPrioridad } from '@ags/shared';
 import { getDaysOpen, getDaysUntilContacto, getDaysSinceLastActivity, formatCurrencyARS, getAgeBadgeColor, getContactoStatusColor, getContactoStatusText } from '../utils/leadHelpers';
-import { useResizableColumns } from '../hooks/useResizableColumns';
-import { ColAlignIcon } from '../components/ui/ColAlignIcon';
+import { useResizableColumns, type ColAlign } from '../hooks/useResizableColumns';
+import { ColMenu } from '../components/ui/ColMenu';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
 
 const thBase = 'px-2 py-1.5 text-center text-[10px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative select-none';
@@ -58,14 +60,46 @@ export default function LeadsPage() {
   const [quickNoteLead, setQuickNoteLead] = useState<Lead | null>(null);
   const [usuarios, setUsuarios] = useState<{ id: string; displayName: string }[]>([]);
 
-  const [search, setSearch] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState<EstadoFilterValue>('');
-  const [filters, setFilters] = useState<LeadFiltersState>(INITIAL_FILTERS);
-  const [sortField, setSortField] = useState<string>('createdAt');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  // Filtros persistidos en URL — sobreviven al volver del detalle con browser back.
+  const FILTER_SCHEMA = useMemo(() => ({
+    search: { type: 'string' as const, default: '' },
+    estadoFilter: { type: 'string' as const, default: '' },
+    motivo: { type: 'string' as const, default: '' },
+    area: { type: 'string' as const, default: '' },
+    prioridad: { type: 'string' as const, default: '' },
+    responsable: { type: 'string' as const, default: '' },
+    soloMios: { type: 'boolean' as const, default: true },
+    misCreados: { type: 'boolean' as const, default: false },
+    misDerivados: { type: 'boolean' as const, default: false },
+    mostrarFinalizados: { type: 'boolean' as const, default: false },
+    fechaDesde: { type: 'string' as const, default: '' },
+    fechaHasta: { type: 'string' as const, default: '' },
+    sortField: { type: 'string' as const, default: 'createdAt' },
+    sortDir: { type: 'string' as const, default: 'desc' },
+  }), []);
+  const [urlF, setUrlF, setUrlFs] = useUrlFilters(FILTER_SCHEMA);
+  const search = urlF.search;
+  const setSearch = (v: string) => setUrlF('search', v);
+  const estadoFilter = urlF.estadoFilter as EstadoFilterValue;
+  const setEstadoFilter = (v: EstadoFilterValue) => setUrlF('estadoFilter', v);
+  const sortField = urlF.sortField;
+  const sortDir = urlF.sortDir as SortDir;
+  const filters: LeadFiltersState = useMemo(() => ({
+    motivo: (urlF.motivo || '') as MotivoLlamado | '',
+    area: (urlF.area || '') as TicketArea | '',
+    prioridad: (urlF.prioridad || '') as TicketPrioridad | '',
+    responsable: urlF.responsable,
+    soloMios: urlF.soloMios,
+    misCreados: urlF.misCreados,
+    misDerivados: urlF.misDerivados,
+    mostrarFinalizados: urlF.mostrarFinalizados,
+    fechaDesde: urlF.fechaDesde,
+    fechaHasta: urlF.fechaHasta,
+  }), [urlF.motivo, urlF.area, urlF.prioridad, urlF.responsable, urlF.soloMios, urlF.misCreados, urlF.misDerivados, urlF.mostrarFinalizados, urlF.fechaDesde, urlF.fechaHasta]);
+  const setFilters = (f: LeadFiltersState) => setUrlFs(f);
   const handleSort = (f: string) => {
     const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    setUrlFs({ sortField: s.field, sortDir: s.dir });
   };
 
   const unsubRef = useRef<(() => void) | null>(null);
@@ -152,6 +186,7 @@ export default function LeadsPage() {
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(l =>
+        (l.numero || '').toLowerCase().includes(q) ||
         l.razonSocial.toLowerCase().includes(q) ||
         l.contacto.toLowerCase().includes(q) ||
         (l.descripcion || '').toLowerCase().includes(q) ||
@@ -161,7 +196,13 @@ export default function LeadsPage() {
     return sortByField(result, sortField, sortDir);
   }, [leads, usuario, isAdmin, extraAreas, estadoFilter, filters.misCreados, filters.misDerivados, filters.mostrarFinalizados, filters.motivo, filters.area, filters.prioridad, filters.fechaDesde, filters.fechaHasta, search, sortField, sortDir]);
 
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pi-tickets-list');
+  const {
+    tableRef, colWidths, colAligns,
+    onResizeStart, onAutoFit, setAlign, getAlignClass,
+    hiddenCols, hideCol, showAllCols, isHidden,
+  } = useResizableColumns('pi-tickets-list');
+
+  const getColAlign = (i: number): ColAlign => (colAligns?.[i] || 'left');
 
   const pipelineTotal = useMemo(() =>
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
@@ -221,7 +262,12 @@ export default function LeadsPage() {
                   <Link key={lead.id} to={`/leads/${lead.id}`}
                     className={`block bg-white rounded-xl border border-slate-200 p-3 active:bg-slate-50 ${getRowStyle(lead)}`}>
                     <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <span className="text-sm font-semibold text-slate-800 truncate">{lead.razonSocial}</span>
+                      <div className="min-w-0 flex-1">
+                        {lead.numero && (
+                          <span className="block text-[10px] font-mono text-slate-400 leading-tight">{lead.numero}</span>
+                        )}
+                        <span className="block text-sm font-semibold text-slate-800 truncate">{lead.razonSocial}</span>
+                      </div>
                       <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
                         {getSimplifiedEstadoLabel(lead.estado)}
                       </span>
@@ -262,37 +308,54 @@ export default function LeadsPage() {
             </div>
 
             {/* Desktop: table */}
+            {hiddenCols.length > 0 && (
+              <div className="hidden md:flex items-center justify-end mb-1.5">
+                <button
+                  onClick={showAllCols}
+                  className="text-[11px] font-medium text-slate-500 hover:text-teal-700 bg-slate-100 hover:bg-teal-50 rounded-full px-2.5 py-0.5 transition-colors"
+                  title="Mostrar todas las columnas"
+                >
+                  {hiddenCols.length} {hiddenCols.length === 1 ? 'columna oculta' : 'columnas ocultas'} · Mostrar todas
+                </button>
+              </div>
+            )}
             <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
+              {(() => {
+                const defaultPct = ['11%', '8%', '6%', '5%', '7%', '8%', '8%', '6%', '5%', '22%', '14%'];
+                const colStyle = (i: number, base: string | number) => ({ width: isHidden(i) ? 0 : base });
+                const tdCls = (i: number, extra = '') =>
+                  `${extra} ${isHidden(i) ? 'hidden' : getAlignClass(i)}`.trim();
+                const renderTh = (i: number, sortKey: string, label: string) => (
+                  <th className={`${thBase} ${isHidden(i) ? 'hidden' : getAlignClass(i)}`}>
+                    <ColMenu align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
+                    <span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort(sortKey)}>
+                      {label}<SortIcon active={sortField === sortKey} dir={sortDir} />
+                    </span>
+                    <div onMouseDown={e => onResizeStart(i, e)} onDoubleClick={() => onAutoFit(i)}
+                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                );
+                return (
               <table ref={tableRef} className="w-full table-fixed">
                 {colWidths ? (
-                  <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+                  <colgroup>{colWidths.map((w, i) => <col key={i} style={colStyle(i, w)} />)}</colgroup>
                 ) : (
                   <colgroup>
-                    <col style={{ width: '11%' }} />{/* Cliente */}
-                    <col style={{ width: '8%' }} />{/* Contacto */}
-                    <col style={{ width: '6%' }} />{/* Motivo */}
-                    <col style={{ width: '5%' }} />{/* Prioridad */}
-                    <col style={{ width: '7%' }} />{/* Estado */}
-                    <col style={{ width: '8%' }} />{/* Área */}
-                    <col style={{ width: '8%' }} />{/* Asignado */}
-                    <col style={{ width: '6%' }} />{/* Fecha */}
-                    <col style={{ width: '5%' }} />{/* Seguimiento */}
-                    <col style={{ width: '22%' }} />{/* Observaciones */}
-                    <col style={{ width: '14%' }} />{/* Acciones */}
+                    {defaultPct.map((w, i) => <col key={i} style={colStyle(i, w)} />)}
                   </colgroup>
                 )}
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className={`${thBase} ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('razonSocial')}>Cliente<SortIcon active={sortField === 'razonSocial'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('contacto')}>Contacto<SortIcon active={sortField === 'contacto'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('motivoLlamado')}>Motivo<SortIcon active={sortField === 'motivoLlamado'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('prioridad')}>Prioridad<SortIcon active={sortField === 'prioridad'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('estado')}>Estado<SortIcon active={sortField === 'estado'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('areaActual')}>Área<SortIcon active={sortField === 'areaActual'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(6)}`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('asignadoA')}>Asignado<SortIcon active={sortField === 'asignadoA'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(7)}`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('createdAt')}>Fecha<SortIcon active={sortField === 'createdAt'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(8)}`}><ColAlignIcon align={colAligns?.[8] || 'left'} onClick={() => cycleAlign(8)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('proximoContacto')}>Seguim.<SortIcon active={sortField === 'proximoContacto'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`${thBase} ${getAlignClass(9)}`}><ColAlignIcon align={colAligns?.[9] || 'left'} onClick={() => cycleAlign(9)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('descripcion')}>Observaciones<SortIcon active={sortField === 'descripcion'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    {renderTh(0, 'razonSocial', 'Cliente')}
+                    {renderTh(1, 'contacto', 'Contacto')}
+                    {renderTh(2, 'motivoLlamado', 'Motivo')}
+                    {renderTh(3, 'prioridad', 'Prioridad')}
+                    {renderTh(4, 'estado', 'Estado')}
+                    {renderTh(5, 'areaActual', 'Área')}
+                    {renderTh(6, 'asignadoA', 'Asignado')}
+                    {renderTh(7, 'createdAt', 'Fecha')}
+                    {renderTh(8, 'proximoContacto', 'Seguim.')}
+                    {renderTh(9, 'descripcion', 'Observaciones')}
                     <th className={`${thBase} text-center`}>Acciones</th>
                   </tr>
                 </thead>
@@ -305,53 +368,60 @@ export default function LeadsPage() {
                     return (
                       <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                         onClick={() => navigate(`/leads/${lead.id}`)}>
-                        <td className={`px-2 py-1.5 overflow-hidden ${getAlignClass(0)}`}>
-                          <Link to={`/leads/${lead.id}`} className="text-[11px] font-semibold text-teal-600 hover:text-teal-800 truncate block" title={lead.razonSocial}>
-                            {lead.razonSocial}
+                        <td className={tdCls(0, 'px-2 py-1.5 overflow-hidden')}>
+                          <Link to={`/leads/${lead.id}`} className="block" title={lead.numero ? `${lead.numero} · ${lead.razonSocial}` : lead.razonSocial}>
+                            {lead.numero && (
+                              <span className="block text-[9px] font-mono text-slate-400 leading-tight truncate">{lead.numero}</span>
+                            )}
+                            <span className="block text-[11px] font-semibold text-teal-600 hover:text-teal-800 truncate">
+                              {lead.razonSocial}
+                            </span>
                           </Link>
                         </td>
-                        <td className={`px-2 py-1.5 text-[11px] text-slate-600 truncate overflow-hidden ${getAlignClass(1)}`} title={lead.contacto}>
+                        <td className={tdCls(1, 'px-2 py-1.5 text-[11px] text-slate-600 truncate overflow-hidden')} title={lead.contacto}>
                           {lead.contacto}
                         </td>
-                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(2)}`}>
+                        <td className={tdCls(2, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
                             {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                           </span>
                         </td>
-                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(3)}`}>
+                        <td className={tdCls(3, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           {lead.prioridad ? (
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_PRIORIDAD_COLORS[lead.prioridad]}`}>
                               {TICKET_PRIORIDAD_LABELS[lead.prioridad]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
-                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(4)}`}>
+                        <td className={tdCls(4, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
                             {getSimplifiedEstadoLabel(lead.estado)}
                           </span>
                         </td>
-                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(5)}`}>
+                        <td className={tdCls(5, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           {lead.areaActual ? (
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_AREA_COLORS[lead.areaActual]}`}>
                               {TICKET_AREA_LABELS[lead.areaActual]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
-                        <td className={`px-3 py-2 text-xs text-slate-500 truncate overflow-hidden ${getAlignClass(6)}`} title={getResponsableNombre(lead.asignadoA)}>
+                        <td className={tdCls(6, 'px-3 py-2 text-xs text-slate-500 truncate overflow-hidden')} title={getResponsableNombre(lead.asignadoA)}>
                           {getResponsableNombre(lead.asignadoA)}
                         </td>
-                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(7)}`}>
+                        <td className={tdCls(7, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
                           {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
                         </td>
-                        <td className={`px-3 py-2 whitespace-nowrap overflow-hidden ${getAlignClass(8)}`}>
-                          {daysUntil !== null ? (
+                        <td className={tdCls(8, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          {isClosed ? (
+                            <span className="text-[10px] text-slate-300">—</span>
+                          ) : daysUntil !== null ? (
                             <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
                               {getContactoStatusText(daysUntil)}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
-                        <td className={`px-3 py-2 overflow-hidden ${getAlignClass(9)}`}>
+                        <td className={tdCls(9, 'px-3 py-2 overflow-hidden')}>
                           {(() => {
                             const lastComment = lead.postas?.slice().reverse().find(p => p.comentario)?.comentario;
                             const text = lastComment || lead.descripcion || lead.motivoContacto || '—';
@@ -393,6 +463,8 @@ export default function LeadsPage() {
                   })}
                 </tbody>
               </table>
+                );
+              })()}
             </div>
           </>
         )}

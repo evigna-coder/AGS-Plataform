@@ -69,7 +69,7 @@ export const LeadSidebar = ({ lead, usuarios, onFieldUpdate }: LeadSidebarProps)
             {lead.proximoContacto ? (
               <>
                 <span className="text-xs text-slate-700">{new Date(lead.proximoContacto + 'T12:00:00').toLocaleDateString('es-AR')}</span>
-                {daysUntilContacto !== null && (
+                {daysUntilContacto !== null && isActive && (
                   <span className={`text-[10px] font-medium mt-0.5 block ${getContactoStatusColor(daysUntilContacto)}`}>
                     {getContactoStatusText(daysUntilContacto)}
                   </span>

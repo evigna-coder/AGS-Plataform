@@ -150,12 +150,15 @@ export default function LeadDetailPage() {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-3 md:px-5 pt-3 md:pt-4 pb-2 md:pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <button onClick={() => navigate('/leads')} className="text-slate-400 hover:text-slate-600 shrink-0">
+            <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600 shrink-0">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </button>
             <div className="min-w-0">
+              {lead.numero && (
+                <span className="block text-[11px] font-mono text-slate-500 leading-tight">{lead.numero}</span>
+              )}
               <div className="flex items-center gap-2">
                 <h2 className="text-sm md:text-lg font-semibold text-slate-900 tracking-tight truncate">{lead.razonSocial}</h2>
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${getSimplifiedEstadoColor(lead.estado)}`}>
