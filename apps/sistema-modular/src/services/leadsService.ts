@@ -478,14 +478,44 @@ export const leadsService = {
     if (!nuevoEstadoLead || nuevoEstadoLead === lead.estado) return;
 
     const user = getCurrentUserTrace();
+
+    // FLOW-05: al pasar a CIERRE_TECNICO, derivar el ticket al responsable
+    // de Materiales para que ejecute el cierre administrativo. El look-up es
+    // best-effort — si no hay config o el usuario está inactivo, el ticket
+    // queda con su asignado actual (coordinador).
+    let nextAsignadoA: string | null = null;
+    let nextAsignadoNombre: string | null = null;
+    let nextAreaActual: LeadArea | null = null;
+    let nextAccionPendiente: string | null = null;
+    if (newEstadoAdmin === 'CIERRE_TECNICO') {
+      try {
+        const { adminConfigService } = await import('./adminConfigService');
+        const { usuariosService } = await import('./personalService');
+        const cfg = await adminConfigService.getWithDefaults();
+        if (cfg.usuarioMaterialesId) {
+          const materiales = await usuariosService.getById(cfg.usuarioMaterialesId);
+          if (materiales && materiales.status === 'activo') {
+            nextAsignadoA = materiales.id;
+            nextAsignadoNombre = materiales.displayName ?? null;
+            nextAreaActual = 'administracion' as LeadArea;
+            nextAccionPendiente = `OT-${otNumber} cerrada técnicamente — ejecutar cierre administrativo (descarga artículos + facturación)`;
+          }
+        }
+      } catch (err) {
+        console.warn('[syncFromOT] derivación a Materiales falló, ticket queda con asignado actual:', err);
+      }
+    }
+
     const posta: Posta = {
       id: crypto.randomUUID(),
       fecha: new Date().toISOString(),
       deUsuarioId: user?.uid ?? 'system',
       deUsuarioNombre: user?.name ?? 'Sistema',
-      aUsuarioId: lead.asignadoA || '',
-      aUsuarioNombre: lead.asignadoNombre || '',
-      comentario: `OT-${otNumber} → ${newEstadoAdmin}`,
+      aUsuarioId: nextAsignadoA ?? lead.asignadoA ?? '',
+      aUsuarioNombre: nextAsignadoNombre ?? lead.asignadoNombre ?? '',
+      comentario: nextAsignadoA
+        ? `OT-${otNumber} → ${newEstadoAdmin} · derivado a ${nextAsignadoNombre || 'Materiales'}`
+        : `OT-${otNumber} → ${newEstadoAdmin}`,
       estadoAnterior: lead.estado,
       estadoNuevo: nuevoEstadoLead,
     };
@@ -496,6 +526,12 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
+    if (nextAsignadoA) {
+      updates.asignadoA = nextAsignadoA;
+      updates.asignadoNombre = nextAsignadoNombre;
+      updates.areaActual = nextAreaActual;
+      updates.accionPendiente = nextAccionPendiente;
+    }
     if (newEstadoAdmin === 'FINALIZADO') {
       updates.finalizadoAt = Timestamp.now();
     }

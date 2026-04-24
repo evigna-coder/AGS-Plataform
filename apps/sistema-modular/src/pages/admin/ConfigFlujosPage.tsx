@@ -86,6 +86,7 @@ export default function ConfigFlujosPage() {
         ['Seguimiento comercial', form.usuarioSeguimientoId],
         ['Coordinador OT', form.usuarioCoordinadorOTId],
         ['Responsable Comex', form.usuarioResponsableComexId],
+        ['Responsable Materiales', form.usuarioMaterialesId],
       ] as const) {
         const err = validateUserActive(label, userId);
         if (err) throw new Error(err);
@@ -99,6 +100,7 @@ export default function ConfigFlujosPage() {
           usuarioSeguimientoId: form.usuarioSeguimientoId || null,
           usuarioCoordinadorOTId: form.usuarioCoordinadorOTId || null,
           usuarioResponsableComexId: form.usuarioResponsableComexId || null,
+          usuarioMaterialesId: form.usuarioMaterialesId || null,
           mailFacturacion: form.mailFacturacion,
         },
         firebaseUser.uid,
@@ -161,6 +163,18 @@ export default function ConfigFlujosPage() {
             emptyMessage="No hay usuarios activos"
           />
           <p className="mt-1 text-[11px] text-slate-500">Derivación a Importaciones al aceptar presupuestos con ítems importados. Si se deja vacío, el ticket queda en el área sin usuario fijo.</p>
+        </div>
+
+        <div>
+          <label className={fieldLabel}>Responsable Materiales (FLOW-05)</label>
+          <SearchableSelect
+            value={form.usuarioMaterialesId || ''}
+            onChange={v => setForm({ ...form, usuarioMaterialesId: v })}
+            options={buildUserOptions(false)}
+            placeholder="Seleccionar usuario…"
+            emptyMessage="No hay usuarios activos"
+          />
+          <p className="mt-1 text-[11px] text-slate-500">Ejecuta el cierre administrativo (descarga de artículos + facturación) tras el cierre técnico. El ticket se deriva automáticamente a este usuario cuando la OT pasa a CIERRE_TECNICO.</p>
         </div>
 
         <div>

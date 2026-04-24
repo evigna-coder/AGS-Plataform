@@ -958,6 +958,10 @@ export interface AdminConfigFlujos {
   usuarioSeguimientoId?: string | null;
   usuarioCoordinadorOTId?: string | null;
   usuarioResponsableComexId?: string | null;
+  /** FLOW-05: responsable de materiales/cierre administrativo. Al cerrar
+   *  técnicamente una OT, el ticket se deriva automáticamente a este usuario
+   *  para ejecutar el cierre administrativo (descarga de artículos + facturación). */
+  usuarioMaterialesId?: string | null;
   mailFacturacion: string;
   updatedAt: string;
   updatedBy?: string | null;
