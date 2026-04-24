@@ -361,7 +361,13 @@ export const leadsService = {
     if (filters?.createdBy) constraints.push(where('createdBy', '==', filters.createdBy));
     constraints.push(orderBy('createdAt', 'desc'));
     const q = query(collection(db, 'leads'), ...constraints);
-    return onSnapshot(q, snap => {
+    // En remounts rápidos (volver atrás desde detalle), el SDK puede emitir un snapshot
+    // vacío desde cache antes que llegue el del servidor. Saltamos ese primero para
+    // evitar el flash "No se encontraron tickets".
+    let serverConfirmed = false;
+    return onSnapshot(q, { includeMetadataChanges: true }, snap => {
+      if (!serverConfirmed && snap.metadata.fromCache && snap.empty) return;
+      serverConfirmed = true;
       callback(snap.docs.map(d => parseLead(d.id, d.data() as Record<string, unknown>)));
     }, err => {
       console.error('Leads subscription error:', err);
