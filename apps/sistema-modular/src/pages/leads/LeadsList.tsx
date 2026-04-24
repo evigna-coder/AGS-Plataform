@@ -306,27 +306,28 @@ export const LeadsList = () => {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full">
             {(() => {
               const defaultPct = ['13%', '10%', '6%', '5%', '7%', '9%', '9%', '7%', '6%', '18%', '10%'];
-              const colStyle = (i: number, base: string | number) => ({ width: isHidden(i) ? 0 : base });
-              const tdCls = (i: number, extra = '') =>
-                `${extra} ${isHidden(i) ? 'hidden' : getAlignClass(i)}`.trim();
-              const renderTh = (i: number, sortKey: SortKey, label: string) => (
-                <th className={`${thBase} ${isHidden(i) ? 'hidden' : `cursor-pointer hover:text-slate-600 ${getAlignClass(i)}`}`}
-                  onClick={() => toggleSort(sortKey)}>
-                  <ColMenu align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
-                  {label} <SortIcon col={sortKey} />
-                  <div onMouseDown={e => { e.stopPropagation(); onResizeStart(i, e); }} onDoubleClick={() => onAutoFit(i)}
-                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                </th>
-              );
+              // Skip rendering completo de columnas ocultas (no display:none, que rompe la
+              // alineación posicional de <th>/<td> con los <col> del colgroup en table-fixed).
+              const tdCls = (i: number, extra = '') => `${extra} ${getAlignClass(i)}`.trim();
+              const renderTh = (i: number, sortKey: SortKey, label: string) => {
+                if (isHidden(i)) return null;
+                return (
+                  <th className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(i)}`}
+                    onClick={() => toggleSort(sortKey)}>
+                    <ColMenu align={getColAlign(i)} onAlign={(a) => setAlign(i, a)} onHide={() => hideCol(i)} />
+                    {label} <SortIcon col={sortKey} />
+                    <div onMouseDown={e => { e.stopPropagation(); onResizeStart(i, e); }} onDoubleClick={() => onAutoFit(i)}
+                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  </th>
+                );
+              };
               return (
             <table ref={tableRef} className="w-full table-fixed min-w-[1200px]">
-              {colWidths ? (
-                <colgroup>{colWidths.map((w, i) => <col key={i} style={colStyle(i, w)} />)}</colgroup>
-              ) : (
-                <colgroup>
-                  {defaultPct.map((w, i) => <col key={i} style={colStyle(i, w)} />)}
-                </colgroup>
-              )}
+              <colgroup>
+                {(colWidths || defaultPct).map((w, i) => (
+                  isHidden(i) ? null : <col key={i} style={{ width: w }} />
+                ))}
+              </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
                   {renderTh(0, 'razonSocial', 'Cliente')}
@@ -338,12 +339,14 @@ export const LeadsList = () => {
                   {renderTh(6, 'asignadoA', 'Asignado')}
                   {renderTh(7, 'createdAt', 'Fecha')}
                   {renderTh(8, 'proximoContacto', 'Seguim.')}
-                  <th className={`${thBase} ${isHidden(9) ? 'hidden' : `text-slate-400 ${getAlignClass(9)}`}`}>
-                    <ColMenu align={getColAlign(9)} onAlign={(a) => setAlign(9, a)} onHide={() => hideCol(9)} />
-                    Observaciones
-                    <div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)}
-                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                  </th>
+                  {!isHidden(9) && (
+                    <th className={`${thBase} text-slate-400 ${getAlignClass(9)}`}>
+                      <ColMenu align={getColAlign(9)} onAlign={(a) => setAlign(9, a)} onHide={() => hideCol(9)} />
+                      Observaciones
+                      <div onMouseDown={e => onResizeStart(9, e)} onDoubleClick={() => onAutoFit(9)}
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                    </th>
+                  )}
                   <th className={`${thBase} text-center text-slate-400`}>Acciones</th>
                 </tr>
               </thead>
@@ -356,67 +359,87 @@ export const LeadsList = () => {
                   return (
                     <tr key={lead.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(lead)}`}
                       onClick={() => navigate(`/leads/${lead.id}`)}>
-                      <td className={tdCls(0, 'px-3 py-2 overflow-hidden')}>
-                        <Link to={`/leads/${lead.id}`} className="block" title={lead.numero ? `${lead.numero} · ${lead.razonSocial}` : lead.razonSocial}
-                          onClick={e => e.stopPropagation()}>
-                          {lead.numero && (
-                            <span className="block text-[9px] font-mono text-slate-400 leading-tight truncate">{lead.numero}</span>
-                          )}
-                          <span className="block text-xs font-semibold text-teal-600 hover:text-teal-800 truncate">
-                            {lead.razonSocial}
+                      {!isHidden(0) && (
+                        <td className={tdCls(0, 'px-3 py-2 overflow-hidden')}>
+                          <Link to={`/leads/${lead.id}`} className="block" title={lead.numero ? `${lead.numero} · ${lead.razonSocial}` : lead.razonSocial}
+                            onClick={e => e.stopPropagation()}>
+                            {lead.numero && (
+                              <span className="block text-[9px] font-mono text-slate-400 leading-tight truncate">{lead.numero}</span>
+                            )}
+                            <span className="block text-xs font-semibold text-teal-600 hover:text-teal-800 truncate">
+                              {lead.razonSocial}
+                            </span>
+                          </Link>
+                        </td>
+                      )}
+                      {!isHidden(1) && (
+                        <td className={tdCls(1, 'px-3 py-2 text-xs text-slate-600 truncate overflow-hidden')} title={lead.contacto}>
+                          {lead.contacto}
+                        </td>
+                      )}
+                      {!isHidden(2) && (
+                        <td className={tdCls(2, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
+                            {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
                           </span>
-                        </Link>
-                      </td>
-                      <td className={tdCls(1, 'px-3 py-2 text-xs text-slate-600 truncate overflow-hidden')} title={lead.contacto}>
-                        {lead.contacto}
-                      </td>
-                      <td className={tdCls(2, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${MOTIVO_LLAMADO_COLORS[lead.motivoLlamado]}`}>
-                          {MOTIVO_LLAMADO_LABELS[lead.motivoLlamado]}
-                        </span>
-                      </td>
-                      <td className={tdCls(3, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                        {lead.prioridad ? (
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
-                            {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
+                        </td>
+                      )}
+                      {!isHidden(3) && (
+                        <td className={tdCls(3, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          {lead.prioridad ? (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
+                              {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
+                            </span>
+                          ) : <span className="text-[10px] text-slate-300">—</span>}
+                        </td>
+                      )}
+                      {!isHidden(4) && (
+                        <td className={tdCls(4, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
+                            {getSimplifiedEstadoLabel(lead.estado)}
                           </span>
-                        ) : <span className="text-[10px] text-slate-300">—</span>}
-                      </td>
-                      <td className={tdCls(4, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${getSimplifiedEstadoColor(lead.estado)}`}>
-                          {getSimplifiedEstadoLabel(lead.estado)}
-                        </span>
-                      </td>
-                      <td className={tdCls(5, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                        {lead.areaActual ? (
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
-                            {LEAD_AREA_LABELS[lead.areaActual]}
+                        </td>
+                      )}
+                      {!isHidden(5) && (
+                        <td className={tdCls(5, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          {lead.areaActual ? (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
+                              {LEAD_AREA_LABELS[lead.areaActual]}
+                            </span>
+                          ) : <span className="text-[10px] text-slate-300">—</span>}
+                        </td>
+                      )}
+                      {!isHidden(6) && (
+                        <td className={tdCls(6, 'px-3 py-2 text-xs text-slate-500 truncate overflow-hidden')} title={getResponsableNombre(lead.asignadoA)}>
+                          {getResponsableNombre(lead.asignadoA)}
+                        </td>
+                      )}
+                      {!isHidden(7) && (
+                        <td className={tdCls(7, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
+                          {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
+                        </td>
+                      )}
+                      {!isHidden(8) && (
+                        <td className={tdCls(8, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
+                          {isClosed ? (
+                            <span className="text-[10px] text-slate-300">—</span>
+                          ) : daysUntil !== null ? (
+                            <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
+                              {getContactoStatusText(daysUntil)}
+                            </span>
+                          ) : <span className="text-[10px] text-slate-300">—</span>}
+                        </td>
+                      )}
+                      {!isHidden(9) && (
+                        <td className={tdCls(9, 'px-3 py-2 overflow-hidden')}>
+                          <span className="text-[10px] text-slate-500 truncate block" title={lead.descripcion || lead.motivoContacto || ''}>
+                            {((lead.descripcion || lead.motivoContacto || '—').length > 30
+                              ? (lead.descripcion || lead.motivoContacto || '').slice(0, 30) + '...'
+                              : lead.descripcion || lead.motivoContacto || '—')}
                           </span>
-                        ) : <span className="text-[10px] text-slate-300">—</span>}
-                      </td>
-                      <td className={tdCls(6, 'px-3 py-2 text-xs text-slate-500 truncate overflow-hidden')} title={getResponsableNombre(lead.asignadoA)}>
-                        {getResponsableNombre(lead.asignadoA)}
-                      </td>
-                      <td className={tdCls(7, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                        <span className="text-[10px] text-slate-400">{formatDate(lead.createdAt)}</span>
-                        {!isClosed && <span className={`text-[10px] font-medium ml-1 ${getAgeBadgeColor(daysOpen)}`}>{daysOpen}d</span>}
-                      </td>
-                      <td className={tdCls(8, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
-                        {isClosed ? (
-                          <span className="text-[10px] text-slate-300">—</span>
-                        ) : daysUntil !== null ? (
-                          <span className={`text-[10px] font-medium ${getContactoStatusColor(daysUntil)}`}>
-                            {getContactoStatusText(daysUntil)}
-                          </span>
-                        ) : <span className="text-[10px] text-slate-300">—</span>}
-                      </td>
-                      <td className={tdCls(9, 'px-3 py-2 overflow-hidden')}>
-                        <span className="text-[10px] text-slate-500 truncate block" title={lead.descripcion || lead.motivoContacto || ''}>
-                          {((lead.descripcion || lead.motivoContacto || '—').length > 30
-                            ? (lead.descripcion || lead.motivoContacto || '').slice(0, 30) + '...'
-                            : lead.descripcion || lead.motivoContacto || '—')}
-                        </span>
-                      </td>
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                           {!isClosed && (
