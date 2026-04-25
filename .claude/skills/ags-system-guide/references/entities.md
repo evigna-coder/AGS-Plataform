@@ -1,26 +1,33 @@
 # AGS Plataform — Complete Entity Reference
 
+> **Authoritative source:** `[packages/shared/src/types/index.ts]` (~3900 lines) and `[packages/shared/src/utils.ts]`. This file is a navigable summary; before *acting* on a specific field name, grep the type file to confirm. See the self-clean protocol in [SKILL.md](../SKILL.md).
+> **Last verified:** 2026-04-25.
+
 ## Table of Contents
 1. [Cliente](#cliente)
 2. [Establecimiento](#establecimiento)
 3. [Sistema (Equipo)](#sistema)
 4. [ModuloSistema](#modulosistema)
 5. [WorkOrder (OT)](#workorder)
-6. [Lead](#lead)
+6. [Lead / Ticket](#lead)
 7. [Presupuesto](#presupuesto)
-8. [OrdenCompra](#ordencompra)
-9. [Importacion](#importacion)
-10. [TableCatalogEntry](#tablecatalogentry)
-11. [ProtocolSelection](#protocolselection)
-12. [InstrumentoPatron](#instrumentopatron)
-13. [Articulo (Stock)](#articulo)
-14. [UnidadStock](#unidadstock)
-15. [Remito](#remito)
-16. [FichaPropiedad](#fichapropiedad)
-17. [Loaner](#loaner)
-18. [AgendaEntry](#agendaentry)
-19. [PostaWorkflow](#postaworkflow)
-20. [UsuarioAGS](#usuarioags)
+8. [Contrato](#contrato)
+9. [TipoEquipoPlantilla](#tipoequipoplantilla)
+10. [SolicitudFacturacion](#solicitudfacturacion)
+11. [QFDocumento](#qfdocumento)
+12. [OrdenCompra](#ordencompra)
+13. [Importacion](#importacion)
+14. [TableCatalogEntry](#tablecatalogentry)
+15. [ProtocolSelection](#protocolselection)
+16. [InstrumentoPatron](#instrumentopatron)
+17. [Articulo (Stock)](#articulo)
+18. [UnidadStock](#unidadstock)
+19. [Remito](#remito)
+20. [FichaPropiedad](#fichapropiedad)
+21. [Loaner](#loaner)
+22. [AgendaEntry](#agendaentry)
+23. [Posta (workflow concept)](#postaworkflow)
+24. [UsuarioAGS](#usuarioags)
 
 ---
 
@@ -155,41 +162,153 @@
 
 ## Lead
 **Collection**: `leads`
+**Conceptual rename**: tratado como "Ticket" en UI y types — la colección Firestore sigue siendo `leads/` por compatibilidad. Tipo TS principal: `Ticket` (alias `Lead`). Refactor documentado en `memory/project_tickets_refactor.md`.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | id | string | Auto-generated |
-| razonSocial | string | Company name |
-| contacto | string | Contact person |
-| email, telefono | string | Contact info |
-| motivoLlamado | enum | `ventas` / `soporte` / `insumos` / `administracion` / `otros` |
-| estado | enum | `nuevo` → `en_revision` → `derivado` → `en_proceso` → `finalizado` / `perdido` |
-| clienteId | string | FK to Cliente (optional) |
-| sistemaId | string | FK to Sistema (optional) |
-| source | enum | `qr` / `portal` / `manual` / null |
-| asignadoA | string | Assigned user |
-| postas | Posta[] | Handoff history |
-| presupuestosIds | string[] | Related quotes |
-| otIds | string[] | Related OTs |
+| razonSocial | string | Company name (denormalizado) |
+| contactos | ContactoTicket[] | Contactos principales y secundarios |
+| motivoLlamado | enum | `ventas` / `soporte` / `insumos` / `administracion` / `otros` (con labels y colors) |
+| area | TicketArea | `soporte` / `administracion` / `ventas` / `ingenieria` |
+| prioridad | TicketPrioridad | calculada por proximidad de próxima acción |
+| estado | TicketEstado | set extendido (~8 estados) — incluye `en_coordinacion` para flujo ventas |
+| clienteId | string | FK opcional |
+| sistemaId | string | FK opcional |
+| source | enum | `qr` / `portal` / `manual` / `email` / null |
+| asignadoA | string[] | Multi-user assignment (ticket multi-rol) |
+| postas | UsuarioPosta[] | Handoff entre usuarios |
+| presupuestosIds | string[] | Quotes relacionados |
+| otIds | string[] | OTs relacionadas |
+| adjuntos | AdjuntoTicket[] | Files/photos |
+
+**Helpers** (en `@ags/shared`): `getContactoPrincipal`, `getSimplifiedEstado`, `getSimplifiedEstadoLabel`, `getSimplifiedEstadoColor`, `canUserModifyTicket`, `getUserTicketAreas`.
+
+**Flujo ventas crítico**: aceptar un presupuesto tipo `ventas` o `insumos` deja el ticket en `estado: 'en_coordinacion'` — *no* crea OT automáticamente. La coordinadora arma 0/1/N OTs manualmente. (Memory: `feedback_auto_ot_to_ticket.md`.)
 
 ---
 
 ## Presupuesto
 **Collection**: `presupuestos`
 **ID**: `PRE-XXXX`
+**Estado del módulo**: cerrado end-to-end para tipo `contrato` (2026-04-10). Cosecha Item→OT diferida. Detalle: `[.claude/plans/presupuestos-cierre.md]` y `[.claude/plans/presupuestos-item-a-ot-design.md]`.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | numero | string | PRE-0001 format |
-| tipo | enum | `servicio` / `partes` / `ventas` / `contrato` / `mixto` |
-| moneda | enum | `USD` / `ARS` / `EUR` |
-| estado | enum | `borrador` → `enviado` → `pendiente_oc` → `aceptado` → `autorizado` → `rechazado` / `vencido` |
+| tipo | TipoPresupuesto | `tecnico` / `partes` / `ventas` / `insumos` / `contrato` / `garantia` / `cambio_paridad` / `terminos_condiciones` |
+| moneda | MonedaPresupuesto | `USD` / `ARS` / `EUR` / `MIXTA` (MIXTA solo para contrato) |
+| origen | OrigenPresupuesto | `manual` / `lead` / `revision` / `clonado` |
+| estado | PresupuestoEstado | `borrador` → `enviado` → `pendiente_oc` → `aceptado` → `autorizado` → `rechazado` / `vencido` |
 | clienteId | string | FK to Cliente |
-| items | PresupuestoItem[] | Line items |
-| subtotal, total | number | Calculated amounts |
-| tipoCambio | number | Exchange rate |
-| validezDias | number | Validity days (default 15) |
-| condicionPagoId | string | Payment terms FK |
+| leadId | string | FK opcional al ticket origen |
+| items | PresupuestoItem[] | Line items (ver abajo) |
+| subtotal, total | number | Cálculos |
+| tipoCambio | number | Para `MIXTA` y conversiones |
+| validezDias | number | Default 15 |
+| condicionPagoId | string | FK CondicionPago |
+| seccionesVisibles | PresupuestoSeccionesVisibles | Toggles de secciones del PDF |
+| ventasMetadata | VentasMetadata | Datos extra para tipo ventas/insumos |
+| **Contrato-only fields** | | |
+| contratoFechaInicio | string ISO | Inicio de cobertura |
+| contratoFechaFin | string ISO | Fin de cobertura |
+| cantidadCuotasPorMoneda | Record\<moneda, number\> | Cuotas asimétricas por moneda en MIXTA |
+| cuotas | PresupuestoCuota[] | Plan de cuotas calculado |
+| otsVinculadasNumbers | string[] | OTs cosechadas desde items contrato (cuando se ejecute Fase 6) |
+
+### PresupuestoItem (campos clave)
+| Field | Type | Notes |
+|-------|------|-------|
+| sectorNombre | string | Para agrupar en editor jerárquico |
+| sistemaId | string | FK Sistema (opcional) |
+| sistemaNombre | string | Denormalizado |
+| moduloSerie | string | Serie del módulo cuando aplica |
+| servicioCode | string | Código de servicio (tipoServicio) |
+| grupo, subItem | string | `subItem` con formato `"G.S"` para sub-numeración |
+| esSinCargo | boolean | No suma al total |
+| esBonificacion | boolean | Línea de bonificación |
+| itemNotasAdicionales | string | Notas inline |
+| moneda | MonedaPresupuesto | Para MIXTA por item |
+| cantidad, precioUnitario, total | number | Cálculos |
+
+**Helper de matching**: `findPlantillaForSistema()` busca substring por longitud descendente (HPLC 1260 Infinity antes que HPLC 1260).
+
+**Híbrido componentes contrato**: si el sistema del cliente tiene módulos reales en Firestore, los usa; si no, usa los componentes de la plantilla.
+
+---
+
+## Contrato
+**Collection**: `contratos`
+**Module route**: `/contratos`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Auto-generated |
+| clienteId | string | FK Cliente |
+| estado | EstadoContrato | `borrador` / `vigente` / `vencido` / `cancelado` |
+| fechaInicio, fechaFin | string ISO | Cobertura |
+| servicios | ServicioContrato[] | Granular hasta sistema |
+| tipoLimite | TipoLimiteContrato | Limita por horas/visitas/sin-límite |
+| presupuestoOrigenId | string | Quote tipo `contrato` que lo originó |
+
+Detalle: `memory/project_contratos.md`. Granularidad: cliente → establecimiento → sistema (cada `ServicioContrato` apunta a un sistema concreto).
+
+---
+
+## TipoEquipoPlantilla
+**Collection**: `tiposEquipoPlantillas`
+**Module route**: `/presupuestos/tipos-equipo`
+
+Catálogo de plantillas usado para auto-completar líneas de presupuesto contrato.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Auto-generated |
+| nombre | string | Match por substring (ver `findPlantillaForSistema`) |
+| componentes | TipoEquipoComponente[] | Lista (S=módulo, L=accesorio) con default |
+| servicios | TipoEquipoServicio[] | Servicios con `precio` default y `tipoServicio` |
+
+**Helper**: `findPlantillaForSistema(sistemaNombre, plantillas)` — busca substring por longitud descendente para evitar match incorrecto (HPLC 1260 Infinity > HPLC 1260).
+
+---
+
+## SolicitudFacturacion
+**Collection**: `solicitudesFacturacion`
+**Module route**: `/facturacion`
+
+Disparada desde Presupuesto al confirmar emisión de factura. Integrada con AFIP via `afipService.ts`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Auto-generated |
+| presupuestoId | string | FK origen |
+| clienteId | string | FK Cliente |
+| estado | SolicitudFacturacionEstado | `pendiente` / `emitida` / `anulada` (con labels y colors) |
+| items | FacturaItem[] | Líneas a facturar |
+| numeroFactura, tipoFactura | string | Datos AFIP cuando emitida |
+| total, moneda | number, string | Importe |
+| createdAt, updatedAt | string ISO | Audit |
+
+---
+
+## QFDocumento
+**Collection**: `qfDocumentos`
+**Module route**: `/qf-documentos` (sistema-modular y portal-ingeniero `admin`/`admin_ing_soporte`)
+
+Documentos de calidad y formulación con versionado e historial.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Auto-generated |
+| familia | QFTipo | `QF` / `QI` / `QD` / `QP` |
+| numero | string | Número del documento |
+| version | string | Semver-like (`1.0`, `1.1`, `2.0`) |
+| estado | QFEstado | `borrador` / `vigente` / `obsoleto` |
+| titulo, descripcion | string | Metadata |
+| historial | QFHistorialEntry[] | Cambios versionados |
+| archivoUrl | string | PDF o doc en Storage |
+
+**Helpers**: `formatQFNumeroCompleto`, `formatQFNumeroConVersion`, `incrementQFVersion`. Detalle: `memory/project_qf_documentos.md`.
 
 ---
 
@@ -390,17 +509,19 @@ Helper: `calcularEstadoCertificado(vencimiento)` → `vigente` / `por_vencer` / 
 
 ---
 
-## PostaWorkflow
-**Collection**: `postas`
+## Posta (workflow concept)
+**No es un módulo top-level** — `Posta` es un patrón embebido dentro de Tickets, OC, Importaciones, Requerimientos, Agenda y Presupuestos para trackear handoffs entre usuarios.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| tipoEntidad | enum | `orden_compra` / `importacion` / `presupuesto` / `requerimiento` / `agenda` |
+| usuarioFromId, usuarioToId | string | Quién deriva a quién |
 | categoria | enum | `administracion` / `soporte_tecnico` |
 | estado | enum | `pendiente` / `en_proceso` / `completada` / `cancelada` |
 | prioridad | enum | `baja` / `normal` / `alta` / `urgente` |
-| responsableId | string | Current responsible user |
-| historial | PostaHandoff[] | Handoff history |
+| timestamp | ISO string | Cuándo |
+| comentario | string | Razón del handoff |
+
+Tipo TS: `Posta`, `UsuarioPosta`, `PostaHandoff` (variantes según contexto).
 
 ---
 
@@ -410,8 +531,14 @@ Helper: `calcularEstadoCertificado(vencimiento)` → `vigente` / `por_vencer` / 
 
 | Field | Type | Description |
 |-------|------|-------------|
-| email | string | Google email |
+| email | string | Google email (`@agsanalitica.com` only) |
 | displayName | string | Full name |
-| role | enum | `admin` / `ingeniero_soporte` / `admin_soporte` / `administracion` / null |
-| status | enum | `pendiente` / `activo` / `deshabilitado` |
-| lastLoginAt | string (ISO) | Last login |
+| role | UserRole | `admin` / `admin_soporte` / `admin_ing_soporte` / `ingeniero_soporte` / `administracion` / null |
+| status | UserStatus | `pendiente` / `activo` / `deshabilitado` |
+| permissionsOverride | UserPermissionsOverride | Per-user grants/revokes sobre defaults del rol (modelo híbrido) |
+| areas | TicketArea[] | Áreas a las que pertenece (para tickets multi-rol) |
+| lastLoginAt | string ISO | Last login |
+
+**Helpers** (`@ags/shared/utils.ts`): `userHasRole`, `getUserPermissions`, `canAccessApp`, `canAccessModulo`, `getModuloFromPath`, `getUserTicketAreas`, `canUserModifyTicket`.
+
+**Roles pendientes** (no implementados): `cliente`, `proveedor`, `admin_contable`. Detalle del modelo: `memory/project_rbac.md`.
