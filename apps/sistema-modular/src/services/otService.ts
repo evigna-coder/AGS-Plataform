@@ -260,10 +260,15 @@ export const ordenesTrabajoService = {
     });
   },
 
-  // Crear nueva OT (usa setDoc para controlar el ID)
+  // Crear nueva OT (usa setDoc para controlar el ID).
+  // Si el otNumber es de parent (sin punto), auto-crea también el primer
+  // item child .01 — el parent es contenedor agrupador, el child es la
+  // unidad de trabajo real. Esto previene la UX inconsistente de OTs
+  // parent-only que confunden agenda/cierre técnico/admin.
   async create(otData: Omit<WorkOrder, 'otNumber'> & { otNumber: string }) {
     console.log('📝 Creando orden de trabajo:', otData.otNumber);
 
+    const isParent = !otData.otNumber.includes('.');
     const otDocRef = doc(db, 'reportes', otData.otNumber);
     const cleanedData = deepCleanForFirestore({
       ...otData,
@@ -279,8 +284,34 @@ export const ordenesTrabajoService = {
     await batch.commit();
     console.log('✅ Orden de trabajo creada exitosamente');
 
-    // Auto-create agenda entry if engineer + date assigned
-    if (otData.ingenieroAsignadoId && otData.fechaServicioAprox && !otData.otNumber.includes('.')) {
+    // Si es parent: auto-crear primer item child .01 con copia de los datos.
+    // El child ES la work unit (lo que aparece en list/agenda por filter rule
+    // commit 2b264e2). El parent queda oculto, solo visible al buscar por número.
+    // Best-effort — si el auto-child falla, el parent queda creado y el user
+    // puede agregar items manualmente con "+ Item".
+    if (isParent) {
+      try {
+        const childNumber = await this.getNextItemNumber(otData.otNumber);
+        const ahora = new Date().toISOString();
+        const childData = {
+          ...otData,
+          otNumber: childNumber,
+          status: 'BORRADOR' as const,
+          estadoAdmin: 'CREADA' as OTEstadoAdmin,
+          estadoAdminFecha: ahora,
+          estadoHistorial: [{ estado: 'CREADA' as OTEstadoAdmin, fecha: ahora }],
+        };
+        // Recursive call — el child entra con dot, no se re-auto-creará.
+        await this.create(childData as any);
+        console.log(`✅ Auto-creado item .01 del parent ${otData.otNumber}: ${childNumber}`);
+      } catch (err) {
+        console.error('[otService] Auto-create .01 failed (parent queda sin child):', err);
+      }
+    }
+
+    // Auto-create agenda entry SOLO para children (no para parents — parents
+    // son contenedores ocultos del agenda sidebar; la unidad de trabajo es la child).
+    if (otData.ingenieroAsignadoId && otData.fechaServicioAprox && otData.otNumber.includes('.')) {
       try {
         await agendaService.autoCreateFromOT(otData as any);
       } catch (err) {
