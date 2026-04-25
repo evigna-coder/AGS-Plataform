@@ -108,7 +108,7 @@ const OT_TO_TICKET_ESTADO: Record<string, string> = {
   COORDINADA: 'ot_coordinada',
   EN_CURSO: 'ot_coordinada',
   CIERRE_TECNICO: 'ot_realizada',
-  CIERRE_ADMINISTRATIVO: 'pendiente_facturacion',
+  CIERRE_ADMINISTRATIVO: 'pendiente_aviso_facturacion',
   FINALIZADO: 'finalizado',
 };
 

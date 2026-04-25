@@ -1255,7 +1255,16 @@ export const presupuestosService = {
     const allOTsFinalized = workUnitOTs.every(o => o.estadoAdmin === 'FINALIZADO');
     if (!allOTsFinalized) return;
 
-    // ── Check 2: todas las solicitudesFacturacion vinculadas en `facturada` ──
+    // ── Check 2: otsListasParaFacturar debe estar vacío (Tier-1) ─────────
+    // Si quedan OTs sin incluir en una solicitud, el ppto no puede finalizar.
+    // Campo opcional — si no existe (pptos viejos), tratar como vacío.
+    const pendientesParaFacturar: string[] = pres.otsListasParaFacturar ?? [];
+    if (pendientesParaFacturar.length > 0) {
+      console.log(`[trySyncFinalizacion] ppto ${pres.numero} tiene ${pendientesParaFacturar.length} OT(s) pendientes de facturar — skip`);
+      return;
+    }
+
+    // ── Check 3: todas las solicitudesFacturacion vinculadas en `facturada` ──
     const solicitudes = await facturacionService.getByPresupuesto(presupuestoId).catch(() => []);
     if (solicitudes.length > 0) {
       const allFacturadas = solicitudes.every(s => s.estado === 'facturada');
@@ -1266,6 +1275,123 @@ export const presupuestosService = {
     // ── Transicionar ppto a finalizado ────────────────────────────────────
     await this.update(presupuestoId, { estado: 'finalizado' } as any);
     console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado`);
+  },
+
+  /**
+   * Crea una solicitudFacturacion agrupando 1+ OTs del array
+   * `otsListasParaFacturar` del presupuesto. Las OTs incluidas se quitan
+   * del array `otsListasParaFacturar` (ya están en una solicitud).
+   *
+   * Post-commit: transiciona el ticket vinculado de
+   * `pendiente_aviso_facturacion` → `pendiente_facturacion` (si aplica).
+   *
+   * Si después de quitar las OTs el array queda vacío Y todas las solicitudes
+   * del ppto se facturan, trySyncFinalizacion puede finalizar el ppto.
+   *
+   * @returns id de la nueva solicitud creada
+   */
+  async generarAvisoFacturacion(
+    presupuestoId: string,
+    otNumbers: string[],
+    extras?: { monto?: number; observaciones?: string },
+    actor?: { uid: string; name?: string },
+  ): Promise<{ solicitudId: string }> {
+    if (!otNumbers || otNumbers.length === 0) {
+      throw new Error('Debe seleccionar al menos una OT para generar el aviso');
+    }
+
+    // ── Pre-read del ppto ─────────────────────────────────────────────────
+    const pres = await this.getById(presupuestoId);
+    if (!pres) throw new Error('Presupuesto no encontrado');
+    if (pres.estado === 'anulado') throw new Error('No se puede facturar un presupuesto anulado');
+
+    const otsListas: string[] = pres.otsListasParaFacturar ?? [];
+    for (const otNum of otNumbers) {
+      if (!otsListas.includes(otNum)) {
+        throw new Error(`OT ${otNum} no está lista para facturar en este presupuesto`);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const newSolRef = newDocRef('solicitudesFacturacion');
+
+    // ── Transaction atómica: crea solicitud + limpia array ───────────────
+    await runTransaction(db, async (tx) => {
+      // READ PHASE
+      const pRef = doc(db, 'presupuestos', presupuestoId);
+      const pSnap = await tx.get(pRef);
+      if (!pSnap.exists()) throw new Error('Presupuesto no encontrado (tx)');
+      const freshData = pSnap.data();
+      const freshOtsListas: string[] = freshData?.otsListasParaFacturar ?? [];
+
+      // Validar dentro del tx para atomicidad
+      for (const otNum of otNumbers) {
+        if (!freshOtsListas.includes(otNum)) {
+          throw new Error(`OT ${otNum} no está lista para facturar (concurrency check)`);
+        }
+      }
+
+      // WRITE PHASE
+      // Write 1: nueva solicitudFacturacion
+      const solPayload = deepCleanForFirestore({
+        presupuestoId,
+        presupuestoNumero: pres.numero,
+        clienteId: pres.clienteId,
+        clienteNombre: '',           // se puede hidratar del caller si se necesita
+        condicionPago: '',
+        items: (pres.items || []).map(it => ({
+          id: (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          presupuestoItemId: it.id,
+          descripcion: it.descripcion,
+          cantidad: it.cantidad,
+          cantidadTotal: it.cantidad,
+          precioUnitario: it.precioUnitario,
+          subtotal: it.subtotal,
+        })),
+        montoTotal: extras?.monto ?? pres.total,
+        moneda: pres.moneda,
+        estado: 'pendiente' as const,
+        otNumbers,
+        ordenesCompraIds: pres.ordenesCompraIds || [],
+        observaciones: extras?.observaciones ?? null,
+        solicitadoPor: actor?.uid ?? null,
+        solicitadoPorNombre: actor?.name ?? null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+      tx.set(newSolRef, solPayload);
+
+      // Write 2: quitar las OTs seleccionadas de otsListasParaFacturar
+      const remaining = freshOtsListas.filter(ot => !otNumbers.includes(ot));
+      tx.update(pRef, deepCleanForFirestore({
+        otsListasParaFacturar: remaining,
+        updatedAt: nowIso,
+      }));
+    });
+
+    // ── Post-commit: transicionar ticket vinculado ────────────────────────
+    // Buscar ticket con presupuestosIds array-contains que esté en pendiente_aviso_facturacion
+    try {
+      const tksSnap = await getDocs(
+        query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
+      );
+      for (const d of tksSnap.docs) {
+        const t = d.data() as any;
+        if (t.estado === 'pendiente_aviso_facturacion') {
+          await leadsService.update(d.id, {
+            estado: 'pendiente_facturacion' as TicketEstado,
+          } as any).catch(err =>
+            console.error(`[generarAvisoFacturacion] transición ticket ${d.id} falló:`, err),
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[generarAvisoFacturacion] ticket sync failed (non-blocking):', err);
+    }
+
+    return { solicitudId: newSolRef.id };
   },
 
   /**

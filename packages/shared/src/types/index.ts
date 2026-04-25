@@ -526,6 +526,7 @@ export type TicketEstado =
   | 'ot_creada'
   | 'ot_coordinada'
   | 'ot_realizada'
+  | 'pendiente_aviso_facturacion'
   | 'pendiente_facturacion'
   | 'finalizado'
   | 'no_concretado';
@@ -544,6 +545,7 @@ export const TICKET_ESTADO_LABELS: Record<TicketEstado, string> = {
   ot_creada: 'OT creada',
   ot_coordinada: 'OT coordinada',
   ot_realizada: 'OT realizada',
+  pendiente_aviso_facturacion: 'Pendiente aviso facturación',
   pendiente_facturacion: 'Pend. facturación',
   finalizado: 'Finalizado',
   no_concretado: 'No concretado',
@@ -563,6 +565,7 @@ export const TICKET_ESTADO_COLORS: Record<TicketEstado, string> = {
   ot_creada: 'bg-teal-100 text-teal-800',
   ot_coordinada: 'bg-teal-200 text-teal-900',
   ot_realizada: 'bg-green-100 text-green-800',
+  pendiente_aviso_facturacion: 'bg-orange-100 text-orange-800',
   pendiente_facturacion: 'bg-amber-100 text-amber-800',
   finalizado: 'bg-emerald-100 text-emerald-800',
   no_concretado: 'bg-red-100 text-red-600',
@@ -574,7 +577,7 @@ export const TICKET_ESTADO_ORDER: TicketEstado[] = [
   'en_seguimiento', 'presupuesto_enviado',
   'esperando_oc', 'oc_recibida', 'espera_importacion', 'pendiente_entrega',
   'en_coordinacion', 'ot_creada', 'ot_coordinada', 'ot_realizada',
-  'pendiente_facturacion', 'finalizado', 'no_concretado',
+  'pendiente_aviso_facturacion', 'pendiente_facturacion', 'finalizado', 'no_concretado',
 ];
 
 // --- Estados simplificados (fase actual sin módulos completos) ---
@@ -1202,6 +1205,10 @@ export interface Presupuesto {
   otsVinculadasNumbers?: string[] | null;
   // --- Facturación ---
   facturacionEstado?: 'pendiente' | 'parcial' | 'completa' | null;
+  /** OTs vinculadas que llegaron a CIERRE_ADMINISTRATIVO y todavía no fueron
+   *  incluidas en una solicitudFacturacion. El admin del ppto las agrupa
+   *  manualmente para generar el aviso de facturación. */
+  otsListasParaFacturar?: string[];
   // --- Cuotas ---
   cuotas?: PresupuestoCuota[] | null;
   cantidadCuotas?: number | null;

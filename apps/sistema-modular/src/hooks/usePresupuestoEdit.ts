@@ -61,6 +61,8 @@ export interface PresupuestoFormState {
   cantidadCuotasPorMoneda: Record<string, number> | null;
   // Ventas (Phase 10)
   ventasMetadata: VentasMetadata | null;
+  // Facturación OT-céntrica (Tier-1)
+  otsListasParaFacturar: string[] | undefined;
 }
 
 export interface PresupuestoTotals {
@@ -89,6 +91,7 @@ const INITIAL_FORM: PresupuestoFormState = {
   otVinculadaNumber: null, otsVinculadasNumbers: null,
   contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
   ventasMetadata: null,
+  otsListasParaFacturar: undefined,
 };
 
 /** Map a Presupuesto document snapshot to the local form state shape. */
@@ -121,6 +124,7 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     contratoFechaFin: p.contratoFechaFin ? p.contratoFechaFin.split('T')[0] : null,
     cantidadCuotasPorMoneda: p.cantidadCuotasPorMoneda || null,
     ventasMetadata: p.ventasMetadata || null,
+    otsListasParaFacturar: p.otsListasParaFacturar ?? undefined,
   };
 }
 

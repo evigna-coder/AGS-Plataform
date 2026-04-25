@@ -40,6 +40,7 @@ export function usePresupuestoActions({
   const [showAdjuntos, setShowAdjuntos] = useState(false);
   const [showCondiciones, setShowCondiciones] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showFacturacion, setShowFacturacion] = useState(false);
 
   // Lead sync happens automatically via presupuestosService.update() → syncFromPresupuesto()
   const handleEstadoChange = useCallback((newEstado: Presupuesto['estado']) => {
@@ -201,6 +202,7 @@ export function usePresupuestoActions({
     deleting, generatingPDF,
     showAdjuntos, setShowAdjuntos,
     showCondiciones, setShowCondiciones,
+    showFacturacion, setShowFacturacion,
     // Handlers
     handleEstadoChange,
     handleSave, handleEnviar, handleDelete,

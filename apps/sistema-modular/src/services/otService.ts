@@ -436,43 +436,36 @@ export const ordenesTrabajoService = {
   },
 
   /**
-   * FLOW-04 + Phase 10 FMT-03: cierra una OT administrativamente atómicamente.
+   * FLOW-04: cierra una OT administrativamente de forma atómica.
+   *
+   * Modelo Tier-1 (Presupuesto-céntrico): ya NO crea solicitudesFacturacion aquí.
+   * En su lugar registra `otNumber` en `presupuesto.otsListasParaFacturar[]` de
+   * cada presupuesto vinculado — el admin del ppto agrupa las OTs manualmente y
+   * genera el aviso de facturación desde EditPresupuestoModal.
    *
    * runTransaction — Firestore reads-before-writes invariant respetado estrictamente:
-   *   Reads (READ PHASE — todos los tx.get van aquí, ningún write antes):
+   *   Reads (READ PHASE):
    *     R1. OT doc (validate existencia)
-   *     R2+. solicitudesFacturacion sentinel per presupuesto (Phase 10 idempotency)
+   *     R2+. doc de cada presupuesto vinculado (para leer otsListasParaFacturar actual)
    *   Writes (WRITE PHASE — todos después del READ PHASE):
    *     1. Update OT: estadoAdmin='CIERRE_ADMINISTRATIVO' + fechaCierre
-   *     2. Ticket admin nuevo (colección `leads`, area='administracion')
-   *     3. mailQueue doc (type='cierre_admin_ot') — body incluye CTA deep link /facturacion?solicitudId={id}
-   *     4+. (Phase 10) solicitudesFacturacion doc por cada presupuesto vinculado
-   *         - ID determinístico `{otNumber}_{presupuestoId}` — evita duplicados en race conditions
-   *         - Idempotency: tx.get sentinel en READ PHASE; skip tx.set si ya existe
+   *     2. Ticket admin nuevo (colección `leads`, area='administracion') — notificación para admin
+   *     3. mailQueue doc (type='cierre_admin_ot') — aviso al contable de que la OT cerró
+   *     4+. tx.update por cada presupuesto vinculado: merge otNumber en otsListasParaFacturar[]
+   *         (no se usa arrayUnion — prohibido dentro de tx; se computa manualmente)
    *
    * Post-commit (best-effort, fuera de tx):
-   *   - `leadsService.syncFromOT` en el lead origen si existe
+   *   - `leadsService.syncFromOT` para ticket origen de la OT (si tiene leadId)
+   *     → transiciona ticket a `pendiente_aviso_facturacion`
    *
-   * Error handling:
-   *   - Si la tx falla, el caller recibe el throw — registra `pendingAction`
-   *     type='enviar_mail_facturacion' en los presupuestos vinculados.
-   *   - Si el pre-read de la config falla, se usa hardcoded fallback mail y se continúa.
-   *
-   * NOTA: Esta operación NO llama a `otService.update` ni `leadsService.create` dentro
-   * de la tx (nested runTransaction prohibido) — todas las writes son inline con `tx.*`.
-   *
-   * El destinatario del mail proviene de `adminConfig/flujos.mailFacturacion` (default
-   * `mbarrios@agsanalitica.com` via `ADMIN_CONFIG_DEFAULTS`). Se lee FUERA de la tx.
-   *
-   * @returns `{ adminTicketId, mailQueueId, solicitudIds }` — solicitudIds son los IDs
-   *   determinísticos de solicitudesFacturacion. Callers existentes que ignoren el campo
-   *   nuevo siguen funcionando (backward compat).
+   * @returns `{ adminTicketId, mailQueueId, pptosNotificados }` — pptosNotificados
+   *   son los IDs de presupuestos que recibieron el otNumber en otsListasParaFacturar.
    */
   async cerrarAdministrativamente(
     otNumber: string,
     cierreData: { notas?: string; fechaCierre?: string },
     actor?: { uid: string; name?: string },
-  ): Promise<{ adminTicketId: string; mailQueueId: string; solicitudIds: string[] }> {
+  ): Promise<{ adminTicketId: string; mailQueueId: string; pptosNotificados: string[] }> {
     // ── Pre-reads fuera de tx ─────────────────────────────────────
     const ot = await this.getByOtNumber(otNumber);
     if (!ot) throw new Error('OT no encontrada');
@@ -487,9 +480,7 @@ export const ordenesTrabajoService = {
     }
 
     // Pre-cargar presupuestos vinculados para el body del mail. OT.budgets contiene
-    // los `numero` (PRE-XXXX.NN), pero los services se llaman por id — aquí asumimos
-    // que los `budgets[]` son numeros y filtramos matching. Si no se resuelve alguno,
-    // el body lo lista como "—".
+    // los `numero` (PRE-XXXX.NN) — aquí los resolvemos a IDs para el tx.update.
     const presupuestoNumeros = ot.budgets || [];
     let presupuestosPorNumero: Array<Presupuesto | null> = [];
     let presupuestoIds: string[] = [];
@@ -509,41 +500,31 @@ export const ordenesTrabajoService = {
 
     const subject = `Aviso facturación — OT ${otNumber}`;
     const body = buildAvisoFacturacionBody(ot, presupuestosPorNumero);
+    const bodyWithCTA = `${body}\n\n---\nVer en sistema: /facturacion`;
 
-    // Phase 10 — declarar antes del tx para disponibilidad en payload construction.
-    // nowIso es consistente para todo el bloque (no re-evaluar dentro del tx retry loop).
     const nowIso = new Date().toISOString();
-
-    // Phase 10 — IDs determinísticos para idempotency de solicitudesFacturacion.
-    // Pattern: Phase 9-02 (ot_cierre_idempotency sentinel). Evita duplicación si dos usuarios
-    // disparan cerrarAdministrativamente concurrentemente (race) o si el método se re-ejecuta.
-    const solicitudDeterministicIds: string[] = presupuestoIds.map(pid => `${otNumber}_${pid}`);
-
-    // Phase 10 — CTA deep link al dashboard. El consumer del mailQueue compone la URL base;
-    // el path va inline para que el doc sea self-describing aunque el consumer no esté listo.
-    const firstSolId = solicitudDeterministicIds[0] || '';
-    const deepLinkPath = firstSolId ? `/facturacion?solicitudId=${firstSolId}` : '/facturacion';
-    const bodyWithCTA = `${body}\n\n---\nVer en sistema: ${deepLinkPath}`;
 
     const newAdminTicketRef = newDocRef('leads');
     const newMailQueueRef = newDocRef('mailQueue');
 
-    // ── Transaction: reads-before-writes invariant (Firestore tx requiere READ PHASE completo
-    //    antes de cualquier tx.set/update — ver RESEARCH §4 y plan 10-04) ──────────────────
+    // ── Transaction: reads-before-writes invariant ──────────────────────────────
     const txResult = await runTransaction(db, async (tx) => {
       // ═══════════════ READ PHASE (todos los tx.get aquí — ningún write antes) ═══════════════
 
-      // R1: OT (existing)
+      // R1: OT
       const otRef = doc(db, 'reportes', otNumber);
       const otSnap = await tx.get(otRef);
       if (!otSnap.exists()) throw new Error(`OT ${otNumber} no encontrada (tx)`);
 
-      // R2+: Phase 10 — idempotency pre-reads: ¿ya existe solicitudFacturacion para cada ppto?
-      const existingSolicitudes = new Map<string, boolean>();
-      for (const solId of solicitudDeterministicIds) {
-        const solRef = doc(db, 'solicitudesFacturacion', solId);
-        const existingSol = await tx.get(solRef);
-        existingSolicitudes.set(solId, existingSol.exists());
+      // R2+: leer doc de cada presupuesto para conocer otsListasParaFacturar actual
+      const pptoSnaps = new Map<string, { ref: ReturnType<typeof doc>; current: string[] }>();
+      for (const pid of presupuestoIds) {
+        const pRef = doc(db, 'presupuestos', pid);
+        const pSnap = await tx.get(pRef);
+        const existing: string[] = pSnap.exists()
+          ? (pSnap.data()?.otsListasParaFacturar ?? [])
+          : [];
+        pptoSnaps.set(pid, { ref: pRef, current: existing });
       }
 
       // ═══════════════ WRITE PHASE (todos los tx.set/update después de los reads) ═══════════════
@@ -557,7 +538,7 @@ export const ordenesTrabajoService = {
         updatedByName: actor?.name ?? null,
       }));
 
-      // Write 2: ticket admin nuevo (area='administracion')
+      // Write 2: ticket admin nuevo (area='administracion') — notificación de que la OT cerró
       const adminTicketPayload: Omit<Lead, 'id'> & { createdAt: string; updatedAt: string } = {
         clienteId: ot.clienteId ?? null,
         contactoId: null,
@@ -568,7 +549,7 @@ export const ordenesTrabajoService = {
         telefono: '',
         motivoLlamado: 'administracion',
         motivoContacto: `Aviso facturación — OT ${otNumber}`,
-        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.` : 'Sin presupuesto vinculado.'} Revisar facturación.`,
+        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.` : 'Sin presupuesto vinculado.'} Generar aviso de facturación desde el presupuesto.`,
         sistemaId: ot.sistemaId ?? null,
         moduloId: ot.moduloId ?? null,
         estado: 'nuevo' as TicketEstado,
@@ -577,7 +558,7 @@ export const ordenesTrabajoService = {
         asignadoNombre: null,
         derivadoPor: actor?.uid ?? null,
         areaActual: 'administracion' as TicketArea,
-        accionPendiente: 'Revisar facturación y emitir',
+        accionPendiente: 'Generar aviso de facturación desde el presupuesto',
         adjuntos: [],
         presupuestosIds: presupuestoIds,
         otIds: [otNumber],
@@ -591,21 +572,20 @@ export const ordenesTrabajoService = {
       };
       tx.set(newAdminTicketRef, deepCleanForFirestore(adminTicketPayload));
 
-      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending') — body incluye CTA deep link
+      // Write 3: mailQueue doc (type='cierre_admin_ot', status='pending')
       tx.set(newMailQueueRef, deepCleanForFirestore({
         type: 'cierre_admin_ot',
         status: 'pending',
         data: {
           to: mailTo,
           subject,
-          body: bodyWithCTA,  // Phase 10 — incluye deep link al dashboard
+          body: bodyWithCTA,
           otNumber,
           presupuestoIds,
           presupuestoNumeros,
           ocIds,
           attachments: [
             ...presupuestoIds.map(pid => ({ type: 'pdf_presupuesto', presupuestoId: pid })),
-            // OC attachments se resuelven en el consumer via `ocIds`
           ],
           razonSocial: ot.razonSocial || '',
           clienteId: ot.clienteId ?? null,
@@ -614,48 +594,17 @@ export const ordenesTrabajoService = {
         createdBy: actor?.uid ?? null,
       }));
 
-      // Phase 10 Write 4+: solicitudesFacturacion (una por presupuesto, idempotent)
-      // ID determinístico `{otNumber}_{presupuestoId}` — idempotency via sentinel leído en READ PHASE
-      for (let i = 0; i < presupuestoIds.length; i++) {
-        const pid = presupuestoIds[i];
-        const p = presupuestosPorNumero.find(pres => pres?.id === pid);
-        if (!p) continue;
-        const solId = solicitudDeterministicIds[i];
-
-        // Skip si ya existe — sentinel leído en READ PHASE arriba
-        if (existingSolicitudes.get(solId)) {
-          console.log(`[cerrarAdministrativamente] solicitudFacturacion ${solId} ya existe, skip (idempotent)`);
-          continue;
+      // Write 4+: registrar otNumber en otsListasParaFacturar[] de cada presupuesto vinculado.
+      // Se usa manual merge (no arrayUnion — sentinel prohibido en tx).
+      for (const [pid, { ref: pRef, current }] of pptoSnaps) {
+        if (!current.includes(otNumber)) {
+          tx.update(pRef, deepCleanForFirestore({
+            otsListasParaFacturar: [...current, otNumber],
+            updatedAt: nowIso,
+          }));
+        } else {
+          console.log(`[cerrarAdministrativamente] OT ${otNumber} ya está en otsListasParaFacturar de ppto ${pid}, skip`);
         }
-
-        const solRef = doc(db, 'solicitudesFacturacion', solId);
-        const solPayload = deepCleanForFirestore({
-          presupuestoId: pid,
-          presupuestoNumero: p.numero,
-          clienteId: p.clienteId,
-          clienteNombre: ot.razonSocial || '',
-          condicionPago: '',
-          items: (p.items || []).map(it => ({
-            id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            presupuestoItemId: it.id,
-            descripcion: it.descripcion,
-            cantidad: it.cantidad,
-            cantidadTotal: it.cantidad,
-            precioUnitario: it.precioUnitario,
-            subtotal: it.subtotal,
-          })),
-          montoTotal: p.total,
-          moneda: p.moneda,
-          estado: 'pendiente' as const,
-          otNumbers: [otNumber],
-          ordenesCompraIds: p.ordenesCompraIds || [],   // Wave 10-01 new field — snapshot al cierre
-          observaciones: `Auto — cierre administrativo de OT ${otNumber} (Phase 10 FMT-03).`,
-          solicitadoPor: actor?.uid ?? null,
-          solicitadoPorNombre: actor?.name ?? null,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        });
-        tx.set(solRef, solPayload);
       }
 
       return { adminTicketId: newAdminTicketRef.id, mailQueueId: newMailQueueRef.id };
@@ -673,7 +622,7 @@ export const ordenesTrabajoService = {
     return {
       adminTicketId: txResult.adminTicketId,
       mailQueueId: txResult.mailQueueId,
-      solicitudIds: solicitudDeterministicIds,  // Phase 10 addition — callers existentes que ignoren este campo siguen funcionando
+      pptosNotificados: presupuestoIds,
     };
   },
 

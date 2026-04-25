@@ -15,6 +15,7 @@ import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableC
 import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
+import { PresupuestoFacturacionSection } from './PresupuestoFacturacionSection';
 import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
 import { CargarOCModal } from './CargarOCModal';
 import { ReservarStockModal } from '../stock/ReservarStockModal';
@@ -349,6 +350,21 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
               />
             </div>
           </CollapsibleSection>
+
+          {(form.otsListasParaFacturar?.length ?? 0) > 0 && (
+            <CollapsibleSection
+              title={`OTs listas para facturar (${form.otsListasParaFacturar?.length ?? 0})`}
+              open={actions.showFacturacion}
+              onToggle={() => actions.setShowFacturacion(!actions.showFacturacion)}
+            >
+              <PresupuestoFacturacionSection
+                presupuestoId={presupuestoId}
+                otsListasParaFacturar={form.otsListasParaFacturar || []}
+                total={totals.total}
+                onAvisoCreated={() => load()}
+              />
+            </CollapsibleSection>
+          )}
 
           <PresupuestoRequerimientosSection
             presupuestoId={presupuestoId}
