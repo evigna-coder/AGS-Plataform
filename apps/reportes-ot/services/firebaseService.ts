@@ -153,6 +153,41 @@ async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string,
     }
     console.info(`[syncTicketFromOT] will update ${ticketsToSync.size} tickets:`, Array.from(ticketsToSync));
     if (ticketsToSync.size === 0) return;
+
+    // FLOW-05: si la transición es a CIERRE_TECNICO, derivar el ticket al
+    // responsable de Materiales (configurado en adminConfig/flujos.usuarioMaterialesId).
+    // Mirror exacto de leadsService.syncFromOT en sistema-modular — duplicación
+    // intencional porque reportes-ot escribe directo a Firestore vía setDoc y
+    // bypasea el service de sistema-modular.
+    let derivAsignadoA: string | null = null;
+    let derivAsignadoNombre: string | null = null;
+    if (newEstadoAdmin === 'CIERRE_TECNICO') {
+      try {
+        const cfgSnap = await getDoc(doc(db, 'adminConfig', 'flujos'));
+        if (cfgSnap.exists()) {
+          const cfg = cfgSnap.data();
+          const matId = cfg.usuarioMaterialesId;
+          if (matId) {
+            const matSnap = await getDoc(doc(db, 'usuarios', matId));
+            if (matSnap.exists()) {
+              const mat = matSnap.data();
+              if (mat.status === 'activo') {
+                derivAsignadoA = matId;
+                derivAsignadoNombre = mat.displayName ?? null;
+                console.info(`[syncTicketFromOT] FLOW-05: derivando a Materiales (${derivAsignadoNombre})`);
+              } else {
+                console.warn(`[syncTicketFromOT] usuario Materiales ${matId} no está activo, ticket queda con coord`);
+              }
+            }
+          } else {
+            console.info('[syncTicketFromOT] FLOW-05: usuarioMaterialesId no configurado, skip derivación');
+          }
+        }
+      } catch (err) {
+        console.warn('[syncTicketFromOT] derivación a Materiales falló, ticket queda con coord:', err);
+      }
+    }
+
     // Update cada ticket con nuevo estado + posta de audit
     const nowIso = new Date().toISOString();
     for (const tid of ticketsToSync) {
@@ -164,18 +199,27 @@ async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string,
         fecha: nowIso,
         deUsuarioId: userTrace.uid || 'tecnico',
         deUsuarioNombre: userTrace.name || 'Técnico',
-        aUsuarioId: tk.asignadoA || '',
-        aUsuarioNombre: tk.asignadoNombre || '',
-        comentario: `OT-${otNumber} → ${newEstadoAdmin}`,
+        aUsuarioId: derivAsignadoA ?? tk.asignadoA ?? '',
+        aUsuarioNombre: derivAsignadoNombre ?? tk.asignadoNombre ?? '',
+        comentario: derivAsignadoA
+          ? `OT-${otNumber} → ${newEstadoAdmin} · derivado a ${derivAsignadoNombre || 'Materiales'}`
+          : `OT-${otNumber} → ${newEstadoAdmin}`,
         estadoAnterior: tk.estado,
         estadoNuevo: nuevoEstadoTicket,
       };
-      await updateDoc(doc(db, 'leads', tid), {
+      const updates: any = {
         estado: nuevoEstadoTicket,
         postas: [...(tk.postas || []), posta],
         updatedAt: new Date(),
-      });
-      console.log(`✅ Ticket ${tid} sincronizado: ${tk.estado} → ${nuevoEstadoTicket}`);
+      };
+      if (derivAsignadoA) {
+        updates.asignadoA = derivAsignadoA;
+        updates.asignadoNombre = derivAsignadoNombre;
+        updates.areaActual = 'administracion';
+        updates.accionPendiente = `OT-${otNumber} cerrada técnicamente — ejecutar cierre administrativo (descarga artículos + facturación)`;
+      }
+      await updateDoc(doc(db, 'leads', tid), updates);
+      console.log(`✅ Ticket ${tid} sincronizado: ${tk.estado} → ${nuevoEstadoTicket}${derivAsignadoA ? ' (derivado a Materiales)' : ''}`);
     }
   } catch (err) {
     console.error('❌ _syncTicketFromOTInline failed:', err);
@@ -758,10 +802,28 @@ export class FirebaseService {
       console.warn('No se pudo resolver clienteId/sistemaId desde OT:', e);
     }
 
+    // Generar correlativo TKT-XXXXX. Mismo patrón que sistema-modular leadsService.getNextTicketNumero:
+    // escanea toda la colección `leads`, saca el max y suma 1. NO atómico — aceptable para el
+    // volumen actual (un ticket cada vez que un técnico finaliza un reporte). Si dos técnicos
+    // finalizan en simultáneo, el backfill `/admin/backfill-ticket-numeros` desambigua después.
+    let numero = '';
+    try {
+      const allLeads = await getDocs(collection(db, 'leads'));
+      let max = 0;
+      allLeads.docs.forEach(d => {
+        const n = typeof d.data().numero === 'string' ? d.data().numero.match(/TKT-(\d+)/) : null;
+        if (n) max = Math.max(max, parseInt(n[1], 10));
+      });
+      numero = `TKT-${String(max + 1).padStart(5, '0')}`;
+    } catch (e) {
+      console.warn('No se pudo generar numero correlativo, ticket queda sin numero:', e);
+    }
+
     const now = new Date().toISOString();
     const { auth } = await import('./authService');
     const currentUser = auth.currentUser;
     const docRef = await addDoc(collection(db, 'leads'), {
+      ...(numero ? { numero } : {}),
       razonSocial: data.razonSocial,
       contacto: data.contacto,
       email: '',
