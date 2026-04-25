@@ -55,8 +55,6 @@ Plans:
 
 </details>
 
----
-
 ### 🚧 v2.0 Circuito Comercial Completo (In Progress)
 
 **Milestone Goal:** Cerrar el ciclo Ticket → Presupuesto → OC → OT → Facturación con derivaciones automáticas entre áreas, reglas de precios por contrato y distancia, y planificación de stock amplia para decidir si derivar a Importaciones.
@@ -168,7 +166,7 @@ Plans:
   3. Al llegar el aviso de facturación, el contable recibe un mail con el presupuesto PDF, la OC adjunta y el detalle de OTs vinculadas — el destinatario es configurable desde la UI
   4. Un admin puede exportar a Excel el listado de presupuestos con filtros aplicados, las OCs pendientes por cliente/coordinador, y las solicitudes de facturación pendientes
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 - [ ] 10-00-PLAN.md — Wave 0 E2E specs RED baseline + firestore-assert helpers (PTYP-02/03/04 + FMT-03/04/05/06)
@@ -198,10 +196,26 @@ Plans:
 - [ ] 11-03: Suite E2E branches — standalone, importaciones, MIXTA, precio congelado
 - [ ] 11-04: Mocks Gmail + Maps via page.route() + CI GitHub Actions integration
 
+#### Phase 12: Esquema Facturación Porcentual + Anticipos
+**Goal:** Permitir que un presupuesto se facture en N cuotas porcentuales con hitos disparadores configurables (`ppto_aceptado`, `oc_recibida`, `pre_embarque`, `todas_ots_cerradas`, `manual`), incluyendo cuotas que se emiten antes de que exista una OT cerrada (anticipos / pre-embarque). Cada cuota dispara una `solicitudFacturacion` independiente vinculada al ppto. Soporte completo para MIXTA con porcentajes per-moneda (ARS/USD/EUR independientes). Aplica a todo presupuesto excepto `tipo='contrato'`. Plan de referencia: [`.claude/plans/facturacion-anticipos-y-porcentajes.md`](../.claude/plans/facturacion-anticipos-y-porcentajes.md).
+**Depends on:** Phase 10 (PresupuestoFacturacionSection.tsx + generarAvisoFacturacion ya existen como modo Tier-1 legacy).
+**Requirements:** BILL-01, BILL-02, BILL-03, BILL-04, BILL-05, BILL-06, BILL-07, BILL-08
+**Success Criteria** (what must be TRUE):
+  1. Un admin puede definir un esquema de N cuotas con % y hito en el ppto borrador. La UI valida que la suma sea 100% por cada moneda activa antes de permitir guardar.
+  2. Al cumplirse un hito (ej: ppto pasa a `aceptado`), las cuotas correspondientes pasan automáticamente a estado `habilitada` y aparecen botones "Generar solicitud" en la UI.
+  3. Generar solicitud para una cuota crea una `solicitudFacturacion` 1:1 (con `cuotaId` back-ref), saca las OTs incluidas de `otsListasParaFacturar`, y actualiza el estado de la cuota.
+  4. Para pptos MIXTA, las cuotas pueden tener % independientes por moneda (ej: cuota A 30% ARS, cuota B 70% ARS + 50% USD, cuota C 50% USD); validación por moneda separada.
+  5. Pptos sin esquema definido (`esquemaFacturacion` null o `[]`) siguen el flujo Tier-1 actual sin breaking changes.
+  6. `trySyncFinalizacion` finaliza el ppto solo cuando todas las cuotas del esquema están `facturadas`/`cobradas` Y todas las OTs están `FINALIZADO`.
+  7. Existe toggle manual `preEmbarque` en el header del ppto que habilita la cuota con hito `pre_embarque`.
+  8. Tests Playwright cubren los 3 flujos típicos (30/70 anticipo, 70/30 pre-embarque, 100% al cierre) sin warnings ni huérfanos en `solicitudesFacturacion`.
+
+**Plans:** TBD (run /gsd:plan-phase 12 to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
+Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -214,5 +228,6 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |
 | 8. Estados + OC + Flujo Automático | v2.0 | 0/6 | Not started | - |
 | 9. Stock ATP Extendido | 3/3 | Complete   | 2026-04-22 | - |
-| 10. Presupuestos Partes/Mixto/Ventas + Exports | 6/7 | In Progress|  | - |
+| 10. Presupuestos Partes/Mixto/Ventas + Exports | 7/7 | Complete   | 2026-04-25 | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
+| 12. Esquema Facturación Porcentual + Anticipos | v2.0 | 0/TBD | Not started | - |

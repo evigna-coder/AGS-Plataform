@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: "Completed 10-06-PLAN.md (Wave 5 — facturación dashboard extensions); Phase 10 user-UAT pending before /gsd:verify-work"
+last_updated: "2026-04-25T20:54:20.048Z"
+last_activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
+progress:
+  total_phases: 12
+  completed_phases: 6
+  total_plans: 37
+  completed_plans: 34
+  percent: 92
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: Completed 10-05-PLAN.md (Wave 4 — export helpers XLSX+PDF + PresupuestosList integration)
 last_updated: "2026-04-22T04:57:55.964Z"
 last_activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
 progress:
-  total_phases: 11
+  [█████████░] 92%
   completed_phases: 5
   total_plans: 37
   completed_plans: 33
@@ -71,10 +87,10 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 10 of 11 (Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports) — IN PROGRESS
-Plan: 3 of 6 complete (10-01 tipos+schema, 10-02 ArticuloPickerPanel+VentasMetadataSection, 10-03 PDF branching)
-Status: Phase 10 plan 03 complete. Next: Plan 10-04 (Aviso Facturación)
-Last activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
+Phase: 10 of 11 (Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports) — CODE COMPLETE, USER UAT PENDING
+Plan: 7 of 7 complete (10-00 specs RED, 10-01 tipos+schema, 10-02 ArticuloPickerPanel+VentasMetadataSection, 10-03 PDF branching, 10-04 cierreAdmin solicitudFacturacion, 10-05 export helpers, 10-06 facturación dashboard extensions)
+Status: Phase 10 code complete. User UAT pending before /gsd:verify-work — Tier-1 fixes plus full circuito comercial v2.0 walkthrough (ventas/partes/mixto/RBAC/deep-link). Next: Phase 11 E2E suite once verified.
+Last activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
 
 Progress: [█████████░] 92% (v2.0 milestone)
 
@@ -107,8 +123,13 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 10-presupuestos-partes-mixto-ventas P02 | 8min | 3 tasks | 6 files |
 | Phase 10-presupuestos-partes-mixto-ventas P04 | 6min | 3 tasks | 3 files |
 | Phase 10-presupuestos-partes-mixto-ventas P05 | 8min | 3 tasks | 7 files |
+| Phase 10 P06 | 12min | 3 tasks | 7 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- 2026-04-25 — Phase 12 added: Esquema Facturación Porcentual + Anticipos (cuotas % + hitos + MIXTA per-moneda; opt-in, no rompe Tier-1 legacy). Plan de referencia: `.claude/plans/facturacion-anticipos-y-porcentajes.md`.
 
 ### Decisions
 
@@ -159,6 +180,8 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 10-presupuestos-partes-mixto-ventas]: exportToExcel uses BOTH !views (xlsx free edition real freeze syntax) AND !freeze (legacy compat) for header freeze W8 dual-path
 - [Phase 10-presupuestos-partes-mixto-ventas]: OC pendiente criterion: estado=aceptado + ordenesCompraIds.length===0 (sin OC cargada del cliente aun)
 - [Phase 10-presupuestos-partes-mixto-ventas]: Export wrapper pattern: buildColumns() fn returns ExportColumn<T>[] used for both Excel and PDF helpers — single column definition drives both formats
+- [Phase 10]: 10-06: Deep link facturación resuelve via service.getById, no via list filter (evita race con estados fuera del filtro default)
+- [Phase 10]: 10-06: Routes /facturacion + /facturacion/:id allowedRoles incluyen administracion (read-only); admin actions siguen scoped a admin+admin_soporte
 
 ### Pending Todos
 
@@ -172,6 +195,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-22T04:57:55.961Z
-Stopped at: Completed 10-05-PLAN.md (Wave 4 — export helpers XLSX+PDF + PresupuestosList integration)
+Last session: 2026-04-25T20:54:20.044Z
+Stopped at: Completed 10-06-PLAN.md (Wave 5 — facturación dashboard extensions); Phase 10 user-UAT pending before /gsd:verify-work
 Resume file: None
