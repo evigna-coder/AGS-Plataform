@@ -1709,21 +1709,57 @@ export const presupuestosService = {
 
   /**
    * Toggle preEmbarque on a presupuesto and fire an audit posta on the linked ticket.
-   * Phase 12 BILL-07 / B2 fix — full implementation lands in plan 12-03.
-   * This stub writes the field + logs but does NOT fire the ticket posta yet.
+   * Phase 12 BILL-07 — full implementation (plan 12-03).
+   *
+   * - Idempotent: no-op if ppto.preEmbarque already matches `next`.
+   * - Guarded: throws if ppto is finalizado/anulado.
+   * - Audit posta: written to linked ticket's postas[] as best-effort (BILL-07).
+   *   Failure in posta write must NOT block the toggle itself.
+   * - Lazy import of leadsService: avoids circular dependency (08-03 pattern from STATE.md).
    */
   async togglePreEmbarque(
     presupuestoId: string,
     next: boolean,
     actor?: { uid: string; name?: string },
   ): Promise<void> {
-    // TODO(12-03): replace with full implementation that includes audit posta on linked ticket
-    const ref = doc(db, 'presupuestos', presupuestoId);
-    await updateDoc(ref, deepCleanForFirestore({
+    const pres = await this.getById(presupuestoId);
+    if (!pres) throw new Error('Presupuesto no encontrado');
+    if (pres.estado === 'finalizado' || pres.estado === 'anulado') {
+      throw new Error('No se puede modificar pre-embarque en un presupuesto cerrado');
+    }
+
+    // Idempotent — no-op if state already matches
+    if ((pres.preEmbarque ?? false) === next) return;
+
+    // Write preEmbarque field (via this.update so recompute hook in plan 12-05 fires)
+    await this.update(presupuestoId, deepCleanForFirestore({
       preEmbarque: next,
-      updatedAt: Timestamp.now(),
-      updatedBy: actor?.uid ?? null,
-    }));
+    }) as any);
+
+    // Audit posta on linked ticket (best-effort — MUST NOT fail the toggle on posta error).
+    // Pattern: query leads by presupuestosIds array-contains, then append posta.
+    // Lazy import to break circular dep (Phase 08-03 decision in STATE.md).
+    try {
+      const { leadsService: ls } = await import('./leadsService');
+      const tksSnap = await getDocs(
+        query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
+      );
+      for (const d of tksSnap.docs) {
+        const lead = { ...(d.data() as any), id: d.id };
+        const posta = deepCleanForFirestore({
+          fecha: new Date().toISOString(),
+          usuarioId: actor?.uid ?? null,
+          usuarioNombre: actor?.name ?? null,
+          accion: next ? 'pre_embarque_marcada' : 'pre_embarque_desmarcada',
+          detalle: `Presupuesto N° ${pres.numero}: pre-embarque ${next ? 'marcado' : 'desmarcado'}`,
+        });
+        await ls.update(lead.id, {
+          postas: [...(lead.postas || []), posta],
+        } as any);
+      }
+    } catch (err) {
+      console.warn('[togglePreEmbarque] audit posta failed (non-blocking):', err);
+    }
   },
 };
 
