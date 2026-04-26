@@ -108,7 +108,7 @@ export const loanersService = {
     });
     const batch = createBatch();
     batch.set(docRef('loaners', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'loaners', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'loaners', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -121,7 +121,7 @@ export const loanersService = {
     });
     const batch = createBatch();
     batch.update(docRef('loaners', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'loaners', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'loaners', documentId: id, after: payload });
     await batch.commit();
   },
 

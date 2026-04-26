@@ -54,7 +54,7 @@ export const columnasService = {
     });
     const batch = createBatch();
     batch.set(docRef('columnas', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'columnas', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'columnas', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -67,7 +67,7 @@ export const columnasService = {
     });
     const batch = createBatch();
     batch.update(docRef('columnas', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'columnas', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'columnas', documentId: id, after: payload });
     await batch.commit();
   },
 

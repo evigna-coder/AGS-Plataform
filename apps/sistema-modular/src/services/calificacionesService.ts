@@ -65,7 +65,7 @@ export const calificacionesService = {
     });
     const batch = createBatch();
     batch.set(docRef('calificaciones_proveedor', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'calificaciones_proveedor', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'calificaciones_proveedor', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -78,7 +78,7 @@ export const calificacionesService = {
     });
     const batch = createBatch();
     batch.update(docRef('calificaciones_proveedor', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'calificaciones_proveedor', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'calificaciones_proveedor', documentId: id, after: payload });
     await batch.commit();
   },
 

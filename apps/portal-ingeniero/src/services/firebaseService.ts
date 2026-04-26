@@ -50,8 +50,8 @@ function logAudit(params: {
   action: 'create' | 'update' | 'delete';
   collection: string;
   documentId: string;
-  before?: Record<string, unknown> | null;
-  after?: Record<string, unknown> | null;
+  before?: object | null;
+  after?: object | null;
 }): void {
   const user = getCurrentUserTrace();
   if (!user) return;
@@ -348,7 +348,7 @@ async function getNextTicketNumero(): Promise<string> {
 }
 
 export const leadsService = {
-  async create(data: Omit<Lead, 'id' | 'updatedAt'> & { createdAt?: string }): Promise<string> {
+  async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: string }): Promise<string> {
     const synced = syncFlatFromContactosData(data as Record<string, any>);
     const numero = data.numero || await getNextTicketNumero();
     // Si se recibe createdAt como ISO string, respetarlo (override manual desde UI).
@@ -368,7 +368,7 @@ export const leadsService = {
       updatedAt: Timestamp.now(),
     };
     const ref = await addDoc(collection(db, 'leads'), payload);
-    logAudit({ action: 'create', collection: 'leads', documentId: ref.id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'create', collection: 'leads', documentId: ref.id, after: payload });
     return ref.id;
   },
 
@@ -437,7 +437,7 @@ export const leadsService = {
       updatedAt: Timestamp.now(),
     };
     await updateDoc(doc(db, 'leads', id), payload);
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload });
   },
 
   async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }): Promise<void> {

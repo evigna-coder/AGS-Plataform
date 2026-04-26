@@ -54,7 +54,7 @@ export const patronesService = {
     });
     const batch = createBatch();
     batch.set(docRef('patrones', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'patrones', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'patrones', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -67,7 +67,7 @@ export const patronesService = {
     });
     const batch = createBatch();
     batch.update(docRef('patrones', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'patrones', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'patrones', documentId: id, after: payload });
     await batch.commit();
   },
 

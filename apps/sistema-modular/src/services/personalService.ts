@@ -52,7 +52,7 @@ export const ingenierosService = {
     });
     const batch = createBatch();
     batch.set(docRef('ingenieros', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'ingenieros', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'ingenieros', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('ingenieros');
     return id;
@@ -66,7 +66,7 @@ export const ingenierosService = {
     });
     const batch = createBatch();
     batch.update(docRef('ingenieros', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'ingenieros', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'ingenieros', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('ingenieros');
   },
@@ -151,7 +151,7 @@ export const proveedoresService = {
     });
     const batch = createBatch();
     batch.set(docRef('proveedores', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'proveedores', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'proveedores', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('proveedores');
     return id;
@@ -165,7 +165,7 @@ export const proveedoresService = {
     });
     const batch = createBatch();
     batch.update(docRef('proveedores', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'proveedores', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'proveedores', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('proveedores');
   },
@@ -287,7 +287,7 @@ export const usuariosService = {
     const payload = { role, updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('usuarios', uid), payload);
-    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload });
     await batch.commit();
     invalidateCache('usuarios');
   },
@@ -296,7 +296,7 @@ export const usuariosService = {
     const payload = { roles, updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('usuarios', uid), payload);
-    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload });
     await batch.commit();
     invalidateCache('usuarios');
   },
@@ -305,7 +305,7 @@ export const usuariosService = {
     const payload = { status, updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('usuarios', uid), payload);
-    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload });
     await batch.commit();
     invalidateCache('usuarios');
   },
@@ -314,7 +314,7 @@ export const usuariosService = {
     const payload = { status: 'activo' as UserStatus, role, updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('usuarios', uid), payload);
-    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload });
     await batch.commit();
     invalidateCache('usuarios');
   },
@@ -324,7 +324,7 @@ export const usuariosService = {
     const updates = { permisos: permisos ?? deleteField(), updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('usuarios', uid), updates);
-    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: { permisos, updatedAt: updates.updatedAt } as any });
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: { permisos, updatedAt: updates.updatedAt } });
     await batch.commit();
     invalidateCache('usuarios');
   },

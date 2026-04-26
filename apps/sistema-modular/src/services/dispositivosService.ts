@@ -22,7 +22,7 @@ export const dispositivosService = {
     const ref = newDocRef('dispositivos');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'dispositivos', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'dispositivos', documentId: ref.id, after: payload });
     await batch.commit();
     return ref.id;
   },
@@ -57,7 +57,7 @@ export const dispositivosService = {
     const payload = { ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('dispositivos', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'dispositivos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'dispositivos', documentId: id, after: payload });
     await batch.commit();
   },
 

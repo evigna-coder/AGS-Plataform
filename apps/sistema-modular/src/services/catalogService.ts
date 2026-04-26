@@ -46,7 +46,7 @@ export const tableCatalogService = {
     if (id) {
       const batch = createBatch();
       batch.set(docRef('tableCatalog', id), payload, { merge: true });
-      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload });
       await batch.commit();
       return id;
     }
@@ -54,7 +54,7 @@ export const tableCatalogService = {
     const createPayload = { ...payload, ...getCreateTrace(), createdAt: Timestamp.now() };
     const batch = createBatch();
     batch.set(docRef('tableCatalog', newId), createPayload);
-    batchAudit(batch, { action: 'create', collection: 'tableCatalog', documentId: newId, after: createPayload as any });
+    batchAudit(batch, { action: 'create', collection: 'tableCatalog', documentId: newId, after: createPayload });
     await batch.commit();
     return newId;
   },
@@ -63,7 +63,7 @@ export const tableCatalogService = {
     const payload = { status: 'published' as const, updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('tableCatalog', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -71,7 +71,7 @@ export const tableCatalogService = {
     const payload = { status: 'archived' as const, updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('tableCatalog', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -92,7 +92,7 @@ export const tableCatalogService = {
     };
     const batch = createBatch();
     batch.set(docRef('tableCatalog', newId), payload);
-    batchAudit(batch, { action: 'create', collection: 'tableCatalog', documentId: newId, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'tableCatalog', documentId: newId, after: payload });
     await batch.commit();
     return newId;
   },
@@ -114,7 +114,7 @@ export const tableCatalogService = {
     await Promise.all(tableIds.map(async id => {
       const batch = createBatch();
       batch.update(docRef('tableCatalog', id), payload);
-      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload });
       await batch.commit();
     }));
   },
@@ -136,7 +136,7 @@ export const tableCatalogService = {
       const payload = { modelos: Array.from(set), updatedAt: Timestamp.now() };
       const batch = createBatch();
       batch.update(docRef('tableCatalog', t.id), payload);
-      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: t.id, after: payload as any });
+      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: t.id, after: payload });
       await batch.commit();
       updated++;
     }));
@@ -194,7 +194,7 @@ export const tableProjectsService = {
     });
     const batch = createBatch();
     batch.set(docRef('tableProjects', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'tableProjects', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'tableProjects', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -279,7 +279,7 @@ export const instrumentosService = {
     });
     const batch = createBatch();
     batch.set(docRef('instrumentos', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'instrumentos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'instrumentos', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -292,7 +292,7 @@ export const instrumentosService = {
     });
     const batch = createBatch();
     batch.update(docRef('instrumentos', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'instrumentos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'instrumentos', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -416,7 +416,7 @@ export const marcasService = {
     const ref = newDocRef('marcas');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'marcas', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'marcas', documentId: ref.id, after: payload });
     await batch.commit();
     invalidateCache('marcas');
     return ref.id;
@@ -430,7 +430,7 @@ export const marcasService = {
     };
     const batch = createBatch();
     batch.update(docRef('marcas', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'marcas', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'marcas', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('marcas');
   },

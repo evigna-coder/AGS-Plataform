@@ -82,7 +82,7 @@ export const agendaService = {
       updatedAt: Timestamp.now(),
     });
     const ref = await addDoc(collection(db, 'agendaEntries'), payload);
-    logAudit({ action: 'create', collection: 'agendaEntries', documentId: ref.id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'create', collection: 'agendaEntries', documentId: ref.id, after: payload });
     return ref.id;
   },
 
@@ -98,7 +98,7 @@ export const agendaService = {
     await updateDoc(docRef, payload);
     logAudit({
       action: 'update', collection: 'agendaEntries', documentId: id,
-      after: payload as Record<string, unknown>,
+      after: payload,
     });
   },
 
@@ -247,7 +247,7 @@ export const agendaNotasService = {
       updatedAt: Timestamp.now(),
     });
     await setDoc(doc(db, 'agendaNotas', docId), payload, { merge: true });
-    logAudit({ action: 'update', collection: 'agendaNotas', documentId: docId, after: payload as Record<string, unknown> });
+    logAudit({ action: 'update', collection: 'agendaNotas', documentId: docId, after: payload });
     return docId;
   },
 

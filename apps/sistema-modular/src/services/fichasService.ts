@@ -115,7 +115,7 @@ export const fichasService = {
     });
     const batch = createBatch();
     batch.set(docRef('fichasPropiedad', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'fichas_propiedad', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'fichas_propiedad', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -128,7 +128,7 @@ export const fichasService = {
     });
     const batch = createBatch();
     batch.update(docRef('fichasPropiedad', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: id, after: payload });
     await batch.commit();
   },
 

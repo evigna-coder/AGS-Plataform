@@ -30,7 +30,7 @@ export const ingresoEmpresasService = {
     const ref = newDocRef('ingresosEmpresas');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'ingresosEmpresas', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'ingresosEmpresas', documentId: ref.id, after: payload });
     await batch.commit();
     return ref.id;
   },
@@ -56,7 +56,7 @@ export const ingresoEmpresasService = {
     };
     const batch = createBatch();
     batch.update(docRef('ingresosEmpresas', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'ingresosEmpresas', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'ingresosEmpresas', documentId: id, after: payload });
     await batch.commit();
   },
 

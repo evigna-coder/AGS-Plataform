@@ -45,7 +45,7 @@ export const posicionesStockService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'posicionesStock', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'posiciones_stock', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'posiciones_stock', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -58,7 +58,7 @@ export const posicionesStockService = {
     });
     const batch = createBatch();
     batch.update(docRef('posicionesStock', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'posiciones_stock', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'posiciones_stock', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -215,7 +215,7 @@ export const articulosService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'articulos', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'articulos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'articulos', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -228,7 +228,7 @@ export const articulosService = {
     });
     const batch = createBatch();
     batch.update(docRef('articulos', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'articulos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'articulos', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -377,7 +377,7 @@ export const unidadesService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'unidades', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'unidades_stock', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'unidades_stock', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -390,7 +390,7 @@ export const unidadesService = {
     });
     const batch = createBatch();
     batch.update(docRef('unidades', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -482,7 +482,7 @@ export const minikitsService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'minikits', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'minikits', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'minikits', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -495,7 +495,7 @@ export const minikitsService = {
     });
     const batch = createBatch();
     batch.update(docRef('minikits', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'minikits', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'minikits', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -595,7 +595,7 @@ export const minikitTemplatesService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'minikitTemplates', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'minikit_templates', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'minikit_templates', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -608,7 +608,7 @@ export const minikitTemplatesService = {
     });
     const batch = createBatch();
     batch.update(docRef('minikitTemplates', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'minikit_templates', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'minikit_templates', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -703,7 +703,7 @@ export const movimientosService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'movimientosStock', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'movimientos_stock', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'movimientos_stock', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -827,7 +827,7 @@ export const remitosService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'remitos', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -840,7 +840,7 @@ export const remitosService = {
     });
     const batch = createBatch();
     batch.update(docRef('remitos', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'remitos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'remitos', documentId: id, after: payload });
     await batch.commit();
   },
 

@@ -24,7 +24,7 @@ export const clientesService = {
     delete (payload as any).contactos;
     const batch = createBatch();
     batch.set(doc(db, 'clientes', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'clientes', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'clientes', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('clientes');
     return id;
@@ -147,7 +147,7 @@ export const clientesService = {
     };
     const batch = createBatch();
     batch.update(firestoreDocRef('clientes', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'clientes', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'clientes', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('clientes');
   },

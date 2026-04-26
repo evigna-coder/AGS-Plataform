@@ -101,13 +101,20 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && db!) {
 }
 
 // ========== AUDIT LOG ==========
-/** Fire-and-forget audit — no await needed, no extra latency */
+/**
+ * Fire-and-forget audit — no await needed, no extra latency.
+ *
+ * `before`/`after` aceptan cualquier objeto serializable. Firestore acepta
+ * objetos arbitrarios en `set`/`addDoc`, así que tipar como `object` evita
+ * que callers tengan que castear sus payloads tipados (Partial<Lead>, etc.)
+ * a Record<string, unknown> con `as any`.
+ */
 export function logAudit(params: {
   action: AuditAction;
   collection: string;
   documentId: string;
-  before?: Record<string, unknown> | null;
-  after?: Record<string, unknown> | null;
+  before?: object | null;
+  after?: object | null;
 }): void {
   const user = getCurrentUserTrace();
   if (!user) return;
@@ -129,7 +136,7 @@ function buildAuditEntry(params: {
   action: AuditAction;
   collection: string;
   documentId: string;
-  after?: Record<string, unknown> | null;
+  after?: object | null;
 }) {
   const user = getCurrentUserTrace();
   return {
@@ -161,7 +168,7 @@ export function docRef(collectionName: string, docId: string) {
 /** Add audit entry to an existing batch (single round-trip) */
 export function batchAudit(
   batch: ReturnType<typeof writeBatch>,
-  params: { action: AuditAction; collection: string; documentId: string; after?: Record<string, unknown> | null }
+  params: { action: AuditAction; collection: string; documentId: string; after?: object | null }
 ) {
   const auditRef = doc(collection(db, 'audit_log'));
   batch.set(auditRef, buildAuditEntry(params));

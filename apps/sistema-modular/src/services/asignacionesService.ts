@@ -67,7 +67,7 @@ export const asignacionesService = {
     const ref = docRef('asignaciones', id);
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'asignaciones', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'asignaciones', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -80,7 +80,7 @@ export const asignacionesService = {
     });
     const batch = createBatch();
     batch.update(docRef('asignaciones', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'asignaciones', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'asignaciones', documentId: id, after: payload });
     await batch.commit();
   },
 

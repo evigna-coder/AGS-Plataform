@@ -49,7 +49,7 @@ export const establecimientosService = {
     const estRef = newDocRef('establecimientos');
     const batch = createBatch();
     batch.set(estRef, payload);
-    batchAudit(batch, { action: 'create', collection: 'establecimientos', documentId: estRef.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'establecimientos', documentId: estRef.id, after: payload });
     await batch.commit();
     invalidateCache('establecimientos');
     return estRef.id;
@@ -168,7 +168,7 @@ export const establecimientosService = {
     });
     const batch = createBatch();
     batch.update(firestoreDocRef('establecimientos', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'establecimientos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'establecimientos', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('establecimientos');
   },

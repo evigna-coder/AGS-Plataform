@@ -215,7 +215,7 @@ export const leadsService = {
     const leadRef = newDocRef('leads');
     const batch = createBatch();
     batch.set(leadRef, payload);
-    batchAudit(batch, { action: 'create', collection: 'leads', documentId: leadRef.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'leads', documentId: leadRef.id, after: payload });
     await batch.commit();
     return leadRef.id;
   },
@@ -310,7 +310,7 @@ export const leadsService = {
     }));
     const batch = createBatch();
     batch.update(docRef('leads', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -335,7 +335,7 @@ export const leadsService = {
     }
     const batch = createBatch();
     batch.update(docRef('leads', id), data);
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } });
     await batch.commit();
   },
 
@@ -348,7 +348,7 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'completarAccion', posta } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'completarAccion', posta } });
     await batch.commit();
   },
 
@@ -361,7 +361,7 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } });
     await batch.commit();
   },
 
@@ -372,7 +372,7 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'comentario', posta } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'comentario', posta } });
     await batch.commit();
   },
 
@@ -470,7 +470,7 @@ export const leadsService = {
 
     const batch = createBatch();
     batch.update(docRef('leads', leadId), updates);
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromPresupuesto', presupuestoNumero, newEstado } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromPresupuesto', presupuestoNumero, newEstado } });
     await batch.commit();
   },
 
@@ -546,7 +546,7 @@ export const leadsService = {
 
     const batch = createBatch();
     batch.update(docRef('leads', leadId), updates);
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromOT', otNumber, newEstadoAdmin } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromOT', otNumber, newEstadoAdmin } });
     await batch.commit();
   },
 
@@ -566,7 +566,7 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
-    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'removeAdjunto', adjuntoId: adjunto.id } as any });
+    batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'removeAdjunto', adjuntoId: adjunto.id } });
     await batch.commit();
   },
 

@@ -309,7 +309,7 @@ export const ordenesTrabajoService = {
 
     const batch = createBatch();
     batch.set(otDocRef, cleanedData);
-    batchAudit(batch, { action: 'create', collection: 'ordenes_trabajo', documentId: otData.otNumber, after: cleanedData as any });
+    batchAudit(batch, { action: 'create', collection: 'ordenes_trabajo', documentId: otData.otNumber, after: cleanedData });
     await batch.commit();
     console.log('✅ Orden de trabajo creada exitosamente');
 
@@ -371,7 +371,7 @@ export const ordenesTrabajoService = {
           });
           const batch2 = createBatch();
           batch2.update(docRef('reportes', otNumber), cleaned2);
-          batchAudit(batch2, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleaned2 as any });
+          batchAudit(batch2, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleaned2 });
           await batch2.commit();
         }
         return;
@@ -386,7 +386,7 @@ export const ordenesTrabajoService = {
 
     const batch = createBatch();
     batch.update(docRef('reportes', otNumber), cleanedData);
-    batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData as any });
+    batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData });
     await batch.commit();
 
     // ── Auto-sync lead when OT estadoAdmin changes ──

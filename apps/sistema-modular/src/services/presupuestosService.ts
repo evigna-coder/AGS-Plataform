@@ -221,7 +221,7 @@ export const presupuestosService = {
     const presRef = newDocRef('presupuestos');
     const batch = createBatch();
     batch.set(presRef, payload);
-    batchAudit(batch, { action: 'create', collection: 'presupuestos', documentId: presRef.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'presupuestos', documentId: presRef.id, after: payload });
     await batch.commit();
 
     console.log('✅ Presupuesto creado exitosamente con ID:', presRef.id);
@@ -337,7 +337,7 @@ export const presupuestosService = {
           const cleaned2 = deepCleanForFirestore(raw2);
           const batch2 = createBatch();
           batch2.update(docRef('presupuestos', id), cleaned2);
-          batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
+          batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 });
           await batch2.commit();
         }
         await runRecompute(); // W3: FLOW-01 branch recompute
@@ -372,7 +372,7 @@ export const presupuestosService = {
           const cleaned2 = deepCleanForFirestore(raw2);
           const batch2 = createBatch();
           batch2.update(docRef('presupuestos', id), cleaned2);
-          batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
+          batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 });
           await batch2.commit();
         }
         await runRecompute(); // W3: FLOW-03 branch recompute
@@ -391,7 +391,7 @@ export const presupuestosService = {
     const cleanedData = deepCleanForFirestore(raw);
     const batch = createBatch();
     batch.update(docRef('presupuestos', id), cleanedData);
-    batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData as any });
+    batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleanedData });
     await batch.commit();
 
     // ── Post-commit: si se setea ordenCompraNumero (truthy), transicionar el
@@ -472,7 +472,7 @@ export const presupuestosService = {
     const cleaned = deepCleanForFirestore(raw);
     const batch = createBatch();
     batch.update(docRef('presupuestos', id), cleaned);
-    batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned as any });
+    batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned });
     await batch.commit();
 
     // Lead sync: prefer the hint; if any piece is missing, fall back to getById once.
@@ -1640,7 +1640,7 @@ export const presupuestosService = {
         updatedByName: actor?.name ?? null,
       });
       batch.update(docRef('requerimientos_compra', r.id), payload);
-      batchAudit(batch, { action: 'update', collection: 'requerimientos_compra', documentId: r.id, after: payload as any });
+      batchAudit(batch, { action: 'update', collection: 'requerimientos_compra', documentId: r.id, after: payload });
     }
     await batch.commit();
     console.log(`[_cancelarRequerimientosCondicionales] cancelled=${cancellables.length} skipped=${skipped} pres=${presupuestoId}`);
@@ -1925,7 +1925,7 @@ export const ordenesCompraService = {
     if (data.fechaEntregaEstimada) payload.fechaEntregaEstimada = Timestamp.fromDate(new Date(data.fechaEntregaEstimada));
     const batch = createBatch();
     batch.set(doc(db, 'ordenes_compra', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'ordenes_compra', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'ordenes_compra', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -1937,7 +1937,7 @@ export const ordenesCompraService = {
     if (data.fechaEntregaEstimada) payload.fechaEntregaEstimada = Timestamp.fromDate(new Date(data.fechaEntregaEstimada));
     const batch = createBatch();
     batch.update(docRef('ordenes_compra', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'ordenes_compra', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'ordenes_compra', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -2016,7 +2016,7 @@ export const categoriasPresupuestoService = {
     const ref = newDocRef('categorias_presupuesto');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'categorias_presupuesto', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'categorias_presupuesto', documentId: ref.id, after: payload });
     await batch.commit();
     return ref.id;
   },
@@ -2030,7 +2030,7 @@ export const categoriasPresupuestoService = {
     };
     const batch = createBatch();
     batch.update(docRef('categorias_presupuesto', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'categorias_presupuesto', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'categorias_presupuesto', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -2079,7 +2079,7 @@ export const condicionesPagoService = {
     const ref = newDocRef('condiciones_pago');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'condiciones_pago', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'condiciones_pago', documentId: ref.id, after: payload });
     await batch.commit();
     return ref.id;
   },
@@ -2089,7 +2089,7 @@ export const condicionesPagoService = {
     const payload = { ...data, ...getUpdateTrace() };
     const batch = createBatch();
     batch.update(docRef('condiciones_pago', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'condiciones_pago', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'condiciones_pago', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -2143,7 +2143,7 @@ export const conceptosServicioService = {
     const ref = newDocRef('conceptos_servicio');
     const batch = createBatch();
     batch.set(ref, cleaned);
-    batchAudit(batch, { action: 'create', collection: 'conceptos_servicio', documentId: ref.id, after: cleaned as any });
+    batchAudit(batch, { action: 'create', collection: 'conceptos_servicio', documentId: ref.id, after: cleaned });
     await batch.commit();
     return ref.id;
   },
@@ -2152,7 +2152,7 @@ export const conceptosServicioService = {
     const cleaned = cleanFirestoreData({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
     const batch = createBatch();
     batch.update(docRef('conceptos_servicio', id), cleaned);
-    batchAudit(batch, { action: 'update', collection: 'conceptos_servicio', documentId: id, after: cleaned as any });
+    batchAudit(batch, { action: 'update', collection: 'conceptos_servicio', documentId: id, after: cleaned });
     await batch.commit();
   },
 

@@ -46,7 +46,7 @@ export const tiposServicioService = {
     const ref = newDocRef('tipos_servicio');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'tipos_servicio', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'tipos_servicio', documentId: ref.id, after: payload });
     await batch.commit();
     return ref.id;
   },
@@ -60,7 +60,7 @@ export const tiposServicioService = {
     };
     const batch = createBatch();
     batch.update(docRef('tipos_servicio', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'tipos_servicio', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'tipos_servicio', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -127,7 +127,7 @@ export const posicionesArancelariasService = {
     });
     const batch = createBatch();
     batch.set(doc(db, 'posiciones_arancelarias', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'posiciones_arancelarias', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'posiciones_arancelarias', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -140,7 +140,7 @@ export const posicionesArancelariasService = {
     });
     const batch = createBatch();
     batch.update(docRef('posiciones_arancelarias', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'posiciones_arancelarias', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'posiciones_arancelarias', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -244,7 +244,7 @@ export const requerimientosService = {
     if (data.fechaAprobacion) payload.fechaAprobacion = Timestamp.fromDate(new Date(data.fechaAprobacion));
     const batch = createBatch();
     batch.set(doc(db, 'requerimientos_compra', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'requerimientos_compra', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'requerimientos_compra', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -254,7 +254,7 @@ export const requerimientosService = {
     if (data.fechaAprobacion) payload.fechaAprobacion = Timestamp.fromDate(new Date(data.fechaAprobacion));
     const batch = createBatch();
     batch.update(docRef('requerimientos_compra', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'requerimientos_compra', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'requerimientos_compra', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -357,7 +357,7 @@ export const importacionesService = {
     }
     const batch = createBatch();
     batch.set(doc(db, 'importaciones', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'importaciones', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'importaciones', documentId: id, after: payload });
     await batch.commit();
     return id;
   },
@@ -370,7 +370,7 @@ export const importacionesService = {
     }
     const batch = createBatch();
     batch.update(docRef('importaciones', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'importaciones', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'importaciones', documentId: id, after: payload });
     await batch.commit();
   },
 

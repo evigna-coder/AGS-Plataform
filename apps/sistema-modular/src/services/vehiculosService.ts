@@ -28,7 +28,7 @@ export const vehiculosService = {
     const ref = newDocRef('vehiculos');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'vehiculos', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'vehiculos', documentId: ref.id, after: payload });
     await batch.commit();
     return ref.id;
   },
@@ -64,7 +64,7 @@ export const vehiculosService = {
     const payload = { ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() };
     const batch = createBatch();
     batch.update(docRef('vehiculos', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'vehiculos', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'vehiculos', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -108,14 +108,14 @@ export const serviciosVehiculoService = {
   async create(vehiculoId: string, data: Omit<ServicioVehiculo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
     const ref = await addDoc(collection(db, 'vehiculos', vehiculoId, 'servicios'), payload);
-    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/servicios`, documentId: ref.id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/servicios`, documentId: ref.id, after: payload });
     return ref.id;
   },
 
   async update(vehiculoId: string, id: string, data: Partial<Omit<ServicioVehiculo, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const payload = { ...data, updatedAt: Timestamp.now() };
     await updateDoc(doc(db, 'vehiculos', vehiculoId, 'servicios', id), payload);
-    logAudit({ action: 'update', collection: `vehiculos/${vehiculoId}/servicios`, documentId: id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'update', collection: `vehiculos/${vehiculoId}/servicios`, documentId: id, after: payload });
   },
 
   async delete(vehiculoId: string, id: string): Promise<void> {
@@ -139,14 +139,14 @@ export const historialTallerService = {
   async create(vehiculoId: string, data: Omit<VisitaTaller, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
     const ref = await addDoc(collection(db, 'vehiculos', vehiculoId, 'historial'), payload);
-    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/historial`, documentId: ref.id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/historial`, documentId: ref.id, after: payload });
     return ref.id;
   },
 
   async update(vehiculoId: string, id: string, data: Partial<Omit<VisitaTaller, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
     const payload = { ...data, updatedAt: Timestamp.now() };
     await updateDoc(doc(db, 'vehiculos', vehiculoId, 'historial', id), payload);
-    logAudit({ action: 'update', collection: `vehiculos/${vehiculoId}/historial`, documentId: id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'update', collection: `vehiculos/${vehiculoId}/historial`, documentId: id, after: payload });
   },
 
   async delete(vehiculoId: string, id: string): Promise<void> {
@@ -169,7 +169,7 @@ export const registrosKmService = {
   async create(vehiculoId: string, data: Omit<RegistroKm, 'id' | 'createdAt'>): Promise<string> {
     const payload = { ...data, createdAt: Timestamp.now() };
     const ref = await addDoc(collection(db, 'vehiculos', vehiculoId, 'registrosKm'), payload);
-    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/registrosKm`, documentId: ref.id, after: payload as Record<string, unknown> });
+    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/registrosKm`, documentId: ref.id, after: payload });
     return ref.id;
   },
 

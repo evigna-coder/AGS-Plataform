@@ -59,7 +59,7 @@ export const tiposEquipoService = {
     const ref = newDocRef(COLLECTION);
     const batch = createBatch();
     batch.set(ref, cleaned);
-    batchAudit(batch, { action: 'create', collection: COLLECTION, documentId: ref.id, after: cleaned as any });
+    batchAudit(batch, { action: 'create', collection: COLLECTION, documentId: ref.id, after: cleaned });
     await batch.commit();
     return ref.id;
   },
@@ -68,7 +68,7 @@ export const tiposEquipoService = {
     const cleaned = cleanFirestoreData({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
     const batch = createBatch();
     batch.update(docRef(COLLECTION, id), cleaned);
-    batchAudit(batch, { action: 'update', collection: COLLECTION, documentId: id, after: cleaned as any });
+    batchAudit(batch, { action: 'update', collection: COLLECTION, documentId: id, after: cleaned });
     await batch.commit();
   },
 

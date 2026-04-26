@@ -17,7 +17,7 @@ export const categoriasEquipoService = {
     const ref = newDocRef('categorias_equipo');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'categorias_equipo', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'categorias_equipo', documentId: ref.id, after: payload });
     await batch.commit();
     invalidateCache("categorias_equipo");
     console.log('Categoria creada exitosamente con ID:', ref.id);
@@ -64,7 +64,7 @@ export const categoriasEquipoService = {
     };
     const batch = createBatch();
     batch.update(docRef('categorias_equipo', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'categorias_equipo', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'categorias_equipo', documentId: id, after: payload });
     await batch.commit();
     invalidateCache("categorias_equipo");
   },
@@ -114,7 +114,7 @@ export const categoriasModuloService = {
     const ref = newDocRef('categorias_modulo');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'categorias_modulo', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'categorias_modulo', documentId: ref.id, after: payload });
     await batch.commit();
     console.log('Categoria de modulo creada exitosamente con ID:', ref.id);
     return ref.id;
@@ -161,7 +161,7 @@ export const categoriasModuloService = {
     };
     const batch = createBatch();
     batch.update(docRef('categorias_modulo', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'categorias_modulo', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'categorias_modulo', documentId: id, after: payload });
     await batch.commit();
   },
 
@@ -216,7 +216,7 @@ export const sistemasService = {
     const ref = newDocRef('sistemas');
     const batch = createBatch();
     batch.set(ref, payload);
-    batchAudit(batch, { action: 'create', collection: 'sistemas', documentId: ref.id, after: payload as any });
+    batchAudit(batch, { action: 'create', collection: 'sistemas', documentId: ref.id, after: payload });
     await batch.commit();
     invalidateCache('sistemas');
     return ref.id;
@@ -308,7 +308,7 @@ export const sistemasService = {
     };
     const batch = createBatch();
     batch.update(docRef('sistemas', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'sistemas', documentId: id, after: payload as any });
+    batchAudit(batch, { action: 'update', collection: 'sistemas', documentId: id, after: payload });
     await batch.commit();
     invalidateCache('sistemas');
   },
@@ -451,7 +451,7 @@ export const modulosService = {
     const newId = await this.create(targetSistemaId, data);
     await this.delete(sourceSistemaId, moduloId);
     const batch = createBatch();
-    batchAudit(batch, { action: 'update', collection: 'modulos', documentId: moduloId, after: { movedFrom: sourceSistemaId, movedTo: targetSistemaId, newId } as any });
+    batchAudit(batch, { action: 'update', collection: 'modulos', documentId: moduloId, after: { movedFrom: sourceSistemaId, movedTo: targetSistemaId, newId } });
     await batch.commit();
     console.log(`Modulo movido exitosamente. Nuevo ID: ${newId}`);
     return newId;
