@@ -145,6 +145,10 @@ export const PresupuestosList = () => {
     );
   }, [presupuestos, cargarOCTarget]);
 
+  const getClienteNombre = (clienteId: string) => {
+    return clientes.find(c => c.id === clienteId)?.razonSocial || '—';
+  };
+
   const presupuestosFiltrados = useMemo(() => {
     let result = presupuestos.filter(p => {
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
@@ -203,10 +207,6 @@ export const PresupuestosList = () => {
       .map(([m, v]) => `${MONEDA_SIMBOLO[m as MonedaPresupuesto] || '$'} ${v.toLocaleString('es-AR', { minimumFractionDigits: 0 })}`);
     return parts.length > 0 ? `Pipeline: ${parts.join(' · ')}` : undefined;
   }, [pipelineByMoneda]);
-
-  const getClienteNombre = (clienteId: string) => {
-    return clientes.find(c => c.id === clienteId)?.razonSocial || '—';
-  };
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '—';
