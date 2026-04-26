@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Completed 12-07-PLAN.md (gap closure — EsquemaFacturacionSection in CreatePresupuestoModal + EditPresupuestoModal guard + PDF branch). Phase 12 gap closure complete; ready for re-verification and E2E run.
+last_updated: "2026-04-26T17:03:28.030Z"
+last_activity: "2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing."
+progress:
+  total_phases: 12
+  completed_phases: 7
+  total_plans: 45
+  completed_plans: 42
+  percent: 93
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: "Plan 12-06 complete (user-approved, e2e validation deferred to gap closure for unified create+edit flow). Ready for gap closure 12-07: EsquemaFacturacionSection in CreatePresupuestoModal."
 last_updated: "2026-04-26T16:30:00Z"
 last_activity: "2026-04-26 — Plan 12-06 closed: data-testid attributes (49a264d) + E2E sub-suites 11.50/11.51/11.52 implemented (e703cb1). Task 4 user-approved deferred — e2e + visual checks move to gap closure plan 12-07 (create-flow integration)."
 progress:
-  total_phases: 12
+  [█████████░] 93%
   completed_phases: 6
   total_plans: 44
   completed_plans: 41
@@ -146,6 +162,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 12-esquema-facturacion-porcentual-anticipos P03 | 8min | 2 tasks | 2 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P04 | 441s | 3 tasks | 6 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P05 | 15min | 2 tasks | 3 files |
+| Phase 12-esquema-facturacion-porcentual-anticipos P07 | 20min | 6 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -215,6 +232,8 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: W6 applied: zero-percentage monedas hidden entirely in mini-modal (not disabled placeholders) — research-recommended, revisitable
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: runRecompute closure in update() applied on all 3 branches (FLOW-01, FLOW-03, normal) — W3 fix; shouldRecompute guard skips when caller sets esquemaFacturacion directly (loop guard)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: facturacionService.marcarFacturada simplified: removed redundant post-commit trySync since update() now handles recompute+trySync when estado is present
+- [Phase 12-07]: usePresupuestoEdit.save() does not write cuotas[] for any type — no Task 5 action needed; contrato cuotas managed via special paths
+- [Phase 12-07]: PdfEsquemaFacturacionSection extracted as colocated PDF sub-component (pure fn, no hooks, safe for react-pdf tree)
 
 ### Pending Todos
 
@@ -228,6 +247,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-26T16:30:00Z
-Stopped at: Completed 12-06-PLAN.md (user-approved close — e2e validation deferred to gap closure plan 12-07 for unified create+edit flow)
+Last session: 2026-04-26T17:03:28.025Z
+Stopped at: Completed 12-07-PLAN.md (gap closure — EsquemaFacturacionSection in CreatePresupuestoModal + EditPresupuestoModal guard + PDF branch). Phase 12 gap closure complete; ready for re-verification and E2E run.
 Resume file: None
