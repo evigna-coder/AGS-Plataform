@@ -4,8 +4,10 @@ import { test, expect } from '../fixtures/test-base';
  * CIRCUITO 10: Smoke Test — Todas las páginas cargan sin errores
  */
 
+// Establecimientos no tiene entrada propia en el sidebar — se accede desde
+// el detalle de cada Cliente (ver navigation.ts:20). Removido del smoke 2026-04-25.
 const ALL_SIDEBAR_ITEMS = [
-  'Clientes', 'Establecimientos', 'Equipos', 'Ordenes de Trabajo',
+  'Clientes', 'Equipos', 'Ordenes de Trabajo',
   'Tickets', 'Presupuestos', 'Biblioteca Tablas', 'Dispositivos',
   'Instrumentos', 'Loaners', 'Contratos', 'Facturacion', 'Usuarios', 'Agenda',
 ];

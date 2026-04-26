@@ -65,17 +65,36 @@ class NavHelpers {
   }
 
   /**
-   * Navega forzando un cambio de ruta: va a Clientes primero, luego al destino.
-   * Esto resetea el MemoryRouter y garantiza que se muestra la vista lista.
+   * Navega forzando un cambio de ruta: va a Equipos primero (flat, no group),
+   * luego al destino. Esto resetea el MemoryRouter y garantiza vista lista.
+   *
+   * Para labels que son grupos parent en el sidebar (ej: 'Clientes' tiene
+   * children 'Todos los clientes' / 'Ingreso Empresas'), el click directo
+   * sobre el parent solo expande el grupo, no navega. En esos casos
+   * usamos URL directa.
    */
   async goToFresh(label: string) {
     await this.ensureLoaded();
-    // Ir a Clientes primero para forzar cambio de ruta
-    const clientes = this.page.locator('aside nav').getByText('Clientes', { exact: false }).first();
-    await clientes.scrollIntoViewIfNeeded();
-    await clientes.click({ force: true });
+    // Map label → URL para items que son grupos parent (el click toggle-a
+    // expansión, no navega). Mantener sincronizado con navigation.ts.
+    const groupParentUrls: Record<string, string> = {
+      'Clientes': '/clientes',
+    };
+
+    // Ir a Equipos primero (flat item, no group) para forzar cambio de ruta
+    const equipos = this.page.locator('aside nav').getByText('Equipos', { exact: true }).first();
+    await equipos.scrollIntoViewIfNeeded();
+    await equipos.click({ force: true });
     await this.page.waitForTimeout(800);
-    // Ahora ir al destino
+
+    // Si el destino es un group parent, usar URL directa
+    if (groupParentUrls[label]) {
+      await this.page.goto(`http://localhost:3001${groupParentUrls[label]}`);
+      await this.page.waitForTimeout(2000);
+      return;
+    }
+
+    // Caso normal: click en el sidebar
     const item = this.page.locator('aside nav').getByText(label, { exact: false }).first();
     await item.scrollIntoViewIfNeeded();
     await item.click({ force: true });
@@ -85,10 +104,10 @@ class NavHelpers {
   /** Igual que goToFresh pero para sub-items de Stock */
   async goToStockFresh(submenu: string) {
     await this.ensureLoaded();
-    // Ir a Clientes primero
-    const clientes = this.page.locator('aside nav').getByText('Clientes', { exact: false }).first();
-    await clientes.scrollIntoViewIfNeeded();
-    await clientes.click({ force: true });
+    // Ir a Equipos primero (flat item) para forzar cambio de ruta
+    const equipos = this.page.locator('aside nav').getByText('Equipos', { exact: true }).first();
+    await equipos.scrollIntoViewIfNeeded();
+    await equipos.click({ force: true });
     await this.page.waitForTimeout(800);
     // Ahora ir a Stock > submenu
     await this.goToStock(submenu);
