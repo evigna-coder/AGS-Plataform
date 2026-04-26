@@ -71,7 +71,7 @@ export const CreateColumnaModal: React.FC<Props> = ({ open, onClose, onCreated }
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nueva columna" size="md">
+    <Modal open={open} onClose={handleClose} title="Nueva columna" maxWidth="md">
       <div className="space-y-3">
         <div>
           <label className={lbl}>Código de artículo *</label>

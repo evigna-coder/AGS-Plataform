@@ -54,7 +54,7 @@ export const MigracionPatronesModal: React.FC<Props> = ({ open, onClose, onCompl
   const totalLotes = preview?.reduce((sum, g) => sum + g.lotesCount, 0) ?? 0;
 
   return (
-    <Modal open={open} onClose={onClose} title="Migrar patrones desde /instrumentos" size="lg">
+    <Modal open={open} onClose={onClose} title="Migrar patrones desde /instrumentos" maxWidth="lg">
       <div className="space-y-4">
         {/* Estado inicial */}
         {stage === 'idle' && (

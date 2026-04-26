@@ -71,7 +71,7 @@ export const CreatePatronModal: React.FC<Props> = ({ open, onClose, onCreated })
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo patrón" size="md">
+    <Modal open={open} onClose={handleClose} title="Nuevo patrón" maxWidth="md">
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
