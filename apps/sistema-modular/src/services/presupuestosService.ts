@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
-import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, MonedaCuota, PresupuestoCuotaFacturacion } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
@@ -17,6 +17,7 @@ import { usuariosService } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
 import { computeStockAmplio } from './stockAmplioService';
+import { computeTotalsByCurrency } from '../utils/cuotasFacturacion';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -1315,29 +1316,88 @@ export const presupuestosService = {
   async generarAvisoFacturacion(
     presupuestoId: string,
     otNumbers: string[],
-    extras?: { monto?: number; observaciones?: string },
+    extras?: {
+      monto?: number;                                                // legacy single-moneda
+      montoPorMoneda?: Partial<Record<MonedaCuota, number>>;         // Phase 12 MIXTA
+      observaciones?: string;
+      cuotaId?: string;                                              // Phase 12 anticipo back-ref
+    },
     actor?: { uid: string; name?: string },
   ): Promise<{ solicitudId: string }> {
-    if (!otNumbers || otNumbers.length === 0) {
-      throw new Error('Debe seleccionar al menos una OT para generar el aviso');
-    }
-
     // ── Pre-read del ppto ─────────────────────────────────────────────────
     const pres = await this.getById(presupuestoId);
     if (!pres) throw new Error('Presupuesto no encontrado');
     if (pres.estado === 'anulado') throw new Error('No se puede facturar un presupuesto anulado');
 
-    const otsListas: string[] = pres.otsListasParaFacturar ?? [];
-    for (const otNum of otNumbers) {
-      if (!otsListas.includes(otNum)) {
-        throw new Error(`OT ${otNum} no está lista para facturar en este presupuesto`);
+    // ── NEW: cuotaId path (anticipo) ──────────────────────────────────────
+    // When cuotaId is present, the OT-listas guard is SKIPPED (BILL-03).
+    // The cuota must be 'habilitada' server-side before we proceed.
+    let cuotaTarget: PresupuestoCuotaFacturacion | undefined;
+    if (extras?.cuotaId) {
+      cuotaTarget = (pres.esquemaFacturacion ?? []).find(c => c.id === extras.cuotaId);
+      if (!cuotaTarget) {
+        throw new Error(`Cuota ${extras.cuotaId} no encontrada en el esquema del presupuesto`);
+      }
+      if (cuotaTarget.estado !== 'habilitada') {
+        throw new Error(`Cuota ${cuotaTarget.numero} no está habilitada (estado=${cuotaTarget.estado})`);
+      }
+      // OTs OPTIONAL for anticipo path — otNumbers accepted as reference only (Pitfall 8)
+    } else {
+      // ── EXISTING legacy guard — only enforced when cuotaId absent ────────
+      if (!otNumbers || otNumbers.length === 0) {
+        throw new Error('Debe seleccionar al menos una OT para generar el aviso');
+      }
+      const otsListas: string[] = pres.otsListasParaFacturar ?? [];
+      for (const otNum of otNumbers) {
+        if (!otsListas.includes(otNum)) {
+          throw new Error(`OT ${otNum} no está lista para facturar en este presupuesto`);
+        }
       }
     }
+
+    // ── Compute totals per moneda (I3 helper) ─────────────────────────────
+    // Used to derive porcentajeCoberturaPorMoneda for BILL-04.
+    const totalsByCurrency = computeTotalsByCurrency(pres.items ?? [], pres.moneda as any);
+
+    // ── Resolve montoPorMoneda for solicitud payload ───────────────────────
+    let resolvedMontoPorMoneda: Partial<Record<MonedaCuota, number>>;
+    if (extras?.montoPorMoneda) {
+      // Caller provided explicit per-moneda amounts (Phase 12 mini-modal)
+      resolvedMontoPorMoneda = extras.montoPorMoneda;
+    } else if (cuotaTarget) {
+      // Default from cuota % applied to totals
+      resolvedMontoPorMoneda = Object.fromEntries(
+        Object.entries(cuotaTarget.porcentajePorMoneda)
+          .filter(([, pct]) => (pct ?? 0) > 0)
+          .map(([m, pct]) => {
+            const total = totalsByCurrency[m as MonedaCuota] ?? 0;
+            return [m, Math.round(((pct ?? 0) / 100) * total * 100) / 100];
+          }),
+      ) as Partial<Record<MonedaCuota, number>>;
+    } else if (extras?.monto !== undefined) {
+      // Legacy single-moneda path
+      const monedaActiva = (pres.moneda === 'MIXTA' ? 'ARS' : pres.moneda) as MonedaCuota;
+      resolvedMontoPorMoneda = { [monedaActiva]: extras.monto };
+    } else {
+      resolvedMontoPorMoneda = {};
+    }
+
+    // ── Compute porcentajeCoberturaPorMoneda (BILL-04) ────────────────────
+    // Pitfall 1: filter out zero/undefined values before building the record.
+    const porcentajeCoberturaPorMoneda: Partial<Record<MonedaCuota, number>> = Object.fromEntries(
+      Object.entries(resolvedMontoPorMoneda)
+        .filter(([, v]) => (v ?? 0) > 0)
+        .map(([m, v]) => {
+          const total = totalsByCurrency[m as MonedaCuota] ?? 0;
+          const pct = total > 0 ? Math.round(((v ?? 0) / total) * 10000) / 100 : 0;
+          return [m, pct];
+        }),
+    ) as Partial<Record<MonedaCuota, number>>;
 
     const nowIso = new Date().toISOString();
     const newSolRef = newDocRef('solicitudesFacturacion');
 
-    // ── Transaction atómica: crea solicitud + limpia array ───────────────
+    // ── Transaction atómica: crea solicitud + patcha ppto ─────────────────
     await runTransaction(db, async (tx) => {
       // READ PHASE
       const pRef = doc(db, 'presupuestos', presupuestoId);
@@ -1345,11 +1405,21 @@ export const presupuestosService = {
       if (!pSnap.exists()) throw new Error('Presupuesto no encontrado (tx)');
       const freshData = pSnap.data();
       const freshOtsListas: string[] = freshData?.otsListasParaFacturar ?? [];
+      const freshEsquema: PresupuestoCuotaFacturacion[] = freshData?.esquemaFacturacion ?? [];
 
-      // Validar dentro del tx para atomicidad
-      for (const otNum of otNumbers) {
-        if (!freshOtsListas.includes(otNum)) {
-          throw new Error(`OT ${otNum} no está lista para facturar (concurrency check)`);
+      if (!cuotaTarget) {
+        // Legacy: re-validate inside tx for atomicidad (Pitfall 2-D race check)
+        for (const otNum of otNumbers) {
+          if (!freshOtsListas.includes(otNum)) {
+            throw new Error(`OT ${otNum} no está lista para facturar (concurrency check)`);
+          }
+        }
+      } else {
+        // cuotaId path: verify cuota still habilitada inside tx (atomic double-billing guard)
+        const freshCuota = freshEsquema.find(c => c.id === cuotaTarget!.id);
+        if (!freshCuota) throw new Error(`Cuota ${cuotaTarget.id} no encontrada en la tx`);
+        if (freshCuota.estado !== 'habilitada') {
+          throw new Error(`Cuota ${freshCuota.numero} ya fue procesada (estado=${freshCuota.estado})`);
         }
       }
 
@@ -1376,6 +1446,9 @@ export const presupuestosService = {
         moneda: pres.moneda,
         estado: 'pendiente' as const,
         otNumbers,
+        cuotaId: cuotaTarget?.id ?? null,                            // BILL-03 back-ref
+        montoPorMoneda: resolvedMontoPorMoneda,                       // BILL-04
+        porcentajeCoberturaPorMoneda,                                 // BILL-04 derived
         ordenesCompraIds: pres.ordenesCompraIds || [],
         observaciones: extras?.observaciones ?? null,
         solicitadoPor: actor?.uid ?? null,
@@ -1385,12 +1458,28 @@ export const presupuestosService = {
       });
       tx.set(newSolRef, solPayload);
 
-      // Write 2: quitar las OTs seleccionadas de otsListasParaFacturar
-      const remaining = freshOtsListas.filter(ot => !otNumbers.includes(ot));
-      tx.update(pRef, deepCleanForFirestore({
-        otsListasParaFacturar: remaining,
-        updatedAt: nowIso,
-      }));
+      // Write 2: patch the presupuesto
+      const presPatch: Record<string, unknown> = { updatedAt: nowIso };
+
+      if (cuotaTarget) {
+        // Anticipo path: patch ONLY the target cuota in-place (Pitfall 8 — do NOT touch otsListasParaFacturar)
+        const patchedEsquema = freshEsquema.map(c =>
+          c.id === cuotaTarget!.id
+            ? ({
+                ...c,
+                solicitudFacturacionId: newSolRef.id,
+                montoFacturadoPorMoneda: resolvedMontoPorMoneda,
+                estado: 'solicitada' as const,
+              } as PresupuestoCuotaFacturacion)
+            : c,
+        );
+        presPatch.esquemaFacturacion = patchedEsquema;
+      } else {
+        // Legacy path: remove otNumbers from otsListasParaFacturar
+        presPatch.otsListasParaFacturar = freshOtsListas.filter(ot => !otNumbers.includes(ot));
+      }
+
+      tx.update(pRef, deepCleanForFirestore(presPatch));
     });
 
     // ── Post-commit: transicionar ticket vinculado ────────────────────────

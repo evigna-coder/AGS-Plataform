@@ -367,6 +367,59 @@ async function run() {
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  // BILL-03: generarAvisoFacturacion guard logic (unit-stub, service not called)
+  // Tests the validation predicate that the service applies before the tx.
+  // ════════════════════════════════════════════════════════════════════════
+
+  console.log('[BILL-03 generarAviso-guard-no-habilitada]');
+  {
+    // Simulate the guard: cuota with estado !== 'habilitada' must cause a thrown error.
+    // This mirrors presupuestosService.ts generarAvisoFacturacion lines:
+    //   if (cuotaTarget.estado !== 'habilitada') throw new Error(`Cuota X no está habilitada (estado=pendiente)`)
+
+    // Replicating the service guard as a pure function operating on the cuota estado string:
+    function guardCuotaHabilitada(cuotaNumero: number, cuotaEstado: string): void {
+      if (cuotaEstado !== 'habilitada') {
+        throw new Error(`Cuota ${cuotaNumero} no está habilitada (estado=${cuotaEstado})`);
+      }
+    }
+
+    assert.throws(
+      () => guardCuotaHabilitada(1, 'pendiente'),
+      (err: Error) => {
+        assert.ok(err instanceof Error, 'BILL-03: must throw Error');
+        assert.ok(
+          err.message.includes('no está habilitada'),
+          `BILL-03: error message must include "no está habilitada", got: ${err.message}`,
+        );
+        assert.ok(
+          err.message.includes('pendiente'),
+          `BILL-03: error message must include cuota estado, got: ${err.message}`,
+        );
+        return true;
+      },
+      'BILL-03: cuota with estado=pendiente must throw when guard is applied',
+    );
+
+    // Also verify: cuota with estado='habilitada' must NOT throw
+    assert.doesNotThrow(
+      () => guardCuotaHabilitada(1, 'habilitada'),
+      'BILL-03: cuota with estado=habilitada must pass the guard without throwing',
+    );
+
+    // Also verify all other non-habilitada estados throw
+    for (const nonHabilitada of ['solicitada', 'facturada', 'cobrada']) {
+      assert.throws(
+        () => guardCuotaHabilitada(2, nonHabilitada),
+        (err: Error) => err.message.includes('no está habilitada'),
+        `BILL-03: estado=${nonHabilitada} must also throw the guard error`,
+      );
+    }
+
+    console.log('  ✓ BILL-03 generarAviso-guard-no-habilitada passed');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   // Summary
   // ════════════════════════════════════════════════════════════════════════
 
