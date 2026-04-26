@@ -259,11 +259,14 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         presupuestoOrigenId: form.presupuestoId || null,
       };
       await ordenesTrabajoService.create(otData);
-      await ordenesTrabajoService.create({
-        ...otData,
-        otNumber: `${otNum}.01`,
-        fechaInicio: new Date().toISOString().split('T')[0],
-        fechaFin: new Date().toISOString().split('T')[0],
+      // El parent auto-crea el child .01 copiando su data. Override solo las
+      // fechas — el parent queda con fechas vacías (es contenedor), el child
+      // arranca con fechas de hoy. Antes era un segundo create() que pisaba
+      // todo y desincronizaba el counter.
+      const today = new Date().toISOString().split('T')[0];
+      await ordenesTrabajoService.update(`${otNum}.01`, {
+        fechaInicio: today,
+        fechaFin: today,
       });
 
       // Increment contract visits
