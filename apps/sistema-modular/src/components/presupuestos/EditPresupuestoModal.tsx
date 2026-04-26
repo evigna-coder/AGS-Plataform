@@ -413,17 +413,24 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             </div>
           </CollapsibleSection>
 
-          {(form.otsListasParaFacturar?.length ?? 0) > 0 && (
+          {((form.esquemaFacturacion?.length ?? 0) > 0 || (form.otsListasParaFacturar?.length ?? 0) > 0) && (
             <CollapsibleSection
-              title={`OTs listas para facturar (${form.otsListasParaFacturar?.length ?? 0})`}
+              title={
+                (form.esquemaFacturacion?.length ?? 0) > 0
+                  ? `Facturación — ${form.esquemaFacturacion!.length} cuota${form.esquemaFacturacion!.length !== 1 ? 's' : ''}${(form.otsListasParaFacturar?.length ?? 0) > 0 ? ` + ${form.otsListasParaFacturar!.length} OT${form.otsListasParaFacturar!.length !== 1 ? 's' : ''}` : ''}`
+                  : `OTs listas para facturar (${form.otsListasParaFacturar?.length ?? 0})`
+              }
               open={actions.showFacturacion}
               onToggle={() => actions.setShowFacturacion(!actions.showFacturacion)}
             >
               <PresupuestoFacturacionSection
                 presupuestoId={presupuestoId}
-                otsListasParaFacturar={form.otsListasParaFacturar || []}
-                total={totals.total}
-                onAvisoCreated={() => load()}
+                esquemaFacturacion={form.esquemaFacturacion}
+                otsListasParaFacturar={form.otsListasParaFacturar ?? []}
+                moneda={form.moneda}
+                itemsForTotals={form.items}
+                onChanged={() => load()}
+                actor={firebaseUser ? { uid: firebaseUser.uid, name: usuario?.displayName || undefined } : undefined}
               />
             </CollapsibleSection>
           )}
