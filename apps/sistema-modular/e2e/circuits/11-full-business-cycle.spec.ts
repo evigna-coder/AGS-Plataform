@@ -744,3 +744,82 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
     expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 12 — Esquema Facturación Porcentual + Anticipos
+// Sub-suites 11.50 / 11.51 / 11.52
+//
+// All tests use test.fixme(true, ...) so the existing Circuito 11 suite
+// stays green while Phase 12 waves 1-5 land incrementally.
+// These skeletons are the Wave 0 RED scaffolding required by 12-VALIDATION.md.
+// ═══════════════════════════════════════════════════════════════════════════
+
+test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
+  test.fixme(true, 'Wave 5 (12-06) — lands E2E equivalence test');
+
+  test('100-al-cierre: ppto con 1 cuota 100% todas_ots_cerradas se comporta como Tier-1', async ({ page }) => {
+    // Skeleton: armar ppto borrador → quick-template "100% al cierre" → aceptar
+    // → crear OT → cerrar admin → cuota habilitada → generar → facturar → cobrar → ppto finalizado
+    await page.goto('/');
+  });
+});
+
+test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
+  test.fixme(true, 'Wave 5 (12-06) — lands esquemaFacturacion E2E');
+
+  test('editor-suma-100: editor bloquea save si Σ% != 100 por moneda', async ({ page }) => {
+    // BILL-01: armar ppto borrador, agregar 30+60 → save bloqueado con msg "Cuotas en ARS suman 90%"
+    await page.goto('/');
+  });
+
+  test('esquema-locked-on-aceptado: inputs read-only cuando ppto.estado !== borrador', async ({ page }) => {
+    // BILL-01: aceptar ppto, abrir editor → inputs %/hito/descripción disabled
+    await page.goto('/');
+  });
+
+  test('generar-anticipo-sin-ot: cuotaId path bypassa guard de OTs', async ({ page }) => {
+    // BILL-03: 30/70 aceptado → cuota 1 habilitada → generar solicitud sin OTs en otsListasParaFacturar
+    // → assert cuota.solicitudFacturacionId set, solicitud.cuotaId set
+    await page.goto('/');
+  });
+
+  test('hito-aceptado-recompute: pasar a aceptado mueve cuota a habilitada sin reload', async ({ page }) => {
+    // BILL-02: aceptar ppto → recargar → assert cuota 1.estado === 'habilitada'
+    await page.goto('/');
+  });
+
+  test('finaliza-tras-ultima-cuota: trySyncFinalizacion respeta esquema', async ({ page }) => {
+    // BILL-06: 30/70 ambas facturadas + OT FINALIZADO → ppto.estado === 'finalizado'
+    await page.goto('/');
+  });
+
+  test('MIXTA-mini-modal: N inputs en mini-modal, uno por moneda activa', async ({ page }) => {
+    // BILL-04: ppto MIXTA con cuota MIXTA → click "Generar solicitud" → assert 2 inputs visibles
+    await page.goto('/');
+  });
+
+  test('no-orphan-solicitudes: assert sin huérfanos en solicitudesFacturacion', async ({ page }) => {
+    // BILL-08: getSolicitudesFacturacionByPresupuesto(pres.id).length === 2 al final del flow
+    await page.goto('/');
+  });
+});
+
+test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
+  test.fixme(true, 'Wave 5 (12-06) — lands preEmbarque E2E');
+
+  test('toggle-visibility: checkbox preEmbarque aparece sólo si esquema tiene hito pre_embarque', async ({ page }) => {
+    // BILL-07: 100% al cierre → no checkbox; cambiar hito de cuota 1 a pre_embarque → checkbox visible
+    await page.goto('/');
+  });
+
+  test('pre-embarque-toggle: togglear flip cuota a habilitada', async ({ page }) => {
+    // BILL-07: 70/30 aceptado → checkbox preEmbarque off → cuota 1 pendiente
+    //         → toggle on → reload → cuota 1 habilitada
+    await page.goto('/');
+  });
+
+  test('flow-completo-70-30: anticipo pre-embarque → OT → saldo → cierre', async ({ page }) => {
+    // BILL-08: full happy path 70/30
+    await page.goto('/');
+  });
+});

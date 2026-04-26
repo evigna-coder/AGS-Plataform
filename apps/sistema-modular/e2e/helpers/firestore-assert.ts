@@ -176,6 +176,31 @@ export async function getPresupuesto(id: string): Promise<any | null> {
   return { id: snap.id, ...snap.data() };
 }
 
+// ── Phase 12 helpers (Wave 0 RED baseline) ─────────────────────────────────
+
+// TODO(12-01): replace local alias with canonical import once 12-01 lands the type:
+//   import type { PresupuestoCuotaFacturacion } from '@ags/shared';
+/** Local alias — matches locked shape from 12-CONTEXT.md */
+type PresupuestoCuotaFacturacion = {
+  id: string;
+  numero: number;
+  porcentajePorMoneda: Partial<Record<'ARS' | 'USD' | 'EUR', number>>;
+  descripcion: string;
+  hito: 'ppto_aceptado' | 'oc_recibida' | 'pre_embarque' | 'todas_ots_cerradas' | 'manual';
+  estado: 'pendiente' | 'habilitada' | 'solicitada' | 'facturada' | 'cobrada';
+  solicitudFacturacionId?: string | null;
+  montoFacturadoPorMoneda?: Partial<Record<'ARS' | 'USD' | 'EUR', number>> | null;
+};
+
+/**
+ * Phase 12 BILL-08 helper: returns the cuota schema attached to a presupuesto.
+ * Returns [] for legacy Tier-1 presupuestos (esquemaFacturacion is null/undefined).
+ */
+export async function getPresupuestoEsquema(presId: string): Promise<PresupuestoCuotaFacturacion[]> {
+  const pres = await getPresupuesto(presId);
+  return (pres?.esquemaFacturacion ?? []) as PresupuestoCuotaFacturacion[];
+}
+
 /**
  * Reads a solicitudFacturacion doc by id.
  * TODO(Wave 1): tighten type once SolicitudFacturacion extension lands (add 'enviada' estado, enviadaAt, ordenesCompraIds).
