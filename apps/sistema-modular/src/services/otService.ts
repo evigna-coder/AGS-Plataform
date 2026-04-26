@@ -171,6 +171,25 @@ export const ordenesTrabajoService = {
     return ordenes;
   },
 
+  /**
+   * Phase 12 W4: Scoped query — returns only OTs linked to a specific presupuesto numero.
+   * Uses array-contains on 'budgets' field (single-field; no composite index required).
+   * Called from presupuestosService._recomputeAndPersistEsquema instead of getAll()
+   * to avoid loading all OTs for each recompute (performance fix W4).
+   */
+  async queryByBudget(presupuestoNumero: string): Promise<WorkOrder[]> {
+    const q = query(
+      collection(db, 'reportes'),
+      where('budgets', 'array-contains', String(presupuestoNumero)),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      otNumber: d.id,
+      ...d.data(),
+      updatedAt: d.data().updatedAt || new Date().toISOString(),
+    } as WorkOrder));
+  },
+
   /** Real-time subscription for OTs. Returns unsubscribe function. */
   subscribe(
     filters: { clienteId?: string; sistemaId?: string; status?: WorkOrder['status'] } | undefined,
@@ -463,6 +482,11 @@ export const ordenesTrabajoService = {
     for (const budgetNum of budgetNumbers) {
       const pres = allPresupuestos.find(p => p.numero === budgetNum);
       if (!pres) continue;
+      // Phase 12 BILL-02: recompute cuota estados before checking finalizacion
+      // (cuotas with hito='todas_ots_cerradas' become habilitada when OT → FINALIZADO).
+      await (presupuestosService as any)._recomputeAndPersistEsquema(pres.id).catch((err: unknown) =>
+        console.warn(`[_syncPresupuestoOnFinalize] recompute ${pres.numero} failed (non-blocking):`, err)
+      );
       await presupuestosService.trySyncFinalizacion(pres.id).catch(err =>
         console.error(`[_syncPresupuestoOnFinalize] trySyncFinalizacion ${pres.numero} failed:`, err)
       );
@@ -658,6 +682,23 @@ export const ordenesTrabajoService = {
       }
     } catch (err) {
       console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
+    }
+
+    // ── Phase 12 BILL-02: recompute cuota estados for all linked presupuestos ──
+    // When an OT closes, cuotas with hito='todas_ots_cerradas' may become habilitada.
+    // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
+    // Pitfall 2: called post-commit (never inside runTransaction).
+    for (const presupuestoId of presupuestoIds) {
+      try {
+        await (presupuestosService as any)._recomputeAndPersistEsquema(presupuestoId);
+      } catch (err) {
+        console.warn(`[cerrarAdmin.recompute] ppto ${presupuestoId}:`, err);
+      }
+      try {
+        await presupuestosService.trySyncFinalizacion(presupuestoId);
+      } catch (err) {
+        console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
+      }
     }
 
     return {

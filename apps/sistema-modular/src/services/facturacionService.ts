@@ -92,6 +92,30 @@ export const facturacionService = {
     });
     batch.update(ref, cleaned);
     await batch.commit();
+
+    // ── Phase 12 BILL-02 + Pitfall 5: recompute cuota estados when solicitud estado changes ──
+    // Pitfall 5: anulada solicitud → cuota back to habilitada (regen case).
+    // The recompute also covers cobrada/facturada mirrors.
+    // Guard: only trigger when estado field is being updated.
+    const triggersRecompute = 'estado' in (data as Record<string, unknown>);
+    if (triggersRecompute) {
+      // Read solicitud after write to get presupuestoId (may not be in `data`)
+      const sol = await this.getById(id);
+      if (sol?.presupuestoId) {
+        const { presupuestosService } = await import('./presupuestosService');
+        // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
+        try {
+          await (presupuestosService as any)._recomputeAndPersistEsquema(sol.presupuestoId);
+        } catch (err) {
+          console.warn('[facturacionService.update.recompute]', err);
+        }
+        try {
+          await presupuestosService.trySyncFinalizacion(sol.presupuestoId);
+        } catch (err) {
+          console.warn('[facturacionService.update.trySync]', err);
+        }
+      }
+    }
   },
 
   async registrarFactura(id: string, datos: {
@@ -143,6 +167,8 @@ export const facturacionService = {
     actor?: { uid: string; name?: string },
     datos?: { numeroFactura?: string; fechaFactura?: string },
   ): Promise<void> {
+    // update() call includes estado='facturada' → triggers recompute + trySyncFinalizacion internally
+    // (Phase 12 BILL-02: hook added to facturacionService.update() in this plan).
     await this.update(id, {
       estado: 'facturada',
       numeroFactura: datos?.numeroFactura ?? null,
@@ -150,18 +176,6 @@ export const facturacionService = {
       facturadoPor: actor?.uid ?? null,
       facturadoPorNombre: actor?.name ?? null,
     } as any);
-    // Post-commit: intentar transicionar el ppto a `finalizado` si corresponde
-    // (OTs work-unit FINALIZADO + todas las solicitudes facturadas).
-    // Best-effort — no bloquea el update si falla.
-    try {
-      const sol = await this.getById(id);
-      if (sol?.presupuestoId) {
-        const { presupuestosService } = await import('./presupuestosService');
-        await presupuestosService.trySyncFinalizacion(sol.presupuestoId);
-      }
-    } catch (err) {
-      console.error('[marcarFacturada] trySyncFinalizacion failed:', err);
-    }
   },
 
   /**
