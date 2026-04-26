@@ -8,6 +8,7 @@ export * from './services/qfDocumentos';
 
 // Exportar hooks compartidos
 export * from './hooks/useResizableColumns';
+export * from './hooks/useUrlFilters';
 
 // Exportar utilidades compartidas
 export * from './utils';
