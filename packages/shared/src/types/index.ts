@@ -718,6 +718,8 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   createdBy?: string;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
   finalizadoAt?: string | null;
   descripcion?: string | null;
   prioridad?: TicketPrioridad | null;
@@ -2122,6 +2124,47 @@ export interface Proveedor {
   updatedAt: string;
 }
 
+// --- Calificación de Proveedores ---
+
+export type EstadoCalificacion = 'aprobado' | 'condicional' | 'no_aprobado' | 'sin_datos';
+
+export interface CriterioEvaluacion {
+  id: string;
+  nombre: string;
+  pesoMax: number;
+  puntaje: number;
+}
+
+/** Criterios estándar — pesos suman 100. */
+export const CRITERIOS_DEFAULT: CriterioEvaluacion[] = [
+  { id: 'conformidad', nombre: 'Conformidad técnica', pesoMax: 25, puntaje: 25 },
+  { id: 'plazo', nombre: 'Plazo de entrega', pesoMax: 15, puntaje: 15 },
+  { id: 'cantidad', nombre: 'Cantidad correcta', pesoMax: 10, puntaje: 10 },
+  { id: 'documentacion', nombre: 'Documentación', pesoMax: 15, puntaje: 15 },
+  { id: 'embalaje', nombre: 'Embalaje y presentación', pesoMax: 10, puntaje: 10 },
+  { id: 'respuesta', nombre: 'Tiempo de respuesta', pesoMax: 15, puntaje: 15 },
+  { id: 'precio', nombre: 'Precio facturado vs. cotizado', pesoMax: 10, puntaje: 10 },
+];
+
+export interface CalificacionProveedor {
+  id: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  ordenCompraNro?: string | null;
+  remitoNro?: string | null;
+  /** YYYY-MM-DD */
+  fechaRecepcion: string;
+  criterios: CriterioEvaluacion[];
+  puntajeTotal: number;
+  estado: EstadoCalificacion;
+  observaciones?: string | null;
+  responsable: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
 // --- Posiciones de Stock (ubicaciones físicas) ---
 
 export type TipoPosicionStock = 'cajonera' | 'estante' | 'deposito' | 'vitrina' | 'otro';
@@ -2578,16 +2621,33 @@ export interface RepuestoPendiente {
   estado: 'pendiente' | 'en_proceso' | 'recibido';
 }
 
+/**
+ * Momento del ciclo de vida en que se tomó la foto.
+ * - 'ingreso': capturadas al recibir el equipo en planta (estado, rótulo, accesorios, daños).
+ * - 'egreso': capturadas pre-embalaje, antes de imprimir el remito de devolución.
+ * Optional para no romper fotos legacy.
+ */
+export type MomentoFotoFicha = 'ingreso' | 'egreso';
+
+export const MOMENTO_FOTO_FICHA_LABELS: Record<MomentoFotoFicha, string> = {
+  ingreso: 'Ingreso',
+  egreso: 'Egreso',
+};
+
 export interface FotoFicha {
   id: string;
-  driveFileId: string;
+  /** ID en Google Drive (sistema-modular Electron). Null si la foto vive en Firebase Storage. */
+  driveFileId?: string | null;
+  /** Path en Firebase Storage (portal-ingeniero móvil). Null si la foto vive en Drive. */
+  storagePath?: string | null;
   nombre: string;
-  /** URL directa para mostrar la imagen */
+  /** URL directa para mostrar la imagen (thumbnail Drive o downloadURL Storage) */
   url: string;
-  /** URL de vista en Google Drive */
+  /** URL de vista (Drive webViewLink o misma url para Storage) */
   viewUrl: string;
   fecha: string;
   subidoPor?: string;
+  momento?: MomentoFotoFicha;
 }
 
 export interface FichaPropiedad {
@@ -3155,6 +3215,7 @@ export type ModuloId =
   | 'pendientes'
   | 'facturacion'
   | 'contratos'
+  | 'calificacion-proveedores'
   | 'usuarios'
   | 'admin';
 
@@ -3162,7 +3223,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'usuarios', 'admin'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -3182,11 +3243,11 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_contable: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock', 'facturacion'],
+    modulos: ['leads', 'presupuestos', 'stock', 'facturacion', 'calificacion-proveedores'],
   },
   administracion: {
     apps: ['sistema-modular'],
-    modulos: ['leads', 'presupuestos', 'stock', 'facturacion'],
+    modulos: ['leads', 'presupuestos', 'stock', 'facturacion', 'calificacion-proveedores'],
   },
 };
 
@@ -3212,6 +3273,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/pendientes': 'pendientes',
   '/facturacion': 'facturacion',
   '/contratos': 'contratos',
+  '/calificacion-proveedores': 'calificacion-proveedores',
   '/usuarios': 'usuarios',
   '/admin': 'admin',
 };
@@ -3236,6 +3298,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'pendientes': 'Pendientes',
   'facturacion': 'Facturación',
   'contratos': 'Contratos',
+  'calificacion-proveedores': 'Calif. Proveedores',
   'usuarios': 'Usuarios',
   'admin': 'Administración',
 };
