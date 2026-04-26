@@ -210,7 +210,16 @@ Plans:
   7. Existe toggle manual `preEmbarque` en el header del ppto que habilita la cuota con hito `pre_embarque`.
   8. Tests Playwright cubren los 3 flujos típicos (30/70 anticipo, 70/30 pre-embarque, 100% al cierre) sin warnings ni huérfanos en `solicitudesFacturacion`.
 
-**Plans:** TBD (run /gsd:plan-phase 12 to break down)
+**Plans:** 7 plans
+
+Plans:
+- [ ] 12-00-PLAN.md — Wave 0 RED: unit-test scaffolding + Playwright fixme sub-suites + getPresupuestoEsquema helper + test:cuotas-facturacion script
+- [ ] 12-01-PLAN.md — Tipos en @ags/shared (Cuota* enums + PresupuestoCuotaFacturacion + Presupuesto/SolicitudFacturacion fields) + utils/cuotasFacturacion.ts (recompute + validate + canFinalize + builders) — turns Wave 0 unit tests GREEN
+- [ ] 12-02-PLAN.md — Editor UI: EsquemaFacturacionSection + EsquemaCuotaRow + QuickTemplateButtons + preEmbarque header toggle + form-state extension
+- [ ] 12-03-PLAN.md — Service: generarAvisoFacturacion extendido (cuotaId + montoPorMoneda) + relax OT-listas guard + togglePreEmbarque audit posta
+- [ ] 12-04-PLAN.md — UI refactor: PresupuestoFacturacionSection split en CuotasDelEsquemaSection + OtsSinAsociarSection + GenerarSolicitudCuotaModal (N inputs MIXTA)
+- [ ] 12-05-PLAN.md — Sync wiring: _recomputeAndPersistEsquema en 4 sync points (update / generarAviso / OT cierre admin / facturacion mark) + trySyncFinalizacion extendido con canFinalizeFromEsquema
+- [ ] 12-06-PLAN.md — Playwright sub-suites 11.50/11.51/11.52 GREEN + legacy 11.13b/11.15/11.16 regression + manual visual checkpoint
 
 ## Progress
 
@@ -230,4 +239,4 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 | 9. Stock ATP Extendido | 3/3 | Complete   | 2026-04-22 | - |
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | 7/7 | Complete   | 2026-04-25 | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
-| 12. Esquema Facturación Porcentual + Anticipos | v2.0 | 0/TBD | Not started | - |
+| 12. Esquema Facturación Porcentual + Anticipos | v2.0 | 0/7 | Not started | - |
