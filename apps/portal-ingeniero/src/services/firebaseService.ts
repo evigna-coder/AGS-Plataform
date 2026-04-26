@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, ContactoTicket, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead, NotificationPreferences, FCMTokenRecord } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, ContactoTicket, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
 import { getContactoPrincipal } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace } from './currentUser';
@@ -973,96 +973,15 @@ export const viaticosService = {
 };
 
 // =============================================
-// --- FCM Tokens ---
+// --- FCM Tokens & Notification Preferences ---
 // =============================================
+// Bound al db de portal-ingeniero. La implementación vive en @ags/shared/services/fcm
+// (antes estaba duplicada byte-cercanamente con sistema-modular).
 
-function detectDevice(): 'desktop' | 'mobile' {
-  return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
-}
+import { makeFcmTokensService, makeNotificationPrefsService } from '@ags/shared';
 
-function detectBrowser(): string {
-  const ua = navigator.userAgent;
-  if (ua.includes('Firefox')) return 'Firefox';
-  if (ua.includes('Edg')) return 'Edge';
-  if (ua.includes('Chrome')) return 'Chrome';
-  if (ua.includes('Safari')) return 'Safari';
-  return 'Unknown';
-}
-
-/**
- * ID persistente del dispositivo/navegador (guardado en localStorage).
- * Se usa como document ID en fcmTokens para que el mismo dispositivo
- * siempre sobreescriba su propio doc cuando rota el token FCM.
- * Esto evita acumulación de tokens duplicados y notificaciones repetidas.
- */
-function getDeviceId(): string {
-  const KEY = 'ags_device_id';
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-}
-
-export const fcmTokensService = {
-  /** Guarda o actualiza el token FCM del dispositivo actual (upsert por deviceId) */
-  async saveToken(userId: string, token: string): Promise<void> {
-    const deviceId = getDeviceId();
-    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', deviceId);
-    await setDoc(tokenRef, {
-      token,
-      device: detectDevice(),
-      browser: detectBrowser(),
-      createdAt: Timestamp.now(),
-      lastRefreshed: Timestamp.now(),
-    }, { merge: true });
-  },
-
-  /** Actualiza el timestamp de refresh de un token existente */
-  async refreshToken(userId: string, _token: string): Promise<void> {
-    const deviceId = getDeviceId();
-    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', deviceId);
-    await updateDoc(tokenRef, { lastRefreshed: Timestamp.now() });
-  },
-
-  /** Elimina el token FCM del dispositivo actual (ej: al cerrar sesión) */
-  async removeToken(userId: string, _token: string): Promise<void> {
-    const deviceId = getDeviceId();
-    const tokenRef = doc(db, 'usuarios', userId, 'fcmTokens', deviceId);
-    try {
-      await deleteDoc(tokenRef);
-    } catch {
-      // Token ya no existe, ignorar
-    }
-  },
-
-  /** Elimina todos los tokens del usuario (ej: al desactivar notificaciones) */
-  async removeAllTokens(userId: string): Promise<void> {
-    const snap = await getDocs(collection(db, 'usuarios', userId, 'fcmTokens'));
-    const deletes = snap.docs.map(d => deleteDoc(d.ref));
-    await Promise.all(deletes);
-  },
-};
-
-// =============================================
-// --- Notification Preferences ---
-// =============================================
-
-export const notificationPrefsService = {
-  async get(userId: string): Promise<NotificationPreferences | null> {
-    const snap = await getDoc(doc(db, 'usuarios', userId));
-    if (!snap.exists()) return null;
-    return (snap.data() as Record<string, unknown>).notificationPreferences as NotificationPreferences | null ?? null;
-  },
-
-  async save(userId: string, prefs: NotificationPreferences): Promise<void> {
-    await updateDoc(doc(db, 'usuarios', userId), {
-      notificationPreferences: prefs,
-      updatedAt: Timestamp.now(),
-    });
-  },
-};
+export const fcmTokensService = makeFcmTokensService(db);
+export const notificationPrefsService = makeNotificationPrefsService(db);
 
 // =============================================
 // --- Pendientes (create-only, para derivar a sistema) ---

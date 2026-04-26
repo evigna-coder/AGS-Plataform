@@ -1,8 +1,8 @@
 // Exportar tipos compartidos
 export * from './types';
 
-// Exportar servicios compartidos (cuando se extraigan)
-// export * from './services';
+// Exportar servicios compartidos
+export * from './services/fcm';
 
 // Exportar hooks compartidos
 export * from './hooks/useResizableColumns';
