@@ -771,6 +771,11 @@ async function createPptoBorradorWithTemplate(
   const BASE = 'http://localhost:3001';
   const ts12 = Date.now();
 
+  // Auth-hydration wait: land on root first and let Firebase Auth read from IndexedDB.
+  // Without this, navigating direct to /presupuestos races the auth gate and bounces to login.
+  await page.goto(BASE);
+  await page.locator('aside nav').waitFor({ timeout: 30_000 });
+
   // Navigate to presupuestos
   await page.goto(`${BASE}/presupuestos`);
   await page.waitForTimeout(2000);
@@ -1080,7 +1085,7 @@ test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
     ).toEqual([]);
   });
 
-  test('100-al-cierre: ppto con 1 cuota 100% todas_ots_cerradas se comporta como Tier-1', async ({ page }) => {
+  test('100-al-cierre: ppto con 1 cuota 100% todas_ots_cerradas se comporta como Tier-1', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create borrador with 100% al cierre template
@@ -1184,8 +1189,12 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     ).toEqual([]);
   });
 
-  test('editor-suma-100: editor bloquea save si Σ% != 100 por moneda', async ({ page }) => {
+  test('editor-suma-100: editor bloquea save si Σ% != 100 por moneda', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
+
+    // Auth-hydration wait
+    await page.goto(BASE);
+    await page.locator('aside nav').waitFor({ timeout: 30_000 });
 
     // 1. Navigate to presupuestos and open first ppto in borrador
     await page.goto(`${BASE}/presupuestos`);
@@ -1248,7 +1257,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('esquema-locked-on-aceptado: inputs read-only cuando ppto.estado !== borrador', async ({ page }) => {
+  test('esquema-locked-on-aceptado: inputs read-only cuando ppto.estado !== borrador', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create ppto borrador with 30/70 template
@@ -1282,7 +1291,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('generar-anticipo-sin-ot: cuotaId path bypassa guard de OTs', async ({ page }) => {
+  test('generar-anticipo-sin-ot: cuotaId path bypassa guard de OTs', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create borrador + apply 30/70 template
@@ -1347,7 +1356,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('hito-aceptado-recompute: pasar a aceptado mueve cuota a habilitada sin reload', async ({ page }) => {
+  test('hito-aceptado-recompute: pasar a aceptado mueve cuota a habilitada sin reload', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create borrador + apply 30/70 template
@@ -1379,7 +1388,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('MIXTA-mini-modal: N inputs en mini-modal, uno por moneda activa', async ({ page }) => {
+  test('MIXTA-mini-modal: N inputs en mini-modal, uno por moneda activa', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create a MIXTA presupuesto borrador with 30/70 template
@@ -1424,7 +1433,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('finaliza-tras-ultima-cuota: trySyncFinalizacion respeta esquema', async ({ page }) => {
+  test('finaliza-tras-ultima-cuota: trySyncFinalizacion respeta esquema', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create borrador + 30/70 template
@@ -1520,7 +1529,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     }
   });
 
-  test('no-orphan-solicitudes: assert sin huérfanos en solicitudesFacturacion', async ({ page }) => {
+  test('no-orphan-solicitudes: assert sin huérfanos en solicitudesFacturacion', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // After finaliza-tras-ultima-cuota runs, most recent ppto should have 2 solicitudes.
@@ -1583,7 +1592,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     ).toEqual([]);
   });
 
-  test('toggle-visibility: checkbox preEmbarque aparece sólo si esquema tiene hito pre_embarque', async ({ page }) => {
+  test('toggle-visibility: checkbox preEmbarque aparece sólo si esquema tiene hito pre_embarque', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create ppto with 100% al cierre (NO pre_embarque hito)
@@ -1622,7 +1631,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('pre-embarque-toggle: togglear flip cuota a habilitada', async ({ page }) => {
+  test('pre-embarque-toggle: togglear flip cuota a habilitada', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create borrador + 70/30 pre-embarque template
@@ -1666,7 +1675,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     await page.waitForTimeout(500);
   });
 
-  test('flow-completo-70-30: anticipo pre-embarque → OT → saldo → cierre', async ({ page }) => {
+  test('flow-completo-70-30: anticipo pre-embarque → OT → saldo → cierre', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
 
     // 1. Create borrador + 70/30 pre-embarque template
