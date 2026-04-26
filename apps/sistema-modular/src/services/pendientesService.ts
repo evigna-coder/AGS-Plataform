@@ -128,6 +128,26 @@ export const pendientesService = {
     return parsePendiente(snap.id, snap.data() as Record<string, unknown>);
   },
 
+  /** Subscripción en tiempo real a los pendientes generados desde un ticket. */
+  subscribeByOrigenTicketId(
+    ticketId: string,
+    callback: (items: Pendiente[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, COLLECTION), where('origenTicketId', '==', ticketId));
+    return onSnapshot(
+      q,
+      snap => {
+        const items = snap.docs.map(d => parsePendiente(d.id, d.data() as Record<string, unknown>));
+        callback(items);
+      },
+      err => {
+        console.error('Pendientes by ticket subscription error:', err);
+        onError?.(err);
+      },
+    );
+  },
+
   /** Subscripción en tiempo real a un pendiente individual */
   subscribeById(
     id: string,

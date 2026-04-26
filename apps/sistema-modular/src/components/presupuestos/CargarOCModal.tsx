@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, collection } from 'firebase/firestore';
 import type { OrdenCompraCliente, Presupuesto } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
-import { db, storage } from '../../services/firebase';
+import { storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   TabButton, NuevaOCForm, ExistenteOCForm, OtrosPresupuestosList,
@@ -113,7 +112,7 @@ export const CargarOCModal: React.FC<Props> = ({
     setSubmitting(true);
     setError(null);
     try {
-      const ocId = tab === 'existente' ? existingId : doc(collection(db, 'ordenesCompraCliente')).id;
+      const ocId = tab === 'existente' ? existingId : ordenesCompraClienteService.newId();
       const adjuntos = tab === 'nueva' ? await uploadFiles(ocId) : [];
       const existente = tab === 'existente' ? ocsExistentes.find(o => o.id === existingId) : null;
 

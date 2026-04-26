@@ -54,6 +54,15 @@ function parseOC(d: any, id: string): OrdenCompraCliente {
 }
 
 export const ordenesCompraClienteService = {
+  /**
+   * Reserva un id para una OC futura (sin escribir aún). Útil cuando la UI
+   * necesita el id de antemano (ej. CargarOCModal lo usa como path en Storage
+   * para los adjuntos antes de invocar cargarOC).
+   */
+  newId(): string {
+    return doc(collection(db, COLLECTION)).id;
+  },
+
   async getAll(filters?: { clienteId?: string }): Promise<OrdenCompraCliente[]> {
     let q = query(collection(db, COLLECTION));
     if (filters?.clienteId) q = query(q, where('clienteId', '==', filters.clienteId));

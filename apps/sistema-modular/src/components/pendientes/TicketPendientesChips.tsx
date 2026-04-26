@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Pendiente } from '@ags/shared';
 import { PENDIENTE_TIPO_LABELS, PENDIENTE_TIPO_COLORS, PENDIENTE_ESTADO_LABELS, PENDIENTE_ESTADO_COLORS } from '@ags/shared';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { pendientesService } from '../../services/pendientesService';
 
 interface Props {
   ticketId: string;
@@ -10,7 +9,7 @@ interface Props {
 
 /**
  * Real-time list of pendientes generated from a ticket.
- * Subscribes via `origenTicketId` query.
+ * Subscribes via `pendientesService.subscribeByOrigenTicketId`.
  * Renders nothing if there are no pendientes.
  */
 export const TicketPendientesChips: React.FC<Props> = ({ ticketId }) => {
@@ -18,46 +17,7 @@ export const TicketPendientesChips: React.FC<Props> = ({ ticketId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'pendientes'), where('origenTicketId', '==', ticketId));
-    const unsub = onSnapshot(q, snap => {
-      const items: Pendiente[] = snap.docs.map(d => {
-        const data = d.data() as Record<string, unknown>;
-        const toISO = (v: unknown): string | null => {
-          if (!v) return null;
-          if (typeof v === 'string') return v;
-          const ts = v as { toDate?: () => Date };
-          return ts.toDate ? ts.toDate().toISOString() : null;
-        };
-        return {
-          id: d.id,
-          clienteId: (data.clienteId as string) ?? '',
-          clienteNombre: (data.clienteNombre as string) ?? '',
-          equipoId: (data.equipoId as string) ?? null,
-          equipoNombre: (data.equipoNombre as string) ?? null,
-          equipoAgsId: (data.equipoAgsId as string) ?? null,
-          tipo: (data.tipo as Pendiente['tipo']) ?? 'ambos',
-          descripcion: (data.descripcion as string) ?? '',
-          estado: (data.estado as Pendiente['estado']) ?? 'pendiente',
-          origenTicketId: (data.origenTicketId as string) ?? null,
-          origenTicketRazonSocial: (data.origenTicketRazonSocial as string) ?? null,
-          completadaEn: toISO(data.completadaEn),
-          completadaPor: (data.completadaPor as string) ?? null,
-          completadaPorNombre: (data.completadaPorNombre as string) ?? null,
-          resolucionDocType: (data.resolucionDocType as Pendiente['resolucionDocType']) ?? null,
-          resolucionDocId: (data.resolucionDocId as string) ?? null,
-          resolucionDocLabel: (data.resolucionDocLabel as string) ?? null,
-          descartadaEn: toISO(data.descartadaEn),
-          descartadaPor: (data.descartadaPor as string) ?? null,
-          descartadaPorNombre: (data.descartadaPorNombre as string) ?? null,
-          descartadaMotivo: (data.descartadaMotivo as string) ?? null,
-          createdAt: toISO(data.createdAt) ?? new Date().toISOString(),
-          updatedAt: toISO(data.updatedAt) ?? new Date().toISOString(),
-          createdBy: (data.createdBy as string) ?? null,
-          createdByName: (data.createdByName as string) ?? null,
-          updatedBy: (data.updatedBy as string) ?? null,
-          updatedByName: (data.updatedByName as string) ?? null,
-        };
-      });
+    const unsub = pendientesService.subscribeByOrigenTicketId(ticketId, items => {
       setPendientes(items);
       setLoading(false);
     });
