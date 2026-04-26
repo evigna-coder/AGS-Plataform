@@ -7,7 +7,7 @@
  */
 import { View, Text } from '@react-pdf/renderer';
 import { COLORS } from './pdfStyles';
-import type { PresupuestoCuotaFacturacion, CuotaFacturacionHito } from '@ags/shared';
+import type { PresupuestoCuotaFacturacion, CuotaFacturacionHito, MonedaCuota } from '@ags/shared';
 import { computeTotalsByCurrency } from '../../../utils/cuotasFacturacion';
 import type { Presupuesto } from '@ags/shared';
 
@@ -33,8 +33,11 @@ export function PdfEsquemaFacturacionSection({ presupuesto, esquema }: Props) {
   if (!esquema || esquema.length === 0) return null;
 
   // Derive active monedas and totals (I3 helper — pure function, no hooks)
+  // computeTotalsByCurrency returns Partial<Record<MonedaCuota, number>>
   const totalsByCurrency = computeTotalsByCurrency(presupuesto.items ?? [], presupuesto.moneda ?? 'USD');
-  const monedasActivas = Object.keys(totalsByCurrency).filter(m => (totalsByCurrency[m] ?? 0) > 0);
+  const monedasActivas = (Object.keys(totalsByCurrency) as MonedaCuota[]).filter(
+    m => (totalsByCurrency[m] ?? 0) > 0,
+  );
 
   return (
     <View style={{ marginTop: 8 }}>
@@ -74,7 +77,7 @@ export function PdfEsquemaFacturacionSection({ presupuesto, esquema }: Props) {
               {HITO_LABELS[cuota.hito] ?? cuota.hito}
             </Text>
             {monedasActivas.map(m => {
-              const pct = cuota.porcentajePorMoneda?.[m as keyof typeof cuota.porcentajePorMoneda] ?? 0;
+              const pct = cuota.porcentajePorMoneda?.[m] ?? 0;
               const total = totalsByCurrency[m] ?? 0;
               const monto = (pct / 100) * total;
               const colWidth = `${38 / monedasActivas.length}%`;
