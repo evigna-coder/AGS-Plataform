@@ -1617,6 +1617,25 @@ export const presupuestosService = {
     batchAudit(batch, { action: 'delete', collection: 'presupuestos', documentId: id });
     await batch.commit();
   },
+
+  /**
+   * Toggle preEmbarque on a presupuesto and fire an audit posta on the linked ticket.
+   * Phase 12 BILL-07 / B2 fix — full implementation lands in plan 12-03.
+   * This stub writes the field + logs but does NOT fire the ticket posta yet.
+   */
+  async togglePreEmbarque(
+    presupuestoId: string,
+    next: boolean,
+    actor?: { uid: string; name?: string },
+  ): Promise<void> {
+    // TODO(12-03): replace with full implementation that includes audit posta on linked ticket
+    const ref = doc(db, 'presupuestos', presupuestoId);
+    await updateDoc(ref, deepCleanForFirestore({
+      preEmbarque: next,
+      updatedAt: Timestamp.now(),
+      updatedBy: actor?.uid ?? null,
+    }));
+  },
 };
 
 // Servicio para Ordenes de Compra

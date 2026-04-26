@@ -16,6 +16,7 @@ import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
 import { SolicitarFacturaModal } from './SolicitarFacturaModal';
 import { PresupuestoFacturacionSection } from './PresupuestoFacturacionSection';
+import { EsquemaFacturacionSection } from './EsquemaFacturacionSection';
 import { EnviarPresupuestoModal } from './EnviarPresupuestoModal';
 import { CargarOCModal } from './CargarOCModal';
 import { ReservarStockModal } from '../stock/ReservarStockModal';
@@ -27,6 +28,7 @@ import { ordenesCompraClienteService } from '../../services/ordenesCompraCliente
 import { presupuestosService } from '../../services/presupuestosService';
 import { articulosService } from '../../services/stockService';
 import { computeStockAmplio } from '../../services/stockAmplioService';
+import { useAuth } from '../../contexts/AuthContext';
 import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 
@@ -41,10 +43,13 @@ interface Props {
 const FACTURACION_STATES = ['aceptado'];
 
 export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onClose, onUpdated, onMinimize }) => {
+  const { firebaseUser, usuario } = useAuth();
   const [showSolicitarFactura, setShowSolicitarFactura] = useState(false);
   const [showEnviarEmail, setShowEnviarEmail] = useState(false);
   const [showReservar, setShowReservar] = useState(false);
   const [showCrearOT, setShowCrearOT] = useState(false);
+  // Phase 12 B2: busy flag for direct togglePreEmbarque service call (bypasses form-state)
+  const [preEmbarqueBusy, setPreEmbarqueBusy] = useState(false);
   // FLOW-02: estado del modal "Cargar OC" + datos resueltos async para su select/checkbox.
   const [showCargarOC, setShowCargarOC] = useState(false);
   const [ocsExistentesOfCliente, setOcsExistentesOfCliente] = useState<OrdenCompraCliente[]>([]);
@@ -301,6 +306,63 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             getGrupo={getGrupo}
             articulos={articulos}
           />
+        )}
+
+        {/* Phase 12: Esquema de facturación porcentual — for all types except contrato */}
+        {form.tipo !== 'contrato' && (
+          <EsquemaFacturacionSection
+            esquema={form.esquemaFacturacion ?? []}
+            moneda={form.moneda}
+            itemsForTotals={form.items}
+            readOnly={form.estado !== 'borrador'}
+            onChange={(next) => setField('esquemaFacturacion', next)}
+          />
+        )}
+
+        {/* Phase 12 B2: preEmbarque header toggle — only when esquema has a pre_embarque cuota.
+            B2 fix: onChange calls service directly so audit posta fires on linked ticket (plan 12-03).
+            This is the ONLY field that bypasses form-state in this modal. */}
+        {form.tipo !== 'contrato' &&
+          (form.esquemaFacturacion ?? []).some(c => c.hito === 'pre_embarque') && (
+          <div className="mt-2 px-1">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={!!form.preEmbarque}
+                disabled={
+                  form.estado === 'finalizado' ||
+                  form.estado === 'anulado' ||
+                  preEmbarqueBusy
+                }
+                onChange={async (e) => {
+                  // B2: bypass form-state — call service direct so audit posta fires.
+                  // This is the ONLY field that bypasses the form-state route in this modal.
+                  const next = e.target.checked;
+                  setPreEmbarqueBusy(true);
+                  try {
+                    const actor = firebaseUser
+                      ? { uid: firebaseUser.uid, name: usuario?.displayName || undefined }
+                      : undefined;
+                    await presupuestosService.togglePreEmbarque(presupuestoId, next, actor);
+                    // Refresh form state to reflect the persisted value
+                    const refreshed = await presupuestosService.getById(presupuestoId);
+                    if (refreshed) {
+                      setField('preEmbarque', refreshed.preEmbarque ?? false);
+                      setField('esquemaFacturacion', refreshed.esquemaFacturacion ?? []);
+                    }
+                  } catch (err) {
+                    console.error('[togglePreEmbarque] failed:', err);
+                  } finally {
+                    setPreEmbarqueBusy(false);
+                  }
+                }}
+                className="rounded border-slate-300 text-teal-700 focus:ring-teal-700"
+              />
+              <span className="font-mono text-[10px] uppercase tracking-wide text-slate-500">
+                {preEmbarqueBusy ? 'Actualizando...' : 'Mercadería en pre-embarque'}
+              </span>
+            </label>
+          </div>
         )}
 
         {/* Cuotas */}

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
-import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, LeadEstado, PresupuestoSeccionesVisibles, VentasMetadata } from '@ags/shared';
+import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, LeadEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
+import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], LeadEstado>> = {
@@ -63,6 +64,10 @@ export interface PresupuestoFormState {
   ventasMetadata: VentasMetadata | null;
   // Facturación OT-céntrica (Tier-1)
   otsListasParaFacturar: string[] | undefined;
+  // Phase 12: cuota schema (porcentual facturación)
+  esquemaFacturacion: PresupuestoCuotaFacturacion[];
+  preEmbarque: boolean;                // READ-ONLY mirror — toggled via togglePreEmbarque service (B2)
+  finalizarConSoloFacturado: boolean | undefined; // default undefined → service defaults to true
 }
 
 export interface PresupuestoTotals {
@@ -92,6 +97,10 @@ const INITIAL_FORM: PresupuestoFormState = {
   contratoFechaInicio: null, contratoFechaFin: null, cantidadCuotasPorMoneda: null,
   ventasMetadata: null,
   otsListasParaFacturar: undefined,
+  // Phase 12: cuota schema
+  esquemaFacturacion: [],
+  preEmbarque: false,
+  finalizarConSoloFacturado: undefined,
 };
 
 /** Map a Presupuesto document snapshot to the local form state shape. */
@@ -125,6 +134,10 @@ function mapToFormState(p: Presupuesto): PresupuestoFormState {
     cantidadCuotasPorMoneda: p.cantidadCuotasPorMoneda || null,
     ventasMetadata: p.ventasMetadata || null,
     otsListasParaFacturar: p.otsListasParaFacturar ?? undefined,
+    // Phase 12: cuota schema
+    esquemaFacturacion: p.esquemaFacturacion ?? [],
+    preEmbarque: p.preEmbarque ?? false,
+    finalizarConSoloFacturado: p.finalizarConSoloFacturado,
   };
 }
 
@@ -268,6 +281,35 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         fechaEnvioToSave = new Date().toISOString().split('T')[0];
         setFormState(prev => ({ ...prev, fechaEnvio: fechaEnvioToSave }));
       }
+
+      // Phase 12 BILL-01: validate esquema before saving in borrador
+      if (form.estado === 'borrador' && form.esquemaFacturacion.length > 0) {
+        // Derive active monedas (mirrors EsquemaFacturacionSection logic)
+        let monedasActivas: MonedaCuota[];
+        if (form.moneda !== 'MIXTA') {
+          monedasActivas = [form.moneda as MonedaCuota];
+        } else {
+          const set = new Set<MonedaCuota>();
+          for (const item of form.items) {
+            const m = item.moneda as MonedaCuota | null | undefined;
+            if (m) set.add(m);
+          }
+          monedasActivas = set.size > 0 ? Array.from(set) : ['USD'];
+        }
+
+        const errors = validateEsquemaSum(form.esquemaFacturacion, monedasActivas);
+        const emptyCuotas = findEmptyCuotas(form.esquemaFacturacion);
+
+        if (emptyCuotas.length > 0) {
+          const nums = emptyCuotas.map(c => c.numero).join(', ');
+          throw new Error(`Cuota(s) N° ${nums} no factura ninguna moneda. Agregá un porcentaje o eliminala.`);
+        }
+
+        if (errors.length > 0) {
+          const msgs = errors.map(e => `Cuotas en ${e.moneda} suman ${e.sum.toFixed(2)}%, deben sumar 100.00%`);
+          throw new Error(msgs.join('\n'));
+        }
+      }
       // Reassign grupo numbers based on sistemaId before saving
       const sistemaIds = [...new Set(form.items.map(i => i.sistemaId).filter(Boolean))] as string[];
       const grupoMap = new Map(sistemaIds.map((id, idx) => [id, idx + 1]));
@@ -302,6 +344,12 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
         cantidadCuotasPorMoneda: form.cantidadCuotasPorMoneda,
         // Ventas (Phase 10)
         ventasMetadata: form.ventasMetadata || null,
+        // Phase 12: cuota schema (porcentual facturación)
+        // NOTE: preEmbarque is intentionally OMITTED here — it is toggled via
+        // presupuestosService.togglePreEmbarque() directly (B2 fix) to fire
+        // the audit posta side-effect on the linked ticket (plan 12-03).
+        esquemaFacturacion: form.esquemaFacturacion,
+        finalizarConSoloFacturado: form.finalizarConSoloFacturado,
       });
       // Sync lead estado
       if (form.origenTipo === 'lead' && form.origenId) {
