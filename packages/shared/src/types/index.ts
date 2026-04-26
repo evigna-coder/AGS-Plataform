@@ -1128,6 +1128,50 @@ export const PRESUPUESTO_SECCIONES_DEFAULT: PresupuestoSeccionesVisibles = {
   aceptacionPresupuesto: true,
 };
 
+// =============================================
+// --- Phase 12: Esquema de Facturación Porcentual + Anticipos ---
+// Distinct from `PresupuestoCuota` (contrato-only mensual/trimestral cuotas).
+// `MonedaCuota` is concrete — MIXTA is never stored at cuota level.
+// =============================================
+
+/**
+ * Hito disparador que habilita una cuota para ser facturada.
+ * Evaluado por `recomputeCuotaEstados()` (puro, sin Firestore).
+ */
+export type CuotaFacturacionHito =
+  | 'ppto_aceptado'        // ppto.estado in ('aceptado','en_ejecucion')
+  | 'oc_recibida'          // ppto.ordenesCompraIds.length > 0
+  | 'pre_embarque'         // ppto.preEmbarque === true (manual admin toggle)
+  | 'todas_ots_cerradas'   // every work-unit OT in CIERRE_ADMINISTRATIVO|FINALIZADO
+  | 'manual';              // always habilitada
+
+/** Estado de una cuota de facturación porcentual. */
+export type CuotaFacturacionEstado =
+  | 'pendiente'
+  | 'habilitada'
+  | 'solicitada'
+  | 'facturada'
+  | 'cobrada';
+
+/** Moneda concreta usada en una cuota. MIXTA NO se almacena a nivel cuota. */
+export type MonedaCuota = 'ARS' | 'USD' | 'EUR';
+
+/**
+ * Una cuota dentro del esquema de facturación porcentual de un presupuesto.
+ * - Vinculada 1:1 con `SolicitudFacturacion` cuando el admin genera el aviso.
+ * - Soporta MIXTA con porcentajes independientes por moneda.
+ */
+export interface PresupuestoCuotaFacturacion {
+  id: string;                                                  // crypto.randomUUID()
+  numero: number;                                              // 1-based display order
+  porcentajePorMoneda: Partial<Record<MonedaCuota, number>>;
+  descripcion: string;
+  hito: CuotaFacturacionHito;
+  estado: CuotaFacturacionEstado;
+  solicitudFacturacionId?: string | null;
+  montoFacturadoPorMoneda?: Partial<Record<MonedaCuota, number>> | null;
+}
+
 // --- Cuotas de Presupuesto ---
 export interface PresupuestoCuota {
   numero: number;          // 1, 2, 3...
@@ -1226,6 +1270,13 @@ export interface Presupuesto {
   // --- Flujo Automático de Derivación (Phase 8) ---
   /** Acciones automáticas que no pudieron completarse en el momento del disparo. Se resuelven manual/automáticamente desde `/admin/acciones-pendientes`. */
   pendingActions?: PendingAction[];
+  // --- Phase 12: Esquema de Facturación Porcentual + Anticipos ---
+  /** Phase 12: cuota schema. null/[] = legacy Tier-1 mode. */
+  esquemaFacturacion?: PresupuestoCuotaFacturacion[] | null;
+  /** Phase 12: manual admin toggle to habilitar cuota with hito='pre_embarque'. */
+  preEmbarque?: boolean;
+  /** Phase 12: when true (default), `facturada` is terminal for trySyncFinalizacion. When false, requires `cobrada`. */
+  finalizarConSoloFacturado?: boolean;
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
@@ -1340,6 +1391,11 @@ export interface SolicitudFacturacion {
   ordenesCompraIds?: string[] | null;
   /** ISO timestamp cuando el mail al contable fue marcado como enviado (estado 'enviada'). */
   enviadaAt?: string | null;
+  // --- Phase 12: Esquema de Facturación Porcentual + Anticipos ---
+  /** Phase 12: 1:1 back-ref to PresupuestoCuotaFacturacion.id. null = legacy free-floating Tier-1 solicitud. */
+  cuotaId?: string | null;
+  /** Phase 12: per-moneda coverage % computed at creation as (montoSolicitud[m] / totalPpto[m]) * 100. */
+  porcentajeCoberturaPorMoneda?: Partial<Record<'ARS'|'USD'|'EUR', number>> | null;
   // Audit
   solicitadoPor?: string | null;
   solicitadoPorNombre?: string | null;
