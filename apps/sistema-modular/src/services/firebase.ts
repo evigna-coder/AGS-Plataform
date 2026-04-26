@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, doc, writeBatch, Timestamp } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
@@ -87,6 +87,18 @@ try {
 }
 
 export { db };
+
+// Expone Firebase a window en dev para scripts de migración (consola del browser).
+// No se incluye en builds de producción.
+if (import.meta.env.DEV && typeof window !== 'undefined' && db!) {
+  (window as any).__ags = {
+    app: app!, db: db!, storage: storage!,
+    firestore: {
+      collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
+      query, where, orderBy, writeBatch, Timestamp,
+    },
+  };
+}
 
 // ========== AUDIT LOG ==========
 /** Fire-and-forget audit — no await needed, no extra latency */
