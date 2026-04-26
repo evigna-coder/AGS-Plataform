@@ -10,7 +10,10 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
     return <p className="text-xs text-slate-400 italic">Sin movimientos registrados</p>;
   }
 
-  const sorted = [...postas].reverse();
+  // Sort explícito por fecha desc — no asumir que postas viene chronological.
+  // Antes: [...postas].reverse() — divergía con portal-ingeniero (que sí ordenaba)
+  // cuando postas se insertaban fuera de orden estricto (timestamps distintos cross-app).
+  const sorted = [...postas].sort((a, b) => b.fecha.localeCompare(a.fecha));
 
   return (
     <div className="space-y-3">
