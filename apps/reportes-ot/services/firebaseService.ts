@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch, runTransaction, Timestamp } from "firebase/firestore";
+import { OT_TO_LEAD_ESTADO } from "@ags/shared";
 import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
@@ -98,24 +99,14 @@ export { app };
  * @param ot Número de orden de trabajo (ID del documento)
  * @param data Datos del reporte a guardar
  */
-/** Phase 10 UAT fix (2026-04-24): mapping OT estadoAdmin → Ticket estado
- *  usado para propagar transiciones al ticket linkeado cuando el técnico
- *  cierra desde acá. Debe mantenerse alineado con sistema-modular/src/services/
- *  leadsService.ts:OT_TO_LEAD_ESTADO. */
-const OT_TO_TICKET_ESTADO: Record<string, string> = {
-  CREADA: 'ot_creada',
-  ASIGNADA: 'ot_creada',
-  COORDINADA: 'ot_coordinada',
-  EN_CURSO: 'ot_coordinada',
-  CIERRE_TECNICO: 'ot_realizada',
-  CIERRE_ADMINISTRATIVO: 'pendiente_aviso_facturacion',
-  FINALIZADO: 'finalizado',
-};
+// Mapping OT estadoAdmin → Ticket estado vive en @ags/shared/services/leads
+// (OT_TO_LEAD_ESTADO). Antes estaba duplicado acá con un comentario que pedía
+// mantenerlo sincronizado a mano — ahora es single source of truth.
 
 async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string, userTrace: { uid?: string; name?: string }) {
   try {
     console.info(`[syncTicketFromOT] invoked: ot=${otNumber}, newEstadoAdmin=${newEstadoAdmin}`);
-    const nuevoEstadoTicket = OT_TO_TICKET_ESTADO[newEstadoAdmin];
+    const nuevoEstadoTicket = OT_TO_LEAD_ESTADO[newEstadoAdmin as keyof typeof OT_TO_LEAD_ESTADO];
     if (!nuevoEstadoTicket) {
       console.info(`[syncTicketFromOT] no mapping for estadoAdmin=${newEstadoAdmin}, skip`);
       return;

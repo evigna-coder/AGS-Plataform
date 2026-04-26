@@ -20,9 +20,11 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, ContactoTicket, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
-import { getContactoPrincipal } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
+import {
+  LEAD_MAX_ADJUNTOS,
+  parseLeadDoc, syncFlatFromContactos,
+} from '@ags/shared';
 import { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
 
 export const db = getFirestore(app);
@@ -244,91 +246,14 @@ export const sistemasService = {
 // =============================================
 // --- Leads ---
 // =============================================
-
-function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlamado {
-  if (!raw) return 'soporte';
-  if (raw === 'otros') return 'soporte';
-  return raw as MotivoLlamado;
-}
-
-function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
-  if (!raw) return null;
-  const migration: Record<string, LeadArea> = {
-    presupuesto: 'ventas',
-    contrato: 'ventas',
-    venta_insumos: 'ventas',
-    presupuesto_ventas: 'ventas',
-    soporte: 'admin_soporte',
-    agenda_coordinacion: 'admin_soporte',
-    materiales_comex: 'admin_soporte',
-    ingeniero_soporte: 'ing_soporte',
-    facturacion: 'administracion',
-    pago_proveedores: 'administracion',
-  };
-  return migration[raw] || (raw as LeadArea);
-}
-
-function hydrateContactosTicket(data: Record<string, unknown>): ContactoTicket[] {
-  const existing = Array.isArray(data.contactos) ? (data.contactos as ContactoTicket[]) : [];
-  if (existing.length > 0) return existing;
-  const nombre = ((data.contacto as string) ?? '').trim();
-  const email = ((data.email as string) ?? '').trim();
-  const telefono = ((data.telefono as string) ?? '').trim();
-  if (!nombre && !email && !telefono) return [];
-  return [{
-    id: 'legacy-principal',
-    nombre: nombre || '(Sin nombre)',
-    email: email || undefined,
-    telefono: telefono || undefined,
-    esPrincipal: true,
-  }];
-}
-
-function syncFlatFromContactosData<T extends Record<string, any>>(data: T): T {
-  if (!('contactos' in data) || !Array.isArray(data.contactos)) return data;
-  const principal = getContactoPrincipal(data.contactos as ContactoTicket[]);
-  return {
-    ...data,
-    contacto: principal?.nombre ?? '',
-    email: principal?.email ?? '',
-    telefono: principal?.telefono ?? '',
-  };
-}
-
-function parseLead(id: string, data: Record<string, unknown>): Lead {
-  return {
-    id,
-    numero: typeof data.numero === 'string' && data.numero ? (data.numero as string) : undefined,
-    clienteId: (data.clienteId as string) ?? null,
-    contactoId: (data.contactoId as string) ?? null,
-    razonSocial: (data.razonSocial as string) ?? '',
-    contactos: hydrateContactosTicket(data),
-    contacto: (data.contacto as string) ?? '',
-    email: (data.email as string) ?? '',
-    telefono: (data.telefono as string) ?? '',
-    motivoLlamado: migrateMotivoLlamado(data.motivoLlamado as string),
-    motivoContacto: (data.motivoContacto as string) ?? '',
-    descripcion: (data.descripcion as string) ?? null,
-    sistemaId: (data.sistemaId as string) ?? null,
-    estado: (data.estado as LeadEstado) ?? 'nuevo',
-    postas: (data.postas as Posta[]) ?? [],
-    asignadoA: (data.asignadoA as string) ?? null,
-    asignadoNombre: (data.asignadoNombre as string) ?? null,
-    derivadoPor: (data.derivadoPor as string) ?? null,
-    areaActual: migrateLeadArea(data.areaActual as string),
-    accionPendiente: (data.accionPendiente as string) ?? null,
-    presupuestosIds: (data.presupuestosIds as string[]) ?? [],
-    otIds: (data.otIds as string[]) ?? [],
-    prioridad: data.prioridad === 'media' ? 'normal' : (data.prioridad as any) ?? null,
-    proximoContacto: (data.proximoContacto as string) ?? null,
-    valorEstimado: (data.valorEstimado as number) ?? null,
-    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
-    updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? '',
-    createdBy: (data.createdBy as string) ?? null,
-    finalizadoAt: (data.finalizadoAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? null,
-    adjuntos: (data.adjuntos as AdjuntoLead[]) ?? [],
-  };
-}
+// Helpers de parsing/migration extraídos a @ags/shared/services/leads.
+// Antes vivían acá duplicados (con drift confirmado vs sistema-modular).
+// Adapter para llamar parseLeadDoc con la signature legacy (id + data) que
+// usan los call sites de este file:
+const parseLead = (id: string, data: Record<string, unknown>) =>
+  parseLeadDoc({ id, data: () => data });
+// Alias de compat para el código existente:
+const syncFlatFromContactosData = syncFlatFromContactos;
 
 /** Extrae la parte numérica de "TKT-00042" → 42. 0 si no matchea. */
 function extractTicketNumber(numero: unknown): number {

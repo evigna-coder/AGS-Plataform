@@ -1,7 +1,11 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, ContactoTicket, Ticket, Cliente } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS, getContactoPrincipal, findClienteCandidatesByRazonSocial } from '@ags/shared';
+import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, Ticket, Cliente } from '@ags/shared';
+import {
+  LEAD_MAX_ADJUNTOS, findClienteCandidatesByRazonSocial,
+  PRESUPUESTO_TO_LEAD_ESTADO, PRESUPUESTO_ESTADO_LABELS, OT_TO_LEAD_ESTADO,
+  parseLeadDoc, syncFlatFromContactos,
+} from '@ags/shared';
 import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
 
 /** Si el payload crea/transiciona a motivoLlamado=ventas_insumos, devuelve los campos de stamp. */
@@ -11,158 +15,6 @@ function ventasInsumosStamp(incomingMotivo: MotivoLlamado | undefined, currentMo
   const user = getCurrentUserTrace();
   if (!user) return null;
   return { ventasInsumosCreadoPor: user.uid, ventasInsumosCreadoEn: new Date().toISOString() };
-}
-
-// ── Mapeo de estados: presupuesto → lead ──────────────────────────────
-const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
-  enviado: 'presupuesto_enviado',
-  aceptado: 'en_coordinacion',
-  finalizado: 'finalizado',
-};
-
-const PRESUPUESTO_ESTADO_LABELS: Partial<Record<PresupuestoEstado, string>> = {
-  borrador: 'Borrador',
-  enviado: 'Enviado',
-  aceptado: 'Aceptado',
-  anulado: 'Anulado',
-  finalizado: 'Finalizado',
-};
-
-// ── Mapeo de estados: OT estadoAdmin → lead ───────────────────────────
-const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
-  CREADA: 'ot_creada',
-  ASIGNADA: 'ot_creada',
-  COORDINADA: 'ot_coordinada',
-  EN_CURSO: 'ot_coordinada',
-  CIERRE_TECNICO: 'ot_realizada',
-  CIERRE_ADMINISTRATIVO: 'pendiente_aviso_facturacion',
-  FINALIZADO: 'finalizado',
-};
-
-function migrateLeadEstado(raw: string): LeadEstado {
-  const migration: Record<string, LeadEstado> = {
-    contactado: 'en_seguimiento',
-    en_revision: 'en_seguimiento',
-    derivado: 'en_seguimiento',
-    presupuestado: 'presupuesto_pendiente',
-    pendiente_info: 'en_seguimiento',
-    en_presupuesto: 'presupuesto_pendiente',
-    en_proceso: 'en_seguimiento',
-    convertido: 'finalizado',
-    perdido: 'no_concretado',
-  };
-  return migration[raw] || (raw as LeadEstado) || 'nuevo';
-}
-
-function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlamado {
-  if (!raw) return 'soporte';
-  const migration: Record<string, MotivoLlamado> = {
-    ventas: 'ventas_insumos',
-    insumos: 'ventas_insumos',
-    capacitacion: 'otros',
-  };
-  return migration[raw] || (raw as MotivoLlamado);
-}
-
-function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
-  if (!raw) return null;
-  const migration: Record<string, LeadArea> = {
-    presupuesto: 'ventas',
-    contrato: 'ventas',
-    venta_insumos: 'ventas',
-    presupuesto_ventas: 'ventas',
-    soporte: 'admin_soporte',
-    agenda_coordinacion: 'admin_soporte',
-    materiales_comex: 'admin_soporte',
-    ingeniero_soporte: 'ing_soporte',
-    facturacion: 'administracion',
-    pago_proveedores: 'administracion',
-  };
-  return migration[raw] || (raw as LeadArea);
-}
-
-/**
- * Hidrata `contactos[]` desde los campos planos (`contacto/email/telefono`) cuando
- * el ticket es previo al refactor o se creó con los campos planos solamente.
- * La hidratación es en memoria — no se persiste hasta que el usuario edite contactos.
- */
-function hydrateContactos(data: any): ContactoTicket[] {
-  const existing: ContactoTicket[] = Array.isArray(data.contactos) ? data.contactos : [];
-  if (existing.length > 0) return existing;
-  const nombre = (data.contacto ?? '').trim();
-  const email = (data.email ?? '').trim();
-  const telefono = (data.telefono ?? '').trim();
-  if (!nombre && !email && !telefono) return [];
-  return [{
-    id: 'legacy-principal',
-    nombre: nombre || '(Sin nombre)',
-    email: email || undefined,
-    telefono: telefono || undefined,
-    esPrincipal: true,
-  }];
-}
-
-function parseLeadDoc(d: { id: string; data: () => any }): Lead {
-  const data = d.data();
-  return {
-    id: d.id,
-    numero: typeof data.numero === 'string' && data.numero ? data.numero : undefined,
-    clienteId: data.clienteId ?? null,
-    contactoId: data.contactoId ?? null,
-    razonSocial: data.razonSocial ?? '',
-    contactos: hydrateContactos(data),
-    contacto: data.contacto ?? '',
-    email: data.email ?? '',
-    telefono: data.telefono ?? '',
-    motivoLlamado: migrateMotivoLlamado(data.motivoLlamado),
-    motivoContacto: data.motivoContacto ?? '',
-    descripcion: data.descripcion ?? null,
-    sistemaId: data.sistemaId ?? null,
-    moduloId: data.moduloId ?? null,
-    estado: migrateLeadEstado(data.estado ?? 'nuevo'),
-    postas: data.postas ?? [],
-    asignadoA: data.asignadoA ?? null,
-    asignadoNombre: data.asignadoNombre ?? null,
-    derivadoPor: data.derivadoPor ?? null,
-    areaActual: migrateLeadArea(data.areaActual),
-    accionPendiente: data.accionPendiente ?? null,
-    adjuntos: data.adjuntos ?? [],
-    presupuestosIds: data.presupuestosIds ?? [],
-    otIds: data.otIds ?? [],
-    // Fallback al timestamp actual en vez de '' — el parser miente menos.
-    // Tickets legacy sin createdAt aparecen en el momento de hidratación, no en el epoch.
-    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    createdBy: data.createdBy ?? null,
-    finalizadoAt: data.finalizadoAt?.toDate?.()?.toISOString() ?? null,
-    prioridad: data.prioridad === 'media' ? 'normal' : (data.prioridad ?? null),
-    proximoContacto: data.proximoContacto ?? null,
-    valorEstimado: data.valorEstimado ?? null,
-    // Hidratación de campos de migración clienteId (ver Ticket type en @ags/shared):
-    // - `pendienteClienteId` / `revisionDescartada`: boolean (no nullable) — default false
-    // - `candidatosPropuestos`: array (no nullable) — default []
-    // - `clienteIdMigradoAt` / `clienteIdMigradoPor`: string | null — default null
-    pendienteClienteId: data.pendienteClienteId === true,
-    candidatosPropuestos: Array.isArray(data.candidatosPropuestos) ? data.candidatosPropuestos : [],
-    clienteIdMigradoAt: data.clienteIdMigradoAt?.toDate?.()?.toISOString() ?? (typeof data.clienteIdMigradoAt === 'string' ? data.clienteIdMigradoAt : null),
-    clienteIdMigradoPor: typeof data.clienteIdMigradoPor === 'string' ? data.clienteIdMigradoPor : null,
-    revisionDescartada: data.revisionDescartada === true,
-  };
-}
-
-/**
- * Si el payload incluye `contactos`, refleja el contacto principal en los campos planos
- * (`contacto/email/telefono`) para preservar listas, búsquedas y compat con tickets viejos.
- */
-function syncFlatFromContactos<T extends Record<string, any>>(data: T): T {
-  if (!('contactos' in data) || !Array.isArray(data.contactos)) return data;
-  const principal = getContactoPrincipal(data.contactos as ContactoTicket[]);
-  return {
-    ...data,
-    contacto: principal?.nombre ?? '',
-    email: principal?.email ?? '',
-    telefono: principal?.telefono ?? '',
-  };
 }
 
 export const leadsService = {
