@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: "Completed 12-04-PLAN.md (UI refactor: PresupuestoFacturacionSection + GenerarSolicitudCuotaModal — Wave 4)"
-last_updated: "2026-04-26T15:34:58.126Z"
+stopped_at: Completed 12-05-PLAN.md (recompute hook wiring — 4 sync points — Wave 4)
+last_updated: "2026-04-26T15:36:15.859Z"
 last_activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 44
-  completed_plans: 39
+  completed_plans: 40
   percent: 80
 ---
 
@@ -145,6 +145,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 12-esquema-facturacion-porcentual-anticipos P02 | 8 | 2 tasks | 6 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P03 | 8min | 2 tasks | 2 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P04 | 441s | 3 tasks | 6 files |
+| Phase 12-esquema-facturacion-porcentual-anticipos P05 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,8 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: togglePreEmbarque uses this.update() not direct updateDoc so plan 12-05 recompute hook fires automatically when it lands
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: W5 split executed from start: GenerarSolicitudCuotaInputs.tsx extracted to keep GenerarSolicitudCuotaModal at 219 lines
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: W6 applied: zero-percentage monedas hidden entirely in mini-modal (not disabled placeholders) — research-recommended, revisitable
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: runRecompute closure in update() applied on all 3 branches (FLOW-01, FLOW-03, normal) — W3 fix; shouldRecompute guard skips when caller sets esquemaFacturacion directly (loop guard)
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: facturacionService.marcarFacturada simplified: removed redundant post-commit trySync since update() now handles recompute+trySync when estado is present
 
 ### Pending Todos
 
@@ -225,6 +228,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:34:58.122Z
-Stopped at: Completed 12-04-PLAN.md (UI refactor: PresupuestoFacturacionSection + GenerarSolicitudCuotaModal — Wave 4)
+Last session: 2026-04-26T15:36:15.856Z
+Stopped at: Completed 12-05-PLAN.md (recompute hook wiring — 4 sync points — Wave 4)
 Resume file: None
