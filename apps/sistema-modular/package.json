@@ -18,7 +18,8 @@
     "e2e:headed": "set HEADED=1&& npx playwright test --project=chromium",
     "e2e:report": "npx tsx e2e/generate-report.ts",
     "e2e:full": "npx playwright test --project=chromium && npx tsx e2e/generate-report.ts",
-    "test:stock-amplio": "tsx src/services/__tests__/stockAmplio.test.ts"
+    "test:stock-amplio": "tsx src/services/__tests__/stockAmplio.test.ts",
+    "test:cuotas-facturacion": "tsx src/services/__tests__/cuotasFacturacion.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
