@@ -196,11 +196,22 @@ export const OTNew = () => {
         }
       }
 
+      // Resolver numero del presupuesto (PRE-XXXX.NN); WorkOrder.budgets[] guarda numeros, no doc-IDs.
+      let presupuestoNumero: string | null = null;
+      if (presupuestoIdFromUrl) {
+        const pres = await presupuestosService.getById(presupuestoIdFromUrl);
+        if (!pres) {
+          alert('Error: el presupuesto vinculado no se encontró');
+          return;
+        }
+        presupuestoNumero = pres.numero;
+      }
+
       // Crear OT básica - los datos completos se editarán en reportes-ot
       const otData = {
         otNumber: formData.otNumber,
         status: 'BORRADOR' as const,
-        budgets: presupuestoIdFromUrl ? [presupuestoIdFromUrl] : [],
+        budgets: presupuestoNumero ? [presupuestoNumero] : [],
         leadId: leadIdFromUrl ?? null,
         presupuestoOrigenId: presupuestoIdFromUrl ?? null,
         tipoServicio: formData.tipoServicio,
