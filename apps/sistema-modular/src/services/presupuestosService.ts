@@ -403,78 +403,16 @@ export const presupuestosService = {
     }
 
     // ── Auto-sync lead when presupuesto estado changes ──
+    // Nota: cuando data.estado === 'aceptado', el short-circuit anterior delega
+    // en aceptarConRequerimientos y retorna antes de llegar acá. Por eso este
+    // bloque cubre el resto de transiciones (enviado, anulado, en_ejecucion,
+    // finalizado). La auto-reserva de stock + requerimientos por stockMinimo
+    // vive dentro de aceptarConRequerimientos (Paso 5b).
     if (data.estado) {
       try {
         const pres = await this.getById(id);
         if (pres?.origenTipo === 'lead' && pres.origenId) {
           await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, data.estado);
-        }
-        // ── Auto-generate requerimientos AND reserve stock when presupuesto is accepted ──
-        if (data.estado === 'aceptado') {
-          const itemsConStock = pres?.items?.filter(i => i.stockArticuloId) ?? [];
-          for (const item of itemsConStock) {
-            try {
-              const articulo = await articulosService.getById(item.stockArticuloId!).catch(() => null);
-              const unidades = await unidadesService.getAll({ articuloId: item.stockArticuloId!, estado: 'disponible' }).catch(() => []);
-              const qtyDisponible = unidades.length;
-              const stockMinimo = articulo?.stockMinimo ?? 0;
-              const qtyResultante = qtyDisponible - item.cantidad;
-
-              // --- Auto-req: create requirement if stock will fall below minimum ---
-              const existingReqs = await requerimientosService.getAll({
-                presupuestoId: id,
-                articuloId: item.stockArticuloId!,
-              }).catch(() => []);
-
-              if (existingReqs.length === 0 && qtyResultante < stockMinimo) {
-                const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible);
-                await requerimientosService.create({
-                  articuloId: item.stockArticuloId ?? null,
-                  articuloCodigo: articulo?.codigo ?? null,
-                  articuloDescripcion: articulo?.descripcion ?? item.descripcion,
-                  cantidad: qtyReq,
-                  unidadMedida: articulo?.unidadMedida ?? 'unidad',
-                  motivo: `Auto-generado por presupuesto ${pres!.numero} (aceptado)`,
-                  origen: 'presupuesto',
-                  origenRef: id,
-                  estado: 'pendiente',
-                  presupuestoId: id,
-                  presupuestoNumero: pres!.numero ?? null,
-                  proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
-                  proveedorSugeridoNombre: null,
-                  ordenCompraId: null,
-                  ordenCompraNumero: null,
-                  solicitadoPor: 'Sistema',
-                  fechaSolicitud: new Date().toISOString(),
-                  fechaAprobacion: null,
-                  urgencia: 'media',
-                  notas: null,
-                });
-              }
-
-              // --- Auto-reserva: reserve available units up to item.cantidad ---
-              const unidadesAReservar = unidades.slice(0, item.cantidad);
-              for (const unidad of unidadesAReservar) {
-                try {
-                  await reservasService.reservar({
-                    unidadId: unidad.id,
-                    unidad,
-                    presupuestoId: id,
-                    presupuestoNumero: pres!.numero ?? '',
-                    clienteId: pres!.clienteId ?? '',
-                    clienteNombre: null,
-                    solicitadoPorNombre: 'Sistema',
-                  });
-                } catch (reservaErr) {
-                  console.error(`[presupuestosService] Error auto-reserva for unidad ${unidad.id}:`, reservaErr);
-                  // Don't throw — continue; don't block the estado update
-                }
-              }
-            } catch (itemErr) {
-              console.error(`[presupuestosService] Error processing item ${item.stockArticuloId}:`, itemErr);
-              // Don't throw — continue with other items; don't block the estado update
-            }
-          }
         }
       } catch (err) {
         console.error('[presupuestosService] Error syncing lead from presupuesto:', err);
@@ -976,6 +914,90 @@ export const presupuestosService = {
         await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, 'aceptado');
       } catch (err) {
         console.error('[aceptarConRequerimientos] syncFromPresupuesto failed:', err);
+      }
+    }
+
+    // ── Paso 5b: auto-reservar stock disponible + auto-generar requerimientos ──
+    // Para cada item con stockArticuloId: reservar unidades disponibles hasta
+    // item.cantidad; si la cantidad post-reserva queda bajo articulo.stockMinimo,
+    // emitir un requerimiento de compra. Best-effort — failures por item no
+    // bloquean ni la aceptación ni los siguientes items. Antes este bloque vivía
+    // en update() pero quedaba muerto por el short-circuit que delega acá.
+    const itemsConStock = (pres.items ?? []).filter(i => i.stockArticuloId);
+    if (itemsConStock.length > 0) {
+      // Resolver cliente nombre una vez (reservar() lo guarda en cada unidad).
+      let clienteNombre = '';
+      try {
+        const { clientesService } = await import('./clientesService');
+        const cliente = await clientesService.getById(pres.clienteId);
+        clienteNombre = cliente?.razonSocial ?? '';
+      } catch (err) {
+        console.warn('[aceptarConRequerimientos] cliente lookup falló — clienteNombre vacío:', err);
+      }
+
+      for (const item of itemsConStock) {
+        try {
+          const articulo = await articulosService.getById(item.stockArticuloId!).catch(() => null);
+          const unidades = await unidadesService
+            .getAll({ articuloId: item.stockArticuloId!, estado: 'disponible' })
+            .catch(() => []);
+          const qtyDisponible = unidades.length;
+          const stockMinimo = articulo?.stockMinimo ?? 0;
+          const qtyResultante = qtyDisponible - item.cantidad;
+
+          // Auto-req: si el stock cae bajo el mínimo y no hay requerimiento previo
+          // para este (presupuesto, articulo), crear uno.
+          const existingReqs = await requerimientosService.getAll({
+            presupuestoId,
+            articuloId: item.stockArticuloId!,
+          }).catch(() => []);
+
+          if (existingReqs.length === 0 && qtyResultante < stockMinimo) {
+            const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible);
+            await requerimientosService.create({
+              articuloId: item.stockArticuloId ?? null,
+              articuloCodigo: articulo?.codigo ?? null,
+              articuloDescripcion: articulo?.descripcion ?? item.descripcion,
+              cantidad: qtyReq,
+              unidadMedida: articulo?.unidadMedida ?? 'unidad',
+              motivo: `Auto-generado por presupuesto ${pres.numero} (aceptado)`,
+              origen: 'presupuesto',
+              origenRef: presupuestoId,
+              estado: 'pendiente',
+              presupuestoId,
+              presupuestoNumero: pres.numero ?? null,
+              proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
+              proveedorSugeridoNombre: null,
+              ordenCompraId: null,
+              ordenCompraNumero: null,
+              solicitadoPor: actor?.name || 'Sistema',
+              fechaSolicitud: new Date().toISOString(),
+              fechaAprobacion: null,
+              urgencia: 'media',
+              notas: null,
+            });
+          }
+
+          // Auto-reserva: tomar las unidades disponibles hasta item.cantidad.
+          const unidadesAReservar = unidades.slice(0, item.cantidad);
+          for (const unidad of unidadesAReservar) {
+            try {
+              await reservasService.reservar({
+                unidadId: unidad.id,
+                unidad,
+                presupuestoId,
+                presupuestoNumero: pres.numero ?? '',
+                clienteId: pres.clienteId ?? '',
+                clienteNombre,
+                solicitadoPorNombre: actor?.name || 'Sistema',
+              });
+            } catch (reservaErr) {
+              console.error(`[aceptarConRequerimientos] reservar unidad ${unidad.id} falló:`, reservaErr);
+            }
+          }
+        } catch (itemErr) {
+          console.error(`[aceptarConRequerimientos] item ${item.stockArticuloId} falló:`, itemErr);
+        }
       }
     }
 
