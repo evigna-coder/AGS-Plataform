@@ -994,9 +994,10 @@ export const reservasService = {
    * Moves unit back to its original position (or a default depot if unknown).
    * Creates an immutable MovimientoStock of type 'transferencia'.
    *
-   * TODO(STKP-03 — liberar): liberar() is a lower-concurrency path (called only from
-   * controlled admin UI, typically by the same user who reserved). No competing writes
-   * observed. Migrate to runTransaction if concurrent liberar/reservar races emerge.
+   * Migrado a runTransaction para evitar races con reservar() concurrente:
+   * leemos el estado actual y validamos que esté 'reservado' antes de escribir,
+   * todo atómico. Sin esto, una libera+reserva concurrentes podían dejar la
+   * unidad en estado inconsistente con la reserva del segundo proceso perdida.
    */
   async liberar(params: {
     unidadId: string;
@@ -1006,41 +1007,58 @@ export const reservasService = {
     destino?: { tipo: 'posicion' | 'minikit' | 'ingeniero'; referenciaId: string; referenciaNombre: string };
   }): Promise<void> {
     const now = Timestamp.now();
-    const unitPayload = deepCleanForFirestore({
-      estado: 'disponible' as EstadoUnidad,
-      reservadoParaPresupuestoId: null,
-      reservadoParaPresupuestoNumero: null,
-      reservadoParaClienteId: null,
-      reservadoParaClienteNombre: null,
-      ...(params.destino ? { ubicacion: params.destino } : {}),
-      ...getUpdateTrace(),
-      updatedAt: now.toDate().toISOString(),
-    });
-
     const movId = crypto.randomUUID();
-    const movPayload = deepCleanForFirestore({
-      tipo: 'transferencia' as TipoMovimiento,
-      unidadId: params.unidadId,
-      articuloId: params.unidad.articuloId,
-      articuloCodigo: params.unidad.articuloCodigo,
-      articuloDescripcion: params.unidad.articuloDescripcion,
-      cantidad: 1,
-      origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
-      origenId: params.unidad.ubicacion.referenciaId,
-      origenNombre: params.unidad.ubicacion.referenciaNombre,
-      destinoTipo: (params.destino?.tipo ?? params.unidad.ubicacion.tipo) as TipoOrigenDestino,
-      destinoId: params.destino?.referenciaId ?? params.unidad.ubicacion.referenciaId,
-      destinoNombre: params.destino?.referenciaNombre ?? params.unidad.ubicacion.referenciaNombre,
-      motivo: params.motivo,
-      creadoPor: params.solicitadoPorNombre,
-      ...getCreateTrace(),
-      createdAt: now,
+    const unidadRef = docRef('unidades', params.unidadId);
+    const movRef = doc(db, 'movimientosStock', movId);
+
+    await runTransaction(db, async (tx) => {
+      // READ FIRST — todas las reads antes de cualquier write.
+      const unidadSnap = await tx.get(unidadRef);
+      if (!unidadSnap.exists()) {
+        throw new Error(`Unidad ${params.unidadId} no encontrada`);
+      }
+      const currentEstado = unidadSnap.data().estado;
+      if (currentEstado !== 'reservado') {
+        throw new Error(
+          `Unidad no liberable — estado actual '${currentEstado}' (esperaba 'reservado')`,
+        );
+      }
+
+      const unitPayload = deepCleanForFirestore({
+        estado: 'disponible' as EstadoUnidad,
+        reservadoParaPresupuestoId: null,
+        reservadoParaPresupuestoNumero: null,
+        reservadoParaClienteId: null,
+        reservadoParaClienteNombre: null,
+        ...(params.destino ? { ubicacion: params.destino } : {}),
+        ...getUpdateTrace(),
+        updatedAt: now.toDate().toISOString(),
+      });
+
+      const movPayload = deepCleanForFirestore({
+        tipo: 'transferencia' as TipoMovimiento,
+        unidadId: params.unidadId,
+        articuloId: params.unidad.articuloId,
+        articuloCodigo: params.unidad.articuloCodigo,
+        articuloDescripcion: params.unidad.articuloDescripcion,
+        cantidad: 1,
+        origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+        origenId: params.unidad.ubicacion.referenciaId,
+        origenNombre: params.unidad.ubicacion.referenciaNombre,
+        destinoTipo: (params.destino?.tipo ?? params.unidad.ubicacion.tipo) as TipoOrigenDestino,
+        destinoId: params.destino?.referenciaId ?? params.unidad.ubicacion.referenciaId,
+        destinoNombre: params.destino?.referenciaNombre ?? params.unidad.ubicacion.referenciaNombre,
+        motivo: params.motivo,
+        creadoPor: params.solicitadoPorNombre,
+        ...getCreateTrace(),
+        createdAt: now,
+      });
+
+      tx.update(unidadRef, unitPayload);
+      tx.set(movRef, movPayload);
     });
 
-    const batch = createBatch();
-    batch.update(docRef('unidades', params.unidadId), unitPayload);
-    batch.set(doc(db, 'movimientosStock', movId), movPayload);
-    batchAudit(batch, { action: 'update', collection: 'unidades_stock', documentId: params.unidadId, after: unitPayload as any });
-    await batch.commit();
+    // Audit — post-tx best-effort (fire-and-forget). Mismo patrón que reservar().
+    logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
   },
 };
