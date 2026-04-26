@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Completed 12-01-PLAN.md (Wave 1 — types + pure helpers; all 23 unit tests GREEN)
+last_updated: "2026-04-26T15:03:11.957Z"
+last_activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
+progress:
+  total_phases: 12
+  completed_phases: 6
+  total_plans: 44
+  completed_plans: 35
+  percent: 80
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: "Completed 10-06-PLAN.md (Wave 5 — facturación dashboard extensions); Phase 10 user-UAT pending before /gsd:verify-work"
 last_updated: "2026-04-25T20:54:20.048Z"
 last_activity: 2026-04-22 — Plan 10-03 human-verify checkpoint approved with migration-data limitation noted (historical items null stockArticuloId → Servicios bucket; backfill via /admin/relinkear-articulos separate commit)
 progress:
-  total_phases: 12
+  [████████░░] 80%
   completed_phases: 6
   total_plans: 37
   completed_plans: 34
@@ -124,6 +140,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 10-presupuestos-partes-mixto-ventas P04 | 6min | 3 tasks | 3 files |
 | Phase 10-presupuestos-partes-mixto-ventas P05 | 8min | 3 tasks | 7 files |
 | Phase 10 P06 | 12min | 3 tasks | 7 files |
+| Phase 12-esquema-facturacion-porcentual-anticipos P01 | 6min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -182,6 +199,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 10-presupuestos-partes-mixto-ventas]: Export wrapper pattern: buildColumns() fn returns ExportColumn<T>[] used for both Excel and PDF helpers — single column definition drives both formats
 - [Phase 10]: 10-06: Deep link facturación resuelve via service.getById, no via list filter (evita race con estados fuera del filtro default)
 - [Phase 10]: 10-06: Routes /facturacion + /facturacion/:id allowedRoles incluyen administracion (read-only); admin actions siguen scoped a admin+admin_soporte
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: cuotasFacturacion.ts: default switch case handles 'solicitada' intermediate test fixture state + Firestore round-trip key-order independence via sort-then-compare in cuotasEqual
 
 ### Pending Todos
 
@@ -195,6 +213,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-25T20:54:20.044Z
-Stopped at: Completed 10-06-PLAN.md (Wave 5 — facturación dashboard extensions); Phase 10 user-UAT pending before /gsd:verify-work
+Last session: 2026-04-26T15:03:11.953Z
+Stopped at: Completed 12-01-PLAN.md (Wave 1 — types + pure helpers; all 23 unit tests GREEN)
 Resume file: None
