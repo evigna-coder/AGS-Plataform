@@ -3,6 +3,7 @@ export * from './types';
 
 // Exportar servicios compartidos
 export * from './services/fcm';
+export * from './services/qfDocumentos';
 
 // Exportar hooks compartidos
 export * from './hooks/useResizableColumns';

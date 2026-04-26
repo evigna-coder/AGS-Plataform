@@ -1,4 +1,17 @@
 /**
+ * Top-level clean para Firestore: elimina undefined y convierte '' → null.
+ * Usar para payloads planos. Para nested usar deepCleanForFirestore.
+ */
+export function cleanFirestoreData<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    out[k] = v === '' ? null : v;
+  }
+  return out as Partial<T>;
+}
+
+/**
  * Deep-clean para Firestore:
  * 1. Elimina valores undefined (JSON round-trip)
  * 2. Elimina keys vacíos "" de objetos — Firestore no acepta field names vacíos
