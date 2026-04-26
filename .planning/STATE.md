@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 12-02-PLAN.md (EsquemaFacturacionSection UI — Wave 2)
-last_updated: "2026-04-26T15:15:46.892Z"
+stopped_at: Completed 12-03-PLAN.md (generarAvisoFacturacion cuotaId path + togglePreEmbarque audit posta — Wave 3)
+last_updated: "2026-04-26T15:25:41.519Z"
 last_activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 44
-  completed_plans: 37
+  completed_plans: 38
   percent: 80
 ---
 
@@ -143,6 +143,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 12-esquema-facturacion-porcentual-anticipos P01 | 6min | 2 tasks | 3 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P00 | 7min | 2 tasks | 5 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P02 | 8 | 2 tasks | 6 files |
+| Phase 12-esquema-facturacion-porcentual-anticipos P03 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -206,6 +207,8 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: 12-00: mkCuota() factory helper in fixtures reduces boilerplate while keeping typed shape. E2E sub-suites use custom test from test-base, not raw @playwright/test.
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: togglePreEmbarque stub in 12-02 (writes field); full audit posta side-effect on linked ticket lands in plan 12-03 same wave
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: B2 bypass pattern: preEmbarque is the only field in EditPresupuestoModal that bypasses form-state; direct service call to fire audit posta side-effect (plan 12-03)
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: Presupuesto has no leadId field — togglePreEmbarque audit posta uses presupuestosIds array-contains query (same pattern as generarAvisoFacturacion post-commit block)
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: togglePreEmbarque uses this.update() not direct updateDoc so plan 12-05 recompute hook fires automatically when it lands
 
 ### Pending Todos
 
@@ -219,6 +222,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:15:46.889Z
-Stopped at: Completed 12-02-PLAN.md (EsquemaFacturacionSection UI — Wave 2)
+Last session: 2026-04-26T15:25:41.515Z
+Stopped at: Completed 12-03-PLAN.md (generarAvisoFacturacion cuotaId path + togglePreEmbarque audit posta — Wave 3)
 Resume file: None
