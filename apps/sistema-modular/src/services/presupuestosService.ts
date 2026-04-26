@@ -17,7 +17,7 @@ import { usuariosService } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
 import { computeStockAmplio } from './stockAmplioService';
-import { computeTotalsByCurrency } from '../utils/cuotasFacturacion';
+import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual } from '../utils/cuotasFacturacion';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -293,6 +293,25 @@ export const presupuestosService = {
 
   // Actualizar presupuesto
   async update(id: string, data: Partial<Presupuesto>) {
+    // ── Phase 12 BILL-02: recompute hook ──────────────────────────────────
+    // Recompute MUST be invoked on all 3 branches of update(); missing any one breaks
+    // BILL-02 because borrador→enviado and borrador→aceptado are the very transitions
+    // that flip cuota.estado for hito='ppto_aceptado'.
+    // Guard: skip recompute when caller is explicitly setting esquemaFacturacion (avoid double-write loop).
+    const fieldsThatTriggerRecompute = ['estado', 'ordenesCompraIds', 'preEmbarque', 'esquemaFacturacion'];
+    const triggers = Object.keys(data as Record<string, unknown>);
+    const shouldRecompute = triggers.some(k => fieldsThatTriggerRecompute.includes(k))
+      && !('esquemaFacturacion' in data); // Avoid infinite loop: authoritative esquema write does not need a round-trip.
+
+    const runRecompute = async () => {
+      if (!shouldRecompute) return;
+      try {
+        await this._recomputeAndPersistEsquema(id);
+      } catch (err) {
+        console.warn('[update.recomputeEsquema] non-blocking error:', err);
+      }
+    };
+
     // ── FLOW-01 branching: si la transición es borrador → enviado, delegar a
     // markEnviado para que corra sus side-effects (auto-ticket de seguimiento
     // FLOW-01, sync a lead origen si existe, fechaEnvio proper). Sin esto, un
@@ -321,6 +340,7 @@ export const presupuestosService = {
           batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
           await batch2.commit();
         }
+        await runRecompute(); // W3: FLOW-01 branch recompute
         return;
       }
     }
@@ -355,6 +375,7 @@ export const presupuestosService = {
           batchAudit(batch2, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned2 as any });
           await batch2.commit();
         }
+        await runRecompute(); // W3: FLOW-03 branch recompute
         return;
       }
     }
@@ -419,6 +440,8 @@ export const presupuestosService = {
         console.error('[presupuestosService] Error syncing lead from presupuesto:', err);
       }
     }
+
+    await runRecompute(); // W3: normal path recompute (estado, ordenesCompraIds, preEmbarque changes)
   },
 
   /**
@@ -1278,7 +1301,25 @@ export const presupuestosService = {
     const allOTsFinalized = workUnitOTs.every(o => o.estadoAdmin === 'FINALIZADO');
     if (!allOTsFinalized) return;
 
-    // ── Check 2: otsListasParaFacturar debe estar vacío (Tier-1) ─────────
+    // ── Phase 12 BILL-06: esquema mode branch ────────────────────────────
+    // When ppto has an esquema, finalizacion requires canFinalizeFromEsquema
+    // (all cuotas in terminal estado per finalizarConSoloFacturado setting).
+    // Legacy mode (no esquema) falls through to existing Tier-1 logic below.
+    if ((pres.esquemaFacturacion?.length ?? 0) > 0) {
+      const { canFinalizeFromEsquema } = await import('../utils/cuotasFacturacion');
+      // Re-read pres after recompute (caller may have just run _recomputeAndPersistEsquema)
+      const presFresh = await this.getById(presupuestoId);
+      if (!presFresh) return;
+      if (!canFinalizeFromEsquema(presFresh.esquemaFacturacion, presFresh.finalizarConSoloFacturado)) {
+        return;
+      }
+      await this.update(presupuestoId, { estado: 'finalizado' } as any);
+      console.log(`[trySyncFinalizacion] presupuesto ${pres.numero} → finalizado (esquema mode)`);
+      return;
+    }
+
+    // ── Existing legacy path (unchanged) ─────────────────────────────────
+    // Check 2: otsListasParaFacturar debe estar vacío (Tier-1)
     // Si quedan OTs sin incluir en una solicitud, el ppto no puede finalizar.
     // Campo opcional — si no existe (pptos viejos), tratar como vacío.
     const pendientesParaFacturar: string[] = pres.otsListasParaFacturar ?? [];
@@ -1502,7 +1543,65 @@ export const presupuestosService = {
       console.error('[generarAvisoFacturacion] ticket sync failed (non-blocking):', err);
     }
 
+    // ── Phase 12 BILL-02: recompute remaining cuotas post-tx ─────────────
+    // The patched cuota is already in 'solicitada' (done atomically in-tx above).
+    // Other cuotas may need recompute (e.g., hito='oc_recibida' just became habilitada
+    // because the same ppto now has ordenesCompraIds). Best-effort — non-blocking.
+    // Pitfall 2: this call is POST-tx, never inside runTransaction.
+    try {
+      await this._recomputeAndPersistEsquema(presupuestoId);
+    } catch (err) {
+      console.warn('[generarAvisoFacturacion.recomputeEsquema] non-blocking:', err);
+    }
+
     return { solicitudId: newSolRef.id };
+  },
+
+  /**
+   * Phase 12 BILL-02: recompute cuota estados based on current ppto + linked OTs + solicitudes,
+   * persist if changed. Idempotent (no-op when nothing changed via cuotasEqual).
+   *
+   * MUST be called only AFTER any write to ppto/OT/solicitud has settled — never inside a runTransaction.
+   * Pitfall 2: not for use inside cross-doc tx.
+   * W4 fix: uses scoped queryByBudget (not getAll) for OTs.
+   * W2 fix: uses cuotasEqual (not JSON.stringify) for idempotency check.
+   */
+  async _recomputeAndPersistEsquema(presupuestoId: string): Promise<void> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
+    if ((pres.esquemaFacturacion?.length ?? 0) === 0) return; // legacy — nothing to do
+
+    // Lazy imports to break circular deps (existing pattern in this service)
+    const [{ ordenesTrabajoService }, { facturacionService }] = await Promise.all([
+      import('./otService'),
+      import('./facturacionService'),
+    ]);
+
+    // W4 fix: scoped Firestore query — array-contains on budgets — instead of getAll().
+    // array-contains works on single fields without a composite index.
+    const otsForPres = await ordenesTrabajoService.queryByBudget(String(pres.numero));
+    const solicitudes = await facturacionService.getByPresupuesto(presupuestoId);
+
+    const recomputed = recomputeCuotaEstados(
+      {
+        estado: pres.estado,
+        ordenesCompraIds: pres.ordenesCompraIds,
+        preEmbarque: pres.preEmbarque,
+        esquemaFacturacion: pres.esquemaFacturacion,
+      },
+      otsForPres.map(o => ({ otNumber: o.otNumber, estadoAdmin: o.estadoAdmin, budgets: o.budgets })),
+      solicitudes.map(s => ({ id: s.id, cuotaId: s.cuotaId ?? null, estado: s.estado })),
+    );
+
+    // W2 fix: structural-equality check via cuotasEqual (key-order independent after Firestore round-trip).
+    if (cuotasEqual(recomputed, pres.esquemaFacturacion ?? [])) return;
+
+    const presRef = doc(db, 'presupuestos', presupuestoId);
+    await updateDoc(presRef, deepCleanForFirestore({
+      esquemaFacturacion: recomputed,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    }) as any);
   },
 
   /**
