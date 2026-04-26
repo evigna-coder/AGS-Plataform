@@ -1,4 +1,4 @@
-import { test, expect, describe } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /**
  * STKP-03 — Concurrent reservation RED baseline.
@@ -16,7 +16,7 @@ import { test, expect, describe } from '@playwright/test';
  *    "Unidad no disponible" (transaction lost the contention).
  * 5. Expect: movimientosStock collection has EXACTLY ONE 'transferencia' entry for this unidad.
  */
-describe.skip('STKP-03 concurrent reservation — requires emulator', () => {
+test.describe.skip('STKP-03 concurrent reservation — requires emulator', () => {
   test('two concurrent reservar() calls on same unidad — only one succeeds', async () => {
     // Implementation deferred post-v2.0 (see file header)
     expect(true).toBe(true);

@@ -1,4 +1,4 @@
-import { test, expect, describe } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /**
  * STKP-04 — Planning view cache-bypass RED baseline.
@@ -16,7 +16,7 @@ import { test, expect, describe } from '@playwright/test';
  * 6. Click "Ver detalle" — drawer shows OCs abiertas + Requerimientos condicionales sections (no Reservas section in v2.0).
  * 7. For a row with ATP < 0, click "Crear req." — navigation lands at /stock/requerimientos/nuevo with prefillArticuloId state.
  */
-describe.skip('STKP-04 planning view fresh data — requires seeded fixtures', () => {
+test.describe.skip('STKP-04 planning view fresh data — requires seeded fixtures', () => {
   test('live refresh without 2-min cache, URL-backed filters', async () => {
     // Implementation deferred post-v2.0 (see file header)
     expect(true).toBe(true);

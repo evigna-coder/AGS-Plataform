@@ -1,4 +1,4 @@
-import { test, expect, describe } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /**
  * STKP-02 — Cloud Function trigger RED baseline.
@@ -16,7 +16,7 @@ import { test, expect, describe } from '@playwright/test';
  * 6. Poll — expect resumenStock.enTransito === 5.
  * 7. Idempotency: retrigger write — values unchanged.
  */
-describe.skip('STKP-02 updateResumenStock CF — requires emulator', () => {
+test.describe.skip('STKP-02 updateResumenStock CF — requires emulator', () => {
   test('unidad write triggers resumenStock recomputation within 5s', async () => {
     // Implementation deferred post-v2.0 (see file header)
     expect(true).toBe(true);
