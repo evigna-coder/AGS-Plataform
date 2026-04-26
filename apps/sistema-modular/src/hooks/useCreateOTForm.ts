@@ -314,7 +314,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       onCreated();
     } catch (err) {
       console.error('Error creando OT:', err);
-      alert('Error al crear la orden de trabajo');
+      alert(err instanceof Error ? err.message : 'Error al crear la orden de trabajo');
     }
     finally { setSaving(false); }
   };

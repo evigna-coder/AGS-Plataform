@@ -152,7 +152,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({ open, parentOt, onClose, on
       setForm({ tipoServicio: '', descripcion: '' });
       onClose();
       onCreated();
-    } catch { alert('Error al crear el item'); }
+    } catch (err) {
+      console.error('Error creando item OT:', err);
+      alert(err instanceof Error ? err.message : 'Error al crear el item');
+    }
     finally { setSaving(false); }
   };
 

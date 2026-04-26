@@ -92,7 +92,10 @@ export function useOTActions({ otNumber, form, cliente, setField, markInteracted
       if (otNumber && !otNumber.includes('.')) {
         setItems(await ordenesTrabajoService.getItemsByOtPadre(otNumber));
       }
-    } catch { alert('Error al crear el item'); }
+    } catch (err) {
+      console.error('Error creando item OT:', err);
+      alert(err instanceof Error ? err.message : 'Error al crear el item');
+    }
   }, [otNumber, cliente, newItemData, form, setItems]);
 
   // ---- Create lead from OT ----

@@ -275,7 +275,7 @@ export const OTNew = () => {
       navigate(`/ordenes-trabajo/${formData.otNumber}`);
     } catch (error) {
       console.error('Error creando OT:', error);
-      alert('Error al crear la orden de trabajo');
+      alert(error instanceof Error ? error.message : 'Error al crear la orden de trabajo');
     } finally {
       setLoading(false);
     }

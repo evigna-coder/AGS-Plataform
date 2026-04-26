@@ -270,6 +270,16 @@ export const ordenesTrabajoService = {
 
     const isParent = !otData.otNumber.includes('.');
     const otDocRef = doc(db, 'reportes', otData.otNumber);
+
+    // Anti-overwrite guard: si la OT ya existe, abortar. Sin esto un dedazo en
+    // el número de OT (la UI permite override del auto-generado) pisaba la OT
+    // real con todo su contenido (artículos, fechas, ingeniero, posta histórica)
+    // sin ningún warning. Disaster recovery = restore desde backup.
+    const existing = await getDoc(otDocRef);
+    if (existing.exists()) {
+      throw new Error(`La OT ${otData.otNumber} ya existe. Elegí otro número.`);
+    }
+
     const cleanedData = deepCleanForFirestore({
       ...otData,
       ...getCreateTrace(),
