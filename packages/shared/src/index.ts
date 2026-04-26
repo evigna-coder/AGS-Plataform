@@ -4,5 +4,8 @@ export * from './types';
 // Exportar servicios compartidos (cuando se extraigan)
 // export * from './services';
 
+// Exportar hooks compartidos
+export * from './hooks/useResizableColumns';
+
 // Exportar utilidades compartidas
 export * from './utils';
