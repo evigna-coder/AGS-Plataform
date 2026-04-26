@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { TableEditor } from '../../components/protocol-catalog/TableEditor';
 import { TablePreview } from '../../components/protocol-catalog/TablePreview';
 import { ChecklistEditor } from '../../components/protocol-catalog/ChecklistEditor';
+import { ModelosPicker } from '../../components/protocol-catalog/ModelosPicker';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { categoriasEquipoService } from '../../services/firebaseService';
 import { useTableProjects } from '../../hooks/useTableProjects';
@@ -14,7 +15,7 @@ import type { TableCatalogEntry, CategoriaEquipo } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 
 const SERVICIO_TYPES = [
   'Calibración',
@@ -379,55 +380,20 @@ export const TableCatalogEditorPage = () => {
             </div>
 
             {/* Modelos de equipo */}
-            {entry.sysType && (() => {
-              const modelosPorCategoria = categorias
-                .filter(c => (c.modelos ?? []).length > 0)
-                .map(c => ({
-                  categoria: c.nombre,
-                  modelos: (c.modelos ?? []).filter((v, i, a) => a.indexOf(v) === i).sort(),
-                }));
-              const hayModelos = modelosPorCategoria.some(g => g.modelos.length > 0);
-              if (!hayModelos) return null;
-              return (
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-2">
-                    Modelos de equipo
-                    <span className="ml-1 font-normal text-slate-400 normal-case">(uno o más)</span>
-                  </label>
-                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                    {modelosPorCategoria.map(g => (
-                      <div key={g.categoria}>
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{g.categoria}</p>
-                        <div className="space-y-1.5 pl-1">
-                          {g.modelos.map(modelo => {
-                            const selected = (entry.modelos ?? []).includes(modelo);
-                            return (
-                              <label key={modelo} className="flex items-start gap-2 cursor-pointer group">
-                                <input
-                                  type="checkbox"
-                                  checked={selected}
-                                  onChange={() => {
-                                    const current = entry.modelos ?? [];
-                                    setMeta('modelos', selected ? current.filter(m => m !== modelo) : [...current, modelo]);
-                                  }}
-                                  className="mt-0.5 accent-blue-600 shrink-0"
-                                />
-                                <span className="text-xs text-slate-700 group-hover:text-slate-900 leading-tight">{modelo}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {(entry.modelos ?? []).length === 0 && (
-                    <p className="text-[10px] text-slate-400 mt-1 italic">
-                      Sin asignar — aparecerá para todos los modelos de este tipo de sistema.
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
+            {entry.sysType && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-2">
+                  Modelos de equipo
+                  <span className="ml-1 font-normal text-slate-400 normal-case">(uno o más)</span>
+                </label>
+                <ModelosPicker
+                  selected={entry.modelos ?? []}
+                  onChange={(next) => setMeta('modelos', next)}
+                  categorias={categorias}
+                  emptyMessage="Sin asignar — aparecerá para todos los modelos de este tipo de sistema."
+                />
+              </div>
+            )}
           </div>
         </Card>
         </div>{/* /sticky */}

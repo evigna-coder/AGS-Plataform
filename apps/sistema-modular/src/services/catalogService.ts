@@ -102,6 +102,29 @@ export const tableCatalogService = {
     ));
   },
 
+  /**
+   * Agrega modelos al campo `modelos[]` de todas las tablas del proyecto (union, no duplica).
+   * Devuelve cuántas tablas se actualizaron y el total del proyecto.
+   */
+  async bulkAddModelosToProject(projectId: string, modelosToAdd: string[]): Promise<{ updated: number; total: number }> {
+    if (modelosToAdd.length === 0) return { updated: 0, total: 0 };
+    const tables = await this.getAll({ projectId });
+    let updated = 0;
+    await Promise.all(tables.map(async t => {
+      const current = Array.isArray(t.modelos) ? t.modelos : [];
+      const set = new Set(current);
+      const before = set.size;
+      for (const m of modelosToAdd) set.add(m);
+      if (set.size === before) return;
+      await updateDoc(doc(db, 'tableCatalog', t.id), {
+        modelos: Array.from(set),
+        updatedAt: Timestamp.now(),
+      });
+      updated++;
+    }));
+    return { updated, total: tables.length };
+  },
+
   subscribe(
     filters: { sysType?: string; status?: string; projectId?: string | null } | undefined,
     callback: (entries: TableCatalogEntry[]) => void,

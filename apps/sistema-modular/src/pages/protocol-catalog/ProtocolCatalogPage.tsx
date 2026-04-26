@@ -9,10 +9,11 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ImportJsonDialog } from '../../components/protocol-catalog/ImportJsonDialog';
 import { ProjectSelector } from '../../components/protocol-catalog/ProjectSelector';
-import type { TableCatalogEntry } from '@ags/shared';
+import { BulkAddModelosModal } from '../../components/protocol-catalog/BulkAddModelosModal';
+import type { TableCatalogEntry, TableProject } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
-const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'OTRO'];
+const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 const LS_KEY = 'ags:tableCatalog:activeProject';
 
 const STATUS_LABELS: Record<string, string> = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' };
@@ -37,7 +38,7 @@ function readSavedProject(): string | null | undefined {
 export const TableCatalogPage = () => {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { tables, loading, error, listTables, archiveTable, publishTable, cloneTable, importTables, deleteTable, assignProject } = useTableCatalog();
+  const { tables, loading, error, listTables, archiveTable, publishTable, cloneTable, importTables, deleteTable, assignProject, bulkAddModelosToProject } = useTableCatalog();
   const { projects, createProject, updateProject, deleteProject } = useTableProjects();
 
   const [activeProjectId, setActiveProjectId] = useState<string | null | undefined>(readSavedProject);
@@ -49,6 +50,7 @@ export const TableCatalogPage = () => {
   const [cloneName, setCloneName] = useState('');
   const [cloneSysType, setCloneSysType] = useState('');
   const [cloneProjectId, setCloneProjectId] = useState<string | null>(null);
+  const [bulkModelosTarget, setBulkModelosTarget] = useState<TableProject | null>(null);
   const [sortField, setSortField] = useState<string>('orden');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const handleSort = (f: string) => {
@@ -166,6 +168,7 @@ export const TableCatalogPage = () => {
           onRename={handleRenameProject}
           onDelete={handleDeleteProject}
           onUpdateSettings={async (id, data) => { await updateProject(id, data); }}
+          onBulkAddModelos={(p) => setBulkModelosTarget(p)}
         />
 
         {/* Filtros */}
@@ -288,6 +291,16 @@ export const TableCatalogPage = () => {
         )}
 
         {showImport && <ImportJsonDialog onClose={() => setShowImport(false)} onImport={handleImport} />}
+
+        <BulkAddModelosModal
+          open={!!bulkModelosTarget}
+          project={bulkModelosTarget}
+          onClose={() => { setBulkModelosTarget(null); reload(); }}
+          onConfirm={async (modelos) => {
+            if (!bulkModelosTarget) return { updated: 0, total: 0 };
+            return await bulkAddModelosToProject(bulkModelosTarget.id, modelos);
+          }}
+        />
 
         <Modal
           open={!!cloneTarget}

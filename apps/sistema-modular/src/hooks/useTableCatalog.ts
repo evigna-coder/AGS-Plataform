@@ -103,6 +103,13 @@ export function useTableCatalog() {
     });
   }, []);
 
+  const bulkAddModelosToProject = useCallback(
+    async (projectId: string, modelosToAdd: string[]) => {
+      return tableCatalogService.bulkAddModelosToProject(projectId, modelosToAdd);
+    },
+    [],
+  );
+
   return {
     tables,
     loading,
@@ -116,5 +123,6 @@ export function useTableCatalog() {
     importTables,
     deleteTable,
     assignProject,
+    bulkAddModelosToProject,
   };
 }
