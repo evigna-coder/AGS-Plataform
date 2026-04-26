@@ -5,11 +5,14 @@ interface MoreItem {
   to: string;
   label: string;
   adminOnly?: boolean;
+  recepcionOnly?: boolean;
 }
 
 const MORE_ITEMS: MoreItem[] = [
   { to: '/reportes', label: 'Reportes' },
   { to: '/viaticos', label: 'Viáticos' },
+  { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
+  { to: '/recepcion/egreso', label: 'Egreso (fotos)', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];
@@ -22,7 +25,12 @@ interface MasMenuProps {
 export default function MasMenu({ open, onClose }: MasMenuProps) {
   const { hasRole } = useAuth();
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
-  const items = MORE_ITEMS.filter(i => !i.adminOnly || canSeeQF);
+  const canRecepcion = hasRole('admin', 'admin_soporte');
+  const items = MORE_ITEMS.filter(i => {
+    if (i.adminOnly && !canSeeQF) return false;
+    if (i.recepcionOnly && !canRecepcion) return false;
+    return true;
+  });
 
   if (!open) return null;
 

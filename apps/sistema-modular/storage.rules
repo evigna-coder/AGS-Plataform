@@ -29,6 +29,11 @@ service firebase.storage {
       allow read, write: if true; // ⚠️ Solo para desarrollo
     }
 
+    // Fotos de fichas propiedad del cliente (recepción móvil desde portal-ingeniero)
+    match /fotosFichas/{allPaths=**} {
+      allow read, write: if true; // ⚠️ Solo para desarrollo
+    }
+
     // Adjuntos de presupuestos (órdenes de compra, autorizaciones, etc.)
     match /presupuestos/{allPaths=**} {
       allow read, write: if true; // ⚠️ Solo para desarrollo

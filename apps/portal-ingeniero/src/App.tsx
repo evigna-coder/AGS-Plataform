@@ -18,6 +18,10 @@ import PerfilPage from './pages/PerfilPage';
 import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 import QFDocumentosPage from './pages/QFDocumentosPage';
+import RecepcionPage from './pages/RecepcionPage';
+import FichaFotosEgresoPage from './pages/FichaFotosEgresoPage';
+import { UploadQueueIndicator } from './components/recepcion/UploadQueueIndicator';
+import { uploadQueueManager } from './services/uploadQueueManager';
 
 /** Listener de notificaciones foreground — componente separado para respetar rules of hooks */
 function ForegroundNotificationListener() {
@@ -54,9 +58,19 @@ function ForegroundNotificationListener() {
   return null;
 }
 
+/** Arranca el manager de cola de subidas una vez que el usuario está autenticado. */
+function UploadQueueLifecycle() {
+  useEffect(() => {
+    uploadQueueManager.start();
+    return () => uploadQueueManager.stop();
+  }, []);
+  return null;
+}
+
 // Rutas privadas (requieren auth)
 function PrivateApp() {
-  const { loading, isAuthenticated, isPending, isDisabled, authError } = useAuth();
+  const { loading, isAuthenticated, isPending, isDisabled, authError, hasRole } = useAuth();
+  const canRecepcion = hasRole('admin', 'admin_soporte');
 
   if (loading) {
     return (
@@ -102,22 +116,32 @@ function PrivateApp() {
   }
 
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/leads" replace />} />
-        <Route path="ordenes-trabajo" element={<OTListPage />} />
-        <Route path="ordenes-trabajo/:otNumber" element={<OTDetailPage />} />
-        <Route path="historial" element={<HistorialPage />} />
-        <Route path="agenda" element={<AgendaPage />} />
-        <Route path="leads" element={<LeadsPage />} />
-        <Route path="leads/:leadId" element={<LeadDetailPage />} />
-        <Route path="reportes" element={<ReportesPage />} />
-        <Route path="viaticos" element={<ViaticosPage />} />
-        <Route path="qf-documentos" element={<QFDocumentosPage />} />
-        <Route path="perfil" element={<PerfilPage />} />
-        <Route path="*" element={<Navigate to="/leads" replace />} />
-      </Route>
-    </Routes>
+    <>
+      <UploadQueueLifecycle />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<Navigate to="/leads" replace />} />
+          <Route path="ordenes-trabajo" element={<OTListPage />} />
+          <Route path="ordenes-trabajo/:otNumber" element={<OTDetailPage />} />
+          <Route path="historial" element={<HistorialPage />} />
+          <Route path="agenda" element={<AgendaPage />} />
+          <Route path="leads" element={<LeadsPage />} />
+          <Route path="leads/:leadId" element={<LeadDetailPage />} />
+          <Route path="reportes" element={<ReportesPage />} />
+          <Route path="viaticos" element={<ViaticosPage />} />
+          <Route path="qf-documentos" element={<QFDocumentosPage />} />
+          {canRecepcion && (
+            <>
+              <Route path="recepcion" element={<RecepcionPage />} />
+              <Route path="recepcion/egreso" element={<FichaFotosEgresoPage />} />
+              <Route path="recepcion/egreso/:fichaId" element={<FichaFotosEgresoPage />} />
+            </>
+          )}
+          <Route path="perfil" element={<PerfilPage />} />
+          <Route path="*" element={<Navigate to="/leads" replace />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 
@@ -134,6 +158,7 @@ export default function App() {
         <ForegroundNotificationListener />
         <TokenAutoRefresher />
         <ToastContainer />
+        <UploadQueueIndicator />
       </AuthProvider>
     </BrowserRouter>
   );

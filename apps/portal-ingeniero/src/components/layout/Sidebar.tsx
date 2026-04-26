@@ -6,6 +6,8 @@ interface NavItem {
   to: string;
   label: string;
   adminOnly?: boolean;
+  /** Visible solo para admin/admin_soporte (responsable de materiales). */
+  recepcionOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -15,6 +17,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/leads', label: 'Tickets' },
   { to: '/reportes', label: 'Reportes' },
   { to: '/viaticos', label: 'Viáticos' },
+  { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
+  { to: '/recepcion/egreso', label: 'Egreso (fotos)', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];
@@ -26,7 +30,12 @@ interface SidebarProps {
 export default function Sidebar({ collapsed = false }: SidebarProps) {
   const { usuario, hasRole } = useAuth();
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
-  const navItems = NAV_ITEMS.filter(item => !item.adminOnly || canSeeQF);
+  const canRecepcion = hasRole('admin', 'admin_soporte');
+  const navItems = NAV_ITEMS.filter(item => {
+    if (item.adminOnly && !canSeeQF) return false;
+    if (item.recepcionOnly && !canRecepcion) return false;
+    return true;
+  });
 
   return (
     <aside

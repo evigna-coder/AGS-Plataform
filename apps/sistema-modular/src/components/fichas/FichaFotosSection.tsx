@@ -60,7 +60,11 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
     if (!await confirm('Eliminar esta foto?')) return;
     setDeleting(foto.id);
     try {
-      await googleDriveService.deleteFile(foto.driveFileId);
+      if (foto.driveFileId) {
+        await googleDriveService.deleteFile(foto.driveFileId);
+      }
+      // Si no tiene driveFileId, vive en Firebase Storage (subida desde portal-ingeniero).
+      // El delete del blob lo maneja el otro flujo; aca solo removemos la metadata.
       await fichasService.update(ficha.id, {
         fotos: fotos.filter(f => f.id !== foto.id),
       });

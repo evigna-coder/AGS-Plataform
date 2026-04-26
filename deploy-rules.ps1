@@ -39,8 +39,8 @@ if (-not (Test-Path "firestore.rules")) {
     exit 1
 }
 
-if (-not (Test-Path "storage.rules")) {
-    Write-Host "❌ Error: storage.rules no encontrado" -ForegroundColor Red
+if (-not (Test-Path "apps/sistema-modular/storage.rules")) {
+    Write-Host "❌ Error: apps/sistema-modular/storage.rules no encontrado" -ForegroundColor Red
     exit 1
 }
 
@@ -54,7 +54,7 @@ Write-Host "`n✅ Archivos de reglas encontrados" -ForegroundColor Green
 # Desplegar reglas
 Write-Host "`n📤 Desplegando reglas de Firestore y Storage..." -ForegroundColor Cyan
 try {
-    firebase deploy --only firestore:rules,storage:rules
+    firebase deploy --only firestore:rules,storage
     Write-Host "`n✅ ¡Reglas desplegadas exitosamente!" -ForegroundColor Green
 } catch {
     Write-Host "`n❌ Error al desplegar reglas:" -ForegroundColor Red
