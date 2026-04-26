@@ -210,7 +210,7 @@ Plans:
   7. Existe toggle manual `preEmbarque` en el header del ppto que habilita la cuota con hito `pre_embarque`.
   8. Tests Playwright cubren los 3 flujos típicos (30/70 anticipo, 70/30 pre-embarque, 100% al cierre) sin warnings ni huérfanos en `solicitudesFacturacion`.
 
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 - [ ] 12-00-PLAN.md — Wave 0 RED: unit-test scaffolding + Playwright fixme sub-suites + getPresupuestoEsquema helper + test:cuotas-facturacion script
@@ -239,4 +239,4 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 | 9. Stock ATP Extendido | 3/3 | Complete   | 2026-04-22 | - |
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | 7/7 | Complete   | 2026-04-25 | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
-| 12. Esquema Facturación Porcentual + Anticipos | 4/7 | In Progress|  | - |
+| 12. Esquema Facturación Porcentual + Anticipos | 5/7 | In Progress|  | - |

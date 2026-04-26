@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 12-03-PLAN.md (generarAvisoFacturacion cuotaId path + togglePreEmbarque audit posta — Wave 3)
-last_updated: "2026-04-26T15:25:41.519Z"
+stopped_at: "Completed 12-04-PLAN.md (UI refactor: PresupuestoFacturacionSection + GenerarSolicitudCuotaModal — Wave 4)"
+last_updated: "2026-04-26T15:34:58.126Z"
 last_activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 44
-  completed_plans: 38
+  completed_plans: 39
   percent: 80
 ---
 
@@ -144,6 +144,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 12-esquema-facturacion-porcentual-anticipos P00 | 7min | 2 tasks | 5 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P02 | 8 | 2 tasks | 6 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P03 | 8min | 2 tasks | 2 files |
+| Phase 12-esquema-facturacion-porcentual-anticipos P04 | 441s | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,8 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: B2 bypass pattern: preEmbarque is the only field in EditPresupuestoModal that bypasses form-state; direct service call to fire audit posta side-effect (plan 12-03)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: Presupuesto has no leadId field — togglePreEmbarque audit posta uses presupuestosIds array-contains query (same pattern as generarAvisoFacturacion post-commit block)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: togglePreEmbarque uses this.update() not direct updateDoc so plan 12-05 recompute hook fires automatically when it lands
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: W5 split executed from start: GenerarSolicitudCuotaInputs.tsx extracted to keep GenerarSolicitudCuotaModal at 219 lines
+- [Phase 12-esquema-facturacion-porcentual-anticipos]: W6 applied: zero-percentage monedas hidden entirely in mini-modal (not disabled placeholders) — research-recommended, revisitable
 
 ### Pending Todos
 
@@ -222,6 +225,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:25:41.515Z
-Stopped at: Completed 12-03-PLAN.md (generarAvisoFacturacion cuotaId path + togglePreEmbarque audit posta — Wave 3)
+Last session: 2026-04-26T15:34:58.122Z
+Stopped at: Completed 12-04-PLAN.md (UI refactor: PresupuestoFacturacionSection + GenerarSolicitudCuotaModal — Wave 4)
 Resume file: None
