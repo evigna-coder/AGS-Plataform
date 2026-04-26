@@ -366,17 +366,19 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           </div>
         )}
 
-        {/* Cuotas */}
-        <div className="mt-4">
-          <PresupuestoCuotasSection
-            cuotas={form.cuotas || []}
-            onChange={handleCuotasChange}
-            totalsByCurrency={totalsByCurrency}
-            moneda={form.moneda}
-            cantidadCuotasPorMoneda={form.cantidadCuotasPorMoneda}
-            onCantidadCuotasPorMonedaChange={(map) => setField('cantidadCuotasPorMoneda', map)}
-          />
-        </div>
+        {/* Cuotas (contrato only) — non-contrato uses EsquemaFacturacionSection above */}
+        {form.tipo === 'contrato' && (
+          <div className="mt-4">
+            <PresupuestoCuotasSection
+              cuotas={form.cuotas || []}
+              onChange={handleCuotasChange}
+              totalsByCurrency={totalsByCurrency}
+              moneda={form.moneda}
+              cantidadCuotasPorMoneda={form.cantidadCuotasPorMoneda}
+              onCantidadCuotasPorMonedaChange={(map) => setField('cantidadCuotasPorMoneda', map)}
+            />
+          </div>
+        )}
 
         {/* Collapsible sections */}
         <div className="mt-4 space-y-2">
