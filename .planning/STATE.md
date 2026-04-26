@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
-status: executing
-stopped_at: Completed 12-05-PLAN.md (recompute hook wiring — 4 sync points — Wave 4)
-last_updated: "2026-04-26T15:36:15.859Z"
-last_activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
+status: awaiting_human_verify
+stopped_at: "12-06-PLAN.md Task 4 checkpoint — human-verify E2E run + manual visual checks (BILL-08 sign-off)"
+last_updated: "2026-04-26T15:55:00Z"
+last_activity: "2026-04-26 — Plan 12-06 Tasks 1-3 complete: data-testid attributes (49a264d) + E2E sub-suites 11.50/11.51/11.52 implemented (e703cb1). Task 4 human-verify pending."
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 44
   completed_plans: 40
-  percent: 80
+  percent: 91
 ---
 
 ---
