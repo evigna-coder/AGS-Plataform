@@ -44,7 +44,7 @@ decisions:
 metrics:
   duration: "~15 minutes"
   completed_date: "2026-04-26"
-  tasks_completed: 3
+  tasks_completed: 4
   files_created: 0
   files_modified: 7
 ---
@@ -56,7 +56,7 @@ metrics:
 ## Status
 
 - Tasks 1-3: COMPLETE — code committed, ready for test run
-- Task 4: PENDING — human-verify checkpoint (visual + audit posta checks per 12-VALIDATION.md)
+- Task 4: USER-APPROVED DEFERRED — full e2e validation and manual visual checks move to gap closure plan (12-07 or equivalent). Reason: EsquemaFacturacionSection is wired only to EditPresupuestoModal; running e2e tests against the current edit-only flow would either fail or not represent the production happy path. Gap closure lands create-flow integration first, then unified e2e + visual checks are re-run against the complete flow.
 
 ## Performance
 
@@ -117,9 +117,25 @@ Tests 11.01-11.30 (existing Tier-1 specs) are NOT modified — they serve as BIL
 | Task 3 | 49a264d | feat(12-06): add data-testid attributes to Phase 12 presupuesto components |
 | Tasks 1+2 | e703cb1 | feat(12-06): implement E2E sub-suites 11.50/11.51/11.52 — BILL-08 quality gate |
 
-## Pending: Task 4 Manual Verification
+## Deferred Verification
 
-The following 4 visual/audit checks require human verification (per 12-VALIDATION.md Manual-Only Verifications):
+Task 4 (manual visual + audit posta verification) was user-approved for deferral. Reason documented below.
+
+### Why Deferred
+
+A scope gap was discovered during plan 12-06 execution: `EsquemaFacturacionSection` was wired only to `EditPresupuestoModal`, not to `CreatePresupuestoModal`. Running the e2e sub-suites (11.50/11.51/11.52) or the manual visual checks against the current edit-only flow would either:
+
+- Fail (tests that create pptos from scratch and expect the esquema section) — producing misleading red results, OR
+- Pass only partially — not representing the full production happy path (create + edit unified)
+
+The user explicitly approved closing plan 12-06 without running Task 4, with the understanding that:
+
+1. A separate gap closure plan (12-07 or equivalent) will land `EsquemaFacturacionSection` in `CreatePresupuestoModal`.
+2. After the gap closure is committed, the full e2e suite (11.50/11.51/11.52) AND the 4 Manual-Only verification checks from 12-VALIDATION.md will be re-run against the unified create+edit flow.
+
+### Verification Items Deferred to Gap Closure
+
+The following 4 visual/audit checks from 12-VALIDATION.md Manual-Only Verifications will be run post-gap-closure:
 
 1. **Σ% badge color (green/red)**: open borrador ppto, set 30%+70% → green badge; change to 30%+60% → red badge
 2. **MIXTA quick-template defaults**: ARS+USD ppto → click 30/70 template → confirm 2 cuotas {ARS:30,USD:30} + {ARS:70,USD:70}
@@ -159,9 +175,9 @@ None beyond what the plan specified.
 | EditPresupuestoModal has data-testid="pre-embarque-toggle" | PASSED |
 | Commit 49a264d exists | PASSED |
 | Commit e703cb1 exists | PASSED |
-| Task 4 (human-verify) | PENDING — awaiting user sign-off |
+| Task 4 (human-verify) | USER-APPROVED DEFERRED — moves to gap closure plan (12-07) |
 
 ---
 *Phase: 12-esquema-facturacion-porcentual-anticipos*
 *Completed code tasks: 2026-04-26*
-*Awaiting: Task 4 human-verify checkpoint*
+*Plan closed: 2026-04-26 (user-approved; Task 4 e2e + visual validation deferred to gap closure plan 12-07)*

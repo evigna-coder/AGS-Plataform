@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
-status: awaiting_human_verify
-stopped_at: "12-06-PLAN.md Task 4 checkpoint — human-verify E2E run + manual visual checks (BILL-08 sign-off)"
-last_updated: "2026-04-26T15:55:00Z"
-last_activity: "2026-04-26 — Plan 12-06 Tasks 1-3 complete: data-testid attributes (49a264d) + E2E sub-suites 11.50/11.51/11.52 implemented (e703cb1). Task 4 human-verify pending."
+status: executing
+stopped_at: "Plan 12-06 complete (user-approved, e2e validation deferred to gap closure for unified create+edit flow). Ready for gap closure 12-07: EsquemaFacturacionSection in CreatePresupuestoModal."
+last_updated: "2026-04-26T16:30:00Z"
+last_activity: "2026-04-26 — Plan 12-06 closed: data-testid attributes (49a264d) + E2E sub-suites 11.50/11.51/11.52 implemented (e703cb1). Task 4 user-approved deferred — e2e + visual checks move to gap closure plan 12-07 (create-flow integration)."
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 44
-  completed_plans: 40
-  percent: 91
+  completed_plans: 41
+  percent: 93
 ---
 
 ---
@@ -103,10 +103,10 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 10 of 11 (Presupuestos Partes/Mixto/Ventas + Aviso Facturación + Exports) — CODE COMPLETE, USER UAT PENDING
-Plan: 7 of 7 complete (10-00 specs RED, 10-01 tipos+schema, 10-02 ArticuloPickerPanel+VentasMetadataSection, 10-03 PDF branching, 10-04 cierreAdmin solicitudFacturacion, 10-05 export helpers, 10-06 facturación dashboard extensions)
-Status: Phase 10 code complete. User UAT pending before /gsd:verify-work — Tier-1 fixes plus full circuito comercial v2.0 walkthrough (ventas/partes/mixto/RBAC/deep-link). Next: Phase 11 E2E suite once verified.
-Last activity: 2026-04-25 — Plan 10-06 SUMMARY written; commits 4459546 (Task 1), 6761aa1 (Task 2), c77429d (Task 3) already on main from 2026-04-22.
+Phase: 12 of 12 (Esquema Facturación Porcentual + Anticipos) — PLAN 12-06 COMPLETE, GAP CLOSURE PENDING
+Plan: 6 of 7 complete (12-00 Wave 0 RED, 12-01 tipos+utils, 12-02 editor UI, 12-03 service extension, 12-04 UI refactor, 12-05 sync wiring, 12-06 E2E quality gate — code done, e2e deferred)
+Status: Plan 12-06 closed with user approval. Task 4 (e2e + visual checks) deferred to gap closure plan 12-07: EsquemaFacturacionSection must be wired to CreatePresupuestoModal before running full e2e suite and manual visual verification. After gap closure, Phase 12 will be fully complete.
+Last activity: 2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing.
 
 Progress: [█████████░] 92% (v2.0 milestone)
 
@@ -228,6 +228,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:36:15.856Z
-Stopped at: Completed 12-05-PLAN.md (recompute hook wiring — 4 sync points — Wave 4)
+Last session: 2026-04-26T16:30:00Z
+Stopped at: Completed 12-06-PLAN.md (user-approved close — e2e validation deferred to gap closure plan 12-07 for unified create+edit flow)
 Resume file: None
