@@ -400,6 +400,7 @@ export const marcasService = {
     batch.set(ref, payload);
     batchAudit(batch, { action: 'create', collection: 'marcas', documentId: ref.id, after: payload as any });
     await batch.commit();
+    invalidateCache('marcas');
     return ref.id;
   },
 
@@ -413,6 +414,7 @@ export const marcasService = {
     batch.update(docRef('marcas', id), payload);
     batchAudit(batch, { action: 'update', collection: 'marcas', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('marcas');
   },
 
   async delete(id: string): Promise<void> {
@@ -420,6 +422,7 @@ export const marcasService = {
     batch.delete(docRef('marcas', id));
     batchAudit(batch, { action: 'delete', collection: 'marcas', documentId: id });
     await batch.commit();
+    invalidateCache('marcas');
   },
 
   subscribe(
@@ -480,10 +483,12 @@ export const sectoresCatalogService = {
 
   async create(nombre: string): Promise<string> {
     const ref = await addDoc(collection(db, 'catalogoSectores'), { nombre });
+    invalidateCache('sectores');
     return ref.id;
   },
 
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'catalogoSectores', id));
+    invalidateCache('sectores');
   },
 };

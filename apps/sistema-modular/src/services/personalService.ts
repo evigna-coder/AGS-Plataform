@@ -153,6 +153,7 @@ export const proveedoresService = {
     batch.set(docRef('proveedores', id), payload);
     batchAudit(batch, { action: 'create', collection: 'proveedores', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('proveedores');
     return id;
   },
 
@@ -166,6 +167,7 @@ export const proveedoresService = {
     batch.update(docRef('proveedores', id), payload);
     batchAudit(batch, { action: 'update', collection: 'proveedores', documentId: id, after: payload as any });
     await batch.commit();
+    invalidateCache('proveedores');
   },
 
   async delete(id: string): Promise<void> {
@@ -173,6 +175,7 @@ export const proveedoresService = {
     batch.delete(docRef('proveedores', id));
     batchAudit(batch, { action: 'delete', collection: 'proveedores', documentId: id });
     await batch.commit();
+    invalidateCache('proveedores');
   },
 
   async getInternacionales(): Promise<Proveedor[]> {
@@ -290,14 +293,17 @@ export const usuariosService = {
 
   async updateStatus(uid: string, status: UserStatus): Promise<void> {
     await updateDoc(doc(db, 'usuarios', uid), { status, updatedAt: Timestamp.now() });
+    invalidateCache('usuarios');
   },
 
   async approveUser(uid: string, role: UserRole): Promise<void> {
     await updateDoc(doc(db, 'usuarios', uid), { status: 'activo', role, updatedAt: Timestamp.now() });
+    invalidateCache('usuarios');
   },
 
   async updatePermissions(uid: string, permisos: UserPermissionsOverride | null): Promise<void> {
     await updateDoc(doc(db, 'usuarios', uid), { permisos: permisos ?? deleteField(), updatedAt: Timestamp.now() });
+    invalidateCache('usuarios');
   },
 
   subscribe(
