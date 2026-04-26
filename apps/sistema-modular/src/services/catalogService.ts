@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, setDoc, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, addDoc } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca } from '@ags/shared';
 import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
@@ -60,11 +60,19 @@ export const tableCatalogService = {
   },
 
   async publish(id: string): Promise<void> {
-    await updateDoc(doc(db, 'tableCatalog', id), { status: 'published', updatedAt: Timestamp.now() });
+    const payload = { status: 'published' as const, updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('tableCatalog', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async archive(id: string): Promise<void> {
-    await updateDoc(doc(db, 'tableCatalog', id), { status: 'archived', updatedAt: Timestamp.now() });
+    const payload = { status: 'archived' as const, updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('tableCatalog', id), payload);
+    batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+    await batch.commit();
   },
 
   async clone(id: string, overrides?: { name?: string; sysType?: string; projectId?: string | null }): Promise<string> {
@@ -72,7 +80,7 @@ export const tableCatalogService = {
     if (!original) throw new Error('Tabla no encontrada');
     const newId = crypto.randomUUID();
     const { createdAt: _ca, updatedAt: _ua, ...rest } = original;
-    await setDoc(doc(db, 'tableCatalog', newId), {
+    const payload = {
       ...deepCleanForFirestore(rest),
       id: newId,
       name: overrides?.name || `${original.name} (copia)`,
@@ -81,7 +89,11 @@ export const tableCatalogService = {
       status: 'draft',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    });
+    };
+    const batch = createBatch();
+    batch.set(docRef('tableCatalog', newId), payload);
+    batchAudit(batch, { action: 'create', collection: 'tableCatalog', documentId: newId, after: payload as any });
+    await batch.commit();
     return newId;
   },
 
@@ -97,9 +109,14 @@ export const tableCatalogService = {
   },
 
   async assignProject(tableIds: string[], projectId: string | null): Promise<void> {
-    await Promise.all(tableIds.map(id =>
-      updateDoc(doc(db, 'tableCatalog', id), { projectId: projectId ?? null, updatedAt: Timestamp.now() })
-    ));
+    const updatedAt = Timestamp.now();
+    const payload = { projectId: projectId ?? null, updatedAt };
+    await Promise.all(tableIds.map(async id => {
+      const batch = createBatch();
+      batch.update(docRef('tableCatalog', id), payload);
+      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: id, after: payload as any });
+      await batch.commit();
+    }));
   },
 
   /**
@@ -116,10 +133,11 @@ export const tableCatalogService = {
       const before = set.size;
       for (const m of modelosToAdd) set.add(m);
       if (set.size === before) return;
-      await updateDoc(doc(db, 'tableCatalog', t.id), {
-        modelos: Array.from(set),
-        updatedAt: Timestamp.now(),
-      });
+      const payload = { modelos: Array.from(set), updatedAt: Timestamp.now() };
+      const batch = createBatch();
+      batch.update(docRef('tableCatalog', t.id), payload);
+      batchAudit(batch, { action: 'update', collection: 'tableCatalog', documentId: t.id, after: payload as any });
+      await batch.commit();
       updated++;
     }));
     return { updated, total: tables.length };

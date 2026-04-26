@@ -281,28 +281,51 @@ export const usuariosService = {
     return items;
   },
 
+  // Mutaciones de RBAC: todas pasan por batch + batchAudit. Compliance-critical
+  // (cambios de rol/permisos/estado son lo que un security reviewer audita).
   async updateRole(uid: string, role: UserRole): Promise<void> {
-    await updateDoc(doc(db, 'usuarios', uid), { role, updatedAt: Timestamp.now() });
+    const payload = { role, updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('usuarios', uid), payload);
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    await batch.commit();
     invalidateCache('usuarios');
   },
 
   async updateRoles(uid: string, roles: UserRole[]): Promise<void> {
-    await updateDoc(doc(db, 'usuarios', uid), { roles, updatedAt: Timestamp.now() });
+    const payload = { roles, updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('usuarios', uid), payload);
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    await batch.commit();
     invalidateCache('usuarios');
   },
 
   async updateStatus(uid: string, status: UserStatus): Promise<void> {
-    await updateDoc(doc(db, 'usuarios', uid), { status, updatedAt: Timestamp.now() });
+    const payload = { status, updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('usuarios', uid), payload);
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    await batch.commit();
     invalidateCache('usuarios');
   },
 
   async approveUser(uid: string, role: UserRole): Promise<void> {
-    await updateDoc(doc(db, 'usuarios', uid), { status: 'activo', role, updatedAt: Timestamp.now() });
+    const payload = { status: 'activo' as UserStatus, role, updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('usuarios', uid), payload);
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: payload as any });
+    await batch.commit();
     invalidateCache('usuarios');
   },
 
   async updatePermissions(uid: string, permisos: UserPermissionsOverride | null): Promise<void> {
-    await updateDoc(doc(db, 'usuarios', uid), { permisos: permisos ?? deleteField(), updatedAt: Timestamp.now() });
+    // permisos === null usa deleteField sentinel; el audit log registra `null` como "removed".
+    const updates = { permisos: permisos ?? deleteField(), updatedAt: Timestamp.now() };
+    const batch = createBatch();
+    batch.update(docRef('usuarios', uid), updates);
+    batchAudit(batch, { action: 'update', collection: 'usuarios', documentId: uid, after: { permisos, updatedAt: updates.updatedAt } as any });
+    await batch.commit();
     invalidateCache('usuarios');
   },
 

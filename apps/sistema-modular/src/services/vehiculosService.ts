@@ -1,6 +1,6 @@
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
-import { db, createBatch, newDocRef, docRef, batchAudit, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
+import { db, createBatch, newDocRef, docRef, batchAudit, logAudit, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -108,15 +108,19 @@ export const serviciosVehiculoService = {
   async create(vehiculoId: string, data: Omit<ServicioVehiculo, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
     const ref = await addDoc(collection(db, 'vehiculos', vehiculoId, 'servicios'), payload);
+    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/servicios`, documentId: ref.id, after: payload as Record<string, unknown> });
     return ref.id;
   },
 
   async update(vehiculoId: string, id: string, data: Partial<Omit<ServicioVehiculo, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
-    await updateDoc(doc(db, 'vehiculos', vehiculoId, 'servicios', id), { ...data, updatedAt: Timestamp.now() });
+    const payload = { ...data, updatedAt: Timestamp.now() };
+    await updateDoc(doc(db, 'vehiculos', vehiculoId, 'servicios', id), payload);
+    logAudit({ action: 'update', collection: `vehiculos/${vehiculoId}/servicios`, documentId: id, after: payload as Record<string, unknown> });
   },
 
   async delete(vehiculoId: string, id: string): Promise<void> {
     await deleteDoc(doc(db, 'vehiculos', vehiculoId, 'servicios', id));
+    logAudit({ action: 'delete', collection: `vehiculos/${vehiculoId}/servicios`, documentId: id });
   },
 };
 
@@ -135,15 +139,19 @@ export const historialTallerService = {
   async create(vehiculoId: string, data: Omit<VisitaTaller, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const payload = { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
     const ref = await addDoc(collection(db, 'vehiculos', vehiculoId, 'historial'), payload);
+    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/historial`, documentId: ref.id, after: payload as Record<string, unknown> });
     return ref.id;
   },
 
   async update(vehiculoId: string, id: string, data: Partial<Omit<VisitaTaller, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
-    await updateDoc(doc(db, 'vehiculos', vehiculoId, 'historial', id), { ...data, updatedAt: Timestamp.now() });
+    const payload = { ...data, updatedAt: Timestamp.now() };
+    await updateDoc(doc(db, 'vehiculos', vehiculoId, 'historial', id), payload);
+    logAudit({ action: 'update', collection: `vehiculos/${vehiculoId}/historial`, documentId: id, after: payload as Record<string, unknown> });
   },
 
   async delete(vehiculoId: string, id: string): Promise<void> {
     await deleteDoc(doc(db, 'vehiculos', vehiculoId, 'historial', id));
+    logAudit({ action: 'delete', collection: `vehiculos/${vehiculoId}/historial`, documentId: id });
   },
 };
 
@@ -161,10 +169,12 @@ export const registrosKmService = {
   async create(vehiculoId: string, data: Omit<RegistroKm, 'id' | 'createdAt'>): Promise<string> {
     const payload = { ...data, createdAt: Timestamp.now() };
     const ref = await addDoc(collection(db, 'vehiculos', vehiculoId, 'registrosKm'), payload);
+    logAudit({ action: 'create', collection: `vehiculos/${vehiculoId}/registrosKm`, documentId: ref.id, after: payload as Record<string, unknown> });
     return ref.id;
   },
 
   async delete(vehiculoId: string, id: string): Promise<void> {
     await deleteDoc(doc(db, 'vehiculos', vehiculoId, 'registrosKm', id));
+    logAudit({ action: 'delete', collection: `vehiculos/${vehiculoId}/registrosKm`, documentId: id });
   },
 };

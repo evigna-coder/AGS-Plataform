@@ -195,11 +195,14 @@ export const feriadosService = {
   },
 
   async add(fecha: string): Promise<void> {
-    await setDoc(doc(db, 'feriados', fecha), { fecha, createdAt: Timestamp.now() });
+    const payload = { fecha, createdAt: Timestamp.now() };
+    await setDoc(doc(db, 'feriados', fecha), payload);
+    logAudit({ action: 'create', collection: 'feriados', documentId: fecha, after: payload });
   },
 
   async remove(fecha: string): Promise<void> {
     await deleteDoc(doc(db, 'feriados', fecha));
+    logAudit({ action: 'delete', collection: 'feriados', documentId: fecha });
   },
 };
 
@@ -238,16 +241,18 @@ export const agendaNotasService = {
   async upsert(data: { fecha: string; ingenieroId: string; ingenieroNombre: string; texto: string }): Promise<string> {
     // Deterministic ID = ingenieroId_fecha → single setDoc (no read required)
     const docId = `${data.ingenieroId}_${data.fecha}`;
-    const ref = doc(db, 'agendaNotas', docId);
-    await setDoc(ref, deepCleanForFirestore({
+    const payload = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    }), { merge: true });
+    });
+    await setDoc(doc(db, 'agendaNotas', docId), payload, { merge: true });
+    logAudit({ action: 'update', collection: 'agendaNotas', documentId: docId, after: payload as Record<string, unknown> });
     return docId;
   },
 
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'agendaNotas', id));
+    logAudit({ action: 'delete', collection: 'agendaNotas', documentId: id });
   },
 };
