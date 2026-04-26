@@ -51,6 +51,7 @@ export const GenerarSolicitudCuotaInputs: React.FC<Props> = ({
               min="0"
               value={montos[m] ?? ''}
               onChange={e => setMonto(m, e.target.value)}
+              data-testid={`generar-cuota-input-${m}`}
               className="w-full border border-slate-200 rounded px-2 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               placeholder={`${simbolo} ${defaultVal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
             />

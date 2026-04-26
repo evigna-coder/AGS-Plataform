@@ -88,6 +88,7 @@ export const CuotasDelEsquemaSection: React.FC<Props> = ({
           return (
             <div
               key={cuota.id}
+              data-testid={`cuota-card-${cuota.numero}`}
               className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -141,6 +142,7 @@ export const CuotasDelEsquemaSection: React.FC<Props> = ({
                   )}
                   {cuota.estado === 'habilitada' && (
                     <button
+                      data-testid={`cuota-generar-${cuota.numero}`}
                       onClick={() => setModalState({ open: true, cuota })}
                       className="px-3 py-1.5 text-[11px] rounded bg-teal-700 text-white hover:bg-teal-800 transition-colors font-medium"
                     >

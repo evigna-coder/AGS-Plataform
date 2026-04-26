@@ -104,7 +104,7 @@ export const EsquemaFacturacionSection: React.FC<Props> = ({
   };
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden mt-4">
+    <div className="border border-slate-200 rounded-lg overflow-hidden mt-4" data-testid="esquema-section">
       {/* Header */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -174,6 +174,7 @@ export const EsquemaFacturacionSection: React.FC<Props> = ({
                   return (
                     <span
                       key={m}
+                      data-testid={`esquema-suma-badge-${m}`}
                       className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wide text-teal-700 bg-teal-50 border border-teal-200 rounded px-2 py-1"
                     >
                       Σ% ({m}): 100.00 ✓
@@ -183,6 +184,7 @@ export const EsquemaFacturacionSection: React.FC<Props> = ({
                 return (
                   <span
                     key={m}
+                    data-testid={`esquema-suma-badge-${m}`}
                     className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wide text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1"
                   >
                     Σ% ({m}): {err.sum.toFixed(2)} — debe sumar 100.00%
@@ -218,6 +220,7 @@ export const EsquemaFacturacionSection: React.FC<Props> = ({
               disabled={readOnly}
               onClick={handleAddCuota}
               className="text-teal-700 hover:text-teal-900"
+              data-testid="esquema-add-cuota"
             >
               + Agregar cuota
             </Button>

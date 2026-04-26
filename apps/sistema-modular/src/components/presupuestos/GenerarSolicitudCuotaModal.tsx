@@ -144,13 +144,13 @@ export const GenerarSolicitudCuotaModal: React.FC<Props> = ({
           <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button variant="primary" size="sm" onClick={handleConfirm} disabled={isConfirmDisabled}>
+          <Button variant="primary" size="sm" onClick={handleConfirm} disabled={isConfirmDisabled} data-testid="generar-cuota-confirm">
             {loading ? 'Generando...' : 'Confirmar'}
           </Button>
         </div>
       }
     >
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4" data-testid="generar-cuota-modal">
         {/* Per 12-04 W5 — inputs block extracted to GenerarSolicitudCuotaInputs.tsx for ≤250 line budget. */}
         <GenerarSolicitudCuotaInputs
           monedasInCuota={monedasInCuota}

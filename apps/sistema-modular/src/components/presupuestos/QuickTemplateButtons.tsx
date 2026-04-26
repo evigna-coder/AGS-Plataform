@@ -29,6 +29,7 @@ export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply,
       size="sm"
       disabled={disabled}
       onClick={() => onApply(buildTemplate100AlCierre(monedasActivas))}
+      data-testid="esquema-quick-100"
     >
       100% al cierre
     </Button>
@@ -37,6 +38,7 @@ export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply,
       size="sm"
       disabled={disabled}
       onClick={() => onApply(buildTemplate30_70(monedasActivas))}
+      data-testid="esquema-quick-30-70"
     >
       30/70 anticipo+entrega
     </Button>
@@ -45,6 +47,7 @@ export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply,
       size="sm"
       disabled={disabled}
       onClick={() => onApply(buildTemplate70_30PreEmbarque(monedasActivas))}
+      data-testid="esquema-quick-70-30-pre"
     >
       70/30 pre-embarque
     </Button>

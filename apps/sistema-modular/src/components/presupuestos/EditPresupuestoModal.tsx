@@ -328,6 +328,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
+                data-testid="pre-embarque-toggle"
                 checked={!!form.preEmbarque}
                 disabled={
                   form.estado === 'finalizado' ||
