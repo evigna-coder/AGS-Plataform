@@ -15,6 +15,7 @@ import {
   limit,
   onSnapshot,
   arrayUnion,
+  runTransaction,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -22,7 +23,7 @@ import { app, storage } from './firebase';
 import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, ContactoTicket, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
 import { getContactoPrincipal } from '@ags/shared';
 import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
-import { getCreateTrace, getUpdateTrace } from './currentUser';
+import { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
 
 export const db = getFirestore(app);
 
@@ -39,6 +40,32 @@ export function cleanFirestoreData<T extends Record<string, unknown>>(obj: T): P
 /** Deep-clean: removes undefined at any nesting level via JSON round-trip */
 function deepCleanForFirestore<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
+}
+
+/**
+ * Fire-and-forget audit log — mirrors sistema-modular's logAudit. Cada mutación
+ * importante deja una entrada en audit_log con quién/cuándo/qué.
+ */
+function logAudit(params: {
+  action: 'create' | 'update' | 'delete';
+  collection: string;
+  documentId: string;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+}): void {
+  const user = getCurrentUserTrace();
+  if (!user) return;
+  addDoc(collection(db, 'audit_log'), {
+    action: params.action,
+    collection: params.collection,
+    documentId: params.documentId,
+    userId: user.uid,
+    userName: user.name,
+    timestamp: Timestamp.now(),
+    changes: params.before || params.after
+      ? { before: params.before ?? null, after: params.after ?? null }
+      : null,
+  }).catch(err => console.error('Audit log failed:', err));
 }
 
 // =============================================
@@ -341,6 +368,7 @@ export const leadsService = {
       updatedAt: Timestamp.now(),
     };
     const ref = await addDoc(collection(db, 'leads'), payload);
+    logAudit({ action: 'create', collection: 'leads', documentId: ref.id, after: payload as Record<string, unknown> });
     return ref.id;
   },
 
@@ -403,11 +431,13 @@ export const leadsService = {
 
   async update(id: string, data: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<void> {
     const synced = syncFlatFromContactosData(data as Record<string, any>);
-    await updateDoc(doc(db, 'leads', id), {
+    const payload = {
       ...cleanFirestoreData(synced),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+    };
+    await updateDoc(doc(db, 'leads', id), payload);
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload as Record<string, unknown> });
   },
 
   async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }): Promise<void> {
@@ -427,38 +457,46 @@ export const leadsService = {
       update.motivoOtros = extras.motivoLlamado === 'otros' ? (extras.motivoOtros?.trim() || null) : null;
     }
     await updateDoc(doc(db, 'leads', id), update);
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { ...update, _action: 'derivar', estadoNuevo: posta.estadoNuevo } });
   },
 
   async completarAccion(id: string, posta: Posta): Promise<void> {
-    await updateDoc(doc(db, 'leads', id), {
+    const payload = {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
       accionPendiente: null,
       estado: posta.estadoNuevo,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+    };
+    await updateDoc(doc(db, 'leads', id), payload);
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { _action: 'completarAccion', estadoNuevo: posta.estadoNuevo } });
   },
 
   async finalizar(id: string, posta: Posta): Promise<void> {
-    await updateDoc(doc(db, 'leads', id), {
+    const payload = {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
       estado: posta.estadoNuevo,
       finalizadoAt: Timestamp.now(),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+    };
+    await updateDoc(doc(db, 'leads', id), payload);
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { _action: 'finalizar', estadoNuevo: posta.estadoNuevo } });
   },
 
   async agregarComentario(id: string, posta: Posta): Promise<void> {
-    await updateDoc(doc(db, 'leads', id), {
+    const payload = {
       postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    });
+    };
+    await updateDoc(doc(db, 'leads', id), payload);
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { _action: 'agregarComentario' } });
   },
 
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(db, 'leads', id));
+    logAudit({ action: 'delete', collection: 'leads', documentId: id });
   },
 
   async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoLead[]> {
@@ -487,6 +525,7 @@ export const leadsService = {
         ...getUpdateTrace(),
         updatedAt: Timestamp.now(),
       });
+      logAudit({ action: 'update', collection: 'leads', documentId: leadId, after: { _action: 'uploadAdjuntos', count: uploaded.length } });
     }
 
     return uploaded;
@@ -505,6 +544,7 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     });
+    logAudit({ action: 'update', collection: 'leads', documentId: leadId, after: { _action: 'removeAdjunto', adjuntoId: adjunto.id } });
   },
 };
 
@@ -914,39 +954,48 @@ export const viaticosService = {
     };
   },
 
+  // Las 3 mutaciones de gastos[] van por runTransaction para evitar
+  // last-write-wins entre dos tablets editando el mismo período.
+
   /** Agrega un gasto al período abierto */
   async agregarGasto(periodoId: string, gasto: GastoViatico): Promise<void> {
     const docRef = doc(db, 'viaticos', periodoId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) throw new Error('Período no encontrado');
-    const data = snap.data();
-    const gastos = [...((data.gastos as GastoViatico[]) ?? []), gasto];
-    const totales = calcularTotales(gastos);
-    await updateDoc(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists()) throw new Error('Período no encontrado');
+      const data = snap.data();
+      const gastos = [...((data.gastos as GastoViatico[]) ?? []), gasto];
+      const totales = calcularTotales(gastos);
+      tx.update(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+    });
   },
 
   /** Edita un gasto existente del período */
   async editarGasto(periodoId: string, gastoId: string, updates: Partial<Omit<GastoViatico, 'id'>>): Promise<void> {
     const docRef = doc(db, 'viaticos', periodoId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) throw new Error('Período no encontrado');
-    const data = snap.data();
-    const gastos = ((data.gastos as GastoViatico[]) ?? []).map(g =>
-      g.id === gastoId ? { ...g, ...updates } : g
-    );
-    const totales = calcularTotales(gastos);
-    await updateDoc(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists()) throw new Error('Período no encontrado');
+      const data = snap.data();
+      const gastos = ((data.gastos as GastoViatico[]) ?? []).map(g =>
+        g.id === gastoId ? { ...g, ...updates } : g
+      );
+      const totales = calcularTotales(gastos);
+      tx.update(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+    });
   },
 
   /** Elimina un gasto del período */
   async eliminarGasto(periodoId: string, gastoId: string): Promise<void> {
     const docRef = doc(db, 'viaticos', periodoId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) throw new Error('Período no encontrado');
-    const data = snap.data();
-    const gastos = ((data.gastos as GastoViatico[]) ?? []).filter(g => g.id !== gastoId);
-    const totales = calcularTotales(gastos);
-    await updateDoc(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists()) throw new Error('Período no encontrado');
+      const data = snap.data();
+      const gastos = ((data.gastos as GastoViatico[]) ?? []).filter(g => g.id !== gastoId);
+      const totales = calcularTotales(gastos);
+      tx.update(docRef, { gastos, ...totales, updatedAt: Timestamp.now() });
+    });
   },
 
   /** Envía el período a administración para revisión */
