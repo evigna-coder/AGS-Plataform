@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+
+const SORT_SCHEMA = {
+  sortField: { type: 'string' as const, default: 'displayName' },
+  sortDir: { type: 'string' as const, default: 'asc' },
+};
 import { usuariosService } from '../../services/firebaseService';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -24,11 +30,12 @@ export const UsuariosList = () => {
   const [showApprove, setShowApprove] = useState<UsuarioAGS | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('ingeniero_soporte');
   const [editUser, setEditUser] = useState<UsuarioAGS | null>(null);
-  const [sortField, setSortField] = useState<string>('displayName');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sort, _setSort, setSort] = useUrlFilters(SORT_SCHEMA);
+  const sortField = sort.sortField;
+  const sortDir = sort.sortDir as SortDir;
   const handleSort = (f: string) => {
     const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    setSort({ sortField: s.field, sortDir: s.dir });
   };
   const sortedUsers = useMemo(() => sortByField(users, sortField, sortDir), [users, sortField, sortDir]);
   const unsubRef = useRef<(() => void) | null>(null);

@@ -9,7 +9,13 @@ import { CalificacionModal } from './CalificacionModal';
 import type { CalificacionProveedor, Proveedor } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+
+const FILTER_SCHEMA = {
+  proveedorId: { type: 'string' as const, default: '' },
+  estado: { type: 'string' as const, default: '' },
+};
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -36,7 +42,7 @@ export function CalificacionesList() {
 
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('calificaciones-list');
 
-  const [filters, setFilters] = useState({ proveedorId: '', estado: '' });
+  const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('fechaRecepcion');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -114,15 +120,15 @@ export function CalificacionesList() {
       >
         <div className="flex items-center gap-3 flex-wrap">
           <div className="min-w-[180px]">
-            <SearchableSelect value={filters.proveedorId} onChange={(v: string) => setFilters(f => ({ ...f, proveedorId: v }))}
+            <SearchableSelect value={filters.proveedorId} onChange={(v: string) => setFilter('proveedorId', v)}
               options={proveedorOptions} placeholder="Proveedor..." />
           </div>
           <div className="min-w-[150px]">
-            <SearchableSelect value={filters.estado} onChange={(v: string) => setFilters(f => ({ ...f, estado: v }))}
+            <SearchableSelect value={filters.estado} onChange={(v: string) => setFilter('estado', v)}
               options={estadoOptions} placeholder="Estado..." />
           </div>
           {(filters.proveedorId || filters.estado) && (
-            <button onClick={() => setFilters({ proveedorId: '', estado: '' })}
+            <button onClick={resetFilters}
               className="text-xs text-slate-400 hover:text-slate-600 underline">Limpiar</button>
           )}
         </div>

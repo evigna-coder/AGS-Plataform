@@ -16,6 +16,7 @@ import {
 } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -37,6 +38,11 @@ function estadoGlobal(patron: Patron): 'vigente' | 'por_vencer' | 'vencido' | 's
   return 'vigente';
 }
 
+const FILTER_SCHEMA = {
+  categoria: { type: 'string' as const, default: '' },
+  showInactive: { type: 'boolean' as const, default: false },
+};
+
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   vigente: { label: 'Vigente', cls: 'bg-green-100 text-green-800' },
   por_vencer: { label: 'Por vencer', cls: 'bg-amber-100 text-amber-800' },
@@ -51,10 +57,7 @@ export const PatronesListPage = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [showMigracion, setShowMigracion] = useState(false);
 
-  const [filters, setFilters] = useState({
-    categoria: '',
-    showInactive: false,
-  });
+  const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('codigoArticulo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -122,17 +125,17 @@ export const PatronesListPage = () => {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="min-w-[160px]">
               <SearchableSelect value={filters.categoria}
-                onChange={(v) => setFilters({ ...filters, categoria: v })}
+                onChange={(v) => setFilter('categoria', v)}
                 options={CAT_OPTIONS} placeholder="Categoría" />
             </div>
             <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
               <input type="checkbox" checked={filters.showInactive}
-                onChange={e => setFilters({ ...filters, showInactive: e.target.checked })}
+                onChange={e => setFilter('showInactive', e.target.checked)}
                 className="rounded border-slate-300" />
               Inactivos
             </label>
             <Button variant="ghost" size="sm"
-              onClick={() => setFilters({ categoria: '', showInactive: false })}>
+              onClick={resetFilters}>
               Limpiar
             </Button>
           </div>

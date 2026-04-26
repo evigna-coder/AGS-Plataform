@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrdenesCompra } from '../../hooks/useOrdenesCompra';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import type { EstadoOC, TipoOC } from '@ags/shared';
@@ -15,13 +16,20 @@ const TIPO_LABELS: Record<TipoOC, string> = { nacional: 'Nacional', importacion:
 const TIPO_COLORS: Record<TipoOC, string> = { nacional: 'bg-emerald-100 text-emerald-700', importacion: 'bg-violet-100 text-violet-700' };
 const MONEDA_SYM: Record<string, string> = { ARS: '$', USD: 'U$S', EUR: '\u20AC' };
 
+const FILTER_SCHEMA = {
+  estado: { type: 'string' as const, default: '' },
+  tipo: { type: 'string' as const, default: '' },
+  showCanceladas: { type: 'boolean' as const, default: false },
+};
+
 export const OCList = () => {
   const { ordenes, loading, loadOrdenes, deleteOrden } = useOrdenesCompra();
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('oc-list');
-  const [filtroEstado, setFiltroEstado] = useState<EstadoOC | ''>('');
-  const [filtroTipo, setFiltroTipo] = useState<TipoOC | ''>('');
-  const [showCanceladas, setShowCanceladas] = useState(false);
+  const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  const filtroEstado = filters.estado as EstadoOC | '';
+  const filtroTipo = filters.tipo as TipoOC | '';
+  const showCanceladas = filters.showCanceladas;
   const [sortField, setSortField] = useState('fechaEntregaEstimada');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -69,7 +77,7 @@ export const OCList = () => {
         <div className="flex items-center gap-3 flex-wrap">
           <select
             value={filtroEstado}
-            onChange={e => setFiltroEstado(e.target.value as EstadoOC | '')}
+            onChange={e => setFilter('estado', e.target.value)}
             className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los estados</option>
@@ -79,7 +87,7 @@ export const OCList = () => {
           </select>
           <select
             value={filtroTipo}
-            onChange={e => setFiltroTipo(e.target.value as TipoOC | '')}
+            onChange={e => setFilter('tipo', e.target.value)}
             className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value="">Todos los tipos</option>
@@ -87,10 +95,10 @@ export const OCList = () => {
             <option value="importacion">Importacion</option>
           </select>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <input type="checkbox" checked={showCanceladas} onChange={e => setShowCanceladas(e.target.checked)} className="rounded border-slate-300" />
+            <input type="checkbox" checked={showCanceladas} onChange={e => setFilter('showCanceladas', e.target.checked)} className="rounded border-slate-300" />
             Mostrar canceladas
           </label>
-          <Button size="sm" variant="ghost" onClick={() => { setFiltroEstado(''); setFiltroTipo(''); setShowCanceladas(false); }}>Limpiar</Button>
+          <Button size="sm" variant="ghost" onClick={resetFilters}>Limpiar</Button>
         </div>
       </PageHeader>
 

@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, Ingeniero, EstadoAsignacion } from '@ags/shared';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 
 const ESTADO_COLORS: Record<EstadoAsignacion, string> = {
   activa: 'bg-green-100 text-green-700',
@@ -13,12 +14,16 @@ const ESTADO_COLORS: Record<EstadoAsignacion, string> = {
   cancelada: 'bg-red-100 text-red-700',
 };
 
+const FILTER_SCHEMA = {
+  ingenieroId: { type: 'string' as const, default: '' },
+  estado: { type: 'string' as const, default: '' },
+};
+
 export const AsignacionesList = () => {
   const [items, setItems] = useState<Asignacion[]>([]);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroIngeniero, setFiltroIngeniero] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [inventarioIngId, setInventarioIngId] = useState<string | null>(null);
 
   const unsubRef = useRef<(() => void) | null>(null);
@@ -38,8 +43,8 @@ export const AsignacionesList = () => {
   }, []);
 
   const filtered = items.filter(a => {
-    if (filtroIngeniero && a.ingenieroId !== filtroIngeniero) return false;
-    if (filtroEstado && a.estado !== filtroEstado) return false;
+    if (filters.ingenieroId && a.ingenieroId !== filters.ingenieroId) return false;
+    if (filters.estado && a.estado !== filters.estado) return false;
     return true;
   });
 
@@ -59,10 +64,10 @@ export const AsignacionesList = () => {
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
         <div className="flex gap-3">
           <div className="w-48">
-            <SearchableSelect value={filtroIngeniero} onChange={setFiltroIngeniero} options={ingOpts} placeholder="Ingeniero" />
+            <SearchableSelect value={filters.ingenieroId} onChange={(v) => setFilter('ingenieroId', v)} options={ingOpts} placeholder="Ingeniero" />
           </div>
           <div className="w-40">
-            <SearchableSelect value={filtroEstado} onChange={setFiltroEstado} options={estadoOpts} placeholder="Estado" />
+            <SearchableSelect value={filters.estado} onChange={(v) => setFilter('estado', v)} options={estadoOpts} placeholder="Estado" />
           </div>
         </div>
 

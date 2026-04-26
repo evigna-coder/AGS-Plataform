@@ -11,7 +11,13 @@ import { ESTADO_LOANER_LABELS, ESTADO_LOANER_COLORS } from '@ags/shared';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+
+const FILTER_SCHEMA = {
+  estado: { type: 'string' as const, default: '' },
+  showInactivos: { type: 'boolean' as const, default: false },
+};
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 const ALERTA_DIAS = 30;
@@ -29,10 +35,7 @@ export function LoanersList() {
   const [showCreate, setShowCreate] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
 
-  const [filters, setFilters] = useState({
-    estado: '',
-    showInactivos: false,
-  });
+  const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('codigo');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -81,7 +84,7 @@ export function LoanersList() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="min-w-[150px]">
             <SearchableSelect value={filters.estado}
-              onChange={(v) => setFilters({ ...filters, estado: v })}
+              onChange={(v) => setFilter('estado', v)}
               options={[{ value: '', label: 'Todos' }, ...(Object.keys(ESTADO_LOANER_LABELS) as EstadoLoaner[]).map(e => ({ value: e, label: ESTADO_LOANER_LABELS[e] }))]}
               placeholder="Estado" />
           </div>
@@ -89,12 +92,12 @@ export function LoanersList() {
             <input
               type="checkbox"
               checked={filters.showInactivos}
-              onChange={e => setFilters({ ...filters, showInactivos: e.target.checked })}
+              onChange={e => setFilter('showInactivos', e.target.checked)}
               className="rounded border-slate-300"
             />
             Mostrar inactivos
           </label>
-          <Button size="sm" variant="ghost" onClick={() => setFilters({ estado: '', showInactivos: false })}>
+          <Button size="sm" variant="ghost" onClick={resetFilters}>
             Limpiar
           </Button>
         </div>

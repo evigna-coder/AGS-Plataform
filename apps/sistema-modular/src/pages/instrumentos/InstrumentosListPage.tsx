@@ -18,6 +18,7 @@ import {
 } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -47,6 +48,13 @@ const ESTADO_CERT_OPTIONS = [
   { value: 'sin_certificado', label: 'Sin certificado' },
 ];
 
+const FILTER_SCHEMA = {
+  tipo: { type: 'string' as const, default: '' },
+  categoria: { type: 'string' as const, default: '' },
+  estadoCert: { type: 'string' as const, default: '' },
+  showInactive: { type: 'boolean' as const, default: false },
+};
+
 export const InstrumentosListPage = () => {
 
   const confirm = useConfirm();
@@ -54,12 +62,7 @@ export const InstrumentosListPage = () => {
   const { instrumentos, loading, error, listInstrumentos, deactivateInstrumento } = useInstrumentos();
   const [showCreate, setShowCreate] = useState(false);
 
-  const [filters, setFilters] = useState({
-    tipo: '',
-    categoria: '',
-    estadoCert: '',
-    showInactive: false,
-  });
+  const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('nombre');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -132,27 +135,27 @@ export const InstrumentosListPage = () => {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="min-w-[130px]">
               <SearchableSelect value={filters.tipo}
-                onChange={(v) => setFilters({ ...filters, tipo: v, categoria: '' })}
+                onChange={(v) => setFilters({ tipo: v, categoria: '' })}
                 options={TIPO_OPTIONS} placeholder="Tipo" />
             </div>
             <div className="min-w-[160px]">
               <SearchableSelect value={filters.categoria}
-                onChange={(v) => setFilters({ ...filters, categoria: v })}
+                onChange={(v) => setFilter('categoria', v)}
                 options={catOptions} placeholder="Categoría" />
             </div>
             <div className="min-w-[150px]">
               <SearchableSelect value={filters.estadoCert}
-                onChange={(v) => setFilters({ ...filters, estadoCert: v })}
+                onChange={(v) => setFilter('estadoCert', v)}
                 options={ESTADO_CERT_OPTIONS} placeholder="Estado cert." />
             </div>
             <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
               <input type="checkbox" checked={filters.showInactive}
-                onChange={e => setFilters({ ...filters, showInactive: e.target.checked })}
+                onChange={e => setFilter('showInactive', e.target.checked)}
                 className="rounded border-slate-300" />
               Inactivos
             </label>
             <Button variant="ghost" size="sm"
-              onClick={() => setFilters({ tipo: '', categoria: '', estadoCert: '', showInactive: false })}>
+              onClick={resetFilters}>
               Limpiar
             </Button>
           </div>

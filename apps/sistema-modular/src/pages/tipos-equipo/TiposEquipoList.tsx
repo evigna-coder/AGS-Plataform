@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+
+const SORT_SCHEMA = {
+  sortField: { type: 'string' as const, default: 'nombre' },
+  sortDir: { type: 'string' as const, default: 'asc' },
+};
 import { tiposEquipoService } from '../../services/tiposEquipoService';
 import type { TipoEquipoPlantilla, TipoEquipoComponente, TipoEquipoServicio } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -33,11 +39,12 @@ export const TiposEquipoList = () => {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const [sortField, setSortField] = useState<string>('nombre');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sort, _setSort, setSort] = useUrlFilters(SORT_SCHEMA);
+  const sortField = sort.sortField;
+  const sortDir = sort.sortDir as SortDir;
   const handleSort = (f: string) => {
     const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
+    setSort({ sortField: s.field, sortDir: s.dir });
   };
   const sorted = useMemo(() => sortByField(plantillas, sortField, sortDir), [plantillas, sortField, sortDir]);
 
