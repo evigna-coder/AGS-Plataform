@@ -3,7 +3,8 @@ import { presupuestosService, clientesService, sistemasService, leadsService, or
 import { establecimientosService, contactosEstablecimientoService } from '../services/establecimientosService';
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
-import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata } from '@ags/shared';
+import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
+import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 export interface PresupuestoFormState {
   clienteId: string;
@@ -77,6 +78,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [form, setForm] = useState<PresupuestoFormState>(INITIAL_PRESUPUESTO_FORM);
   const [items, setItems] = useState<PresupuestoItem[]>([]);
   const [cuotas, setCuotas] = useState<PresupuestoCuota[]>([]);
+  // Phase 12: cuota schema (porcentual facturación) — for non-contrato types
+  const [esquemaFacturacion, setEsquemaFacturacion] = useState<PresupuestoCuotaFacturacion[]>([]);
   const [prefilled, setPrefilled] = useState(false);
   const [leadOptions, setLeadOptions] = useState<{ value: string; label: string }[]>([]);
   const [leadsCache, setLeadsCache] = useState<Ticket[]>([]);
@@ -187,11 +190,42 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     });
   }, [form.origenId, leadsCache]);
 
-  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); };
+  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setEsquemaFacturacion([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
     if (items.length === 0) { alert('Agregue al menos un item'); return; }
+
+    // Phase 12 BILL-01: validate esquema before saving for non-contrato types
+    if (form.tipo !== 'contrato' && esquemaFacturacion.length > 0) {
+      // Derive active monedas (mirrors EsquemaFacturacionSection + usePresupuestoEdit logic)
+      let monedasActivas: MonedaCuota[];
+      if (form.moneda !== 'MIXTA') {
+        monedasActivas = [form.moneda as MonedaCuota];
+      } else {
+        const set = new Set<MonedaCuota>();
+        for (const item of items) {
+          const m = item.moneda as MonedaCuota | null | undefined;
+          if (m) set.add(m);
+        }
+        monedasActivas = set.size > 0 ? Array.from(set) : ['USD'];
+      }
+
+      const emptyCuotas = findEmptyCuotas(esquemaFacturacion);
+      if (emptyCuotas.length > 0) {
+        const nums = emptyCuotas.map(c => c.numero).join(', ');
+        alert(`Cuota(s) N° ${nums} no factura ninguna moneda. Agregá un porcentaje o eliminala.`);
+        return;
+      }
+
+      const errors = validateEsquemaSum(esquemaFacturacion, monedasActivas);
+      if (errors.length > 0) {
+        const msgs = errors.map(e => `Cuotas en ${e.moneda} suman ${e.sum.toFixed(2)}%, deben sumar 100.00%`);
+        alert(msgs.join('\n'));
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       let finalItems = items;
@@ -218,6 +252,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         notasTecnicas: form.notasTecnicas || undefined,
         condicionesComerciales: form.condicionesComerciales || undefined,
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
+        // Phase 12: include esquema for non-contrato types when populated
+        ...(form.tipo !== 'contrato' && esquemaFacturacion.length > 0 ? { esquemaFacturacion } : {}),
         ...(form.tipo === 'ventas' ? { ventasMetadata: form.ventasMetadata } : {}),
       };
       const { id: presupuestoId, numero } = await presupuestosService.create(data);
@@ -266,7 +302,10 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   };
 
   return {
-    saving, form, setForm, items, cuotas, setCuotas, handleClose, handleSave, addItem, removeItem,
+    saving, form, setForm, items, cuotas, setCuotas,
+    // Phase 12: esquema facturación porcentual for non-contrato types
+    esquemaFacturacion, setEsquemaFacturacion,
+    handleClose, handleSave, addItem, removeItem,
     clientes, establecimientos, sistemasFiltrados, contactos,
     categorias, condiciones, conceptos, leadOptions, otOptions,
     showCrearLead, setShowCrearLead, reloadLeads,
