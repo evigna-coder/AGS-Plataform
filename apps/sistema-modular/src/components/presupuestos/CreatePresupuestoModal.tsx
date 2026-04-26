@@ -5,6 +5,7 @@ import type { OrigenPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { CreatePresupuestoItems } from './CreatePresupuestoItems';
 import { PresupuestoCuotasSection } from './PresupuestoCuotasSection';
+import { EsquemaFacturacionSection } from './EsquemaFacturacionSection';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PresupuestoFormHeader } from './PresupuestoFormHeader';
 import { PresupuestoFormCliente } from './PresupuestoFormCliente';
@@ -71,17 +72,30 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
           items={h.items} onAdd={h.addItem} onRemove={h.removeItem}
           categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda} />
 
-        {/* Cuotas */}
+        {/* Cuotas / Esquema de facturación */}
         <hr className="border-[#E5E5E5]" />
-        <PresupuestoCuotasSection
-          cuotas={h.cuotas}
-          onChange={h.setCuotas}
-          totalsByCurrency={h.form.moneda === 'MIXTA'
-            ? h.items.reduce((acc, i) => { const m = i.moneda || 'USD'; acc[m] = (acc[m] || 0) + (i.subtotal || 0); return acc; }, {} as Record<string, number>)
-            : { [h.form.moneda]: totalItems }
-          }
-          moneda={h.form.moneda}
-        />
+        {h.form.tipo === 'contrato' ? (
+          /* Contrato: legacy monto-based installment planner (PresupuestoCuota[]) */
+          <PresupuestoCuotasSection
+            cuotas={h.cuotas}
+            onChange={h.setCuotas}
+            totalsByCurrency={h.form.moneda === 'MIXTA'
+              ? h.items.reduce((acc, i) => { const m = i.moneda || 'USD'; acc[m] = (acc[m] || 0) + (i.subtotal || 0); return acc; }, {} as Record<string, number>)
+              : { [h.form.moneda]: totalItems }
+            }
+            moneda={h.form.moneda}
+          />
+        ) : (
+          /* Non-contrato (servicio, per_incident, partes, mixto, ventas):
+             Phase 12 porcentual schema editor. Always readOnly=false at create time (always borrador). */
+          <EsquemaFacturacionSection
+            esquema={h.esquemaFacturacion}
+            moneda={h.form.moneda}
+            itemsForTotals={h.items}
+            readOnly={false}
+            onChange={h.setEsquemaFacturacion}
+          />
+        )}
 
         {/* Notes */}
         <hr className="border-[#E5E5E5]" />
