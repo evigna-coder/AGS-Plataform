@@ -2,6 +2,7 @@ import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
 import { baseStyles, COLORS } from './pdfStyles';
 import './pdfFonts';
 import { agruparPorSistemaSimple } from './pdfUtils';
+import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
 import type {
   Presupuesto,
   Cliente,
@@ -407,8 +408,15 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
       {/* Monto en letras */}
       <Text style={S.monedaLetras}>{montoEnLetras}</Text>
 
-      {/* Plan de cuotas */}
-      {presupuesto.cuotas && presupuesto.cuotas.length > 0 && (
+      {/* Billing section: Phase 12 esquema (non-contrato) OR legacy cuotas[] (contrato / legacy) */}
+      {(presupuesto.esquemaFacturacion?.length ?? 0) > 0 && presupuesto.tipo !== 'contrato' ? (
+        /* Phase 12: porcentual billing schema — renders % per moneda + monto preview per cuota */
+        <PdfEsquemaFacturacionSection
+          presupuesto={presupuesto}
+          esquema={presupuesto.esquemaFacturacion!}
+        />
+      ) : presupuesto.cuotas && presupuesto.cuotas.length > 0 ? (
+        /* Legacy / contrato: monto-based PresupuestoCuota[] */
         <View style={{ marginTop: 8 }}>
           <Text style={{ fontSize: 7, fontWeight: 700, color: COLORS.primary, marginBottom: 4, textTransform: 'uppercase' }}>
             Plan de cuotas ({presupuesto.cuotas.length})
@@ -430,7 +438,7 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
             ))}
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
