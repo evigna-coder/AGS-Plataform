@@ -129,8 +129,10 @@ function parseLeadDoc(d: { id: string; data: () => any }): Lead {
     adjuntos: data.adjuntos ?? [],
     presupuestosIds: data.presupuestosIds ?? [],
     otIds: data.otIds ?? [],
-    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? '',
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? '',
+    // Fallback al timestamp actual en vez de '' — el parser miente menos.
+    // Tickets legacy sin createdAt aparecen en el momento de hidratación, no en el epoch.
+    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
     createdBy: data.createdBy ?? null,
     finalizadoAt: data.finalizadoAt?.toDate?.()?.toISOString() ?? null,
     prioridad: data.prioridad === 'media' ? 'normal' : (data.prioridad ?? null),
@@ -189,7 +191,7 @@ export const leadsService = {
     return `TKT-${String(max + 1).padStart(5, '0')}`;
   },
 
-  async create(data: Omit<Lead, 'id' | 'updatedAt'> & { createdAt?: string }) {
+  async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: string }) {
     const stamp = ventasInsumosStamp(data.motivoLlamado);
     const numero = data.numero || await this.getNextTicketNumero();
     // Si se recibe createdAt como ISO string, respetarlo (override manual desde UI).
