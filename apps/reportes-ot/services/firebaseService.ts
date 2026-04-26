@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch, runTransaction, Timestamp } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
@@ -188,7 +188,9 @@ async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string,
       }
     }
 
-    // Update cada ticket con nuevo estado + posta de audit
+    // Update cada ticket con nuevo estado + posta de audit.
+    // posta.fecha es ISO string (lo lee el formatter de timeline en sistema-modular).
+    // updatedAt usa Timestamp.now() para alinearse con el resto del codebase.
     const nowIso = new Date().toISOString();
     for (const tid of ticketsToSync) {
       const tkSnap = await getDoc(doc(db, 'leads', tid));
@@ -210,7 +212,7 @@ async function _syncTicketFromOTInline(otNumber: string, newEstadoAdmin: string,
       const updates: any = {
         estado: nuevoEstadoTicket,
         postas: [...(tk.postas || []), posta],
-        updatedAt: new Date(),
+        updatedAt: Timestamp.now(),
       };
       if (derivAsignadoA) {
         updates.asignadoA = derivAsignadoA;
@@ -341,7 +343,7 @@ export class FirebaseService {
         docRef,
         {
           signatureClient: signatureData,
-          signedAt: Date.now(),
+          signedAt: Timestamp.now(),
           signedFrom: 'mobile'
         },
         { merge: true }
@@ -802,24 +804,59 @@ export class FirebaseService {
       console.warn('No se pudo resolver clienteId/sistemaId desde OT:', e);
     }
 
-    // Generar correlativo TKT-XXXXX. Mismo patrón que sistema-modular leadsService.getNextTicketNumero:
-    // escanea toda la colección `leads`, saca el max y suma 1. NO atómico — aceptable para el
-    // volumen actual (un ticket cada vez que un técnico finaliza un reporte). Si dos técnicos
-    // finalizan en simultáneo, el backfill `/admin/backfill-ticket-numeros` desambigua después.
+    // Generar correlativo TKT-XXXXX vía counter doc atómico (_counters/tickets).
+    // Antes era scan-and-max no atómico — dos técnicos finalizando en simultáneo
+    // obtenían el mismo número. Mismo patrón que otService.getNextItemNumber.
     let numero = '';
     try {
-      const allLeads = await getDocs(collection(db, 'leads'));
-      let max = 0;
-      allLeads.docs.forEach(d => {
-        const n = typeof d.data().numero === 'string' ? d.data().numero.match(/TKT-(\d+)/) : null;
-        if (n) max = Math.max(max, parseInt(n[1], 10));
+      numero = await runTransaction(db, async (tx) => {
+        const counterRef = doc(db, '_counters', 'tickets');
+        const counterSnap = await tx.get(counterRef);
+        let currentMax: number;
+        if (counterSnap.exists()) {
+          currentMax = counterSnap.data().value as number;
+        } else {
+          // Primera vez: escanear leads existentes para inicializar el counter.
+          const allLeads = await getDocs(collection(db, 'leads'));
+          currentMax = 0;
+          allLeads.docs.forEach(d => {
+            const n = typeof d.data().numero === 'string' ? d.data().numero.match(/TKT-(\d+)/) : null;
+            if (n) currentMax = Math.max(currentMax, parseInt(n[1], 10));
+          });
+        }
+        const next = currentMax + 1;
+        tx.set(counterRef, { value: next });
+        return `TKT-${String(next).padStart(5, '0')}`;
       });
-      numero = `TKT-${String(max + 1).padStart(5, '0')}`;
     } catch (e) {
       console.warn('No se pudo generar numero correlativo, ticket queda sin numero:', e);
     }
 
-    const now = new Date().toISOString();
+    // Resolver responsable del ticket de "Acciones a tomar". Antes era hardcoded
+    // (uid de Esteban Vigna). Ahora lee adminConfig/flujos.usuarioMaterialesId
+    // (mismo responsable que FLOW-05 — ambos son area=admin_soporte) con fallback
+    // al uid hardcodeado si la config no está seteada o el usuario está inactivo.
+    const FALLBACK_UID = 'pHDkcnzLEdX93APkPcf3ebqyOJL2';
+    const FALLBACK_NOMBRE = 'Esteban Vigna';
+    let asignadoUid = FALLBACK_UID;
+    let asignadoNombre = FALLBACK_NOMBRE;
+    try {
+      const cfgSnap = await getDoc(doc(db, 'adminConfig', 'flujos'));
+      if (cfgSnap.exists()) {
+        const matId = cfgSnap.data().usuarioMaterialesId as string | null | undefined;
+        if (matId) {
+          const matSnap = await getDoc(doc(db, 'usuarios', matId));
+          if (matSnap.exists() && matSnap.data().status === 'activo') {
+            asignadoUid = matId;
+            asignadoNombre = matSnap.data().displayName ?? FALLBACK_NOMBRE;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[createTicketFromAcciones] adminConfig lookup falló, uso fallback:', err);
+    }
+
+    const now = Timestamp.now();
     const { auth } = await import('./authService');
     const currentUser = auth.currentUser;
     const docRef = await addDoc(collection(db, 'leads'), {
@@ -833,8 +870,8 @@ export class FirebaseService {
       descripcion: data.accionesTomar,
       estado: 'nuevo',
       areaActual: 'admin_soporte',
-      asignadoA: 'pHDkcnzLEdX93APkPcf3ebqyOJL2',
-      asignadoNombre: 'Esteban Vigna',
+      asignadoA: asignadoUid,
+      asignadoNombre: asignadoNombre,
       derivadoPor: null,
       prioridad: 'urgente',
       clienteId,
