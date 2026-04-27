@@ -1,82 +1,20 @@
 import { type FC, useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import type { AgendaEntry, WorkOrder, EstadoAgenda } from '@ags/shared';
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragEndEvent, DragOverEvent, DragStartEvent, Modifier } from '@dnd-kit/core';
-
-/** Keep the drag chip centered on the cursor regardless of grab origin. */
-const CHIP = 13; // half of 26px chip
-const snapToCursor: Modifier = ({ transform, activatorEvent, activeNodeRect }) => {
-  if (!activatorEvent || !activeNodeRect) return transform;
-  const ev = activatorEvent as PointerEvent;
-  const grabX = ev.clientX - activeNodeRect.left;
-  const grabY = ev.clientY - activeNodeRect.top;
-  return {
-    ...transform,
-    x: transform.x + grabX - CHIP,
-    y: transform.y + grabY - CHIP,
-  };
-};
-import { addDays, differenceInCalendarDays, parseISO, isWeekend } from 'date-fns';
-import { sistemasService } from '../../services/firebaseService';
+import type { AgendaEntry, WorkOrder, EstadoAgenda, OTEstadoAdmin } from '@ags/shared';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { addDays, parseISO, isWeekend } from 'date-fns';
 import { ordenesTrabajoService } from '../../services/otService';
-import type { OTEstadoAdmin } from '@ags/shared';
 import { useAgenda } from '../../hooks/useAgenda';
-
-/** Mapping EstadoAgenda → OT estadoAdmin target. Cancelado no tiene mapping
- * (admin decide qué hacer con la OT). El update solo se aplica si la OT
- * actual está en un estado anterior al target — nunca hace regresión. */
-const AGENDA_TO_OT_ESTADO: Partial<Record<EstadoAgenda, OTEstadoAdmin>> = {
-  pendiente: 'ASIGNADA',
-  tentativo: 'ASIGNADA',
-  confirmado: 'COORDINADA',
-  en_progreso: 'EN_CURSO',
-  completado: 'CIERRE_TECNICO',
-};
-const OT_ESTADO_ORDER: Record<OTEstadoAdmin, number> = {
-  CREADA: 0, ASIGNADA: 1, COORDINADA: 2, EN_CURSO: 3,
-  CIERRE_TECNICO: 4, CIERRE_ADMINISTRATIVO: 5, FINALIZADO: 6,
-};
+import { useAgendaDnd, snapToCursor } from '../../hooks/useAgendaDnd';
 import { useAgendaKeyboard, type AgendaKeyboardCallbacks } from '../../hooks/useAgendaKeyboard';
 import { AgendaHeader } from '../../components/agenda/AgendaHeader';
 import { AgendaInfoBar } from '../../components/agenda/AgendaInfoBar';
 import { AgendaGrid } from '../../components/agenda/AgendaGrid';
 import { AgendaPendingSidebar } from '../../components/agenda/AgendaPendingSidebar';
 import { findEntriesAtCell, formatDateKey, normalizeRange, type SelectedCell, type SelectionRange } from '../../utils/agendaDateUtils';
-
-/** In-memory cache for sistemaId → agsVisibleId lookups within a session. */
-const agsIdCache = new Map<string, string | null>();
-async function resolveEquipoAgsId(sistemaId: string | undefined | null): Promise<string | null> {
-  if (!sistemaId) return null;
-  if (agsIdCache.has(sistemaId)) return agsIdCache.get(sistemaId)!;
-  try {
-    const sistema = await sistemasService.getById(sistemaId);
-    const agsId = sistema?.agsVisibleId ?? null;
-    agsIdCache.set(sistemaId, agsId);
-    return agsId;
-  } catch {
-    return null;
-  }
-}
-
-/** Advance a date by `n` weekdays (skip weekends). */
-function addWeekdays(date: Date, n: number): Date {
-  let current = date;
-  let remaining = n;
-  while (remaining > 0) {
-    current = addDays(current, 1);
-    if (!isWeekend(current)) remaining--;
-  }
-  return current;
-}
-
-/** What's stored in the internal clipboard. */
-interface ClipboardData {
-  type: 'entry' | 'pending';
-  /** Copied from an existing entry */
-  entry?: AgendaEntry;
-  /** Copied from a pending OT */
-  ot?: WorkOrder;
-}
+import {
+  AGENDA_TO_OT_ESTADO, OT_ESTADO_ORDER, addWeekdays, resolveEquipoAgsId,
+  type ClipboardData,
+} from '../../utils/agendaOTSync';
 
 export const AgendaPage: FC = () => {
   const {
@@ -86,10 +24,6 @@ export const AgendaPage: FC = () => {
     createEntry, updateEntry, deleteEntry, toggleFeriado,
   } = useAgenda();
 
-  const [activeDragOT, setActiveDragOT] = useState<WorkOrder | null>(null);
-  const [activeDragEntry, setActiveDragEntry] = useState<AgendaEntry | null>(null);
-  // Row highlight during drag: DOM-only, no React state (onDragOver fires at 60fps)
-  const highlightedRowRef = useRef<HTMLElement | null>(null);
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   const [selectedPendingOTs, setSelectedPendingOTs] = useState<Set<string>>(new Set());
@@ -255,173 +189,14 @@ export const AgendaPage: FC = () => {
     });
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const activeId = String(event.active.id);
-    if (activeId.startsWith('pending:')) {
-      const otNumber = activeId.replace('pending:', '');
-      const ot = pendingOTs.find(o => o.otNumber === otNumber);
-      // If dragging a non-selected card, auto-select it
-      if (ot && !selectedPendingOTs.has(otNumber)) {
-        setSelectedPendingOTs(new Set([otNumber]));
-      }
-      setActiveDragOT(ot || null);
-    } else if (activeId.startsWith('entry:')) {
-      const entryData = event.active.data.current?.entry as AgendaEntry | undefined;
-      setActiveDragEntry(entryData || null);
-    }
-  }, [pendingOTs, selectedPendingOTs]);
-
-  // Use ref to access latest selectedPendingOTs inside drag handler
-  const selectedPendingOTsRef = useRef(selectedPendingOTs);
-  selectedPendingOTsRef.current = selectedPendingOTs;
-
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    const overId = String(event.over?.id || '');
-    const newIngId = overId.startsWith('cell:') ? overId.split(':')[1] : null;
-    // Direct DOM — zero React re-renders during drag
-    if (highlightedRowRef.current) {
-      highlightedRowRef.current.style.backgroundColor = '';
-      highlightedRowRef.current.style.borderLeft = '';
-      highlightedRowRef.current = null;
-    }
-    if (newIngId) {
-      const el = document.querySelector<HTMLElement>(`[data-engineer-id="${newIngId}"]`);
-      if (el) {
-        el.style.backgroundColor = 'rgb(240 253 250)';
-        el.style.borderLeft = '2px solid rgb(20 184 166)';
-        highlightedRowRef.current = el;
-      }
-    }
-  }, []);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveDragOT(null);
-    setActiveDragEntry(null);
-    // Clear DOM highlight
-    if (highlightedRowRef.current) {
-      highlightedRowRef.current.style.backgroundColor = '';
-      highlightedRowRef.current.style.borderLeft = '';
-      highlightedRowRef.current = null;
-    }
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    if (!overId.startsWith('cell:')) return;
-
-    const parts = overId.split(':');
-    const targetIngenieroId = parts[1];
-    const targetFecha = parts[2];
-    const targetQuarter = parseInt(parts[3]) as 1 | 2 | 3 | 4;
-    const targetIngeniero = ingenieros.find(i => i.id === targetIngenieroId);
-    if (!targetIngeniero) return;
-
-    // ── Resize handle → extend fechaFin/quarterEnd ──
-    if (activeId.startsWith('resize:')) {
-      const [, srcIngId, srcFecha, srcQStr] = activeId.split(':');
-      const srcQuarter = parseInt(srcQStr) as 1 | 2 | 3 | 4;
-      const entriesToResize = findEntriesAtCell(entries, srcIngId, srcFecha, srcQuarter);
-      for (const entry of entriesToResize) {
-        if (targetFecha < entry.fechaInicio) continue; // can't resize before start
-        updateEntry(entry.id, { fechaFin: targetFecha, quarterEnd: targetQuarter });
-      }
-      return;
-    }
-
-    // ── Pending OT(s) → create entries (extend if same OT already assigned) ──
-    if (activeId.startsWith('pending:')) {
-      const selected = selectedPendingOTsRef.current;
-      const otsToAssign = pendingOTs.filter(o => selected.has(o.otNumber));
-      if (otsToAssign.length === 0) return;
-
-      for (const ot of otsToAssign) {
-        const existing = entries.find(e => e.otNumber === ot.otNumber && e.ingenieroId === targetIngenieroId);
-        if (existing) {
-          const newEnd = targetFecha > existing.fechaFin ? targetFecha : existing.fechaFin;
-          updateEntry(existing.id, {
-            fechaFin: newEnd,
-            quarterEnd: newEnd === targetFecha ? targetQuarter : existing.quarterEnd,
-          });
-        } else {
-          resolveEquipoAgsId(ot.sistemaId).then(equipoAgsId => {
-            createEntry({
-              fechaInicio: targetFecha,
-              fechaFin: targetFecha,
-              quarterStart: targetQuarter,
-              quarterEnd: targetQuarter,
-              ingenieroId: targetIngenieroId,
-              ingenieroNombre: targetIngeniero.nombre,
-              otNumber: ot.otNumber,
-              clienteNombre: ot.razonSocial,
-              tipoServicio: ot.tipoServicio,
-              sistemaNombre: ot.sistema || null,
-              establecimientoNombre: null,
-              equipoModelo: ot.moduloModelo || null,
-              equipoAgsId,
-              estadoAgenda: 'tentativo',
-              notas: null,
-              titulo: null,
-            });
-          });
-          // Sync la OT: asignar ingeniero + fecha y transicionar a ASIGNADA si estaba en CREADA.
-          const shouldPromote = ot.estadoAdmin === 'CREADA' || !ot.estadoAdmin;
-          ordenesTrabajoService.update(ot.otNumber, {
-            ingenieroAsignadoId: targetIngenieroId,
-            ingenieroAsignadoNombre: targetIngeniero.nombre,
-            fechaServicioAprox: targetFecha,
-            ...(shouldPromote ? { estadoAdmin: 'ASIGNADA', estadoAdminFecha: new Date().toISOString() } : {}),
-          }).catch(err => console.error('[AgendaPage] sync OT en DnD drop falló:', err));
-        }
-      }
-      setSelectedPendingOTs(new Set());
-      return;
-    }
-
-    // ── Existing entry → move ──
-    if (activeId.startsWith('entry:')) {
-      const entryId = activeId.replace('entry:', '');
-      const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
-
-      const origStart = parseISO(entry.fechaInicio);
-      const origEnd = parseISO(entry.fechaFin);
-      const daySpan = differenceInCalendarDays(origEnd, origStart);
-      const newStart = parseISO(targetFecha);
-      const newEnd = daySpan > 0 ? addDays(newStart, daySpan) : newStart;
-
-      const movedEntry: AgendaEntry = {
-        ...entry,
-        fechaInicio: targetFecha,
-        fechaFin: formatDateKey(newEnd),
-        quarterStart: targetQuarter,
-        ingenieroId: targetIngenieroId,
-        ingenieroNombre: targetIngeniero.nombre,
-      };
-
-      updateEntry(entryId, {
-        fechaInicio: targetFecha,
-        fechaFin: formatDateKey(newEnd),
-        quarterStart: targetQuarter,
-        quarterEnd: entry.quarterEnd,
-        ingenieroId: targetIngenieroId,
-        ingenieroNombre: targetIngeniero.nombre,
-      });
-
-      setSelectedCell({
-        ingenieroId: targetIngenieroId,
-        ingenieroNombre: targetIngeniero.nombre,
-        fecha: targetFecha,
-        quarter: targetQuarter,
-        entry: movedEntry,
-        allEntries: [movedEntry],
-      });
-    }
-  }, [pendingOTs, ingenieros, entries, createEntry, updateEntry]);
+  // DnD: handlers + sensors + activeDrag state encapsulados en el hook.
+  const {
+    sensors, activeDragOT, activeDragEntry,
+    handleDragStart, handleDragOver, handleDragEnd,
+  } = useAgendaDnd({
+    entries, pendingOTs, ingenieros, selectedPendingOTs,
+    setSelectedPendingOTs, setSelectedCell, createEntry, updateEntry,
+  });
 
   const handleCellClick = useCallback((ingenieroId: string, fecha: string, quarter: 1 | 2 | 3 | 4, shiftKey?: boolean) => {
     const ing = ingenieros.find(i => i.id === ingenieroId);
