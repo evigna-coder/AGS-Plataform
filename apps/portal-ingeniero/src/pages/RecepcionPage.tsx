@@ -8,7 +8,7 @@ import { fichasPropiedadService } from '../services/fichasPropiedadService';
 import { leadsService } from '../services/firebaseService';
 import type { WorkOrder, Lead } from '@ags/shared';
 
-type Step = 'ot' | 'datos' | 'fotos' | 'done';
+type Step = 'ot' | 'cliente' | 'fotos' | 'done';
 
 interface FichaCreada {
   id: string;
@@ -16,59 +16,69 @@ interface FichaCreada {
 }
 
 /**
- * Wizard de recepción de equipos en planta.
+ * Wizard de recepción de equipos en planta — versión mínima.
  *
  * Flujo:
- *   1. ot      → buscar/saltear OT
- *   2. datos   → datos mínimos (cliente, equipo, problema, vía)
+ *   1. ot      → buscar/saltear OT (si trae OT, hereda cliente y datos del equipo)
+ *   2. cliente → solo si NO vino OT (sino se saltea)
  *   3. fotos   → captura múltiple a IndexedDB → cola sube cuando hay red
  *
- * Al confirmar paso 2 ya creamos el doc en Firestore (offline-tolerant gracias a
- * persistentLocalCache) — eso nos da `numero` correlativo y permite encolar fotos
- * con el path correcto (`fotosFichas/FPC-XXXX/...`) aunque estemos offline.
+ * Todo lo demás (sistema, módulo, serie, problema, accesorios, vía de ingreso, etc.)
+ * se completa después desde sistema-modular. Acá solo cargamos lo mínimo para que
+ * la ficha exista y se le puedan colgar fotos.
  */
 export default function RecepcionPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('ot');
-  const [ot, setOt] = useState<WorkOrder | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [ficha, setFicha] = useState<FichaCreada | null>(null);
 
-  const handleOTContinue = (selected: WorkOrder | null) => {
-    setOt(selected);
-    setStep('datos');
+  const handleOTContinue = async (selected: WorkOrder | null) => {
+    if (selected) {
+      // Si trae OT, ya tenemos el cliente — saltamos el paso 2 y creamos la ficha.
+      await createFichaAndAdvance({
+        clienteId: selected.clienteId ?? '',
+        clienteNombre: selected.razonSocial,
+      }, selected);
+    } else {
+      setStep('cliente');
+    }
   };
 
-  const handleDatosSubmit = async (form: DatosBasicosForm) => {
+  const handleClienteSubmit = async (form: DatosBasicosForm) => {
+    await createFichaAndAdvance(form, null);
+  };
+
+  const createFichaAndAdvance = async (form: DatosBasicosForm, fromOT: WorkOrder | null) => {
     setCreating(true);
     setCreateError(null);
     try {
       const result = await fichasPropiedadService.create({
         clienteId: form.clienteId,
         clienteNombre: form.clienteNombre,
-        establecimientoId: ot?.establecimientoId ?? null,
+        establecimientoId: fromOT?.establecimientoId ?? null,
         establecimientoNombre: null,
-        sistemaId: ot?.sistemaId ?? null,
-        sistemaNombre: form.sistemaNombre || null,
-        moduloId: ot?.moduloId ?? null,
-        moduloNombre: form.moduloNombre || null,
-        descripcionLibre: form.descripcionLibre || null,
+        sistemaId: fromOT?.sistemaId ?? null,
+        sistemaNombre: fromOT?.sistema ?? null,
+        moduloId: fromOT?.moduloId ?? null,
+        moduloNombre: fromOT?.moduloModelo ?? null,
+        descripcionLibre: null,
         codigoArticulo: null,
-        serie: form.moduloSerie || null,
-        viaIngreso: form.viaIngreso,
-        traidoPor: form.traidoPor,
+        serie: fromOT?.moduloSerie ?? null,
+        // Defaults para campos requeridos del modelo. Se editan luego desde sistema-modular.
+        viaIngreso: 'envio',
+        traidoPor: '',
         fechaIngreso: new Date().toISOString(),
-        otReferencia: ot?.otNumber ?? null,
-        otNumber: ot?.otNumber ?? null,
-        descripcionProblema: form.descripcionProblema,
+        otReferencia: fromOT?.otNumber ?? null,
+        otNumber: fromOT?.otNumber ?? null,
+        descripcionProblema: '',
         sintomasReportados: null,
         accesorios: [],
-        condicionFisica: form.condicionFisica || null,
+        condicionFisica: null,
       });
       setFicha(result);
-      // Side-effect: crear ticket a materiales (admin_soporte)
-      void crearTicketRecepcion(result, form, ot);
+      void crearTicketRecepcion(result, form, fromOT);
       setStep('fotos');
     } catch (err) {
       console.error('Error creando ficha:', err);
@@ -85,17 +95,22 @@ export default function RecepcionPage() {
   if (step === 'ot') {
     return (
       <div className="max-w-md mx-auto px-4 py-4">
-        <BuscarOTStep onContinue={handleOTContinue} />
+        <BuscarOTStep onContinue={ot => void handleOTContinue(ot)} />
+        {creating && (
+          <p className="mt-3 text-xs text-slate-500 text-center">Creando ficha…</p>
+        )}
+        {createError && (
+          <p className="mt-3 text-xs text-red-600 text-center">{createError}</p>
+        )}
       </div>
     );
   }
 
-  if (step === 'datos') {
+  if (step === 'cliente') {
     return (
       <div className="max-w-md mx-auto px-4 py-4">
         <DatosBasicosStep
-          ot={ot}
-          onSubmit={form => void handleDatosSubmit(form)}
+          onSubmit={form => void handleClienteSubmit(form)}
           onBack={() => setStep('ot')}
         />
         {creating && (
@@ -139,7 +154,7 @@ export default function RecepcionPage() {
         </p>
       </div>
       <div className="space-y-2">
-        <Button onClick={() => { setStep('ot'); setOt(null); setFicha(null); }} className="w-full" size="lg">
+        <Button onClick={() => { setStep('ot'); setFicha(null); }} className="w-full" size="lg">
           Recibir otro equipo
         </Button>
         <Button variant="outline" onClick={() => navigate('/leads')} className="w-full" size="lg">
@@ -152,8 +167,7 @@ export default function RecepcionPage() {
 
 /**
  * Crea un ticket en `leads` con `area: admin_soporte` para que materiales sepa
- * que entró un equipo y debe completar la ficha. Best-effort: si falla, lo
- * logueamos pero no bloqueamos el flujo del usuario.
+ * que entró un equipo y debe completar la ficha. Best-effort.
  */
 async function crearTicketRecepcion(
   ficha: FichaCreada,
@@ -163,16 +177,16 @@ async function crearTicketRecepcion(
   try {
     const desc = `Equipo recibido — completar ficha ${ficha.numero}${
       ot ? ` para OT-${ot.otNumber}` : ''
-    }. Problema reportado: ${form.descripcionProblema}.`;
+    }.`;
     const lead: Omit<Lead, 'id' | 'updatedAt'> = {
       clienteId: form.clienteId || null,
       contactoId: null,
       razonSocial: form.clienteNombre,
-      contacto: form.traidoPor,
+      contacto: '',
       email: '',
       telefono: '',
       motivoLlamado: 'soporte',
-      motivoContacto: `Recepción de equipo · ${form.sistemaNombre || form.descripcionLibre || 'Equipo'}`,
+      motivoContacto: `Recepción de equipo${ot ? ` · OT-${ot.otNumber}` : ''}`,
       sistemaId: null,
       estado: 'nuevo',
       postas: [],
