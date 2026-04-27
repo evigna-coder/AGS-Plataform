@@ -243,7 +243,7 @@ export const OTList = () => {
       for (const otNum of selectedOTs) await ordenesTrabajoService.delete(otNum);
       setSelectedOTs(new Set());
       await loadOrdenes();
-    } catch { alert('Error al eliminar'); }
+    } catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); }
   };
   const handleBulkEstado = async (nuevoEstado: OTEstadoAdmin) => {
     if (selectedOTs.size === 0) return;
@@ -437,7 +437,7 @@ export const OTList = () => {
     try {
       await ordenesTrabajoService.delete(ot.otNumber);
       await loadOrdenes();
-    } catch { alert('Error al eliminar'); }
+    } catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); }
   };
 
   /** Click en fila: items y padres sin items → editar; padres con items → no-op (usar botones) */

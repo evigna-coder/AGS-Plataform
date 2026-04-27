@@ -53,17 +53,25 @@ export const agendaService = {
     rangeEnd: string,
     callback: (entries: AgendaEntry[]) => void,
   ): () => void {
-    // Query entries whose fechaInicio or fechaFin falls within range
-    // We query from (rangeStart - 14 days buffer) to rangeEnd to catch multi-day entries
+    // Query con lower bound (rangeStart - 30 días) para capturar entries multi-día
+    // que arrancaron antes del rango y se extienden adentro. Antes solo había
+    // upper bound (fechaInicio <= rangeEnd) → escaneaba TODA la historia y descartaba
+    // client-side. Para una colección de varios años eso es ineficiente.
+    // 30d cubre el peor caso realista de duración de entry (instalaciones largas).
+    const startDate = new Date(rangeStart);
+    startDate.setDate(startDate.getDate() - 30);
+    const lowerBound = startDate.toISOString().split('T')[0];
+
     const q = query(
       collection(db, 'agendaEntries'),
+      where('fechaInicio', '>=', lowerBound),
       where('fechaInicio', '<=', rangeEnd),
       orderBy('fechaInicio', 'asc'),
     );
     return onSnapshot(q, (snap) => {
       const entries = snap.docs
         .map(d => parseAgendaEntry(d))
-        .filter(e => e.fechaFin >= rangeStart); // client-side filter for overlap
+        .filter(e => e.fechaFin >= rangeStart); // client-side filter para overlap exacto
       callback(entries);
     });
   },

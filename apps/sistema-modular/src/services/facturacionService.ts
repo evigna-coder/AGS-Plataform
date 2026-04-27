@@ -167,6 +167,14 @@ export const facturacionService = {
     actor?: { uid: string; name?: string },
     datos?: { numeroFactura?: string; fechaFactura?: string },
   ): Promise<void> {
+    // Idempotency check: si ya está facturada, no pisar metadata. Antes, dos
+    // contables haciendo click en simultáneo se sobrescribían numeroFactura/
+    // fechaFactura/facturadoPor del primero — perdiendo trazabilidad.
+    const current = await this.getById(id);
+    if (current?.estado === 'facturada') {
+      console.info(`[marcarFacturada] solicitud ${id} ya facturada (numero=${current.numeroFactura}, por=${current.facturadoPorNombre}), skip`);
+      return;
+    }
     // update() call includes estado='facturada' → triggers recompute + trySyncFinalizacion internally
     // (Phase 12 BILL-02: hook added to facturacionService.update() in this plan).
     await this.update(id, {

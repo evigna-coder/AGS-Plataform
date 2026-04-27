@@ -130,7 +130,7 @@ export function useOTDetail(otNumber?: string) {
   const handleDelete = useCallback(async () => {
     if (!otNumber || !await confirm(`Eliminar OT ${otNumber}?`)) return;
     try { setSaving(true); await ordenesTrabajoService.delete(otNumber); alert('OT eliminada'); navigate('/ordenes-trabajo'); }
-    catch { alert('Error al eliminar'); } finally { setSaving(false); }
+    catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar'); } finally { setSaving(false); }
   }, [otNumber, navigate]);
 
   // ── FLOW-04: wrapper that intercepts CIERRE_ADMINISTRATIVO transitions ─

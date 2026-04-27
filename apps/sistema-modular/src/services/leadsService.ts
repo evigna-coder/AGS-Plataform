@@ -132,6 +132,13 @@ export const leadsService = {
    * El filtro OR se resuelve en cliente — Firestore no compone OR entre campos distintos.
    */
   async queryForVentasInsumosReport(rango: { desde: string; hasta: string }): Promise<Lead[]> {
+    // Normalizar boundaries: rango.desde/hasta vienen del <input type="date"> como
+    // 'YYYY-MM-DD' (10 chars), pero lead.createdAt es ISO con hora ('YYYY-MM-DDThh:mm:...').
+    // Sin esto, lead.createdAt <= '2026-04-25' deja afuera todo el día 25 porque
+    // '2026-04-25T15:...' > '2026-04-25' lexicográficamente. El contable contaba de menos.
+    const desdeStart = rango.desde + 'T00:00:00.000Z';
+    const hastaEnd = rango.hasta + 'T23:59:59.999Z';
+
     // Sin orderBy para evitar requerir un composite index (motivoLlamado + createdAt).
     // El subset es acotado; se ordena client-side abajo.
     const q = query(
@@ -141,8 +148,8 @@ export const leadsService = {
     const snap = await getDocs(q);
     const all = snap.docs.map(d => parseLeadDoc(d));
     const filtered = all.filter(lead => {
-      const createdIn = lead.createdAt >= rango.desde && lead.createdAt <= rango.hasta;
-      const updatedIn = lead.updatedAt >= rango.desde && lead.updatedAt <= rango.hasta;
+      const createdIn = lead.createdAt >= desdeStart && lead.createdAt <= hastaEnd;
+      const updatedIn = lead.updatedAt >= desdeStart && lead.updatedAt <= hastaEnd;
       const stillOpen = lead.estado !== 'finalizado' && lead.estado !== 'no_concretado';
       return createdIn || updatedIn || stillOpen;
     });

@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
@@ -493,7 +493,71 @@ export const ordenesTrabajoService = {
     }
   },
 
+  /**
+   * Delete con cleanup referencial. Antes era un solo batch.delete que dejaba
+   * referencias muertas en agenda, lead.otIds y presupuesto.otsVinculadasNumbers.
+   *
+   * Bloquea el delete si la OT está en CIERRE_ADMINISTRATIVO o FINALIZADO —
+   * esos estados generan solicitudFacturacion y otra metadata downstream que
+   * un delete naive deja orphan. Para OTs cerradas, usar baja lógica vía
+   * estadoAdmin (no implementada acá).
+   */
   async delete(otNumber: string) {
+    const otSnap = await getDoc(doc(db, 'reportes', otNumber));
+    if (!otSnap.exists()) {
+      throw new Error(`OT ${otNumber} no existe`);
+    }
+    const otData = otSnap.data() as WorkOrder;
+
+    if (otData.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || otData.estadoAdmin === 'FINALIZADO') {
+      throw new Error(
+        `No se puede eliminar la OT ${otNumber} en estado ${otData.estadoAdmin}. Tiene solicitudes de facturación o referencias downstream — anular en lugar de eliminar.`,
+      );
+    }
+
+    // 1. Borrar agenda entries vinculadas (best-effort)
+    try {
+      const agendaEntries = await agendaService.getByOtNumber(otNumber);
+      await Promise.all(agendaEntries.map(e => agendaService.delete(e.id)));
+    } catch (err) {
+      console.error(`[otService.delete] Error limpiando agenda de ${otNumber}:`, err);
+    }
+
+    // 2. Quitar otNumber de lead.otIds[] en cualquier ticket que lo contenga
+    try {
+      const leadsSnap = await getDocs(
+        query(collection(db, 'leads'), where('otIds', 'array-contains', otNumber)),
+      );
+      await Promise.all(leadsSnap.docs.map(async d => {
+        const otIds = (d.data().otIds as string[] | undefined) ?? [];
+        const next = otIds.filter(n => n !== otNumber);
+        await updateDoc(d.ref, { otIds: next, updatedAt: Timestamp.now() });
+      }));
+    } catch (err) {
+      console.error(`[otService.delete] Error limpiando otIds de tickets:`, err);
+    }
+
+    // 3. Quitar otNumber de presupuesto.otsVinculadasNumbers[] y otsListasParaFacturar[]
+    try {
+      const presSnap = await getDocs(
+        query(collection(db, 'presupuestos'), where('otsVinculadasNumbers', 'array-contains', otNumber)),
+      );
+      await Promise.all(presSnap.docs.map(async d => {
+        const data = d.data();
+        const ovn = (data.otsVinculadasNumbers as string[] | undefined) ?? [];
+        const olf = (data.otsListasParaFacturar as string[] | undefined) ?? [];
+        const updates: Record<string, unknown> = { updatedAt: Timestamp.now() };
+        const nextOvn = ovn.filter(n => n !== otNumber);
+        if (nextOvn.length !== ovn.length) updates.otsVinculadasNumbers = nextOvn;
+        const nextOlf = olf.filter(n => n !== otNumber);
+        if (nextOlf.length !== olf.length) updates.otsListasParaFacturar = nextOlf;
+        if (Object.keys(updates).length > 1) await updateDoc(d.ref, updates as Record<string, any>);
+      }));
+    } catch (err) {
+      console.error(`[otService.delete] Error limpiando refs en presupuestos:`, err);
+    }
+
+    // 4. Borrar la OT
     const batch = createBatch();
     batch.delete(docRef('reportes', otNumber));
     batchAudit(batch, { action: 'delete', collection: 'ordenes_trabajo', documentId: otNumber });
