@@ -20,11 +20,12 @@ interface FiltersShape {
   soloGarantia: boolean;
 }
 
-type SetFilter = <K extends keyof FiltersShape>(key: K, value: FiltersShape[K]) => void;
-
 interface Props {
   filters: FiltersShape;
-  setFilter: SetFilter;
+  // Loose signature para que el setFilter de useUrlFilters (genérico sobre el
+  // schema completo, que incluye sortField/sortDir además de FiltersShape) sea
+  // asignable. Acá solo seteamos las keys de FiltersShape.
+  setFilter: (key: string, value: string | boolean) => void;
   resetFilters: () => void;
   clientes: Cliente[];
   sistemas: Sistema[];
