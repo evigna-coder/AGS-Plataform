@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, EstadoUnidad, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
@@ -913,7 +913,116 @@ export const remitosService = {
       onError?.(err);
     });
   },
+
+  /**
+   * Crea un remito de devolución o derivación a proveedor a partir de una o
+   * más fichas, y aplica los side effects (cambio de estado de cada ficha,
+   * historial, FK a remitoDevolucionId). Numeración manual (la del papel
+   * preimpreso) — NO usa `getNextRemitoNumber`.
+   */
+  async createForFichas(input: CreateRemitoFichasInput): Promise<{ id: string }> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const isDevolucion = input.tipo === 'devolucion';
+
+    const items: RemitoItem[] = input.fichas.map(f => ({
+      id: crypto.randomUUID(),
+      cantidad: 1,
+      tipoItem: 'entrega',
+      devuelto: false,
+      fichaId: f.fichaId,
+      fichaNumero: f.fichaNumero,
+      fichaDescripcion: f.descripcion,
+    }));
+
+    const remitoPayload = deepCleanForFirestore({
+      numero: input.numero,
+      tipo: input.tipo,
+      estado: 'en_transito',
+      ingenieroId: '',
+      ingenieroNombre: '',
+      otNumbers: input.otNumbers ?? [],
+      clienteId: isDevolucion ? (input.clienteId ?? null) : null,
+      clienteNombre: isDevolucion ? (input.clienteNombre ?? null) : null,
+      proveedorId: !isDevolucion ? (input.proveedorId ?? null) : null,
+      proveedorNombre: !isDevolucion ? (input.proveedorNombre ?? null) : null,
+      items,
+      observaciones: input.observaciones ?? null,
+      fechaSalida: input.fecha,
+      fechaDevolucion: null,
+      fichaId: input.fichas.length === 1 ? input.fichas[0].fichaId : null,
+      fichaNumero: input.fichas.length === 1 ? input.fichas[0].fichaNumero : null,
+      loanerId: null,
+      loanerCodigo: null,
+      ...getCreateTrace(),
+      createdAt: Timestamp.fromDate(new Date(now)),
+      updatedAt: Timestamp.now(),
+    });
+
+    const batch = createBatch();
+    batch.set(docRef('remitos', id), remitoPayload);
+    batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: remitoPayload });
+
+    const nuevoEstado = isDevolucion ? 'en_envio' : 'derivado_proveedor';
+    const motivo = isDevolucion
+      ? `Remito de devolución ${input.numero}`
+      : `Remito de derivación a ${input.proveedorNombre ?? 'proveedor'} ${input.numero}`;
+
+    for (const f of input.fichas) {
+      const fichaSnap = await getDoc(doc(db, 'fichasPropiedad', f.fichaId));
+      if (!fichaSnap.exists()) continue;
+      const fichaData = fichaSnap.data() as { estado?: string; historial?: HistorialFicha[] };
+      const estadoAnterior = (fichaData.estado as HistorialFicha['estadoAnterior']) ?? 'recibido';
+      const nuevaEntrada: HistorialFicha = {
+        id: crypto.randomUUID(),
+        fecha: now,
+        estadoAnterior,
+        estadoNuevo: nuevoEstado as HistorialFicha['estadoNuevo'],
+        nota: motivo,
+        creadoPor: getCreateTrace().createdByName ?? 'Sistema',
+      };
+      const fichaPatch: Record<string, unknown> = {
+        estado: nuevoEstado,
+        historial: [...(fichaData.historial ?? []), nuevaEntrada],
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      };
+      if (isDevolucion) fichaPatch.remitoDevolucionId = id;
+      const fichaPayload = deepCleanForFirestore(fichaPatch);
+      batch.update(docRef('fichasPropiedad', f.fichaId), fichaPayload);
+      batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: f.fichaId, after: fichaPayload });
+    }
+
+    await batch.commit();
+    return { id };
+  },
 };
+
+/** Datos de razón social/domicilio/IVA/CUIT que van impresos en una columna. */
+export interface DatosTransportista {
+  razonSocial: string;
+  domicilio: string;
+  localidad: string;
+  provincia: string;
+  iva: string;
+  cuit: string;
+}
+
+export interface CreateRemitoFichasInput {
+  /** Número preimpreso del papel (ej. "0001-00017091"). */
+  numero: string;
+  tipo: 'devolucion' | 'derivacion_proveedor';
+  destinatario: DatosTransportista;
+  transportista?: DatosTransportista | null;
+  fecha: string;
+  fichas: Array<{ fichaId: string; fichaNumero: string; descripcion: string }>;
+  observaciones?: string | null;
+  proveedorId?: string | null;
+  proveedorNombre?: string | null;
+  clienteId?: string | null;
+  clienteNombre?: string | null;
+  otNumbers?: string[];
+}
 
 // ========== RESERVAS DE STOCK ==========
 

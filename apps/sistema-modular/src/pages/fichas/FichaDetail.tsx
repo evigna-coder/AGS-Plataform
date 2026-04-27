@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fichasService, loanersService, remitosService } from '../../services/firebaseService';
+import { fichasService, loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { FichaInfoSidebar } from '../../components/fichas/FichaInfoSidebar';
@@ -10,13 +10,12 @@ import { FichaRepuestosSection } from '../../components/fichas/FichaRepuestosSec
 import { FichaStatusTransition } from '../../components/fichas/FichaStatusTransition';
 import { FichaLoanerLink } from '../../components/fichas/FichaLoanerLink';
 import { FichaFotosSection } from '../../components/fichas/FichaFotosSection';
+import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { FichaPropiedad, EstadoFicha, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
-import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export function FichaDetail() {
   const { id } = useParams();
-  const confirm = useConfirm();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
   const [ficha, setFicha] = useState<FichaPropiedad | null>(null);
@@ -25,6 +24,7 @@ export function FichaDetail() {
   const [disponibles, setDisponibles] = useState<Loaner[]>([]);
   const [selectedLoanerId, setSelectedLoanerId] = useState('');
   const [asigning, setAsigning] = useState(false);
+  const [remitoModalOpen, setRemitoModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -52,33 +52,6 @@ export function FichaDetail() {
     // subscription auto-refreshes
   };
 
-  const handleEntregarCliente = async () => {
-    if (!ficha || !await confirm('Generar remito de devolucion y marcar como entregado?')) return;
-    const remitoId = await remitosService.create({
-      tipo: 'devolucion',
-      estado: 'borrador',
-      ingenieroId: '',
-      ingenieroNombre: 'AGS Taller',
-      clienteId: ficha.clienteId,
-      clienteNombre: ficha.clienteNombre,
-      fichaId: ficha.id,
-      fichaNumero: ficha.numero,
-      items: [],
-      observaciones: `Devolucion ficha ${ficha.numero}`,
-    });
-    await fichasService.update(ficha.id, {
-      remitoDevolucionId: remitoId,
-      fechaEntrega: new Date().toISOString(),
-    });
-    await fichasService.addHistorial(ficha.id, {
-      fecha: new Date().toISOString(),
-      estadoAnterior: ficha.estado,
-      estadoNuevo: 'entregado',
-      nota: 'Entregado al cliente. Remito generado.',
-      creadoPor: 'admin',
-    });
-    // subscription auto-refreshes
-  };
 
   const openLoanerPicker = async () => {
     const d = await loanersService.getDisponibles();
@@ -137,7 +110,9 @@ export function FichaDetail() {
         <div className="flex items-center gap-2">
           <FichaStatusTransition currentEstado={ficha.estado} onTransition={handleTransition} />
           {ficha.estado === 'listo_para_entrega' && (
-            <Button variant="primary" size="sm" onClick={handleEntregarCliente}>Entregar al cliente</Button>
+            <Button variant="primary" size="sm" onClick={() => setRemitoModalOpen(true)}>
+              Generar remito de devolución
+            </Button>
           )}
           {!ficha.loanerId && ficha.estado !== 'entregado' && (
             <Button variant="secondary" size="sm" onClick={openLoanerPicker}>Asignar loaner</Button>
@@ -189,6 +164,13 @@ export function FichaDetail() {
           </div>
         )}
       </Modal>
+
+      {/* Generar remito de devolución */}
+      <GenerarRemitoDevolucionModal
+        open={remitoModalOpen}
+        onClose={() => setRemitoModalOpen(false)}
+        ficha={ficha}
+      />
     </div>
   );
 }

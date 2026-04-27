@@ -10,7 +10,10 @@ const TRANSITIONS: Record<EstadoFicha, EstadoFicha[]> = {
   en_reparacion: ['listo_para_entrega', 'derivado_proveedor', 'esperando_repuesto'],
   derivado_proveedor: ['en_reparacion', 'esperando_repuesto', 'listo_para_entrega'],
   esperando_repuesto: ['en_reparacion', 'listo_para_entrega'],
-  listo_para_entrega: ['entregado'],
+  listo_para_entrega: ['en_envio', 'entregado'],
+  // 'en_envio' lo setea automáticamente la generación de remito de devolución; las
+  // transiciones manuales permitidas son volver atrás (no se entregó) o confirmar entrega.
+  en_envio: ['listo_para_entrega', 'entregado'],
   entregado: [],
 };
 

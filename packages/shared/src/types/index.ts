@@ -2565,10 +2565,11 @@ export type TipoRemitoItem = 'sale_y_vuelve' | 'entrega';
 
 export interface RemitoItem {
   id: string;
-  unidadId: string;
-  articuloId: string;
-  articuloCodigo: string;
-  articuloDescripcion: string;
+  /** Stock-related fields. Opcionales: items de remito de ficha (devolución/derivación) no usan stock — usan los campos `ficha*` más abajo. */
+  unidadId?: string;
+  articuloId?: string;
+  articuloCodigo?: string;
+  articuloDescripcion?: string;
   cantidad: number;
   tipoItem: TipoRemitoItem;
   devuelto: boolean;
@@ -2588,6 +2589,11 @@ export interface RemitoItem {
   loanerId?: string | null;
   loanerCodigo?: string | null;
   loanerDescripcion?: string | null;
+  /** Ficha propiedad del cliente (remitos de devolución / derivación) */
+  fichaId?: string | null;
+  fichaNumero?: string | null;
+  /** Descripción libre del equipo: "Sistema · Módulo · Serie · motivo" */
+  fichaDescripcion?: string | null;
   /** Tipo de entidad origen (para display genérico) */
   tipoEntidad?: TipoItemAsignacion | null;
   /** Trazabilidad a la asignación */
@@ -2642,6 +2648,7 @@ export type EstadoFicha =
   | 'derivado_proveedor'
   | 'esperando_repuesto'
   | 'listo_para_entrega'
+  | 'en_envio'
   | 'entregado';
 
 export const ESTADO_FICHA_LABELS: Record<EstadoFicha, string> = {
@@ -2651,6 +2658,7 @@ export const ESTADO_FICHA_LABELS: Record<EstadoFicha, string> = {
   derivado_proveedor: 'Derivado a proveedor',
   esperando_repuesto: 'Esperando repuesto',
   listo_para_entrega: 'Listo para entrega',
+  en_envio: 'En envío',
   entregado: 'Entregado',
 };
 
@@ -2661,6 +2669,7 @@ export const ESTADO_FICHA_COLORS: Record<EstadoFicha, string> = {
   derivado_proveedor: 'bg-purple-100 text-purple-800',
   esperando_repuesto: 'bg-amber-100 text-amber-800',
   listo_para_entrega: 'bg-green-100 text-green-800',
+  en_envio: 'bg-cyan-100 text-cyan-800',
   entregado: 'bg-slate-100 text-slate-600',
 };
 
