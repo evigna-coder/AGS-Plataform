@@ -721,7 +721,10 @@ export interface Ticket {
   updatedBy?: string | null;
   updatedByName?: string | null;
   finalizadoAt?: string | null;
+  /** Texto original al crear el ticket. Inmutable salvo edición explícita por el usuario. */
   descripcion?: string | null;
+  /** Última observación/comentario de una posta (derivación, comentario). Útil para grids; no pisa `descripcion`. */
+  ultimaObservacion?: string | null;
   prioridad?: TicketPrioridad | null;
   proximoContacto?: string | null;
   valorEstimado?: number | null;

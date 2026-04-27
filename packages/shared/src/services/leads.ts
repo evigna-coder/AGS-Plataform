@@ -50,20 +50,41 @@ export const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
 
 // ── Migraciones de campos legacy ──────────────────────────────────────────────
 
-/** Migra valores de estado legacy al esquema actual de LeadEstado. */
+/**
+ * Migra valores de estado legacy al esquema actual de LeadEstado.
+ *
+ * Los estados intermedios introducidos en Phase 8/10 (esperando_oc, oc_recibida,
+ * pendiente_aviso_facturacion, pendiente_facturacion, ot_creada, ot_coordinada,
+ * ot_realizada) son nuevos y solo se setean explícitamente — los tickets legacy
+ * no tienen forma de inferirlos, por eso no aparecen en este mapping.
+ *
+ * Un ticket viejo con estado='presupuestado' se asume que el ppto ya fue
+ * enviado al cliente (no que está pendiente de generar) — por eso se mapea a
+ * 'presupuesto_enviado' y no a 'presupuesto_pendiente'.
+ *
+ * Si necesitás un análisis más fino (¿está aceptado? ¿anulado?), correr
+ * /admin/backfill-ticket-estados (no implementado aún — TODO Phase 13).
+ */
 export function migrateLeadEstado(raw: string): LeadEstado {
   const migration: Record<string, LeadEstado> = {
     contactado: 'en_seguimiento',
     en_revision: 'en_seguimiento',
     derivado: 'en_seguimiento',
-    presupuestado: 'presupuesto_pendiente',
+    presupuestado: 'presupuesto_enviado',
     pendiente_info: 'en_seguimiento',
     en_presupuesto: 'presupuesto_pendiente',
     en_proceso: 'en_seguimiento',
     convertido: 'finalizado',
     perdido: 'no_concretado',
   };
-  return migration[raw] || (raw as LeadEstado) || 'nuevo';
+  if (migration[raw]) {
+    // Log para que admin pueda detectar tickets que requieren backfill manual.
+    if (typeof console !== 'undefined') {
+      console.debug(`[migrateLeadEstado] legacy '${raw}' → '${migration[raw]}' — considerar backfill`);
+    }
+    return migration[raw];
+  }
+  return (raw as LeadEstado) || 'nuevo';
 }
 
 /** Migra valores de motivoLlamado legacy. */
@@ -166,6 +187,7 @@ export function parseLeadDoc(d: { id: string; data: () => Record<string, unknown
     motivoLlamado: migrateMotivoLlamado(data.motivoLlamado as string),
     motivoContacto: (data.motivoContacto as string) ?? '',
     descripcion: (data.descripcion as string) ?? null,
+    ultimaObservacion: (data.ultimaObservacion as string) ?? null,
     sistemaId: (data.sistemaId as string) ?? null,
     moduloId: (data.moduloId as string) ?? null,
     estado: migrateLeadEstado((data.estado as string) ?? 'nuevo'),

@@ -426,6 +426,32 @@ export const presupuestosService = {
           await this._cancelarRequerimientosCondicionales(id).catch(err =>
             console.error('[update anular] _cancelarRequerimientosCondicionales failed:', err),
           );
+
+          // D9: si hay OTs vinculadas no-finalizadas, registrar pendingAction.
+          // No las cancelamos automáticamente porque puede haber trabajo en
+          // curso o cierre técnico hecho — la coordinadora decide qué hacer.
+          // Sin esto, el técnico quedaba ejecutando OT "fantasma" cargada a un
+          // ppto anulado y el cobro quedaba en el aire.
+          const otsVinc = pres.otsVinculadasNumbers ?? [];
+          if (otsVinc.length > 0) {
+            try {
+              const otsSnap = await getDocs(
+                query(collection(db, 'reportes'), where('otNumber', 'in', otsVinc.slice(0, 30))),
+              );
+              const otsActivas = otsSnap.docs
+                .map(d => d.data() as { otNumber?: string; estadoAdmin?: string })
+                .filter(o => o.estadoAdmin && o.estadoAdmin !== 'FINALIZADO');
+              if (otsActivas.length > 0) {
+                const otNumbers = otsActivas.map(o => o.otNumber).filter(Boolean).join(', ');
+                await this._appendPendingAction(id, {
+                  type: 'notificar_coordinador_ot',
+                  reason: `Ppto ${pres.numero} ANULADO pero tiene ${otsActivas.length} OT(s) no-FINALIZADO: ${otNumbers}. Coordinador OT: decidir si cancelarlas, re-vincular a otro ppto o seguir como cortesía.`,
+                }).catch(err => console.error('[update anular] _appendPendingAction OTs failed:', err));
+              }
+            } catch (err) {
+              console.error('[update anular] check OTs activas falló:', err);
+            }
+          }
         }
       } catch (err) {
         console.error('[update anular] getById falló antes del cleanup:', err);

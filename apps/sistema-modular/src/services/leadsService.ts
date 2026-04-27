@@ -200,7 +200,10 @@ export const leadsService = {
     };
     if (area !== undefined) data.areaActual = area || null;
     if (accionRequerida !== undefined) data.accionPendiente = accionRequerida || null;
-    if (posta.comentario) data.descripcion = posta.comentario;
+    // D12: la observación de la posta va a `ultimaObservacion` (no pisa `descripcion`).
+    // Antes pisaba `descripcion` en cada derivación → la grilla mostraba la última
+    // derivación y se perdía el contexto original del ticket.
+    if (posta.comentario) data.ultimaObservacion = posta.comentario;
     if (extras?.prioridad !== undefined) data.prioridad = extras.prioridad;
     if (extras?.proximoContacto !== undefined) data.proximoContacto = extras.proximoContacto || null;
     if (extras?.motivoLlamado !== undefined) {
