@@ -16,10 +16,18 @@ import { getContactoPrincipal } from '../types';
 
 // ── Mapeos de estados ─────────────────────────────────────────────────────────
 
-/** Mapeo: estado de presupuesto → estado del ticket vinculado. */
+/**
+ * Mapeo: estado de presupuesto → estado del ticket vinculado.
+ *
+ * Cubre transiciones que disparan sync automático del ticket al cambiar el ppto.
+ * - `en_ejecucion` significa "OT(s) ya creadas y trabajando" → ticket pasa a ot_creada.
+ * - `anulado` cierra el ticket como `no_concretado` (la oportunidad se cayó).
+ */
 export const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
   enviado: 'presupuesto_enviado',
   aceptado: 'en_coordinacion',
+  en_ejecucion: 'ot_creada',
+  anulado: 'no_concretado',
   finalizado: 'finalizado',
 };
 

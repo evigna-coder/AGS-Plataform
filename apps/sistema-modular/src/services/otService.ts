@@ -1,5 +1,6 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto } from '@ags/shared';
+import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
@@ -353,6 +354,19 @@ export const ordenesTrabajoService = {
 
   // Actualizar OT
   async update(otNumber: string, data: Partial<WorkOrder>) {
+    // D7: si data.estadoAdmin está presente, validar que la transición sea legal.
+    // Antes el dropdown del EditOTModal podía mover de cualquier estado a cualquier
+    // otro (incluyendo retrocesos desde FINALIZADO o saltos a estados terminales).
+    if (data.estadoAdmin) {
+      const currentForValidate = await this.getByOtNumber(otNumber);
+      if (!isOTTransicionValida(currentForValidate?.estadoAdmin, data.estadoAdmin)) {
+        throw new Error(
+          `Transición OT inválida: ${currentForValidate?.estadoAdmin ?? '(sin estado)'} → ${data.estadoAdmin}. ` +
+          `Estados válidos desde ${currentForValidate?.estadoAdmin ?? 'inicial'}: ${currentForValidate?.estadoAdmin ? OT_TRANSICIONES_VALIDAS[currentForValidate.estadoAdmin].join(', ') || '(ninguno — terminal)' : 'CREADA'}`,
+        );
+      }
+    }
+
     // Branching: si la transición es → CIERRE_ADMINISTRATIVO, delegar a
     // cerrarAdministrativamente para que corra la tx atómica (crea
     // solicitudFacturacion, mailQueue, admin ticket). Sin esto, el dropdown

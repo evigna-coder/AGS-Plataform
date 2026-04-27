@@ -35,6 +35,37 @@ export const OT_ESTADO_ORDER: OTEstadoAdmin[] = [
   'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO',
 ];
 
+/**
+ * Matriz de transiciones válidas. Para cada estado, los siguientes a los que
+ * puede transicionar legalmente. Bidireccional: ASIGNADA puede volver a CREADA
+ * (desasignar), COORDINADA puede volver a ASIGNADA (re-coordinar).
+ *
+ * NO permitidos:
+ * - Saltar de CREADA directo a FINALIZADO sin pasar por cierre técnico/admin.
+ * - Reabrir desde FINALIZADO (estado terminal — usar otra OT si corresponde).
+ * - Volver de CIERRE_ADMINISTRATIVO a un estado anterior (genera solicitudFacturacion
+ *   y otra metadata downstream que un revert no limpia).
+ *
+ * Para forzar transiciones inválidas (admin recovery), bypass via Firestore
+ * console o script de migración explícito.
+ */
+export const OT_TRANSICIONES_VALIDAS: Record<OTEstadoAdmin, OTEstadoAdmin[]> = {
+  CREADA: ['ASIGNADA'],
+  ASIGNADA: ['CREADA', 'COORDINADA'],
+  COORDINADA: ['ASIGNADA', 'EN_CURSO'],
+  EN_CURSO: ['COORDINADA', 'CIERRE_TECNICO'],
+  CIERRE_TECNICO: ['EN_CURSO', 'CIERRE_ADMINISTRATIVO'],
+  CIERRE_ADMINISTRATIVO: ['FINALIZADO'],
+  FINALIZADO: [],
+};
+
+/** Devuelve true si la transición desde→hacia está permitida. */
+export function isOTTransicionValida(desde: OTEstadoAdmin | undefined, hacia: OTEstadoAdmin): boolean {
+  if (!desde) return hacia === 'CREADA'; // OT nueva solo puede empezar en CREADA
+  if (desde === hacia) return true; // no-op permitido (re-set mismo estado)
+  return OT_TRANSICIONES_VALIDAS[desde]?.includes(hacia) ?? false;
+}
+
 export interface WorkOrder {
   otNumber: string; // Formato: 5 dígitos + opcional .NN (ej: 25660.02)
   status: 'BORRADOR' | 'FINALIZADO'; // status técnico (reportes-ot lo usa)
