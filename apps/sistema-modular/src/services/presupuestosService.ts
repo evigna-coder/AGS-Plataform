@@ -47,21 +47,29 @@ export const presupuestosService = {
     return match ? parseInt(match[1]) : null;
   },
 
-  // Generar siguiente número de presupuesto (PRE-XXXX.01)
+  // Generar siguiente número de presupuesto (PRE-XXXX.01) — atómico vía counter doc.
   async getNextPresupuestoNumber(): Promise<string> {
-    console.log('🔢 Generando siguiente número de presupuesto...');
-    const q = query(collection(db, 'presupuestos'), orderBy('numero', 'desc'));
-    const querySnapshot = await getDocs(q);
-
-    let maxBase = 0;
-    querySnapshot.docs.forEach(d => {
-      const base = this._extractBase(d.data().numero);
-      if (base > maxBase) maxBase = base;
+    const counterRef = doc(db, '_counters', 'presupuestoNumber');
+    const nextBase = await runTransaction(db, async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      let current: number;
+      if (counterSnap.exists()) {
+        current = counterSnap.data().value as number;
+      } else {
+        // Primera vez: escanear colección para inicializar el counter
+        const querySnapshot = await getDocs(collection(db, 'presupuestos'));
+        let maxBase = 0;
+        querySnapshot.docs.forEach(d => {
+          const base = this._extractBase(d.data().numero);
+          if (base > maxBase) maxBase = base;
+        });
+        current = maxBase;
+      }
+      const next = current + 1;
+      tx.set(counterRef, { value: next, updatedAt: Timestamp.now() });
+      return next;
     });
-
-    const nextNumber = `PRE-${String(maxBase + 1).padStart(4, '0')}.01`;
-    console.log(`✅ Siguiente presupuesto: ${nextNumber}`);
-    return nextNumber;
+    return `PRE-${String(nextBase).padStart(4, '0')}.01`;
   },
 
   // Obtener todos los presupuestos
@@ -1864,15 +1872,28 @@ export const presupuestosService = {
 
 // Servicio para Ordenes de Compra
 export const ordenesCompraService = {
+  // Atómico vía counter doc — antes era scan-and-max no transaccional.
   async getNextOCNumber(): Promise<string> {
-    const q = query(collection(db, 'ordenes_compra'), orderBy('numero', 'desc'));
-    const snap = await getDocs(q);
-    let maxNum = 0;
-    snap.docs.forEach(d => {
-      const match = d.data().numero?.match(/OC-(\d+)/);
-      if (match) { const n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
+    const counterRef = doc(db, '_counters', 'ocNumber');
+    const next = await runTransaction(db, async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      let current: number;
+      if (counterSnap.exists()) {
+        current = counterSnap.data().value as number;
+      } else {
+        const snap = await getDocs(collection(db, 'ordenes_compra'));
+        let maxNum = 0;
+        snap.docs.forEach(d => {
+          const match = d.data().numero?.match(/OC-(\d+)/);
+          if (match) { const n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
+        });
+        current = maxNum;
+      }
+      const nextVal = current + 1;
+      tx.set(counterRef, { value: nextVal, updatedAt: Timestamp.now() });
+      return nextVal;
     });
-    return `OC-${String(maxNum + 1).padStart(4, '0')}`;
+    return `OC-${String(next).padStart(4, '0')}`;
   },
 
   async getAll(filters?: { estado?: string; tipo?: string; proveedorId?: string }): Promise<OrdenCompra[]> {

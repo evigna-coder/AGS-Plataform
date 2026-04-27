@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, EstadoUnidad, TipoMovimiento, TipoOrigenDestino } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
 
@@ -751,22 +751,28 @@ export const movimientosService = {
 // ========== REMITOS ==========
 
 export const remitosService = {
+  // Atómico vía counter doc — antes era scan-and-max no transaccional.
   async getNextRemitoNumber(): Promise<string> {
-    const q = query(collection(db, 'remitos'), orderBy('numero', 'desc'));
-    const snap = await getDocs(q);
-
-    let maxNum = 0;
-    snap.docs.forEach(d => {
-      const numero = d.data().numero;
-      const match = numero?.match(/REM-(\d+)/);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
+    const counterRef = doc(db, '_counters', 'remitoNumber');
+    const next = await runTransaction(db, async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      let current: number;
+      if (counterSnap.exists()) {
+        current = counterSnap.data().value as number;
+      } else {
+        const snap = await getDocs(collection(db, 'remitos'));
+        let maxNum = 0;
+        snap.docs.forEach(d => {
+          const match = d.data().numero?.match(/REM-(\d+)/);
+          if (match) { const n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
+        });
+        current = maxNum;
       }
+      const nextVal = current + 1;
+      tx.set(counterRef, { value: nextVal, updatedAt: Timestamp.now() });
+      return nextVal;
     });
-
-    const nextNum = maxNum + 1;
-    return `REM-${String(nextNum).padStart(4, '0')}`;
+    return `REM-${String(next).padStart(4, '0')}`;
   },
 
   async getAll(filters?: {

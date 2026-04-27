@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion, runTransaction } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, Ticket, Cliente } from '@ags/shared';
 import {
@@ -30,17 +30,32 @@ export const leadsService = {
 
   /**
    * Genera el siguiente numero correlativo de ticket: TKT-00001, TKT-00002, ...
-   * Escanea toda la colección `leads` y saca el max + 1. Misma lógica que presupuestosService.getNextPresupuestoNumber.
-   * NO es atómico: si dos creates corren en paralelo pueden chocar. Aceptable para el volumen actual.
+   * Atómico vía counter doc `_counters/tickets` (mismo doc que usa reportes-ot
+   * en createTicketFromAcciones — Firestore garantiza atomicidad cross-app).
+   * Antes era scan-and-max no transaccional — dos creates concurrentes podían
+   * obtener el mismo número.
    */
   async getNextTicketNumero(): Promise<string> {
-    const snap = await getDocs(collection(db, 'leads'));
-    let max = 0;
-    snap.docs.forEach(d => {
-      const n = this._extractTicketNumber(d.data().numero);
-      if (n > max) max = n;
+    const counterRef = doc(db, '_counters', 'tickets');
+    const next = await runTransaction(db, async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      let current: number;
+      if (counterSnap.exists()) {
+        current = counterSnap.data().value as number;
+      } else {
+        const snap = await getDocs(collection(db, 'leads'));
+        let max = 0;
+        snap.docs.forEach(d => {
+          const n = this._extractTicketNumber(d.data().numero);
+          if (n > max) max = n;
+        });
+        current = max;
+      }
+      const nextVal = current + 1;
+      tx.set(counterRef, { value: nextVal, updatedAt: Timestamp.now() });
+      return nextVal;
     });
-    return `TKT-${String(max + 1).padStart(5, '0')}`;
+    return `TKT-${String(next).padStart(5, '0')}`;
   },
 
   async create(data: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: string }) {
