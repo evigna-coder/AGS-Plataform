@@ -331,9 +331,33 @@ export const sistemasService = {
     return `AGS-EQ-${String(max + 1).padStart(4, '0')}`;
   },
 
-  // Eliminar sistema (elimina tambien todos sus modulos)
+  /**
+   * Eliminar sistema (elimina también todos sus módulos).
+   *
+   * Pre-valida referencias activas en otras colecciones — si hay OTs activas
+   * (no FINALIZADO), presupuestos no anulados o contratos activos vinculados,
+   * rechaza la eliminación. Sin esto, sus referencias quedaban con sistemaId
+   * apuntando a un sistema borrado y los reportes técnicos se rompían.
+   */
   async delete(id: string) {
     console.log('Eliminando sistema:', id);
+
+    // Pre-validación de referencias activas
+    const [otsSnap, ppsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'reportes'), where('sistemaId', '==', id))),
+      getDocs(query(collection(db, 'presupuestos'), where('sistemaId', '==', id))),
+    ]);
+    const otsActivas = otsSnap.docs.filter(d => d.data().estadoAdmin && d.data().estadoAdmin !== 'FINALIZADO');
+    const ppsActivos = ppsSnap.docs.filter(d => d.data().estado && d.data().estado !== 'anulado');
+
+    if (otsActivas.length > 0 || ppsActivos.length > 0) {
+      const detalles: string[] = [];
+      if (otsActivas.length > 0) detalles.push(`${otsActivas.length} OT(s) activa(s)`);
+      if (ppsActivos.length > 0) detalles.push(`${ppsActivos.length} presupuesto(s) no anulado(s)`);
+      throw new Error(
+        `No se puede eliminar el sistema: tiene ${detalles.join(' y ')} vinculadas. Finalizar/anular primero o usar baja lógica (activo: false).`,
+      );
+    }
 
     // Primero eliminar todos los modulos del sistema
     try {

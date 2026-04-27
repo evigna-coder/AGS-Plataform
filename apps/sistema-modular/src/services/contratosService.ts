@@ -106,13 +106,34 @@ export const contratosService = {
     await batch.commit();
   },
 
-  /** Atomically increment visitasUsadas using a transaction */
+  /**
+   * Incrementa visitasUsadas atómicamente. Valida estado/fechaFin/maxVisitas
+   * DENTRO de la tx — antes solo el caller validaba antes de llamar, lo cual
+   * permitía cargar visitas a contratos vencidos por timing entre validateOTCreation
+   * y la transaction (especialmente alrededor de medianoche o si el contrato se
+   * anuló entre el validate y el create).
+   */
   async incrementVisitas(id: string): Promise<number> {
     const contratoRef = doc(db, 'contratos', id);
     return runTransaction(db, async (transaction) => {
       const snap = await transaction.get(contratoRef);
       if (!snap.exists()) throw new Error('Contrato no encontrado');
-      const current = snap.data().visitasUsadas || 0;
+      const data = snap.data();
+
+      if (data.estado !== 'activo') {
+        throw new Error(`Contrato ${id} no activo (estado=${data.estado})`);
+      }
+      const today = new Date().toISOString().split('T')[0];
+      if (data.fechaFin && today > data.fechaFin) {
+        throw new Error(`Contrato ${id} vencido (fechaFin=${data.fechaFin})`);
+      }
+      if (data.tipoLimite === 'visitas' && data.maxVisitas != null) {
+        if ((data.visitasUsadas || 0) >= data.maxVisitas) {
+          throw new Error(`Contrato ${id} sin visitas disponibles (${data.visitasUsadas}/${data.maxVisitas})`);
+        }
+      }
+
+      const current = data.visitasUsadas || 0;
       const next = current + 1;
       transaction.update(contratoRef, {
         visitasUsadas: next,
