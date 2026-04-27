@@ -219,16 +219,25 @@ export const TableSelectorPanel: React.FC<Props> = ({
         if (row.isTitle) continue;
         filledData[row.rowId] = {};
 
-        // Filas selector: no pre-llenar con N/A (el técnico elige del dropdown)
-        if (row.isSelector) {
-          for (const col of table.columns) {
-            const v = row.cells?.[col.key];
-            filledData[row.rowId][col.key] = v != null ? String(v) : '';
-          }
-          continue;
-        }
+        // Filas selector: dejar vacío sólo la columna del dropdown (y la columna
+        // 0 si el dropdown vive en otra columna — ahí va el label). Las demás
+        // celdas de valor siguen la lógica normal de N/A.
+        const isSelectorRow = row.isSelector;
+        const selectorColIdx = row.selectorColumn ?? 0;
 
-        for (const col of table.columns) {
+        for (let colIdx = 0; colIdx < table.columns.length; colIdx++) {
+          const col = table.columns[colIdx];
+
+          if (isSelectorRow) {
+            const isDropdownCol = colIdx === selectorColIdx;
+            const isLabelCol = selectorColIdx > 0 && colIdx === 0;
+            if (isDropdownCol || isLabelCol) {
+              const v = row.cells?.[col.key];
+              filledData[row.rowId][col.key] = v != null ? String(v) : '';
+              continue;
+            }
+          }
+
           const v = row.cells?.[col.key];
           const strVal = v != null ? String(v).trim() : '';
           // Si el valor de fábrica es solo la unidad de la columna, tratarlo como vacío

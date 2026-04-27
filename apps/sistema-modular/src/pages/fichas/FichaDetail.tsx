@@ -10,6 +10,7 @@ import { FichaRepuestosSection } from '../../components/fichas/FichaRepuestosSec
 import { FichaStatusTransition } from '../../components/fichas/FichaStatusTransition';
 import { FichaLoanerLink } from '../../components/fichas/FichaLoanerLink';
 import { FichaFotosSection } from '../../components/fichas/FichaFotosSection';
+import { EditFichaModal } from '../../components/fichas/EditFichaModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { FichaPropiedad, EstadoFicha, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -25,6 +26,7 @@ export function FichaDetail() {
   const [selectedLoanerId, setSelectedLoanerId] = useState('');
   const [asigning, setAsigning] = useState(false);
   const [remitoModalOpen, setRemitoModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -117,7 +119,7 @@ export function FichaDetail() {
           {!ficha.loanerId && ficha.estado !== 'entregado' && (
             <Button variant="secondary" size="sm" onClick={openLoanerPicker}>Asignar loaner</Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/fichas/${ficha.id}/editar`)}>Editar</Button>
+          <Button variant="ghost" size="sm" onClick={() => setEditModalOpen(true)}>Editar</Button>
         </div>
       </div>
 
@@ -169,6 +171,13 @@ export function FichaDetail() {
       <GenerarRemitoDevolucionModal
         open={remitoModalOpen}
         onClose={() => setRemitoModalOpen(false)}
+        ficha={ficha}
+      />
+
+      {/* Editar ficha (modal — política del sistema) */}
+      <EditFichaModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
         ficha={ficha}
       />
     </div>

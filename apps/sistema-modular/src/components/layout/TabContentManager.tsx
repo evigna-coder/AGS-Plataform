@@ -14,7 +14,7 @@ import { TableCatalogPage, TableCatalogEditorPage, MigrateRenameConclusion } fro
 import { InstrumentosListPage, InstrumentoEditorPage } from '../../pages/instrumentos';
 import { PatronesListPage, PatronEditorPage } from '../../pages/patrones';
 import { ColumnasListPage, ColumnaEditorPage } from '../../pages/columnas';
-import { FichasList, FichaEditor, FichaDetail } from '../../pages/fichas';
+import { FichasList, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
 import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitTemplatesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
 import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
@@ -113,11 +113,11 @@ function AppRoutes() {
       {/* Columnas */}
       <Route path="/columnas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnasListPage /></ProtectedRoute>} />
       <Route path="/columnas/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnaEditorPage /></ProtectedRoute>} />
-      {/* Fichas */}
+      {/* Fichas — edición es modal desde FichaDetail (política del sistema) */}
       <Route path="/fichas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><FichasList /></ProtectedRoute>} />
       <Route path="/fichas/nuevo" element={<Navigate to="/fichas" replace />} />
       <Route path="/fichas/:id" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><FichaDetail /></ProtectedRoute>} />
-      <Route path="/fichas/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><FichaEditor /></ProtectedRoute>} />
+      <Route path="/fichas/:id/editar" element={<Navigate to="/fichas/:id" replace />} />
       {/* Loaners */}
       <Route path="/loaners" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><LoanersList /></ProtectedRoute>} />
       <Route path="/loaners/nuevo" element={<Navigate to="/loaners" replace />} />

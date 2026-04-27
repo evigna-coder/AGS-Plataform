@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { fichasService, clientesService, establecimientosService, sistemasService, modulosService } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, Sistema, ModuloSistema, ViaIngreso, FichaPropiedad } from '@ags/shared';
+import { fichasService, clientesService, establecimientosService, sistemasService, modulosService, ingenierosService } from '../../services/firebaseService';
+import type { Cliente, Establecimiento, Sistema, ModuloSistema, ViaIngreso, FichaPropiedad, Ingeniero } from '@ags/shared';
 import { VIA_INGRESO_LABELS } from '@ags/shared';
 
 interface Props {
@@ -22,6 +22,7 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
+  const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
 
   const [clienteId, setClienteId] = useState('');
   const [establecimientoId, setEstablecimientoId] = useState('');
@@ -35,8 +36,16 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
   const [descripcionProblema, setDescripcionProblema] = useState('');
 
   useEffect(() => {
-    if (open) clientesService.getAll().then(setClientes);
+    if (!open) return;
+    clientesService.getAll().then(setClientes);
+    ingenierosService.getAll(true).then(setIngenieros);
   }, [open]);
+
+  // Si cambia la vía de ingreso, limpiamos "traído por" para evitar arrastrar
+  // un valor incompatible (texto libre cuando ahora hay select, o viceversa).
+  useEffect(() => {
+    setTraidoPor('');
+  }, [viaIngreso]);
 
   useEffect(() => {
     if (!clienteId) { setEstablecimientos([]); setEstablecimientoId(''); setSistemaId(''); setModuloId(''); return; }
@@ -161,7 +170,31 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
                 {(Object.keys(VIA_INGRESO_LABELS) as ViaIngreso[]).map(v => <option key={v} value={v}>{VIA_INGRESO_LABELS[v]}</option>)}
               </select>
             </div>
-            <Input size="sm" label="Traido por *" value={traidoPor} onChange={e => setTraidoPor(e.target.value)} error={errors.traidoPor} placeholder="Ingeniero o transporte" />
+            {viaIngreso === 'ingeniero' ? (
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">Traido por *</label>
+                <select
+                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs"
+                  value={traidoPor}
+                  onChange={e => setTraidoPor(e.target.value)}
+                >
+                  <option value="">Seleccionar ingeniero</option>
+                  {ingenieros.map(i => (
+                    <option key={i.id} value={i.nombre}>{i.nombre}</option>
+                  ))}
+                </select>
+                {errors.traidoPor && <p className="text-[10px] text-red-500 mt-0.5">{errors.traidoPor}</p>}
+              </div>
+            ) : (
+              <Input
+                size="sm"
+                label="Traido por *"
+                value={traidoPor}
+                onChange={e => setTraidoPor(e.target.value)}
+                error={errors.traidoPor}
+                placeholder={viaIngreso === 'envio' ? 'Empresa de transporte' : 'Quien lo trajo'}
+              />
+            )}
             <Input size="sm" label="Fecha de ingreso *" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} error={errors.fechaIngreso} />
             <Input size="sm" label="OT de referencia" value={otReferencia} onChange={e => setOtReferencia(e.target.value)} placeholder="Ej: 25660" />
           </div>

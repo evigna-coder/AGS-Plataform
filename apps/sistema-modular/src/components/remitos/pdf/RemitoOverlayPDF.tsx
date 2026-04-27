@@ -102,10 +102,71 @@ interface RemitoOverlayPDFProps {
   /** Offsets globales para calibrar contra impresora específica (en pt). */
   globalOffsetX?: number;
   globalOffsetY?: number;
+  /**
+   * Cantidad de copias = cantidad de páginas idénticas en el PDF.
+   * El papel preimpreso viene en triplicado (blanco, reciclado, celeste);
+   * cargás las 3 hojas en la bandeja en orden y al imprimir el PDF salen las
+   * 3 copias en una sola operación. Default: 3.
+   */
+  copies?: number;
 }
 
 function valuePos(x: number, y: number, ox: number, oy: number) {
   return { left: x + ox, top: y + oy } as const;
+}
+
+interface PaginaProps {
+  fecha: string;
+  destinatario: RemitoOverlayDestinatario;
+  transportista?: RemitoOverlayDestinatario | null;
+  items: RemitoOverlayItem[];
+  ox: number;
+  oy: number;
+}
+
+/** Una página = una copia del remito. Renderiza idéntico siempre. */
+function PaginaRemito({ fecha, destinatario, transportista, items, ox, oy }: PaginaProps) {
+  return (
+    <Page size="A4" style={styles.page}>
+      {/* Fecha */}
+      <Text style={[styles.field, valuePos(X_FECHA, Y_FECHA, ox, oy)]}>{fecha}</Text>
+
+      {/* Columna izquierda — destinatario */}
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_RAZON_SOCIAL, ox, oy)]}>{destinatario.razonSocial}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_DOMICILIO,    ox, oy)]}>{destinatario.domicilio}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_LOCALIDAD,    ox, oy)]}>{destinatario.localidad}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_PROVINCIA,    ox, oy)]}>{destinatario.provincia}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_IVA,          ox, oy)]}>{destinatario.iva}</Text>
+      <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_CUIT,         ox, oy)]}>{destinatario.cuit}</Text>
+
+      {/* Columna derecha — transportista */}
+      {transportista && (
+        <>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_RAZON_SOCIAL, ox, oy)]}>{transportista.razonSocial}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_DOMICILIO,    ox, oy)]}>{transportista.domicilio}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_LOCALIDAD,    ox, oy)]}>{transportista.localidad}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_PROVINCIA,    ox, oy)]}>{transportista.provincia}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_IVA,          ox, oy)]}>{transportista.iva}</Text>
+          <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_CUIT,         ox, oy)]}>{transportista.cuit}</Text>
+        </>
+      )}
+
+      {/* Filas de items en la tabla */}
+      {items.slice(0, TABLE_MAX_ROWS).map((row, i) => {
+        const y = TABLE_TOP + i * TABLE_ROW_H + oy;
+        return (
+          <View key={i}>
+            <Text style={[styles.cell, { left: COL_X.item + ox,        top: y }]}>{row.numero}</Text>
+            <Text style={[styles.cell, { left: COL_X.cant + ox,        top: y }]}>{row.cantidad}</Text>
+            <Text style={[styles.cell, { left: COL_X.producto + ox,    top: y }]}>{row.producto}</Text>
+            <Text style={[styles.cell, { left: COL_X.descripcion + ox, top: y, maxWidth: 380 }]}>
+              {row.descripcion}
+            </Text>
+          </View>
+        );
+      })}
+    </Page>
+  );
 }
 
 export function RemitoOverlayPDF({
@@ -115,51 +176,25 @@ export function RemitoOverlayPDF({
   items,
   globalOffsetX = 0,
   globalOffsetY = 0,
+  copies = 3,
 }: RemitoOverlayPDFProps) {
   const ox = globalOffsetX;
   const oy = globalOffsetY;
+  const totalCopies = Math.max(1, copies);
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Fecha */}
-        <Text style={[styles.field, valuePos(X_FECHA, Y_FECHA, ox, oy)]}>{fecha}</Text>
-
-        {/* Columna izquierda — destinatario */}
-        <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_RAZON_SOCIAL, ox, oy)]}>{destinatario.razonSocial}</Text>
-        <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_DOMICILIO,    ox, oy)]}>{destinatario.domicilio}</Text>
-        <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_LOCALIDAD,    ox, oy)]}>{destinatario.localidad}</Text>
-        <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_PROVINCIA,    ox, oy)]}>{destinatario.provincia}</Text>
-        <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_IVA,          ox, oy)]}>{destinatario.iva}</Text>
-        <Text style={[styles.field, valuePos(X_VALUE_LEFT, Y_CUIT,         ox, oy)]}>{destinatario.cuit}</Text>
-
-        {/* Columna derecha — transportista */}
-        {transportista && (
-          <>
-            <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_RAZON_SOCIAL, ox, oy)]}>{transportista.razonSocial}</Text>
-            <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_DOMICILIO,    ox, oy)]}>{transportista.domicilio}</Text>
-            <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_LOCALIDAD,    ox, oy)]}>{transportista.localidad}</Text>
-            <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_PROVINCIA,    ox, oy)]}>{transportista.provincia}</Text>
-            <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_IVA,          ox, oy)]}>{transportista.iva}</Text>
-            <Text style={[styles.field, valuePos(X_VALUE_RIGHT, Y_CUIT,         ox, oy)]}>{transportista.cuit}</Text>
-          </>
-        )}
-
-        {/* Filas de items en la tabla */}
-        {items.slice(0, TABLE_MAX_ROWS).map((row, i) => {
-          const y = TABLE_TOP + i * TABLE_ROW_H + oy;
-          return (
-            <View key={i}>
-              <Text style={[styles.cell, { left: COL_X.item + ox,        top: y }]}>{row.numero}</Text>
-              <Text style={[styles.cell, { left: COL_X.cant + ox,        top: y }]}>{row.cantidad}</Text>
-              <Text style={[styles.cell, { left: COL_X.producto + ox,    top: y }]}>{row.producto}</Text>
-              <Text style={[styles.cell, { left: COL_X.descripcion + ox, top: y, maxWidth: 380 }]}>
-                {row.descripcion}
-              </Text>
-            </View>
-          );
-        })}
-      </Page>
+      {Array.from({ length: totalCopies }).map((_, idx) => (
+        <PaginaRemito
+          key={idx}
+          fecha={fecha}
+          destinatario={destinatario}
+          transportista={transportista}
+          items={items}
+          ox={ox}
+          oy={oy}
+        />
+      ))}
     </Document>
   );
 }

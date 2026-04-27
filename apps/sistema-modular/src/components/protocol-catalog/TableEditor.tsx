@@ -122,9 +122,28 @@ export const TableEditor = ({ table, onChange }: Props) => {
 
   const saveRow = (row: TableCatalogRow) => {
     const exists = table.templateRows.some(r => r.rowId === row.rowId);
-    upd('templateRows', exists
+    const nextTemplateRows = exists
       ? table.templateRows.map(r => r.rowId === row.rowId ? row : r)
-      : [...table.templateRows, row]);
+      : [...table.templateRows, row];
+
+    // Al agregar una fila nueva de datos, incluirla en applicableRowIds de las
+    // reglas restringidas. Sin esto la regla queda silenciosamente sin aplicar
+    // a la fila nueva (bug típico difícil de diagnosticar).
+    const isDataRow = !row.isTitle && !row.isSelector;
+    const shouldExtendRules = !exists && isDataRow &&
+      table.validationRules.some(r => r.applicableRowIds?.length);
+
+    if (shouldExtendRules) {
+      const nextRules = table.validationRules.map(r =>
+        r.applicableRowIds?.length && !r.applicableRowIds.includes(row.rowId)
+          ? { ...r, applicableRowIds: [...r.applicableRowIds, row.rowId] }
+          : r,
+      );
+      onChange({ ...table, templateRows: nextTemplateRows, validationRules: nextRules });
+    } else {
+      upd('templateRows', nextTemplateRows);
+    }
+
     setSelectedRow(null);
     scrollToRowInContainer(row.rowId, 'center');
   };
