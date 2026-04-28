@@ -79,6 +79,10 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
             <input type="checkbox" checked={!!d.headerEditable} onChange={e => setD({ ...d, headerEditable: e.target.checked || undefined })} />
             Editable en encabezado
           </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="En tablas de cabecera, si esta columna es 'Modelo' lee del módulo (moduloModelo) en lugar del nombre del sistema. Útil para mantenimiento de accesorios (MSD, HSS, HTA).">
+            <input type="checkbox" checked={!!d.autoFillFromModulo} onChange={e => setD({ ...d, autoFillFromModulo: e.target.checked || undefined })} />
+            Modelo desde módulo
+          </label>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Ancho (mm)</label>
             <input

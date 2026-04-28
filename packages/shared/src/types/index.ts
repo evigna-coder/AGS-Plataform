@@ -1517,6 +1517,13 @@ export interface TableCatalogColumn {
   headerEditable?: boolean;
   /** Max caracteres del input editable del encabezado. Default: 15. */
   headerEditableMaxLength?: number | null;
+  /**
+   * Si true, en tablas informacionales de cabecera el auto-fill de "modelo" lee
+   * `moduloModelo` en vez del nombre del sistema. Útil para tablas de mantenimiento
+   * de accesorios (MSD, HSS, HTA) donde el modelo a reportar es el del módulo,
+   * no el del sistema padre. Marca y serie ya leen del módulo por defecto.
+   */
+  autoFillFromModulo?: boolean;
 }
 
 export interface TableCatalogRow {

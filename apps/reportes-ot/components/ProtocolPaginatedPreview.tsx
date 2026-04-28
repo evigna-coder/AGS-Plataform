@@ -75,6 +75,7 @@ interface ProtocolMeta {
   clienteDireccion: string;
   clienteSector: string;
   sistema: string;
+  moduloModelo?: string;
   moduloMarca?: string;
   moduloSerie: string;
   codigoInternoCliente: string;
@@ -289,6 +290,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
     'ot.numero': meta.otNumber ?? '',
     'ingeniero.nombre': meta.ingenieroNombre ?? '',
     'equipo.modelo': meta.sistema ?? '',
+    'equipo.moduloModelo': meta.moduloModelo ?? '',
     'equipo.marca': meta.moduloMarca ?? '',
     'equipo.serie': meta.moduloSerie ?? '',
     'equipo.id': meta.codigoInternoCliente ?? '',

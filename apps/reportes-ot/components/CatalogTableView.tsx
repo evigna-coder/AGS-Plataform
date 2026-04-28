@@ -1142,7 +1142,13 @@ export const CatalogTableView: React.FC<Props> = ({
       const colLabel = (col.label || col.key).toLowerCase().replace(/[:.]/g, '').trim();
       let resolved: string | null = null;
       if (colLabel === 'marca') resolved = variables['equipo.marca'] || null;
-      else if (colLabel === 'modelo') resolved = variables['equipo.modelo'] || null;
+      else if (colLabel === 'modelo') {
+        // col.autoFillFromModulo: leer del módulo en vez del nombre del sistema
+        // (útil para mantenimiento de accesorios — MSD, HSS, HTA).
+        resolved = (col.autoFillFromModulo
+          ? variables['equipo.moduloModelo']
+          : variables['equipo.modelo']) || null;
+      }
       else if (/^(número de serie|nro?\s+de serie|n[°º]\s*de serie|serie|s\/n)$/.test(colLabel)) resolved = variables['equipo.serie'] || null;
       else if (colLabel === 'id') resolved = variables['equipo.id'] || null;
       if (resolved) {

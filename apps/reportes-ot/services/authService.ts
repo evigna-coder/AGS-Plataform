@@ -72,6 +72,14 @@ export function isAllowedDomain(user: User | null): boolean {
 export async function signInWithGoogle(): Promise<User | null> {
   try {
     const provider = new GoogleAuthProvider();
+    // Forzar selector de cuenta y restringir al dominio corporativo.
+    // Sin esto, Google auto-loguea con la cuenta activa del dispositivo —
+    // típicamente la personal cuando se abre desde un WebView móvil — y el
+    // usuario queda atrapado en DomainErrorScreen.
+    provider.setCustomParameters({
+      prompt: 'select_account',
+      hd: ALLOWED_EMAIL_DOMAIN,
+    });
     // En mobile usar redirect (popup tiene problemas en Safari iOS y Chrome Android).
     // En desktop mantener popup (mejor UX).
     if (isMobileUA()) {

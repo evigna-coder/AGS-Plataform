@@ -72,6 +72,7 @@ interface ProtocolSectionProps {
   coverData?: {
     otNumber?: string;
     sistemaNombre?: string;
+    moduloModelo?: string;
     moduloMarca?: string;
     agsVisibleId?: string;
     numeroSerie?: string;
@@ -249,6 +250,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 variables={{
                   ...variables,
                   'equipo.modelo': coverData?.sistemaNombre || sistema || '',
+                  'equipo.moduloModelo': coverData?.moduloModelo || '',
                   'equipo.marca': coverData?.moduloMarca || '',
                   'equipo.serie': coverData?.numeroSerie || '',
                   'equipo.id': coverData?.agsVisibleId || '',
