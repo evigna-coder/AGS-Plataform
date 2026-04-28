@@ -22,16 +22,22 @@ const auth = getAuth(app);
 
 // Persistencia explícita: prioriza IndexedDB (resistente a ITP), fallback a localStorage.
 // Evita que Firebase caiga silenciosamente a inMemoryPersistence si IndexedDB falla.
-setPersistence(auth, indexedDBLocalPersistence)
+// authReady debe resolver antes de cualquier sign-in operation: si getRedirectResult
+// corre con la persistencia aún seteándose, Firebase pierde el token tras volver del
+// picker de Google y onAuthStateChanged dispara con null → loop al LoginScreen.
+const authReady: Promise<void> = setPersistence(auth, indexedDBLocalPersistence)
   .catch(() => setPersistence(auth, browserLocalPersistence))
   .catch((err) => {
     console.warn('⚠️ No se pudo configurar persistencia de Firebase Auth:', err);
   });
 
-// Procesar resultado de signInWithRedirect si lo hubo (mobile flow)
-getRedirectResult(auth).catch((err) => {
-  console.warn('⚠️ Error procesando redirect de auth:', err);
-});
+// Procesar resultado de signInWithRedirect (mobile flow) recién cuando la persistencia
+// esté lista, no en paralelo.
+authReady
+  .then(() => getRedirectResult(auth))
+  .catch((err) => {
+    console.warn('⚠️ Error procesando redirect de auth:', err);
+  });
 
 function isMobileUA(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -71,6 +77,9 @@ export function isAllowedDomain(user: User | null): boolean {
  */
 export async function signInWithGoogle(): Promise<User | null> {
   try {
+    // Esperar a que la persistencia esté seteada antes de iniciar el flow,
+    // sino el token del redirect se pierde al volver.
+    await authReady;
     const provider = new GoogleAuthProvider();
     // Forzar selector de cuenta y restringir al dominio corporativo.
     // Sin esto, Google auto-loguea con la cuenta activa del dispositivo —
