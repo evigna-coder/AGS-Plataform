@@ -22,6 +22,7 @@ export function useUploadQueue() {
     draining: state.draining,
     enqueue: uploadQueueManager.enqueueBlob.bind(uploadQueueManager),
     retry: uploadQueueManager.retry.bind(uploadQueueManager),
+    retryAll: uploadQueueManager.retryAll.bind(uploadQueueManager),
     discard: uploadQueueManager.discard.bind(uploadQueueManager),
   };
 }

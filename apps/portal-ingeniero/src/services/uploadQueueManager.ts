@@ -91,6 +91,25 @@ class UploadQueueManager {
     void this.tick();
   }
 
+  /**
+   * Reintenta TODAS las fotos pendientes — útil cuando varias fallaron y están
+   * atrapadas en el backoff de 60s. Cancela el timer pendiente y dispara tick
+   * inmediato.
+   */
+  async retryAll(): Promise<void> {
+    const all = await uploadQueueDB.getAll();
+    for (const f of all) {
+      await uploadQueueDB.update(f.id, {
+        status: 'queued',
+        intentos: 0,
+        lastError: undefined,
+      });
+    }
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    await this.refresh();
+    void this.tick();
+  }
+
   /** Descartar uno con error. Solo borra la cola (la foto nunca llegó a Storage). */
   async discard(id: string): Promise<void> {
     await uploadQueueDB.remove(id);
