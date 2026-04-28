@@ -153,6 +153,12 @@ class UploadQueueManager {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const intentos = next.intentos + 1;
+      // Logueamos para que el usuario vea en F12 cuál es la causa real
+      // (permission denied / network / quota / etc.) sin tener que abrir IndexedDB.
+      console.error(
+        `[uploadQueue] Falló subida foto ${next.filename} (item ${next.itemSubId}, intento ${intentos}):`,
+        err,
+      );
       await uploadQueueDB.update(next.id, {
         status: 'queued',
         intentos,
