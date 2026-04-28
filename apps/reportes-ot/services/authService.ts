@@ -6,8 +6,6 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   setPersistence,
   browserLocalPersistence,
   indexedDBLocalPersistence,
@@ -22,27 +20,11 @@ const auth = getAuth(app);
 
 // Persistencia explícita: prioriza IndexedDB (resistente a ITP), fallback a localStorage.
 // Evita que Firebase caiga silenciosamente a inMemoryPersistence si IndexedDB falla.
-// authReady debe resolver antes de cualquier sign-in operation: si getRedirectResult
-// corre con la persistencia aún seteándose, Firebase pierde el token tras volver del
-// picker de Google y onAuthStateChanged dispara con null → loop al LoginScreen.
 const authReady: Promise<void> = setPersistence(auth, indexedDBLocalPersistence)
   .catch(() => setPersistence(auth, browserLocalPersistence))
   .catch((err) => {
     console.warn('⚠️ No se pudo configurar persistencia de Firebase Auth:', err);
   });
-
-// Procesar resultado de signInWithRedirect (mobile flow) recién cuando la persistencia
-// esté lista, no en paralelo.
-authReady
-  .then(() => getRedirectResult(auth))
-  .catch((err) => {
-    console.warn('⚠️ Error procesando redirect de auth:', err);
-  });
-
-function isMobileUA(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
 
 /** Suscripción al estado de auth; usa la instancia correcta de Auth del mismo módulo. */
 export function onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe {
@@ -77,8 +59,6 @@ export function isAllowedDomain(user: User | null): boolean {
  */
 export async function signInWithGoogle(): Promise<User | null> {
   try {
-    // Esperar a que la persistencia esté seteada antes de iniciar el flow,
-    // sino el token del redirect se pierde al volver.
     await authReady;
     const provider = new GoogleAuthProvider();
     // Forzar selector de cuenta y restringir al dominio corporativo.
@@ -89,12 +69,10 @@ export async function signInWithGoogle(): Promise<User | null> {
       prompt: 'select_account',
       hd: ALLOWED_EMAIL_DOMAIN,
     });
-    // En mobile usar redirect (popup tiene problemas en Safari iOS y Chrome Android).
-    // En desktop mantener popup (mejor UX).
-    if (isMobileUA()) {
-      await signInWithRedirect(auth, provider);
-      return null; // El usuario volverá vía getRedirectResult al recargar
-    }
+    // Popup también en mobile: signInWithRedirect requiere cookies cross-origin
+    // (authDomain firebaseapp.com ≠ origen de la app vercel.app) y mobile las
+    // bloquea, dejando al usuario en loop al login. El popup mantiene el flow
+    // same-process y no depende de cookies de terceros.
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: unknown) {
