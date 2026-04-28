@@ -193,12 +193,12 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
   const articuloOptions = articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }));
 
   return (
-    <Modal
+    <Drawer
       open={open}
       onClose={onClose}
       title={`Editar ficha ${ficha.numero}`}
       subtitle={ficha.clienteNombre}
-      maxWidth="xl"
+      width="640px"
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
@@ -290,6 +290,6 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
           </div>
         </section>
       </div>
-    </Modal>
+    </Drawer>
   );
 }
