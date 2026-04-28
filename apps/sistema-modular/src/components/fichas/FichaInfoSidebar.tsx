@@ -26,6 +26,12 @@ export function FichaInfoSidebar({ ficha }: Props) {
     try { return new Date(iso).toLocaleDateString('es-AR'); } catch { return '-'; }
   };
 
+  // Conteo por estado para resumen rápido
+  const itemsByEstado = ficha.items.reduce<Record<string, number>>((acc, it) => {
+    acc[it.estado] = (acc[it.estado] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-4">
       {/* Estado */}
@@ -35,6 +41,9 @@ export function FichaInfoSidebar({ ficha }: Props) {
             {ESTADO_FICHA_LABELS[ficha.estado]}
           </span>
           <p className="text-xs text-slate-400 mt-2">{ficha.numero}</p>
+          <p className="text-[11px] text-slate-400 mt-1">
+            {ficha.items.length} item{ficha.items.length === 1 ? '' : 's'}
+          </p>
         </div>
       </Card>
 
@@ -56,36 +65,16 @@ export function FichaInfoSidebar({ ficha }: Props) {
         </dl>
       </Card>
 
-      {/* Equipo */}
-      <Card title="Equipo / Modulo" compact>
-        <dl className="space-y-2">
-          <LV label="Sistema" value={ficha.sistemaNombre} link={ficha.sistemaId ? `/equipos/${ficha.sistemaId}` : undefined} navState={fromState} />
-          <LV label="Modulo" value={ficha.moduloNombre} />
-          {ficha.descripcionLibre && <LV label="Descripcion" value={ficha.descripcionLibre} />}
-          <LV label="Part number" value={ficha.codigoArticulo} />
-          <LV label="Serie" value={ficha.serie} />
-          <LV label="Condicion fisica" value={ficha.condicionFisica} />
-        </dl>
-      </Card>
-
-      {/* Problema */}
-      <Card title="Problema" compact>
-        <p className="text-sm text-slate-700">{ficha.descripcionProblema}</p>
-        {ficha.sintomasReportados && (
-          <p className="text-xs text-slate-500 mt-2">
-            <span className="font-medium">Sintomas:</span> {ficha.sintomasReportados}
-          </p>
-        )}
-      </Card>
-
-      {/* Accesorios */}
-      {ficha.accesorios.length > 0 && (
-        <Card title="Accesorios" compact>
+      {/* Resumen items */}
+      {ficha.items.length > 0 && (
+        <Card title="Resumen items" compact>
           <ul className="space-y-1">
-            {ficha.accesorios.map(a => (
-              <li key={a.id} className="text-sm text-slate-700 flex justify-between">
-                <span>{a.descripcion}</span>
-                <span className="text-slate-400">x{a.cantidad}</span>
+            {Object.entries(itemsByEstado).map(([estado, count]) => (
+              <li key={estado} className="text-sm flex justify-between">
+                <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${ESTADO_FICHA_COLORS[estado as keyof typeof ESTADO_FICHA_COLORS]}`}>
+                  {ESTADO_FICHA_LABELS[estado as keyof typeof ESTADO_FICHA_LABELS]}
+                </span>
+                <span className="text-slate-500">{count}</span>
               </li>
             ))}
           </ul>
@@ -110,7 +99,6 @@ export function FichaInfoSidebar({ ficha }: Props) {
         <dl className="space-y-1">
           <LV label="Creada" value={formatDate(ficha.createdAt)} />
           <LV label="Actualizada" value={formatDate(ficha.updatedAt)} />
-          {ficha.fechaEntrega && <LV label="Entregada" value={formatDate(ficha.fechaEntrega)} />}
         </dl>
       </Card>
     </div>

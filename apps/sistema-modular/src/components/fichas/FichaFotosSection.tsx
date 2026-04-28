@@ -3,16 +3,19 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { googleDriveService } from '../../services/googleDriveService';
 import { fichasService } from '../../services/firebaseService';
-import type { FichaPropiedad, FotoFicha } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, FotoFicha } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   ficha: FichaPropiedad;
+  /** Item al que pertenecen las fotos. Si se omite, no se renderiza. */
+  item: ItemFicha;
   readOnly?: boolean;
   onUpdate: () => void;
 }
 
-export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
+/** Sección de fotos de un item específico. */
+export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
   const [uploading, setUploading] = useState(false);
   const confirm = useConfirm();
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -20,7 +23,7 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
   const [driveReady, setDriveReady] = useState<boolean | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const fotos = ficha.fotos || [];
+  const fotos = item.fotos || [];
 
   useEffect(() => {
     googleDriveService.isAvailable().then(setDriveReady);
@@ -33,7 +36,8 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
     try {
       const newFotos: FotoFicha[] = [];
       for (const file of Array.from(files)) {
-        const result = await googleDriveService.uploadFile(ficha.numero, file);
+        // Path en Drive: usamos el subId del item (ej. FPC-0001-2) para separar carpetas
+        const result = await googleDriveService.uploadFile(item.subId || ficha.numero, file);
         newFotos.push({
           id: crypto.randomUUID(),
           driveFileId: result.driveFileId,
@@ -43,7 +47,7 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
           fecha: new Date().toISOString(),
         });
       }
-      await fichasService.update(ficha.id, {
+      await fichasService.updateItem(ficha.id, item.id, {
         fotos: [...fotos, ...newFotos],
       });
       onUpdate();
@@ -63,9 +67,9 @@ export function FichaFotosSection({ ficha, readOnly, onUpdate }: Props) {
       if (foto.driveFileId) {
         await googleDriveService.deleteFile(foto.driveFileId);
       }
-      // Si no tiene driveFileId, vive en Firebase Storage (subida desde portal-ingeniero).
-      // El delete del blob lo maneja el otro flujo; aca solo removemos la metadata.
-      await fichasService.update(ficha.id, {
+      // Si vive en Firebase Storage (subida desde portal-ingeniero), aca solo
+      // removemos la metadata; el blob lo maneja el otro flujo.
+      await fichasService.updateItem(ficha.id, item.id, {
         fotos: fotos.filter(f => f.id !== foto.id),
       });
       onUpdate();

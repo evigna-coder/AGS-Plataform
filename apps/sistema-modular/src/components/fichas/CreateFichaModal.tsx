@@ -3,8 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { fichasService, clientesService, establecimientosService, sistemasService, modulosService, ingenierosService } from '../../services/firebaseService';
-import type { Cliente, Establecimiento, Sistema, ModuloSistema, ViaIngreso, FichaPropiedad, Ingeniero } from '@ags/shared';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import {
+  fichasService,
+  clientesService,
+  establecimientosService,
+  ingenierosService,
+  articulosService,
+} from '../../services/firebaseService';
+import type {
+  Cliente,
+  Establecimiento,
+  Articulo,
+  Ingeniero,
+  ItemFicha,
+  ViaIngreso,
+  FichaPropiedad,
+} from '@ags/shared';
 import { VIA_INGRESO_LABELS } from '@ags/shared';
 
 interface Props {
@@ -13,6 +28,22 @@ interface Props {
   onCreated: () => void;
 }
 
+interface ItemDraft {
+  tempId: string;
+  articuloId: string;
+  descripcionLibre: string;
+  serie: string;
+  descripcionProblema: string;
+}
+
+const newDraft = (): ItemDraft => ({
+  tempId: crypto.randomUUID(),
+  articuloId: '',
+  descripcionLibre: '',
+  serie: '',
+  descripcionProblema: '',
+});
+
 export function CreateFichaModal({ open, onClose, onCreated }: Props) {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
@@ -20,64 +51,61 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);
-  const [sistemas, setSistemas] = useState<Sistema[]>([]);
-  const [modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
 
   const [clienteId, setClienteId] = useState('');
   const [establecimientoId, setEstablecimientoId] = useState('');
-  const [sistemaId, setSistemaId] = useState('');
-  const [moduloId, setModuloId] = useState('');
-  const [descripcionLibre, setDescripcionLibre] = useState('');
   const [viaIngreso, setViaIngreso] = useState<ViaIngreso>('ingeniero');
   const [traidoPor, setTraidoPor] = useState('');
   const [fechaIngreso, setFechaIngreso] = useState(new Date().toISOString().split('T')[0]);
   const [otReferencia, setOtReferencia] = useState('');
-  const [descripcionProblema, setDescripcionProblema] = useState('');
+  const [items, setItems] = useState<ItemDraft[]>([newDraft()]);
 
   useEffect(() => {
     if (!open) return;
     clientesService.getAll().then(setClientes);
     ingenierosService.getAll(true).then(setIngenieros);
+    articulosService.getAll({ activoOnly: true }).then(setArticulos);
   }, [open]);
 
-  // Si cambia la vía de ingreso, limpiamos "traído por" para evitar arrastrar
-  // un valor incompatible (texto libre cuando ahora hay select, o viceversa).
   useEffect(() => {
-    setTraidoPor('');
-  }, [viaIngreso]);
-
-  useEffect(() => {
-    if (!clienteId) { setEstablecimientos([]); setEstablecimientoId(''); setSistemaId(''); setModuloId(''); return; }
+    if (!clienteId) { setEstablecimientos([]); setEstablecimientoId(''); return; }
     establecimientosService.getByCliente(clienteId).then(setEstablecimientos);
   }, [clienteId]);
 
-  useEffect(() => {
-    if (!establecimientoId) { setSistemas([]); setSistemaId(''); setModuloId(''); return; }
-    sistemasService.getAll({ establecimientoId }).then(setSistemas);
-  }, [establecimientoId]);
-
-  useEffect(() => {
-    if (!sistemaId) { setModulos([]); setModuloId(''); return; }
-    modulosService.getBySistema(sistemaId).then(setModulos);
-  }, [sistemaId]);
+  useEffect(() => { setTraidoPor(''); }, [viaIngreso]);
 
   const resetForm = () => {
-    setClienteId(''); setEstablecimientoId(''); setSistemaId(''); setModuloId('');
-    setDescripcionLibre(''); setViaIngreso('ingeniero'); setTraidoPor('');
+    setClienteId(''); setEstablecimientoId('');
+    setViaIngreso('ingeniero'); setTraidoPor('');
     setFechaIngreso(new Date().toISOString().split('T')[0]);
-    setOtReferencia(''); setDescripcionProblema(''); setErrors({});
+    setOtReferencia('');
+    setItems([newDraft()]);
+    setErrors({});
   };
 
   const handleClose = () => { resetForm(); onClose(); };
+
+  const setItemField = <K extends keyof ItemDraft>(idx: number, k: K, v: ItemDraft[K]) => {
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [k]: v } : it));
+  };
+  const addItem = () => setItems(prev => [...prev, newDraft()]);
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!clienteId) e.clienteId = 'Requerido';
     if (!traidoPor.trim()) e.traidoPor = 'Requerido';
     if (!fechaIngreso) e.fechaIngreso = 'Requerido';
-    if (!descripcionProblema.trim()) e.descripcionProblema = 'Requerido';
-    if (!sistemaId && !descripcionLibre.trim()) e.descripcionLibre = 'Indicar sistema o descripcion';
+    items.forEach((it, idx) => {
+      if (!it.articuloId && !it.descripcionLibre.trim()) {
+        e[`item-${idx}-id`] = 'Indicar artículo o descripción';
+      }
+      if (!it.descripcionProblema.trim()) {
+        e[`item-${idx}-problema`] = 'Requerido';
+      }
+    });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -88,30 +116,48 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
     try {
       const selectedCliente = clientes.find(c => c.id === clienteId);
       const selectedEstab = establecimientos.find(e => e.id === establecimientoId);
-      const selectedSistema = sistemas.find(s => s.id === sistemaId);
-      const selectedModulo = modulos.find(m => m.id === moduloId);
 
-      const data: Omit<FichaPropiedad, 'id' | 'numero' | 'createdAt' | 'updatedAt'> = {
+      const itemsPayload: Omit<ItemFicha, 'subId'>[] = items.map(d => {
+        const art = articulos.find(a => a.id === d.articuloId);
+        return {
+          id: crypto.randomUUID(),
+          articuloId: d.articuloId || null,
+          articuloCodigo: art?.codigo ?? null,
+          articuloDescripcion: art?.descripcion ?? null,
+          descripcionLibre: d.descripcionLibre.trim() || null,
+          serie: d.serie.trim() || null,
+          parentItemId: null,
+          estado: 'recibido',
+          historial: [{
+            id: crypto.randomUUID(),
+            fecha: new Date().toISOString(),
+            estadoAnterior: 'recibido',
+            estadoNuevo: 'recibido',
+            nota: 'Item recibido',
+            creadoPor: 'admin',
+          }],
+          derivaciones: [],
+          remitoDevolucionId: null,
+          fechaEntrega: null,
+          fotos: [],
+          descripcionProblema: d.descripcionProblema.trim() || null,
+          sintomasReportados: null,
+          accesorios: [],
+          condicionFisica: null,
+          createdAt: new Date().toISOString(),
+        };
+      });
+
+      const data: Omit<FichaPropiedad, 'id' | 'numero' | 'createdAt' | 'updatedAt' | 'estado'> & { estado?: never } = {
         clienteId,
         clienteNombre: selectedCliente?.razonSocial || '',
         establecimientoId: establecimientoId || null,
         establecimientoNombre: selectedEstab?.nombre || null,
-        sistemaId: sistemaId || null,
-        sistemaNombre: selectedSistema?.nombre || null,
-        moduloId: moduloId || null,
-        moduloNombre: selectedModulo?.nombre || null,
-        descripcionLibre: descripcionLibre.trim() || null,
-        codigoArticulo: null,
-        serie: null,
-        accesorios: [],
-        condicionFisica: null,
         viaIngreso,
         traidoPor: traidoPor.trim(),
         fechaIngreso: new Date(fechaIngreso).toISOString(),
         otReferencia: otReferencia.trim() || null,
-        descripcionProblema: descripcionProblema.trim(),
-        sintomasReportados: null,
-        estado: 'recibido',
+        items: itemsPayload as ItemFicha[],
         historial: [{
           id: crypto.randomUUID(),
           fecha: new Date().toISOString(),
@@ -120,16 +166,13 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
           nota: 'Ficha creada',
           creadoPor: 'admin',
         }],
-        derivaciones: [],
         repuestosPendientes: [],
-        remitoDevolucionId: null,
-        fechaEntrega: null,
         loanerId: null,
         loanerCodigo: null,
         otIds: otReferencia.trim() ? [otReferencia.trim()] : [],
       };
 
-      const fichaId = await fichasService.create(data);
+      const fichaId = await fichasService.create(data as Omit<FichaPropiedad, 'id' | 'numero' | 'createdAt' | 'updatedAt'>);
       resetForm();
       onCreated();
       onClose();
@@ -142,12 +185,17 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
     }
   };
 
+  const articuloOptions = articulos.map(a => ({
+    value: a.id,
+    label: `${a.codigo} — ${a.descripcion}`,
+  }));
+
   return (
-    <Modal open={open} onClose={handleClose} title="Nueva ficha propiedad del cliente" subtitle="Registrar ingreso de modulo/equipo" maxWidth="lg">
+    <Modal open={open} onClose={handleClose} title="Nueva ficha propiedad del cliente" subtitle="Registrar ingreso de modulo/equipo" maxWidth="xl">
       <div className="space-y-5 p-5">
         {/* Cliente y origen */}
-        <div>
-          <h3 className="text-xs font-semibold text-slate-700 mb-3">Cliente y origen</h3>
+        <section>
+          <h3 className="text-xs font-semibold text-slate-700 mb-3 uppercase tracking-wide">Cliente y origen</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Cliente *</label>
@@ -173,66 +221,60 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
             {viaIngreso === 'ingeniero' ? (
               <div>
                 <label className="block text-[11px] font-medium text-slate-500 mb-1">Traido por *</label>
-                <select
-                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs"
-                  value={traidoPor}
-                  onChange={e => setTraidoPor(e.target.value)}
-                >
+                <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={traidoPor} onChange={e => setTraidoPor(e.target.value)}>
                   <option value="">Seleccionar ingeniero</option>
-                  {ingenieros.map(i => (
-                    <option key={i.id} value={i.nombre}>{i.nombre}</option>
-                  ))}
+                  {ingenieros.map(i => <option key={i.id} value={i.nombre}>{i.nombre}</option>)}
                 </select>
                 {errors.traidoPor && <p className="text-[10px] text-red-500 mt-0.5">{errors.traidoPor}</p>}
               </div>
             ) : (
-              <Input
-                size="sm"
-                label="Traido por *"
-                value={traidoPor}
-                onChange={e => setTraidoPor(e.target.value)}
-                error={errors.traidoPor}
-                placeholder={viaIngreso === 'envio' ? 'Empresa de transporte' : 'Quien lo trajo'}
-              />
+              <Input label="Traido por *" value={traidoPor} onChange={e => setTraidoPor(e.target.value)} error={errors.traidoPor} placeholder={viaIngreso === 'envio' ? 'Empresa de transporte' : 'Quien lo trajo'} />
             )}
-            <Input size="sm" label="Fecha de ingreso *" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} error={errors.fechaIngreso} />
-            <Input size="sm" label="OT de referencia" value={otReferencia} onChange={e => setOtReferencia(e.target.value)} placeholder="Ej: 25660" />
+            <Input label="Fecha de ingreso *" type="date" value={fechaIngreso} onChange={e => setFechaIngreso(e.target.value)} error={errors.fechaIngreso} />
+            <Input label="OT de referencia" value={otReferencia} onChange={e => setOtReferencia(e.target.value)} placeholder="Ej: 25660" />
           </div>
-        </div>
+        </section>
 
-        {/* Identificacion */}
-        <div>
-          <h3 className="text-xs font-semibold text-slate-700 mb-3">Identificacion del modulo/equipo</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">Sistema/Equipo</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={sistemaId} onChange={e => { setSistemaId(e.target.value); setModuloId(''); }} disabled={!establecimientoId}>
-                <option value="">Seleccionar</option>
-                {sistemas.filter(s => s.activo).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1">Modulo</label>
-              <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={moduloId} onChange={e => setModuloId(e.target.value)} disabled={!sistemaId}>
-                <option value="">Seleccionar</option>
-                {modulos.map(m => <option key={m.id} value={m.id}>{m.nombre}{m.serie ? ` (S/N: ${m.serie})` : ''}</option>)}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <Input size="sm" label="Descripcion libre (si no esta en el sistema)" value={descripcionLibre} onChange={e => setDescripcionLibre(e.target.value)} error={errors.descripcionLibre} placeholder="Ej: Bomba cuaternaria G1311A" />
-            </div>
+        {/* Items */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Items recibidos</h3>
+            <Button variant="secondary" size="sm" onClick={addItem}>+ Agregar item</Button>
           </div>
-        </div>
-
-        {/* Problema */}
-        <div>
-          <h3 className="text-xs font-semibold text-slate-700 mb-3">Problema / Falla</h3>
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 mb-1">Descripcion del problema *</label>
-            <textarea className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs min-h-[60px]" value={descripcionProblema} onChange={e => setDescripcionProblema(e.target.value)} placeholder="Describir la falla o problema reportado" />
-            {errors.descripcionProblema && <p className="text-[10px] text-red-500 mt-0.5">{errors.descripcionProblema}</p>}
+          <div className="space-y-3">
+            {items.map((it, idx) => (
+              <div key={it.tempId} className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500">Item #{idx + 1}</p>
+                  {items.length > 1 && (
+                    <button onClick={() => removeItem(idx)} className="text-[11px] text-red-500 hover:text-red-700">Eliminar</button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Artículo (catálogo)</label>
+                    <SearchableSelect
+                      value={it.articuloId}
+                      onChange={v => setItemField(idx, 'articuloId', v)}
+                      options={articuloOptions}
+                      placeholder="Buscar por código o descripción..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <Input label="Descripción libre (si no está en catálogo)" value={it.descripcionLibre} onChange={e => setItemField(idx, 'descripcionLibre', e.target.value)} placeholder="Ej: Bomba cuaternaria G1311A" />
+                    <Input label="N° de serie" value={it.serie} onChange={e => setItemField(idx, 'serie', e.target.value)} />
+                  </div>
+                  {errors[`item-${idx}-id`] && <p className="text-[10px] text-red-500">{errors[`item-${idx}-id`]}</p>}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-500 mb-1">Problema reportado *</label>
+                    <textarea className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs min-h-[50px]" value={it.descripcionProblema} onChange={e => setItemField(idx, 'descripcionProblema', e.target.value)} placeholder="Falla observada en este item" />
+                    {errors[`item-${idx}-problema`] && <p className="text-[10px] text-red-500 mt-0.5">{errors[`item-${idx}-problema`]}</p>}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
       </div>
 
       <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl">

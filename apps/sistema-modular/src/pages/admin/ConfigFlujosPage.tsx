@@ -22,9 +22,18 @@ import { Card } from '../../components/ui/Card';
 import { adminConfigService } from '../../services/adminConfigService';
 import { usuariosService } from '../../services/personalService';
 import { useAuth } from '../../contexts/AuthContext';
-import type { AdminConfigFlujos, UsuarioAGS } from '@ags/shared';
+import type { AdminConfigFlujos, UsuarioAGS, TicketArea } from '@ags/shared';
+import { TICKET_AREA_LABELS } from '@ags/shared';
 
 const EMPTY_COMEX_OPTION = { value: '', label: '(Sin usuario fijo — derivar por área)' };
+
+/** Áreas configurables — 'sistema' se omite porque es de pasaje (pendiente + finalizar). */
+const AREAS_CON_RESPONSABLE: Exclude<TicketArea, 'sistema'>[] = [
+  'admin_soporte',
+  'ing_soporte',
+  'administracion',
+  'ventas',
+];
 
 export default function ConfigFlujosPage() {
   const { firebaseUser, usuario } = useAuth();
@@ -56,12 +65,13 @@ export default function ConfigFlujosPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const buildUserOptions = (includeEmpty: boolean) => {
+  const buildUserOptions = (includeEmpty: boolean, emptyLabel?: string) => {
     const opts = usuarios.map(u => ({
       value: u.id,
       label: `${u.displayName} (${u.email})`,
     }));
-    return includeEmpty ? [EMPTY_COMEX_OPTION, ...opts] : opts;
+    if (!includeEmpty) return opts;
+    return [emptyLabel ? { value: '', label: emptyLabel } : EMPTY_COMEX_OPTION, ...opts];
   };
 
   const validateUserActive = (label: string, userId: string | null | undefined): string | null => {
@@ -91,9 +101,20 @@ export default function ConfigFlujosPage() {
         const err = validateUserActive(label, userId);
         if (err) throw new Error(err);
       }
+      // Validar responsables por área.
+      for (const area of AREAS_CON_RESPONSABLE) {
+        const err = validateUserActive(`Responsable ${TICKET_AREA_LABELS[area]}`, form.responsablePorArea?.[area]);
+        if (err) throw new Error(err);
+      }
       // Validar mail básico.
       if (!form.mailFacturacion || !form.mailFacturacion.includes('@')) {
         throw new Error('Mail facturación debe contener "@"');
+      }
+      // Compactar responsablePorArea: omitir entradas vacías para no guardar nulls innecesarios.
+      const responsablePorArea: Partial<Record<Exclude<TicketArea, 'sistema'>, string | null>> = {};
+      for (const area of AREAS_CON_RESPONSABLE) {
+        const v = form.responsablePorArea?.[area];
+        if (v) responsablePorArea[area] = v;
       }
       await adminConfigService.update(
         {
@@ -101,6 +122,7 @@ export default function ConfigFlujosPage() {
           usuarioCoordinadorOTId: form.usuarioCoordinadorOTId || null,
           usuarioResponsableComexId: form.usuarioResponsableComexId || null,
           usuarioMaterialesId: form.usuarioMaterialesId || null,
+          responsablePorArea,
           mailFacturacion: form.mailFacturacion,
         },
         firebaseUser.uid,
@@ -175,6 +197,31 @@ export default function ConfigFlujosPage() {
             emptyMessage="No hay usuarios activos"
           />
           <p className="mt-1 text-[11px] text-slate-500">Ejecuta el cierre administrativo (descarga de artículos + facturación) tras el cierre técnico. El ticket se deriva automáticamente a este usuario cuando la OT pasa a CIERRE_TECNICO.</p>
+        </div>
+
+        <div className="border-t border-slate-200 pt-5">
+          <h2 className="font-mono uppercase tracking-wide text-[11px] text-slate-500 mb-1">Responsables por área de ticket</h2>
+          <p className="text-[11px] text-slate-500 mb-3">
+            Cuando se deriva o crea un ticket dirigido a un área sin elegir persona, se asigna automáticamente
+            al usuario configurado acá. Sin esto, el ticket queda invisible para el área.
+          </p>
+          <div className="space-y-4">
+            {AREAS_CON_RESPONSABLE.map(area => (
+              <div key={area}>
+                <label className={fieldLabel}>{TICKET_AREA_LABELS[area]}</label>
+                <SearchableSelect
+                  value={form.responsablePorArea?.[area] || ''}
+                  onChange={v => setForm({
+                    ...form,
+                    responsablePorArea: { ...(form.responsablePorArea || {}), [area]: v || null },
+                  })}
+                  options={buildUserOptions(true, '(Sin responsable — el ticket queda sin asignar)')}
+                  placeholder="Seleccionar usuario…"
+                  emptyMessage="No hay usuarios activos"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div>

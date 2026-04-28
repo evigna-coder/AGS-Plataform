@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead, AdminConfigFlujos } from '@ags/shared';
 import {
   LEAD_MAX_ADJUNTOS,
   parseLeadDoc, syncFlatFromContactos,
@@ -244,6 +244,54 @@ export const sistemasService = {
 };
 
 // =============================================
+// --- Admin Config (read-only desde portal-ingeniero) ---
+// =============================================
+// La escritura vive en sistema-modular (/admin/config-flujos). Acá solo leemos
+// el doc para resolver responsables por defecto al derivar/crear tickets.
+
+const ADMIN_CONFIG_COLLECTION = 'adminConfig';
+const ADMIN_CONFIG_DOC_ID = 'flujos';
+
+export const adminConfigService = {
+  async get(): Promise<AdminConfigFlujos | null> {
+    const snap = await getDoc(doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC_ID));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return {
+      mailFacturacion: 'mbarrios@agsanalitica.com',
+      ...data,
+      updatedAt: typeof data?.updatedAt === 'string'
+        ? data.updatedAt
+        : (data?.updatedAt?.toDate?.().toISOString?.() ?? new Date().toISOString()),
+    } as AdminConfigFlujos;
+  },
+};
+
+/**
+ * Lee el responsable por defecto configurado para un área. Devuelve null si no
+ * hay área, no hay default, o el usuario no está activo. Falla soft.
+ */
+async function resolveDefaultResponsableForArea(
+  area: LeadArea | null | undefined,
+): Promise<{ id: string; displayName: string } | null> {
+  if (!area || area === 'sistema') return null;
+  try {
+    const cfg = await adminConfigService.get();
+    if (!cfg) return null;
+    const defaultId = cfg.responsablePorArea?.[area as Exclude<LeadArea, 'sistema'>];
+    if (!defaultId) return null;
+    const userSnap = await getDoc(doc(db, 'usuarios', defaultId));
+    if (!userSnap.exists()) return null;
+    const data = userSnap.data();
+    if (data.status !== 'activo') return null;
+    return { id: userSnap.id, displayName: (data.displayName as string) ?? '' };
+  } catch (err) {
+    console.warn('[resolveDefaultResponsableForArea] failed:', err);
+    return null;
+  }
+}
+
+// =============================================
 // --- Leads ---
 // =============================================
 // Helpers de parsing/migration extraídos a @ags/shared/services/leads.
@@ -281,6 +329,15 @@ export const leadsService = {
       ? Timestamp.fromDate(new Date(data.createdAt))
       : Timestamp.now();
     const { createdAt: _omit, ...syncedRest } = synced;
+    // Auto-asignar responsable por defecto del área cuando el ticket se crea
+    // con areaActual pero sin asignadoA (si no, el responsable del área no lo ve).
+    if (!syncedRest.asignadoA && syncedRest.areaActual) {
+      const def = await resolveDefaultResponsableForArea(syncedRest.areaActual as LeadArea);
+      if (def) {
+        syncedRest.asignadoA = def.id;
+        syncedRest.asignadoNombre = def.displayName;
+      }
+    }
     const payload = {
       ...cleanFirestoreData(syncedRest),
       numero,
@@ -366,12 +423,23 @@ export const leadsService = {
   },
 
   async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }): Promise<void> {
+    // Si se deriva a un área sin elegir persona, auto-asignar al responsable
+    // configurado para esa área. Refleja también el destinatario en el posta.
+    let postaFinal = posta;
+    if (!nuevoAsignadoA && area && area !== 'sistema') {
+      const def = await resolveDefaultResponsableForArea(area);
+      if (def) {
+        nuevoAsignadoA = def.id;
+        nuevoAsignadoNombre = def.displayName;
+        postaFinal = { ...posta, aUsuarioId: def.id, aUsuarioNombre: def.displayName };
+      }
+    }
     const update: Record<string, any> = {
-      postas: arrayUnion(cleanFirestoreData(posta as unknown as Record<string, unknown>)),
+      postas: arrayUnion(cleanFirestoreData(postaFinal as unknown as Record<string, unknown>)),
       asignadoA: nuevoAsignadoA || null,
       asignadoNombre: nuevoAsignadoNombre || null,
-      derivadoPor: posta.deUsuarioId,
-      estado: posta.estadoNuevo,
+      derivadoPor: postaFinal.deUsuarioId,
+      estado: postaFinal.estadoNuevo,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
@@ -382,7 +450,7 @@ export const leadsService = {
       update.motivoOtros = extras.motivoLlamado === 'otros' ? (extras.motivoOtros?.trim() || null) : null;
     }
     await updateDoc(doc(db, 'leads', id), update);
-    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { ...update, _action: 'derivar', estadoNuevo: posta.estadoNuevo } });
+    logAudit({ action: 'update', collection: 'leads', documentId: id, after: { ...update, _action: 'derivar', estadoNuevo: postaFinal.estadoNuevo } });
   },
 
   async completarAccion(id: string, posta: Posta): Promise<void> {

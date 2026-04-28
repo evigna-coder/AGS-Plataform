@@ -21,7 +21,7 @@ import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
 import { UsuariosList } from '../../pages/usuarios';
-import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage } from '../../pages/admin';
+import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage, BackfillResponsablesPage } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
@@ -180,6 +180,7 @@ function AppRoutes() {
       <Route path="/admin/relinkear-articulos" element={<ProtectedRoute allowedRoles={['admin']}><RelinkearArticulosPage /></ProtectedRoute>} />
       <Route path="/admin/backfill-ticket-numeros" element={<ProtectedRoute allowedRoles={['admin']}><BackfillTicketNumerosPage /></ProtectedRoute>} />
       <Route path="/admin/backfill-cliente-ids" element={<ProtectedRoute allowedRoles={['admin']}><BackfillClienteIdsPage /></ProtectedRoute>} />
+      <Route path="/admin/backfill-responsables" element={<ProtectedRoute allowedRoles={['admin']}><BackfillResponsablesPage /></ProtectedRoute>} />
     </Routes>
   );
 }

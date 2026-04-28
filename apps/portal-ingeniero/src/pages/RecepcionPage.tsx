@@ -13,6 +13,7 @@ type Step = 'ot' | 'cliente' | 'fotos' | 'done';
 interface FichaCreada {
   id: string;
   numero: string;
+  itemId: string;
 }
 
 /**
@@ -54,28 +55,24 @@ export default function RecepcionPage() {
     setCreating(true);
     setCreateError(null);
     try {
+      // Construyo un hint de descripción para el item placeholder a partir de la OT
+      // si la hay, para que materiales lo vea identificable antes de completarlo.
+      const hint = fromOT
+        ? [fromOT.sistema, fromOT.moduloModelo].filter(Boolean).join(' · ') || null
+        : null;
       const result = await fichasPropiedadService.create({
         clienteId: form.clienteId,
         clienteNombre: form.clienteNombre,
         establecimientoId: fromOT?.establecimientoId ?? null,
         establecimientoNombre: null,
-        sistemaId: fromOT?.sistemaId ?? null,
-        sistemaNombre: fromOT?.sistema ?? null,
-        moduloId: fromOT?.moduloId ?? null,
-        moduloNombre: fromOT?.moduloModelo ?? null,
-        descripcionLibre: null,
-        codigoArticulo: null,
-        serie: fromOT?.moduloSerie ?? null,
+        articuloDescripcionHint: hint,
+        serieHint: fromOT?.moduloSerie ?? null,
         // Defaults para campos requeridos del modelo. Se editan luego desde sistema-modular.
         viaIngreso: 'envio',
         traidoPor: '',
         fechaIngreso: new Date().toISOString(),
         otReferencia: fromOT?.otNumber ?? null,
         otNumber: fromOT?.otNumber ?? null,
-        descripcionProblema: '',
-        sintomasReportados: null,
-        accesorios: [],
-        condicionFisica: null,
       });
       setFicha(result);
       void crearTicketRecepcion(result, form, fromOT);
@@ -129,6 +126,8 @@ export default function RecepcionPage() {
         <CapturaFotosStep
           fichaId={ficha.id}
           fichaNumero={ficha.numero}
+          itemId={ficha.itemId}
+          itemSubId={`${ficha.numero}-1`}
           momento="ingreso"
           onDone={handleFotosDone}
           doneLabel="Finalizar recepción"

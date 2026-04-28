@@ -58,6 +58,8 @@ class UploadQueueManager {
   async enqueueBlob(input: {
     fichaId: string;
     fichaNumero: string;
+    itemId: string;
+    itemSubId: string;
     blob: Blob;
     filename: string;
     momento: 'ingreso' | 'egreso';
@@ -67,6 +69,8 @@ class UploadQueueManager {
       id: crypto.randomUUID(),
       fichaId: input.fichaId,
       fichaNumero: input.fichaNumero,
+      itemId: input.itemId,
+      itemSubId: input.itemSubId,
       blob: input.blob,
       filename: input.filename,
       momento: input.momento,
@@ -123,8 +127,9 @@ class UploadQueueManager {
     await this.refresh();
 
     try {
+      // Usamos el subId del item como subcarpeta para que cada item tenga su path propio
       const { storagePath, url } = await fotoStorageService.upload(
-        next.fichaNumero,
+        next.itemSubId || next.fichaNumero,
         next.blob,
         next.filename,
       );
@@ -139,7 +144,7 @@ class UploadQueueManager {
         subidoPor: next.subidoPor,
         momento: next.momento,
       };
-      await fichasPropiedadService.addFoto(next.fichaId, fotoMeta);
+      await fichasPropiedadService.addFoto(next.fichaId, next.itemId, fotoMeta);
       await uploadQueueDB.remove(next.id);
       this.setState({ draining: false });
       await this.refresh();

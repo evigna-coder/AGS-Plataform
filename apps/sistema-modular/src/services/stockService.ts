@@ -1,5 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad } from '@ags/shared';
+import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
@@ -915,26 +916,39 @@ export const remitosService = {
   },
 
   /**
-   * Crea un remito de devolución o derivación a proveedor a partir de una o
-   * más fichas, y aplica los side effects (cambio de estado de cada ficha,
-   * historial, FK a remitoDevolucionId). Numeración manual (la del papel
-   * preimpreso) — NO usa `getNextRemitoNumber`.
+   * Crea un remito de devolución o derivación a proveedor a partir de una lista
+   * de items (cada item puede pertenecer a una ficha distinta), y aplica los
+   * side effects: cada item afectado pasa a `en_envio` (devolución) o
+   * `derivado_proveedor` (derivación), con su entrada al historial; el estado
+   * agregado de la ficha se recalcula con `computeFichaEstado`.
+   *
+   * Numeración manual (la del papel preimpreso) — NO usa `getNextRemitoNumber`.
    */
-  async createForFichas(input: CreateRemitoFichasInput): Promise<{ id: string }> {
+  async createForItems(input: CreateRemitoItemsInput): Promise<{ id: string }> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const isDevolucion = input.tipo === 'devolucion';
 
-    const items: RemitoItem[] = input.fichas.map(f => ({
+    const remitoLineas: RemitoItem[] = input.items.map(it => ({
       id: crypto.randomUUID(),
       cantidad: 1,
       tipoItem: 'entrega',
       devuelto: false,
-      fichaId: f.fichaId,
-      fichaNumero: f.fichaNumero,
-      fichaDescripcion: f.descripcion,
+      fichaId: it.fichaId,
+      fichaNumero: it.fichaNumero,
+      fichaDescripcion: it.descripcion,
     }));
 
+    // Agrupar items por fichaId para hacer un solo update por ficha
+    const itemsByFicha = new Map<string, typeof input.items>();
+    for (const it of input.items) {
+      const arr = itemsByFicha.get(it.fichaId) ?? [];
+      arr.push(it);
+      itemsByFicha.set(it.fichaId, arr);
+    }
+
+    const fichaIds = Array.from(itemsByFicha.keys());
+    const fichaNumeros = Array.from(new Set(input.items.map(it => it.fichaNumero)));
     const remitoPayload = deepCleanForFirestore({
       numero: input.numero,
       tipo: input.tipo,
@@ -946,12 +960,12 @@ export const remitosService = {
       clienteNombre: isDevolucion ? (input.clienteNombre ?? null) : null,
       proveedorId: !isDevolucion ? (input.proveedorId ?? null) : null,
       proveedorNombre: !isDevolucion ? (input.proveedorNombre ?? null) : null,
-      items,
+      items: remitoLineas,
       observaciones: input.observaciones ?? null,
       fechaSalida: input.fecha,
       fechaDevolucion: null,
-      fichaId: input.fichas.length === 1 ? input.fichas[0].fichaId : null,
-      fichaNumero: input.fichas.length === 1 ? input.fichas[0].fichaNumero : null,
+      fichaId: fichaIds.length === 1 ? fichaIds[0] : null,
+      fichaNumero: fichaNumeros.length === 1 ? fichaNumeros[0] : null,
       loanerId: null,
       loanerCodigo: null,
       ...getCreateTrace(),
@@ -963,34 +977,44 @@ export const remitosService = {
     batch.set(docRef('remitos', id), remitoPayload);
     batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: remitoPayload });
 
-    const nuevoEstado = isDevolucion ? 'en_envio' : 'derivado_proveedor';
-    const motivo = isDevolucion
+    const nuevoEstadoItem = isDevolucion ? 'en_envio' : 'derivado_proveedor';
+    const motivoBase = isDevolucion
       ? `Remito de devolución ${input.numero}`
       : `Remito de derivación a ${input.proveedorNombre ?? 'proveedor'} ${input.numero}`;
+    const creadoPor = getCreateTrace().createdByName ?? 'Sistema';
 
-    for (const f of input.fichas) {
-      const fichaSnap = await getDoc(doc(db, 'fichasPropiedad', f.fichaId));
+    for (const [fichaId, itemsDeFicha] of itemsByFicha) {
+      const fichaSnap = await getDoc(doc(db, 'fichasPropiedad', fichaId));
       if (!fichaSnap.exists()) continue;
-      const fichaData = fichaSnap.data() as { estado?: string; historial?: HistorialFicha[] };
-      const estadoAnterior = (fichaData.estado as HistorialFicha['estadoAnterior']) ?? 'recibido';
-      const nuevaEntrada: HistorialFicha = {
-        id: crypto.randomUUID(),
-        fecha: now,
-        estadoAnterior,
-        estadoNuevo: nuevoEstado as HistorialFicha['estadoNuevo'],
-        nota: motivo,
-        creadoPor: getCreateTrace().createdByName ?? 'Sistema',
-      };
-      const fichaPatch: Record<string, unknown> = {
-        estado: nuevoEstado,
-        historial: [...(fichaData.historial ?? []), nuevaEntrada],
+      const ficha = fichaSnap.data() as FichaPropiedad;
+      const itemIdsAfectados = new Set(itemsDeFicha.map(it => it.itemId));
+
+      const updatedItems: ItemFicha[] = (ficha.items ?? []).map(it => {
+        if (!itemIdsAfectados.has(it.id)) return it;
+        const entry: HistorialFicha = {
+          id: crypto.randomUUID(),
+          fecha: now,
+          estadoAnterior: it.estado,
+          estadoNuevo: nuevoEstadoItem,
+          nota: motivoBase,
+          creadoPor,
+        };
+        return {
+          ...it,
+          estado: nuevoEstadoItem,
+          historial: [...(it.historial ?? []), entry],
+          remitoDevolucionId: isDevolucion ? id : (it.remitoDevolucionId ?? null),
+        };
+      });
+
+      const fichaPatch = deepCleanForFirestore({
+        items: updatedItems,
+        estado: computeFichaEstado(updatedItems),
         ...getUpdateTrace(),
         updatedAt: Timestamp.now(),
-      };
-      if (isDevolucion) fichaPatch.remitoDevolucionId = id;
-      const fichaPayload = deepCleanForFirestore(fichaPatch);
-      batch.update(docRef('fichasPropiedad', f.fichaId), fichaPayload);
-      batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: f.fichaId, after: fichaPayload });
+      });
+      batch.update(docRef('fichasPropiedad', fichaId), fichaPatch);
+      batchAudit(batch, { action: 'update', collection: 'fichas_propiedad', documentId: fichaId, after: fichaPatch });
     }
 
     await batch.commit();
@@ -1008,14 +1032,24 @@ export interface DatosTransportista {
   cuit: string;
 }
 
-export interface CreateRemitoFichasInput {
+export interface CreateRemitoItemsInput {
   /** Número preimpreso del papel (ej. "0001-00017091"). */
   numero: string;
   tipo: 'devolucion' | 'derivacion_proveedor';
   destinatario: DatosTransportista;
   transportista?: DatosTransportista | null;
   fecha: string;
-  fichas: Array<{ fichaId: string; fichaNumero: string; descripcion: string }>;
+  /**
+   * Items a incluir. Cada uno referencia su ficha + el item dentro de la ficha.
+   * `descripcion` es lo que va a la columna "Descripción" del papel impreso.
+   */
+  items: Array<{
+    fichaId: string;
+    fichaNumero: string;
+    itemId: string;
+    itemSubId: string;
+    descripcion: string;
+  }>;
   observaciones?: string | null;
   proveedorId?: string | null;
   proveedorNombre?: string | null;

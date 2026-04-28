@@ -6,3 +6,4 @@ export { default as AccionesPendientesPage } from './AccionesPendientesPage';
 export { default as RelinkearArticulosPage } from './RelinkearArticulosPage';
 export { default as BackfillTicketNumerosPage } from './BackfillTicketNumerosPage';
 export { default as BackfillClienteIdsPage } from './BackfillClienteIdsPage';
+export { default as BackfillResponsablesPage } from './BackfillResponsablesPage';

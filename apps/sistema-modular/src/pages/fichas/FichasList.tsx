@@ -14,6 +14,15 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
+/** Resumen del contenido de la ficha (primer item + count del resto). */
+function summarizeItems(f: FichaPropiedad): string {
+  const items = f.items ?? [];
+  if (items.length === 0) return '';
+  const first = items[0];
+  const desc = first.articuloDescripcion || first.descripcionLibre || first.subId || 'Item';
+  return items.length === 1 ? desc : `${desc} (+${items.length - 1})`;
+}
+
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
 export function FichasList() {
@@ -175,8 +184,8 @@ export function FichasList() {
                       <span className="font-semibold text-teal-600 text-xs">{f.numero}</span>
                     </td>
                     <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={f.clienteNombre}>{f.clienteNombre}</td>
-                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={f.moduloNombre || f.descripcionLibre || ''}>
-                      {f.moduloNombre || f.descripcionLibre || <span className="text-slate-300">—</span>}
+                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={summarizeItems(f)}>
+                      {summarizeItems(f) || <span className="text-slate-300">—</span>}
                     </td>
                     <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
                       <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${ESTADO_FICHA_COLORS[f.estado]}`}>

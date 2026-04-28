@@ -17,6 +17,31 @@ function ventasInsumosStamp(incomingMotivo: MotivoLlamado | undefined, currentMo
   return { ventasInsumosCreadoPor: user.uid, ventasInsumosCreadoEn: new Date().toISOString() };
 }
 
+/**
+ * Lee el responsable por defecto configurado para un área (adminConfig/flujos.responsablePorArea).
+ * Devuelve null si no hay área, no hay default configurado, el usuario no existe, o no está activo.
+ * Imports dinámicos para evitar ciclos `leadsService ↔ adminConfigService` y bundle-size en cold paths.
+ * Falla soft: cualquier error → null (el ticket queda sin asignar).
+ */
+async function resolveDefaultResponsableForArea(
+  area: LeadArea | null | undefined,
+): Promise<{ id: string; displayName: string } | null> {
+  if (!area || area === 'sistema') return null;
+  try {
+    const { adminConfigService } = await import('./adminConfigService');
+    const { usuariosService } = await import('./personalService');
+    const cfg = await adminConfigService.getWithDefaults();
+    const defaultId = cfg.responsablePorArea?.[area as Exclude<LeadArea, 'sistema'>];
+    if (!defaultId) return null;
+    const user = await usuariosService.getById(defaultId);
+    if (!user || user.status !== 'activo') return null;
+    return { id: user.id, displayName: user.displayName };
+  } catch (err) {
+    console.warn('[resolveDefaultResponsableForArea] failed:', err);
+    return null;
+  }
+}
+
 export const leadsService = {
   /**
    * Extrae la parte numérica de un numero de ticket: "TKT-00042" → 42.
@@ -67,8 +92,21 @@ export const leadsService = {
       ? Timestamp.fromDate(new Date(data.createdAt))
       : Timestamp.now();
     const { createdAt: _omit, ...rest } = data;
+    // Auto-asignar responsable por defecto del área si el ticket viene con areaActual
+    // pero sin asignadoA. Sin esto, el responsable del área no ve el ticket en su lista.
+    let asignadoA = rest.asignadoA;
+    let asignadoNombre = rest.asignadoNombre;
+    if (!asignadoA && rest.areaActual) {
+      const def = await resolveDefaultResponsableForArea(rest.areaActual);
+      if (def) {
+        asignadoA = def.id;
+        asignadoNombre = def.displayName;
+      }
+    }
     const payload = deepCleanForFirestore(syncFlatFromContactos({
       ...rest,
+      asignadoA,
+      asignadoNombre,
       numero,
       ...getCreateTrace(),
       estado: data.estado || 'nuevo',
@@ -189,12 +227,24 @@ export const leadsService = {
   },
 
   async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { prioridad?: LeadPrioridad | null; proximoContacto?: string | null; motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }) {
+    // Si se deriva a un área sin elegir persona, auto-asignar al responsable
+    // configurado para esa área (adminConfig/flujos.responsablePorArea). El
+    // posta también se actualiza para que el timeline refleje al destinatario real.
+    let postaFinal = posta;
+    if (!nuevoAsignadoA && area && area !== 'sistema') {
+      const def = await resolveDefaultResponsableForArea(area);
+      if (def) {
+        nuevoAsignadoA = def.id;
+        nuevoAsignadoNombre = def.displayName;
+        postaFinal = { ...posta, aUsuarioId: def.id, aUsuarioNombre: def.displayName };
+      }
+    }
     const data: Record<string, any> = {
-      postas: arrayUnion(deepCleanForFirestore(posta)),
+      postas: arrayUnion(deepCleanForFirestore(postaFinal)),
       asignadoA: nuevoAsignadoA || null,
       asignadoNombre: nuevoAsignadoNombre || null,
-      derivadoPor: posta.deUsuarioId,
-      estado: posta.estadoNuevo,
+      derivadoPor: postaFinal.deUsuarioId,
+      estado: postaFinal.estadoNuevo,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
@@ -617,5 +667,82 @@ export const leadsService = {
     }
 
     return { total, matched, ambiguous, unmatched, skipped };
+  },
+
+  /**
+   * Backfill: asigna `asignadoA` a tickets con `areaActual` setado y sin asignado,
+   * usando el responsable por defecto configurado en `adminConfig/flujos.responsablePorArea`.
+   *
+   * - Excluye tickets finalizados/no_concretado (no tiene sentido reasignarlos).
+   * - Excluye area 'sistema' (es de pasaje, nunca tiene asignado).
+   * - Si la config no tiene default para esa área, el ticket queda como está (skipped).
+   * - Si el usuario default no existe o está inactivo → skipped.
+   * - Idempotente: re-ejecutar no toca tickets que ya tengan asignadoA.
+   *
+   * Imports dinámicos para evitar el ciclo con adminConfigService/personalService.
+   */
+  async backfillResponsablesPorArea(): Promise<{
+    total: number;
+    asignados: number;
+    skippedSinArea: number;
+    skippedConAsignado: number;
+    skippedFinalizados: number;
+    skippedSinDefault: number;
+    skippedAreaSistema: number;
+    skippedUsuarioInactivo: number;
+    detalleAsignados: { numero: string; razonSocial: string; area: string; asignadoNombre: string }[];
+  }> {
+    const { adminConfigService } = await import('./adminConfigService');
+    const { usuariosService } = await import('./personalService');
+
+    const cfg = await adminConfigService.getWithDefaults();
+    const map = cfg.responsablePorArea || {};
+    // Pre-cargar usuarios para no consultar uno por uno
+    const allUsuarios = await usuariosService.getAll();
+    const usuariosById = new Map(allUsuarios.map(u => [u.id, u]));
+
+    const snap = await getDocs(collection(db, 'leads'));
+    const total = snap.docs.length;
+
+    let asignados = 0, skippedSinArea = 0, skippedConAsignado = 0, skippedFinalizados = 0;
+    let skippedSinDefault = 0, skippedAreaSistema = 0, skippedUsuarioInactivo = 0;
+    const detalleAsignados: { numero: string; razonSocial: string; area: string; asignadoNombre: string }[] = [];
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const estado = data.estado as string | undefined;
+      const area = data.areaActual as string | null | undefined;
+      const asignadoA = data.asignadoA as string | null | undefined;
+
+      if (estado === 'finalizado' || estado === 'no_concretado') { skippedFinalizados++; continue; }
+      if (asignadoA) { skippedConAsignado++; continue; }
+      if (!area) { skippedSinArea++; continue; }
+      if (area === 'sistema') { skippedAreaSistema++; continue; }
+
+      const defaultId = (map as Record<string, string | null | undefined>)[area];
+      if (!defaultId) { skippedSinDefault++; continue; }
+
+      const user = usuariosById.get(defaultId);
+      if (!user || user.status !== 'activo') { skippedUsuarioInactivo++; continue; }
+
+      await updateDoc(doc(db, 'leads', d.id), deepCleanForFirestore({
+        asignadoA: user.id,
+        asignadoNombre: user.displayName,
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }));
+      asignados++;
+      detalleAsignados.push({
+        numero: (data.numero as string) || d.id,
+        razonSocial: (data.razonSocial as string) || '(sin razón social)',
+        area,
+        asignadoNombre: user.displayName,
+      });
+    }
+
+    return {
+      total, asignados, skippedSinArea, skippedConAsignado, skippedFinalizados,
+      skippedSinDefault, skippedAreaSistema, skippedUsuarioInactivo, detalleAsignados,
+    };
   },
 };

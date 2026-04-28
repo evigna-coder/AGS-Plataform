@@ -5,14 +5,12 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { FichaInfoSidebar } from '../../components/fichas/FichaInfoSidebar';
 import { FichaHistorialSection } from '../../components/fichas/FichaHistorialSection';
-import { FichaDerivacionSection } from '../../components/fichas/FichaDerivacionSection';
 import { FichaRepuestosSection } from '../../components/fichas/FichaRepuestosSection';
-import { FichaStatusTransition } from '../../components/fichas/FichaStatusTransition';
 import { FichaLoanerLink } from '../../components/fichas/FichaLoanerLink';
-import { FichaFotosSection } from '../../components/fichas/FichaFotosSection';
+import { FichaItemCard } from '../../components/fichas/FichaItemCard';
 import { EditFichaModal } from '../../components/fichas/EditFichaModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
-import type { FichaPropiedad, EstadoFicha, Loaner } from '@ags/shared';
+import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 export function FichaDetail() {
@@ -42,19 +40,6 @@ export function FichaDetail() {
     return () => unsub();
   }, [id, navigate]);
 
-  const handleTransition = async (nuevoEstado: EstadoFicha, nota: string) => {
-    if (!ficha) return;
-    await fichasService.addHistorial(ficha.id, {
-      fecha: new Date().toISOString(),
-      estadoAnterior: ficha.estado,
-      estadoNuevo: nuevoEstado,
-      nota,
-      creadoPor: 'admin',
-    });
-    // subscription auto-refreshes
-  };
-
-
   const openLoanerPicker = async () => {
     const d = await loanersService.getDisponibles();
     setDisponibles(d);
@@ -67,7 +52,6 @@ export function FichaDetail() {
     try {
       const loaner = disponibles.find(l => l.id === selectedLoanerId);
       if (!loaner) return;
-      // Register loan on loaner
       await loanersService.registrarPrestamo(selectedLoanerId, {
         clienteId: ficha.clienteId,
         clienteNombre: ficha.clienteNombre,
@@ -79,14 +63,12 @@ export function FichaDetail() {
         fechaSalida: new Date().toISOString(),
         estado: 'activo',
       });
-      // Link loaner on ficha
       await fichasService.update(ficha.id, {
         loanerId: selectedLoanerId,
         loanerCodigo: loaner.codigo,
       });
       setLoanerModalOpen(false);
       setSelectedLoanerId('');
-      // subscription auto-refreshes
     } finally {
       setAsigning(false);
     }
@@ -95,6 +77,11 @@ export function FichaDetail() {
   if (loading || !ficha) {
     return <p className="text-center text-slate-400 py-12">Cargando...</p>;
   }
+
+  // ¿Hay items listos para entregar (para mostrar el botón de remito)?
+  const hasItemsParaRemito = ficha.items.some(i =>
+    i.estado === 'listo_para_entrega' || i.estado === 'derivado_proveedor'
+  );
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -106,14 +93,15 @@ export function FichaDetail() {
           </button>
           <div>
             <h1 className="text-lg font-semibold text-slate-900 tracking-tight">{ficha.numero}</h1>
-            <p className="text-xs text-slate-500">{ficha.clienteNombre} — {ficha.moduloNombre || ficha.descripcionLibre}</p>
+            <p className="text-xs text-slate-500">
+              {ficha.clienteNombre} · {ficha.items.length} item{ficha.items.length === 1 ? '' : 's'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <FichaStatusTransition currentEstado={ficha.estado} onTransition={handleTransition} />
-          {ficha.estado === 'listo_para_entrega' && (
+          {hasItemsParaRemito && (
             <Button variant="primary" size="sm" onClick={() => setRemitoModalOpen(true)}>
-              Generar remito de devolución
+              Generar remito
             </Button>
           )}
           {!ficha.loanerId && ficha.estado !== 'entregado' && (
@@ -133,10 +121,32 @@ export function FichaDetail() {
           {/* Main */}
           <div className="flex-1 space-y-4">
             <FichaLoanerLink ficha={ficha} />
+            {/* Items */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                  Items recibidos
+                </h2>
+              </div>
+              {ficha.items.length === 0 ? (
+                <p className="text-sm text-slate-400 px-3 py-6 text-center bg-white rounded-lg border border-slate-200">
+                  Sin items registrados — agregalos desde "Editar"
+                </p>
+              ) : (
+                ficha.items.map(item => (
+                  <FichaItemCard
+                    key={item.id}
+                    ficha={ficha}
+                    item={item}
+                    canDelete={ficha.items.length > 1 && item.estado !== 'entregado'}
+                    onUpdate={() => { /* subscription refresh */ }}
+                  />
+                ))
+              )}
+            </div>
+            {/* A nivel ficha: historial global, repuestos, etc. */}
             <FichaHistorialSection historial={ficha.historial} />
-            <FichaDerivacionSection ficha={ficha} onUpdate={() => { /* subscription auto-refreshes */ }} />
-            <FichaRepuestosSection ficha={ficha} onUpdate={() => { /* subscription auto-refreshes */ }} />
-            <FichaFotosSection ficha={ficha} readOnly={ficha.estado === 'entregado'} onUpdate={() => { /* subscription auto-refreshes */ }} />
+            <FichaRepuestosSection ficha={ficha} onUpdate={() => { /* subscription refresh */ }} />
           </div>
         </div>
       </div>
@@ -167,14 +177,14 @@ export function FichaDetail() {
         )}
       </Modal>
 
-      {/* Generar remito de devolución */}
+      {/* Generar remito */}
       <GenerarRemitoDevolucionModal
         open={remitoModalOpen}
         onClose={() => setRemitoModalOpen(false)}
         ficha={ficha}
       />
 
-      {/* Editar ficha (modal — política del sistema) */}
+      {/* Editar ficha */}
       <EditFichaModal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}

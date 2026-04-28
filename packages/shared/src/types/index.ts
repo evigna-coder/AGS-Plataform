@@ -1001,6 +1001,12 @@ export interface AdminConfigFlujos {
    *  técnicamente una OT, el ticket se deriva automáticamente a este usuario
    *  para ejecutar el cierre administrativo (descarga de artículos + facturación). */
   usuarioMaterialesId?: string | null;
+  /** Mapeo área → userId responsable por defecto. Cuando se deriva o crea un
+   *  ticket con `areaActual` y sin `asignadoA`, el sistema autoasigna al
+   *  responsable configurado para esa área. Si la entrada es null/undefined o
+   *  el usuario no está activo, el ticket queda sin asignar. Se omite el área
+   *  'sistema' porque es un área de pasaje (genera pendiente + finaliza ticket). */
+  responsablePorArea?: Partial<Record<Exclude<TicketArea, 'sistema'>, string | null>>;
   mailFacturacion: string;
   updatedAt: string;
   updatedBy?: string | null;
@@ -2749,24 +2755,72 @@ export interface FotoFicha {
   momento?: MomentoFotoFicha;
 }
 
+/**
+ * Item dentro de una ficha — una pieza física que entró por reparación.
+ *
+ * Una ficha es 1 ingreso del cliente, pero puede contener N items: módulos completos,
+ * placas, lentes, motores, etc. Algunos items pueden derivarse a proveedor mientras
+ * otros se reparan en planta. Cada item lleva su propio estado, historial, fotos y
+ * derivaciones.
+ *
+ * Caso especial (placa desarmada de un módulo recibido): se crea un item adicional
+ * con `parentItemId` apuntando al ítem padre. Cuando se deriva, el remito imprime
+ * la placa indicando de qué módulo salió.
+ */
+export interface ItemFicha {
+  id: string;
+  /** Sub-id correlativo dentro de la ficha (FPC-0001-1, FPC-0001-2, ...) */
+  subId: string;
+  // --- Identificación: lookup contra catálogo de artículos O descripción libre ---
+  articuloId?: string | null;
+  articuloCodigo?: string | null;
+  articuloDescripcion?: string | null;
+  descripcionLibre?: string | null;
+  serie?: string | null;
+  // --- Origen interno (item desarmado de otro item de la misma ficha) ---
+  parentItemId?: string | null;
+  // --- Estado individual ---
+  estado: EstadoFicha;
+  historial: HistorialFicha[];
+  derivaciones: DerivacionProveedor[];
+  // --- Devolución del item ---
+  remitoDevolucionId?: string | null;
+  fechaEntrega?: string | null;
+  // --- Fotos del item ---
+  fotos?: FotoFicha[];
+  // --- Problema / detalle ---
+  descripcionProblema?: string | null;
+  sintomasReportados?: string | null;
+  accesorios?: AccesorioFicha[];
+  condicionFisica?: string | null;
+  createdAt: string;
+}
+
+/**
+ * Calcula el estado agregado de una ficha a partir de los estados de sus items.
+ * Prioriza el "más abierto" (derivado/esperando > en_reparacion > en_diagnostico).
+ * Solo cierra si TODOS los items están en el mismo estado de cierre.
+ */
+export function computeFichaEstado(items: ItemFicha[]): EstadoFicha {
+  if (items.length === 0) return 'recibido';
+  const estados = items.map(i => i.estado);
+  const all = (e: EstadoFicha) => estados.every(s => s === e);
+  const some = (e: EstadoFicha) => estados.some(s => s === e);
+
+  if (all('entregado')) return 'entregado';
+  if (all('en_envio')) return 'en_envio';
+  if (all('listo_para_entrega')) return 'listo_para_entrega';
+  if (some('derivado_proveedor')) return 'derivado_proveedor';
+  if (some('esperando_repuesto')) return 'esperando_repuesto';
+  if (some('en_reparacion')) return 'en_reparacion';
+  if (some('en_diagnostico')) return 'en_diagnostico';
+  return 'recibido';
+}
+
 export interface FichaPropiedad {
   id: string;
   /** Número correlativo (FPC-0001) */
   numero: string;
-  // --- Qué ingresó ---
-  /** FK → sistemas (si el módulo es conocido) */
-  sistemaId?: string | null;
-  sistemaNombre?: string | null;
-  /** FK → modulos del sistema */
-  moduloId?: string | null;
-  moduloNombre?: string | null;
-  /** Descripción libre si no está en el sistema */
-  descripcionLibre?: string | null;
-  /** Part number / código de artículo */
-  codigoArticulo?: string | null;
-  serie?: string | null;
-  accesorios: AccesorioFicha[];
-  condicionFisica?: string | null;
   // --- Quién / Cómo llegó ---
   clienteId: string;
   clienteNombre: string;
@@ -2778,22 +2832,17 @@ export interface FichaPropiedad {
   fechaIngreso: string;
   /** OT que originó la ficha */
   otReferencia?: string | null;
-  // --- Problema ---
-  descripcionProblema: string;
-  sintomasReportados?: string | null;
-  // --- Ciclo de vida ---
+  // --- Items recibidos (al menos uno; puede crecer en sistema-modular) ---
+  items: ItemFicha[];
+  // --- Estado agregado (derivado de items, persistido para queries) ---
   estado: EstadoFicha;
+  // --- Historial de eventos a nivel ficha (creación, notas globales) ---
   historial: HistorialFicha[];
-  derivaciones: DerivacionProveedor[];
+  // --- Repuestos pendientes (a nivel del trabajo total, no por item) ---
   repuestosPendientes: RepuestoPendiente[];
-  // --- Devolución ---
-  remitoDevolucionId?: string | null;
-  fechaEntrega?: string | null;
-  // --- Loaner vinculado ---
+  // --- Loaner vinculado (a la ficha, no a un item) ---
   loanerId?: string | null;
   loanerCodigo?: string | null;
-  // --- Fotos (metadata, archivos en Google Drive) ---
-  fotos?: FotoFicha[];
   // --- OTs vinculadas ---
   otIds: string[];
   // --- Audit ---

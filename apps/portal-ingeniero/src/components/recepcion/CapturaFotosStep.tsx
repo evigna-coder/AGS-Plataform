@@ -7,6 +7,9 @@ import type { FotoFicha, MomentoFotoFicha } from '@ags/shared';
 interface Props {
   fichaId: string;
   fichaNumero: string;
+  /** Item de la ficha al que se atan las fotos (la ficha tiene 1+ items). */
+  itemId: string;
+  itemSubId: string;
   momento: MomentoFotoFicha;
   /** Fotos ya confirmadas en Firestore (para egreso o re-entrada). */
   fotosConfirmadas?: FotoFicha[];
@@ -22,6 +25,8 @@ interface Props {
 export function CapturaFotosStep({
   fichaId,
   fichaNumero,
+  itemId,
+  itemSubId,
   momento,
   fotosConfirmadas = [],
   onDone,
@@ -29,7 +34,7 @@ export function CapturaFotosStep({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { enqueue, retry, discard } = useUploadQueue();
-  const pending = usePendingForFicha(fichaId).filter(p => p.momento === momento);
+  const pending = usePendingForFicha(fichaId).filter(p => p.momento === momento && p.itemId === itemId);
 
   const fotosDelMomento = fotosConfirmadas.filter(f => f.momento === momento);
   const totalFotos = fotosDelMomento.length + pending.length;
@@ -40,6 +45,8 @@ export function CapturaFotosStep({
       await enqueue({
         fichaId,
         fichaNumero,
+        itemId,
+        itemSubId,
         blob: file,
         filename: file.name || `foto_${Date.now()}.jpg`,
         momento,

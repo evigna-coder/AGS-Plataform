@@ -3,15 +3,26 @@ import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
-import { proveedoresService, remitosService, fichasService } from '../../services/firebaseService';
-import type { FichaPropiedad, Proveedor } from '@ags/shared';
+import { proveedoresService, fichasService } from '../../services/firebaseService';
+import type { FichaPropiedad, ItemFicha, Proveedor } from '@ags/shared';
 
 interface Props {
   ficha: FichaPropiedad;
+  /** Item al que pertenecen las derivaciones. */
+  item: ItemFicha;
   onUpdate: () => void;
 }
 
-export function FichaDerivacionSection({ ficha, onUpdate }: Props) {
+/**
+ * Derivaciones a proveedor por item — un item puede derivarse mientras otros del
+ * mismo ingreso siguen en planta.
+ *
+ * Nota: la creación del REMITO de derivación se hace desde
+ * `GenerarRemitoDevolucionModal` (puede agrupar items de varias fichas en un solo
+ * remito). Acá solo registramos derivaciones "rápidas" sin remito asociado, y
+ * permitimos marcar recibido cuando vuelve.
+ */
+export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
   const [showModal, setShowModal] = useState(false);
@@ -29,33 +40,16 @@ export function FichaDerivacionSection({ ficha, onUpdate }: Props) {
     setSaving(true);
     try {
       const prov = proveedores.find(p => p.id === proveedorId);
-      // Create remito for the derivation
-      const remitoId = await remitosService.create({
-        tipo: 'derivacion_proveedor',
-        estado: 'borrador',
-        ingenieroId: '',
-        ingenieroNombre: 'AGS Taller',
-        clienteId: ficha.clienteId,
-        clienteNombre: ficha.clienteNombre,
+      await fichasService.addItemDerivacion(ficha.id, item.id, {
         proveedorId,
         proveedorNombre: prov?.nombre || '',
-        fichaId: ficha.id,
-        fichaNumero: ficha.numero,
-        items: [],
-        observaciones: `Derivacion de ${ficha.numero}: ${descripcion}`,
-      });
-
-      await fichasService.addDerivacion(ficha.id, {
-        proveedorId,
-        proveedorNombre: prov?.nombre || '',
-        remitoSalidaId: remitoId,
+        remitoSalidaId: null,
         remitoRetornoId: null,
         fechaEnvio: new Date().toISOString(),
         fechaRetorno: null,
         descripcion: descripcion.trim(),
         estado: 'enviado',
       });
-
       setShowModal(false);
       setProveedorId('');
       setDescripcion('');
@@ -66,9 +60,9 @@ export function FichaDerivacionSection({ ficha, onUpdate }: Props) {
   };
 
   const handleMarkReceived = async (derivIdx: number) => {
-    const updated = [...ficha.derivaciones];
+    const updated = [...item.derivaciones];
     updated[derivIdx] = { ...updated[derivIdx], estado: 'recibido', fechaRetorno: new Date().toISOString() };
-    await fichasService.update(ficha.id, { derivaciones: updated });
+    await fichasService.updateItem(ficha.id, item.id, { derivaciones: updated });
     onUpdate();
   };
 
@@ -77,16 +71,16 @@ export function FichaDerivacionSection({ ficha, onUpdate }: Props) {
       <Card
         title="Derivaciones a proveedor"
         actions={
-          ficha.estado !== 'entregado' && (
+          item.estado !== 'entregado' && (
             <Button variant="ghost" size="sm" onClick={() => setShowModal(true)}>+ Derivar</Button>
           )
         }
       >
-        {ficha.derivaciones.length === 0 ? (
+        {item.derivaciones.length === 0 ? (
           <p className="text-sm text-slate-400">Sin derivaciones</p>
         ) : (
           <div className="space-y-3">
-            {ficha.derivaciones.map((d, idx) => (
+            {item.derivaciones.map((d, idx) => (
               <div key={d.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-slate-700">{d.proveedorNombre}</span>
@@ -121,7 +115,7 @@ export function FichaDerivacionSection({ ficha, onUpdate }: Props) {
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>Cancelar</Button>
           <Button variant="primary" size="sm" onClick={handleDerive} disabled={!proveedorId || !descripcion.trim() || saving}>
-            {saving ? 'Generando...' : 'Derivar y generar remito'}
+            {saving ? 'Guardando…' : 'Derivar'}
           </Button>
         </div>
       }>

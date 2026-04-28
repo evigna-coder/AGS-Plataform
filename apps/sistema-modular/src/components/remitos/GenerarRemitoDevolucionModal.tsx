@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import type { FichaPropiedad, Cliente, CondicionIva } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, Cliente, CondicionIva } from '@ags/shared';
 import { fichasService } from '../../services/fichasService';
 import { clientesService } from '../../services/clientesService';
 import { remitosService, type DatosTransportista } from '../../services/stockService';
@@ -12,7 +12,7 @@ import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Ficha desde la que se disparó el modal — queda preseleccionada. */
+  /** Ficha desde la que se disparó el modal — sus items quedan elegibles preseleccionados. */
   ficha: FichaPropiedad;
   onCreated?: (remitoId: string) => void;
 }
@@ -28,20 +28,28 @@ const IVA_LABELS: Partial<Record<CondicionIva, string>> = {
   consumidor_final: 'Consumidor Final',
 };
 
-function fichaDescripcion(f: FichaPropiedad, motivo: string): string {
+interface ElegibleItem {
+  ficha: FichaPropiedad;
+  item: ItemFicha;
+  /** Identificador único combinando ficha+item (para el set de selección). */
+  key: string;
+}
+
+function itemDescripcion(it: ItemFicha, motivo: string, parentSubId?: string | null): string {
   const partes = [
-    f.sistemaNombre,
-    f.moduloNombre,
-    f.serie ? `S/N ${f.serie}` : null,
-  ].filter(Boolean);
-  const equipo = partes.join(' · ') || (f.descripcionLibre ?? 'Equipo');
+    it.articuloDescripcion || it.descripcionLibre,
+    it.articuloCodigo,
+    it.serie ? `S/N ${it.serie}` : null,
+    parentSubId ? `(de ${parentSubId})` : null,
+  ].filter(Boolean) as string[];
+  const equipo = partes.join(' · ') || it.subId;
   return `${equipo} · ${motivo}`;
 }
 
 export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }: Props) {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [otherFichas, setOtherFichas] = useState<FichaPropiedad[]>([]);
-  const [selectedFichaIds, setSelectedFichaIds] = useState<Set<string>>(new Set([ficha.id]));
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [numero, setNumero] = useState('0001-');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [destinatario, setDestinatario] = useState<DatosTransportista>(EMPTY_DEST);
@@ -50,7 +58,23 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar cliente y otras fichas elegibles del mismo cliente
+  // Items elegibles = items de la ficha actual + items de otras fichas activas del cliente
+  // que estén en estado listo_para_entrega (devolución) o cualquier no-cerrado.
+  const elegibles = useMemo<ElegibleItem[]>(() => {
+    const all = [ficha, ...otherFichas];
+    const out: ElegibleItem[] = [];
+    for (const f of all) {
+      for (const it of (f.items ?? [])) {
+        if (it.estado === 'entregado') continue;
+        if (it.estado === 'en_envio') continue;
+        if (it.estado === 'derivado_proveedor') continue;
+        out.push({ ficha: f, item: it, key: `${f.id}:${it.id}` });
+      }
+    }
+    return out;
+  }, [ficha, otherFichas]);
+
+  // Carga cliente + preselección + otras fichas elegibles del mismo cliente
   useEffect(() => {
     if (!open) return;
     void clientesService.getById(ficha.clienteId).then(c => {
@@ -66,26 +90,20 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
       });
     });
     void fichasService.getAll({ clienteId: ficha.clienteId, activasOnly: true }).then(items => {
-      // Excluir la actual (ya está seleccionada) y las que ya están en envío/derivadas
-      setOtherFichas(items.filter(f =>
-        f.id !== ficha.id &&
-        f.estado !== 'en_envio' &&
-        f.estado !== 'derivado_proveedor',
-      ));
+      setOtherFichas(items.filter(f => f.id !== ficha.id));
     });
-  }, [open, ficha.id, ficha.clienteId]);
+    // Preselección: items de la ficha actual que están listos para entrega
+    const preselect = new Set<string>();
+    for (const it of ficha.items ?? []) {
+      if (it.estado === 'listo_para_entrega') preselect.add(`${ficha.id}:${it.id}`);
+    }
+    setSelectedKeys(preselect);
+  }, [open, ficha.id, ficha.clienteId, ficha.items]);
 
-  const selectedFichas = useMemo(() => {
-    const all = [ficha, ...otherFichas];
-    return all.filter(f => selectedFichaIds.has(f.id));
-  }, [ficha, otherFichas, selectedFichaIds]);
-
-  const toggleFicha = (id: string) => {
-    setSelectedFichaIds(prev => {
+  const toggleItem = (key: string) => {
+    setSelectedKeys(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      // La ficha actual no se puede deseleccionar
-      if (!next.has(ficha.id)) next.add(ficha.id);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   };
@@ -95,44 +113,49 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
   const setTranspField = <K extends keyof DatosTransportista>(k: K, v: string) =>
     setTransportista(prev => ({ ...prev, [k]: v }));
 
-  const canSubmit = numero.trim().length >= 7 && destinatario.razonSocial.trim() && selectedFichas.length > 0;
+  const selected = elegibles.filter(e => selectedKeys.has(e.key));
+  const canSubmit = numero.trim().length >= 7 && destinatario.razonSocial.trim() && selected.length > 0;
 
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
     try {
-      const fichasInput = selectedFichas.map(f => ({
-        fichaId: f.id,
-        fichaNumero: f.numero,
-        descripcion: fichaDescripcion(f, 'Devolución por reparación'),
-      }));
-      const otNumbersUnique = Array.from(new Set(selectedFichas.flatMap(f => f.otIds ?? [])));
+      const itemsInput = selected.map(({ ficha: f, item }) => {
+        const parent = item.parentItemId ? f.items.find(i => i.id === item.parentItemId) : null;
+        return {
+          fichaId: f.id,
+          fichaNumero: f.numero,
+          itemId: item.id,
+          itemSubId: item.subId,
+          descripcion: itemDescripcion(item, 'Devolución por reparación', parent?.subId),
+        };
+      });
+      const otNumbersUnique = Array.from(new Set(selected.flatMap(e => e.ficha.otIds ?? [])));
 
-      const { id } = await remitosService.createForFichas({
+      const { id } = await remitosService.createForItems({
         numero: numero.trim(),
         tipo: 'devolucion',
         destinatario,
         transportista: transportista.razonSocial ? transportista : null,
         fecha,
-        fichas: fichasInput,
+        items: itemsInput,
         observaciones: observaciones || null,
         clienteId: ficha.clienteId,
         clienteNombre: ficha.clienteNombre,
         otNumbers: otNumbersUnique,
       });
 
-      // Abrir PDF para imprimir
       const fechaFmt = fecha.split('-').reverse().join('/');
       await openRemitoPdfInNewTab(
         <RemitoOverlayPDF
           fecha={fechaFmt}
           destinatario={destinatario}
           transportista={transportista.razonSocial ? transportista : null}
-          items={fichasInput.map((f, i) => ({
+          items={itemsInput.map((it, i) => ({
             numero: i + 1,
             cantidad: 1,
-            producto: f.fichaNumero,
-            descripcion: f.descripcion,
+            producto: it.itemSubId,
+            descripcion: it.descripcion,
           }))}
         />,
       );
@@ -173,24 +196,30 @@ export function GenerarRemitoDevolucionModal({ open, onClose, ficha, onCreated }
         </div>
 
         <div>
-          <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Fichas a incluir</p>
-          <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-44 overflow-y-auto">
-            {[ficha, ...otherFichas].map(f => (
-              <label key={f.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={selectedFichaIds.has(f.id)}
-                  onChange={() => toggleFicha(f.id)}
-                  disabled={f.id === ficha.id}
-                />
-                <div className="flex-1 min-w-0 text-sm">
-                  <span className="font-mono text-teal-700">{f.numero}</span>
-                  <span className="text-slate-500"> · {fichaDescripcion(f, '')}</span>
-                </div>
-              </label>
-            ))}
-            {otherFichas.length === 0 && (
-              <p className="text-xs text-slate-400 px-3 py-2">No hay otras fichas elegibles del mismo cliente.</p>
+          <p className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">
+            Items a incluir ({selected.length} seleccionado{selected.length === 1 ? '' : 's'})
+          </p>
+          <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-60 overflow-y-auto">
+            {elegibles.length === 0 ? (
+              <p className="text-xs text-slate-400 px-3 py-2">No hay items elegibles del cliente.</p>
+            ) : (
+              elegibles.map(({ ficha: f, item, key }) => (
+                <label key={key} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={selectedKeys.has(key)}
+                    onChange={() => toggleItem(key)}
+                  />
+                  <div className="flex-1 min-w-0 text-sm">
+                    <span className="font-mono text-teal-700">{item.subId}</span>
+                    <span className="text-slate-500"> · {item.articuloDescripcion || item.descripcionLibre || 'Item'}</span>
+                    {item.serie && <span className="text-slate-400 font-mono"> · S/N {item.serie}</span>}
+                    {f.id !== ficha.id && (
+                      <span className="text-[10px] text-slate-400 ml-2">(otra ficha: {f.numero})</span>
+                    )}
+                  </div>
+                </label>
+              ))
             )}
           </div>
         </div>

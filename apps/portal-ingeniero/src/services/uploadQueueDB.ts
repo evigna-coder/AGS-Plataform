@@ -21,6 +21,10 @@ export interface PendingFoto {
   id: string;            // uuid local
   fichaId: string;       // FK al doc en Firestore
   fichaNumero: string;   // FPC-XXXX, para construir el storage path
+  /** Item específico al que pertenece la foto (FichaPropiedad.items[].id). */
+  itemId: string;
+  /** Sub-id del item (FPC-XXXX-N) — usado en el storage path para separar carpetas. */
+  itemSubId: string;
   blob: Blob;
   filename: string;
   momento: MomentoFotoFicha;
