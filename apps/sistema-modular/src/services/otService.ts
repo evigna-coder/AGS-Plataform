@@ -786,45 +786,4 @@ export const ordenesTrabajoService = {
     };
   },
 
-  /**
-   * @deprecated Usar `cerrarAdministrativamente` — esta función NO es transaccional
-   * (solo encola el mail; no crea ticket admin ni actualiza OT). Queda para retry manual
-   * desde el dashboard `/admin/acciones-pendientes` cuando el mailQueue consumer ya procesó
-   * el doc pero falló el envío real.
-   *
-   * Mantener para backward compatibility y fallback.
-   */
-  async enviarAvisoCierreAdmin(otNumber: string, data: {
-    razonSocial: string;
-    tipoServicio: string;
-    horasLab: string;
-    horasViaje: string;
-    cierreAdmin: CierreAdministrativo;
-    partesCount: number;
-    ingenieroNombre: string | null;
-  }): Promise<void> {
-    const user = getCurrentUserTrace();
-    const hsLab = data.cierreAdmin.horasLabAjustadas || data.horasLab || '0';
-    const hsViaje = data.cierreAdmin.horasViajeAjustadas || data.horasViaje || '0';
-
-    await addDoc(collection(db, 'mailQueue'), {
-      type: 'cierre_admin_ot',
-      status: 'pending',
-      createdAt: Timestamp.now(),
-      createdBy: user?.uid ?? null,
-      createdByName: user?.name ?? null,
-      data: {
-        otNumber,
-        razonSocial: data.razonSocial,
-        tipoServicio: data.tipoServicio,
-        horasLaboratorio: hsLab,
-        horasViaje: hsViaje,
-        horasTotal: (Number(hsLab) + Number(hsViaje)).toFixed(1),
-        partesUsadas: data.partesCount,
-        stockDeducido: data.cierreAdmin.stockDeducido,
-        notas: data.cierreAdmin.notasCierre || null,
-        ingeniero: data.ingenieroNombre,
-      },
-    });
-  },
 };

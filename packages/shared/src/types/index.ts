@@ -1456,18 +1456,6 @@ export interface SolicitudFacturacion {
   updatedAt: string;
 }
 
-export interface QuoteItem {
-  partId: string;
-  codigo: string;
-  descripcion: string;
-  cantidad: number;
-  precioUnitario: number;
-  subtotal: number;
-}
-
-// Alias para compatibilidad: equipo = sistema
-export type Equipo = Sistema;
-
 // --- Biblioteca de Tablas (TableCatalog) ---
 
 export type TableCatalogColumnType =
@@ -1927,29 +1915,6 @@ export interface ProtocolSelection {
 }
 
 // --- RenderSpec (especificación determinística para regenerar el PDF) ---
-
-/**
- * Guarda todo lo necesario para regenerar el PDF de una OT sin PDF binario.
- * Colección: /workorders/{otNumber}/renderSpec/current
- */
-export interface RenderSpec {
-  otNumber: string;
-  /** Versión del template de Hoja 1 (incrementar si hay breaking change en Layout.tsx) */
-  templateVersion: string;
-  /** Versión del schema de protocolo usada al guardar */
-  protocolVersion: string;
-  /** Versión del motor PDF (ej: "html2pdf-0.10") */
-  rendererVersion: string;
-  /** Snapshot completo de WorkOrder al momento del guardado (protege contra renombres) */
-  workOrderSnapshot: WorkOrder;
-  /** Tablas completadas por el técnico. null si el tipo de servicio no requiere protocolo */
-  protocolSelections: ProtocolSelection[] | null;
-  /** IDs de documentos en /adjuntos vinculados a esta OT */
-  adjuntosIds: string[];
-  savedAt: string;
-  savedBy: string;
-  updatedAt: string;
-}
 
 // --- Adjuntos (fotos y archivos vinculados a una OT) ---
 
@@ -3912,36 +3877,6 @@ export interface AdjuntoMeta {
 }
 
 // =============================================
-// --- Tipos legacy (reportes-ot) ---
-// =============================================
-
-export interface Module {
-  id: string;
-  modelo: string;
-  descripcion: string;
-  nroSerie: string;
-}
-
-export interface Customer {
-  id: string;
-  razonSocial: string;
-  contacto: string;
-  telefono: string;
-  email: string;
-  direccion: string;
-}
-
-export interface Equipment {
-  id: string;
-  modelo: string;
-  marca: string;
-  nroSerie: string;
-  configuracion: string;
-  customerId: string;
-  modules?: Module[];
-}
-
-// =============================================
 // --- Viáticos ---
 // =============================================
 export type MedioPago = 'efectivo' | 'tarjeta';
@@ -3991,23 +3926,6 @@ export interface ViaticoPeriodo {
   confirmadoPorNombre?: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface ServiceReport {
-  id: string;
-  otNumber: string;
-  budgetNumber: string;
-  fechaInicio: string;
-  fechaFin: string;
-  horasTrabajadas: string;
-  tiempoViaje: string;
-  customerId: string;
-  equipmentId: string;
-  reporteTecnico: string;
-  articulos: Part[];
-  accionesTomar: string;
-  esFacturable: boolean;
-  tieneContrato: boolean;
 }
 
 // --- Contratos de Servicio ---

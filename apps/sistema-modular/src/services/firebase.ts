@@ -179,8 +179,3 @@ export { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUs
 
 // ========== FIRESTORE SNAPSHOT RE-EXPORT ==========
 export { onSnapshot } from 'firebase/firestore';
-
-// inTransition kept as no-op for any leftover imports
-export function inTransition<T extends (...args: any[]) => void>(cb: T): T {
-  return cb;
-}
