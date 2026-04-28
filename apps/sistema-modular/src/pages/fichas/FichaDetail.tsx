@@ -83,8 +83,14 @@ export function FichaDetail() {
     i.estado === 'listo_para_entrega' || i.estado === 'derivado_proveedor'
   );
 
+  // Cuando el drawer de edición está abierto, reducimos el viewport del detalle
+  // para que las fotos y demás contenido sigan visibles a la izquierda en vez de
+  // quedar tapadas. En mobile el drawer es fullscreen así que no aplicamos shift.
+  // Si cambia el width del Drawer (`width="640px"` en EditFichaModal), ajustá acá.
+  const shiftClass = editModalOpen ? 'md:pr-[640px]' : '';
+
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className={`h-full flex flex-col bg-slate-50 transition-all duration-200 ${shiftClass}`}>
       {/* Header */}
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-5 pt-4 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">

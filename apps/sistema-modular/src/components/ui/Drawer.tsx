@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { pushEscape } from '../../utils/escapeStack';
 
 interface DrawerProps {
   open: boolean;
@@ -33,18 +34,11 @@ export function Drawer({
   children,
   footer,
 }: DrawerProps) {
-  // Cerrar con ESC. Capture phase para no chocar con otros handlers (lightbox).
+  // ESC cierra solo si el drawer está en la cima del escape-stack global.
+  // Si abrís un lightbox de foto encima, el ESC cierra el lightbox y NO el drawer.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return pushEscape(onClose);
   }, [open, onClose]);
 
   if (!open) return null;

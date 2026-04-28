@@ -6,6 +6,7 @@ import { googleDriveService } from '../../services/googleDriveService';
 import { fichasService } from '../../services/firebaseService';
 import type { FichaPropiedad, ItemFicha, FotoFicha } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { pushEscape } from '../../utils/escapeStack';
 
 interface Props {
   ficha: FichaPropiedad;
@@ -29,19 +30,11 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
 
   const fotos = item.fotos || [];
 
-  // Cerrar lightbox con ESC. Sin esto el browser interpreta ESC como "back"
-  // y termina navegando al listado de fichas en vez de cerrar la imagen.
+  // ESC cierra el lightbox via escape-stack global: cuando el lightbox se monta
+  // queda en la cima del stack, así un drawer abierto debajo no se cierra.
   useEffect(() => {
     if (!expanded) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setExpanded(null);
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return pushEscape(() => setExpanded(null));
   }, [expanded]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,13 +110,13 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
       {fotos.length === 0 ? (
         <p className="text-sm text-slate-400">Sin fotos registradas</p>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-1.5">
           {fotos.map(foto => (
             <div key={foto.id} className="relative group">
               <img
                 src={foto.url}
                 alt={foto.nombre}
-                className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer"
+                className="w-full aspect-square object-cover rounded-md border border-slate-200 cursor-pointer"
                 onClick={() => setExpanded(foto.viewUrl || foto.url)}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f1f5f9" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%2394a3b8" font-size="12">Error</text></svg>';
@@ -139,7 +132,6 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
                   &times;
                 </button>
               )}
-              <p className="text-[10px] text-slate-400 mt-0.5 truncate">{foto.nombre}</p>
             </div>
           ))}
         </div>
