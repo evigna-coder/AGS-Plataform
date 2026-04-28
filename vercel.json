@@ -12,8 +12,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/__/auth/:path*", "destination": "https://agssop-e7353.firebaseapp.com/__/auth/:path*" },
-    { "source": "/__/firebase/:path*", "destination": "https://agssop-e7353.firebaseapp.com/__/firebase/:path*" },
-    { "source": "/((?!assets/|__/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
