@@ -2797,8 +2797,6 @@ export interface ItemFicha {
   // --- Devolución del item ---
   remitoDevolucionId?: string | null;
   fechaEntrega?: string | null;
-  // --- Fotos del item ---
-  fotos?: FotoFicha[];
   // --- Problema / detalle ---
   descripcionProblema?: string | null;
   sintomasReportados?: string | null;
@@ -2851,6 +2849,8 @@ export interface FichaPropiedad {
   historial: HistorialFicha[];
   // --- Repuestos pendientes (a nivel del trabajo total, no por item) ---
   repuestosPendientes: RepuestoPendiente[];
+  // --- Fotos del paquete recibido / del egreso pre-embalaje (a nivel ficha) ---
+  fotos: FotoFicha[];
   // --- Loaner vinculado (a la ficha, no a un item) ---
   loanerId?: string | null;
   loanerCodigo?: string | null;

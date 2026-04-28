@@ -167,6 +167,7 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
           creadoPor: 'admin',
         }],
         repuestosPendientes: [],
+        fotos: [],
         loanerId: null,
         loanerCodigo: null,
         otIds: otReferencia.trim() ? [otReferencia.trim()] : [],

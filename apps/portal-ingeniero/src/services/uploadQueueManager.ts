@@ -58,8 +58,6 @@ class UploadQueueManager {
   async enqueueBlob(input: {
     fichaId: string;
     fichaNumero: string;
-    itemId: string;
-    itemSubId: string;
     blob: Blob;
     filename: string;
     momento: 'ingreso' | 'egreso';
@@ -69,8 +67,6 @@ class UploadQueueManager {
       id: crypto.randomUUID(),
       fichaId: input.fichaId,
       fichaNumero: input.fichaNumero,
-      itemId: input.itemId,
-      itemSubId: input.itemSubId,
       blob: input.blob,
       filename: input.filename,
       momento: input.momento,
@@ -162,11 +158,8 @@ class UploadQueueManager {
       await uploadQueueDB.update(next.id, { status: 'uploading' });
       await this.refresh();
 
-      // Usamos el subId del item como subcarpeta. Para fotos legacy sin itemSubId
-      // (cola pre-refactor multi-item), caemos al fichaNumero.
-      const folder = next.itemSubId || next.fichaNumero;
       const { storagePath, url } = await fotoStorageService.upload(
-        folder, next.blob, next.filename,
+        next.fichaNumero, next.blob, next.filename,
       );
       const fotoMeta: FotoFicha = {
         id: crypto.randomUUID(),
@@ -179,19 +172,14 @@ class UploadQueueManager {
         subidoPor: next.subidoPor,
         momento: next.momento,
       };
-      // addFoto requiere itemId — si la foto fue encolada antes del refactor
-      // multi-item y no tiene itemId, fallamos explícito con mensaje útil.
-      if (!next.itemId) {
-        throw new Error('Foto sin itemId (encolada con versión vieja). Descartar y volver a tomar.');
-      }
-      await fichasPropiedadService.addFoto(next.fichaId, next.itemId, fotoMeta);
+      await fichasPropiedadService.addFoto(next.fichaId, fotoMeta);
       await uploadQueueDB.remove(next.id);
       success = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const intentos = next.intentos + 1;
       console.error(
-        `[uploadQueue] Falló subida foto ${next.filename} (item ${next.itemSubId ?? '—'}, intento ${intentos}):`,
+        `[uploadQueue] Falló subida foto ${next.filename} (ficha ${next.fichaNumero}, intento ${intentos}):`,
         err,
       );
       try {

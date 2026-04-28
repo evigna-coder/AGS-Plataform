@@ -123,7 +123,6 @@ export const fichasPropiedadService = {
       derivaciones: [],
       remitoDevolucionId: null,
       fechaEntrega: null,
-      fotos: [],
       descripcionProblema: null,
       sintomasReportados: null,
       accesorios: [],
@@ -145,6 +144,7 @@ export const fichasPropiedadService = {
       estado: 'recibido',
       historial: [fichaHistorial],
       repuestosPendientes: [],
+      fotos: [],
       loanerId: null,
       loanerCodigo: null,
       otIds: input.otNumber ? [input.otNumber] : [],
@@ -194,21 +194,18 @@ export const fichasPropiedadService = {
   },
 
   /**
-   * Agrega una foto al item específico de la ficha. Usa transacción de lectura
-   * + write porque las fotos viven dentro del array items[].fotos[] (no se puede
-   * arrayUnion al estar nesteado). En offline, Firestore persistencia se encarga.
+   * Agrega una foto a la ficha (a nivel ficha, no por item).
+   * arrayUnion no se usa porque queremos preservar el orden de captura y
+   * permitir potencialmente updates más complejos (move/sort) en el futuro.
    */
-  async addFoto(fichaId: string, itemId: string, foto: FotoFicha): Promise<void> {
+  async addFoto(fichaId: string, foto: FotoFicha): Promise<void> {
     const ref = doc(db, COLLECTION, fichaId);
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Ficha no encontrada');
     const ficha = parseFicha(snap.id, snap.data() as Record<string, unknown>);
-    const newItems = ficha.items.map(it => {
-      if (it.id !== itemId) return it;
-      return { ...it, fotos: [...(it.fotos ?? []), foto] };
-    });
+    const newFotos = [...(ficha.fotos ?? []), foto];
     await updateDoc(ref, deepCleanForFirestore({
-      items: newItems,
+      fotos: newFotos,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     }));

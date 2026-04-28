@@ -14,7 +14,6 @@ type Step = 'ot' | 'cliente' | 'fotos' | 'done';
 interface FichaCreada {
   id: string;
   numero: string;
-  itemId: string;
 }
 
 /**
@@ -36,6 +35,8 @@ export default function RecepcionPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [ficha, setFicha] = useState<FichaCreada | null>(null);
   const { pending, online } = useUploadQueue();
+  // El itemId que devuelve create() lo usamos solo para retrocompat si quisiéramos;
+  // las fotos ya viven a nivel ficha así que el portal no lo necesita más.
 
   const handleOTContinue = async (selected: WorkOrder | null) => {
     if (selected) {
@@ -76,8 +77,8 @@ export default function RecepcionPage() {
         otReferencia: fromOT?.otNumber ?? null,
         otNumber: fromOT?.otNumber ?? null,
       });
-      setFicha(result);
-      void crearTicketRecepcion(result, form, fromOT);
+      setFicha({ id: result.id, numero: result.numero });
+      void crearTicketRecepcion({ id: result.id, numero: result.numero }, form, fromOT);
       setStep('fotos');
     } catch (err) {
       console.error('Error creando ficha:', err);
@@ -128,8 +129,6 @@ export default function RecepcionPage() {
         <CapturaFotosStep
           fichaId={ficha.id}
           fichaNumero={ficha.numero}
-          itemId={ficha.itemId}
-          itemSubId={`${ficha.numero}-1`}
           momento="ingreso"
           onDone={handleFotosDone}
           doneLabel="Finalizar recepción"

@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import type { FichaPropiedad, ItemFicha, HistorialFicha, DerivacionProveedor } from '@ags/shared';
+import type { FichaPropiedad, ItemFicha, FotoFicha, HistorialFicha, DerivacionProveedor } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 
@@ -172,6 +172,19 @@ export const fichasService = {
     await this.update(id, {
       historial: [...ficha.historial, newEntry],
     });
+  },
+
+  /** Agrega una foto a la ficha (las fotos viven a nivel ficha, no por item). */
+  async addFoto(id: string, foto: FotoFicha): Promise<void> {
+    const ficha = await this.getById(id);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    await this.update(id, { fotos: [...(ficha.fotos ?? []), foto] });
+  },
+
+  async removeFoto(id: string, fotoId: string): Promise<void> {
+    const ficha = await this.getById(id);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    await this.update(id, { fotos: (ficha.fotos ?? []).filter(f => f.id !== fotoId) });
   },
 
   // ============================================================

@@ -122,18 +122,16 @@ export function FichaDetail() {
         <div className="flex gap-5 px-5 py-4">
           {/* Sidebar */}
           <div className="w-72 shrink-0">
-            <FichaInfoSidebar ficha={ficha} />
+            <FichaInfoSidebar ficha={ficha} onUpdate={() => { /* subscription refresh */ }} />
           </div>
           {/* Main */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-4 min-w-0">
             <FichaLoanerLink ficha={ficha} />
             {/* Items */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                  Items recibidos
-                </h2>
-              </div>
+            <div className="space-y-2">
+              <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide font-mono">
+                Items recibidos
+              </h2>
               {ficha.items.length === 0 ? (
                 <p className="text-sm text-slate-400 px-3 py-6 text-center bg-white rounded-lg border border-slate-200">
                   Sin items registrados — agregalos desde "Editar"
@@ -145,13 +143,12 @@ export function FichaDetail() {
                     ficha={ficha}
                     item={item}
                     canDelete={ficha.items.length > 1 && item.estado !== 'entregado'}
-                    defaultExpanded={ficha.items.length === 1}
                     onUpdate={() => { /* subscription refresh */ }}
                   />
                 ))
               )}
             </div>
-            {/* A nivel ficha: historial global, repuestos, etc. */}
+            {/* A nivel ficha: historial global + repuestos */}
             <FichaHistorialSection historial={ficha.historial} />
             <FichaRepuestosSection ficha={ficha} onUpdate={() => { /* subscription refresh */ }} />
           </div>

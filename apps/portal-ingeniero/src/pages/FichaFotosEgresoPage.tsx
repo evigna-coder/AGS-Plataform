@@ -11,7 +11,7 @@ import { ESTADO_FICHA_LABELS } from '@ags/shared';
  * Pantalla para sumar fotos de egreso pre-embalaje a una ficha existente.
  *
  * Sin :fichaId → lista de fichas activas (no entregadas).
- * Con :fichaId → captura por item de la ficha (`momento: 'egreso'`).
+ * Con :fichaId → captura de fotos de egreso (a nivel ficha — no por item).
  */
 export default function FichaFotosEgresoPage() {
   const { fichaId } = useParams<{ fichaId?: string }>();
@@ -87,14 +87,9 @@ function ListaFichasEgreso() {
 function CapturaFichaEgreso({ fichaId }: { fichaId: string }) {
   const navigate = useNavigate();
   const [ficha, setFicha] = useState<FichaPropiedad | null | undefined>(undefined);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   useEffect(() => {
-    void fichasPropiedadService.getById(fichaId).then(f => {
-      setFicha(f);
-      // Auto-selección si hay un solo item
-      if (f && f.items.length === 1) setSelectedItemId(f.items[0].id);
-    });
+    void fichasPropiedadService.getById(fichaId).then(setFicha);
   }, [fichaId]);
 
   if (ficha === undefined) {
@@ -111,47 +106,6 @@ function CapturaFichaEgreso({ fichaId }: { fichaId: string }) {
     );
   }
 
-  // Picker de item si hay >1 y no eligió
-  if (!selectedItemId && ficha.items.length > 1) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-4 space-y-3">
-        <header>
-          <p className="text-xs uppercase tracking-wide text-slate-500 font-mono">Egreso</p>
-          <h1 className="text-base font-semibold text-slate-800 mt-0.5">
-            {ficha.numero} · {ficha.clienteNombre}
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">¿A qué item le tomás fotos?</p>
-        </header>
-        <ul className="space-y-2">
-          {ficha.items.map(it => (
-            <li key={it.id}>
-              <button
-                onClick={() => setSelectedItemId(it.id)}
-                className="w-full text-left bg-white border border-slate-200 rounded-xl px-3 py-3 hover:border-teal-400 active:bg-slate-50"
-              >
-                <p className="font-mono text-xs text-teal-700">{it.subId}</p>
-                <p className="text-sm text-slate-800 truncate">{itemTitulo(it)}</p>
-                {it.serie && <p className="text-[11px] text-slate-500 font-mono">S/N {it.serie}</p>}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <Button variant="outline" onClick={() => navigate('/recepcion/egreso')} className="w-full">
-          Cancelar
-        </Button>
-      </div>
-    );
-  }
-
-  const item = ficha.items.find(it => it.id === selectedItemId);
-  if (!item) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-8 text-center">
-        <p className="text-sm text-slate-700">Esta ficha no tiene items</p>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-md mx-auto px-4 py-4">
       <header className="mb-3">
@@ -159,18 +113,18 @@ function CapturaFichaEgreso({ fichaId }: { fichaId: string }) {
           Egreso · Pre-embalaje
         </p>
         <h1 className="text-base font-semibold text-slate-800 mt-0.5">
-          {item.subId} · {ficha.clienteNombre}
+          {ficha.numero} · {ficha.clienteNombre}
         </h1>
-        <p className="text-xs text-slate-500">{itemTitulo(item)}</p>
+        <p className="text-xs text-slate-500">
+          {ficha.items.length} item{ficha.items.length === 1 ? '' : 's'} en la ficha
+        </p>
       </header>
 
       <CapturaFotosStep
         fichaId={ficha.id}
         fichaNumero={ficha.numero}
-        itemId={item.id}
-        itemSubId={item.subId}
         momento="egreso"
-        fotosConfirmadas={item.fotos ?? []}
+        fotosConfirmadas={ficha.fotos ?? []}
         onDone={() => navigate('/recepcion/egreso')}
         doneLabel="Listo"
       />
