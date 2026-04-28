@@ -118,6 +118,19 @@ class UploadQueueManager {
     await this.refresh();
   }
 
+  /**
+   * Vacía la cola entera. Escape de emergencia cuando hay fotos atascadas que
+   * no se pueden subir (versión vieja sin itemId, error persistente, etc.).
+   * Las fotos se pierden — habrá que volver a tomarlas.
+   */
+  async clearAll(): Promise<void> {
+    const all = await uploadQueueDB.getAll();
+    for (const f of all) await uploadQueueDB.remove(f.id);
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this.setState({ draining: false });
+    await this.refresh();
+  }
+
   private handleOnline = () => {
     this.setState({ online: true });
     void this.tick();

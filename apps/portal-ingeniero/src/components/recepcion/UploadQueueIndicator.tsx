@@ -10,7 +10,7 @@ import { useUploadQueue } from '../../hooks/useUploadQueue';
  * network, quota, etc.).
  */
 export function UploadQueueIndicator() {
-  const { pending, online, draining, retryAll, discard } = useUploadQueue();
+  const { pending, online, draining, retryAll, clearAll, discard } = useUploadQueue();
   const [expanded, setExpanded] = useState(false);
 
   if (pending.length === 0 && online) return null;
@@ -58,16 +58,15 @@ export function UploadQueueIndicator() {
           </button>
         )}
       </div>
-      {expanded && conError.length > 0 && (
-        <div className="border-t border-current/20 max-h-48 overflow-y-auto">
-          {conError.map(p => (
+      {expanded && (
+        <div className="border-t border-current/20 max-h-56 overflow-y-auto">
+          {conError.length > 0 ? conError.map(p => (
             <div key={p.id} className="px-3 py-2 border-b border-current/10 last:border-b-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-[10px] truncate">{p.itemSubId || p.fichaNumero} · {p.filename}</span>
                 <button
                   onClick={() => void discard(p.id)}
                   className="text-[10px] underline shrink-0"
-                  title="Descartar de la cola (la foto se pierde)"
                 >
                   Descartar
                 </button>
@@ -77,7 +76,24 @@ export function UploadQueueIndicator() {
               </p>
               <p className="text-[10px] opacity-60">Intento {p.intentos}</p>
             </div>
-          ))}
+          )) : (
+            <p className="px-3 py-2 text-[10px] opacity-70">
+              Sin errores registrados — las fotos están en proceso o esperando red.
+            </p>
+          )}
+          <div className="px-3 py-2 border-t border-current/20">
+            <button
+              onClick={() => {
+                if (confirm('¿Vaciar TODA la cola? Las fotos pendientes se pierden y hay que volver a tomarlas.')) {
+                  void clearAll();
+                  setExpanded(false);
+                }
+              }}
+              className="text-[11px] font-semibold underline"
+            >
+              Limpiar cola completa
+            </button>
+          </div>
         </div>
       )}
     </div>
