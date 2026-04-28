@@ -6,7 +6,7 @@ import {
   TICKET_AREA_LABELS, TICKET_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
-  canUserModifyLead,
+  canUserModifyTicket,
   getUserTicketAreas,
   canViewAllTickets,
 } from '@ags/shared';
@@ -267,7 +267,7 @@ export default function LeadsPage() {
             <div className="md:hidden space-y-2 overflow-y-auto h-full pb-2">
               {leadsFiltered.map(lead => {
                 const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
-                const canModify = usuario ? canUserModifyLead(lead, usuario) : false;
+                const canModify = usuario ? canUserModifyTicket(lead, usuario) : false;
                 const daysOpen = getDaysOpen(lead.createdAt);
                 return (
                   <Link key={lead.id} to={`/leads/${lead.id}`}
@@ -375,7 +375,7 @@ export default function LeadsPage() {
                 <tbody className="divide-y divide-slate-100">
                   {leadsFiltered.map(lead => {
                     const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
-                    const canModify = usuario ? canUserModifyLead(lead, usuario) : false;
+                    const canModify = usuario ? canUserModifyTicket(lead, usuario) : false;
                     const daysOpen = getDaysOpen(lead.createdAt);
                     const daysUntil = getDaysUntilContacto(lead.proximoContacto);
                     return (

@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
-import { collection, getDocs, doc, deleteDoc, addDoc } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { sistemasService } from '../../../services/equiposService';
 import { useBackgroundTasks } from '../../../contexts/BackgroundTasksContext';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
 
@@ -60,98 +59,18 @@ export function UnificarSistemasDuplicados() {
       });
     };
 
-    addLog('Cargando sistemas...');
-    const sistemasSnap = await getDocs(collection(db, 'sistemas'));
-    const allSistemas = sistemasSnap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        nombre: (data.nombre || '') as string,
-        clienteId: (data.clienteId || data.clienteCuit || '') as string,
-        establecimientoId: (data.establecimientoId || '') as string,
-        codigoInterno: (data.codigoInternoCliente || '') as string,
-      };
+    const resultGroups = await sistemasService.findDuplicateGroups({
+      onProgress: addLog,
+      isCancelled: () => bg.isCancelled(UNIFY_TASK_ID),
     });
-    addLog(`${allSistemas.length} sistemas encontrados.`);
-
-    // Cargar nombres de clientes
-    addLog('Cargando clientes...');
-    const clientesSnap = await getDocs(collection(db, 'clientes'));
-    const clienteNames = new Map<string, string>();
-    clientesSnap.docs.forEach(d => {
-      const data = d.data();
-      clienteNames.set(d.id, (data.razonSocial || d.id) as string);
-    });
-
-    // Agrupar por nombre + clienteId + codigoInterno
-    // Si tienen distinto código interno, son equipos diferentes (ej: HPLC 1100 con EV-001 vs CC-003)
-    const byKey = new Map<string, typeof allSistemas>();
-    for (const s of allSistemas) {
-      if (!s.nombre || !s.clienteId) continue;
-      const code = s.codigoInterno.trim().toLowerCase();
-      const key = `${s.nombre.trim().toLowerCase()}|${s.clienteId}|${code}`;
-      if (!byKey.has(key)) byKey.set(key, []);
-      byKey.get(key)!.push(s);
-    }
-
-    // Filtrar solo grupos con duplicados
-    const dupGroups = [...byKey.entries()].filter(([, arr]) => arr.length > 1);
-    addLog(`${dupGroups.length} grupos de sistemas duplicados encontrados.`);
-
-    if (dupGroups.length === 0) {
-      updateState({ status: 'scanned', groups: [] });
-      addLog('No hay sistemas duplicados.');
-      bg.finishTask(UNIFY_TASK_ID);
-      return;
-    }
-
-    // Para cada grupo, cargar módulos
-    addLog('Cargando módulos de sistemas duplicados...');
-    const resultGroups: DupSistemaGroup[] = [];
-    let processed = 0;
-
-    for (const [key, sistemas] of dupGroups) {
-      if (bg.isCancelled(UNIFY_TASK_ID)) break;
-
-      const parts = key.split('|');
-      const clienteId = parts[1];
-      const sistemasWithModulos = [];
-
-      for (const s of sistemas) {
-        const modulosSnap = await getDocs(collection(db, 'sistemas', s.id, 'modulos'));
-        const modulos = modulosSnap.docs.map(d => ({
-          id: d.id,
-          nombre: (d.data().nombre || '') as string,
-          serie: (d.data().serie || '') as string,
-          data: d.data() as Record<string, unknown>,
-        }));
-        sistemasWithModulos.push({
-          ...s,
-          moduloCount: modulos.length,
-          modulos,
-        });
-      }
-
-      // Master = el que tiene más módulos, desempate por ID más corto (suele ser el original)
-      sistemasWithModulos.sort((a, b) => b.moduloCount - a.moduloCount || a.id.length - b.id.length);
-      const masterId = sistemasWithModulos[0].id;
-
-      resultGroups.push({
-        key,
-        nombre: sistemas[0].nombre,
-        clienteId,
-        clienteNombre: clienteNames.get(clienteId) || clienteId,
-        sistemas: sistemasWithModulos,
-        masterId,
-      });
-
-      processed++;
-      if (processed % 10 === 0) addLog(`${processed}/${dupGroups.length} grupos procesados...`);
-    }
 
     updateState({ status: 'scanned', groups: resultGroups });
-    const totalDups = resultGroups.reduce((sum, g) => sum + g.sistemas.length - 1, 0);
-    addLog(`Escaneo completo: ${resultGroups.length} grupos, ${totalDups} sistemas duplicados para unificar.`);
+    if (resultGroups.length === 0) {
+      addLog('No hay sistemas duplicados.');
+    } else {
+      const totalDups = resultGroups.reduce((sum, g) => sum + g.sistemas.length - 1, 0);
+      addLog(`Escaneo completo: ${resultGroups.length} grupos, ${totalDups} sistemas duplicados para unificar.`);
+    }
     bg.finishTask(UNIFY_TASK_ID);
   };
 
@@ -178,57 +97,19 @@ export function UnificarSistemasDuplicados() {
     for (const group of groups) {
       const masterId = getMasterId(group);
       const master = group.sistemas.find(s => s.id === masterId)!;
-      const duplicates = group.sistemas.filter(s => s.id !== masterId);
 
       addLog(`--- ${group.nombre} (${group.clienteNombre}) → maestro: ${master.codigoInterno || master.id}`);
 
-      // Obtener series ya existentes en el maestro para no duplicar
-      const masterSeries = new Set(master.modulos.map(m => m.serie?.trim().toLowerCase()).filter(Boolean));
-
-      for (const dup of duplicates) {
-        // Mover módulos del duplicado al maestro
-        for (const mod of dup.modulos) {
-          const serieKey = mod.serie?.trim().toLowerCase();
-          if (serieKey && masterSeries.has(serieKey)) {
-            addLog(`  SKIP módulo "${mod.nombre}" S/N:${mod.serie} (ya existe en maestro)`);
-            // Borrar el duplicado del módulo
-            try {
-              await deleteDoc(doc(db, 'sistemas', dup.id, 'modulos', mod.id));
-            } catch (e) { /* ignore */ }
-            continue;
-          }
-
-          try {
-            // Crear en maestro
-            const { ...modData } = mod.data;
-            modData.sistemaId = masterId;
-            await addDoc(collection(db, 'sistemas', masterId, 'modulos'), modData);
-            // Borrar del duplicado
-            await deleteDoc(doc(db, 'sistemas', dup.id, 'modulos', mod.id));
-            movedModulos++;
-            if (serieKey) masterSeries.add(serieKey);
-          } catch (e) {
-            addLog(`  ERROR moviendo módulo ${mod.id}: ${e}`);
-          }
-        }
-
-        // Verificar que el sistema duplicado quedó vacío
-        const remainingSnap = await getDocs(collection(db, 'sistemas', dup.id, 'modulos'));
-        if (remainingSnap.empty) {
-          try {
-            await deleteDoc(doc(db, 'sistemas', dup.id));
-            deletedSistemas++;
-            addLog(`  Eliminado sistema duplicado ${dup.codigoInterno || dup.id}`);
-          } catch (e) {
-            addLog(`  ERROR eliminando sistema ${dup.id}: ${e}`);
-          }
-        } else {
-          addLog(`  WARN: sistema ${dup.id} aún tiene ${remainingSnap.size} módulos, no se eliminó`);
-        }
-      }
+      const { moved, deletedSistemas: del } = await sistemasService.mergeDuplicateGroup(
+        group,
+        masterId,
+        { onProgress: addLog },
+      );
+      movedModulos += moved;
+      deletedSistemas += del;
     }
 
-    addLog(`===`);
+    addLog('===');
     addLog(`Unificación completa: ${movedModulos} módulos movidos, ${deletedSistemas} sistemas eliminados.`);
     updateState({ status: 'done', groups: [] });
   };

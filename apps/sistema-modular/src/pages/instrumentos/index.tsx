@@ -1,2 +1,2 @@
-export { InstrumentosListPage } from './InstrumentosListPage';
+export { InstrumentosList } from './InstrumentosList';
 export { InstrumentoEditorPage } from './InstrumentoEditorPage';

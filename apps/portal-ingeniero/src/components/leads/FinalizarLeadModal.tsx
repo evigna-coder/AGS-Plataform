@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { VoiceTextarea } from '../ui/VoiceTextarea';
 import { useAuth } from '../../contexts/AuthContext';
 import { leadsService } from '../../services/firebaseService';
-import type { Lead, Posta, LeadEstado } from '@ags/shared';
+import type { Lead, Posta, TicketEstado } from '@ags/shared';
 
 interface Props {
   lead: Lead;
@@ -12,14 +12,14 @@ interface Props {
   onSuccess: () => void;
 }
 
-const RESULTADOS: { value: LeadEstado; label: string }[] = [
+const RESULTADOS: { value: TicketEstado; label: string }[] = [
   { value: 'finalizado', label: 'Finalizado (resuelto)' },
   { value: 'no_concretado', label: 'No concretado' },
 ];
 
 export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) {
   const { usuario } = useAuth();
-  const [resultado, setResultado] = useState<LeadEstado>('finalizado');
+  const [resultado, setResultado] = useState<TicketEstado>('finalizado');
   const [comentario, setComentario] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -52,7 +52,7 @@ export default function FinalizarLeadModal({ lead, onClose, onSuccess }: Props) 
           <label className="text-[11px] font-medium text-slate-500 mb-0.5 block">Resultado *</label>
           <select
             value={resultado}
-            onChange={e => setResultado(e.target.value as LeadEstado)}
+            onChange={e => setResultado(e.target.value as TicketEstado)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             {RESULTADOS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}

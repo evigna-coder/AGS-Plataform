@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import type { UsuarioAGS, MotivoLlamado, LeadArea, LeadPrioridad, Cliente, Sistema, ModuloSistema, ContactoCliente } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS, findClienteCandidatesByRazonSocial } from '@ags/shared';
+import type { UsuarioAGS, MotivoLlamado, TicketArea, TicketPrioridad, Cliente, Sistema, ModuloSistema, ContactoCliente } from '@ags/shared';
+import { TICKET_MAX_ADJUNTOS, TICKET_PRIORIDAD_DIAS, findClienteCandidatesByRazonSocial } from '@ags/shared';
 import { leadsService, usuariosService, clientesService, sistemasService, modulosService, contactosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -34,9 +34,9 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
   const [moduloId, setModuloId] = useState('');
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [asignadoA, setAsignadoA] = useState('');
-  const [areaActual, setAreaActual] = useState<LeadArea | ''>('');
+  const [areaActual, setAreaActual] = useState<TicketArea | ''>('');
   const [accionPendiente, setAccionPendiente] = useState('');
-  const [prioridad, setPrioridad] = useState<LeadPrioridad>('normal');
+  const [prioridad, setPrioridad] = useState<TicketPrioridad>('normal');
   const [estadoInicial, setEstadoInicial] = useState<import('@ags/shared').TicketEstado>('nuevo');
   const [diasProximoContacto, setDiasProximoContacto] = useState('');
   const [fechaContactoCustom, setFechaContactoCustom] = useState('');
@@ -118,7 +118,7 @@ export function useCrearLeadForm(onClose: () => void, onCreated?: (leadId?: stri
 
   const handleFileChange = (files: FileList | null) => {
     if (!files) return;
-    const total = [...pendingFiles, ...Array.from(files)].slice(0, LEAD_MAX_ADJUNTOS);
+    const total = [...pendingFiles, ...Array.from(files)].slice(0, TICKET_MAX_ADJUNTOS);
     setPendingFiles(total);
     if (fileRef.current) fileRef.current.value = '';
   };

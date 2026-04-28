@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import type { AdjuntoLead } from '@ags/shared';
-import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
+import type { AdjuntoTicket } from '@ags/shared';
+import { TICKET_MAX_ADJUNTOS } from '@ags/shared';
 import { leadsService } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -8,7 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   leadId: string;
-  adjuntos: AdjuntoLead[];
+  adjuntos: AdjuntoTicket[];
   onUpdated: () => void;
   readOnly?: boolean;
 }
@@ -19,7 +19,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function isImage(adj: AdjuntoLead): boolean {
+function isImage(adj: AdjuntoTicket): boolean {
   return adj.tipo === 'imagen';
 }
 
@@ -29,14 +29,14 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const remaining = LEAD_MAX_ADJUNTOS - adjuntos.length;
+  const remaining = TICKET_MAX_ADJUNTOS - adjuntos.length;
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     if (files.length > remaining) {
-      alert(`Podés adjuntar ${remaining} archivo(s) más (máximo ${LEAD_MAX_ADJUNTOS}).`);
+      alert(`Podés adjuntar ${remaining} archivo(s) más (máximo ${TICKET_MAX_ADJUNTOS}).`);
     }
 
     setUploading(true);
@@ -52,7 +52,7 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
     }
   };
 
-  const handleRemove = async (adj: AdjuntoLead) => {
+  const handleRemove = async (adj: AdjuntoTicket) => {
     if (!await confirm(`Eliminar "${adj.nombre}"?`)) return;
     try {
       await leadsService.removeAdjunto(leadId, adj, adjuntos);
@@ -68,7 +68,7 @@ export const LeadAdjuntosSection = ({ leadId, adjuntos, onUpdated, readOnly }: P
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-[11px] font-medium text-slate-400">
-            Adjuntos ({adjuntos.length}/{LEAD_MAX_ADJUNTOS})
+            Adjuntos ({adjuntos.length}/{TICKET_MAX_ADJUNTOS})
           </h3>
           {!readOnly && remaining > 0 && (
             <div>

@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { sistemasService } from '../../../services/equiposService';
 import { useBackgroundTasks } from '../../../contexts/BackgroundTasksContext';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
 
@@ -49,87 +48,15 @@ export function RepairSistemaEstablecimiento() {
       });
     };
 
-    addLog('Cargando sistemas y establecimientos...');
-
-    const sistemasSnap = await getDocs(collection(db, 'sistemas'));
-    const sistemas = sistemasSnap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        nombre: (data.nombre || '') as string,
-        establecimientoId: (data.establecimientoId || '') as string,
-        clienteId: (data.clienteId || data.clienteCuit || '') as string,
-      };
+    const { pendingFixes } = await sistemasService.scanOrphanedEstablecimientos({
+      onProgress: addLog,
+      isCancelled: () => bg.isCancelled(REPAIR_TASK_ID),
     });
-    addLog(`${sistemas.length} sistemas cargados.`);
-
-    const sinEstablecimiento = sistemas.filter(s => !s.establecimientoId);
-    addLog(`${sinEstablecimiento.length} sistemas sin establecimiento asignado.`);
-
-    if (sinEstablecimiento.length === 0) {
-      addLog('Verificando establecimientos asignados...');
-      const estSnap = await getDocs(collection(db, 'establecimientos'));
-      const estIds = new Set(estSnap.docs.map(d => d.id));
-      const invalidos = sistemas.filter(s => s.establecimientoId && !estIds.has(s.establecimientoId));
-      if (invalidos.length === 0) {
-        addLog('Todos los sistemas tienen establecimiento válido.');
-        updateState({ status: 'scanned' });
-        bg.finishTask(REPAIR_TASK_ID);
-        return;
-      }
-      addLog(`${invalidos.length} sistemas con establecimientoId inválido.`);
-    }
-
-    const estSnap = await getDocs(collection(db, 'establecimientos'));
-    const establecimientos = estSnap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        nombre: (data.nombre || '') as string,
-        clienteCuit: (data.clienteCuit || data.clienteId || '') as string,
-      };
-    });
-    addLog(`${establecimientos.length} establecimientos cargados.`);
-
-    const estByCliente = new Map<string, typeof establecimientos>();
-    for (const e of establecimientos) {
-      if (!e.clienteCuit) continue;
-      if (!estByCliente.has(e.clienteCuit)) estByCliente.set(e.clienteCuit, []);
-      estByCliente.get(e.clienteCuit)!.push(e);
-    }
-
-    const pendingFixes: RepairFix[] = [];
-    const problemSistemas = sistemas.filter(s => !s.establecimientoId || s.establecimientoId === '');
-
-    for (const s of problemSistemas) {
-      if (bg.isCancelled(REPAIR_TASK_ID)) break;
-      if (!s.clienteId) {
-        addLog(`SKIP: Sistema "${s.nombre}" (${s.id}) sin clienteId`);
-        continue;
-      }
-      const clienteEstabs = estByCliente.get(s.clienteId) || [];
-      if (clienteEstabs.length === 0) {
-        addLog(`SKIP: Sistema "${s.nombre}" - cliente ${s.clienteId} sin establecimientos`);
-        continue;
-      }
-      if (clienteEstabs.length === 1) {
-        pendingFixes.push({
-          sistemaId: s.id,
-          sistemaNombre: s.nombre,
-          clienteId: s.clienteId,
-          oldEstId: s.establecimientoId,
-          newEstId: clienteEstabs[0].id,
-          newEstNombre: clienteEstabs[0].nombre,
-        });
-      } else {
-        addLog(`MANUAL: Sistema "${s.nombre}" - cliente tiene ${clienteEstabs.length} establecimientos: ${clienteEstabs.map(e => e.nombre).join(', ')}`);
-      }
-    }
 
     updateState({ status: 'scanned', fixes: pendingFixes });
-    addLog(`---`);
+    addLog('---');
     addLog(`${pendingFixes.length} sistemas se pueden reasignar automaticamente (clientes con 1 solo establecimiento).`);
-    addLog(`Los sistemas de clientes con multiples establecimientos requieren asignacion manual.`);
+    addLog('Los sistemas de clientes con multiples establecimientos requieren asignacion manual.');
     bg.finishTask(REPAIR_TASK_ID);
   };
 
@@ -147,7 +74,7 @@ export function RepairSistemaEstablecimiento() {
     let fixed = 0;
     for (const f of fixes) {
       try {
-        await updateDoc(doc(db, 'sistemas', f.sistemaId), { establecimientoId: f.newEstId });
+        await sistemasService.update(f.sistemaId, { establecimientoId: f.newEstId });
         fixed++;
         if (fixed % 20 === 0) addLog(`${fixed}/${fixes.length} reasignados...`);
       } catch (e) {

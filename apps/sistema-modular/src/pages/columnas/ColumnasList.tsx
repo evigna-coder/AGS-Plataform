@@ -29,7 +29,7 @@ const FILTER_SCHEMA = {
   showInactive: { type: 'boolean' as const, default: false },
 };
 
-export const ColumnasListPage = () => {
+export const ColumnasList = () => {
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('columnas-list');
   const { columnas, loading, error, listColumnas, deactivateColumna } = useColumnas();

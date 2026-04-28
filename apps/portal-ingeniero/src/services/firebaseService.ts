@@ -20,9 +20,9 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, LeadEstado, LeadArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoLead, AdminConfigFlujos } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, TicketEstado, TicketArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoTicket, AdminConfigFlujos } from '@ags/shared';
 import {
-  LEAD_MAX_ADJUNTOS,
+  TICKET_MAX_ADJUNTOS,
   parseLeadDoc, syncFlatFromContactos,
 } from '@ags/shared';
 import { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
@@ -272,13 +272,13 @@ export const adminConfigService = {
  * hay área, no hay default, o el usuario no está activo. Falla soft.
  */
 async function resolveDefaultResponsableForArea(
-  area: LeadArea | null | undefined,
+  area: TicketArea | null | undefined,
 ): Promise<{ id: string; displayName: string } | null> {
   if (!area || area === 'sistema') return null;
   try {
     const cfg = await adminConfigService.get();
     if (!cfg) return null;
-    const defaultId = cfg.responsablePorArea?.[area as Exclude<LeadArea, 'sistema'>];
+    const defaultId = cfg.responsablePorArea?.[area as Exclude<TicketArea, 'sistema'>];
     if (!defaultId) return null;
     const userSnap = await getDoc(doc(db, 'usuarios', defaultId));
     if (!userSnap.exists()) return null;
@@ -332,7 +332,7 @@ export const leadsService = {
     // Auto-asignar responsable por defecto del área cuando el ticket se crea
     // con areaActual pero sin asignadoA (si no, el responsable del área no lo ve).
     if (!syncedRest.asignadoA && syncedRest.areaActual) {
-      const def = await resolveDefaultResponsableForArea(syncedRest.areaActual as LeadArea);
+      const def = await resolveDefaultResponsableForArea(syncedRest.areaActual as TicketArea);
       if (def) {
         syncedRest.asignadoA = def.id;
         syncedRest.asignadoNombre = def.displayName;
@@ -354,7 +354,7 @@ export const leadsService = {
     return ref.id;
   },
 
-  async getAll(filters?: { estado?: LeadEstado; asignadoA?: string }): Promise<Lead[]> {
+  async getAll(filters?: { estado?: TicketEstado; asignadoA?: string }): Promise<Lead[]> {
     const constraints: QueryConstraint[] = [];
     if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
     if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
@@ -366,7 +366,7 @@ export const leadsService = {
 
   /** Real-time subscription. Returns unsubscribe function. */
   subscribe(
-    filters: { estado?: LeadEstado; asignadoA?: string; createdBy?: string } | undefined,
+    filters: { estado?: TicketEstado; asignadoA?: string; createdBy?: string } | undefined,
     callback: (leads: Lead[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
@@ -422,7 +422,7 @@ export const leadsService = {
     logAudit({ action: 'update', collection: 'leads', documentId: id, after: payload });
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }): Promise<void> {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: TicketArea | null, accionRequerida?: string | null, extras?: { motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }): Promise<void> {
     // Si se deriva a un área sin elegir persona, auto-asignar al responsable
     // configurado para esa área. Refleja también el destinatario en el posta.
     let postaFinal = posta;
@@ -492,10 +492,10 @@ export const leadsService = {
     logAudit({ action: 'delete', collection: 'leads', documentId: id });
   },
 
-  async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoLead[]> {
-    const available = LEAD_MAX_ADJUNTOS - existingCount;
+  async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoTicket[]> {
+    const available = TICKET_MAX_ADJUNTOS - existingCount;
     const toUpload = files.slice(0, available);
-    const uploaded: AdjuntoLead[] = [];
+    const uploaded: AdjuntoTicket[] = [];
 
     for (const file of toUpload) {
       const storageRef = ref(storage, `leads/${leadId}/adjuntos/${Date.now()}_${file.name}`);
@@ -524,7 +524,7 @@ export const leadsService = {
     return uploaded;
   },
 
-  async removeAdjunto(leadId: string, adjunto: AdjuntoLead, allAdjuntos: AdjuntoLead[]): Promise<void> {
+  async removeAdjunto(leadId: string, adjunto: AdjuntoTicket, allAdjuntos: AdjuntoTicket[]): Promise<void> {
     try {
       const storageRef = ref(storage, adjunto.url);
       await deleteObject(storageRef);

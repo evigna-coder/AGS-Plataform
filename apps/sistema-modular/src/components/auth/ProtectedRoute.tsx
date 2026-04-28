@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import type { UserRole, ModuloId } from '@ags/shared';
 import { canAccessModulo, getModuloFromPath } from '@ags/shared';
 import { useAuth } from '../../contexts/AuthContext';
-import { AccessDeniedPage } from '../../pages/auth/AccessDeniedPage';
+import { AccessDeniedPage } from '../../pages/auth';
 
 interface Props {
   children: ReactNode;

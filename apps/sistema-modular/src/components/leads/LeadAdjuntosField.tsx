@@ -1,4 +1,4 @@
-import { LEAD_MAX_ADJUNTOS } from '@ags/shared';
+import { TICKET_MAX_ADJUNTOS } from '@ags/shared';
 
 const labelClass = 'text-[11px] font-medium text-slate-400 mb-1 block';
 
@@ -11,12 +11,12 @@ interface Props {
 
 export const LeadAdjuntosField: React.FC<Props> = ({ pendingFiles, fileRef, onFileChange, onRemove }) => (
   <div>
-    <label className={labelClass}>Adjuntos ({pendingFiles.length}/{LEAD_MAX_ADJUNTOS})</label>
+    <label className={labelClass}>Adjuntos ({pendingFiles.length}/{TICKET_MAX_ADJUNTOS})</label>
     <input ref={fileRef} type="file" className="hidden" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
       onChange={e => onFileChange(e.target.files)} />
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => fileRef.current?.click()}
-        disabled={pendingFiles.length >= LEAD_MAX_ADJUNTOS}
+        disabled={pendingFiles.length >= TICKET_MAX_ADJUNTOS}
         className="text-xs text-teal-600 hover:text-teal-800 font-medium disabled:text-slate-400 disabled:cursor-not-allowed">
         + Seleccionar archivos
       </button>

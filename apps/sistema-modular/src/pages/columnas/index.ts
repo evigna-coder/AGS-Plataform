@@ -1,2 +1,2 @@
-export { ColumnasListPage } from './ColumnasListPage';
+export { ColumnasList } from './ColumnasList';
 export { ColumnaEditorPage } from './ColumnaEditorPage';

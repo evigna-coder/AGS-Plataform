@@ -1,8 +1,8 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion, runTransaction } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Lead, LeadEstado, LeadArea, LeadPrioridad, MotivoLlamado, Posta, AdjuntoLead, PresupuestoEstado, OTEstadoAdmin, Ticket, Cliente } from '@ags/shared';
+import type { Lead, TicketEstado, TicketArea, TicketPrioridad, MotivoLlamado, Posta, AdjuntoTicket, PresupuestoEstado, OTEstadoAdmin, Ticket, Cliente } from '@ags/shared';
 import {
-  LEAD_MAX_ADJUNTOS, findClienteCandidatesByRazonSocial,
+  TICKET_MAX_ADJUNTOS, findClienteCandidatesByRazonSocial,
   PRESUPUESTO_TO_LEAD_ESTADO, PRESUPUESTO_ESTADO_LABELS, OT_TO_LEAD_ESTADO,
   parseLeadDoc, syncFlatFromContactos,
 } from '@ags/shared';
@@ -24,14 +24,14 @@ function ventasInsumosStamp(incomingMotivo: MotivoLlamado | undefined, currentMo
  * Falla soft: cualquier error → null (el ticket queda sin asignar).
  */
 async function resolveDefaultResponsableForArea(
-  area: LeadArea | null | undefined,
+  area: TicketArea | null | undefined,
 ): Promise<{ id: string; displayName: string } | null> {
   if (!area || area === 'sistema') return null;
   try {
     const { adminConfigService } = await import('./adminConfigService');
     const { usuariosService } = await import('./personalService');
     const cfg = await adminConfigService.getWithDefaults();
-    const defaultId = cfg.responsablePorArea?.[area as Exclude<LeadArea, 'sistema'>];
+    const defaultId = cfg.responsablePorArea?.[area as Exclude<TicketArea, 'sistema'>];
     if (!defaultId) return null;
     const user = await usuariosService.getById(defaultId);
     if (!user || user.status !== 'activo') return null;
@@ -125,7 +125,7 @@ export const leadsService = {
     return leadRef.id;
   },
 
-  async getAll(filters?: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: LeadArea }) {
+  async getAll(filters?: { estado?: TicketEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: TicketArea }) {
     const constraints: any[] = [];
     if (filters?.estado) constraints.push(where('estado', '==', filters.estado));
     if (filters?.asignadoA) constraints.push(where('asignadoA', '==', filters.asignadoA));
@@ -139,7 +139,7 @@ export const leadsService = {
 
   /** Real-time subscription. Returns unsubscribe function. */
   subscribe(
-    filters: { estado?: LeadEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: LeadArea } | undefined,
+    filters: { estado?: TicketEstado; asignadoA?: string; motivoLlamado?: MotivoLlamado; areaActual?: TicketArea } | undefined,
     callback: (leads: Lead[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
@@ -226,7 +226,7 @@ export const leadsService = {
     await batch.commit();
   },
 
-  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: LeadArea | null, accionRequerida?: string | null, extras?: { prioridad?: LeadPrioridad | null; proximoContacto?: string | null; motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }) {
+  async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: TicketArea | null, accionRequerida?: string | null, extras?: { prioridad?: TicketPrioridad | null; proximoContacto?: string | null; motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }) {
     // Si se deriva a un área sin elegir persona, auto-asignar al responsable
     // configurado para esa área (adminConfig/flujos.responsablePorArea). El
     // posta también se actualiza para que el timeline refleje al destinatario real.
@@ -326,10 +326,10 @@ export const leadsService = {
     await batch.commit();
   },
 
-  async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoLead[]> {
-    const available = LEAD_MAX_ADJUNTOS - existingCount;
+  async uploadAdjuntos(leadId: string, files: File[], existingCount: number): Promise<AdjuntoTicket[]> {
+    const available = TICKET_MAX_ADJUNTOS - existingCount;
     const toUpload = files.slice(0, available);
-    const uploaded: AdjuntoLead[] = [];
+    const uploaded: AdjuntoTicket[] = [];
 
     for (const file of toUpload) {
       const storageRef = ref(storage, `leads/${leadId}/adjuntos/${Date.now()}_${file.name}`);
@@ -420,7 +420,7 @@ export const leadsService = {
     // queda con su asignado actual (coordinador).
     let nextAsignadoA: string | null = null;
     let nextAsignadoNombre: string | null = null;
-    let nextAreaActual: LeadArea | null = null;
+    let nextAreaActual: TicketArea | null = null;
     let nextAccionPendiente: string | null = null;
     if (newEstadoAdmin === 'CIERRE_TECNICO') {
       try {
@@ -432,7 +432,7 @@ export const leadsService = {
           if (materiales && materiales.status === 'activo') {
             nextAsignadoA = materiales.id;
             nextAsignadoNombre = materiales.displayName ?? null;
-            nextAreaActual = 'administracion' as LeadArea;
+            nextAreaActual = 'administracion' as TicketArea;
             nextAccionPendiente = `OT-${otNumber} cerrada técnicamente — ejecutar cierre administrativo (descarga artículos + facturación)`;
           }
         }
@@ -477,7 +477,7 @@ export const leadsService = {
     await batch.commit();
   },
 
-  async removeAdjunto(leadId: string, adjunto: AdjuntoLead, allAdjuntos: AdjuntoLead[]) {
+  async removeAdjunto(leadId: string, adjunto: AdjuntoTicket, allAdjuntos: AdjuntoTicket[]) {
     // Delete from Storage
     try {
       const storageRef = ref(storage, adjunto.url);

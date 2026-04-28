@@ -1,2 +1,2 @@
-export { PatronesListPage } from './PatronesListPage';
+export { PatronesList } from './PatronesList';
 export { PatronEditorPage } from './PatronEditorPage';

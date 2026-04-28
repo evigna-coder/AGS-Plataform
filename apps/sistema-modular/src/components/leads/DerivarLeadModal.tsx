@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Lead, LeadArea, TicketArea, TicketPrioridad, UsuarioAGS, Posta, Ingeniero, MotivoLlamado, PendienteTipo, Sistema } from '@ags/shared';
+import type { Lead, TicketArea, TicketPrioridad, UsuarioAGS, Posta, Ingeniero, MotivoLlamado, PendienteTipo, Sistema } from '@ags/shared';
 import { TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_DIAS, MOTIVO_LLAMADO_LABELS, PENDIENTE_TIPO_LABELS, getUserTicketAreas } from '@ags/shared';
 import { leadsService, usuariosService, ingenierosService, sistemasService, clientesService } from '../../services/firebaseService';
 import { pendientesService } from '../../services/pendientesService';
@@ -21,7 +21,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
   const [usuarios, setUsuarios] = useState<UsuarioAGS[]>([]);
   const [_ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
-  const [areaDestino, setAreaDestino] = useState<LeadArea | ''>(lead.areaActual || '');
+  const [areaDestino, setAreaDestino] = useState<TicketArea | ''>(lead.areaActual || '');
   const [comentario, setComentario] = useState(lead.descripcion || lead.accionPendiente || '');
   const [prioridad, setPrioridad] = useState<TicketPrioridad | 'custom'>((lead.prioridad as TicketPrioridad) || 'normal');
   const [fechaContactoCustom, setFechaContactoCustom] = useState('');
@@ -203,7 +203,7 @@ export const DerivarLeadModal = ({ lead, onClose, onDerived }: DerivarLeadModalP
           </div>
           <div>
             <label className={labelClass}>Área destino</label>
-            <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as LeadArea | '')} className={selectClass}>
+            <select value={areaDestino} onChange={e => setAreaDestino(e.target.value as TicketArea | '')} className={selectClass}>
               <option value="">Sin área específica</option>
               {Object.entries(TICKET_AREA_LABELS).map(([v, l]) => (
                 <option key={v} value={v}>{l}</option>

@@ -670,20 +670,6 @@ export interface Posta {
   accionRequerida?: string;
 }
 
-// --- Backward compat aliases (will be removed eventually) ---
-/** @deprecated Use TicketArea */ export type LeadArea = TicketArea;
-/** @deprecated Use TicketEstado */ export type LeadEstado = TicketEstado;
-/** @deprecated Use TicketPrioridad */ export type LeadPrioridad = TicketPrioridad;
-/** @deprecated */ export const LEAD_PRIORIDAD_LABELS_LEGACY = { alta: 'Alta', media: 'Media', baja: 'Baja' };
-/** @deprecated */ export const LEAD_AREA_LABELS = TICKET_AREA_LABELS;
-/** @deprecated */ export const LEAD_AREA_COLORS = TICKET_AREA_COLORS;
-/** @deprecated */ export const LEAD_PRIORIDAD_LABELS = TICKET_PRIORIDAD_LABELS;
-/** @deprecated */ export const LEAD_PRIORIDAD_COLORS = TICKET_PRIORIDAD_COLORS;
-/** @deprecated */ export const LEAD_ESTADO_LABELS = TICKET_ESTADO_LABELS;
-/** @deprecated */ export const LEAD_ESTADO_COLORS = TICKET_ESTADO_COLORS;
-/** @deprecated */ export const LEAD_ESTADO_ORDER = TICKET_ESTADO_ORDER;
-/** @deprecated */ export const ROLE_LEAD_AREAS = ROLE_TICKET_AREAS;
-/** @deprecated */ export const canUserModifyLead = canUserModifyTicket;
 
 
 // --- Tipos de Servicio (lista simple, sin categorías) ---
@@ -791,9 +777,6 @@ export interface Ticket {
   ventasInsumosCreadoEn?: string | null;
 }
 
-// --- Backward compat aliases ---
-/** @deprecated Use AdjuntoTicket */ export type AdjuntoLead = AdjuntoTicket;
-/** @deprecated Use TICKET_MAX_ADJUNTOS */ export const LEAD_MAX_ADJUNTOS = TICKET_MAX_ADJUNTOS;
 /** @deprecated Use Ticket */ export type Lead = Ticket;
 
 // --- Usuario (catálogo postas) ---

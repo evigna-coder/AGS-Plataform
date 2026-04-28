@@ -378,6 +378,261 @@ export const sistemasService = {
     console.log('Sistema eliminado exitosamente');
   },
 
+  /**
+   * Busca grupos de sistemas duplicados (mismo nombre + clienteId + codigoInternoCliente)
+   * y carga sus módulos. El sistema con más módulos queda como `masterId` por default
+   * (desempate: ID más corto, suele ser el original); el caller puede override.
+   */
+  async findDuplicateGroups(opts?: {
+    onProgress?: (msg: string) => void;
+    isCancelled?: () => boolean;
+  }): Promise<{
+    key: string;
+    nombre: string;
+    clienteId: string;
+    clienteNombre: string;
+    sistemas: {
+      id: string;
+      nombre: string;
+      codigoInterno: string;
+      establecimientoId: string;
+      moduloCount: number;
+      modulos: { id: string; nombre: string; serie: string; data: Record<string, unknown> }[];
+    }[];
+    masterId: string;
+  }[]> {
+    const onProgress = opts?.onProgress ?? (() => {});
+    const isCancelled = opts?.isCancelled ?? (() => false);
+
+    onProgress('Cargando sistemas...');
+    const sistemasSnap = await getDocs(collection(db, 'sistemas'));
+    const allSistemas = sistemasSnap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        nombre: (data.nombre || '') as string,
+        clienteId: (data.clienteId || data.clienteCuit || '') as string,
+        establecimientoId: (data.establecimientoId || '') as string,
+        codigoInterno: (data.codigoInternoCliente || '') as string,
+      };
+    });
+    onProgress(`${allSistemas.length} sistemas encontrados.`);
+
+    onProgress('Cargando clientes...');
+    const clientesSnap = await getDocs(collection(db, 'clientes'));
+    const clienteNames = new Map<string, string>();
+    clientesSnap.docs.forEach(d => {
+      const data = d.data();
+      clienteNames.set(d.id, (data.razonSocial || d.id) as string);
+    });
+
+    // Agrupar por nombre + clienteId + codigoInterno (distinto código = equipos diferentes)
+    const byKey = new Map<string, typeof allSistemas>();
+    for (const s of allSistemas) {
+      if (!s.nombre || !s.clienteId) continue;
+      const code = s.codigoInterno.trim().toLowerCase();
+      const key = `${s.nombre.trim().toLowerCase()}|${s.clienteId}|${code}`;
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(s);
+    }
+
+    const dupGroups = [...byKey.entries()].filter(([, arr]) => arr.length > 1);
+    onProgress(`${dupGroups.length} grupos de sistemas duplicados encontrados.`);
+
+    if (dupGroups.length === 0) return [];
+
+    onProgress('Cargando módulos de sistemas duplicados...');
+    const resultGroups: Awaited<ReturnType<typeof sistemasService.findDuplicateGroups>> = [];
+    let processed = 0;
+
+    for (const [key, sistemas] of dupGroups) {
+      if (isCancelled()) break;
+
+      const parts = key.split('|');
+      const clienteId = parts[1];
+      const sistemasWithModulos = [];
+
+      for (const s of sistemas) {
+        const modulosSnap = await getDocs(collection(db, 'sistemas', s.id, 'modulos'));
+        const modulos = modulosSnap.docs.map(d => ({
+          id: d.id,
+          nombre: (d.data().nombre || '') as string,
+          serie: (d.data().serie || '') as string,
+          data: d.data() as Record<string, unknown>,
+        }));
+        sistemasWithModulos.push({ ...s, moduloCount: modulos.length, modulos });
+      }
+
+      // Master = el que tiene más módulos, desempate por ID más corto
+      sistemasWithModulos.sort((a, b) => b.moduloCount - a.moduloCount || a.id.length - b.id.length);
+
+      resultGroups.push({
+        key,
+        nombre: sistemas[0].nombre,
+        clienteId,
+        clienteNombre: clienteNames.get(clienteId) || clienteId,
+        sistemas: sistemasWithModulos,
+        masterId: sistemasWithModulos[0].id,
+      });
+
+      processed++;
+      if (processed % 10 === 0) onProgress(`${processed}/${dupGroups.length} grupos procesados...`);
+    }
+
+    return resultGroups;
+  },
+
+  /**
+   * Unifica un grupo de sistemas duplicados moviendo los módulos del/los duplicado(s)
+   * al maestro y eliminando los sistemas vacíos. Skipea módulos con serie ya presente
+   * en el maestro (los borra del duplicado para no perderlos en limbo).
+   */
+  async mergeDuplicateGroup(
+    group: {
+      sistemas: { id: string; codigoInterno: string; modulos: { id: string; nombre: string; serie: string; data: Record<string, unknown> }[] }[];
+    },
+    masterId: string,
+    opts?: { onProgress?: (msg: string) => void },
+  ): Promise<{ moved: number; deletedSistemas: number }> {
+    const onProgress = opts?.onProgress ?? (() => {});
+    const master = group.sistemas.find(s => s.id === masterId);
+    if (!master) throw new Error(`Master sistemaId ${masterId} no encontrado en el grupo`);
+    const duplicates = group.sistemas.filter(s => s.id !== masterId);
+
+    const masterSeries = new Set(master.modulos.map(m => m.serie?.trim().toLowerCase()).filter(Boolean));
+    let moved = 0;
+    let deletedSistemas = 0;
+
+    for (const dup of duplicates) {
+      for (const mod of dup.modulos) {
+        const serieKey = mod.serie?.trim().toLowerCase();
+        if (serieKey && masterSeries.has(serieKey)) {
+          onProgress(`  SKIP módulo "${mod.nombre}" S/N:${mod.serie} (ya existe en maestro)`);
+          try {
+            await deleteDoc(doc(db, 'sistemas', dup.id, 'modulos', mod.id));
+          } catch { /* ignore */ }
+          continue;
+        }
+
+        try {
+          const modData = { ...mod.data, sistemaId: masterId };
+          await addDoc(collection(db, 'sistemas', masterId, 'modulos'), modData);
+          await deleteDoc(doc(db, 'sistemas', dup.id, 'modulos', mod.id));
+          moved++;
+          if (serieKey) masterSeries.add(serieKey);
+        } catch (e) {
+          onProgress(`  ERROR moviendo módulo ${mod.id}: ${e}`);
+        }
+      }
+
+      // Verificar que el duplicado quedó vacío antes de eliminarlo
+      const remainingSnap = await getDocs(collection(db, 'sistemas', dup.id, 'modulos'));
+      if (remainingSnap.empty) {
+        try {
+          await deleteDoc(doc(db, 'sistemas', dup.id));
+          deletedSistemas++;
+          onProgress(`  Eliminado sistema duplicado ${dup.codigoInterno || dup.id}`);
+        } catch (e) {
+          onProgress(`  ERROR eliminando sistema ${dup.id}: ${e}`);
+        }
+      } else {
+        onProgress(`  WARN: sistema ${dup.id} aún tiene ${remainingSnap.size} módulos, no se eliminó`);
+      }
+    }
+
+    return { moved, deletedSistemas };
+  },
+
+  /**
+   * Escanea sistemas con `establecimientoId` faltante o inválido y propone fixes
+   * automáticos cuando el cliente tiene un único establecimiento. Sistemas de
+   * clientes con múltiples establecimientos se loguean para resolución manual.
+   */
+  async scanOrphanedEstablecimientos(opts?: {
+    onProgress?: (msg: string) => void;
+    isCancelled?: () => boolean;
+  }): Promise<{
+    pendingFixes: { sistemaId: string; sistemaNombre: string; clienteId: string; oldEstId: string; newEstId: string; newEstNombre: string }[];
+    summary: { totalSistemas: number; sinEstablecimiento: number; invalidos: number };
+  }> {
+    const onProgress = opts?.onProgress ?? (() => {});
+    const isCancelled = opts?.isCancelled ?? (() => false);
+
+    onProgress('Cargando sistemas y establecimientos...');
+    const sistemasSnap = await getDocs(collection(db, 'sistemas'));
+    const sistemas = sistemasSnap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        nombre: (data.nombre || '') as string,
+        establecimientoId: (data.establecimientoId || '') as string,
+        clienteId: (data.clienteId || data.clienteCuit || '') as string,
+      };
+    });
+    onProgress(`${sistemas.length} sistemas cargados.`);
+
+    const sinEstablecimiento = sistemas.filter(s => !s.establecimientoId);
+    onProgress(`${sinEstablecimiento.length} sistemas sin establecimiento asignado.`);
+
+    const estSnap = await getDocs(collection(db, 'establecimientos'));
+    const establecimientos = estSnap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        nombre: (data.nombre || '') as string,
+        clienteCuit: (data.clienteCuit || data.clienteId || '') as string,
+      };
+    });
+    const estIds = new Set(establecimientos.map(e => e.id));
+    const invalidos = sistemas.filter(s => s.establecimientoId && !estIds.has(s.establecimientoId));
+    onProgress(`${establecimientos.length} establecimientos cargados.`);
+
+    if (sinEstablecimiento.length === 0 && invalidos.length === 0) {
+      onProgress('Todos los sistemas tienen establecimiento válido.');
+      return { pendingFixes: [], summary: { totalSistemas: sistemas.length, sinEstablecimiento: 0, invalidos: 0 } };
+    }
+
+    const estByCliente = new Map<string, typeof establecimientos>();
+    for (const e of establecimientos) {
+      if (!e.clienteCuit) continue;
+      if (!estByCliente.has(e.clienteCuit)) estByCliente.set(e.clienteCuit, []);
+      estByCliente.get(e.clienteCuit)!.push(e);
+    }
+
+    const pendingFixes: { sistemaId: string; sistemaNombre: string; clienteId: string; oldEstId: string; newEstId: string; newEstNombre: string }[] = [];
+    const problemSistemas = sistemas.filter(s => !s.establecimientoId);
+
+    for (const s of problemSistemas) {
+      if (isCancelled()) break;
+      if (!s.clienteId) {
+        onProgress(`SKIP: Sistema "${s.nombre}" (${s.id}) sin clienteId`);
+        continue;
+      }
+      const clienteEstabs = estByCliente.get(s.clienteId) || [];
+      if (clienteEstabs.length === 0) {
+        onProgress(`SKIP: Sistema "${s.nombre}" - cliente ${s.clienteId} sin establecimientos`);
+        continue;
+      }
+      if (clienteEstabs.length === 1) {
+        pendingFixes.push({
+          sistemaId: s.id,
+          sistemaNombre: s.nombre,
+          clienteId: s.clienteId,
+          oldEstId: s.establecimientoId,
+          newEstId: clienteEstabs[0].id,
+          newEstNombre: clienteEstabs[0].nombre,
+        });
+      } else {
+        onProgress(`MANUAL: Sistema "${s.nombre}" - cliente tiene ${clienteEstabs.length} establecimientos: ${clienteEstabs.map(e => e.nombre).join(', ')}`);
+      }
+    }
+
+    return {
+      pendingFixes,
+      summary: { totalSistemas: sistemas.length, sinEstablecimiento: sinEstablecimiento.length, invalidos: invalidos.length },
+    };
+  },
+
   /** Real-time subscription with optional filters. Returns unsubscribe function. */
   subscribe(
     filters: { establecimientoId?: string; clienteId?: string; activosOnly?: boolean } | undefined,
@@ -479,5 +734,63 @@ export const modulosService = {
     await batch.commit();
     console.log(`Modulo movido exitosamente. Nuevo ID: ${newId}`);
     return newId;
+  },
+
+  /**
+   * Escanea todos los sistemas buscando módulos con número de serie duplicado dentro
+   * del mismo sistema. Conserva el más antiguo (por createdAt) y devuelve los demás
+   * para que el caller decida qué hacer.
+   *
+   * Acepta callbacks opcionales (onProgress, isCancelled) porque corre en background
+   * task con UI de progreso. Sin callbacks funciona como scan one-shot.
+   */
+  async findDuplicatesBySerie(opts?: {
+    onProgress?: (msg: string) => void;
+    isCancelled?: () => boolean;
+  }): Promise<{
+    totalModulos: number;
+    duplicates: { sistemaId: string; moduloId: string; serie: string; sistemaNombre: string }[];
+  }> {
+    const onProgress = opts?.onProgress ?? (() => {});
+    const isCancelled = opts?.isCancelled ?? (() => false);
+
+    onProgress('Cargando todos los sistemas...');
+    const sistemasSnap = await getDocs(collection(db, 'sistemas'));
+    const sistemas = sistemasSnap.docs.map(d => ({ id: d.id, nombre: (d.data().nombre || d.id) as string }));
+    onProgress(`${sistemas.length} sistemas encontrados. Escaneando modulos...`);
+
+    const duplicates: { sistemaId: string; moduloId: string; serie: string; sistemaNombre: string }[] = [];
+    let totalModulos = 0;
+
+    for (const sistema of sistemas) {
+      if (isCancelled()) break;
+
+      const modulosSnap = await getDocs(collection(db, 'sistemas', sistema.id, 'modulos'));
+      const modulos = modulosSnap.docs.map(d => ({
+        id: d.id,
+        serie: (d.data().serie || '') as string,
+        createdAt: d.data().createdAt as { seconds?: number } | undefined,
+      }));
+      totalModulos += modulos.length;
+
+      const bySerie = new Map<string, typeof modulos>();
+      for (const m of modulos) {
+        if (!m.serie) continue;
+        const key = m.serie.trim().toLowerCase();
+        if (!key) continue;
+        if (!bySerie.has(key)) bySerie.set(key, []);
+        bySerie.get(key)!.push(m);
+      }
+
+      for (const [serie, group] of bySerie) {
+        if (group.length <= 1) continue;
+        group.sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+        for (let i = 1; i < group.length; i++) {
+          duplicates.push({ sistemaId: sistema.id, moduloId: group[i].id, serie, sistemaNombre: sistema.nombre });
+        }
+      }
+    }
+
+    return { totalModulos, duplicates };
   },
 };

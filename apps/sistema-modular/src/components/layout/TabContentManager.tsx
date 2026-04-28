@@ -11,9 +11,9 @@ import { EquiposList, EquipoDetail, CategoriasEquipo } from '../../pages/equipos
 import { OTList, OTNew, OTDetail, TiposServicio } from '../../pages/ordenes-trabajo';
 import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio } from '../../pages/presupuestos';
 import { TableCatalogPage, TableCatalogEditorPage, MigrateRenameConclusion } from '../../pages/protocol-catalog';
-import { InstrumentosListPage, InstrumentoEditorPage } from '../../pages/instrumentos';
-import { PatronesListPage, PatronEditorPage } from '../../pages/patrones';
-import { ColumnasListPage, ColumnaEditorPage } from '../../pages/columnas';
+import { InstrumentosList, InstrumentoEditorPage } from '../../pages/instrumentos';
+import { PatronesList, PatronEditorPage } from '../../pages/patrones';
+import { ColumnasList, ColumnaEditorPage } from '../../pages/columnas';
 import { FichasList, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
 import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitTemplatesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
@@ -104,14 +104,14 @@ function AppRoutes() {
       <Route path="/vehiculos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><VehiculosList /></ProtectedRoute>} />
       <Route path="/vehiculos/:id" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><VehiculoDetail /></ProtectedRoute>} />
       {/* Instrumentos */}
-      <Route path="/instrumentos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentosListPage /></ProtectedRoute>} />
+      <Route path="/instrumentos" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentosList /></ProtectedRoute>} />
       <Route path="/instrumentos/nuevo" element={<Navigate to="/instrumentos" replace />} />
       <Route path="/instrumentos/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentoEditorPage /></ProtectedRoute>} />
       {/* Patrones */}
-      <Route path="/patrones" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronesListPage /></ProtectedRoute>} />
+      <Route path="/patrones" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronesList /></ProtectedRoute>} />
       <Route path="/patrones/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronEditorPage /></ProtectedRoute>} />
       {/* Columnas */}
-      <Route path="/columnas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnasListPage /></ProtectedRoute>} />
+      <Route path="/columnas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnasList /></ProtectedRoute>} />
       <Route path="/columnas/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnaEditorPage /></ProtectedRoute>} />
       {/* Fichas — edición es modal desde FichaDetail (política del sistema) */}
       <Route path="/fichas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><FichasList /></ProtectedRoute>} />

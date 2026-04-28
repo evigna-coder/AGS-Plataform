@@ -50,7 +50,7 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
   sin_cert: { label: 'Sin cert.', cls: 'bg-slate-100 text-slate-500' },
 };
 
-export const PatronesListPage = () => {
+export const PatronesList = () => {
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('patrones-list');
   const { patrones, loading, error, listPatrones, deactivatePatron } = usePatrones();

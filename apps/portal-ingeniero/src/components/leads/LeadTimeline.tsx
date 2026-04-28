@@ -1,5 +1,5 @@
 import type { Posta } from '@ags/shared';
-import { getSimplifiedEstadoLabel, LEAD_AREA_LABELS } from '@ags/shared';
+import { getSimplifiedEstadoLabel, TICKET_AREA_LABELS } from '@ags/shared';
 
 interface Props {
   postas: Posta[];
@@ -47,7 +47,7 @@ export default function LeadTimeline({ postas }: Props) {
                   </span>
                   {p.aArea && (
                     <span className="text-[10px] font-medium text-teal-500 ml-1">
-                      → {LEAD_AREA_LABELS[p.aArea]}
+                      → {TICKET_AREA_LABELS[p.aArea]}
                     </span>
                   )}
                 </p>

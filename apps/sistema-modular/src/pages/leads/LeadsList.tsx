@@ -2,15 +2,15 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
-import type { Lead, LeadArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
+import type { Lead, TicketArea, MotivoLlamado, UsuarioAGS } from '@ags/shared';
 import {
   getSimplifiedEstadoLabel, getSimplifiedEstadoColor,
-  LEAD_AREA_LABELS, LEAD_AREA_COLORS,
+  TICKET_AREA_LABELS, TICKET_AREA_COLORS,
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
-  LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
+  TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
   getUserTicketAreas,
   canViewAllTickets,
-  canUserModifyLead,
+  canUserModifyTicket,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -91,7 +91,7 @@ export const LeadsList = () => {
     // Estado se filtra client-side porque "en_proceso" agrupa múltiples estados internos.
     return {
       ...(filters.motivo ? { motivoLlamado: filters.motivo as MotivoLlamado } : {}),
-      ...(filters.area ? { areaActual: filters.area as LeadArea } : {}),
+      ...(filters.area ? { areaActual: filters.area as TicketArea } : {}),
       ...(responsableFilter ? { asignadoA: responsableFilter } : {}),
     };
   }, [filters.motivo, filters.area, filters.responsable, filters.soloMios, filters.misCreados, filters.misDerivados, usuario]);
@@ -365,7 +365,7 @@ export const LeadsList = () => {
               <tbody className="divide-y divide-slate-100">
                 {leadsSorted.map(lead => {
                   const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
-                  const canModify = usuario ? canUserModifyLead(lead, usuario) : false;
+                  const canModify = usuario ? canUserModifyTicket(lead, usuario) : false;
                   const daysOpen = getDaysOpen(lead.createdAt);
                   const daysUntil = getDaysUntilContacto(lead.proximoContacto);
                   return (
@@ -399,8 +399,8 @@ export const LeadsList = () => {
                       {!isHidden(3) && (
                         <td className={tdCls(3, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           {lead.prioridad ? (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_PRIORIDAD_COLORS[lead.prioridad]}`}>
-                              {LEAD_PRIORIDAD_LABELS[lead.prioridad]}
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_PRIORIDAD_COLORS[lead.prioridad]}`}>
+                              {TICKET_PRIORIDAD_LABELS[lead.prioridad]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
@@ -415,8 +415,8 @@ export const LeadsList = () => {
                       {!isHidden(5) && (
                         <td className={tdCls(5, 'px-3 py-2 whitespace-nowrap overflow-hidden')}>
                           {lead.areaActual ? (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${LEAD_AREA_COLORS[lead.areaActual]}`}>
-                              {LEAD_AREA_LABELS[lead.areaActual]}
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TICKET_AREA_COLORS[lead.areaActual]}`}>
+                              {TICKET_AREA_LABELS[lead.areaActual]}
                             </span>
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>

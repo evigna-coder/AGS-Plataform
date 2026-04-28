@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LeadArea, LeadPrioridad, MotivoLlamado } from '@ags/shared';
+import type { TicketArea, TicketPrioridad, MotivoLlamado } from '@ags/shared';
 import { MOTIVO_LLAMADO_LABELS, TICKET_AREA_LABELS, TICKET_PRIORIDAD_LABELS } from '@ags/shared';
 import { SearchableSelect } from '../ui/SearchableSelect';
 
@@ -15,8 +15,8 @@ const ESTADO_TABS: { value: EstadoFilterValue; label: string }[] = [
 
 export interface LeadFiltersState {
   motivo: MotivoLlamado | '';
-  area: LeadArea | '';
-  prioridad: LeadPrioridad | '';
+  area: TicketArea | '';
+  prioridad: TicketPrioridad | '';
   responsable: string;
   soloMios: boolean;
   misCreados: boolean;
@@ -159,13 +159,13 @@ export const LeadFilters = ({ search, onSearchChange, estadoFilter, onEstadoChan
             </div>
             <div className="min-w-0 md:min-w-[100px]">
               <SearchableSelect size="sm" value={filters.prioridad}
-                onChange={v => set({ prioridad: v as LeadPrioridad | '' })}
+                onChange={v => set({ prioridad: v as TicketPrioridad | '' })}
                 options={[{ value: '', label: 'Prioridad: Todas' }, ...Object.entries(TICKET_PRIORIDAD_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
                 placeholder="Prioridad" />
             </div>
             <div className="min-w-0 md:min-w-[110px]">
               <SearchableSelect size="sm" value={filters.area}
-                onChange={v => set({ area: v as LeadArea | '' })}
+                onChange={v => set({ area: v as TicketArea | '' })}
                 options={[{ value: '', label: 'Área: Todas' }, ...Object.entries(TICKET_AREA_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
                 placeholder="Área" />
             </div>

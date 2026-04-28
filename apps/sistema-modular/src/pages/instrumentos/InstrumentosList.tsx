@@ -55,7 +55,7 @@ const FILTER_SCHEMA = {
   showInactive: { type: 'boolean' as const, default: false },
 };
 
-export const InstrumentosListPage = () => {
+export const InstrumentosList = () => {
 
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('instrumentos-list');

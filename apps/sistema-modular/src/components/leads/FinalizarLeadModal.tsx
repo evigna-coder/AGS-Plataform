@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Lead, LeadEstado, Posta, Sistema } from '@ags/shared';
+import type { Lead, TicketEstado, Posta, Sistema } from '@ags/shared';
 import { leadsService, sistemasService } from '../../services/firebaseService';
 import { pendientesService } from '../../services/pendientesService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -62,7 +62,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
         aUsuarioId: usuario.id,
         aUsuarioNombre: usuario.displayName,
         estadoAnterior: lead.estado,
-        estadoNuevo: estadoFinal as LeadEstado,
+        estadoNuevo: estadoFinal as TicketEstado,
         ...(comentario.trim() ? { comentario: comentario.trim() } : {}),
       };
       await leadsService.finalizar(lead.id, posta);

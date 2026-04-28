@@ -5,8 +5,7 @@ import { FloatingPresupuestoProvider } from './contexts/FloatingPresupuestoConte
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { Layout } from './components/Layout';
-import { LoginPage } from './pages/auth/LoginPage';
-import { PendingApprovalPage } from './pages/auth/PendingApprovalPage';
+import { LoginPage, PendingApprovalPage } from './pages/auth';
 import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
 import { useLeadNotifications } from './hooks/useLeadNotifications';
 

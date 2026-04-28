@@ -9,7 +9,7 @@
  * de DocumentSnapshot → Lead.
  */
 import type {
-  Lead, LeadEstado, LeadArea, MotivoLlamado, ContactoTicket,
+  Lead, TicketEstado, TicketArea, MotivoLlamado, ContactoTicket,
   PresupuestoEstado, OTEstadoAdmin,
 } from '../types';
 import { getContactoPrincipal } from '../types';
@@ -23,7 +23,7 @@ import { getContactoPrincipal } from '../types';
  * - `en_ejecucion` significa "OT(s) ya creadas y trabajando" → ticket pasa a ot_creada.
  * - `anulado` cierra el ticket como `no_concretado` (la oportunidad se cayó).
  */
-export const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, LeadEstado>> = {
+export const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<PresupuestoEstado, TicketEstado>> = {
   enviado: 'presupuesto_enviado',
   aceptado: 'en_coordinacion',
   en_ejecucion: 'ot_creada',
@@ -46,7 +46,7 @@ export const PRESUPUESTO_ESTADO_LABELS: Partial<Record<PresupuestoEstado, string
  * el comentario de reportes-ot reconocía la duplicación intencional ("escribimos
  * directo a Firestore"). Acá queda single source of truth.
  */
-export const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
+export const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, TicketEstado>> = {
   CREADA: 'ot_creada',
   ASIGNADA: 'ot_creada',
   COORDINADA: 'ot_coordinada',
@@ -59,7 +59,7 @@ export const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
 // ── Migraciones de campos legacy ──────────────────────────────────────────────
 
 /**
- * Migra valores de estado legacy al esquema actual de LeadEstado.
+ * Migra valores de estado legacy al esquema actual de TicketEstado.
  *
  * Los estados intermedios introducidos en Phase 8/10 (esperando_oc, oc_recibida,
  * pendiente_aviso_facturacion, pendiente_facturacion, ot_creada, ot_coordinada,
@@ -73,8 +73,8 @@ export const OT_TO_LEAD_ESTADO: Partial<Record<OTEstadoAdmin, LeadEstado>> = {
  * Si necesitás un análisis más fino (¿está aceptado? ¿anulado?), correr
  * /admin/backfill-ticket-estados (no implementado aún — TODO Phase 13).
  */
-export function migrateLeadEstado(raw: string): LeadEstado {
-  const migration: Record<string, LeadEstado> = {
+export function migrateLeadEstado(raw: string): TicketEstado {
+  const migration: Record<string, TicketEstado> = {
     contactado: 'en_seguimiento',
     en_revision: 'en_seguimiento',
     derivado: 'en_seguimiento',
@@ -92,7 +92,7 @@ export function migrateLeadEstado(raw: string): LeadEstado {
     }
     return migration[raw];
   }
-  return (raw as LeadEstado) || 'nuevo';
+  return (raw as TicketEstado) || 'nuevo';
 }
 
 /** Migra valores de motivoLlamado legacy. */
@@ -106,10 +106,10 @@ export function migrateMotivoLlamado(raw: string | null | undefined): MotivoLlam
   return migration[raw] || (raw as MotivoLlamado);
 }
 
-/** Migra valores de areaActual legacy al esquema actual de LeadArea. */
-export function migrateLeadArea(raw: string | null | undefined): LeadArea | null {
+/** Migra valores de areaActual legacy al esquema actual de TicketArea. */
+export function migrateLeadArea(raw: string | null | undefined): TicketArea | null {
   if (!raw) return null;
-  const migration: Record<string, LeadArea> = {
+  const migration: Record<string, TicketArea> = {
     presupuesto: 'ventas',
     contrato: 'ventas',
     venta_insumos: 'ventas',
@@ -121,7 +121,7 @@ export function migrateLeadArea(raw: string | null | undefined): LeadArea | null
     facturacion: 'administracion',
     pago_proveedores: 'administracion',
   };
-  return migration[raw] || (raw as LeadArea);
+  return migration[raw] || (raw as TicketArea);
 }
 
 // ── Hidratación de contactos ──────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { modulosService } from '../../../services/equiposService';
 import { useBackgroundTasks } from '../../../contexts/BackgroundTasksContext';
 import { useConfirm } from '../../../components/ui/ConfirmDialog';
 
@@ -48,43 +47,10 @@ export function DedupModulos() {
       });
     };
 
-    addLog('Cargando todos los sistemas...');
-
-    const sistemasSnap = await getDocs(collection(db, 'sistemas'));
-    const sistemas = sistemasSnap.docs.map(d => ({ id: d.id, nombre: (d.data().nombre || d.id) as string }));
-    addLog(`${sistemas.length} sistemas encontrados. Escaneando modulos...`);
-
-    const dupes: DedupRow[] = [];
-    let totalModulos = 0;
-
-    for (const sistema of sistemas) {
-      if (bg.isCancelled(DEDUP_TASK_ID)) break;
-
-      const modulosSnap = await getDocs(collection(db, 'sistemas', sistema.id, 'modulos'));
-      const modulos = modulosSnap.docs.map(d => ({ id: d.id, serie: (d.data().serie || '') as string, createdAt: d.data().createdAt }));
-      totalModulos += modulos.length;
-
-      const bySerie = new Map<string, typeof modulos>();
-      for (const m of modulos) {
-        if (!m.serie) continue;
-        const key = m.serie.trim().toLowerCase();
-        if (!key) continue;
-        if (!bySerie.has(key)) bySerie.set(key, []);
-        bySerie.get(key)!.push(m);
-      }
-
-      for (const [serie, group] of bySerie) {
-        if (group.length <= 1) continue;
-        group.sort((a, b) => {
-          const ta = a.createdAt?.seconds ?? 0;
-          const tb = b.createdAt?.seconds ?? 0;
-          return ta - tb;
-        });
-        for (let i = 1; i < group.length; i++) {
-          dupes.push({ sistemaId: sistema.id, moduloId: group[i].id, serie, sistemaNombre: sistema.nombre });
-        }
-      }
-    }
+    const { totalModulos, duplicates: dupes } = await modulosService.findDuplicatesBySerie({
+      onProgress: addLog,
+      isCancelled: () => bg.isCancelled(DEDUP_TASK_ID),
+    });
 
     updateState({ status: 'scanned', duplicates: dupes });
     addLog(`Escaneo completo: ${totalModulos} modulos totales, ${dupes.length} duplicados encontrados.`);
@@ -105,7 +71,7 @@ export function DedupModulos() {
     let deleted = 0;
     for (const d of duplicates) {
       try {
-        await deleteDoc(doc(db, 'sistemas', d.sistemaId, 'modulos', d.moduloId));
+        await modulosService.delete(d.sistemaId, d.moduloId);
         deleted++;
         if (deleted % 50 === 0) addLog(`${deleted}/${duplicates.length} eliminados...`);
       } catch (e) {

@@ -1,5 +1,5 @@
 import type { Posta } from '@ags/shared';
-import { getSimplifiedEstadoLabel, LEAD_AREA_LABELS } from '@ags/shared';
+import { getSimplifiedEstadoLabel, TICKET_AREA_LABELS } from '@ags/shared';
 
 interface LeadTimelineProps {
   postas: Posta[];
@@ -43,7 +43,7 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
                   </span>
                   {p.aArea && (
                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600">
-                      → {LEAD_AREA_LABELS[p.aArea]}
+                      → {TICKET_AREA_LABELS[p.aArea]}
                     </span>
                   )}
                 </div>

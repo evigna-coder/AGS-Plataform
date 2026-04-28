@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { presupuestosService, clientesService, sistemasService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService, usuariosService, contactosService, leadsService } from '../services/firebaseService';
 import { modulosService } from '../services/equiposService';
-import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, LeadEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
+import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
-const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], LeadEstado>> = {
+const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], TicketEstado>> = {
   borrador: 'presupuesto_pendiente',
   enviado: 'presupuesto_enviado',
   aceptado: 'en_coordinacion',

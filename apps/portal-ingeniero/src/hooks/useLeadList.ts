@@ -1,20 +1,20 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { leadsService, usuariosService } from '../services/firebaseService';
-import type { Lead, LeadEstado } from '@ags/shared';
+import type { Lead, TicketEstado } from '@ags/shared';
 
 export function useLeadList() {
   const { usuario } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState<LeadEstado | ''>('');
+  const [estadoFilter, setEstadoFilter] = useState<TicketEstado | ''>('');
   const [misLeads, setMisLeads] = useState(true);
   const unsubRef = useRef<(() => void) | null>(null);
   const userMapRef = useRef<Map<string, string> | null>(null);
 
   const queryFilters = useMemo(() => {
-    const f: { estado?: LeadEstado; asignadoA?: string } = {};
+    const f: { estado?: TicketEstado; asignadoA?: string } = {};
     if (estadoFilter) f.estado = estadoFilter;
     if (misLeads && usuario?.id) f.asignadoA = usuario.id;
     return f;
