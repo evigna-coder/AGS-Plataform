@@ -11,6 +11,8 @@ interface AuthContextValue {
   usuario: UsuarioAGS | null;
   loading: boolean;
   authError: string | null;
+  /** Email rechazado por dominio incorrecto (para mostrar en LoginPage). null = sin error de dominio. */
+  domainError: string | null;
   isAuthenticated: boolean;
   isPending: boolean;
   isDisabled: boolean;
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextValue>({
   usuario: null,
   loading: true,
   authError: null,
+  domainError: null,
   isAuthenticated: false,
   isPending: false,
   isDisabled: false,
@@ -38,6 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [usuario, setUsuario] = useState<UsuarioAGS | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [domainError, setDomainError] = useState<string | null>(null);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -46,6 +50,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         async (user) => {
           setFirebaseUser(user);
           if (user && isAllowedDomain(user)) {
+            setDomainError(null);
             try {
               const uData = await usuariosService.upsertOnLogin({
                 uid: user.uid,
@@ -62,6 +67,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
           } else {
             if (user && !isAllowedDomain(user)) {
+              setDomainError(user.email ?? 'cuenta sin email');
               await signOut();
             }
             setUsuario(null);
@@ -103,7 +109,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, usuario, loading, authError, isAuthenticated, isPending, isDisabled, hasRole, canAccess }}>
+    <AuthContext.Provider value={{ firebaseUser, usuario, loading, authError, domainError, isAuthenticated, isPending, isDisabled, hasRole, canAccess }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { signInWithGoogle } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage({ error }: { error?: string | null }) {
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const { domainError } = useAuth();
 
   const displayError = error || localError;
 
@@ -41,6 +43,15 @@ export default function LoginPage({ error }: { error?: string | null }) {
             <h2 className="text-base font-semibold text-slate-800">Iniciar sesión</h2>
             <p className="text-xs text-slate-400 mt-1">Solo para ingenieros AGS Analítica</p>
           </div>
+
+          {domainError && !displayError && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-left">
+              <p className="text-xs font-semibold text-amber-800">Cuenta no permitida</p>
+              <p className="text-[11px] text-amber-700 mt-0.5">
+                <span className="font-mono">{domainError}</span> no pertenece a @agsanalitica.com. Volvé a intentar y elegí tu cuenta corporativa.
+              </p>
+            </div>
+          )}
 
           {displayError && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-700">

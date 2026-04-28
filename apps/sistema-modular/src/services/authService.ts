@@ -29,7 +29,11 @@ export function isAllowedDomain(user: User | null): boolean {
 
 export async function signInWithGoogle(): Promise<User> {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ hd: ALLOWED_DOMAIN });
+  // hd: filtra el picker al dominio Workspace (si aplica).
+  // prompt=select_account: fuerza el picker — sin esto Google auto-loguea con
+  // la cuenta activa del navegador, típicamente la personal, generando loop
+  // "logueás → te echa por dominio → vuelve a auto-loguear con la misma".
+  provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: 'select_account' });
   try {
     const result = await signInWithPopup(auth, provider);
     return result.user;
