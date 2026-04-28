@@ -2,6 +2,11 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   type User,
@@ -11,6 +16,26 @@ import { app } from './firebaseService';
 
 const auth = getAuth(app);
 const ALLOWED_DOMAIN = 'agsanalitica.com';
+
+// Persistencia explícita: IndexedDB primero (resistente a ITP de Safari),
+// fallback a localStorage. Sin esto Safari mobile cae a in-memory y la sesión
+// no sobrevive al redirect de Google.
+setPersistence(auth, indexedDBLocalPersistence)
+  .catch(() => setPersistence(auth, browserLocalPersistence))
+  .catch((err) => {
+    console.warn('No se pudo configurar persistencia de Firebase Auth:', err);
+  });
+
+// Procesar resultado de signInWithRedirect (mobile flow). Se llama una sola vez
+// al cargar el módulo; si no hay redirect pendiente, resuelve en null.
+getRedirectResult(auth).catch((err) => {
+  console.warn('Error procesando redirect de auth:', err);
+});
+
+function isMobileUA(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
 
 export { auth };
 export type { User };
@@ -27,7 +52,7 @@ export function isAllowedDomain(user: User | null): boolean {
   return user.email.trim().toLowerCase().split('@')[1] === ALLOWED_DOMAIN;
 }
 
-export async function signInWithGoogle(): Promise<User> {
+export async function signInWithGoogle(): Promise<User | null> {
   const provider = new GoogleAuthProvider();
   // hd: filtra el picker al dominio Workspace (si aplica).
   // prompt=select_account: fuerza el picker — sin esto Google auto-loguea con
@@ -35,6 +60,13 @@ export async function signInWithGoogle(): Promise<User> {
   // "logueás → te echa por dominio → vuelve a auto-loguear con la misma".
   provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: 'select_account' });
   try {
+    // Mobile (Safari iOS sobre todo): usar redirect — popup rompe por ITP, las
+    // cookies del popup no vuelven al parent y queda en loop. Desktop sigue con
+    // popup por mejor UX.
+    if (isMobileUA()) {
+      await signInWithRedirect(auth, provider);
+      return null; // El user vuelve via getRedirectResult al recargar.
+    }
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: unknown) {
