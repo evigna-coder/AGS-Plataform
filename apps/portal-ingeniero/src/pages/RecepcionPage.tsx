@@ -6,6 +6,7 @@ import { CapturaFotosStep } from '../components/recepcion/CapturaFotosStep';
 import { Button } from '../components/ui/Button';
 import { fichasPropiedadService } from '../services/fichasPropiedadService';
 import { leadsService } from '../services/firebaseService';
+import { useUploadQueue } from '../hooks/useUploadQueue';
 import type { WorkOrder, Lead } from '@ags/shared';
 
 type Step = 'ot' | 'cliente' | 'fotos' | 'done';
@@ -34,6 +35,7 @@ export default function RecepcionPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [ficha, setFicha] = useState<FichaCreada | null>(null);
+  const { pending, online } = useUploadQueue();
 
   const handleOTContinue = async (selected: WorkOrder | null) => {
     if (selected) {
@@ -147,10 +149,23 @@ export default function RecepcionPage() {
       <div>
         <h2 className="text-lg font-semibold text-slate-800">Ficha creada</h2>
         <p className="font-mono text-teal-700 text-sm mt-1">{ficha?.numero}</p>
-        <p className="text-xs text-slate-500 mt-2">
-          Las fotos se siguen sincronizando en segundo plano.<br />
-          Materiales recibió el aviso para completar la ficha.
-        </p>
+        {pending.length > 0 ? (
+          <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <p className="text-xs font-semibold text-amber-800">
+              {pending.length} foto{pending.length === 1 ? '' : 's'} sincronizando…
+            </p>
+            <p className="text-[11px] text-amber-700 mt-1">
+              {online
+                ? 'No cierres la app hasta que termine. Vas a ver el indicador desaparecer.'
+                : 'Sin conexión. Las fotos se subirán cuando vuelva la red.'}
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-emerald-700 mt-2">
+            Todas las fotos sincronizadas.<br />
+            Materiales recibió el aviso para completar la ficha.
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Button onClick={() => { setStep('ot'); setFicha(null); }} className="w-full" size="lg">

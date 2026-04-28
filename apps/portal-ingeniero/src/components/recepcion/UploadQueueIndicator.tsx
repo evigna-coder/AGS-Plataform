@@ -28,7 +28,9 @@ export function UploadQueueIndicator() {
   }
 
   return (
-    <div className={`fixed bottom-3 left-3 right-3 z-30 border rounded-xl px-3 py-2 text-xs font-medium shadow-sm md:left-auto md:right-4 md:max-w-xs ${cls}`}>
+    // En mobile el portal tiene una bottom-nav (~60px); levantamos el banner
+    // para que no la solape. En desktop no hay bottom-nav, queda abajo a la derecha.
+    <div className={`fixed bottom-[72px] left-3 right-3 z-30 border rounded-xl px-3 py-2 text-xs font-medium shadow-sm md:bottom-4 md:left-auto md:right-4 md:max-w-xs ${cls}`}>
       {label}
     </div>
   );

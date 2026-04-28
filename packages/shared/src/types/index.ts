@@ -527,13 +527,24 @@ export function userHasRole(user: { role: UserRole | null; roles?: UserRole[] },
 }
 
 /**
+ * Roles que ven todos los tickets (no se aplica filtro de visibilidad por área/asignado).
+ * - `admin`: rol de plataforma con acceso total.
+ * - `admin_ing_soporte`: supervisa todo el flujo de tickets, no solo los de su área.
+ */
+export function canViewAllTickets(user: { role: UserRole | null; roles?: UserRole[] }): boolean {
+  return userHasRole(user, 'admin') || userHasRole(user, 'admin_ing_soporte');
+}
+
+/**
  * Determina si un usuario puede modificar/derivar un ticket.
  */
 export function canUserModifyTicket(
   ticket: { asignadoA: string | null; areaActual?: TicketArea | null },
   user: { id: string; role: UserRole | null; roles?: UserRole[] },
 ): boolean {
-  if (userHasRole(user, 'admin')) return true;
+  // admin y admin_ing_soporte tienen acceso total a tickets — mismo criterio
+  // que `canViewAllTickets`: si los ven todos, pueden actuar sobre todos.
+  if (canViewAllTickets(user)) return true;
   if (ticket.asignadoA) return ticket.asignadoA === user.id;
   if (ticket.areaActual) {
     const areas = getUserTicketAreas(user);

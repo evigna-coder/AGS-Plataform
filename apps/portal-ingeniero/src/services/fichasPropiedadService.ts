@@ -88,13 +88,24 @@ export const fichasPropiedadService = {
     const user = getCurrentUser();
     const now = new Date().toISOString();
 
-    const historialInicial: HistorialFicha = {
+    const creadoPor = user?.displayName ?? 'Sistema';
+
+    const fichaHistorial: HistorialFicha = {
       id: crypto.randomUUID(),
       fecha: now,
       estadoAnterior: 'recibido',
       estadoNuevo: 'recibido',
-      nota: 'Ficha creada desde recepcion movil',
-      creadoPor: user?.displayName ?? 'Sistema',
+      nota: 'Ficha creada desde recepción móvil',
+      creadoPor,
+    };
+
+    const itemHistorial: HistorialFicha = {
+      id: crypto.randomUUID(),
+      fecha: now,
+      estadoAnterior: 'recibido',
+      estadoNuevo: 'recibido',
+      nota: 'Item recibido',
+      creadoPor,
     };
 
     const itemId = crypto.randomUUID();
@@ -108,7 +119,7 @@ export const fichasPropiedadService = {
       serie: input.serieHint ?? null,
       parentItemId: null,
       estado: 'recibido',
-      historial: [historialInicial],
+      historial: [itemHistorial],
       derivaciones: [],
       remitoDevolucionId: null,
       fechaEntrega: null,
@@ -132,7 +143,7 @@ export const fichasPropiedadService = {
       otReferencia: input.otReferencia ?? null,
       items: [itemPlaceholder],
       estado: 'recibido',
-      historial: [historialInicial],
+      historial: [fichaHistorial],
       repuestosPendientes: [],
       loanerId: null,
       loanerCodigo: null,

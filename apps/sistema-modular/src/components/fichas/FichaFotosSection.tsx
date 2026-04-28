@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { fotoStorageService } from '../../services/fotoStorageService';
 import { googleDriveService } from '../../services/googleDriveService';
 import { fichasService } from '../../services/firebaseService';
 import type { FichaPropiedad, ItemFicha, FotoFicha } from '@ags/shared';
@@ -8,26 +9,25 @@ import { useConfirm } from '../ui/ConfirmDialog';
 
 interface Props {
   ficha: FichaPropiedad;
-  /** Item al que pertenecen las fotos. Si se omite, no se renderiza. */
+  /** Item al que pertenecen las fotos. */
   item: ItemFicha;
   readOnly?: boolean;
   onUpdate: () => void;
 }
 
-/** Sección de fotos de un item específico. */
+/**
+ * Sección de fotos de un item específico. Las nuevas fotos suben a Firebase Storage
+ * (mismo path `fotosFichas/{itemSubId}/...` que el portal-ingeniero móvil). Las
+ * fotos legacy con `driveFileId` siguen visibles vía su `url` guardada.
+ */
 export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
   const [uploading, setUploading] = useState(false);
   const confirm = useConfirm();
   const [deleting, setDeleting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [driveReady, setDriveReady] = useState<boolean | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fotos = item.fotos || [];
-
-  useEffect(() => {
-    googleDriveService.isAvailable().then(setDriveReady);
-  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -36,14 +36,14 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
     try {
       const newFotos: FotoFicha[] = [];
       for (const file of Array.from(files)) {
-        // Path en Drive: usamos el subId del item (ej. FPC-0001-2) para separar carpetas
-        const result = await googleDriveService.uploadFile(item.subId || ficha.numero, file);
+        const result = await fotoStorageService.upload(item.subId || ficha.numero, file, file.name);
         newFotos.push({
           id: crypto.randomUUID(),
-          driveFileId: result.driveFileId,
+          driveFileId: null,
+          storagePath: result.storagePath,
           nombre: file.name,
           url: result.url,
-          viewUrl: result.viewUrl,
+          viewUrl: result.url,
           fecha: new Date().toISOString(),
         });
       }
@@ -52,8 +52,8 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
       });
       onUpdate();
     } catch (err) {
-      console.error('Error subiendo foto a Drive:', err);
-      alert('Error al subir la foto. Verifique la configuracion de Google Drive.');
+      console.error('Error subiendo foto:', err);
+      alert('Error al subir la foto.');
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -64,11 +64,12 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
     if (!await confirm('Eliminar esta foto?')) return;
     setDeleting(foto.id);
     try {
-      if (foto.driveFileId) {
+      // Borrado del binario según dónde viva la foto
+      if (foto.storagePath) {
+        await fotoStorageService.remove(foto.storagePath);
+      } else if (foto.driveFileId) {
         await googleDriveService.deleteFile(foto.driveFileId);
       }
-      // Si vive en Firebase Storage (subida desde portal-ingeniero), aca solo
-      // removemos la metadata; el blob lo maneja el otro flujo.
       await fichasService.updateItem(ficha.id, item.id, {
         fotos: fotos.filter(f => f.id !== foto.id),
       });
@@ -81,7 +82,7 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
     }
   };
 
-  const canUpload = !readOnly && driveReady;
+  const canUpload = !readOnly;
 
   return (
     <Card
@@ -98,14 +99,6 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
         <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
       )}
 
-      {driveReady === false && !readOnly && (
-        <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-xs text-amber-700">
-            Google Drive no configurado. Coloque <code className="bg-amber-100 px-1 rounded">service-account.json</code> en <code className="bg-amber-100 px-1 rounded">~/.ags/</code> y reinicie la app.
-          </p>
-        </div>
-      )}
-
       {fotos.length === 0 ? (
         <p className="text-sm text-slate-400">Sin fotos registradas</p>
       ) : (
@@ -116,7 +109,7 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
                 src={foto.url}
                 alt={foto.nombre}
                 className="w-full h-24 object-cover rounded-lg border border-slate-200 cursor-pointer"
-                onClick={() => setExpanded(foto.viewUrl)}
+                onClick={() => setExpanded(foto.viewUrl || foto.url)}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f1f5f9" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%2394a3b8" font-size="12">Error</text></svg>';
                 }}
@@ -139,7 +132,7 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
 
       {expanded && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-8" onClick={() => setExpanded(null)}>
-          <iframe src={expanded} title="Foto" className="w-full h-full rounded-lg bg-white" />
+          <img src={expanded} alt="Foto" className="max-w-full max-h-full rounded-lg" />
         </div>
       )}
     </Card>

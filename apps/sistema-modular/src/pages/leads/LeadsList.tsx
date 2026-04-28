@@ -9,7 +9,7 @@ import {
   MOTIVO_LLAMADO_LABELS, MOTIVO_LLAMADO_COLORS,
   LEAD_PRIORIDAD_LABELS, LEAD_PRIORIDAD_COLORS,
   getUserTicketAreas,
-  userHasRole,
+  canViewAllTickets,
   canUserModifyLead,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../../services/firebaseService';
@@ -116,7 +116,8 @@ export const LeadsList = () => {
     // No-op: the listener already handles updates.
   }, []);
 
-  const isAdmin = usuario ? userHasRole(usuario, 'admin') : false;
+  // admin y admin_ing_soporte ven todos los tickets sin filtro de visibilidad por área/asignado.
+  const isAdmin = usuario ? canViewAllTickets(usuario) : false;
   // Areas this user can see beyond their own tickets (from all roles)
   const extraAreas = useMemo(() => {
     if (!usuario || isAdmin) return null;

@@ -56,7 +56,7 @@ export function CapturaFotosStep({
   };
 
   return (
-    <div className="flex flex-col gap-3 pb-24">
+    <div className="flex flex-col gap-3 pb-6">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500 font-mono">
@@ -113,11 +113,9 @@ export function CapturaFotosStep({
       )}
 
       {onDone && (
-        <div className="fixed bottom-4 left-3 right-3 z-20 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto">
-          <Button onClick={onDone} size="lg" className="w-full">
-            {doneLabel}
-          </Button>
-        </div>
+        <Button onClick={onDone} size="lg" className="w-full mt-2">
+          {doneLabel}
+        </Button>
       )}
     </div>
   );

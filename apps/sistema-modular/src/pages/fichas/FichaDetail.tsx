@@ -139,6 +139,7 @@ export function FichaDetail() {
                     ficha={ficha}
                     item={item}
                     canDelete={ficha.items.length > 1 && item.estado !== 'entregado'}
+                    defaultExpanded={ficha.items.length === 1}
                     onUpdate={() => { /* subscription refresh */ }}
                   />
                 ))

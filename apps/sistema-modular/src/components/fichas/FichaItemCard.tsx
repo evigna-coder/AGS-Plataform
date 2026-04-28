@@ -15,13 +15,15 @@ interface Props {
   item: ItemFicha;
   /** Permite eliminar el item (solo si la ficha no está cerrada). */
   canDelete?: boolean;
+  /** Si true, arranca expandido (ej. ficha con un solo item). */
+  defaultExpanded?: boolean;
   onUpdate: () => void;
 }
 
 /** Card por item — agrupa identificación, estado, fotos, derivaciones e historial. */
-export function FichaItemCard({ ficha, item, canDelete, onUpdate }: Props) {
+export function FichaItemCard({ ficha, item, canDelete, defaultExpanded = false, onUpdate }: Props) {
   const confirm = useConfirm();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const titulo = item.articuloDescripcion || item.descripcionLibre || 'Item sin descripción';
   const codigo = item.articuloCodigo;

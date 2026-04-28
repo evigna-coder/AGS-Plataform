@@ -8,6 +8,7 @@ import {
   TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
   canUserModifyLead,
   getUserTicketAreas,
+  canViewAllTickets,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,8 +43,9 @@ const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
 
 export default function LeadsPage() {
   const navigate = useNavigate();
-  const { usuario, hasRole } = useAuth();
-  const isAdmin = hasRole('admin');
+  const { usuario } = useAuth();
+  // admin y admin_ing_soporte ven todos los tickets sin filtro de visibilidad por área/asignado.
+  const isAdmin = usuario ? canViewAllTickets(usuario) : false;
   // Áreas de tickets que el usuario puede gestionar (además de los propios)
   const extraAreas = useMemo(() => {
     if (!usuario || isAdmin) return null;

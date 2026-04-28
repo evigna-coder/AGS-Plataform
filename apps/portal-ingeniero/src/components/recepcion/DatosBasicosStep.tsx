@@ -35,7 +35,7 @@ export function DatosBasicosStep({ onSubmit, onBack }: Props) {
   const canSubmit = !!cliente;
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-6">
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-500 font-mono mb-1">
           Paso 2 · Cliente
@@ -56,7 +56,7 @@ export function DatosBasicosStep({ onSubmit, onBack }: Props) {
         />
       </div>
 
-      <div className="fixed bottom-3 left-3 right-3 z-20 flex gap-2 md:relative md:bottom-auto md:left-auto md:right-auto">
+      <div className="flex gap-2 pt-2">
         <Button variant="outline" onClick={onBack} size="lg" className="flex-1">
           Atrás
         </Button>
