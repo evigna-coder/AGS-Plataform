@@ -19,7 +19,7 @@ import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
 import QFDocumentosPage from './pages/QFDocumentosPage';
 import RecepcionPage from './pages/RecepcionPage';
-import FichaFotosEgresoPage from './pages/FichaFotosEgresoPage';
+import FichaFotosPage from './pages/FichaFotosPage';
 import { UploadQueueIndicator } from './components/recepcion/UploadQueueIndicator';
 import { uploadQueueManager } from './services/uploadQueueManager';
 
@@ -133,8 +133,11 @@ function PrivateApp() {
           {canRecepcion && (
             <>
               <Route path="recepcion" element={<RecepcionPage />} />
-              <Route path="recepcion/egreso" element={<FichaFotosEgresoPage />} />
-              <Route path="recepcion/egreso/:fichaId" element={<FichaFotosEgresoPage />} />
+              <Route path="recepcion/fotos" element={<FichaFotosPage />} />
+              <Route path="recepcion/fotos/:fichaId" element={<FichaFotosPage />} />
+              {/* Aliases del path viejo — redirigen a la pantalla genérica */}
+              <Route path="recepcion/egreso" element={<Navigate to="/recepcion/fotos" replace />} />
+              <Route path="recepcion/egreso/:fichaId" element={<FichaFotosPage />} />
             </>
           )}
           <Route path="perfil" element={<PerfilPage />} />

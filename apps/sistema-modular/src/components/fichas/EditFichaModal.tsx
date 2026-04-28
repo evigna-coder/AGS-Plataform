@@ -20,6 +20,7 @@ import type {
   Articulo,
 } from '@ags/shared';
 import { VIA_INGRESO_LABELS } from '@ags/shared';
+import { ensureTicketForFicha } from '../../utils/ensureTicketForFicha';
 
 interface Props {
   open: boolean;
@@ -181,6 +182,10 @@ export function EditFichaModal({ open, onClose, ficha }: Props) {
         otReferencia: otReferencia.trim() || null,
         items: finalItems,
       });
+      // Disparar ticket de aviso a materiales si es la primera vez que el primer
+      // item tiene información cargada. Idempotente: si ya existe leadId, no hace nada.
+      const fichaActualizada = await fichasService.getById(ficha.id);
+      if (fichaActualizada) await ensureTicketForFicha(fichaActualizada);
       onClose();
     } catch (err) {
       console.error('Error guardando ficha:', err);

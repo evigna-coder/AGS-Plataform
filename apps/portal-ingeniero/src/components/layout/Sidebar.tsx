@@ -18,7 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/reportes', label: 'Reportes' },
   { to: '/viaticos', label: 'Viáticos' },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
-  { to: '/recepcion/egreso', label: 'Egreso (fotos)', recepcionOnly: true },
+  { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];

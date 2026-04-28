@@ -78,10 +78,35 @@ export function FichaDetail() {
     return <p className="text-center text-slate-400 py-12">Cargando...</p>;
   }
 
-  // ¿Hay items listos para entregar (para mostrar el botón de remito)?
+  // ¿Hay items que aún pueden incluirse en un remito? Cualquier item activo
+  // (no entregado, no en envío en este momento, no derivado).
   const hasItemsParaRemito = ficha.items.some(i =>
-    i.estado === 'listo_para_entrega' || i.estado === 'derivado_proveedor'
+    i.estado !== 'entregado' && i.estado !== 'en_envio' && i.estado !== 'derivado_proveedor'
   );
+
+  // ¿Hay items con remito ya impreso esperando confirmación de entrega?
+  const itemsEnEnvio = ficha.items.filter(i => i.estado === 'en_envio');
+  const itemsDerivados = ficha.items.filter(i => i.estado === 'derivado_proveedor');
+
+  // Confirma la entrega: pasa todos los items en `en_envio` (o todos los derivados,
+  // según corresponda) al estado `entregado`. Útil cuando vuelve el remito firmado.
+  const handleConfirmarEntrega = async () => {
+    if (!ficha) return;
+    const targets = [...itemsEnEnvio, ...itemsDerivados];
+    if (targets.length === 0) return;
+    const msg = targets.length === 1
+      ? `Confirmar entrega del item ${targets[0].subId}?`
+      : `Confirmar entrega de ${targets.length} items?`;
+    if (!window.confirm(msg)) return;
+    for (const it of targets) {
+      await fichasService.transitionItem(
+        ficha.id,
+        it.id,
+        'entregado',
+        'Entrega confirmada (remito devuelto firmado)',
+      );
+    }
+  };
 
   // Cuando el drawer de edición está abierto, reducimos el viewport del detalle
   // para que las fotos y demás contenido sigan visibles a la izquierda en vez de
@@ -105,8 +130,16 @@ export function FichaDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {(itemsEnEnvio.length > 0 || itemsDerivados.length > 0) && (
+            <Button variant="primary" size="sm" onClick={() => void handleConfirmarEntrega()}>
+              Confirmar entrega
+              {(itemsEnEnvio.length + itemsDerivados.length) > 1 && (
+                <span className="ml-1 opacity-80">({itemsEnEnvio.length + itemsDerivados.length})</span>
+              )}
+            </Button>
+          )}
           {hasItemsParaRemito && (
-            <Button variant="primary" size="sm" onClick={() => setRemitoModalOpen(true)}>
+            <Button variant="secondary" size="sm" onClick={() => setRemitoModalOpen(true)}>
               Generar remito
             </Button>
           )}

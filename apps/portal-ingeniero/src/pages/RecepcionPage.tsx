@@ -5,9 +5,8 @@ import { DatosBasicosStep, type DatosBasicosForm } from '../components/recepcion
 import { CapturaFotosStep } from '../components/recepcion/CapturaFotosStep';
 import { Button } from '../components/ui/Button';
 import { fichasPropiedadService } from '../services/fichasPropiedadService';
-import { leadsService } from '../services/firebaseService';
 import { useUploadQueue } from '../hooks/useUploadQueue';
-import type { WorkOrder, Lead } from '@ags/shared';
+import type { WorkOrder } from '@ags/shared';
 
 type Step = 'ot' | 'cliente' | 'fotos' | 'done';
 
@@ -78,7 +77,9 @@ export default function RecepcionPage() {
         otNumber: fromOT?.otNumber ?? null,
       });
       setFicha({ id: result.id, numero: result.numero });
-      void crearTicketRecepcion({ id: result.id, numero: result.numero }, form, fromOT);
+      // El ticket de aviso a materiales se crea cuando se carga la información
+      // del primer item desde sistema-modular — no acá. Desde el portal solo
+      // creamos la ficha "esqueleto" sin info para enganchar.
       setStep('fotos');
     } catch (err) {
       console.error('Error creando ficha:', err);
@@ -178,43 +179,3 @@ export default function RecepcionPage() {
   );
 }
 
-/**
- * Crea un ticket en `leads` con `area: admin_soporte` para que materiales sepa
- * que entró un equipo y debe completar la ficha. Best-effort.
- */
-async function crearTicketRecepcion(
-  ficha: FichaCreada,
-  form: DatosBasicosForm,
-  ot: WorkOrder | null,
-): Promise<void> {
-  try {
-    const desc = `Equipo recibido — completar ficha ${ficha.numero}${
-      ot ? ` para OT-${ot.otNumber}` : ''
-    }.`;
-    const lead: Omit<Lead, 'id' | 'updatedAt'> = {
-      clienteId: form.clienteId || null,
-      contactoId: null,
-      razonSocial: form.clienteNombre,
-      contacto: '',
-      email: '',
-      telefono: '',
-      motivoLlamado: 'soporte',
-      motivoContacto: `Recepción de equipo${ot ? ` · OT-${ot.otNumber}` : ''}`,
-      sistemaId: null,
-      estado: 'nuevo',
-      postas: [],
-      asignadoA: null,
-      derivadoPor: null,
-      areaActual: 'admin_soporte',
-      descripcion: desc,
-      prioridad: 'normal',
-      otIds: ot ? [ot.otNumber] : [],
-      presupuestosIds: [],
-      source: 'portal',
-      createdAt: new Date().toISOString(),
-    };
-    await leadsService.create(lead);
-  } catch (err) {
-    console.error('No se pudo crear ticket de recepción:', err);
-  }
-}

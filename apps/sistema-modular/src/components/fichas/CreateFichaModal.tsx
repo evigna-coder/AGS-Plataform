@@ -11,6 +11,7 @@ import {
   ingenierosService,
   articulosService,
 } from '../../services/firebaseService';
+import { ensureTicketForFicha } from '../../utils/ensureTicketForFicha';
 import type {
   Cliente,
   Establecimiento,
@@ -170,10 +171,14 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
         fotos: [],
         loanerId: null,
         loanerCodigo: null,
+        leadId: null,
         otIds: otReferencia.trim() ? [otReferencia.trim()] : [],
       };
 
       const fichaId = await fichasService.create(data as Omit<FichaPropiedad, 'id' | 'numero' | 'createdAt' | 'updatedAt'>);
+      // Si los items vienen completos en la creación, disparamos el ticket ahora.
+      const fichaCreada = await fichasService.getById(fichaId);
+      if (fichaCreada) await ensureTicketForFicha(fichaCreada);
       resetForm();
       onCreated();
       onClose();

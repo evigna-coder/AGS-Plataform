@@ -147,6 +147,7 @@ export const fichasPropiedadService = {
       fotos: [],
       loanerId: null,
       loanerCodigo: null,
+      leadId: null,
       otIds: input.otNumber ? [input.otNumber] : [],
       createdAt: now,
       updatedAt: now,

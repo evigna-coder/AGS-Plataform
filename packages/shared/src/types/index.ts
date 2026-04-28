@@ -2854,6 +2854,10 @@ export interface FichaPropiedad {
   // --- Loaner vinculado (a la ficha, no a un item) ---
   loanerId?: string | null;
   loanerCodigo?: string | null;
+  // --- Ticket de aviso a materiales/admin para que continúe el trabajo. Se
+  // crea recién cuando el primer item tiene información cargada (no al crear
+  // la ficha desde el portal móvil que arranca con un item placeholder vacío).
+  leadId?: string | null;
   // --- OTs vinculadas ---
   otIds: string[];
   // --- Audit ---
