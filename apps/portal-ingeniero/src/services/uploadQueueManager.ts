@@ -93,8 +93,8 @@ class UploadQueueManager {
 
   /**
    * Reintenta TODAS las fotos pendientes — útil cuando varias fallaron y están
-   * atrapadas en el backoff de 60s. Cancela el timer pendiente y dispara tick
-   * inmediato.
+   * atrapadas en el backoff de 60s. Cancela el timer pendiente, libera draining
+   * (por si quedó atascado por un error fuera del try), y dispara tick inmediato.
    */
   async retryAll(): Promise<void> {
     const all = await uploadQueueDB.getAll();
@@ -106,6 +106,8 @@ class UploadQueueManager {
       });
     }
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    // Liberamos draining por si una falla previa lo dejó atascado en true.
+    this.setState({ draining: false });
     await this.refresh();
     void this.tick();
   }
@@ -142,15 +144,16 @@ class UploadQueueManager {
     if (!next) return;
 
     this.setState({ draining: true });
-    await uploadQueueDB.update(next.id, { status: 'uploading' });
-    await this.refresh();
-
+    let success = false;
     try {
-      // Usamos el subId del item como subcarpeta para que cada item tenga su path propio
+      await uploadQueueDB.update(next.id, { status: 'uploading' });
+      await this.refresh();
+
+      // Usamos el subId del item como subcarpeta. Para fotos legacy sin itemSubId
+      // (cola pre-refactor multi-item), caemos al fichaNumero.
+      const folder = next.itemSubId || next.fichaNumero;
       const { storagePath, url } = await fotoStorageService.upload(
-        next.itemSubId || next.fichaNumero,
-        next.blob,
-        next.filename,
+        folder, next.blob, next.filename,
       );
       const fotoMeta: FotoFicha = {
         id: crypto.randomUUID(),
@@ -163,32 +166,37 @@ class UploadQueueManager {
         subidoPor: next.subidoPor,
         momento: next.momento,
       };
+      // addFoto requiere itemId — si la foto fue encolada antes del refactor
+      // multi-item y no tiene itemId, fallamos explícito con mensaje útil.
+      if (!next.itemId) {
+        throw new Error('Foto sin itemId (encolada con versión vieja). Descartar y volver a tomar.');
+      }
       await fichasPropiedadService.addFoto(next.fichaId, next.itemId, fotoMeta);
       await uploadQueueDB.remove(next.id);
-      this.setState({ draining: false });
-      await this.refresh();
-      // Sigue con la próxima sin esperar
-      void this.tick();
+      success = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const intentos = next.intentos + 1;
-      // Logueamos para que el usuario vea en F12 cuál es la causa real
-      // (permission denied / network / quota / etc.) sin tener que abrir IndexedDB.
       console.error(
-        `[uploadQueue] Falló subida foto ${next.filename} (item ${next.itemSubId}, intento ${intentos}):`,
+        `[uploadQueue] Falló subida foto ${next.filename} (item ${next.itemSubId ?? '—'}, intento ${intentos}):`,
         err,
       );
-      await uploadQueueDB.update(next.id, {
-        status: 'queued',
-        intentos,
-        lastError: msg,
-      });
-      this.setState({ draining: false });
-      await this.refresh();
+      try {
+        await uploadQueueDB.update(next.id, { status: 'queued', intentos, lastError: msg });
+      } catch (innerErr) {
+        console.error('[uploadQueue] No se pudo persistir el error en IndexedDB:', innerErr);
+      }
       // Backoff antes de reintentar
       if (this.timer) clearTimeout(this.timer);
       this.timer = setTimeout(() => { void this.tick(); }, backoffFor(intentos));
+    } finally {
+      // CRÍTICO: liberamos draining SIEMPRE — si esto se omite (ej. por throw
+      // fuera del try), todos los ticks siguientes se quedan congelados.
+      this.setState({ draining: false });
+      await this.refresh();
     }
+    // Si fue exitoso, encadenamos con la próxima fuera del finally.
+    if (success) void this.tick();
   }
 }
 
