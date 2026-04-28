@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { fotoStorageService } from '../../services/fotoStorageService';
@@ -28,6 +28,21 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fotos = item.fotos || [];
+
+  // Cerrar lightbox con ESC. Sin esto el browser interpreta ESC como "back"
+  // y termina navegando al listado de fichas en vez de cerrar la imagen.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setExpanded(null);
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [expanded]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -131,8 +146,24 @@ export function FichaFotosSection({ ficha, item, readOnly, onUpdate }: Props) {
       )}
 
       {expanded && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-8" onClick={() => setExpanded(null)}>
-          <img src={expanded} alt="Foto" className="max-w-full max-h-full rounded-lg" />
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8"
+          onClick={() => setExpanded(null)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setExpanded(null); }}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-xl"
+            aria-label="Cerrar"
+            title="Cerrar (ESC)"
+          >
+            ×
+          </button>
+          <img
+            src={expanded}
+            alt="Foto"
+            className="max-w-full max-h-full rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </Card>
