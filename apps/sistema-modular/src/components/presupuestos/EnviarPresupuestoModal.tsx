@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEnviarPresupuesto } from '../../hooks/useEnviarPresupuesto';
+import { EnviarAnexosSection } from './EnviarAnexosSection';
 import type { GeneratePDFParams } from './pdf';
 import type { PresupuestoEstado } from '@ags/shared';
 
@@ -41,8 +42,14 @@ export const EnviarPresupuestoModal: React.FC<Props> = ({
   const [cc, setCc] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  // Plan 04-05 — toggle local del checkbox de anexos. Default ON; el componente
+  // hijo lo deshabilita visualmente cuando anexos.length===0 (sin items con flag).
+  const [includeAnexos, setIncludeAnexos] = useState(true);
 
-  const { send, status, error, sending } = useEnviarPresupuesto({
+  const {
+    send, status, error, sending,
+    anexos, anexoWarnings, anexosLoading, loadAnexos,
+  } = useEnviarPresupuesto({
     presupuestoId,
     presupuestoEstado,
     presupuestoNumero,
@@ -61,18 +68,25 @@ export const EnviarPresupuestoModal: React.FC<Props> = ({
     setCc('');
     setSubject(`Presupuesto ${presupuestoNumero} — AGS Analítica`);
     setBody(buildDefaultBody(defaultContactoNombre || 'cliente', presupuestoNumero));
+    setIncludeAnexos(true);
+    // Plan 04-05 — pre-cargar anexos al abrir. Fire-and-forget; el sub-componente
+    // muestra "Cargando anexos…" mientras anexosLoading=true. loadAnexos no se
+    // memoiza (se reinventa cada render), excluyo del deps array intencionalmente.
+    loadAnexos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultTo, defaultContactoNombre, presupuestoNumero]);
 
   const handleSend = () => {
     if (!to.trim()) { alert('Ingrese al menos un destinatario'); return; }
     const toList = to.split(',').map(e => e.trim()).filter(Boolean);
     const ccList = cc ? cc.split(',').map(e => e.trim()).filter(Boolean) : [];
-    send({ to: toList, cc: ccList, subject, htmlBody: body });
+    send({ to: toList, cc: ccList, subject, htmlBody: body, includeAnexos });
   };
 
   const statusMessages: Record<string, string> = {
     authorizing: 'Autorizando con Google...',
     generating_pdf: 'Generando PDF...',
+    preparing_anexos: 'Generando anexos de consumibles...',
     sending: 'Enviando email...',
     updating_firestore: 'Actualizando estado...',
     sent: 'Email enviado correctamente',
@@ -124,6 +138,19 @@ export const EnviarPresupuestoModal: React.FC<Props> = ({
             className={`${inputClass} font-sans`}
           />
         </div>
+
+        {/* Plan 04-05 — sección de anexos de consumibles (gated por hasItemsConFlag) */}
+        <EnviarAnexosSection
+          anexos={anexos}
+          warnings={anexoWarnings}
+          includeAnexos={includeAnexos}
+          onToggleIncludeAnexos={setIncludeAnexos}
+          disabled={sending}
+        />
+
+        {anexosLoading && (
+          <div className="text-[10px] text-slate-400 italic">Cargando anexos de consumibles…</div>
+        )}
 
         <div className="flex items-center gap-2 text-[11px] text-slate-400">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
