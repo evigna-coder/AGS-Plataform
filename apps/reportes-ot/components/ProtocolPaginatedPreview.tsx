@@ -322,6 +322,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
           fechaInicio={meta.fechaInicio}
           sistemaNombre={meta.sistema}
           moduloMarca={meta.moduloMarca}
+          moduloModelo={meta.moduloModelo}
           agsVisibleId={meta.codigoInternoCliente}
           numeroSerie={meta.moduloSerie}
           ingenieroNombre={meta.ingenieroNombre || aclaracionEspecialista}

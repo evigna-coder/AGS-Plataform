@@ -411,9 +411,25 @@ export const TableCatalogEditorPage = () => {
               </p>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-500 space-y-1">
                 <p><strong>Título:</strong> {entry.name || '(nombre de la tabla)'}</p>
-                <p><strong>Marca/Modelo:</strong> <span className="italic text-slate-400">Auto desde OT (sistema / marca módulo)</span></p>
+                <p><strong>Marca/Modelo:</strong> <span className="italic text-slate-400">{entry.coverAutoFillFromModulo ? 'Auto desde OT (marca módulo / modelo módulo)' : 'Auto desde OT (sistema / marca módulo)'}</span></p>
                 <p><strong>Descripción:</strong> {entry.description || <span className="italic text-slate-400">(línea secundaria, ej. series compatibles)</span>}</p>
                 <p className="text-slate-400 mt-2">Campos auto-completados: Fecha, Modelo, ID, N° Serie, Realizado por</p>
+              </div>
+
+              {/* Marca/Modelo desde módulo — para mantenimiento de accesorios */}
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <label className="flex items-start gap-2 cursor-pointer" title="Si se activa, la carátula muestra Marca/Modelo del módulo seleccionado (moduloMarca / moduloModelo) en lugar del nombre del sistema. Útil para mantenimiento de accesorios (MSD, HSS, HTA).">
+                  <input
+                    type="checkbox"
+                    checked={!!entry.coverAutoFillFromModulo}
+                    onChange={e => setMeta('coverAutoFillFromModulo', e.target.checked || null)}
+                    className="mt-0.5 accent-blue-600"
+                  />
+                  <div>
+                    <p className="text-xs font-medium text-slate-700">Marca/Modelo desde módulo</p>
+                    <p className="text-[10px] text-slate-400">Activar para mantenimientos de accesorios (MSD, HSS, HTA) — la carátula identifica el módulo, no el sistema padre.</p>
+                  </div>
+                </label>
               </div>
 
               {/* Pie de página — QF, Revisión, Fecha */}

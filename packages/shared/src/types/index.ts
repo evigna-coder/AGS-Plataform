@@ -1852,6 +1852,13 @@ export interface TableCatalogEntry {
   coverRevision?: string | null;
   /** Fecha de emisión de la carátula (solo tableType === 'cover'). Ej: "01/03/2026" */
   coverFecha?: string | null;
+  /**
+   * Si true (solo tableType === 'cover'), la carátula muestra Marca/Modelo del
+   * módulo seleccionado (`moduloMarca`/`moduloModelo`) en vez del nombre del
+   * sistema padre. Útil para mantenimientos de accesorios (MSD, HSS, HTA)
+   * donde la carátula debe identificar el módulo, no el sistema completo.
+   */
+  coverAutoFillFromModulo?: boolean;
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';

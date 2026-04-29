@@ -15,7 +15,7 @@ export function exportVentasInsumosExcel(
   range: VentasInsumosRangeLabel,
 ): void {
   const autoColumns: ExportColumn<VentasInsumosReportRow>[] = [
-    { header: 'Ticket', width: 10, get: r => r.ticketId.slice(-6).toUpperCase() },
+    { header: 'Ticket', width: 12, get: r => r.numero },
     { header: 'Fecha creacion', width: 13, get: r => fmtDateShort(r.fechaCreacion) },
     { header: 'Razon social', width: 30, get: r => r.razonSocial },
     { header: 'Creador', width: 20, get: r => r.creador },

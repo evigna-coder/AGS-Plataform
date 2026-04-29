@@ -183,6 +183,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 fechaInicio={fechaInicio}
                 sistemaNombre={coverData?.sistemaNombre || sistema}
                 moduloMarca={coverData?.moduloMarca}
+                moduloModelo={coverData?.moduloModelo}
                 agsVisibleId={coverData?.agsVisibleId}
                 numeroSerie={coverData?.numeroSerie}
                 ingenieroNombre={coverData?.ingenieroNombre || aclaracionEspecialista}
