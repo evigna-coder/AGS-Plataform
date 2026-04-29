@@ -1162,6 +1162,31 @@ export const PRESUPUESTO_SECCIONES_DEFAULT: PresupuestoSeccionesVisibles = {
   aceptacionPresupuesto: true,
 };
 
+// --- Plantillas de textos rich text para presupuestos (Phase 03) ---
+/**
+ * Plantilla de texto rich-HTML para una de las 6 secciones de un presupuesto.
+ * Se guarda en la colección Firestore `plantillas_texto_presupuesto`.
+ * El contenido es HTML generado por RichTextEditor (bold/italic/underline/ul/ol/font-size/text-align).
+ * No se guarda plantillaId en el presupuesto — solo el contenido final.
+ */
+export interface PlantillaTextoPresupuesto {
+  id: string;
+  nombre: string;                                   // "Condiciones Comerciales — Servicio estándar"
+  tipo: keyof PresupuestoSeccionesVisibles;         // 'notasTecnicas' | 'notasAdministrativas' | 'garantia' | 'variacionTipoCambio' | 'condicionesComerciales' | 'aceptacionPresupuesto'
+  contenido: string;                                // HTML rich (output de RichTextEditor)
+  tipoPresupuestoAplica: TipoPresupuesto[];         // una plantilla puede aplicar a varios tipos, ej: ['servicio', 'partes', 'mixto']
+  esDefault: boolean;                               // si true, se auto-aplica al crear un presupuesto de los tipos que indica
+  activo: boolean;
+
+  // Audit trace estándar (igual que CondicionPago)
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 // =============================================
 // --- Phase 12: Esquema de Facturación Porcentual + Anticipos ---
 // Distinct from `PresupuestoCuota` (contrato-only mensual/trimestral cuotas).
