@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 03-03-PLAN.md (Management UI for PlantillasTextoPresupuesto — PlantillaTextoForm, PlantillaRow, PlantillasTextoModal, PresupuestosList toolbar button)
-last_updated: "2026-04-29T02:08:56.864Z"
+stopped_at: "Completed 03-06-PLAN.md (PDFRichText + PDFRichTextErrorBoundary — closes VERIFICATION gap #4 for HTML rendering in presupuesto PDF)"
+last_updated: "2026-04-29T02:12:29.680Z"
 last_activity: "2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing."
 progress:
   total_phases: 12
   completed_phases: 7
   total_plans: 50
-  completed_plans: 46
+  completed_plans: 47
   percent: 93
 ---
 
@@ -167,6 +167,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 03-presupuestos-plantillas-texto P01 | 136s | 2 tasks | 2 files |
 | Phase 03-presupuestos-plantillas-texto P07 | 5min | 1 tasks | 1 files |
 | Phase 03-presupuestos-plantillas-texto P03 | 154s | 4 tasks | 4 files |
+| Phase 03-presupuestos-plantillas-texto P06 | 357s | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -242,6 +243,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 03-presupuestos-plantillas-texto]: No cache for plantillasTextoPresupuesto reads (max ~8 docs, rare access); getDefaultsForTipo uses client-side filter to avoid composite index
 - [Phase 03-presupuestos-plantillas-texto]: Seed script uses null for all absent audit fields; idempotency via (nombre, tipo) composite key; PRESUPUESTO_TEMPLATES inlined as single-quoted strings to avoid nested backtick escaping
 - [Phase 03-presupuestos-plantillas-texto]: PlantillaRow extracted proactively before PlantillasTextoModal to keep modal under 250-line budget; maxWidth='xl' for modal gives RichTextEditor comfortable space
+- [Phase 03-presupuestos-plantillas-texto]: react-pdf-html v2.1.5 chosen for HTML→PDF rendering; FontRenderer typed inline (HtmlRenderer not exported from package index); renderers cast as any for strict HtmlRenderers type; resetStyles=true mandatory per Pitfall 5; resetKey={html} on ErrorBoundary for fresh retry on content change
 
 ### Pending Todos
 
@@ -255,6 +257,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-29T02:08:56.859Z
-Stopped at: Completed 03-03-PLAN.md (Management UI for PlantillasTextoPresupuesto — PlantillaTextoForm, PlantillaRow, PlantillasTextoModal, PresupuestosList toolbar button)
+Last session: 2026-04-29T02:12:29.676Z
+Stopped at: Completed 03-06-PLAN.md (PDFRichText + PDFRichTextErrorBoundary — closes VERIFICATION gap #4 for HTML rendering in presupuesto PDF)
 Resume file: None
