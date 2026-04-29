@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 12-07-PLAN.md (gap closure — EsquemaFacturacionSection in CreatePresupuestoModal + EditPresupuestoModal guard + PDF branch). Phase 12 gap closure complete; ready for re-verification and E2E run.
-last_updated: "2026-04-26T17:03:28.030Z"
+stopped_at: Completed 03-02-PLAN.md (alignment buttons in RichTextEditor toolbar)
+last_updated: "2026-04-29T00:57:21.494Z"
 last_activity: "2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing."
 progress:
   total_phases: 12
   completed_phases: 7
   total_plans: 45
-  completed_plans: 42
+  completed_plans: 43
   percent: 93
 ---
 
@@ -163,6 +163,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 12-esquema-facturacion-porcentual-anticipos P04 | 441s | 3 tasks | 6 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P05 | 15min | 2 tasks | 3 files |
 | Phase 12-esquema-facturacion-porcentual-anticipos P07 | 20min | 6 tasks | 5 files |
+| Phase 03-presupuestos-plantillas-texto P02 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -234,6 +235,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 12-esquema-facturacion-porcentual-anticipos]: facturacionService.marcarFacturada simplified: removed redundant post-commit trySync since update() now handles recompute+trySync when estado is present
 - [Phase 12-07]: usePresupuestoEdit.save() does not write cuotas[] for any type — no Task 5 action needed; contrato cuotas managed via special paths
 - [Phase 12-07]: PdfEsquemaFacturacionSection extracted as colocated PDF sub-component (pure fn, no hooks, safe for react-pdf tree)
+- [Phase 03-presupuestos-plantillas-texto]: RichTextEditor alignment: TOOLBAR_BUTTONS.slice(0,5)+slice(5) with JSX divider keeps BtnId union clean; exec() is generic so no handler change needed for justifyLeft/Center/Right
 
 ### Pending Todos
 
@@ -247,6 +249,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-26T17:03:28.025Z
-Stopped at: Completed 12-07-PLAN.md (gap closure — EsquemaFacturacionSection in CreatePresupuestoModal + EditPresupuestoModal guard + PDF branch). Phase 12 gap closure complete; ready for re-verification and E2E run.
+Last session: 2026-04-29T00:57:21.491Z
+Stopped at: Completed 03-02-PLAN.md (alignment buttons in RichTextEditor toolbar)
 Resume file: None
