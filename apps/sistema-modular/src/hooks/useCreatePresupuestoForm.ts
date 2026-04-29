@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { presupuestosService, clientesService, sistemasService, leadsService, ordenesTrabajoService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../services/firebaseService';
+import { presupuestosService, plantillasTextoPresupuestoService, clientesService, sistemasService, leadsService, ordenesTrabajoService, categoriasPresupuestoService, condicionesPagoService, conceptosServicioService } from '../services/firebaseService';
 import { establecimientosService, contactosEstablecimientoService } from '../services/establecimientosService';
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
-import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
+import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, PlantillaTextoPresupuesto } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 export interface PresupuestoFormState {
@@ -37,6 +37,17 @@ export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   variacionTipoCambio: '', condicionesComerciales: '', aceptacionPresupuesto: '',
   ventasMetadata: { fechaEstimadaEntrega: null, lugarInstalacion: null, requiereEntrenamiento: false },
 };
+
+// Maps the 6 condiciones section keys shared between PresupuestoFormState and PlantillaTextoPresupuesto.tipo.
+// Used as a typed allowlist in the auto-apply effect (Phase 03 gap-closure).
+const PRESUPUESTO_FIELD_MAP = {
+  notasTecnicas: true,
+  notasAdministrativas: true,
+  garantia: true,
+  variacionTipoCambio: true,
+  condicionesComerciales: true,
+  aceptacionPresupuesto: true,
+} as const;
 
 interface Prefill {
   clienteId?: string;
@@ -86,6 +97,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   // Phase 12: cuota schema (porcentual facturación) — for non-contrato types
   const [esquemaFacturacion, setEsquemaFacturacion] = useState<PresupuestoCuotaFacturacion[]>([]);
   const [prefilled, setPrefilled] = useState(false);
+  const [autoAppliedOnce, setAutoAppliedOnce] = useState(false);
   const [leadOptions, setLeadOptions] = useState<{ value: string; label: string }[]>([]);
   const [leadsCache, setLeadsCache] = useState<Ticket[]>([]);
   const [otOptions, setOtOptions] = useState<{ value: string; label: string }[]>([]);
@@ -93,7 +105,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   const [selectedPendienteIds, setSelectedPendienteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!open) { setPrefilled(false); return; }
+    if (!open) { setPrefilled(false); setAutoAppliedOnce(false); return; }
     Promise.all([
       clientesService.getAll(true), sistemasService.getAll(),
       categoriasPresupuestoService.getAll(), condicionesPagoService.getAll(),
@@ -129,6 +141,65 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       });
     }
   }, [open, prefill, prefilled, sistemas]);
+
+  // Phase 03 gap-closure: auto-apply default plantillas to condiciones sections.
+  // Fires ONCE per modal open (gated by autoAppliedOnce). Does NOT re-apply on tipo changes
+  // after first run (per CONTEXT.md decision: respect user edits when they change tipo mid-creation).
+  //
+  // Conflict resolution (per CONTEXT.md 2026-04-28):
+  //   When 2+ default plantillas exist for the same section+tipo, the ALPHABETICALLY-FIRST
+  //   one (by `nombre`) wins. The conflict-selector UI is DEFERRED — user can still swap
+  //   manually via the per-section "Cargar plantilla" dropdown wired up in 03-04.
+  useEffect(() => {
+    if (!open || !form.tipo || autoAppliedOnce) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const defaults = await plantillasTextoPresupuestoService.getDefaultsForTipo(form.tipo);
+        if (cancelled) return;
+
+        // Group by seccion (.tipo) and sort each bucket by `nombre` ASC so alphabetical-first wins.
+        const bySeccion: Partial<Record<keyof typeof PRESUPUESTO_FIELD_MAP, PlantillaTextoPresupuesto[]>> = {};
+        for (const p of defaults) {
+          (bySeccion[p.tipo as keyof typeof PRESUPUESTO_FIELD_MAP] ||= []).push(p);
+        }
+        for (const key of Object.keys(bySeccion)) {
+          const lista = bySeccion[key as keyof typeof PRESUPUESTO_FIELD_MAP];
+          if (lista) lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        }
+
+        setForm(prev => {
+          const next = { ...prev };
+          for (const [seccion, lista] of Object.entries(bySeccion)) {
+            if (!lista || lista.length === 0) continue;
+            const key = seccion as keyof typeof PRESUPUESTO_FIELD_MAP;
+            if (lista.length > 1) {
+              console.warn(
+                `Multiple default plantillas for section "${key}" (tipo "${prev.tipo}") — using "${lista[0].nombre}" (alphabetically first by nombre). Conflict-selector UI deferred per CONTEXT.md ## Deferred Ideas.`,
+              );
+            }
+            // Skip if user already typed something into this section
+            const currentValue = (prev as any)[key];
+            if (typeof currentValue === 'string' && currentValue.length > 0) continue;
+            (next as any)[key] = lista[0].contenido;
+          }
+          return next;
+        });
+        setAutoAppliedOnce(true);
+      } catch (e) {
+        // Accepted v1 behavior (per CONTEXT.md deferred-selector spirit):
+        // Log to console.error for ops; sections remain empty.
+        // The user can still load any section manually via the per-section "Cargar plantilla"
+        // dropdown that 03-04 wires up (it reads getAll(), not getDefaultsForTipo, so a transient
+        // failure here does not prevent manual recovery).
+        console.error('Error auto-applying plantillas:', e);
+        setAutoAppliedOnce(true); // do not retry on the same modal open
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [open, form.tipo, autoAppliedOnce]);
 
   // Load establecimientos
   useEffect(() => {
@@ -195,7 +266,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     });
   }, [form.origenId, leadsCache]);
 
-  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setEsquemaFacturacion([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); };
+  const handleClose = () => { onClose(); setForm(INITIAL_PRESUPUESTO_FORM); setItems([]); setCuotas([]); setEsquemaFacturacion([]); setLeadsCache([]); setSelectedPendienteIds(new Set()); setAutoAppliedOnce(false); };
 
   const handleSave = async () => {
     if (!form.clienteId) { alert('Debe seleccionar un cliente'); return; }
