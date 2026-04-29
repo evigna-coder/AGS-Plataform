@@ -13,6 +13,7 @@ interface Props {
   sistemaNombre?: string;
   sistemaModelo?: string;
   moduloMarca?: string;
+  moduloModelo?: string;
   agsVisibleId?: string;
   numeroSerie?: string;
   ingenieroNombre?: string;
@@ -32,6 +33,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   sistemaNombre,
   sistemaModelo,
   moduloMarca,
+  moduloModelo,
   agsVisibleId,
   numeroSerie,
   ingenieroNombre,
@@ -39,8 +41,12 @@ export const CatalogCoverView: React.FC<Props> = ({
 }) => {
   const table = selection.tableSnapshot;
   const titulo = table.name || 'Protocolo';
-  // Línea principal de marca: "sistema — marca"
-  const brandLine = [sistemaNombre || sistemaModelo, moduloMarca].filter(Boolean).join(' / ');
+  // Línea principal de marca:
+  // - default: "sistema / marca módulo"
+  // - coverAutoFillFromModulo: "marca módulo / modelo módulo" (mantenimiento de accesorios)
+  const brandLine = table.coverAutoFillFromModulo
+    ? [moduloMarca, moduloModelo].filter(Boolean).join(' / ')
+    : [sistemaNombre || sistemaModelo, moduloMarca].filter(Boolean).join(' / ');
   // Línea secundaria: description del catálogo (ej. "Series 1100 / 1120 / 1200")
   const modelLine = table.description || '';
 
@@ -56,9 +62,12 @@ export const CatalogCoverView: React.FC<Props> = ({
   const mainTitle = titleParts[0] || titulo;
   const subTitle = titleParts.length > 1 ? titleParts.slice(1).join(' / ') : '';
 
+  const modeloValue = table.coverAutoFillFromModulo
+    ? (moduloModelo || sistemaNombre || sistemaModelo || '—')
+    : (sistemaNombre || sistemaModelo || '—');
   const datos = [
     { label: 'Fecha', value: formatFecha(fechaInicio) },
-    { label: 'Modelo', value: sistemaNombre || sistemaModelo || '—' },
+    { label: 'Modelo', value: modeloValue },
     { label: 'ID', value: agsVisibleId || '—', mono: true },
     { label: 'N° de Serie', value: numeroSerie || '—', mono: true },
     { label: 'Ing. de Soporte Técnico', value: ingenieroNombre || '—' },

@@ -74,7 +74,7 @@ Each task was committed atomically:
 2. **Task 2: hydrate() defaults flag y create/update lo persisten** — `310f552` (feat)
 3. **Task 3: Verificar seedPlantillas.ts compila** — `6a28b7a` (docs)
 
-**Plan metadata:** _(este commit, ver sección final)_
+**Plan metadata:** `a9c4c17` (docs: complete plan — SUMMARY + STATE + REQUIREMENTS)
 
 ## Files Created/Modified
 

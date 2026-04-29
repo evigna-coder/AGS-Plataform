@@ -3,6 +3,7 @@ import { TICKET_ESTADO_LABELS } from '@ags/shared';
 
 export interface VentasInsumosReportRow {
   ticketId: string;
+  numero: string;               // TKT-00042; fallback al sufijo del id si el ticket es legacy
   fechaCreacion: string;       // ISO
   razonSocial: string;
   creador: string;              // usuario que creó originalmente el ticket (createdBy)
@@ -41,6 +42,7 @@ function resolveResultado(lead: Lead): VentasInsumosReportRow['resultado'] {
 export function buildVentasInsumosRows(leads: Lead[], usuarios: UsuarioAGS[]): VentasInsumosReportRow[] {
   return leads.map(lead => ({
     ticketId: lead.id,
+    numero: lead.numero || lead.id.slice(-6).toUpperCase(),
     fechaCreacion: lead.createdAt,
     razonSocial: lead.razonSocial || '—',
     creador: resolveUserName(lead.createdBy, usuarios),

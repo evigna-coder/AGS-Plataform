@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
 });
 
 const COL_WIDTHS = {
-  ticket: 40,
+  ticket: 55,
   fecha: 48,
   cliente: 120,
   creador: 72,
@@ -171,7 +171,7 @@ export function ReporteVentasInsumosPDF({ rows, range, generadoPor }: Props) {
               return (
                 <View key={r.ticketId} style={styles.tableRow} wrap={false}>
                   <Text style={[...baseTd, { width: COL_WIDTHS.ticket }]}>
-                    {r.ticketId.slice(-6).toUpperCase()}
+                    {r.numero}
                   </Text>
                   <Text style={[...baseTd, { width: COL_WIDTHS.fecha }]}>
                     {fmtDateShort(r.fechaCreacion)}
