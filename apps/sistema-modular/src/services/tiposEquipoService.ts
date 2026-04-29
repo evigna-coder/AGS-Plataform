@@ -19,7 +19,15 @@ function hydrate(id: string, data: any): TipoEquipoPlantilla {
     descripcion: data.descripcion ?? null,
     activo: data.activo !== false,
     componentes: Array.isArray(data.componentes) ? data.componentes : [],
-    servicios: Array.isArray(data.servicios) ? data.servicios : [],
+    // Normalize servicios array: default requiereAnexoConsumibles to false for legacy docs
+    // (the field is optional in TipoEquipoServicio; downstream consumers — plan 04-04 anexo
+    // builder — get a deterministic boolean instead of undefined).
+    servicios: Array.isArray(data.servicios)
+      ? data.servicios.map((s: any) => ({
+          ...s,
+          requiereAnexoConsumibles: s.requiereAnexoConsumibles ?? false,
+        }))
+      : [],
     createdAt: toISO(data.createdAt),
     updatedAt: toISO(data.updatedAt),
     createdBy: data.createdBy ?? null,
@@ -47,12 +55,18 @@ export const tiposEquipoService = {
   },
 
   async create(data: Omit<TipoEquipoPlantilla, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    // Normalize servicios so each persisted entry has requiereAnexoConsumibles defined as boolean
+    // (avoids docs with mixed shape: some servicios with the field, others without).
+    const serviciosNormalizados = (data.servicios || []).map(s => ({
+      ...s,
+      requiereAnexoConsumibles: s.requiereAnexoConsumibles ?? false,
+    }));
     const cleaned = cleanFirestoreData({
       ...data,
       ...getCreateTrace(),
       activo: data.activo !== false,
       componentes: data.componentes || [],
-      servicios: data.servicios || [],
+      servicios: serviciosNormalizados,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
@@ -65,7 +79,18 @@ export const tiposEquipoService = {
   },
 
   async update(id: string, data: Partial<Omit<TipoEquipoPlantilla, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
-    const cleaned = cleanFirestoreData({ ...data, ...getUpdateTrace(), updatedAt: Timestamp.now() });
+    // If the patch carries servicios[], normalize requiereAnexoConsumibles to boolean.
+    // (skip when servicios is not in the patch — preserves partial-update semantics.)
+    const dataNormalizada = data.servicios
+      ? {
+          ...data,
+          servicios: data.servicios.map(s => ({
+            ...s,
+            requiereAnexoConsumibles: s.requiereAnexoConsumibles ?? false,
+          })),
+        }
+      : data;
+    const cleaned = cleanFirestoreData({ ...dataNormalizada, ...getUpdateTrace(), updatedAt: Timestamp.now() });
     const batch = createBatch();
     batch.update(docRef(COLLECTION, id), cleaned);
     batchAudit(batch, { action: 'update', collection: COLLECTION, documentId: id, after: cleaned });
