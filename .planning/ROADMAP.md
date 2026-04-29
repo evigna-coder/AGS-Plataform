@@ -42,11 +42,16 @@ Plans:
 ### Phase 3: Presupuestos — Plantillas de textos rich text
 **Goal:** Habilitar gestión de plantillas rich text (condiciones comerciales, notas técnicas, garantía, etc.) por tipo de presupuesto con auto-aplicación de defaults, dropdown de selección por sección en el editor, y renderizado HTML formateado en el PDF.
 
-**Plans:** 1/2 plans executed
+**Plans:** 7 plans (2 complete + 5 gap closure)
 
 Plans:
-- [ ] 03-01-PLAN.md — TBD
-- [ ] 03-02-PLAN.md — TBD
+- [x] 03-01-PLAN.md — PlantillaTextoPresupuesto type + plantillasTextoPresupuestoService (data layer)
+- [x] 03-02-PLAN.md — RichTextEditor alignment buttons (justifyLeft/Center/Right)
+- [ ] 03-03-PLAN.md — Gap closure: PlantillasTextoModal + PlantillaTextoForm + PresupuestosList toolbar wiring
+- [ ] 03-04-PLAN.md — Gap closure: PresupuestoCondicionesEditor refactor (RichTextEditor + Firestore dropdown)
+- [ ] 03-05-PLAN.md — Gap closure: useCreatePresupuestoForm auto-apply defaults + form-state extension to 6 sections
+- [ ] 03-06-PLAN.md — Gap closure: PDFRichText wrapper + react-pdf-html install + PresupuestoPDFEstandar wiring
+- [ ] 03-07-PLAN.md — Gap closure: seed-plantillas-texto-browser.mjs (one-shot idempotent seed)
 
 ### Phase 4: Presupuestos — Anexo consumibles por módulo
 **Goal:** Generar automáticamente un PDF anexo con el listado de consumibles requeridos por módulo cuando un presupuesto incluye servicios tipo "Mantenimiento Preventivo con consumibles", matcheando los módulos del sistema seleccionado contra el catálogo exacto por `moduloModelo`, y adjuntar el anexo al email de envío.

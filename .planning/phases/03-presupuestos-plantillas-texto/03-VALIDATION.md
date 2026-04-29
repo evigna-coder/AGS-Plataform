@@ -56,7 +56,7 @@ created: 2026-04-14
 | Filters (sección + tipo + activas) via useUrlFilters | 04 | 2 | manual UAT | — (flow) | — | ⬜ pending |
 | Auto-apply defaults on tipo selection at creation | 05 | 3 | manual UAT | — (flow) | — | ⬜ pending |
 | Dropdown "Cargar plantilla" in editor | 05 | 3 | manual UAT | — (flow) | — | ⬜ pending |
-| Conflict selector (2+ defaults) shown inline | 05 | 3 | manual UAT | — (flow) | — | ⬜ pending |
+| Multi-default conflict: alphabetically-first plantilla auto-applied + console.warn (selector deferred per CONTEXT.md 2026-04-28) | 05 | 3 | manual UAT | — (flow) | — | ⬜ pending |
 | No auto-apply on tipo change for existing presupuesto | 05 | 3 | manual UAT | — (flow) | — | ⬜ pending |
 | Seed script migrates PRESUPUESTO_TEMPLATES idempotently | 06 | 3 | manual UAT | — (console) | — | ⬜ pending |
 
