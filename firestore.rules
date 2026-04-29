@@ -110,6 +110,9 @@ service cloud.firestore {
     // Usuarios AGS (roles: admin / tecnico / readonly)
     match /usuarios/{uid} {
       allow read, write: if true; // Temporal para desarrollo
+      match /fcmTokens/{tokenId} {
+        allow read, write: if true; // Temporal para desarrollo
+      }
     }
 
     // Adjuntos (metadata; binario en Firebase Storage)
