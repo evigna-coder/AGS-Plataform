@@ -259,6 +259,19 @@ export const leadsService = {
     if (extras?.motivoLlamado !== undefined) {
       data.motivoLlamado = extras.motivoLlamado;
       data.motivoOtros = extras.motivoLlamado === 'otros' ? (extras.motivoOtros?.trim() || null) : null;
+      // Si la derivación cambia el motivo a ventas_insumos, stampear quién lo
+      // derivó. Mismo path que update(); sin esto el reporte cae al createdBy
+      // y muestra al creador en lugar del derivador.
+      if (extras.motivoLlamado === 'ventas_insumos') {
+        const current = await getDoc(doc(db, 'leads', id));
+        const currentData = current.data();
+        const stamp = ventasInsumosStamp(
+          extras.motivoLlamado,
+          currentData?.motivoLlamado as MotivoLlamado | undefined,
+          !!currentData?.ventasInsumosCreadoPor,
+        );
+        if (stamp) Object.assign(data, stamp);
+      }
     }
     const batch = createBatch();
     batch.update(docRef('leads', id), data);
