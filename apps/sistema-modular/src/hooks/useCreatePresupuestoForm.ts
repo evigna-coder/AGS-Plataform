@@ -307,6 +307,16 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       let finalItems = items;
       if (form.sistemaId === '__ALL_SISTEMAS__' && sistemasFiltrados.length > 0) {
         finalItems = await expandItemsForAllSistemas(items, sistemasFiltrados);
+      } else if (form.sistemaId) {
+        const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId) || sistemas.find(s => s.id === form.sistemaId);
+        if (sistema) {
+          finalItems = finalItems.map(item => item.sistemaId ? item : ({
+            ...item,
+            sistemaId: sistema.id,
+            sistemaNombre: sistema.nombre,
+            sistemaCodigoInterno: sistema.codigoInternoCliente || null,
+          }));
+        }
       }
       const sistemaIds = [...new Set(finalItems.map(i => i.sistemaId).filter(Boolean))] as string[];
       const grupoMap = new Map(sistemaIds.map((id, idx) => [id, idx + 1]));
@@ -315,6 +325,8 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       const subtotal = finalItems.reduce((s, i) => s + (i.subtotal || 0), 0);
       const data: Omit<Presupuesto, 'id' | 'createdAt' | 'updatedAt'> = {
         numero: '', tipo: form.tipo, moneda: form.moneda,
+        responsableId: usuario?.id || null,
+        responsableNombre: usuario?.displayName || null,
         clienteId: form.clienteId,
         establecimientoId: form.establecimientoId || null,
         sistemaId: form.sistemaId === '__ALL_SISTEMAS__' ? null : (form.sistemaId || null),
