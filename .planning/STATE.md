@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
 stopped_at: "Completed 03-05-PLAN.md (useCreatePresupuestoForm auto-apply effect — closes VERIFICATION gap #3)"
-last_updated: "2026-04-29T02:20:38.950Z"
+last_updated: "2026-04-29T03:01:18.334Z"
 last_activity: "2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing."
 progress:
   total_phases: 12
