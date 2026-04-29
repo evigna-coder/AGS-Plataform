@@ -192,6 +192,11 @@ service cloud.firestore {
       allow read, write: if true; // Temporal para desarrollo
     }
 
+    // Consumibles por módulo — catálogo declarativo (Phase 04)
+    match /consumibles_por_modulo/{moduloId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
+
     // Fichas propiedad del cliente
     match /fichasPropiedad/{fichaId} {
       allow read, write: if true; // Temporal para desarrollo
