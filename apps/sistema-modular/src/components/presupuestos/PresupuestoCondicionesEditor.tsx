@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '../ui/Card';
-import { Button } from '../ui/Button';
-import type { PresupuestoSeccionesVisibles, TipoPresupuesto } from '@ags/shared';
+import type { PresupuestoSeccionesVisibles, TipoPresupuesto, PlantillaTextoPresupuesto } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_LABELS } from '@ags/shared';
-import { PRESUPUESTO_TEMPLATES } from '@ags/shared';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { RichTextEditor } from '../ui/RichTextEditor';
+import { plantillasTextoPresupuestoService } from '../../services/firebaseService';
+import { PlantillasTextoModal } from './PlantillasTextoModal';
 
 type SeccionKey = keyof PresupuestoSeccionesVisibles;
 
@@ -33,39 +34,48 @@ export const PresupuestoCondicionesEditor = ({
   onValueChange,
 }: PresupuestoCondicionesEditorProps) => {
   const [expanded, setExpanded] = useState<SeccionKey | null>(null);
-
-
+  const [plantillas, setPlantillas] = useState<PlantillaTextoPresupuesto[]>([]);
+  const [showGestion, setShowGestion] = useState(false);
   const confirm = useConfirm();
-  const getTemplate = useCallback((key: SeccionKey): string => {
-    if (tipo === 'contrato') {
-      const contratoTemplates = PRESUPUESTO_TEMPLATES.contrato as Record<string, string>;
-      if (key === 'notasTecnicas' && contratoTemplates.notasSobrePresupuesto) {
-        return contratoTemplates.notasSobrePresupuesto;
-      }
-      if (key === 'condicionesComerciales' && contratoTemplates.condicionesComerciales) {
-        return contratoTemplates.condicionesComerciales;
-      }
-    }
-    const val = (PRESUPUESTO_TEMPLATES as Record<string, unknown>)[key];
-    return typeof val === 'string' ? val : '';
-  }, [tipo]);
 
-  const handleLoadTemplate = async (key: SeccionKey) => {
-    const template = getTemplate(key);
-    if (!template) return;
-    if (values[key] && !await confirm('Esto reemplazará el contenido actual. ¿Continuar?')) return;
-    onValueChange(key, template);
+  const loadPlantillas = async () => {
+    try {
+      const list = await plantillasTextoPresupuestoService.getAll();
+      setPlantillas(list);
+    } catch (e) {
+      console.error('Error loading plantillas:', e);
+    }
   };
 
-  const handleLoadAll = async () => {
-    if (!await confirm('¿Cargar todas las plantillas predeterminadas? Se reemplazará el contenido existente.')) return;
-    for (const key of SECCION_KEYS) {
-      const template = getTemplate(key);
-      if (template) {
-        onValueChange(key, template);
-        onSeccionToggle(key, true);
-      }
+  useEffect(() => {
+    let cancelled = false;
+    plantillasTextoPresupuestoService.getAll()
+      .then(list => { if (!cancelled) setPlantillas(list); })
+      .catch(e => console.error('Error loading plantillas:', e));
+    return () => { cancelled = true; };
+  }, []);
+
+  const plantillasBySeccion = useMemo(() => {
+    const map: Partial<Record<SeccionKey, PlantillaTextoPresupuesto[]>> = {};
+    for (const p of plantillas) {
+      if (!p.activo) continue;
+      if (!p.tipoPresupuestoAplica.includes(tipo)) continue;
+      (map[p.tipo] ||= []).push(p);
     }
+    return map;
+  }, [plantillas, tipo]);
+
+  const handleLoadPlantilla = async (key: SeccionKey, plantillaId: string) => {
+    if (!plantillaId) return;
+    const plantilla = plantillas.find(p => p.id === plantillaId);
+    if (!plantilla) return;
+    if (values[key] && !await confirm('Esto reemplazará el contenido actual. ¿Continuar?')) return;
+    onValueChange(key, plantilla.contenido);
+  };
+
+  const handleGestionClose = () => {
+    setShowGestion(false);
+    loadPlantillas();
   };
 
   return (
@@ -74,9 +84,14 @@ export const PresupuestoCondicionesEditor = ({
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">
           Condiciones del presupuesto
         </h3>
-        <Button variant="ghost" size="sm" onClick={handleLoadAll}>
-          Cargar plantillas
-        </Button>
+        <button
+          type="button"
+          onClick={() => setShowGestion(true)}
+          className="text-[11px] text-teal-700 hover:text-teal-900 hover:underline"
+          title="Abrir modal de gestión de plantillas"
+        >
+          Gestionar plantillas →
+        </button>
       </div>
 
       <div className="space-y-1">
@@ -85,6 +100,7 @@ export const PresupuestoCondicionesEditor = ({
           const isExpanded = expanded === key;
           const hasContent = !!values[key];
           const label = PRESUPUESTO_SECCIONES_LABELS[key];
+          const opts = plantillasBySeccion[key] || [];
 
           return (
             <div key={key} className="border border-slate-200 rounded-lg overflow-hidden">
@@ -126,25 +142,33 @@ export const PresupuestoCondicionesEditor = ({
                   </svg>
                 </button>
 
-                {/* Load template button */}
-                <button
-                  onClick={() => handleLoadTemplate(key)}
-                  className="text-[10px] text-teal-600 hover:text-teal-800 font-medium"
-                  title="Cargar plantilla predeterminada"
-                >
-                  Plantilla
-                </button>
+                {/* Per-section plantilla dropdown */}
+                {opts.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => { handleLoadPlantilla(key, e.target.value); e.target.value = ''; }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white text-teal-700 max-w-[180px]"
+                    title="Cargar plantilla"
+                  >
+                    <option value="">Cargar plantilla…</option>
+                    {opts.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.esDefault ? '★ ' : ''}{p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Expanded editor */}
               {isExpanded && (
                 <div className="px-3 pb-3 pt-1">
-                  <textarea
+                  <RichTextEditor
                     value={values[key] || ''}
-                    onChange={(e) => onValueChange(key, e.target.value)}
-                    rows={8}
+                    onChange={(html) => onValueChange(key, html)}
                     placeholder={`Escriba el contenido de ${label.toLowerCase()}...`}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500 resize-y"
+                    minHeight={240}
                   />
                   {!isVisible && (
                     <p className="text-[10px] text-amber-600 mt-1">
@@ -157,6 +181,8 @@ export const PresupuestoCondicionesEditor = ({
           );
         })}
       </div>
+
+      <PlantillasTextoModal open={showGestion} onClose={handleGestionClose} />
     </Card>
   );
 };
