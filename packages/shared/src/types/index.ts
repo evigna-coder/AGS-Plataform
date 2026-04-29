@@ -1403,6 +1403,44 @@ export const TIPO_SERVICIO_PLANTILLA_LABELS: Record<TipoServicioPlantilla, strin
   otro: 'Otro',
 };
 
+// =============================================
+// --- Anexo de Consumibles por Módulo (Phase 4) ---
+// Catálogo declarativo: cada módulo (por part number Agilent) lleva una lista
+// informativa de consumibles. Cuando un presupuesto incluye un servicio con
+// `requiereAnexoConsumibles=true`, se matchea el código del módulo del sistema
+// contra esta colección para generar el PDF anexo.
+// =============================================
+
+/** Fila de un consumible en el anexo. Sin precio (queda implícito en el ítem MPCC del PDF principal). */
+export interface ConsumibleModulo {
+  codigo: string;        // Part number del consumible (ej: "5061-3361")
+  descripcion: string;   // "Vial 2ml ámbar con tapa"
+  cantidad: number;      // Cantidad informativa por evento de mantenimiento
+}
+
+/**
+ * Doc Firestore en la colección `consumibles_por_modulo` (snake_case).
+ * Una entrada por `codigoModulo` único — reusable entre todas las plantillas de
+ * tipo de equipo que incluyan ese módulo (ej: G7129A puede aparecer en HPLC 1260
+ * y HPLC 1290; se declara una sola vez).
+ *
+ * `consumibles: []` (array vacío) significa "este módulo no lleva consumibles
+ * declarados intencionalmente" → skip silencioso al generar el anexo (NO warning).
+ */
+export interface ConsumiblesPorModulo {
+  id: string;
+  codigoModulo: string;          // Part number del módulo (ej: "G7129A"). UNIQUE en la colección.
+  descripcion?: string | null;   // Descripción legible del módulo ("Inyector Iso Pump") — opcional, fallback al hidratar.
+  consumibles: ConsumibleModulo[];
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+}
+
 // --- Facturación ---
 
 export type SolicitudFacturacionEstado = 'pendiente' | 'enviada' | 'facturada' | 'cobrada' | 'anulada';
