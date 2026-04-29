@@ -5,6 +5,7 @@ import {
   requestNotificationPermission,
   getPermissionStatus,
   getCurrentToken,
+  getLastNotificationError,
 } from '../../services/notificationService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -73,8 +74,13 @@ export function NotificationSettings() {
       setMessage({ type: 'success', text: 'Notificaciones activadas para este dispositivo.' });
     } else {
       setPermissionStatus(getPermissionStatus());
+      const err = getLastNotificationError();
       if (getPermissionStatus() === 'denied') {
         setMessage({ type: 'error', text: 'Permiso denegado. Revisá la configuración del navegador.' });
+      } else if (err) {
+        setMessage({ type: 'error', text: `No se pudo activar: ${err}` });
+      } else {
+        setMessage({ type: 'error', text: 'No se pudo activar (motivo desconocido — revisá la consola).' });
       }
     }
   };
