@@ -42,7 +42,7 @@ Plans:
 ### Phase 3: Presupuestos — Plantillas de textos rich text
 **Goal:** Habilitar gestión de plantillas rich text (condiciones comerciales, notas técnicas, garantía, etc.) por tipo de presupuesto con auto-aplicación de defaults, dropdown de selección por sección en el editor, y renderizado HTML formateado en el PDF.
 
-**Plans:** 7 plans (2 complete + 5 gap closure)
+**Plans:** 3/7 plans executed
 
 Plans:
 - [x] 03-01-PLAN.md — PlantillaTextoPresupuesto type + plantillasTextoPresupuestoService (data layer)
@@ -235,7 +235,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 |-------|-----------|----------------|--------|-----------|
 | 1. Reservas, Movimientos, Reqs y OC | v1.0 | 7/7 | Complete | 2026-04-10 |
 | 2. Comex — Importaciones y Despachos | v1.0 | 6/6 | Complete | 2026-04-10 |
-| 3. Presupuestos — Plantillas rich text | 1/2 | In Progress|  | - |
+| 3. Presupuestos — Plantillas rich text | 3/7 | In Progress|  | - |
 | 4. Presupuestos — Anexo consumibles | v1.0 | TBD | Deferred | - |
 | 5. Pre-condiciones — Migración + Infra | v2.0 | 3/4 | In Progress | - |
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
