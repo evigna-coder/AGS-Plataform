@@ -20,7 +20,11 @@ export interface PresupuestoFormState {
   condicionPagoId: string;
   tipoCambio: string;
   notasTecnicas: string;
+  notasAdministrativas: string;
+  garantia: string;
+  variacionTipoCambio: string;
   condicionesComerciales: string;
+  aceptacionPresupuesto: string;
   ventasMetadata: VentasMetadata;
 }
 
@@ -29,7 +33,8 @@ export const INITIAL_PRESUPUESTO_FORM: PresupuestoFormState = {
   tipo: 'servicio', moneda: 'USD',
   origenTipo: '', origenId: '', origenRef: '',
   validezDias: 15, condicionPagoId: '', tipoCambio: '',
-  notasTecnicas: '', condicionesComerciales: '',
+  notasTecnicas: '', notasAdministrativas: '', garantia: '',
+  variacionTipoCambio: '', condicionesComerciales: '', aceptacionPresupuesto: '',
   ventasMetadata: { fechaEstimadaEntrega: null, lugarInstalacion: null, requiereEntrenamiento: false },
 };
 
@@ -250,7 +255,11 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         condicionPagoId: form.condicionPagoId || undefined,
         tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : undefined,
         notasTecnicas: form.notasTecnicas || undefined,
+        notasAdministrativas: form.notasAdministrativas || undefined,
+        garantia: form.garantia || undefined,
+        variacionTipoCambio: form.variacionTipoCambio || undefined,
         condicionesComerciales: form.condicionesComerciales || undefined,
+        aceptacionPresupuesto: form.aceptacionPresupuesto || undefined,
         ...(cuotas.length > 0 ? { cuotas, cantidadCuotas: cuotas.length } : {}),
         // Phase 12: include esquema for non-contrato types when populated
         ...(form.tipo !== 'contrato' && esquemaFacturacion.length > 0 ? { esquemaFacturacion } : {}),
