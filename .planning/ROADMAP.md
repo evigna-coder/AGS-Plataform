@@ -61,7 +61,7 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Tipos en @ags/shared: requiereAnexoConsumibles flag + ConsumibleModulo + ConsumiblesPorModulo
+- [x] 04-01-PLAN.md — Tipos en @ags/shared: requiereAnexoConsumibles flag + ConsumibleModulo + ConsumiblesPorModulo
 - [ ] 04-02-PLAN.md — consumiblesPorModuloService + página admin /presupuestos/consumibles-por-modulo + entry point en toolbar
 - [ ] 04-03-PLAN.md — Editor de plantillas: columna "Anexo" en ServiciosEditor + persistencia en tiposEquipoService
 - [ ] 04-04-PLAN.md — AnexoConsumiblesPDF (Editorial Teal liviano) + buildAnexosFromPresupuesto (matcheo híbrido + warnings)
@@ -245,7 +245,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 | 1. Reservas, Movimientos, Reqs y OC | v1.0 | 7/7 | Complete | 2026-04-10 |
 | 2. Comex — Importaciones y Despachos | v1.0 | 6/6 | Complete | 2026-04-10 |
 | 3. Presupuestos — Plantillas rich text | 7/7 | Complete   | 2026-04-29 | - |
-| 4. Presupuestos — Anexo consumibles | v1.0 | TBD | Deferred | - |
+| 4. Presupuestos — Anexo consumibles | v2.0 | 1/5 | In Progress | - |
 | 5. Pre-condiciones — Migración + Infra | v2.0 | 3/4 | In Progress | - |
 | 6. Catálogo de Servicios con Precios | v2.0 | 0/6 | Not started | - |
 | 7. Presupuesto Per-Incident — Editor, PDF y Mail | v2.0 | 0/2 | Not started | - |

@@ -12,6 +12,15 @@
 - [ ] **PREC-03**: Bootstrap del workspace `functions/` en el monorepo con una primera Cloud Function de ejemplo (base para resumenStock posterior).
 - [x] **PREC-04**: Colección `featureFlags` en Firestore + UI admin para togglear módulos sin rebuild (extiende VITE_DESKTOP_MVP con flags remotos).
 
+### Anexo de Consumibles por Módulo
+
+- [x] **ANXC-01**: Tipos foundation en `@ags/shared`: flag opcional `requiereAnexoConsumibles?: boolean` en `TipoEquipoServicio` + interfaces `ConsumibleModulo` y `ConsumiblesPorModulo` (doc shape de la colección Firestore `consumibles_por_modulo`).
+- [ ] **ANXC-02**: `consumiblesPorModuloService.ts` — CRUD Firestore para la colección `consumibles_por_modulo` con cleanFirestoreData, audit fields nullables y validación de unicidad por `codigoModulo`.
+- [ ] **ANXC-03**: Página admin `/presupuestos/consumibles-por-modulo` con CRUD UI (lista, modal de creación/edición, eliminación lógica via `activo: false`) + entry point en toolbar de Presupuestos.
+- [ ] **ANXC-04**: Editor de plantillas tipo de equipo: columna "Anexo" en ServiciosEditor (checkbox por servicio) + persistencia en `tiposEquipoService.update()` (lee `requiereAnexoConsumibles ?? false`).
+- [ ] **ANXC-05**: `AnexoConsumiblesPDF` (template Editorial Teal liviano) + `buildAnexosFromPresupuesto()` (matcheo híbrido módulos reales del cliente → plantilla de tipo de equipo, con warnings de módulos sin entrada en catálogo).
+- [ ] **ANXC-06**: Integración mail: `useEnviarPresupuesto` extendido + `EnviarAnexosSection` en `EnviarPresupuestoModal` para adjuntar N PDFs anexos (uno por módulo) al email — con smoke E2E checkpoint.
+
 ### Catálogo de Servicios y Precios
 
 - [ ] **CSVC-01**: CRUD completo de servicios con categorías, precio base, flags (`requiereImportacion`, `generaOT`, etc.) y UI admin.
@@ -112,6 +121,12 @@
 | PREC-02 | Phase 5 | Complete |
 | PREC-03 | Phase 5 | Pending |
 | PREC-04 | Phase 5 | Complete |
+| ANXC-01 | Phase 4 | Complete |
+| ANXC-02 | Phase 4 | Pending |
+| ANXC-03 | Phase 4 | Pending |
+| ANXC-04 | Phase 4 | Pending |
+| ANXC-05 | Phase 4 | Pending |
+| ANXC-06 | Phase 4 | Pending |
 | CSVC-01 | Phase 6 | Pending |
 | CSVC-02 | Phase 6 | Pending |
 | CSVC-03 | Phase 6 | Pending |
@@ -153,8 +168,8 @@
 | TEST-05 | Phase 11 | Pending |
 
 **Coverage:**
-- v2.0 requirements: **43 total** (4 PREC + 5 CSVC + 5 PRIC + 4 PTYP + 2 REV + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
-- Mapped: **43/43** ✓ — no orphaned requirements
+- v2.0 requirements: **49 total** (4 PREC + 6 ANXC + 5 CSVC + 5 PRIC + 4 PTYP + 2 REV + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
+- Mapped: **49/49** ✓ — no orphaned requirements
 
 ---
 *Requirements defined: 2026-04-19*
