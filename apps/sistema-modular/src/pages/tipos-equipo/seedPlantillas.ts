@@ -1,3 +1,7 @@
+// (Phase 4 / ANXC-04) Las plantillas seed NO marcan requiereAnexoConsumibles por default.
+// El flag es opcional en TipoEquipoServicio; el operador lo tilda caso por caso desde la UI
+// de plantillas (`/presupuestos/tipos-equipo`). Marcar default=true generaría falsos positivos
+// al cargar el seed (anexos disparados sin haberlos modelado en consumiblesPorModulo).
 import { tiposEquipoService } from '../../services/tiposEquipoService';
 import type { TipoEquipoPlantilla } from '@ags/shared';
 
