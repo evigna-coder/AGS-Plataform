@@ -71,7 +71,7 @@ Each task was committed atomically:
 1. **Task 1: Extender TipoEquipoServicio con flag requiereAnexoConsumibles** — `b1723b0` (feat)
 2. **Task 2: Agregar tipos ConsumibleModulo + ConsumiblesPorModulo** — `3ba75b4` (feat)
 
-**Plan metadata:** `14a9aa7` (docs: complete foundation types plan — SUMMARY + STATE + ROADMAP + REQUIREMENTS)
+**Plan metadata:** `89110cd` (docs: complete foundation types plan — SUMMARY + STATE + ROADMAP + REQUIREMENTS)
 
 ## Files Created/Modified
 
@@ -97,7 +97,7 @@ Each task was committed atomically:
 - **Fix:** Agregada sección "Anexo de Consumibles por Módulo" con ANXC-01..ANXC-06 (ANXC-01 = `[x]`, resto = `[ ]`); 6 filas nuevas en la tabla Traceability; coverage actualizada de 43/43 a 49/49.
 - **Files modified:** `.planning/REQUIREMENTS.md`
 - **Verification:** Grep confirma ANXC-01 presente en sección + tabla; coverage line ahora dice "49 total". Plans 04-02..04-05 podrán llamar `requirements mark-complete` sin error.
-- **Committed in:** `14a9aa7` (final metadata commit)
+- **Committed in:** `89110cd` (final metadata commit)
 
 ---
 
