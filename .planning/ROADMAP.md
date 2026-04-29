@@ -54,9 +54,18 @@ Plans:
 - [ ] 03-07-PLAN.md — Gap closure: seed-plantillas-texto-browser.mjs (one-shot idempotent seed)
 
 ### Phase 4: Presupuestos — Anexo consumibles por módulo
-**Goal:** Generar automáticamente un PDF anexo con el listado de consumibles requeridos por módulo cuando un presupuesto incluye servicios tipo "Mantenimiento Preventivo con consumibles", matcheando los módulos del sistema seleccionado contra el catálogo exacto por `moduloModelo`, y adjuntar el anexo al email de envío.
+**Goal:** Generar automáticamente un PDF anexo con el listado de consumibles requeridos por módulo cuando un presupuesto incluye servicios marcados con flag `requiereAnexoConsumibles` (operacionalmente: MPCC), matcheando los módulos del sistema seleccionado contra el catálogo `consumibles_por_modulo` por `codigoModulo` exacto (con fallback híbrido módulos reales → plantilla de tipo de equipo), y adjuntando N PDFs separados al email de envío del presupuesto.
 
-**Plans:** TBD
+**Requirements:** ANXC-01, ANXC-02, ANXC-03, ANXC-04, ANXC-05, ANXC-06
+
+**Plans:** 5 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Tipos en @ags/shared: requiereAnexoConsumibles flag + ConsumibleModulo + ConsumiblesPorModulo
+- [ ] 04-02-PLAN.md — consumiblesPorModuloService + página admin /presupuestos/consumibles-por-modulo + entry point en toolbar
+- [ ] 04-03-PLAN.md — Editor de plantillas: columna "Anexo" en ServiciosEditor + persistencia en tiposEquipoService
+- [ ] 04-04-PLAN.md — AnexoConsumiblesPDF (Editorial Teal liviano) + buildAnexosFromPresupuesto (matcheo híbrido + warnings)
+- [ ] 04-05-PLAN.md — Integración mail: useEnviarPresupuesto + EnviarAnexosSection + EnviarPresupuestoModal (+ smoke E2E checkpoint)
 
 </details>
 
