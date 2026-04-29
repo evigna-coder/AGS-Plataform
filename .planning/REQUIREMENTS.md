@@ -17,7 +17,7 @@
 - [x] **ANXC-01**: Tipos foundation en `@ags/shared`: flag opcional `requiereAnexoConsumibles?: boolean` en `TipoEquipoServicio` + interfaces `ConsumibleModulo` y `ConsumiblesPorModulo` (doc shape de la colección Firestore `consumibles_por_modulo`).
 - [ ] **ANXC-02**: `consumiblesPorModuloService.ts` — CRUD Firestore para la colección `consumibles_por_modulo` con cleanFirestoreData, audit fields nullables y validación de unicidad por `codigoModulo`.
 - [ ] **ANXC-03**: Página admin `/presupuestos/consumibles-por-modulo` con CRUD UI (lista, modal de creación/edición, eliminación lógica via `activo: false`) + entry point en toolbar de Presupuestos.
-- [ ] **ANXC-04**: Editor de plantillas tipo de equipo: columna "Anexo" en ServiciosEditor (checkbox por servicio) + persistencia en `tiposEquipoService.update()` (lee `requiereAnexoConsumibles ?? false`).
+- [x] **ANXC-04**: Editor de plantillas tipo de equipo: columna "Anexo" en ServiciosEditor (checkbox por servicio) + persistencia en `tiposEquipoService.update()` (lee `requiereAnexoConsumibles ?? false`).
 - [ ] **ANXC-05**: `AnexoConsumiblesPDF` (template Editorial Teal liviano) + `buildAnexosFromPresupuesto()` (matcheo híbrido módulos reales del cliente → plantilla de tipo de equipo, con warnings de módulos sin entrada en catálogo).
 - [ ] **ANXC-06**: Integración mail: `useEnviarPresupuesto` extendido + `EnviarAnexosSection` en `EnviarPresupuestoModal` para adjuntar N PDFs anexos (uno por módulo) al email — con smoke E2E checkpoint.
 
@@ -124,7 +124,7 @@
 | ANXC-01 | Phase 4 | Complete |
 | ANXC-02 | Phase 4 | Pending |
 | ANXC-03 | Phase 4 | Pending |
-| ANXC-04 | Phase 4 | Pending |
+| ANXC-04 | Phase 4 | Complete |
 | ANXC-05 | Phase 4 | Pending |
 | ANXC-06 | Phase 4 | Pending |
 | CSVC-01 | Phase 6 | Pending |

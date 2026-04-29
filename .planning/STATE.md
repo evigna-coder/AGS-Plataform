@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Completed 04-03-PLAN.md (editor + service wiring del flag requiereAnexoConsumibles; columna Anexo + hydrate/create/update normalize)
+last_updated: "2026-04-29T15:40:26.168Z"
+last_activity: "2026-04-29 — Plan 04-01: feat(04-01) b1723b0 (TipoEquipoServicio.requiereAnexoConsumibles) + 3ba75b4 (ConsumibleModulo + ConsumiblesPorModulo)."
+progress:
+  total_phases: 12
+  completed_phases: 8
+  total_plans: 55
+  completed_plans: 51
+  percent: 93
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: "Completed 04-01-PLAN.md (foundation types: requiereAnexoConsumibles flag + ConsumibleModulo + ConsumiblesPorModulo)"
 last_updated: "2026-04-29T15:27:19.583Z"
 last_activity: "2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing."
 progress:
-  total_phases: 12
+  [█████████░] 93%
   completed_phases: 8
   total_plans: 55
   completed_plans: 50
@@ -119,12 +135,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — PLAN 04-01 COMPLETE
-Plan: 1 of 5 complete (04-01 foundation types: requiereAnexoConsumibles flag + ConsumibleModulo + ConsumiblesPorModulo)
-Status: Foundation types landed in @ags/shared. Wave 2 plans (04-02 service, 04-03 admin CRUD, 04-04 builder anexo, 04-05 PDF) desbloqueados. Phase 12 sigue con gap closure pendiente (12-07 EsquemaFacturacionSection en CreatePresupuestoModal) — fuera del scope de Phase 4.
-Last activity: 2026-04-29 — Plan 04-01: feat(04-01) b1723b0 (TipoEquipoServicio.requiereAnexoConsumibles) + 3ba75b4 (ConsumibleModulo + ConsumiblesPorModulo).
+Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — PLAN 04-03 COMPLETE
+Plan: 2 of 5 complete (04-01 foundation types ✓ ; 04-03 editor + service wiring del flag requiereAnexoConsumibles ✓ ; 04-02 admin CRUD pendiente — corre en paralelo, archivos disjuntos)
+Status: Wave 2 progressing — 04-03 cierra el wiring UI+servicio del flag; 04-04 (builder anexo) ahora puede leer servicio.requiereAnexoConsumibles con garantía de boolean determinístico. 04-02 (admin CRUD de consumiblesPorModulo) y 04-04/04-05 desbloqueados/pendientes.
+Last activity: 2026-04-29 — Plan 04-03: feat(04-03) a9b934c (Anexo column en ServiciosEditor) + 310f552 (hydrate/create/update normalize) + 6a28b7a (seed comment).
 
-Progress: [█████████░] 91% (v2.0 milestone — 50/55 plans)
+Progress: [█████████░] 93% (v2.0 milestone — 51/55 plans)
 
 ## Performance Metrics
 
@@ -171,6 +187,7 @@ Progress: [█████████░] 91% (v2.0 milestone — 50/55 plans)
 | Phase 03-presupuestos-plantillas-texto P04 | 90s | 1 tasks | 1 files |
 | Phase 03-presupuestos-plantillas-texto P05 | 130s | 2 tasks | 1 files |
 | Phase 04-presupuestos-anexo-consumibles P01 | 2min | 2 tasks | 1 files |
+| Phase 04-presupuestos-anexo-consumibles P03 | 5min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -252,6 +269,8 @@ Progress: [█████████░] 91% (v2.0 milestone — 50/55 plans)
 - [Phase 04-presupuestos-anexo-consumibles]: Flag requiereAnexoConsumibles ortogonal a TipoServicioPlantilla — cualquier tipo (mantenimiento/regulatorio/consumible/otro) puede llevarlo, opcional con default omitido = false (back-compat sin migración)
 - [Phase 04-presupuestos-anexo-consumibles]: ConsumibleModulo SIN precio ni periodicidad — anexo es informativo, precio implícito en ítem MPCC del PDF principal; periodicidad va a nivel de servicio
 - [Phase 04-presupuestos-anexo-consumibles]: ConsumiblesPorModulo unique-key por codigoModulo (part number Agilent) — catálogo declarativo reusable entre plantillas (G7129A en HPLC 1260 y 1290 se declara una sola vez)
+- [Phase 04-presupuestos-anexo-consumibles]: Plan 04-03: hydrate-normalize pattern — tiposEquipoService.hydrate() defaultea requiereAnexoConsumibles a false en read-time; create/update normalizan servicios[] antes de cleanFirestoreData. Sin migración: docs legacy se hidratan deterministicamente; el primer save persiste el flag automáticamente.
+- [Phase 04-presupuestos-anexo-consumibles]: Plan 04-03: update() conditional-normalize — solo mapea servicios[] si el patch lo incluye, preserva semántica partial-update.
 
 ### Pending Todos
 
@@ -265,6 +284,6 @@ Progress: [█████████░] 91% (v2.0 milestone — 50/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-04-29T15:27:07.956Z
-Stopped at: Completed 04-01-PLAN.md (foundation types: requiereAnexoConsumibles flag + ConsumibleModulo + ConsumiblesPorModulo)
+Last session: 2026-04-29T15:40:26.164Z
+Stopped at: Completed 04-03-PLAN.md (editor + service wiring del flag requiereAnexoConsumibles; columna Anexo + hydrate/create/update normalize)
 Resume file: None
