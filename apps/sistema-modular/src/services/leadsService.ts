@@ -683,6 +683,81 @@ export const leadsService = {
   },
 
   /**
+   * Backfill: stampea `ventasInsumosCreadoPor` en tickets con `motivoLlamado='ventas_insumos'`
+   * y stamp vacío. Existe porque `derivar()` históricamente no stampeaba al cambiar el motivo
+   * (fix aplicado, pero los tickets convertidos a ventas_insumos antes del fix quedan huérfanos
+   * y el reporte `derivador` cae al `createdBy`, mostrando el creador en lugar del derivador).
+   *
+   * Heurística: recorre `postas` y toma el primer `deUsuarioId` que NO sea ni el creador
+   * ni 'system'. Razón: el creador no cambió el motivo (lo creó como otra cosa); 'system'
+   * son auto-postas de syncFromPresupuesto/syncFromOT. La primera persona ajena al creador
+   * que movió el ticket es típicamente quien lo reclasificó a ventas_insumos al derivarlo.
+   * Sin postas válidas, fallback al `createdBy` (caso ticket nacido como ventas_insumos).
+   * Modo dry-run para revisar antes de aplicar.
+   *
+   * Edge case: si el creador se autoderivó y después la siguiente persona NO cambió el
+   * motivo sino una más adelante en la cadena, la heurística falla. Aceptable: el detalle
+   * muestra cada caso para que el admin lo verifique y corrija manualmente si hace falta.
+   */
+  async backfillVentasInsumosDerivador(opts?: { dryRun?: boolean }): Promise<{
+    total: number;
+    yaStampeados: number;
+    asignados: number;
+    sinDatos: number;
+    detalle: { numero: string; razonSocial: string; derivadorId: string; fuente: 'posta' | 'createdBy' }[];
+  }> {
+    const dryRun = opts?.dryRun ?? false;
+    const q = query(collection(db, 'leads'), where('motivoLlamado', '==', 'ventas_insumos'));
+    const snap = await getDocs(q);
+    const total = snap.docs.length;
+    let yaStampeados = 0, asignados = 0, sinDatos = 0;
+    const detalle: { numero: string; razonSocial: string; derivadorId: string; fuente: 'posta' | 'createdBy' }[] = [];
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (data.ventasInsumosCreadoPor) { yaStampeados++; continue; }
+
+      const postas: Posta[] = Array.isArray(data.postas) ? data.postas : [];
+      const createdBy = (data.createdBy as string) || null;
+      let derivadorId: string | null = null;
+      let derivadorEn: string | null = null;
+      let fuente: 'posta' | 'createdBy' = 'createdBy';
+      for (const p of postas) {
+        if (p.deUsuarioId && p.deUsuarioId !== 'system' && p.deUsuarioId !== createdBy) {
+          derivadorId = p.deUsuarioId;
+          derivadorEn = p.fecha;
+          fuente = 'posta';
+          break;
+        }
+      }
+      if (!derivadorId) {
+        derivadorId = createdBy;
+        derivadorEn = data.createdAt?.toDate?.()?.toISOString?.() ?? new Date().toISOString();
+        fuente = 'createdBy';
+      }
+      if (!derivadorId) { sinDatos++; continue; }
+
+      if (!dryRun) {
+        await updateDoc(doc(db, 'leads', d.id), deepCleanForFirestore({
+          ventasInsumosCreadoPor: derivadorId,
+          ventasInsumosCreadoEn: derivadorEn,
+          ...getUpdateTrace(),
+          updatedAt: Timestamp.now(),
+        }));
+      }
+      asignados++;
+      detalle.push({
+        numero: (data.numero as string) || d.id,
+        razonSocial: (data.razonSocial as string) || '(sin razón social)',
+        derivadorId,
+        fuente,
+      });
+    }
+
+    return { total, yaStampeados, asignados, sinDatos, detalle };
+  },
+
+  /**
    * Backfill: asigna `asignadoA` a tickets con `areaActual` setado y sin asignado,
    * usando el responsable por defecto configurado en `adminConfig/flujos.responsablePorArea`.
    *

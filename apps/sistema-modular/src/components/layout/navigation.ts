@@ -72,6 +72,7 @@ export const navigation: NavItem[] = [
       { name: 'Backfill numeros tickets', path: '/admin/backfill-ticket-numeros' },
       { name: 'Backfill clienteId tickets', path: '/admin/backfill-cliente-ids' },
       { name: 'Backfill responsables área', path: '/admin/backfill-responsables' },
+      { name: 'Backfill derivador venta insumos', path: '/admin/backfill-ventas-insumos-derivador' },
     ],
   },
 ];
