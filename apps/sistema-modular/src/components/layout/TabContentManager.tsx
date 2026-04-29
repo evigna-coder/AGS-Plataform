@@ -27,6 +27,7 @@ import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
 import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
+import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
 import { QFDocumentosList } from '../../pages/qf-documentos';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
@@ -91,6 +92,7 @@ function AppRoutes() {
       <Route path="/presupuestos/condiciones-pago" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><CondicionesPago /></ProtectedRoute>} />
       <Route path="/presupuestos/conceptos-servicio" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ConceptosServicio /></ProtectedRoute>} />
       <Route path="/presupuestos/tipos-equipo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><TiposEquipoList /></ProtectedRoute>} />
+      <Route path="/presupuestos/consumibles-por-modulo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ConsumiblesPorModuloList /></ProtectedRoute>} />
       {/* Biblioteca de Tablas */}
       <Route path="/table-catalog" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogPage /></ProtectedRoute>} />
       <Route path="/table-catalog/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><TableCatalogEditorPage /></ProtectedRoute>} />

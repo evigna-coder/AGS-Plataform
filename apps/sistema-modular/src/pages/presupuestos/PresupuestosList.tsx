@@ -278,6 +278,7 @@ export const PresupuestosList = () => {
             <Button size="sm" variant="outline" onClick={() => setShowCondiciones(true)}>Condiciones</Button>
             <Button size="sm" variant="outline" onClick={() => setShowPlantillas(true)}>Plantillas de textos</Button>
             <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/tipos-equipo')}>Tipos de equipo</Button>
+            <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/consumibles-por-modulo')}>Consumibles por módulo</Button>
             {canExport && (
               <>
                 <Button size="sm" variant="outline" onClick={() => {
