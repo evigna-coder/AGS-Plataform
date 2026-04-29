@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
-import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, MonedaCuota, PresupuestoCuotaFacturacion } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
 import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
@@ -2145,6 +2145,90 @@ export const condicionesPagoService = {
     const batch = createBatch();
     batch.delete(docRef('condiciones_pago', id));
     batchAudit(batch, { action: 'delete', collection: 'condiciones_pago', documentId: id });
+    await batch.commit();
+  },
+};
+
+// ==============================
+// PLANTILLAS DE TEXTOS PRESUPUESTO (Phase 03)
+// ==============================
+// Rich HTML text templates para las 6 secciones de un presupuesto.
+// Una plantilla puede aplicar a múltiples tipos de presupuesto.
+// No hay cache — se lee en cada llamada (ver Pitfall 4 en 03-RESEARCH.md).
+
+export const plantillasTextoPresupuestoService = {
+  async getAll(): Promise<PlantillaTextoPresupuesto[]> {
+    const snap = await getDocs(collection(db, 'plantillas_texto_presupuesto'));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() })) as PlantillaTextoPresupuesto[];
+    items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return items;
+  },
+
+  async getById(id: string): Promise<PlantillaTextoPresupuesto | null> {
+    const snap = await getDoc(doc(db, 'plantillas_texto_presupuesto', id));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as PlantillaTextoPresupuesto;
+  },
+
+  /**
+   * Devuelve plantillas activas con esDefault=true cuyo tipoPresupuestoAplica incluye el tipo dado.
+   * Consumer puede agrupar por .tipo (sección) para saber qué sección tiene conflicto (length > 1).
+   */
+  async getDefaultsForTipo(tipo: TipoPresupuesto): Promise<PlantillaTextoPresupuesto[]> {
+    const all = await this.getAll();
+    return all.filter(p => p.activo && p.esDefault && p.tipoPresupuestoAplica.includes(tipo));
+  },
+
+  async create(data: Omit<PlantillaTextoPresupuesto, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const payload = cleanFirestoreData({
+      ...data,
+      ...getCreateTrace(),
+      activo: data.activo ?? true,
+      esDefault: data.esDefault ?? false,
+      tipoPresupuestoAplica: data.tipoPresupuestoAplica ?? [],
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    const ref = newDocRef('plantillas_texto_presupuesto');
+    const batch = createBatch();
+    batch.set(ref, payload);
+    batchAudit(batch, {
+      action: 'create',
+      collection: 'plantillas_texto_presupuesto',
+      documentId: ref.id,
+      after: payload as any,
+    });
+    await batch.commit();
+    return ref.id;
+  },
+
+  async update(id: string, data: Partial<Omit<PlantillaTextoPresupuesto, 'id' | 'createdAt'>>): Promise<void> {
+    const payload = cleanFirestoreData({
+      ...data,
+      ...getUpdateTrace(),
+      updatedAt: Timestamp.now(),
+    });
+    const ref = doc(db, 'plantillas_texto_presupuesto', id);
+    const batch = createBatch();
+    batch.update(ref, payload);
+    batchAudit(batch, {
+      action: 'update',
+      collection: 'plantillas_texto_presupuesto',
+      documentId: id,
+      after: payload as any,
+    });
+    await batch.commit();
+  },
+
+  async delete(id: string): Promise<void> {
+    const ref = doc(db, 'plantillas_texto_presupuesto', id);
+    const batch = createBatch();
+    batch.delete(ref);
+    batchAudit(batch, {
+      action: 'delete',
+      collection: 'plantillas_texto_presupuesto',
+      documentId: id,
+    });
     await batch.commit();
   },
 };
