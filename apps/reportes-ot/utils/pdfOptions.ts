@@ -22,7 +22,6 @@ export const getPDFOptions = (
       scale: Math.max(window.devicePixelRatio * 2, 3),
       useCORS: true,
       logging: false,
-      letterRendering: true,
       allowTaint: false,
       x: 0,
       y: 0,
