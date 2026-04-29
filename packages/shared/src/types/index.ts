@@ -1371,6 +1371,15 @@ export interface TipoEquipoServicio {
   cantidadDefault: number;          // 1, 2... (0 = S/L)
   tipo: TipoServicioPlantilla;
   precioDefault?: number | null;    // Precio sugerido (opcional)
+  /**
+   * (Phase 4 / ANXC-01) Si true, al incluir este servicio en un presupuesto se debe generar
+   * un PDF anexo con el listado de consumibles por módulo del sistema seleccionado y adjuntarlo
+   * al email de envío. Operacionalmente se tilda en servicios MPCC ("Mantenimiento Preventivo
+   * Con Consumibles") pero el flag es ortogonal al campo `tipo` — schema-flexible.
+   *
+   * Default: omitido (tratar como `false`) — plantillas previas a Phase 4 NO requieren migración.
+   */
+  requiereAnexoConsumibles?: boolean;
 }
 
 /** Plantilla completa de un tipo de equipo. */
@@ -1852,6 +1861,13 @@ export interface TableCatalogEntry {
   coverRevision?: string | null;
   /** Fecha de emisión de la carátula (solo tableType === 'cover'). Ej: "01/03/2026" */
   coverFecha?: string | null;
+  /**
+   * Si true (solo tableType === 'cover'), la carátula muestra Marca/Modelo del
+   * módulo seleccionado (`moduloMarca`/`moduloModelo`) en vez del nombre del
+   * sistema padre. Útil para mantenimientos de accesorios (MSD, HSS, HTA)
+   * donde la carátula debe identificar el módulo, no el sistema completo.
+   */
+  coverAutoFillFromModulo?: boolean;
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';
