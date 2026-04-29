@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import type { ConsumibleModulo } from '@ags/shared';
+import { useEffect, useMemo, useState } from 'react';
+import type { Articulo, CategoriaModulo, ConsumibleModulo, ModeloModulo } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { consumiblesPorModuloService } from '../../services/consumiblesPorModuloService';
-
-const th = 'px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-500 text-left';
-const td = 'px-2 py-1';
-const input = 'w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400';
+import { categoriasModuloService } from '../../services/equiposService';
+import { articulosService } from '../../services/stockService';
+import { ConsumiblesTableEditor } from './ConsumiblesTableEditor';
 
 interface FormState {
   codigoModulo: string;
@@ -23,9 +23,80 @@ interface Props {
   onSaved: () => void;
 }
 
+interface ModeloOption {
+  categoriaId: string;
+  modelo: ModeloModulo;
+}
+
 export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCancel, onSaved }) => {
   const [form, setForm] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
+  const [categorias, setCategorias] = useState<CategoriaModulo[]>([]);
+  const [categoriaId, setCategoriaId] = useState<string>('');
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+
+  useEffect(() => {
+    categoriasModuloService.getAll()
+      .then(setCategorias)
+      .catch(err => console.error('Error cargando categorías de módulos:', err));
+    articulosService.getAll({ activoOnly: true })
+      .then(setArticulos)
+      .catch(err => console.error('Error cargando artículos de stock:', err));
+  }, []);
+
+  const articuloOptions = useMemo(
+    () => articulos.map(a => ({ value: a.codigo, label: `${a.codigo} — ${a.descripcion}` })),
+    [articulos],
+  );
+  const articuloByCodigo = useMemo(() => {
+    const map = new Map<string, Articulo>();
+    articulos.forEach(a => map.set(a.codigo, a));
+    return map;
+  }, [articulos]);
+
+  const handleArticuloChange = (idx: number, codigo: string) => {
+    const articulo = articuloByCodigo.get(codigo);
+    setForm(f => ({
+      ...f,
+      consumibles: f.consumibles.map((c, i) => {
+        if (i !== idx) return c;
+        return {
+          ...c,
+          codigo,
+          descripcion: articulo ? articulo.descripcion : c.descripcion,
+        };
+      }),
+    }));
+  };
+
+  // En edición, derivar la categoría desde el código actual una vez cargadas
+  useEffect(() => {
+    if (!editingId || !form.codigoModulo || categorias.length === 0 || categoriaId) return;
+    const match = categorias.find(c => c.modelos.some(m => m.codigo === form.codigoModulo));
+    if (match) setCategoriaId(match.id);
+  }, [editingId, form.codigoModulo, categorias, categoriaId]);
+
+  const modelosDeCategoria = useMemo<ModeloOption[]>(() => {
+    const cat = categorias.find(c => c.id === categoriaId);
+    if (!cat) return [];
+    return cat.modelos.map(m => ({ categoriaId: cat.id, modelo: m }));
+  }, [categorias, categoriaId]);
+
+  const handleCategoriaChange = (newCatId: string) => {
+    setCategoriaId(newCatId);
+    if (!editingId) setForm(f => ({ ...f, codigoModulo: '', descripcion: '' }));
+  };
+
+  const handleModeloChange = (codigo: string) => {
+    const opt = modelosDeCategoria.find(o => o.modelo.codigo === codigo);
+    if (!opt) return;
+    setForm(f => ({
+      ...f,
+      codigoModulo: opt.modelo.codigo.trim().toUpperCase(),
+      // Solo auto-fill descripción si está vacía o estamos creando — no sobreescribir overrides en edit
+      descripcion: !editingId || !f.descripcion ? opt.modelo.descripcion : f.descripcion,
+    }));
+  };
 
   const updateConsumible = (idx: number, field: keyof ConsumibleModulo, value: string | number) => {
     setForm(f => ({
@@ -45,21 +116,16 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
     setForm(f => ({ ...f, consumibles: f.consumibles.filter((_, i) => i !== idx) }));
   };
 
-  const handleCodigoBlur = () => {
-    setForm(f => ({ ...f, codigoModulo: f.codigoModulo.trim().toUpperCase() }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const codigoModulo = form.codigoModulo.trim().toUpperCase();
     if (!codigoModulo) {
-      alert('El código de módulo es obligatorio');
+      alert('Seleccioná categoría y modelo del catálogo');
       return;
     }
     try {
       setSaving(true);
 
-      // Duplicate check on create only (allow update on same doc)
       if (!editingId) {
         const existing = await consumiblesPorModuloService.getByCodigoModulo(codigoModulo);
         if (existing) {
@@ -94,6 +160,9 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
     }
   };
 
+  const codigoNoEnCatalogo = !!form.codigoModulo && categorias.length > 0
+    && !categorias.some(c => c.modelos.some(m => m.codigo === form.codigoModulo));
+
   return (
     <Card>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -104,26 +173,50 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1">Código módulo *</label>
-            <Input
-              value={form.codigoModulo}
-              onChange={e => setForm({ ...form, codigoModulo: e.target.value })}
-              onBlur={handleCodigoBlur}
-              placeholder="G7129A"
+            <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1">Categoría *</label>
+            <SearchableSelect
+              value={categoriaId}
+              onChange={handleCategoriaChange}
+              options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
+              placeholder="Seleccionar categoría"
               required
+              disabled={!!editingId}
             />
           </div>
+          <div>
+            <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1">Modelo *</label>
+            <SearchableSelect
+              value={form.codigoModulo}
+              onChange={handleModeloChange}
+              options={modelosDeCategoria.map(o => ({
+                value: o.modelo.codigo,
+                label: `${o.modelo.codigo} — ${o.modelo.descripcion}`,
+              }))}
+              placeholder={categoriaId ? 'Seleccionar modelo' : 'Elegí categoría primero'}
+              required
+              disabled={!!editingId || !categoriaId}
+              emptyMessage="Esta categoría no tiene modelos cargados"
+            />
+            {codigoNoEnCatalogo && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                Código <code className="font-mono">{form.codigoModulo}</code> no aparece en el catálogo de categorías.
+                Cargalo en "Categorías de módulos" para mantener consistencia.
+              </p>
+            )}
+          </div>
           <div className="md:col-span-2">
-            <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1">Descripción</label>
+            <label className="block text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1">
+              Descripción <span className="text-slate-400 font-normal normal-case">(auto-completada del catálogo, editable)</span>
+            </label>
             <Input
               value={form.descripcion}
               onChange={e => setForm({ ...form, descripcion: e.target.value })}
               placeholder="Inyector Iso Pump"
             />
           </div>
-          <div className="md:col-span-3 flex items-center">
+          <div className="md:col-span-2 flex items-center">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -136,58 +229,15 @@ export const ConsumibleModuloForm: React.FC<Props> = ({ initial, editingId, onCa
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-              Consumibles <span className="text-slate-400 font-normal">(se adjuntan al PDF anexo)</span>
-            </h4>
-            <button type="button" onClick={addConsumible} className="text-[11px] text-teal-700 hover:text-teal-900 font-medium">
-              + Agregar consumible
-            </button>
-          </div>
-          {form.consumibles.length === 0 ? (
-            <p className="text-[11px] text-slate-400 italic px-2">
-              Sin consumibles declarados. Agregue al menos uno o deje vacío para indicar
-              "este módulo no lleva consumibles" (skip silencioso al generar el anexo).
-            </p>
-          ) : (
-            <table className="w-full border border-slate-200 rounded overflow-hidden">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className={`${th} w-32`}>Código</th>
-                  <th className={th}>Descripción</th>
-                  <th className={`${th} w-20`}>Cantidad</th>
-                  <th className={`${th} w-8`}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.consumibles.map((c, idx) => (
-                  <tr key={idx} className="border-t border-slate-100">
-                    <td className={td}>
-                      <input className={input} value={c.codigo} onChange={e => updateConsumible(idx, 'codigo', e.target.value)} placeholder="5061-3361" />
-                    </td>
-                    <td className={td}>
-                      <input className={input} value={c.descripcion} onChange={e => updateConsumible(idx, 'descripcion', e.target.value)} placeholder="Vial 2ml ámbar con tapa" />
-                    </td>
-                    <td className={td}>
-                      <input
-                        type="number"
-                        className={input}
-                        value={c.cantidad}
-                        min={0}
-                        step="1"
-                        onChange={e => updateConsumible(idx, 'cantidad', parseInt(e.target.value) || 0)}
-                      />
-                    </td>
-                    <td className={td}>
-                      <button type="button" onClick={() => removeConsumible(idx)} className="text-red-500 hover:text-red-700 text-xs">×</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <ConsumiblesTableEditor
+          consumibles={form.consumibles}
+          articuloOptions={articuloOptions}
+          articuloByCodigo={articuloByCodigo}
+          onArticuloChange={handleArticuloChange}
+          onUpdate={updateConsumible}
+          onAdd={addConsumible}
+          onRemove={removeConsumible}
+        />
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
