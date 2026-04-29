@@ -3,11 +3,42 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Completed 04-04-PLAN.md (AnexoConsumiblesPDF + buildAnexosFromPresupuesto + barrel re-exports)
+last_updated: "2026-04-29T15:45:45.906Z"
+last_activity: "2026-04-29 — Plan 04-04: feat(04-04) e61f112 (AnexoConsumiblesPDF + generator) + 24cbb9a (buildAnexosFromPresupuesto orchestrator) + ede9c60 (re-exports en pdf/index.ts)."
+progress:
+  total_phases: 12
+  completed_phases: 8
+  total_plans: 55
+  completed_plans: 53
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
+stopped_at: Completed 04-02-PLAN.md (consumiblesPorModuloService + admin page + toolbar wiring)
+last_updated: "2026-04-29T15:44:36.181Z"
+last_activity: "2026-04-29 — Plan 04-02: feat(04-02) bbde394 (servicio CRUD + lookup) + b8147a1 (admin page + form) + 270b166 (route + toolbar wiring)."
+progress:
+  total_phases: 12
+  completed_phases: 8
+  total_plans: 55
+  completed_plans: 53
+  percent: 96
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: Completed 04-02-PLAN.md (consumiblesPorModuloService + admin page + toolbar wiring)
 last_updated: "2026-04-29T15:43:46.311Z"
 last_activity: "2026-04-29 — Plan 04-03: feat(04-03) a9b934c (Anexo column en ServiciosEditor) + 310f552 (hydrate/create/update normalize) + 6a28b7a (seed comment)."
 progress:
-  total_phases: 12
+  [██████████] 96%
   completed_phases: 8
   total_plans: 55
   completed_plans: 52
@@ -151,12 +182,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — PLAN 04-02 COMPLETE
-Plan: 3 of 5 complete (04-01 foundation types ✓ ; 04-02 service + admin CRUD page + toolbar wiring ✓ ; 04-03 editor + service wiring del flag requiereAnexoConsumibles ✓ ; 04-04 builder anexo y 04-05 PDF render pendientes)
-Status: Wave 2 closing — 04-02 deja consumiblesPorModuloService.getByCodigoModulo() listo para que 04-04 lo importe. Toolbar de PresupuestosList ahora tiene "Consumibles por módulo" como entry point admin. 04-04/04-05 desbloqueados.
-Last activity: 2026-04-29 — Plan 04-02: feat(04-02) bbde394 (servicio CRUD + lookup) + b8147a1 (admin page + form) + 270b166 (route + toolbar wiring).
+Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — PLAN 04-04 COMPLETE
+Plan: 4 of 5 complete (04-01 foundation types ✓ ; 04-02 service + admin CRUD ✓ ; 04-03 editor + flag wiring ✓ ; 04-04 AnexoConsumiblesPDF + buildAnexosFromPresupuesto ✓ ; 04-05 email integration pendiente)
+Status: Wave 2 cerrada. Builder de anexos + componente PDF react-pdf disponibles vía '../pdf' barrel exports. Plan 04-05 puede proceder con EnviarPresupuestoModal integration (checkbox + preview + N adjuntos).
+Last activity: 2026-04-29 — Plan 04-04: feat(04-04) e61f112 (AnexoConsumiblesPDF + generator) + 24cbb9a (buildAnexosFromPresupuesto orchestrator) + ede9c60 (re-exports en pdf/index.ts).
 
-Progress: [██████████] 95% (v2.0 milestone — 52/55 plans)
+Progress: [██████████] 96% (v2.0 milestone — 53/55 plans)
 
 ## Performance Metrics
 
@@ -205,6 +236,7 @@ Progress: [██████████] 95% (v2.0 milestone — 52/55 plans)
 | Phase 04-presupuestos-anexo-consumibles P01 | 2min | 2 tasks | 1 files |
 | Phase 04-presupuestos-anexo-consumibles P03 | 5min | 3 tasks | 3 files |
 | Phase 04-presupuestos-anexo-consumibles P02 | 8min | 3 tasks | 6 files |
+| Phase 04-presupuestos-anexo-consumibles P04 | 9min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -292,6 +324,10 @@ Progress: [██████████] 95% (v2.0 milestone — 52/55 plans)
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-02]: getByCodigoModulo no filtra por activo — política de inactivos queda en el caller (builder anexo plan 04-04 filtra; admin UI puede mostrar)
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-02]: codigoModulo case-sensitive (part numbers Agilent son códigos cerrados) + auto-uppercase on blur en form para capturar entrada inconsistente
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-02]: List + Form split (180 + 199 LOC) para mantener cada componente bajo 250 líneas (regla components.md); simplificación de TiposEquipoList layout (sin useResizableColumns/SortableHeader/ColAlignIcon) documentada como única desviación
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: Detección de "código de módulo" en módulos reales — regex Agilent /^[A-Z][0-9]{3,5}[A-Z]?$/ sobre mod.nombre.trim(); ModuloSistema no tiene campo partNumber explícito. Si no matchea → placeholder caso (i) (warning + texto italics en PDF)
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: Flag requiereAnexoConsumibles cross-plantilla — si CUALQUIER plantilla con mismo servicioCode lo marca, se respeta. Previene falsos negativos cuando el flag está tildado en HPLC 1260 pero no en HPLC 1260 Infinity.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: buildAnexosFromPresupuesto recibe modulosBySistema + plantillas pre-cargados (mismo patrón que generatePresupuestoPDF.tsx). NO llama Firestore para módulos/plantillas. Solo lookup consumibles_por_modulo se hace inline (cacheado por código en Map con null-sentinel).
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: 4 casos edge — (i) sin código + warning, (ii) código no en catálogo + warning, (iii) lista vacía intencional → SKIP silencioso, terminal (sin módulos ni plantilla) → no se genera anexo + warning. Si modulosOut.length === 0 después de procesar todos → skip-ear el anexo entero.
 
 ### Pending Todos
 
@@ -305,6 +341,6 @@ Progress: [██████████] 95% (v2.0 milestone — 52/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-04-29T15:43:31.498Z
-Stopped at: Completed 04-02-PLAN.md (consumiblesPorModuloService + admin page + toolbar wiring)
+Last session: 2026-04-29T15:45:45.893Z
+Stopped at: Completed 04-04-PLAN.md (AnexoConsumiblesPDF + buildAnexosFromPresupuesto + barrel re-exports)
 Resume file: None
