@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: "Completed 03-04-PLAN.md (PresupuestoCondicionesEditor refactor — RichTextEditor + Firestore plantilla dropdowns + PlantillasTextoModal link — closes VERIFICATION gap #2)"
-last_updated: "2026-04-29T02:16:07.147Z"
+stopped_at: "Completed 03-05-PLAN.md (useCreatePresupuestoForm auto-apply effect — closes VERIFICATION gap #3)"
+last_updated: "2026-04-29T02:20:38.950Z"
 last_activity: "2026-04-26 — Plan 12-06 finalized: 49a264d (data-testid), e703cb1 (E2E sub-suites 11.50/11.51/11.52), 00b2250 (SUMMARY Tasks 1-3). Gap discovered: create-flow esquema wiring missing."
 progress:
   total_phases: 12
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 50
-  completed_plans: 48
+  completed_plans: 49
   percent: 93
 ---
 
@@ -169,6 +169,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 | Phase 03-presupuestos-plantillas-texto P03 | 154s | 4 tasks | 4 files |
 | Phase 03-presupuestos-plantillas-texto P06 | 357s | 4 tasks | 5 files |
 | Phase 03-presupuestos-plantillas-texto P04 | 90s | 1 tasks | 1 files |
+| Phase 03-presupuestos-plantillas-texto P05 | 130s | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -246,6 +247,7 @@ Progress: [█████████░] 92% (v2.0 milestone)
 - [Phase 03-presupuestos-plantillas-texto]: PlantillaRow extracted proactively before PlantillasTextoModal to keep modal under 250-line budget; maxWidth='xl' for modal gives RichTextEditor comfortable space
 - [Phase 03-presupuestos-plantillas-texto]: react-pdf-html v2.1.5 chosen for HTML→PDF rendering; FontRenderer typed inline (HtmlRenderer not exported from package index); renderers cast as any for strict HtmlRenderers type; resetStyles=true mandatory per Pitfall 5; resetKey={html} on ErrorBoundary for fresh retry on content change
 - [Phase 03-presupuestos-plantillas-texto]: 03-04: Gestionar plantillas link in card header (single entry point); per-section select dropdown resets after selection; loadPlantillas() on modal close refreshes dropdowns without page reload
+- [Phase 03-presupuestos-plantillas-texto]: autoAppliedOnce flag gates once-per-open auto-apply; alphabetical-first conflict resolution; silent error path in v1 (console.error only)
 
 ### Pending Todos
 
@@ -259,6 +261,6 @@ Progress: [█████████░] 92% (v2.0 milestone)
 
 ## Session Continuity
 
-Last session: 2026-04-29T02:16:07.144Z
-Stopped at: Completed 03-04-PLAN.md (PresupuestoCondicionesEditor refactor — RichTextEditor + Firestore plantilla dropdowns + PlantillasTextoModal link — closes VERIFICATION gap #2)
+Last session: 2026-04-29T02:20:38.946Z
+Stopped at: Completed 03-05-PLAN.md (useCreatePresupuestoForm auto-apply effect — closes VERIFICATION gap #3)
 Resume file: None
