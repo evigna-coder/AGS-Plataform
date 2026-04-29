@@ -16,7 +16,8 @@ const FONT_SIZES = [
   { label: '24', value: '6' },
 ];
 
-type BtnId = 'bold' | 'italic' | 'underline' | 'insertUnorderedList' | 'insertOrderedList';
+type BtnId = 'bold' | 'italic' | 'underline' | 'insertUnorderedList' | 'insertOrderedList'
+  | 'justifyLeft' | 'justifyCenter' | 'justifyRight';
 
 const TOOLBAR_BUTTONS: { id: BtnId; label: string; title: string; className?: string }[] = [
   { id: 'bold', label: 'B', title: 'Negrita (Ctrl+B)', className: 'font-bold' },
@@ -24,6 +25,9 @@ const TOOLBAR_BUTTONS: { id: BtnId; label: string; title: string; className?: st
   { id: 'underline', label: 'U', title: 'Subrayado (Ctrl+U)', className: 'underline' },
   { id: 'insertUnorderedList', label: '• Lista', title: 'Lista con viñetas' },
   { id: 'insertOrderedList', label: '1. Lista', title: 'Lista numerada' },
+  { id: 'justifyLeft', label: '⬅', title: 'Alinear a la izquierda' },
+  { id: 'justifyCenter', label: '⬌', title: 'Centrar' },
+  { id: 'justifyRight', label: '➡', title: 'Alinear a la derecha' },
 ];
 
 export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }: Props) {
@@ -67,6 +71,9 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
     if (document.queryCommandState('underline')) formats.add('underline');
     if (document.queryCommandState('insertUnorderedList')) formats.add('insertUnorderedList');
     if (document.queryCommandState('insertOrderedList')) formats.add('insertOrderedList');
+    if (document.queryCommandState('justifyLeft')) formats.add('justifyLeft');
+    if (document.queryCommandState('justifyCenter')) formats.add('justifyCenter');
+    if (document.queryCommandState('justifyRight')) formats.add('justifyRight');
     setActiveFormats(formats);
   }, []);
 
@@ -89,7 +96,25 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
     <div className="border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 bg-slate-50 border-b border-slate-200 flex-wrap">
-        {TOOLBAR_BUTTONS.map(btn => (
+        {TOOLBAR_BUTTONS.slice(0, 5).map(btn => (
+          <button
+            key={btn.id}
+            type="button"
+            onMouseDown={e => { e.preventDefault(); exec(btn.id); }}
+            title={btn.title}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              activeFormats.has(btn.id)
+                ? 'bg-teal-100 text-teal-700'
+                : 'text-slate-600 hover:bg-slate-200'
+            } ${btn.className ?? ''}`}
+          >
+            {btn.label}
+          </button>
+        ))}
+
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+
+        {TOOLBAR_BUTTONS.slice(5).map(btn => (
           <button
             key={btn.id}
             type="button"
