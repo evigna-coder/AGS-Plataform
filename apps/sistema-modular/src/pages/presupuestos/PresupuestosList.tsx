@@ -19,6 +19,7 @@ import { CreateRevisionModal } from '../../components/presupuestos/CreateRevisio
 import { ConceptosServicioModal } from '../../components/presupuestos/ConceptosServicioModal';
 import { CategoriasPresupuestoModal } from '../../components/presupuestos/CategoriasPresupuestoModal';
 import { CondicionesPagoModal } from '../../components/presupuestos/CondicionesPagoModal';
+import { PlantillasTextoModal } from '../../components/presupuestos/PlantillasTextoModal';
 import { PresupuestoDashboard } from '../../components/presupuestos/PresupuestoDashboard';
 import { SolicitarFacturaModal } from '../../components/presupuestos/SolicitarFacturaModal';
 import { AdjuntarOCModal } from '../../components/presupuestos/AdjuntarOCModal';
@@ -46,6 +47,7 @@ export const PresupuestosList = () => {
   const [showConceptos, setShowConceptos] = useState(false);
   const [showCategorias, setShowCategorias] = useState(false);
   const [showCondiciones, setShowCondiciones] = useState(false);
+  const [showPlantillas, setShowPlantillas] = useState(false);
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
   const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
   const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
@@ -274,6 +276,7 @@ export const PresupuestosList = () => {
             <Button size="sm" variant="outline" onClick={() => setShowConceptos(true)}>Conceptos</Button>
             <Button size="sm" variant="outline" onClick={() => setShowCategorias(true)}>Categorías</Button>
             <Button size="sm" variant="outline" onClick={() => setShowCondiciones(true)}>Condiciones</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowPlantillas(true)}>Plantillas de textos</Button>
             <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/tipos-equipo')}>Tipos de equipo</Button>
             {canExport && (
               <>
@@ -559,6 +562,7 @@ export const PresupuestosList = () => {
       <ConceptosServicioModal open={showConceptos} onClose={() => setShowConceptos(false)} />
       <CategoriasPresupuestoModal open={showCategorias} onClose={() => setShowCategorias(false)} />
       <CondicionesPagoModal open={showCondiciones} onClose={() => setShowCondiciones(false)} />
+      <PlantillasTextoModal open={showPlantillas} onClose={() => setShowPlantillas(false)} />
       {otTarget && (
         <CreateOTModal
           open={!!otTarget}
