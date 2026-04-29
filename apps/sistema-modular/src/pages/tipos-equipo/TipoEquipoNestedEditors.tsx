@@ -93,6 +93,8 @@ export const ServiciosEditor: React.FC<{
               <th className={th}>Descripción</th>
               <th className={`${th} w-16`}>Cant.</th>
               <th className={`${th} w-32`}>Tipo</th>
+              {/* Tilde si este servicio dispara la generación de un PDF anexo de consumibles al cotizar */}
+              <th className={`${th} w-16 text-center`} title="Servicios con anexo de consumibles disparan la generación de PDF anexo al cotizar">Anexo</th>
               <th className={`${th} w-24`}>Precio def.</th>
               <th className={`${th} w-8`}></th>
             </tr>
@@ -108,6 +110,14 @@ export const ServiciosEditor: React.FC<{
                   <select className={input} value={s.tipo} onChange={e => update(s.id, 'tipo', e.target.value as TipoServicioPlantilla)}>
                     {Object.entries(TIPO_SERVICIO_PLANTILLA_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                   </select>
+                </td>
+                <td className={`${td} text-center`}>
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 text-teal-700 rounded border-slate-300 focus:ring-1 focus:ring-teal-400"
+                    checked={s.requiereAnexoConsumibles ?? false}
+                    onChange={e => update(s.id, 'requiereAnexoConsumibles', e.target.checked)}
+                  />
                 </td>
                 <td className={td}><input type="number" step="0.01" className={input} value={s.precioDefault ?? ''} onChange={e => update(s.id, 'precioDefault', e.target.value ? parseFloat(e.target.value) : null)} placeholder="—" /></td>
                 <td className={td}>
