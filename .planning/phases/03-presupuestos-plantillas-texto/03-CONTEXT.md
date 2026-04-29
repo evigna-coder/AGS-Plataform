@@ -35,7 +35,7 @@ Hoy los textos default están hardcodeados en `PRESUPUESTO_TEMPLATES` ([packages
 
 ### Matching y conflictos
 - **Una plantilla puede ser default de varios tipos a la vez** — se evita duplicar contenido idéntico entre tipos.
-- **Conflicto de múltiples defaults** (2+ plantillas con `esDefault=true` que aplican al mismo tipo+sección): el sistema **NO bloquea el guardado**. En runtime, al crear un presupuesto, si hay conflicto para una sección, se muestra **selector** al usuario para elegir cuál cargar (lista de defaults candidatos con preview).
+- **Conflicto de múltiples defaults** (2+ plantillas con `esDefault=true` que aplican al mismo tipo+sección): el sistema **NO bloquea el guardado**. En runtime, al crear un presupuesto, si hay conflicto para una sección, se aplica el **primero por orden alfabético de `nombre`** y se loguea `console.warn` con el ID/nombres en conflicto. (Decisión revisada 2026-04-28: selector inline de conflicto **diferido** — ver `## Deferred Ideas`. La probabilidad de configurar 2+ defaults para la misma sección+tipo es baja; se prioriza shipear la fase y deferir el selector hasta que aparezca como necesidad real.)
 - **Sin default disponible** para el tipo del presupuesto en una sección: el campo queda **vacío**. El usuario puede cargar manualmente desde el dropdown "Cargar plantilla" (que muestra todas las activas que apliquen al tipo). **No hay fallback** a `PRESUPUESTO_TEMPLATES` hardcoded (ese catálogo se migra y luego queda obsoleto).
 
 ### Auto-aplicación y edición
@@ -139,6 +139,7 @@ Hoy los textos default están hardcodeados en `PRESUPUESTO_TEMPLATES` ([packages
 <deferred>
 ## Deferred Ideas
 
+- **Selector inline de conflicto de defaults** (decisión revisada 2026-04-28) — UI en el modal de creación de presupuesto que liste los defaults candidatos cuando hay 2+ con `esDefault=true` para el mismo tipo+sección, con preview, para que el usuario elija cuál cargar. Diferido a v1.1 — se prioriza shipear la fase con el comportamiento "first by name + console.warn". Retomar cuando aparezca como necesidad real (probable solo si configuran defaults solapados a propósito).
 - **Relación plantilla ↔ condición de pago** — filtrado adicional o placeholders dinámicos tipo `[[CONDICION_PAGO]]` dentro del texto de la plantilla. Fase futura si hay necesidad real.
 - **Versionado de plantillas** — historial de cambios a una plantilla (ver qué se modificó y cuándo). Fuera de scope por ahora; solo queda last-modified via audit trace.
 - **Roles / permisos por plantilla** — no todos los roles deberían poder editar plantillas comerciales. Se manejará dentro del sistema RBAC general del proyecto, no aquí.
