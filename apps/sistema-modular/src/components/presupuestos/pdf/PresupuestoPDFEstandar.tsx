@@ -3,6 +3,7 @@ import { baseStyles, COLORS } from './pdfStyles';
 import './pdfFonts';
 import { agruparPorSistemaSimple } from './pdfUtils';
 import { PdfEsquemaFacturacionSection } from './PdfEsquemaFacturacionSection';
+import { PDFRichText } from './PDFRichText';
 import type {
   Presupuesto,
   Cliente,
@@ -468,7 +469,7 @@ function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
       {visibleSections.map((section) => (
         <View key={section.key} style={S.condicionSection} wrap={false}>
           <Text style={S.condicionTitle}>{section.title}</Text>
-          <Text style={S.condicionText}>{section.content}</Text>
+          <PDFRichText html={section.content} fallbackStyle={S.condicionText} />
         </View>
       ))}
     </View>
