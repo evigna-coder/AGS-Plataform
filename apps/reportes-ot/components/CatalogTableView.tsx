@@ -1214,10 +1214,16 @@ export const CatalogTableView: React.FC<Props> = ({
 
       if (isPrint) {
         const printVal = rawValue || factoryVal || '—';
+        const printValWithUnit = printVal !== '—' && col.unit ? `${printVal}\u00A0${col.unit}` : printVal;
         return (
-          <span className="text-[10px]">
-            {printVal !== '—' && col.unit ? `${printVal}\u00A0${col.unit}` : printVal}
-          </span>
+          <div className="flex flex-col items-center leading-tight">
+            <span className="text-[10px]">{printValWithUnit}</span>
+            {factoryVal && (
+              <span className="text-[8px] text-slate-500 mt-0.5">
+                Ref. fábrica: {displayFactoryVal}
+              </span>
+            )}
+          </div>
         );
       }
 
