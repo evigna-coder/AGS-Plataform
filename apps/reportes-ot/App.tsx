@@ -341,7 +341,7 @@ const App: React.FC = () => {
               showShareModal={app.showShareModal} setShowShareModal={app.setShowShareModal}
               shareUrl={app.shareUrl} otNumber={app.otNumber}
               showQRModal={app.showQRModal} setShowQRModal={app.setShowQRModal}
-              qrRef={app.qrRef}
+              qrRef={app.qrRef} qrUrl={app.qrUrl}
               showNewOtModal={app.showNewOtModal} setShowNewOtModal={app.setShowNewOtModal}
               pendingOt={app.pendingOt} setPendingOt={app.setPendingOt}
               setOtInput={app.setOtInput}
@@ -590,7 +590,7 @@ const App: React.FC = () => {
         showShareModal={app.showShareModal} setShowShareModal={app.setShowShareModal}
         shareUrl={app.shareUrl} otNumber={app.otNumber}
         showQRModal={app.showQRModal} setShowQRModal={app.setShowQRModal}
-        qrRef={app.qrRef}
+        qrRef={app.qrRef} qrUrl={app.qrUrl}
         showNewOtModal={app.showNewOtModal} setShowNewOtModal={app.setShowNewOtModal}
         pendingOt={app.pendingOt} setPendingOt={app.setPendingOt}
         setOtInput={app.setOtInput}

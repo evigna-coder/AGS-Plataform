@@ -474,6 +474,7 @@ export function useAppLogic(
 
   const [loadingAI, setLoadingAI] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -648,8 +649,9 @@ export function useAppLogic(
       
       const base64 = safeBtoaUnicode(JSON.stringify(state));
       const url = `${window.location.origin}${window.location.pathname}?modo=firma&reportId=${otNumber}&data=${base64}`;
-      
-      qrRef.current.innerHTML = ''; 
+      setQrUrl(url);
+
+      qrRef.current.innerHTML = '';
       new QRCode(qrRef.current, {
         text: url,
         width: 150,
@@ -1031,7 +1033,7 @@ export function useAppLogic(
     // Refs
     clientPadRef, engineerPadRef, qrRef,
     // UI state
-    loadingAI, showQRModal, setShowQRModal,
+    loadingAI, showQRModal, setShowQRModal, qrUrl,
     showDuplicateModal, setShowDuplicateModal,
     isSharing, shareUrl, showShareModal, setShowShareModal,
     // Services

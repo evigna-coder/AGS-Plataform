@@ -12,6 +12,7 @@ interface AppModalsProps {
   showQRModal: boolean;
   setShowQRModal: (v: boolean) => void;
   qrRef: React.RefObject<HTMLDivElement | null>;
+  qrUrl: string | null;
   // New OT modal
   showNewOtModal: boolean;
   setShowNewOtModal: (v: boolean) => void;
@@ -25,7 +26,7 @@ interface AppModalsProps {
 
 export const AppModals: React.FC<AppModalsProps> = ({
   showShareModal, setShowShareModal, shareUrl, otNumber,
-  showQRModal, setShowQRModal, qrRef,
+  showQRModal, setShowQRModal, qrRef, qrUrl,
   showNewOtModal, setShowNewOtModal, pendingOt, setPendingOt, setOtInput, confirmCreateNewOt,
   modal,
 }) => {
@@ -79,6 +80,30 @@ export const AppModals: React.FC<AppModalsProps> = ({
             <div className="bg-white p-4 rounded-2xl border-2 border-slate-50 flex items-center justify-center shadow-inner mx-auto overflow-hidden" style={{ width: '182px', height: '182px' }}>
               <div ref={qrRef} id="qrcode-container" className="block mx-auto" style={{ width: '150px', height: '150px' }}></div>
             </div>
+
+            {qrUrl && (
+              <div className="text-left">
+                <label className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block mb-1">¿No podés escanear? Abrí este enlace</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={qrUrl}
+                    readOnly
+                    onFocus={e => e.currentTarget.select()}
+                    className="flex-1 min-w-0 border border-slate-300 rounded-lg px-2 py-2 text-[10px] font-mono bg-slate-50 truncate"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(qrUrl);
+                      modal.showAlert({ title: 'Listo', message: 'Enlace copiado al portapapeles', type: 'success' });
+                    }}
+                    className="bg-slate-600 text-white font-black px-3 rounded-lg uppercase tracking-widest text-[10px] hover:bg-slate-700"
+                  >
+                    Copiar
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="pt-4 space-y-2">
               <button onClick={() => setShowQRModal(false)} className="w-full bg-slate-100 text-slate-600 font-black py-3 rounded-xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-colors">Cerrar</button>
