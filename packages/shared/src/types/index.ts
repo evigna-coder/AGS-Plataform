@@ -1567,6 +1567,13 @@ export interface TableCatalogColumn {
    * no el del sistema padre. Marca y serie ya leen del módulo por defecto.
    */
   autoFillFromModulo?: boolean;
+  /**
+   * Si true, la celda de edición se renderiza como textarea auto-expandible
+   * (varios renglones). El valor en el PDF ya se imprime con whitespace:pre-wrap,
+   * así que el wrap se refleja también en el reporte impreso. Útil para columnas
+   * de "resultado" donde el técnico carga texto descriptivo más largo.
+   */
+  multiline?: boolean;
 }
 
 export interface TableCatalogRow {

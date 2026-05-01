@@ -610,8 +610,8 @@ function renderDefaultCell(
 
   if (!effectiveUnit) {
     const alignClass = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
-    // Textarea auto-expandible para columnas alineadas a izquierda (texto extenso)
-    if (col.align === 'left' && !compact) {
+    // Textarea auto-expandible: explícito (col.multiline) o columnas alineadas a izquierda (texto extenso).
+    if ((col.multiline || col.align === 'left') && !compact) {
       const handleTextarea = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const val = effectiveUnit
           ? e.target.value.replace(new RegExp(`\\s*${escUnit}\\s*$`), '').trim()

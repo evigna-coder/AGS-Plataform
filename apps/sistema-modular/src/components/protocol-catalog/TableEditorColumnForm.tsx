@@ -83,6 +83,10 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
             <input type="checkbox" checked={!!d.autoFillFromModulo} onChange={e => setD({ ...d, autoFillFromModulo: e.target.checked || undefined })} />
             Modelo desde módulo
           </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="Renderiza la celda como textarea auto-expandible (varios renglones). El wrap también se refleja en el PDF. Útil para columnas de resultado con texto descriptivo.">
+            <input type="checkbox" checked={!!d.multiline} onChange={e => setD({ ...d, multiline: e.target.checked || undefined })} />
+            Multilínea
+          </label>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Ancho (mm)</label>
             <input
