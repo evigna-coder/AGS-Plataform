@@ -4,9 +4,21 @@ import { ColAlignIcon } from '../components/ui/ColAlignIcon';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
 import { OTStatusBadge } from '../components/ordenes-trabajo/OTStatusBadge';
-import { otService, type WorkOrderWithPdf } from '../services/firebaseService';
+import HistorialFilterBar from '../components/historial/HistorialFilterBar';
+import HistorialOTCard from '../components/historial/HistorialOTCard';
+import { otService, clientesService, tiposServicioService, type WorkOrderWithPdf } from '../services/firebaseService';
 import { REPORTES_OT_URL } from '../utils/constants';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
+import { useUrlFilters } from '../hooks/useUrlFilters';
+
+const FILTER_SCHEMA = {
+  search: { type: 'string', default: '' },
+  cliente: { type: 'string', default: '' },
+  equipo: { type: 'string', default: '' },
+  tipoServicio: { type: 'string', default: '' },
+  fechaDesde: { type: 'string', default: '' },
+  fechaHasta: { type: 'string', default: '' },
+} as const;
 
 const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
   active ? (
@@ -20,38 +32,23 @@ const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
     </svg>
   );
 
-type StatusFilter = 'all' | 'BORRADOR' | 'FINALIZADO';
-
-const STATUS_TABS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Todas' },
-  { value: 'BORRADOR', label: 'En progreso' },
-  { value: 'FINALIZADO', label: 'Finalizadas' },
-];
-
 function fmt(dateStr?: string) {
   if (!dateStr) return '—';
   try { return new Date(dateStr).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
   catch { return dateStr; }
 }
 
-/** Abre el PDF directamente si hay URL en Storage, sino abre reportes-ot */
 const openPDF = (ot: WorkOrderWithPdf) => {
-  if (ot.pdfUrl) {
-    window.open(ot.pdfUrl, '_blank');
-  } else {
-    window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(ot.otNumber)}`, '_blank');
-  }
-};
-
-const openReport = (otNum: string) => {
-  window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(otNum)}`, '_blank');
+  if (ot.pdfUrl) window.open(ot.pdfUrl, '_blank');
+  else window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(ot.otNumber)}`, '_blank');
 };
 
 export default function HistorialPage() {
   const [ots, setOts] = useState<WorkOrderWithPdf[]>([]);
+  const [clientes, setClientes] = useState<{ id: string; razonSocial: string }[]>([]);
+  const [tiposServicio, setTiposServicio] = useState<{ id: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState<string>('fechaInicio');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const handleSort = (f: string) => {
@@ -65,18 +62,54 @@ export default function HistorialPage() {
   useEffect(() => {
     unsubRef.current?.();
     unsubRef.current = otService.subscribe(
-      undefined,
+      { status: 'FINALIZADO' },
       (data) => { setOts(data); setLoading(false); },
       (err) => { console.error('Historial subscription error:', err); setLoading(false); },
     );
     return () => { unsubRef.current?.(); };
   }, []);
 
+  useEffect(() => {
+    clientesService.getAll().then(setClientes).catch(err => console.warn('Clientes load failed:', err));
+    tiposServicioService.getAll().then(setTiposServicio).catch(err => console.warn('Tipos servicio load failed:', err));
+  }, []);
+
+  const clienteRazonById = useMemo(() => {
+    const m = new Map<string, string>();
+    clientes.forEach(c => m.set(c.id, c.razonSocial.toLowerCase()));
+    return m;
+  }, [clientes]);
+
   const filtered = useMemo(() => {
     let list = ots;
-    if (statusFilter !== 'all') list = list.filter(ot => ot.status === statusFilter);
-    if (search.trim()) {
-      const s = search.toLowerCase();
+    if (filters.cliente) {
+      const razon = clienteRazonById.get(filters.cliente);
+      list = list.filter(ot => {
+        if (ot.clienteId === filters.cliente) return true;
+        if (razon && ot.razonSocial?.toLowerCase().includes(razon)) return true;
+        return false;
+      });
+    }
+    if (filters.tipoServicio) {
+      list = list.filter(ot => ot.tipoServicio === filters.tipoServicio);
+    }
+    if (filters.equipo.trim()) {
+      const e = filters.equipo.toLowerCase();
+      list = list.filter(ot =>
+        ot.moduloModelo?.toLowerCase().includes(e) ||
+        ot.moduloSerie?.toLowerCase().includes(e) ||
+        ot.sistema?.toLowerCase().includes(e) ||
+        ot.codigoInternoCliente?.toLowerCase().includes(e),
+      );
+    }
+    if (filters.fechaDesde) {
+      list = list.filter(ot => (ot.fechaInicio || ot.updatedAt || '') >= filters.fechaDesde);
+    }
+    if (filters.fechaHasta) {
+      list = list.filter(ot => (ot.fechaInicio || ot.updatedAt || '') <= filters.fechaHasta + 'T23:59:59');
+    }
+    if (filters.search.trim()) {
+      const s = filters.search.toLowerCase();
       list = list.filter(ot =>
         ot.otNumber?.toLowerCase().includes(s) ||
         ot.razonSocial?.toLowerCase().includes(s) ||
@@ -85,61 +118,51 @@ export default function HistorialPage() {
         ot.ingenieroAsignadoNombre?.toLowerCase().includes(s) ||
         ot.moduloModelo?.toLowerCase().includes(s) ||
         ot.moduloSerie?.toLowerCase().includes(s) ||
-        ot.codigoInternoCliente?.toLowerCase().includes(s)
+        ot.codigoInternoCliente?.toLowerCase().includes(s),
       );
     }
     return sortByField(list, sortField, sortDir);
-  }, [ots, search, statusFilter, sortField, sortDir]);
+  }, [ots, filters, clienteRazonById, sortField, sortDir]);
+
+  const hasActiveFilters = filters.search || filters.cliente || filters.equipo || filters.tipoServicio || filters.fechaDesde || filters.fechaHasta;
 
   return (
     <div className="h-full flex flex-col">
       <PageHeader
         title="Historial"
-        subtitle={loading ? '...' : `${filtered.length} órdenes de trabajo`}
+        subtitle={loading ? '...' : `${filtered.length} órdenes finalizadas`}
       />
 
-      {/* Filters */}
-      <div className="shrink-0 px-4 pb-3 space-y-2">
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {STATUS_TABS.map(t => (
-            <button
-              key={t.value}
-              onClick={() => setStatusFilter(t.value)}
-              className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
-                statusFilter === t.value
-                  ? 'bg-teal-600 text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="search"
-            placeholder="Buscar por OT, cliente, equipo, modelo, serie..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"
-          />
-        </div>
-      </div>
+      <HistorialFilterBar
+        search={filters.search}
+        cliente={filters.cliente}
+        equipo={filters.equipo}
+        tipoServicio={filters.tipoServicio}
+        fechaDesde={filters.fechaDesde}
+        fechaHasta={filters.fechaHasta}
+        clientes={clientes}
+        tiposServicio={tiposServicio}
+        onChange={{
+          search: v => setFilter('search', v),
+          cliente: v => setFilter('cliente', v),
+          equipo: v => setFilter('equipo', v),
+          tipoServicio: v => setFilter('tipoServicio', v),
+          fechaDesde: v => setFilter('fechaDesde', v),
+          fechaHasta: v => setFilter('fechaHasta', v),
+        }}
+        onReset={resetFilters}
+      />
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {loading ? (
           <div className="flex justify-center py-12"><Spinner size="lg" /></div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm font-medium text-slate-600">
-              {search || statusFilter !== 'all' ? 'Sin resultados' : 'Sin órdenes de trabajo'}
+              {hasActiveFilters ? 'Sin resultados' : 'Sin OTs finalizadas'}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              {search ? 'Probá con otro término de búsqueda.' : 'Las OTs aparecen aquí cuando se crean.'}
+              {hasActiveFilters ? 'Probá con otros filtros.' : 'Acá se listan las OTs con cierre técnico.'}
             </p>
           </div>
         ) : (
@@ -152,13 +175,12 @@ export default function HistorialPage() {
                 ) : (
                   <colgroup>
                     <col style={{ width: '10%' }} />
-                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '20%' }} />
                     <col style={{ width: '14%' }} />
                     <col style={{ width: '16%' }} />
                     <col style={{ width: '14%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '11%' }} />
+                    <col style={{ width: '15%' }} />
                   </colgroup>
                 )}
                 <thead className="sticky top-0 z-10">
@@ -169,15 +191,17 @@ export default function HistorialPage() {
                     <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('moduloModelo')}>Módulo<SortIcon active={sortField === 'moduloModelo'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                     <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('tipoServicio')}>Servicio<SortIcon active={sortField === 'tipoServicio'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                     <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('fechaInicio')}>Fecha<SortIcon active={sortField === 'fechaInicio'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(6)}`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('status')}>Estado<SortIcon active={sortField === 'status'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative">Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                    <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Reporte</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map(ot => (
                     <tr key={ot.otNumber} className="hover:bg-slate-50 transition-colors">
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
-                        <span className="font-semibold text-teal-600 text-xs font-mono">OT-{ot.otNumber}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-teal-600 text-xs font-mono">OT-{ot.otNumber}</span>
+                          <OTStatusBadge status={ot.status} />
+                        </div>
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-700 truncate max-w-[160px] ${getAlignClass(1)}`} title={ot.razonSocial}>{ot.razonSocial || '—'}</td>
                       <td className={`px-3 py-2 text-xs text-slate-600 truncate max-w-[120px] ${getAlignClass(2)}`} title={ot.sistema}>{ot.sistema || '—'}</td>
@@ -187,25 +211,13 @@ export default function HistorialPage() {
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-600 truncate max-w-[140px] ${getAlignClass(4)}`} title={ot.tipoServicio}>{ot.tipoServicio || '—'}</td>
                       <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(5)}`}>{fmt(ot.fechaInicio || ot.updatedAt)}</td>
-                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(6)}`}><OTStatusBadge status={ot.status} /></td>
                       <td className="px-3 py-2 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          {ot.status === 'FINALIZADO' ? (
-                            <button
-                              onClick={() => openPDF(ot)}
-                              className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50"
-                            >
-                              Ver PDF
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => openReport(ot.otNumber)}
-                              className="text-[10px] font-medium text-teal-600 hover:text-teal-800 px-1.5 py-0.5 rounded hover:bg-teal-50"
-                            >
-                              Abrir reporte
-                            </button>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => openPDF(ot)}
+                          className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50"
+                        >
+                          Ver PDF
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -215,78 +227,9 @@ export default function HistorialPage() {
 
             {/* Mobile cards */}
             <div className="md:hidden space-y-2">
-              {filtered.map(ot => (
-                <MobileOTCard key={ot.otNumber} ot={ot} />
-              ))}
+              {filtered.map(ot => <HistorialOTCard key={ot.otNumber} ot={ot} />)}
             </div>
           </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MobileOTCard({ ot }: { ot: WorkOrderWithPdf }) {
-  const isFinalizado = ot.status === 'FINALIZADO';
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold font-mono text-teal-600">OT-{ot.otNumber}</span>
-          <OTStatusBadge status={ot.status} />
-        </div>
-        <span className="text-[11px] text-slate-400 shrink-0">{fmt(ot.fechaInicio || ot.updatedAt)}</span>
-      </div>
-
-      <p className="text-sm font-semibold text-slate-800 truncate">{ot.razonSocial || '—'}</p>
-
-      <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-500">
-        {ot.sistema && <span className="truncate">{ot.sistema}</span>}
-        {ot.tipoServicio && (
-          <>
-            <span className="shrink-0">·</span>
-            <span className="truncate">{ot.tipoServicio}</span>
-          </>
-        )}
-      </div>
-
-      {ot.moduloModelo && (
-        <p className="mt-1 text-[11px] text-slate-400 truncate">
-          {ot.moduloModelo}
-          {ot.moduloSerie && <span className="ml-1">({ot.moduloSerie})</span>}
-        </p>
-      )}
-
-      {ot.ingenieroAsignadoNombre && (
-        <p className="mt-1 text-[11px] text-slate-400">
-          Asignado: <span className="text-slate-600">{ot.ingenieroAsignadoNombre}</span>
-        </p>
-      )}
-
-      <div className="mt-2">
-        {isFinalizado ? (
-          <button
-            onClick={() => openPDF(ot)}
-            className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Ver PDF
-          </button>
-        ) : (
-          <a
-            href={`${REPORTES_OT_URL}?reportId=${encodeURIComponent(ot.otNumber || '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[10px] text-teal-500 font-medium"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Abrir reporte
-          </a>
         )}
       </div>
     </div>

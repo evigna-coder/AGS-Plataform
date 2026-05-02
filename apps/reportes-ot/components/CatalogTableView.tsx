@@ -64,6 +64,18 @@ function computeConclusion(resultado: string, spec: string, nominal?: string): '
     return isNaN(n) ? '' : numR >= n ? 'PASS' : 'FAIL';
   }
 
+  // Plus-minus inline: "1.00 ± 0.01" | "I1+I2= 1.00 ± 0.01" | "-5.0 ± 0.1 °C"
+  // Nominal explícito en la spec (número antes del ±) + tolerancia (número después).
+  // No matchea cuando ± arranca la spec (no hay número antes) — esos casos los maneja pmMatch abajo.
+  const pmInlineMatch = s.match(/(?:^|[^\d.,])(-?\d+[.,]?\d*)\s*±\s*(\d+[.,]?\d*)/);
+  if (pmInlineMatch) {
+    const nominalNum = parseFloat(pmInlineMatch[1].replace(',', '.'));
+    const tolerance = parseFloat(pmInlineMatch[2].replace(',', '.'));
+    if (!isNaN(nominalNum) && !isNaN(tolerance)) {
+      return Math.abs(numR - nominalNum) <= tolerance ? 'PASS' : 'FAIL';
+    }
+  }
+
   // Plus-minus: "±1.2" | "± 1.2" | "±1.2 psi" → |resultado - nominal| <= tolerance
   const pmMatch = s.match(/^±\s*(\d+[.,]?\d*)/);
   if (pmMatch) {
@@ -777,6 +789,34 @@ export const CatalogTableView: React.FC<Props> = ({
     if (selected.length === 0) return op === 'not_in' ? true : !!row.defaultVisible;
     return doesRowSelectorMatch(row.visibleWhenSelector);
   };
+  /**
+   * Auto-popular header fields cuyo valor está vacío cuando hay una fila `defaultVisible`
+   * con `visibleWhenSelector` que apunta a ese field. Mantiene coherencia visual: si la fila
+   * se muestra por default, el selector debería reflejar el valor que la habilita.
+   * Sólo aplica al operador 'in' — para 'not_in' la fila ya es visible naturalmente con
+   * selector vacío, no hay un valor canónico que pre-elegir.
+   */
+  React.useEffect(() => {
+    if (readOnly || isPrint || !onChangeHeaderData) return;
+    const headerData = selection.headerData ?? {};
+    for (const hf of (table.headerFields ?? [])) {
+      const current = headerData[hf.fieldId] ?? '';
+      if (current) continue;
+      const candidate = table.templateRows.find(r =>
+        r.defaultVisible &&
+        r.visibleWhenSelector &&
+        r.visibleWhenSelector.headerFieldId === hf.fieldId &&
+        (r.visibleWhenSelector.operator ?? 'in') === 'in' &&
+        r.visibleWhenSelector.values.length > 0
+      );
+      if (!candidate?.visibleWhenSelector) continue;
+      const value = candidate.visibleWhenSelector.values[0];
+      const encoded = hf.multiSelect ? JSON.stringify([value]) : value;
+      onChangeHeaderData(selection.tableId, hf.fieldId, encoded);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection.tableId]);
+
   /** Header field que actúa como trigger primario de agrupación (primer multi-select con ≥2 valores). */
   const groupingField = (table.headerFields ?? []).find(hf =>
     hf.multiSelect && !hf.suppressGrouping && getSelectedHeaderValues(hf.fieldId).length >= 2

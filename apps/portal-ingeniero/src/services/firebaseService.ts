@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { app, storage } from './firebase';
-import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, TicketEstado, TicketArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoTicket, AdminConfigFlujos } from '@ags/shared';
+import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, TicketEstado, TicketArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoTicket, AdminConfigFlujos, ModuloSistema } from '@ags/shared';
 import {
   TICKET_MAX_ADJUNTOS,
   parseLeadDoc, syncFlatFromContactos,
@@ -229,6 +229,20 @@ export const sistemasService = {
       createdAt: d.data()['createdAt']?.toDate().toISOString(),
       updatedAt: d.data()['updatedAt']?.toDate().toISOString(),
     } as Sistema;
+  },
+  async getById(id: string): Promise<Sistema | null> {
+    const snap = await getDoc(doc(db, 'sistemas', id));
+    if (!snap.exists()) return null;
+    return {
+      id: snap.id,
+      ...snap.data(),
+      createdAt: snap.data()['createdAt']?.toDate().toISOString(),
+      updatedAt: snap.data()['updatedAt']?.toDate().toISOString(),
+    } as Sistema;
+  },
+  async getModulos(sistemaId: string): Promise<ModuloSistema[]> {
+    const snap = await getDocs(collection(db, 'sistemas', sistemaId, 'modulos'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data(), sistemaId })) as ModuloSistema[];
   },
   async getByCliente(clienteId: string): Promise<Pick<Sistema, 'id' | 'nombre' | 'codigoInternoCliente' | 'agsVisibleId' | 'activo'>[]> {
     const q = query(collection(db, 'sistemas'), where('clienteId', '==', clienteId), where('activo', '==', true));
@@ -765,6 +779,19 @@ export const otService = {
       console.error('OT subscription error:', err);
       onError?.(err);
     });
+  },
+};
+
+// =============================================
+// --- Tipos de Servicio (read-only) ---
+// =============================================
+export const tiposServicioService = {
+  async getAll(): Promise<{ id: string; nombre: string }[]> {
+    const snap = await getDocs(collection(db, 'tipos_servicio'));
+    return snap.docs
+      .map(d => ({ id: d.id, nombre: (d.data().nombre as string) ?? '' }))
+      .filter(t => t.nombre)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
   },
 };
 

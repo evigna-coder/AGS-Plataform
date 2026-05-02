@@ -4,16 +4,17 @@ import { useOTForm } from '../hooks/useOTForm';
 import { OTStatusBadge } from '../components/ordenes-trabajo/OTStatusBadge';
 import { PartesForm } from '../components/ordenes-trabajo/PartesForm';
 import { SignaturePad, type SignaturePadHandle } from '../components/ordenes-trabajo/SignaturePad';
+import OTDetalleTab from '../components/ordenes-trabajo/OTDetalleTab';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { generateOTPdf } from '../utils/pdfGenerator';
 import { REPORTES_OT_URL } from '../utils/constants';
 import type { WorkOrder } from '@ags/shared';
 
-type Tab = 'info' | 'reporte' | 'partes' | 'firmas';
+type Tab = 'detalle' | 'reporte' | 'partes' | 'firmas';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'info', label: 'Info' },
+  { id: 'detalle', label: 'Detalle' },
   { id: 'reporte', label: 'Reporte' },
   { id: 'partes', label: 'Partes' },
   { id: 'firmas', label: 'Firmas' },
@@ -27,7 +28,7 @@ export default function OTDetailPage() {
   const { otNumber } = useParams<{ otNumber: string }>();
   const navigate = useNavigate();
   const form = useOTForm(otNumber);
-  const [tab, setTab] = useState<Tab>('info');
+  const [tab, setTab] = useState<Tab>('detalle');
   const [finalizing, setFinalizing] = useState(false);
   const engineerPad = useRef<SignaturePadHandle>(null);
   const clientPad = useRef<SignaturePadHandle>(null);
@@ -122,30 +123,16 @@ export default function OTDetailPage() {
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
-        {tab === 'info' && (
+        {tab === 'detalle' && ot && <OTDetalleTab ot={ot} />}
+
+        {tab === 'reporte' && (
           <>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-1">
-              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2">Cliente / Equipo</p>
-              <p className="text-sm font-semibold text-slate-800">{ot?.razonSocial || '—'}</p>
-              {ot?.sistema && <p className="text-xs text-slate-500">{ot.sistema}</p>}
-              {ot?.tipoServicio && <p className="text-xs text-slate-400">{ot.tipoServicio}</p>}
-              <div className="flex gap-2 pt-1">
-                {ot?.esFacturable && <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Facturable</span>}
-                {ot?.tieneContrato && <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Contrato</span>}
-                {ot?.esGarantia && <span className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">Garantía</span>}
-              </div>
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Fecha inicio</label><input type="date" className={inp} value={form.fechaInicio} onChange={e => form.setFechaInicio(e.target.value)} disabled={form.readOnly} /></div>
               <div><label className={lbl}>Fecha fin</label><input type="date" className={inp} value={form.fechaFin} onChange={e => form.setFechaFin(e.target.value)} disabled={form.readOnly} /></div>
               <div><label className={lbl}>Horas trabajadas</label><input type="number" min={0} step={0.5} className={inp} value={form.horasTrabajadas} onChange={e => form.setHorasTrabajadas(e.target.value)} disabled={form.readOnly} /></div>
               <div><label className={lbl}>Tiempo viaje (hs)</label><input type="number" min={0} step={0.5} className={inp} value={form.tiempoViaje} onChange={e => form.setTiempoViaje(e.target.value)} disabled={form.readOnly} /></div>
             </div>
-          </>
-        )}
-
-        {tab === 'reporte' && (
-          <>
             <div><label className={lbl}>Problema / Falla inicial</label><textarea rows={3} className={ta} value={form.problemaFallaInicial} onChange={e => form.setProblemaFallaInicial(e.target.value)} disabled={form.readOnly} placeholder="Descripción del problema reportado por el cliente..." /></div>
             <div><label className={lbl}>Reporte técnico</label><textarea rows={5} className={ta} value={form.reporteTecnico} onChange={e => form.setReporteTecnico(e.target.value)} disabled={form.readOnly} placeholder="Descripción detallada del trabajo realizado..." /></div>
             <div><label className={lbl}>Materiales / Insumos utilizados</label><textarea rows={3} className={ta} value={form.materialesParaServicio} onChange={e => form.setMaterialesParaServicio(e.target.value)} disabled={form.readOnly} placeholder="Materiales utilizados durante el servicio..." /></div>
