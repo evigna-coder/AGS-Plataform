@@ -539,13 +539,20 @@ export function useAppLogic(
   const validateBeforeClientConfirm = () => {
     // Verificar firma del especialista (puede estar en el estado o en el pad)
     const engineerSignature = signatureEngineer || engineerPadRef.current?.getSignature();
-    
+
+    // CABA no devuelve provincia desde Google Maps (es una entidad federal sin provincia padre).
+    // Si la localidad es Ciudad Autónoma de Buenos Aires, no exigimos el campo provincia.
+    const localidadNorm = (localidad ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    const isCABA = /ciudad\s*autonoma\s*de\s*buenos\s*aires/.test(localidadNorm)
+      || /^c\.?\s*a\.?\s*b\.?\s*a\.?$/.test(localidadNorm)
+      || /^capital\s+federal$/.test(localidadNorm);
+
     const requiredFields = [
       razonSocial,
       contacto,
       direccion,
       localidad,
-      provincia,
+      ...(isCABA ? [] : [provincia]),
       sistema,
       fechaInicio,
       fechaFin,

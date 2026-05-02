@@ -38,7 +38,12 @@ export const EquiposList = () => {
     sortDir: { type: 'string' as const, default: 'asc' },
   }), []);
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
-  const debouncedSearch = useDebounce(filters.search, 300);
+  // Local search state for responsive typing — syncs to URL debounced
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const debouncedSearch = useDebounce(localSearch, 300);
+  useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
+  // Sync from URL → local only when URL changes externally (e.g., "Limpiar" button)
+  useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
 
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [categorias, setCategorias] = useState<CategoriaEquipo[]>([]);
@@ -256,8 +261,8 @@ export const EquiposList = () => {
           <input
             type="text"
             placeholder="Buscar por nombre, cliente, establecimiento, código..."
-            value={filters.search}
-            onChange={e => setFilter('search', e.target.value)}
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-72"
           />
           <div className="flex items-center gap-1.5">

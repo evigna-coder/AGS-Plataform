@@ -751,22 +751,30 @@ export const CatalogTableView: React.FC<Props> = ({
     if (isPrint && hf.hideInPrint) return false;
     if (!hf.visibleWhenSelector) return true;
     const triggerValues = getSelectedHeaderValues(hf.visibleWhenSelector.headerFieldId);
+    const op = hf.visibleWhenSelector.operator ?? 'in';
+    if (triggerValues.length === 0) return op === 'not_in';
+    if (op === 'not_in') return triggerValues.every(v => !hf.visibleWhenSelector!.values.includes(v));
     return triggerValues.some(v => hf.visibleWhenSelector!.values.includes(v));
   };
   /** Verifica si un visibleWhenSelector de fila se cumple con los headers seleccionados. */
-  const doesRowSelectorMatch = (sel: { headerFieldId: string; values: string[] }): boolean => {
+  const doesRowSelectorMatch = (sel: { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' }): boolean => {
     const triggerValues = getSelectedHeaderValues(sel.headerFieldId);
+    const op = sel.operator ?? 'in';
+    if (op === 'not_in') return triggerValues.every(v => !sel.values.includes(v));
     return triggerValues.some(v => sel.values.includes(v));
   };
   /**
    * Resuelve la visibilidad de una fila considerando visibleWhenSelector + defaultVisible.
-   * Semántica: defaultVisible sólo aplica cuando el header selector está vacío.
-   * Si el técnico selecciona un valor, gana el match exacto; los "default" no forzados.
+   * Semántica:
+   *  - 'in': si el selector está vacío, defaultVisible decide. Con valor, match exacto.
+   *  - 'not_in': si el selector está vacío, visible (no hay nada que excluir).
+   *    Con valor, visible si ninguno está en la lista de exclusión.
    */
-  const shouldShowRow = (row: { visibleWhenSelector?: { headerFieldId: string; values: string[] } | null; defaultVisible?: boolean }): boolean => {
+  const shouldShowRow = (row: { visibleWhenSelector?: { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' } | null; defaultVisible?: boolean }): boolean => {
     if (!row.visibleWhenSelector) return true;
+    const op = row.visibleWhenSelector.operator ?? 'in';
     const selected = getSelectedHeaderValues(row.visibleWhenSelector.headerFieldId);
-    if (selected.length === 0) return !!row.defaultVisible;
+    if (selected.length === 0) return op === 'not_in' ? true : !!row.defaultVisible;
     return doesRowSelectorMatch(row.visibleWhenSelector);
   };
   /** Header field que actúa como trigger primario de agrupación (primer multi-select con ≥2 valores). */

@@ -61,6 +61,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   // Visibilidad condicional por header field
   const [visFieldId, setVisFieldId] = useState(row.visibleWhenSelector?.headerFieldId ?? '');
   const [visSelValues, setVisSelValues] = useState<string[]>(row.visibleWhenSelector?.values ?? []);
+  const [visOperator, setVisOperator] = useState<'in' | 'not_in'>(row.visibleWhenSelector?.operator ?? 'in');
 
   const toggleVisValue = (val: string) =>
     setVisSelValues(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
@@ -85,7 +86,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
       const hasSpans = Object.keys(cleanSpans).length > 0;
       // Visibilidad condicional
       const visWhen = visFieldId && visSelValues.length > 0
-        ? { headerFieldId: visFieldId, values: visSelValues }
+        ? { headerFieldId: visFieldId, values: visSelValues, ...(visOperator === 'not_in' ? { operator: 'not_in' as const } : {}) }
         : null;
       const cleanCellUnits = Object.fromEntries(Object.entries(cellUnits).filter(([, v]) => v !== ''));
       onSave({
@@ -356,7 +357,11 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
               <p className="text-[10px] text-teal-600 italic">Primero agregá un <strong>campo de encabezado</strong> a la tabla (pestaña "Encabezado") para habilitar visibilidad condicional.</p>
             ) : (
               <>
-                <p className="text-[10px] text-teal-600">Esta fila solo se muestra cuando el campo de encabezado elegido tiene alguno de los valores indicados.</p>
+                <p className="text-[10px] text-teal-600">
+                  {visOperator === 'in'
+                    ? 'Esta fila solo se muestra cuando el campo de encabezado elegido tiene alguno de los valores indicados.'
+                    : 'Esta fila se muestra siempre, EXCEPTO cuando el campo de encabezado tiene alguno de los valores indicados.'}
+                </p>
                 <div className="space-y-2">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Campo de encabezado</label>
@@ -372,17 +377,34 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
                     </select>
                   </div>
                   {visFieldId && (
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Visible cuando el valor es...</label>
-                      <div className="flex flex-wrap gap-2">
-                        {(headerFields.find(h => h.fieldId === visFieldId)?.options ?? []).map(opt => (
-                          <label key={opt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium cursor-pointer transition-colors ${visSelValues.includes(opt) ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
-                            <input type="checkbox" checked={visSelValues.includes(opt)} onChange={() => toggleVisValue(opt)} className="sr-only" />
-                            {opt}
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Operador</label>
+                        <div className="flex gap-2">
+                          <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${visOperator === 'in' ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
+                            <input type="radio" name="visOperator" checked={visOperator === 'in'} onChange={() => setVisOperator('in')} className="sr-only" />
+                            Es uno de
                           </label>
-                        ))}
+                          <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${visOperator === 'not_in' ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
+                            <input type="radio" name="visOperator" checked={visOperator === 'not_in'} onChange={() => setVisOperator('not_in')} className="sr-only" />
+                            Es distinto de
+                          </label>
+                        </div>
                       </div>
-                    </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                          {visOperator === 'in' ? 'Visible cuando el valor es...' : 'Ocultar cuando el valor es...'}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {(headerFields.find(h => h.fieldId === visFieldId)?.options ?? []).map(opt => (
+                            <label key={opt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium cursor-pointer transition-colors ${visSelValues.includes(opt) ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
+                              <input type="checkbox" checked={visSelValues.includes(opt)} onChange={() => toggleVisValue(opt)} className="sr-only" />
+                              {opt}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </>

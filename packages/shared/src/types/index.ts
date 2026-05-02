@@ -1593,10 +1593,12 @@ export interface TableCatalogRow {
    */
   selectorColumn?: number;
   /**
-   * Visibilidad condicional: solo muestra esta fila cuando el headerField indicado tiene alguno de estos valores.
-   * headerFieldId = fieldId de un TableHeaderField de la tabla; values = opciones que hacen visible esta fila.
+   * Visibilidad condicional: muestra esta fila según el valor del headerField indicado.
+   * - operator='in' (default): visible cuando algún valor seleccionado está en `values`.
+   * - operator='not_in': visible cuando NINGÚN valor seleccionado está en `values` (negación).
+   *   Selector vacío con 'not_in' → visible por defecto (no hay nada que excluir).
    */
-  visibleWhenSelector?: { headerFieldId: string; values: string[] } | null;
+  visibleWhenSelector?: { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' } | null;
   /**
    * Cuando true, la fila se muestra por defecto aunque su visibleWhenSelector no matchee.
    * Útil para filas que deben aparecer siempre sin importar qué opción del selector se eligió.
@@ -1797,11 +1799,12 @@ export interface TableHeaderField {
   /** Placeholder opcional para inputs numéricos */
   placeholder?: string | null;
   /**
-   * Visibilidad condicional: solo muestra este header field cuando otro headerField
-   * (por fieldId) tiene alguno de estos valores. Útil ej: mostrar "Ruido" solo si
-   * Combinación = SSL+ECD | SSL+µECD.
+   * Visibilidad condicional: muestra este header field según el valor de otro headerField.
+   * - operator='in' (default): visible cuando algún valor seleccionado está en `values`.
+   * - operator='not_in': visible cuando NINGÚN valor seleccionado está en `values` (negación).
+   *   Selector vacío con 'not_in' → visible por defecto (no hay nada que excluir).
    */
-  visibleWhenSelector?: { headerFieldId: string; values: string[] } | null;
+  visibleWhenSelector?: { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' } | null;
 }
 
 export interface TableCatalogEntry {
