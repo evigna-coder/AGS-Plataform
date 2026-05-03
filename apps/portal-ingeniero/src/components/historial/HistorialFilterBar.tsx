@@ -4,6 +4,8 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 interface Cliente { id: string; razonSocial: string }
 interface TipoServicio { id: string; nombre: string }
 
+interface LookbackOption { value: string; label: string }
+
 interface Props {
   search: string;
   cliente: string;
@@ -11,6 +13,8 @@ interface Props {
   tipoServicio: string;
   fechaDesde: string;
   fechaHasta: string;
+  lookback: string;
+  lookbackOptions: LookbackOption[];
   clientes: Cliente[];
   tiposServicio: TipoServicio[];
   onChange: {
@@ -20,6 +24,7 @@ interface Props {
     tipoServicio: (v: string) => void;
     fechaDesde: (v: string) => void;
     fechaHasta: (v: string) => void;
+    lookback: (v: string) => void;
   };
   onReset: () => void;
 }
@@ -47,6 +52,23 @@ export default function HistorialFilterBar(props: Props) {
 
   return (
     <div className="shrink-0 px-4 pb-3 space-y-2">
+      <div className="flex items-center gap-1.5 overflow-x-auto">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mr-1 shrink-0">Rango</span>
+        {props.lookbackOptions.map(o => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => props.onChange.lookback(o.value)}
+            className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+              props.lookback === o.value
+                ? 'bg-teal-600 text-white'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

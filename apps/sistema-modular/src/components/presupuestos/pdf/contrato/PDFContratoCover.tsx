@@ -60,8 +60,8 @@ export function PDFContratoCover({ data }: { data: PresupuestoPDFData }) {
           <Text style={cs.coverBlockLabel}>Emitido por</Text>
           <Text style={cs.coverBlockValueStrong}>AGS Analítica S.A.</Text>
           <Text style={cs.coverBlockValue}>CUIT 30-70861861-2</Text>
-          <Text style={cs.coverBlockValue}>Bauness 2351, 1ro C</Text>
-          <Text style={cs.coverBlockValue}>C1431DNT — CABA</Text>
+          <Text style={cs.coverBlockValue}>Arenales 605, Piso 15</Text>
+          <Text style={cs.coverBlockValue}>B1638BRG — Vicente López, Buenos Aires</Text>
           <Text style={[cs.coverBlockValue, { color: T.primary }]}>info@agsanalitica.com</Text>
         </View>
         <View style={cs.coverBlock}>

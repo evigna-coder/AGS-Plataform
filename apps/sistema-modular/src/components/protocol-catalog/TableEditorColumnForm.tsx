@@ -87,6 +87,10 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
             <input type="checkbox" checked={!!d.multiline} onChange={e => setD({ ...d, multiline: e.target.checked || undefined })} />
             Multilínea
           </label>
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="No autocompletar desde el equipo del reporte. Útil para columnas tipo 'Marca' en tablas de inventario (Solventes, materiales) donde el dato no es la marca del equipo en calibración.">
+            <input type="checkbox" checked={!!d.disableAutoFill} onChange={e => setD({ ...d, disableAutoFill: e.target.checked || undefined })} />
+            Sin auto-fill
+          </label>
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-slate-500">Ancho (mm)</label>
             <input

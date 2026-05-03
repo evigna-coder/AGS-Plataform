@@ -14,7 +14,7 @@ interface Props {
 export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel }: Props) => {
   const [label, setLabel] = useState(field.label);
   const [optionsText, setOptionsText] = useState(field.options.join(', '));
-  const [inputType, setInputType] = useState<'select' | 'number'>(field.inputType ?? 'select');
+  const [inputType, setInputType] = useState<'select' | 'number' | 'text'>(field.inputType ?? 'select');
   const [unit, setUnit] = useState(field.unit ?? '');
   const [placeholder, setPlaceholder] = useState(field.placeholder ?? '');
   const [multiSelect, setMultiSelect] = useState<boolean>(!!field.multiSelect);
@@ -39,6 +39,18 @@ export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel 
       const options = optionsText.split(',').map(o => o.trim()).filter(Boolean);
       if (options.length < 1) return;
       onSave({ ...field, label, options, inputType: 'select', unit: null, placeholder: null, multiSelect, hideInPrint: hideInPrint || undefined, visibleWhenSelector: visibility });
+    } else if (inputType === 'text') {
+      onSave({
+        ...field,
+        label,
+        options: [],
+        inputType: 'text',
+        unit: null,
+        placeholder: placeholder.trim() || null,
+        multiSelect: false,
+        hideInPrint: hideInPrint || undefined,
+        visibleWhenSelector: visibility,
+      });
     } else {
       onSave({
         ...field,
@@ -62,10 +74,11 @@ export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel 
       <div className="flex gap-2">
         <Input placeholder="Etiqueta (ej: Inyector, Ruido)" value={label}
           onChange={e => setLabel(e.target.value)} />
-        <select value={inputType} onChange={e => setInputType(e.target.value as 'select' | 'number')}
+        <select value={inputType} onChange={e => setInputType(e.target.value as 'select' | 'number' | 'text')}
           className="border border-slate-300 rounded-lg px-2 text-xs bg-white">
           <option value="select">Dropdown</option>
           <option value="number">Numérico</option>
+          <option value="text">Texto libre</option>
         </select>
       </div>
       {inputType === 'select' ? (
@@ -76,6 +89,11 @@ export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel 
             <input type="checkbox" checked={multiSelect} onChange={e => setMultiSelect(e.target.checked)} />
             Selección múltiple (el ingeniero puede elegir varias opciones; las filas se agrupan por valor)
           </label>
+        </div>
+      ) : inputType === 'text' ? (
+        <div className="flex gap-2">
+          <Input placeholder="Placeholder (ej: Lote, Nº de orden)" value={placeholder}
+            onChange={e => setPlaceholder(e.target.value)} />
         </div>
       ) : (
         <div className="flex gap-2">
@@ -130,6 +148,8 @@ export const TableEditorHeaderFieldForm = ({ field, allFields, onSave, onCancel 
         <span className="text-[10px] text-slate-400">
           {inputType === 'select'
             ? 'Mínimo 1 opción'
+            : inputType === 'text'
+            ? 'Texto libre — útil para etiquetas (Lote, Descripción, Operador)'
             : `Uso en specs: referenciar como {${field.fieldId || 'fieldId'}} (ej. "≥ 1600*{${field.fieldId || 'ruido'}}")`}
         </span>
         <div className="flex gap-2">

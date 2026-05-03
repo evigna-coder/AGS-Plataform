@@ -193,8 +193,8 @@ function PDFHeader({ data }: { data: PresupuestoPDFData }) {
       <View style={S.logoSection}>
         <Image src={data.logoSrc} style={S.logo} />
         <Text style={S.companyName}>AGS Analítica S.A.</Text>
-        <Text style={S.companyInfo}>Bauness 2351 - 1ro.C - C1431DNS</Text>
-        <Text style={S.companyInfo}>CABA - Capital Federal - Argentina</Text>
+        <Text style={S.companyInfo}>Arenales 605 – Piso 15</Text>
+        <Text style={S.companyInfo}>Vicente López (B1638BRG) - Buenos Aires - Argentina</Text>
         <Text style={S.companyInfo}>Te: 011-4524-7247</Text>
         <Text style={S.companyInfo}>info@agsanalitica.com</Text>
         <Text style={S.companyInfo}>www.agsanalitica.com</Text>

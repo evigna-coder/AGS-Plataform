@@ -560,6 +560,7 @@ function toOT(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
     ...data,
     id,
     pdfUrl: (data['pdfUrl'] as string) ?? null,
+    protocolPdfUrl: (data['protocolPdfUrl'] as string) ?? null,
     updatedAt: (data['updatedAt'] as { toDate?: () => Date } | null)?.toDate?.()?.toISOString?.() ?? (data['updatedAt'] as string) ?? '',
     createdAt: (data['createdAt'] as { toDate?: () => Date } | null)?.toDate?.()?.toISOString?.() ?? (data['createdAt'] as string) ?? '',
   };
@@ -570,33 +571,24 @@ function toOT(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
 // --- OTs ---
 // =============================================
 
-/** WorkOrder extendido con pdfUrl de reportes finalizados */
-export type WorkOrderWithPdf = WorkOrder & { pdfUrl?: string | null };
+/** WorkOrder extendido con pdfUrl(s) de reportes finalizados.
+ *  protocolPdfUrl existe cuando la OT tiene protocolo digital adjunto (split en 2 archivos). */
+export type WorkOrderWithPdf = WorkOrder & {
+  pdfUrl?: string | null;
+  protocolPdfUrl?: string | null;
+};
 
 function reporteToWorkOrder(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
+  // Spread completo para preservar campos administrativos (estadoAdmin, esFacturable,
+  // tieneContrato, sistemaId, etc.) que sistema-modular escribe en `reportes`.
   return {
+    ...data,
     id,
     otNumber: (data.otNumber as string) ?? id,
     status: (data.status as string) ?? 'BORRADOR',
-    razonSocial: (data.razonSocial as string) ?? '',
-    contacto: (data.contacto as string) ?? '',
-    direccion: (data.direccion as string) ?? '',
-    localidad: (data.localidad as string) ?? '',
-    provincia: (data.provincia as string) ?? '',
-    sistema: (data.sistema as string) ?? '',
-    moduloModelo: (data.moduloModelo as string) ?? '',
-    moduloDescripcion: (data.moduloDescripcion as string) ?? '',
-    moduloSerie: (data.moduloSerie as string) ?? '',
-    codigoInternoCliente: (data.codigoInternoCliente as string) ?? '',
-    tipoServicio: (data.tipoServicio as string) ?? '',
-    fechaInicio: (data.fechaInicio as string) ?? '',
-    fechaFin: (data.fechaFin as string) ?? '',
-    budgets: (data.budgets as string[]) ?? [],
-    ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
-    ingenieroAsignadoId: (data.ingenieroAsignadoId as string) ?? null,
     pdfUrl: (data.pdfUrl as string) ?? null,
-    updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.updatedAt as string) ?? '',
-    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString?.() ?? (data.createdAt as string) ?? '',
+    updatedAt: (data.updatedAt as { toDate?: () => Date } | null)?.toDate?.()?.toISOString?.() ?? (data.updatedAt as string) ?? '',
+    createdAt: (data.createdAt as { toDate?: () => Date } | null)?.toDate?.()?.toISOString?.() ?? (data.createdAt as string) ?? '',
   } as unknown as WorkOrderWithPdf;
 }
 
@@ -761,24 +753,66 @@ export const otService = {
     return snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
   },
 
-  /** Real-time subscription to OTs. Subscribes to ordenes_trabajo collection. */
+  /** Real-time subscription to OTs. Subscribes to BOTH ordenes_trabajo (legacy)
+   *  y reportes (canonical, donde sistema-modular escribe), mergeando por otNumber.
+   *  `updatedAfter` aplica un cut server-side por updatedAt — clave para Historial,
+   *  donde se quieren los últimos N días sin traer la base entera. */
   subscribe(
-    filters: { ingenieroId?: string; status?: string } | undefined,
+    filters: { ingenieroId?: string; status?: string; updatedAfter?: Date } | undefined,
     callback: (ots: WorkOrderWithPdf[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
-    const constraints: QueryConstraint[] = [];
-    if (filters?.ingenieroId) constraints.push(where('ingenieroAsignadoId', '==', filters.ingenieroId));
-    if (filters?.status) constraints.push(where('status', '==', filters.status));
-    const q = query(collection(db, 'ordenes_trabajo'), ...constraints);
-    return onSnapshot(q, snap => {
-      const ots = snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
-      ots.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-      callback(ots);
+    let fromOT: WorkOrderWithPdf[] = [];
+    let fromReportes: WorkOrderWithPdf[] = [];
+    let otLoaded = false;
+    let repLoaded = false;
+
+    const emit = () => {
+      if (!otLoaded || !repLoaded) return;
+      // ordenes_trabajo gana en duplicados por otNumber
+      const seen = new Set(fromOT.map(o => o.otNumber));
+      const merged = [...fromOT, ...fromReportes.filter(r => !seen.has(r.otNumber))];
+      merged.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      callback(merged);
+    };
+
+    const updatedAfterTs = filters?.updatedAfter ? Timestamp.fromDate(filters.updatedAfter) : null;
+
+    const otConstraints: QueryConstraint[] = [];
+    if (filters?.ingenieroId) otConstraints.push(where('ingenieroAsignadoId', '==', filters.ingenieroId));
+    if (filters?.status) otConstraints.push(where('status', '==', filters.status));
+    if (updatedAfterTs) otConstraints.push(where('updatedAt', '>=', updatedAfterTs));
+
+    const unsubOT = onSnapshot(query(collection(db, 'ordenes_trabajo'), ...otConstraints), snap => {
+      fromOT = snap.docs.map(d => toOT(d.id, d.data() as Record<string, unknown>));
+      otLoaded = true;
+      emit();
     }, err => {
-      console.error('OT subscription error:', err);
+      console.warn('ordenes_trabajo subscription error:', err);
+      otLoaded = true;
+      emit();
       onError?.(err);
     });
+
+    // Para reportes no aplicamos filtro de ingenieroId (los docs antiguos no lo tienen).
+    const repConstraints: QueryConstraint[] = [];
+    if (filters?.status) repConstraints.push(where('status', '==', filters.status));
+    if (updatedAfterTs) repConstraints.push(where('updatedAt', '>=', updatedAfterTs));
+    const unsubRep = onSnapshot(query(collection(db, 'reportes'), ...repConstraints), snap => {
+      fromReportes = snap.docs.map(d => reporteToWorkOrder(d.id, d.data() as Record<string, unknown>));
+      // Si hay filtro de ingenieroId, aplicamos client-side para reportes
+      if (filters?.ingenieroId) {
+        fromReportes = fromReportes.filter(r => r.ingenieroAsignadoId === filters.ingenieroId);
+      }
+      repLoaded = true;
+      emit();
+    }, err => {
+      console.warn('reportes subscription error:', err);
+      repLoaded = true;
+      emit();
+    });
+
+    return () => { unsubOT(); unsubRep(); };
   },
 };
 

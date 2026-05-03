@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useResizableColumns } from '../hooks/useResizableColumns';
-import { ColAlignIcon } from '../components/ui/ColAlignIcon';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
-import { OTStatusBadge } from '../components/ordenes-trabajo/OTStatusBadge';
 import HistorialFilterBar from '../components/historial/HistorialFilterBar';
 import HistorialOTCard from '../components/historial/HistorialOTCard';
+import HistorialTable from '../components/historial/HistorialTable';
 import { otService, clientesService, tiposServicioService, type WorkOrderWithPdf } from '../services/firebaseService';
 import { REPORTES_OT_URL } from '../utils/constants';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
@@ -18,19 +16,16 @@ const FILTER_SCHEMA = {
   tipoServicio: { type: 'string', default: '' },
   fechaDesde: { type: 'string', default: '' },
   fechaHasta: { type: 'string', default: '' },
+  // Ventana server-side por updatedAt. '0' = sin cut, traer todo.
+  lookback: { type: 'string', default: '30' },
 } as const;
 
-const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
-  active ? (
-    <svg className="w-3 h-3 text-teal-500 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d={dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
-    </svg>
-  ) : (
-    <svg className="w-3 h-3 text-slate-300 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-    </svg>
-  );
+const LOOKBACK_OPTIONS: { value: string; label: string }[] = [
+  { value: '30', label: '30 días' },
+  { value: '90', label: '90 días' },
+  { value: '365', label: '1 año' },
+  { value: '0', label: 'Todas' },
+];
 
 function fmt(dateStr?: string) {
   if (!dateStr) return '—';
@@ -41,6 +36,10 @@ function fmt(dateStr?: string) {
 const openPDF = (ot: WorkOrderWithPdf) => {
   if (ot.pdfUrl) window.open(ot.pdfUrl, '_blank');
   else window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(ot.otNumber)}`, '_blank');
+};
+
+const openProtocol = (ot: WorkOrderWithPdf) => {
+  if (ot.protocolPdfUrl) window.open(ot.protocolPdfUrl, '_blank');
 };
 
 export default function HistorialPage() {
@@ -55,19 +54,32 @@ export default function HistorialPage() {
     const s = toggleSort(f, sortField, sortDir);
     setSortField(s.field); setSortDir(s.dir);
   };
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pi-historial-list');
 
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     unsubRef.current?.();
+    setLoading(true);
+    // Sin server-side status filter — "finalizada" abarca dos sources of truth:
+    //   (a) status === 'FINALIZADO' (reportes-ot al firmar) y
+    //   (b) estadoAdmin ∈ {CIERRE_TECNICO, CIERRE_ADMINISTRATIVO, FINALIZADO} (workflow admin)
+    // Los OTs pueden tener uno u otro seteado. Filtramos client-side abajo.
+    // El rango (lookback) se aplica también client-side: muchos docs viejos tienen
+    // updatedAt como string ISO o sin setear, lo que rompe el cut por Timestamp.
     unsubRef.current = otService.subscribe(
-      { status: 'FINALIZADO' },
+      undefined,
       (data) => { setOts(data); setLoading(false); },
       (err) => { console.error('Historial subscription error:', err); setLoading(false); },
     );
     return () => { unsubRef.current?.(); };
   }, []);
+
+  const finalizadas = useMemo(() => ots.filter(ot =>
+    ot.status === 'FINALIZADO' ||
+    ot.estadoAdmin === 'CIERRE_TECNICO' ||
+    ot.estadoAdmin === 'CIERRE_ADMINISTRATIVO' ||
+    ot.estadoAdmin === 'FINALIZADO',
+  ), [ots]);
 
   useEffect(() => {
     clientesService.getAll().then(setClientes).catch(err => console.warn('Clientes load failed:', err));
@@ -80,8 +92,20 @@ export default function HistorialPage() {
     return m;
   }, [clientes]);
 
+  const lookbackCutoff = useMemo(() => {
+    const days = parseInt(filters.lookback, 10);
+    if (!days || days <= 0) return null;
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  }, [filters.lookback]);
+
   const filtered = useMemo(() => {
-    let list = ots;
+    let list = finalizadas;
+    if (lookbackCutoff) {
+      list = list.filter(ot => {
+        const d = ot.fechaInicio || ot.fechaFin || ot.fechaServicioAprox || ot.updatedAt || ot.createdAt;
+        return !!d && d >= lookbackCutoff;
+      });
+    }
     if (filters.cliente) {
       const razon = clienteRazonById.get(filters.cliente);
       list = list.filter(ot => {
@@ -103,10 +127,10 @@ export default function HistorialPage() {
       );
     }
     if (filters.fechaDesde) {
-      list = list.filter(ot => (ot.fechaInicio || ot.updatedAt || '') >= filters.fechaDesde);
+      list = list.filter(ot => (ot.fechaInicio || ot.fechaFin || ot.fechaServicioAprox || '') >= filters.fechaDesde);
     }
     if (filters.fechaHasta) {
-      list = list.filter(ot => (ot.fechaInicio || ot.updatedAt || '') <= filters.fechaHasta + 'T23:59:59');
+      list = list.filter(ot => (ot.fechaInicio || ot.fechaFin || ot.fechaServicioAprox || '') <= filters.fechaHasta + 'T23:59:59');
     }
     if (filters.search.trim()) {
       const s = filters.search.toLowerCase();
@@ -122,7 +146,7 @@ export default function HistorialPage() {
       );
     }
     return sortByField(list, sortField, sortDir);
-  }, [ots, filters, clienteRazonById, sortField, sortDir]);
+  }, [finalizadas, filters, clienteRazonById, sortField, sortDir, lookbackCutoff]);
 
   const hasActiveFilters = filters.search || filters.cliente || filters.equipo || filters.tipoServicio || filters.fechaDesde || filters.fechaHasta;
 
@@ -140,6 +164,8 @@ export default function HistorialPage() {
         tipoServicio={filters.tipoServicio}
         fechaDesde={filters.fechaDesde}
         fechaHasta={filters.fechaHasta}
+        lookback={filters.lookback}
+        lookbackOptions={LOOKBACK_OPTIONS}
         clientes={clientes}
         tiposServicio={tiposServicio}
         onChange={{
@@ -149,6 +175,7 @@ export default function HistorialPage() {
           tipoServicio: v => setFilter('tipoServicio', v),
           fechaDesde: v => setFilter('fechaDesde', v),
           fechaHasta: v => setFilter('fechaHasta', v),
+          lookback: v => setFilter('lookback', v),
         }}
         onReset={resetFilters}
       />
@@ -159,73 +186,27 @@ export default function HistorialPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm font-medium text-slate-600">
-              {hasActiveFilters ? 'Sin resultados' : 'Sin OTs finalizadas'}
+              {hasActiveFilters ? 'Sin resultados' : 'Sin OTs finalizadas en este rango'}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              {hasActiveFilters ? 'Probá con otros filtros.' : 'Acá se listan las OTs con cierre técnico.'}
+              {hasActiveFilters
+                ? 'Probá con otros filtros.'
+                : filters.lookback !== '0'
+                  ? 'Ampliá el rango arriba para buscar OTs más antiguas.'
+                  : 'Acá se listan las OTs con cierre técnico.'}
             </p>
           </div>
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
-              <table ref={tableRef} className="w-full table-fixed">
-                {colWidths ? (
-                  <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-                ) : (
-                  <colgroup>
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '20%' }} />
-                    <col style={{ width: '14%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '14%' }} />
-                    <col style={{ width: '11%' }} />
-                    <col style={{ width: '15%' }} />
-                  </colgroup>
-                )}
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('otNumber')}>OT<SortIcon active={sortField === 'otNumber'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('razonSocial')}>Cliente<SortIcon active={sortField === 'razonSocial'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('sistema')}>Sistema<SortIcon active={sortField === 'sistema'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('moduloModelo')}>Módulo<SortIcon active={sortField === 'moduloModelo'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('tipoServicio')}>Servicio<SortIcon active={sortField === 'tipoServicio'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className={`px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap relative ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><span className="cursor-pointer hover:text-slate-600" onClick={() => handleSort('fechaInicio')}>Fecha<SortIcon active={sortField === 'fechaInicio'} dir={sortDir} /></span><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                    <th className="px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap">Reporte</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filtered.map(ot => (
-                    <tr key={ot.otNumber} className="hover:bg-slate-50 transition-colors">
-                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-teal-600 text-xs font-mono">OT-{ot.otNumber}</span>
-                          <OTStatusBadge status={ot.status} />
-                        </div>
-                      </td>
-                      <td className={`px-3 py-2 text-xs text-slate-700 truncate max-w-[160px] ${getAlignClass(1)}`} title={ot.razonSocial}>{ot.razonSocial || '—'}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 truncate max-w-[120px] ${getAlignClass(2)}`} title={ot.sistema}>{ot.sistema || '—'}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 truncate max-w-[140px] ${getAlignClass(3)}`} title={[ot.moduloModelo, ot.moduloSerie].filter(Boolean).join(' — ')}>
-                        {ot.moduloModelo || '—'}
-                        {ot.moduloSerie && <span className="text-slate-400 ml-1">({ot.moduloSerie})</span>}
-                      </td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 truncate max-w-[140px] ${getAlignClass(4)}`} title={ot.tipoServicio}>{ot.tipoServicio || '—'}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 whitespace-nowrap ${getAlignClass(5)}`}>{fmt(ot.fechaInicio || ot.updatedAt)}</td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">
-                        <button
-                          onClick={() => openPDF(ot)}
-                          className="text-[10px] font-medium text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded hover:bg-emerald-50"
-                        >
-                          Ver PDF
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
+            <HistorialTable
+              rows={filtered}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={handleSort}
+              onOpenPdf={openPDF}
+              onOpenProtocol={openProtocol}
+              fmt={fmt}
+            />
             <div className="md:hidden space-y-2">
               {filtered.map(ot => <HistorialOTCard key={ot.otNumber} ot={ot} />)}
             </div>

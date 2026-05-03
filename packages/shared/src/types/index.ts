@@ -1574,6 +1574,13 @@ export interface TableCatalogColumn {
    * de "resultado" donde el técnico carga texto descriptivo más largo.
    */
   multiline?: boolean;
+  /**
+   * Si true, la columna NO recibe auto-fill desde el contexto del reporte (equipo.marca,
+   * equipo.modelo, equipo.serie, equipo.id). Útil para tablas de inventario (Solventes,
+   * materiales, columnas) donde la "Marca" es un dato a completar a mano y no la del
+   * equipo en calibración.
+   */
+  disableAutoFill?: boolean;
 }
 
 export interface TableCatalogRow {
@@ -1773,8 +1780,8 @@ export interface TableHeaderField {
   label: string;
   /** Opciones para inputType='select' (legacy: required si inputType omitido o 'select') */
   options: string[];
-  /** Tipo de input. Default: 'select' (dropdown con options). 'number' renderiza input numérico. */
-  inputType?: 'select' | 'number';
+  /** Tipo de input. Default: 'select' (dropdown con options). 'number' input numérico, 'text' input libre. */
+  inputType?: 'select' | 'number' | 'text';
   /**
    * Permite seleccionar múltiples valores (solo aplica a inputType='select').
    * Cuando es true, el valor en headerData se guarda como JSON array.

@@ -1186,7 +1186,7 @@ export const CatalogTableView: React.FC<Props> = ({
 
     // ── Auto-fill por label (solo tabla informacional de 1 fila: cabecera equipo) ─
     const dataRows = table.templateRows.filter(r => !r.isTitle && !r.isSelector);
-    if (variables && (!rawValue || rawValue === 'N/A') && table.tableType === 'informational' && dataRows.length === 1) {
+    if (variables && !col.disableAutoFill && (!rawValue || rawValue === 'N/A') && table.tableType === 'informational' && dataRows.length === 1) {
       const colLabel = (col.label || col.key).toLowerCase().replace(/[:.]/g, '').trim();
       let resolved: string | null = null;
       if (colLabel === 'marca') resolved = variables['equipo.marca'] || null;
@@ -1601,7 +1601,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       <span className="text-[9px]">
                         {(isMulti
                           ? (displayMulti || '—')
-                          : (hf.inputType === 'number' ? value : printValue) || '—')}
+                          : ((hf.inputType === 'number' || hf.inputType === 'text') ? value : printValue) || '—')}
                         {hf.inputType === 'number' && value && hf.unit ? ` ${hf.unit}` : ''}
                       </span>
                     );
@@ -1638,6 +1638,14 @@ export const CatalogTableView: React.FC<Props> = ({
                     />
                     {hf.unit && <span className="text-[10px] text-slate-500">{hf.unit}</span>}
                   </div>
+                ) : (!isPrint && !readOnly && hf.inputType === 'text') ? (
+                  <input
+                    type="text"
+                    value={value}
+                    placeholder={hf.placeholder ?? ''}
+                    onChange={e => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value)}
+                    className="border border-slate-300 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-blue-500 outline-none flex-1 min-w-[8rem]"
+                  />
                 ) : (!isPrint && !readOnly && !hf.multiSelect && (hf.inputType ?? 'select') === 'select') ? (
                   <select
                     value={value}
@@ -1992,6 +2000,14 @@ export const CatalogTableView: React.FC<Props> = ({
                                       <option value="">Seleccionar...</option>
                                       {hf.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                     </select>
+                                  ) : hf.inputType === 'text' ? (
+                                    <input
+                                      type="text"
+                                      value={hfValue}
+                                      onChange={(e) => onChangeHeaderData?.(selection.tableId, hf.fieldId, e.target.value, instVal)}
+                                      placeholder={hf.placeholder ?? ''}
+                                      className="text-[10px] border border-slate-300 rounded px-1.5 py-0.5 bg-white min-w-[6rem]"
+                                    />
                                   ) : (
                                     <input
                                       type="number"
