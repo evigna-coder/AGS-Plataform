@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { establecimientosService, clientesService, sistemasService, condicionesPagoService, contactosEstablecimientoService } from '../../services/firebaseService';
 import type { Establecimiento, Cliente, Sistema, ContactoEstablecimiento, CondicionPago } from '@ags/shared';
 import { Card } from '../../components/ui/Card';

@@ -15,7 +15,9 @@ export default function LeadTimeline({ postas }: Props) {
   return (
     <div className="space-y-0">
       {sorted.map((p, i) => {
-        const isComment = p.estadoAnterior === p.estadoNuevo;
+        const isEvento = !!p.evento;
+        const isComment = !isEvento && p.estadoAnterior === p.estadoNuevo;
+        const dotColor = isEvento ? 'bg-slate-300' : isComment ? 'bg-amber-400' : 'bg-teal-500';
         const fecha = new Date(p.fecha).toLocaleDateString('es-AR', {
           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
         });
@@ -23,12 +25,18 @@ export default function LeadTimeline({ postas }: Props) {
         return (
           <div key={p.id || i} className="flex gap-3 pb-4 last:pb-0">
             <div className="flex flex-col items-center">
-              <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${isComment ? 'bg-amber-400' : 'bg-teal-500'}`} />
+              <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${dotColor}`} />
               {i < sorted.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-slate-400">{fecha}</p>
-              {isComment ? (
+              {isEvento ? (
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  <span className="font-medium">{p.deUsuarioNombre}</span>
+                  {' · '}
+                  <span className="text-slate-500 italic">{p.evento}</span>
+                </p>
+              ) : isComment ? (
                 <p className="text-[11px] text-slate-600 mt-0.5">
                   <span className="font-medium">{p.deUsuarioNombre}</span> agregó comentario
                 </p>

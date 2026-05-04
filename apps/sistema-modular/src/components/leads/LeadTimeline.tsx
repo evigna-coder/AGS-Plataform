@@ -18,12 +18,14 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
   return (
     <div className="space-y-3">
       {sorted.map((p, i) => {
-        const isComentario = p.estadoAnterior === p.estadoNuevo;
-        const isDerivacion = p.deUsuarioId !== p.aUsuarioId;
+        const isEvento = !!p.evento;
+        const isComentario = !isEvento && p.estadoAnterior === p.estadoNuevo;
+        const isDerivacion = !isEvento && p.deUsuarioId !== p.aUsuarioId;
+        const dotColor = isEvento ? 'bg-slate-300' : isComentario ? 'bg-amber-400' : 'bg-teal-400';
         return (
           <div key={p.id || i} className="flex gap-3 items-start">
             <div className="flex flex-col items-center">
-              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${isComentario ? 'bg-amber-400' : 'bg-teal-400'}`} />
+              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dotColor}`} />
               {i < sorted.length - 1 && <div className="w-px flex-1 bg-slate-200 mt-1" />}
             </div>
             <div className="flex-1 min-w-0 pb-3">
@@ -36,7 +38,7 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
                   </>
                 )}
               </div>
-              {!isComentario && (
+              {!isComentario && !isEvento && (
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
                     {getSimplifiedEstadoLabel(p.estadoAnterior)} → {getSimplifiedEstadoLabel(p.estadoNuevo)}
@@ -52,6 +54,9 @@ export const LeadTimeline = ({ postas }: LeadTimelineProps) => {
                 <p className="text-[11px] mt-0.5 text-amber-700 font-medium">
                   Acción: {p.accionRequerida}
                 </p>
+              )}
+              {isEvento && (
+                <p className="text-[11px] mt-0.5 text-slate-500 italic">{p.evento}</p>
               )}
               {p.comentario && (
                 <p className={`text-[11px] mt-1 ${isComentario ? 'text-slate-700' : 'text-slate-500'}`}>
