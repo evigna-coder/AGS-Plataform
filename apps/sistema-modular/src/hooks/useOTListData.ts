@@ -12,6 +12,8 @@ export interface OTListFilters {
   ingenieroId: string;
   fechaDesde: string;
   fechaHasta: string;
+  /** Campo del WorkOrder a usar para el rango de fechas. */
+  tipoFecha: string;
   soloFacturable: boolean;
   soloContrato: boolean;
   soloGarantia: boolean;
@@ -127,10 +129,16 @@ export function useOTListData(filters: OTListFilters) {
     }
     if (filters.tipoServicio) list = list.filter(ot => ot.tipoServicio === filters.tipoServicio);
     if (filters.ingenieroId) list = list.filter(ot => ot.ingenieroAsignadoId === filters.ingenieroId);
-    if (filters.fechaDesde) list = list.filter(ot => (ot.createdAt || '') >= filters.fechaDesde);
-    if (filters.fechaHasta) {
-      const hasta = filters.fechaHasta + 'T23:59:59';
-      list = list.filter(ot => (ot.createdAt || '') <= hasta);
+    if (filters.fechaDesde || filters.fechaHasta) {
+      const campo = (filters.tipoFecha || 'createdAt') as keyof WorkOrder;
+      const hasta = filters.fechaHasta ? filters.fechaHasta + 'T23:59:59' : '';
+      list = list.filter(ot => {
+        const v = (ot[campo] as string | undefined) || '';
+        if (!v) return false;
+        if (filters.fechaDesde && v < filters.fechaDesde) return false;
+        if (hasta && v > hasta) return false;
+        return true;
+      });
     }
     if (filters.soloFacturable) list = list.filter(ot => ot.esFacturable);
     if (filters.soloContrato) list = list.filter(ot => ot.tieneContrato);
@@ -185,7 +193,7 @@ export function useOTListData(filters: OTListFilters) {
   }, [
     ordenes, parentsWithChildren,
     filters.estadoAdmin, filters.tipoServicio, filters.ingenieroId,
-    filters.fechaDesde, filters.fechaHasta,
+    filters.fechaDesde, filters.fechaHasta, filters.tipoFecha,
     filters.soloFacturable, filters.soloContrato, filters.soloGarantia,
     filters.busquedaOT, filters.busquedaModulo, filters.busquedaEquipo,
     filters.sortField, filters.sortDir,

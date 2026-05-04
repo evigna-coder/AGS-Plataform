@@ -3,6 +3,7 @@ import type { Cliente, Sistema, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { DateInput } from '../ui/DateInput';
 
 interface FiltersShape {
   clienteId: string;
@@ -15,10 +16,17 @@ interface FiltersShape {
   ingenieroId: string;
   fechaDesde: string;
   fechaHasta: string;
+  tipoFecha: string;
   soloFacturable: boolean;
   soloContrato: boolean;
   soloGarantia: boolean;
 }
+
+const TIPO_FECHA_OPTIONS = [
+  { value: 'createdAt', label: 'Creación' },
+  { value: 'fechaInicio', label: 'Realización' },
+  { value: 'fechaFin', label: 'Finalización' },
+];
 
 interface Props {
   filters: FiltersShape;
@@ -115,17 +123,19 @@ export const OTFiltersBar: React.FC<Props> = ({
               options={[{ value: '', label: 'Ingeniero' }, ...ingenierosList.map(u => ({ value: u.id, label: u.displayName }))]}
               placeholder="Ingeniero" />
           </div>
+          <div className="min-w-[110px]">
+            <SearchableSelect size="sm" value={filters.tipoFecha}
+              onChange={v => setFilter('tipoFecha', v)}
+              options={TIPO_FECHA_OPTIONS}
+              placeholder="Tipo fecha" />
+          </div>
           <div className="flex items-center gap-1">
             <span className="text-[10px] text-slate-400">Desde</span>
-            <input type="date" value={filters.fechaDesde}
-              onChange={e => setFilter('fechaDesde', e.target.value)}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 outline-none" />
+            <DateInput value={filters.fechaDesde} onChange={v => setFilter('fechaDesde', v)} ariaLabel="Fecha desde" />
           </div>
           <div className="flex items-center gap-1">
             <span className="text-[10px] text-slate-400">Hasta</span>
-            <input type="date" value={filters.fechaHasta}
-              onChange={e => setFilter('fechaHasta', e.target.value)}
-              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 outline-none" />
+            <DateInput value={filters.fechaHasta} onChange={v => setFilter('fechaHasta', v)} ariaLabel="Fecha hasta" />
           </div>
           <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer">
             <input type="checkbox" checked={filters.soloFacturable}
