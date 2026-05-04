@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import type { Cliente, Sistema, CategoriaEquipo, Establecimiento, ModuloSistema } from '@ags/shared';
-import { modulosService, sistemasService } from '../../services/firebaseService';
+import type { Cliente, Sistema, CategoriaEquipo, Establecimiento } from '@ags/shared';
+import { sistemasService } from '../../services/firebaseService';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { MoveSistemaModal } from '../equipos/MoveSistemaModal';
 import { CreateEquipoModal } from '../equipos/CreateEquipoModal';
 import { CreateEstablecimientoModal } from '../establecimientos/CreateEstablecimientoModal';
 import { PendientesClienteSection } from '../pendientes/PendientesClienteSection';
+import { SistemaExpandableRow } from '../equipos/SistemaExpandableRow';
+import { SistemasSearchBox } from '../equipos/SistemasSearchBox';
+import { useSistemasSearch } from '../../hooks/useSistemasSearch';
 import { useConfirm } from '../ui/ConfirmDialog';
 
 interface ClienteMainContentProps {
@@ -28,119 +31,6 @@ const ChevronRight = () => (
   </svg>
 );
 
-const ChevronDown = ({ open }: { open: boolean }) => (
-  <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-  </svg>
-);
-
-const SistemaExpandable = ({ sistema, establecimientos, categorias, selected, onToggle }: {
-  sistema: Sistema;
-  establecimientos: Establecimiento[];
-  categorias: CategoriaEquipo[];
-  selected?: boolean;
-  onToggle?: (s: Sistema) => void;
-}) => {
-  const { pathname } = useLocation();
-  const [open, setOpen] = useState(false);
-  const [modulos, setModulos] = useState<ModuloSistema[]>([]);
-  const [loadingModulos, setLoadingModulos] = useState(false);
-
-  const categoria = categorias.find(c => c.id === sistema.categoriaId);
-  const est = sistema.establecimientoId
-    ? establecimientos.find(e => e.id === sistema.establecimientoId)
-    : null;
-
-  useEffect(() => {
-    if (!open || modulos.length > 0) return;
-    setLoadingModulos(true);
-    modulosService.getBySistema(sistema.id).then(m => {
-      setModulos(m);
-      setLoadingModulos(false);
-    });
-  }, [open, sistema.id]);
-
-  return (
-    <div className="bg-slate-50 rounded-lg border border-slate-100">
-      <div className="flex items-center gap-1.5">
-        {onToggle && (
-          <input
-            type="checkbox"
-            checked={!!selected}
-            onChange={() => onToggle(sistema)}
-            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 shrink-0 ml-2"
-          />
-        )}
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex-1 flex justify-between items-center px-3 py-2 hover:bg-slate-100 transition-colors rounded-lg text-left"
-        >
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-medium text-slate-900 truncate">{sistema.nombre}</p>
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${sistema.activo ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
-                {sistema.activo ? 'Activo' : 'Inactivo'}
-              </span>
-              {sistema.enContrato && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                  Contrato
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2 text-[11px] text-slate-400 truncate">
-              {est && <span>{est.nombre}</span>}
-              {categoria && <span>· {categoria.nombre}</span>}
-              {sistema.codigoInternoCliente && <span>· {sistema.codigoInternoCliente}</span>}
-            </div>
-          </div>
-          <ChevronDown open={open} />
-        </button>
-        <Link
-          to={`/equipos/${sistema.id}`}
-          state={{ from: pathname }}
-          className="shrink-0 px-2 py-2 text-[10px] font-medium text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded mr-1"
-          title="Ver detalle del sistema"
-        >
-          Ver
-        </Link>
-      </div>
-
-      {open && (
-        <div className="px-3 pb-2.5">
-          {loadingModulos ? (
-            <p className="text-[11px] text-slate-400 py-2">Cargando módulos...</p>
-          ) : modulos.length === 0 ? (
-            <p className="text-[11px] text-slate-400 py-2">Sin módulos registrados</p>
-          ) : (
-            <table className="w-full mt-1">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Código</th>
-                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Descripción</th>
-                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Serie</th>
-                  <th className="text-center text-[10px] font-medium text-slate-400 py-1 pr-2">Firmware</th>
-                  <th className="text-center text-[10px] font-medium text-slate-400 py-1">Observaciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modulos.map(m => (
-                  <tr key={m.id} className="border-b border-slate-100 last:border-0">
-                    <td className="text-[11px] font-mono text-slate-700 py-1.5 pr-2 whitespace-nowrap">{m.nombre || '—'}</td>
-                    <td className="text-[11px] text-slate-600 py-1.5 pr-2 truncate max-w-[180px]" title={m.descripcion}>{m.descripcion || '—'}</td>
-                    <td className="text-[11px] font-mono text-slate-600 py-1.5 pr-2 whitespace-nowrap">{m.serie || '—'}</td>
-                    <td className="text-[11px] text-slate-600 py-1.5 pr-2 whitespace-nowrap">{m.firmware || '—'}</td>
-                    <td className="text-[11px] text-slate-500 py-1.5 truncate max-w-[150px]" title={m.observaciones}>{m.observaciones || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
 export const ClienteMainContent = ({
   clienteId, cliente, sistemas, establecimientos, categorias, editing, formData, setFormData, onRefresh,
 }: ClienteMainContentProps) => {
@@ -152,6 +42,16 @@ export const ClienteMainContent = ({
   const [showCreateEquipo, setShowCreateEquipo] = useState(false);
   // Deduplicar sistemas por ID (pueden venir duplicados por consultas legacy)
   const uniqueSistemas = sistemas.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
+
+  const {
+    query, setQuery,
+    filtered: filteredSistemas,
+    matchedViaModulo,
+    matchedModuloIds,
+    isSearching,
+    modulosBySistema,
+    loadingModulos,
+  } = useSistemasSearch(uniqueSistemas, categorias);
 
   return (
     <div className="flex-1 min-w-0 space-y-4">
@@ -220,14 +120,35 @@ export const ClienteMainContent = ({
             </Link>
           </div>
         </div>
-        {uniqueSistemas.length > 0 ? (
+        {uniqueSistemas.length > 0 && (
+          <div className="mb-2">
+            <SistemasSearchBox
+              value={query}
+              onChange={setQuery}
+              resultCount={filteredSistemas.length}
+              totalCount={uniqueSistemas.length}
+              loading={loadingModulos}
+            />
+          </div>
+        )}
+        {uniqueSistemas.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-slate-400 text-xs mb-2">Sin sistemas registrados</p>
+            <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
+          </div>
+        ) : filteredSistemas.length === 0 ? (
+          <p className="text-slate-400 text-xs text-center py-4">Sin resultados para "{query}"</p>
+        ) : (
           <div className="space-y-1.5">
-            {uniqueSistemas.map((sistema) => (
-              <SistemaExpandable
+            {filteredSistemas.map((sistema) => (
+              <SistemaExpandableRow
                 key={sistema.id}
                 sistema={sistema}
                 establecimientos={establecimientos}
                 categorias={categorias}
+                modulos={modulosBySistema[sistema.id]}
+                forceOpen={isSearching && matchedViaModulo.has(sistema.id)}
+                matchedModuloIds={matchedModuloIds}
                 selected={selectedSistemaIds.has(sistema.id)}
                 onToggle={(sys) => {
                   setSelectedSistemaIds(prev => {
@@ -238,11 +159,6 @@ export const ClienteMainContent = ({
                 }}
               />
             ))}
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p className="text-slate-400 text-xs mb-2">Sin sistemas registrados</p>
-            <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
           </div>
         )}
       </Card>

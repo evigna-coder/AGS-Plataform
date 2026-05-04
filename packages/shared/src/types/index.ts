@@ -768,6 +768,14 @@ export interface Ticket {
   revisionDescartada?: boolean;
   presupuestosIds?: string[];
   otIds?: string[];
+  /**
+   * Números de OT que motivaron la creación de este ticket de seguimiento.
+   * Distinto de `otIds` (OTs generadas por este ticket): acá se listan OTs
+   * preexistentes ligadas al ppto que dispara el ticket (ej. ppto post-servicio
+   * generado para facturar una OT ya cerrada). Solo se setea cuando el ticket
+   * nace por la regla de spawn-T_n (ticket origen ya pasó por OT).
+   */
+  otsRelacionadas?: string[];
   adjuntos?: AdjuntoTicket[];
   source?: 'qr' | 'portal' | 'manual' | null;
   sistemaAgsVisibleId?: string | null;

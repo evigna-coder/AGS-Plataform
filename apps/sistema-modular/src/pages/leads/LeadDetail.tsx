@@ -48,6 +48,7 @@ export const LeadDetail = () => {
   // Entidades vinculadas
   const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string; estado: string }[]>([]);
   const [linkedOTs, setLinkedOTs] = useState<{ otNumber: string }[]>([]);
+  const [otsRelacionadas, setOtsRelacionadas] = useState<{ otNumber: string }[]>([]);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -99,13 +100,24 @@ export const LeadDetail = () => {
     }
     setLinkedPresupuestos(presups);
 
-    // Cargar OTs vinculadas
+    // Cargar OTs vinculadas (originadas por este ticket)
     const ots: { otNumber: string }[] = [];
     for (const otNum of data.otIds || []) {
       const ot = await ordenesTrabajoService.getByOtNumber(otNum);
       if (ot) ots.push({ otNumber: ot.otNumber });
     }
     setLinkedOTs(ots);
+
+    // Cargar OTs relacionadas (preexistentes que motivaron este ticket — spawn-T_n).
+    // Filtra duplicados con otIds: una OT que figura en ambos arrays solo aparece como "vinculada".
+    const otIdsSet = new Set(data.otIds || []);
+    const otsRel: { otNumber: string }[] = [];
+    for (const otNum of data.otsRelacionadas || []) {
+      if (otIdsSet.has(otNum)) continue;
+      const ot = await ordenesTrabajoService.getByOtNumber(otNum);
+      if (ot) otsRel.push({ otNumber: ot.otNumber });
+    }
+    setOtsRelacionadas(otsRel);
   }, []);
 
   // Stable ref to track previous linked IDs so we only re-fetch when they change
@@ -117,6 +129,7 @@ export const LeadDetail = () => {
       moduloId: lead.moduloId,
       presupuestosIds: lead.presupuestosIds,
       otIds: lead.otIds,
+      otsRelacionadas: lead.otsRelacionadas,
     });
     if (key === prevLinkedRef.current) return;
     prevLinkedRef.current = key;
@@ -334,7 +347,7 @@ export const LeadDetail = () => {
             <TicketPendientesChips ticketId={lead.id} />
 
             {/* Entidades vinculadas */}
-            {(linkedPresupuestos.length > 0 || linkedOTs.length > 0) && (
+            {(linkedPresupuestos.length > 0 || linkedOTs.length > 0 || otsRelacionadas.length > 0) && (
               <Card>
                 <div className="p-4">
                   <h3 className="text-[11px] font-medium text-slate-400 mb-3">Entidades vinculadas</h3>
@@ -353,6 +366,12 @@ export const LeadDetail = () => {
                       <div key={ot.otNumber} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">OT</span>
                         <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{ot.otNumber}</Link>
+                      </div>
+                    ))}
+                    {otsRelacionadas.map(ot => (
+                      <div key={`rel-${ot.otNumber}`} className="flex items-center gap-2" title="OT preexistente que motivó este ticket de seguimiento">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">OT relacionada</span>
+                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-slate-600 hover:text-teal-700 font-medium">{ot.otNumber}</Link>
                       </div>
                     ))}
                   </div>

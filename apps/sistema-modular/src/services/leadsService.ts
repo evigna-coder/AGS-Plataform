@@ -4,6 +4,7 @@ import type { Lead, TicketEstado, TicketArea, TicketPrioridad, MotivoLlamado, Po
 import {
   TICKET_MAX_ADJUNTOS, findClienteCandidatesByRazonSocial,
   PRESUPUESTO_TO_LEAD_ESTADO, PRESUPUESTO_ESTADO_LABELS, OT_TO_LEAD_ESTADO,
+  TICKET_ESTADO_ORDER,
   parseLeadDoc, syncFlatFromContactos,
 } from '@ags/shared';
 import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
@@ -374,13 +375,66 @@ export const leadsService = {
    * Sincroniza el estado del lead cuando cambia el estado de un presupuesto vinculado.
    * Se llama automáticamente desde presupuestosService.update().
    */
-  async syncFromPresupuesto(leadId: string, presupuestoNumero: string, newEstado: PresupuestoEstado) {
+  /**
+   * Sync del ticket origen cuando cambia el estado del presupuesto vinculado.
+   *
+   * Order guard: si el ticket origen ya está en `ot_creada` o más adelante en
+   * `TICKET_ESTADO_ORDER`, NO se mueve el estado (evita retrocesos cuando un ppto
+   * post-servicio pasa por enviado/aceptado). En ese caso se appendea solo una
+   * posta info-only y se devuelve `{ skipped: true, reason: 'order' }` para que
+   * el caller decida spawnear un T_n nuevo via `_crearAutoTicketSeguimiento`.
+   *
+   * Otros casos sin sync de estado (ticket finalizado/no_concretado) también
+   * devuelven `skipped: true` con su razón — pero en esos casos no corresponde
+   * spawn-T_n (el ticket ya cerró, dejar que la auto-creación normal aplique).
+   */
+  async syncFromPresupuesto(
+    leadId: string,
+    presupuestoNumero: string,
+    newEstado: PresupuestoEstado,
+  ): Promise<{ skipped: boolean; reason?: 'terminal' | 'order' | 'no-mapping' | 'no-change' }> {
     const lead = await this.getById(leadId);
-    if (!lead || lead.estado === 'finalizado' || lead.estado === 'no_concretado') return;
+    if (!lead) return { skipped: true, reason: 'terminal' };
+    if (lead.estado === 'finalizado' || lead.estado === 'no_concretado') {
+      return { skipped: true, reason: 'terminal' };
+    }
+
+    const nuevoEstadoLead = PRESUPUESTO_TO_LEAD_ESTADO[newEstado];
+
+    // Order guard: si el sync iría hacia atrás vs el estado actual del ticket,
+    // NO mover estado. Ej: ticket en `ot_realizada` (índice 12) y ppto pasa a
+    // enviado (target `presupuesto_enviado`, índice 4) → retroceso, evitar.
+    // ESTADO_ORDER asegura comparación monotónica del flow operativo.
+    const currentIdx = TICKET_ESTADO_ORDER.indexOf(lead.estado);
+    const targetIdx = nuevoEstadoLead ? TICKET_ESTADO_ORDER.indexOf(nuevoEstadoLead) : -1;
+    const isBackwards = nuevoEstadoLead != null && currentIdx >= 0 && targetIdx >= 0 && targetIdx < currentIdx;
 
     const user = getCurrentUserTrace();
-    const nuevoEstadoLead = PRESUPUESTO_TO_LEAD_ESTADO[newEstado];
     const estadoLabel = PRESUPUESTO_ESTADO_LABELS[newEstado] || newEstado;
+
+    if (isBackwards) {
+      // Solo posta info, sin cambio de estado. El caller hará spawn-T_n.
+      const posta: Posta = {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: user?.uid ?? 'system',
+        deUsuarioNombre: user?.name ?? 'Sistema',
+        aUsuarioId: lead.asignadoA || '',
+        aUsuarioNombre: lead.asignadoNombre || '',
+        comentario: `Presupuesto ${presupuestoNumero} → ${estadoLabel} (sin cambiar estado del ticket — ya pasó por OT)`,
+        estadoAnterior: lead.estado,
+        estadoNuevo: lead.estado,
+      };
+      const batch = createBatch();
+      batch.update(docRef('leads', leadId), {
+        postas: arrayUnion(deepCleanForFirestore(posta)),
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      });
+      batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromPresupuesto', presupuestoNumero, newEstado, skippedBy: 'order' } });
+      await batch.commit();
+      return { skipped: true, reason: 'order' };
+    }
 
     const posta: Posta = {
       id: crypto.randomUUID(),
@@ -399,8 +453,10 @@ export const leadsService = {
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
+    let stateChanged = false;
     if (nuevoEstadoLead && nuevoEstadoLead !== lead.estado) {
       updates.estado = nuevoEstadoLead;
+      stateChanged = true;
     }
     // Presupuesto aceptado → mover lead a coordinación
     if (newEstado === 'aceptado') {
@@ -412,6 +468,10 @@ export const leadsService = {
     batch.update(docRef('leads', leadId), updates);
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: leadId, after: { accion: 'syncFromPresupuesto', presupuestoNumero, newEstado } });
     await batch.commit();
+
+    if (!nuevoEstadoLead) return { skipped: true, reason: 'no-mapping' };
+    if (!stateChanged) return { skipped: true, reason: 'no-change' };
+    return { skipped: false };
   },
 
   /**

@@ -523,11 +523,18 @@ export const presupuestosService = {
         console.error('[presupuestosService.markEnviado] getById fallback failed:', err);
       }
     }
-    // ── Sincronizar ticket origen si aplica (FLOW-01: skip auto-ticket) ──
-    // N1: pass numero so the lead posta entry shows "Presupuesto ${numero} → Enviado" instead of blank.
+    // ── Sincronizar ticket origen + spawn T_n si el order guard lo skippea ──
+    // Caso (a) ppto sin origen lead: spawn directo (FLOW-01 original).
+    // Caso (b) ppto con origen lead, ticket en estado pre-OT: sync mueve estado del ticket,
+    //         no se spawnea T_n (caso clásico, sin cambios).
+    // Caso (c) ppto con origen lead, ticket ya pasó por OT: sync skip por order →
+    //         spawn T_n nuevo para que el seguimiento administrativo viva por separado
+    //         del ticket origen, que sigue su flow operativo.
+    let needSpawn = false;
     if (origenTipo === 'lead' && origenId) {
       try {
-        await leadsService.syncFromPresupuesto(origenId, numero || '', 'enviado');
+        const result = await leadsService.syncFromPresupuesto(origenId, numero || '', 'enviado');
+        if (result.skipped && result.reason === 'order') needSpawn = true;
       } catch (err: any) {
         console.error('[markEnviado] leadsService.syncFromPresupuesto failed:', err);
         // FLOW-06: registrar pendingAction para retry manual desde /admin/acciones-pendientes
@@ -536,14 +543,28 @@ export const presupuestosService = {
           reason: `sync lead existente falló: ${err?.message || 'unknown'}`,
         }).catch(appendErr => console.error('[markEnviado] _appendPendingAction failed:', appendErr));
       }
+    } else {
+      needSpawn = true;
     }
 
-    // ── FLOW-01: auto-ticket de seguimiento si el presupuesto no vino de un ticket ──
-    if (origenTipo !== 'lead' || !origenId) {
+    // ── FLOW-01 + spawn-T_n: crear ticket de seguimiento ──
+    if (needSpawn) {
       try {
         const pres = await this.getById(id);
         if (pres) {
-          await this._crearAutoTicketSeguimiento(pres);
+          // Heurística para otsRelacionadas: preferir las OTs ya vinculadas al ppto;
+          // si el ppto recién se envía y no tiene OTs propias, usar las del ticket origen
+          // (caso típico: spawn por order guard cuando el ticket origen ya generó OTs).
+          let otsRelacionadas: string[] = pres.otsVinculadasNumbers ?? [];
+          if (otsRelacionadas.length === 0 && origenId) {
+            try {
+              const origenTicket = await leadsService.getById(origenId);
+              otsRelacionadas = origenTicket?.otIds ?? [];
+            } catch (err) {
+              console.warn('[markEnviado] no se pudo leer otIds del ticket origen:', err);
+            }
+          }
+          await this._crearAutoTicketSeguimiento(pres, { otsRelacionadas });
         }
       } catch (err: any) {
         console.error('[markEnviado] _crearAutoTicketSeguimiento failed:', err);
@@ -556,22 +577,25 @@ export const presupuestosService = {
   },
 
   /**
-   * FLOW-01: crea el ticket de seguimiento auto-generado cuando un presupuesto pasa a
-   * `enviado` sin un ticket origen. El caller (`markEnviado`) envuelve esta llamada en
-   * try/catch y registra pendingAction si cualquiera de las precondiciones falla.
+   * FLOW-01 + spawn-T_n: crea un ticket de seguimiento para el presupuesto.
    *
-   * Precondiciones:
-   * - Presupuesto NO debe tener origen `lead` (ese ticket ya existe → no se duplica)
-   * - `pres.clienteId` debe estar resuelto (si null, admin debe resolverlo en
-   *   /admin/revision-clienteid y el retry dispara desde `resolverClienteIdPendiente`)
+   * Casos de uso:
+   * - Presupuesto sin ticket origen (`origenTipo !== 'lead'`): es el caso original FLOW-01.
+   * - Presupuesto con ticket origen pero el origen ya está más adelante en el flow
+   *   operativo (`ot_creada`/`ot_realizada`/etc.): spawn-T_n para que el seguimiento
+   *   administrativo del ppto no pise el estado del ticket origen. En este caso el
+   *   caller pasa `opts.otsRelacionadas` con el(los) número(s) de OT que motivaron
+   *   el ppto, para mantener la trazabilidad cruzada.
+   *
+   * Precondiciones (técnicas, no de negocio — la decisión de invocar la hace el caller):
+   * - `pres.clienteId` debe estar resuelto
    * - `adminConfig/flujos.usuarioSeguimientoId` configurado
    * - Usuario destino debe tener `status === 'activo'`
    */
-  async _crearAutoTicketSeguimiento(pres: Presupuesto): Promise<{ leadId: string }> {
-    // Precondición: si ya tiene origen lead, skip — ese ticket hace las veces de seguimiento
-    if (pres.origenTipo === 'lead' && pres.origenId) {
-      throw new Error('Presupuesto ya tiene ticket origen — no se crea auto-ticket');
-    }
+  async _crearAutoTicketSeguimiento(
+    pres: Presupuesto,
+    opts?: { otsRelacionadas?: string[] },
+  ): Promise<{ leadId: string }> {
     // Precondición: clienteId válido (shape del tipo dice string, pero runtime puede ser null/empty)
     const clienteId = (pres.clienteId ?? '').toString().trim();
     if (!clienteId) {
@@ -616,6 +640,20 @@ export const presupuestosService = {
         console.warn('[_crearAutoTicketSeguimiento] contactos read failed:', err);
       }
     }
+    // Construcción del comentario/descripcion: si se pasa otsRelacionadas, mencionar
+    // las OT(s) origen para que el ticket nuevo cuente la historia ("ppto post-servicio").
+    const otsRel = opts?.otsRelacionadas?.filter(Boolean) ?? [];
+    const otsLabel = otsRel.length > 0
+      ? otsRel.map(n => `OT-${n}`).join(', ')
+      : null;
+    const comentarioBase = `Presupuesto ${pres.numero} enviado — pendiente OC`;
+    const comentarioPosta = otsLabel
+      ? `${comentarioBase} (vinculado a ${otsLabel})`
+      : comentarioBase;
+    const descripcionTicket = otsLabel
+      ? `Seguimiento administrativo de ${pres.numero} (post-servicio para ${otsLabel}).`
+      : `Auto-generado por FLOW-01 al enviar ${pres.numero} (tipo: ${pres.tipo}).`;
+
     // Audit posta inicial — registra QUIÉN envió el ppto con fecha/hora.
     const user = getCurrentUserTrace();
     const postaInicial: Posta = {
@@ -625,7 +663,7 @@ export const presupuestosService = {
       deUsuarioNombre: user?.name ?? 'Sistema',
       aUsuarioId: cfg.usuarioSeguimientoId,
       aUsuarioNombre: usuario.displayName ?? '',
-      comentario: `Presupuesto ${pres.numero} enviado — pendiente OC`,
+      comentario: comentarioPosta,
       estadoAnterior: 'nuevo' as TicketEstado,
       estadoNuevo: 'esperando_oc' as TicketEstado,
     };
@@ -640,8 +678,8 @@ export const presupuestosService = {
       email: contactoEmail,
       telefono: contactoTelefono,
       motivoLlamado: TIPO_PPTO_TO_MOTIVO[pres.tipo] ?? 'otros',
-      motivoContacto: `Presupuesto ${pres.numero} enviado — pendiente OC`,
-      descripcion: `Auto-generado por FLOW-01 al enviar ${pres.numero} (tipo: ${pres.tipo}).`,
+      motivoContacto: comentarioBase,
+      descripcion: descripcionTicket,
       sistemaId: pres.sistemaId ?? null,
       moduloId: null,
       estado: 'esperando_oc' as TicketEstado,
@@ -654,6 +692,7 @@ export const presupuestosService = {
       adjuntos: [],
       presupuestosIds: [pres.id],
       otIds: [],
+      otsRelacionadas: otsRel.length > 0 ? otsRel : undefined,
       finalizadoAt: null,
       prioridad: 'normal',
       proximoContacto: null,
@@ -966,10 +1005,25 @@ export const presupuestosService = {
     });
 
     // ── Paso 5: post-commit side-effects (best-effort, fuera de tx) ──
-    // Sync lead si aplica
+    // Sync lead si aplica + spawn-T_n si el order guard skippea (mismo patrón que markEnviado).
     if (pres.origenTipo === 'lead' && pres.origenId) {
       try {
-        await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, 'aceptado');
+        const result = await leadsService.syncFromPresupuesto(pres.origenId, pres.numero, 'aceptado');
+        if (result.skipped && result.reason === 'order') {
+          // El ticket origen ya pasó por OT — spawn T_n para el seguimiento administrativo
+          // de este ppto. Heurística para otsRelacionadas: mismas reglas que markEnviado.
+          let otsRelacionadas: string[] = pres.otsVinculadasNumbers ?? [];
+          if (otsRelacionadas.length === 0) {
+            try {
+              const origenTicket = await leadsService.getById(pres.origenId);
+              otsRelacionadas = origenTicket?.otIds ?? [];
+            } catch (err) {
+              console.warn('[aceptarConRequerimientos] lectura otIds del ticket origen falló:', err);
+            }
+          }
+          await this._crearAutoTicketSeguimiento(pres, { otsRelacionadas })
+            .catch(err => console.error('[aceptarConRequerimientos] spawn-T_n falló:', err));
+        }
       } catch (err) {
         console.error('[aceptarConRequerimientos] syncFromPresupuesto failed:', err);
       }
