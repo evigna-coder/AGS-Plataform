@@ -349,6 +349,22 @@ export const ordenesTrabajoService = {
       }
     }
 
+    // Sync ticket linked al OT recién creada (presupuesto → OT → ticket = ot_creada).
+    // Sin esto, el ticket quedaba en 'en_coordinacion' hasta que la asignación en
+    // agenda disparara update() (que sí llama syncFromOT). Solo para children: el
+    // parent es contenedor sin estadoAdmin propio.
+    if (otData.leadId && otData.otNumber.includes('.')) {
+      try {
+        await leadsService.syncFromOT(
+          otData.leadId,
+          otData.otNumber,
+          (otData.estadoAdmin as OTEstadoAdmin) || 'CREADA',
+        );
+      } catch (err) {
+        console.error('[otService] Error syncing ticket from OT creation:', err);
+      }
+    }
+
     return otData.otNumber;
   },
 
