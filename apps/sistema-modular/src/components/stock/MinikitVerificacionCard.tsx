@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Input } from '../ui/Input';
 import type { MinikitRequeridoItem, MinikitVerificacion, UnidadStock, EstadoMinikit } from '@ags/shared';
 
 const formatRelative = (iso: string): string => {
@@ -32,6 +33,7 @@ export const MinikitVerificacionCard = ({
 }: Props) => {
   const [presentes, setPresentes] = useState<Record<string, boolean>>({});
   const [observaciones, setObservaciones] = useState('');
+  const [search, setSearch] = useState('');
 
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
@@ -40,6 +42,26 @@ export const MinikitVerificacionCard = ({
     }
     return out;
   }, [unidades]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return requeridos;
+    return requeridos.filter(r =>
+      r.articuloCodigo.toLowerCase().includes(q) ||
+      r.articuloDescripcion.toLowerCase().includes(q) ||
+      (r.sector ?? '').toLowerCase().includes(q)
+    );
+  }, [requeridos, search]);
+
+  const allFilteredChecked = filtered.length > 0 && filtered.every(r => presentes[r.articuloId] === true);
+  const handleToggleAllFiltered = () => {
+    const target = !allFilteredChecked;
+    setPresentes(prev => {
+      const next = { ...prev };
+      for (const r of filtered) next[r.articuloId] = target;
+      return next;
+    });
+  };
 
   if (estado === 'en_revision') {
     if (!canVerify) {
@@ -51,14 +73,6 @@ export const MinikitVerificacionCard = ({
         </Card>
       );
     }
-
-    const allChecked = requeridos.length > 0 && requeridos.every(r => presentes[r.articuloId] === true);
-    const handleToggleAll = () => {
-      const target = !allChecked;
-      const next: Record<string, boolean> = {};
-      for (const r of requeridos) next[r.articuloId] = target;
-      setPresentes(next);
-    };
 
     return (
       <Card
@@ -80,66 +94,77 @@ export const MinikitVerificacionCard = ({
             El minikit no tiene artículos requeridos configurados.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-left pl-2">
-                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={allChecked}
-                        onChange={handleToggleAll}
-                        className="w-3.5 h-3.5 accent-teal-600"
-                      />
-                      <span>Presente</span>
-                    </label>
-                  </th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Artículo</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Mínimo</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Sistema</th>
-                  <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requeridos.map(r => {
-                  const actual = counts[r.articuloId] ?? 0;
-                  const falta = actual < r.cantidadMinima;
-                  return (
-                    <tr key={r.articuloId} className="border-b border-slate-50 last:border-0">
-                      <td className="py-2 pl-2">
-                        <input
-                          type="checkbox"
-                          checked={!!presentes[r.articuloId]}
-                          onChange={e => setPresentes(prev => ({ ...prev, [r.articuloId]: e.target.checked }))}
-                          className="w-4 h-4 accent-teal-600"
-                        />
-                      </td>
-                      <td className="text-xs py-2 pr-3">
-                        <span className="font-mono text-teal-600 font-semibold">{r.articuloCodigo}</span>
-                        <span className="text-slate-600 ml-1.5">{r.articuloDescripcion}</span>
-                      </td>
-                      <td className="text-xs py-2 text-center text-slate-500">{r.cantidadMinima}</td>
-                      <td className={`text-xs py-2 text-center font-medium ${falta ? 'text-red-600' : 'text-slate-700'}`}>{actual}</td>
-                      <td className="text-xs py-2 text-center">
-                        {falta ? (
-                          <button
-                            type="button"
-                            onClick={() => onReponer(r, r.cantidadMinima - actual)}
-                            className="text-teal-600 hover:underline font-medium text-[11px]"
-                          >
-                            + Reponer
-                          </button>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="flex items-end gap-2 mb-2">
+              <div className="flex-1">
+                <Input
+                  inputSize="sm"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar artículo, código o sector..."
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={handleToggleAllFiltered} disabled={filtered.length === 0}>
+                {allFilteredChecked ? 'Desmarcar todas' : 'Marcar todas'}
+                {search && filtered.length !== requeridos.length && (
+                  <span className="ml-1 text-[10px] opacity-60">({filtered.length})</span>
+                )}
+              </Button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Artículo</th>
+                    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Presente</th>
+                    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Mínimo</th>
+                    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Sistema</th>
+                    <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={5} className="text-xs text-slate-400 py-3 text-center">Sin resultados.</td></tr>
+                  ) : filtered.map(r => {
+                    const actual = counts[r.articuloId] ?? 0;
+                    const falta = actual < r.cantidadMinima;
+                    return (
+                      <tr key={r.articuloId} className="border-b border-slate-50 last:border-0">
+                        <td className="text-xs py-2 pr-3">
+                          <span className="font-mono text-teal-600 font-semibold">{r.articuloCodigo}</span>
+                          <span className="text-slate-600 ml-1.5">{r.articuloDescripcion}</span>
+                        </td>
+                        <td className="py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={!!presentes[r.articuloId]}
+                            onChange={e => setPresentes(prev => ({ ...prev, [r.articuloId]: e.target.checked }))}
+                            className="w-4 h-4 accent-teal-600"
+                          />
+                        </td>
+                        <td className="text-xs py-2 text-center text-slate-500">{r.cantidadMinima}</td>
+                        <td className={`text-xs py-2 text-center font-medium ${falta ? 'text-red-600' : 'text-slate-700'}`}>{actual}</td>
+                        <td className="text-xs py-2 text-center">
+                          {falta ? (
+                            <button
+                              type="button"
+                              onClick={() => onReponer(r, r.cantidadMinima - actual)}
+                              className="text-teal-600 hover:underline font-medium text-[11px]"
+                            >
+                              + Reponer
+                            </button>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         <div className="mt-3">

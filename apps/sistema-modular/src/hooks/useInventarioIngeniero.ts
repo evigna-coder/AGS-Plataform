@@ -63,7 +63,7 @@ export function useInventarioIngeniero(ingenieroId: string | undefined) {
       const remaining = item.cantidad - item.cantidadDevuelta - item.cantidadConsumida;
       await asignacionesService.devolverItems(item.asignacionId, [{ itemId: item.id, cantidad: remaining }]);
       if (item.unidadId) await unidadesService.update(item.unidadId, { estado: 'disponible', ubicacion: { tipo: 'posicion', referenciaId: '', referenciaNombre: 'Stock' } });
-      if (item.minikitId) await minikitsService.update(item.minikitId, { estado: 'en_base', asignadoA: null });
+      if (item.minikitId) await minikitsService.update(item.minikitId, { estado: 'en_revision', asignadoA: null });
       if (item.instrumentoId) await instrumentosService.update(item.instrumentoId, { asignadoAId: null, asignadoANombre: null });
       if (item.dispositivoId) await dispositivosService.update(item.dispositivoId, { asignadoAId: null, asignadoANombre: null });
       if (item.vehiculoId) await vehiculosService.update(item.vehiculoId, { asignadoA: '' });

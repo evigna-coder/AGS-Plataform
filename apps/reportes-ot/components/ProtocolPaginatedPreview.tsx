@@ -413,7 +413,22 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
   // Phase 1: measure heights of each item and distribute across pages
   useEffect(() => {
     if (!measureRef.current || contentItems.length === 0) return;
-    const timer = setTimeout(() => {
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    // Esperar a que las fuentes (Inter/Newsreader/JetBrains Mono) estén cargadas
+    // antes de medir. Sin esto las tablas se miden con la fuente fallback (más
+    // compacta) → el algoritmo cree que entran más por página → overflow:hidden
+    // las recorta cuando finalmente cargan las web fonts y el render real es más alto.
+    const fontsReady: Promise<unknown> =
+      typeof document !== 'undefined' && document.fonts?.ready
+        ? document.fonts.ready.catch(() => undefined)
+        : Promise.resolve();
+
+    fontsReady.then(() => {
+      if (cancelled) return;
+      timer = setTimeout(() => {
       const container = measureRef.current;
       if (!container) return;
       const children = Array.from(container.children) as HTMLElement[];
@@ -540,6 +555,10 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       // IMPORTANTE: no mover slices (una porción de una tabla grande no puede
       // "pegarse" a nada; mover un slice arruina la paginación). Si el item a mover
       // es un slice, se omite — se rompe el glue en ese borde.
+      // CAPACIDAD: nunca mover si el destino se desbordaría. Cadenas largas de glue
+      // (TestFunc → Seteos → Estándar → Muestras → Conclusión → Firmas → ...) podían
+      // acumular todo en una sola página > CONTENT_HEIGHT_PX y quedar recortadas por
+      // overflow:hidden. Si no entra, se rompe el glue en ese borde.
       let changed = true;
       while (changed) {
         changed = false;
@@ -551,6 +570,13 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
               const candidate = prevPage.items[prevPage.items.length - 1];
               if (candidate.sliceOffset !== undefined) {
                 // Slice: no mover. Romper glue para que este borde no intente pegarse.
+                page.items[0] = { ...page.items[0], glueWithPrev: false };
+                continue;
+              }
+              const candidateHeight = candidate.measuredHeight || 0;
+              const destSum = page.items.reduce((acc, it) => acc + (it.measuredHeight || 0), 0);
+              if (destSum + candidateHeight > CONTENT_HEIGHT_PX) {
+                // Pulling causaría overflow → romper glue acá.
                 page.items[0] = { ...page.items[0], glueWithPrev: false };
                 continue;
               }
@@ -569,8 +595,12 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
 
       setPages(cleanedPages);
     }, 300);
+    });
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [contentItems.length, protocolSelections, instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas]);
 
   const serviceLabel = SERVICE_LABELS[meta.tipoServicio] || 'Protocolo de Servicio';
