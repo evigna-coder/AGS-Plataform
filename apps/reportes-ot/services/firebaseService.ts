@@ -684,11 +684,17 @@ export class FirebaseService {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `adjuntos/${otNumber}/${timestamp}_${safeName}`;
     const storageR = ref(storage, storagePath);
-    // uploadBytesResumable soporta archivos grandes sin timeout
-    await new Promise<void>((resolve, reject) => {
-      const task = uploadBytesResumable(storageR, file, { contentType: file.type });
-      task.on('state_changed', null, reject, resolve);
+    // UploadTask es awaitable directamente (resuelve al completar, rechaza on error).
+    // Pasar `null` como progress callback en task.on() puede impedir que los handlers
+    // error/complete se registren correctamente y deja el Promise colgado.
+    const task = uploadBytesResumable(storageR, file, { contentType: file.type });
+    task.on('state_changed', (snap) => {
+      const pct = snap.totalBytes > 0
+        ? Math.round((snap.bytesTransferred / snap.totalBytes) * 100)
+        : 0;
+      console.log(`[ADJUNTO] ${file.name}: ${pct}% (${snap.bytesTransferred}/${snap.totalBytes} bytes)`);
     });
+    await task;
     const url = await getDownloadURL(storageR);
     return { url, path: storagePath };
   }

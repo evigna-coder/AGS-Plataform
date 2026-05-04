@@ -1184,9 +1184,13 @@ export const CatalogTableView: React.FC<Props> = ({
       }
     }
 
-    // ── Auto-fill por label (solo tabla informacional de 1 fila: cabecera equipo) ─
+    // ── Auto-fill por label (tabla informacional, solo primera fila de datos: cabecera equipo) ─
+    // Aplicar solo a la primera fila para que al "Agregar fila" (módulos/accesorios extra)
+    // la fila 1 siga mostrando los datos del equipo principal y las nuevas queden en blanco
+    // para entrada manual.
     const dataRows = table.templateRows.filter(r => !r.isTitle && !r.isSelector);
-    if (variables && !col.disableAutoFill && (!rawValue || rawValue === 'N/A') && table.tableType === 'informational' && dataRows.length === 1) {
+    const isFirstDataRow = dataRows[0]?.rowId === rowId;
+    if (variables && !col.disableAutoFill && (!rawValue || rawValue === 'N/A') && table.tableType === 'informational' && isFirstDataRow) {
       const colLabel = (col.label || col.key).toLowerCase().replace(/[:.]/g, '').trim();
       let resolved: string | null = null;
       if (colLabel === 'marca') resolved = variables['equipo.marca'] || null;
@@ -1197,6 +1201,7 @@ export const CatalogTableView: React.FC<Props> = ({
           ? variables['equipo.moduloModelo']
           : variables['equipo.modelo']) || null;
       }
+      else if (/^m[oó]dulo$/.test(colLabel)) resolved = variables['equipo.moduloDescripcion'] || null;
       else if (/^(número de serie|nro?\s+de serie|n[°º]\s*de serie|serie|s\/n)$/.test(colLabel)) resolved = variables['equipo.serie'] || null;
       else if (colLabel === 'id') resolved = variables['equipo.id'] || null;
       if (resolved) {
@@ -1485,8 +1490,8 @@ export const CatalogTableView: React.FC<Props> = ({
             />
           )}
 
-          {/* Botón duplicar tabla */}
-          {!isPrint && !readOnly && onDuplicate && (
+          {/* Botón duplicar tabla — solo si el catálogo lo marcó como duplicable */}
+          {!isPrint && !readOnly && onDuplicate && table.duplicableEnProtocolo && (
             <button
               onClick={() => onDuplicate(selection.tableId)}
               className="text-slate-400 hover:text-teal-600 transition-colors p-1"
@@ -1519,7 +1524,7 @@ export const CatalogTableView: React.FC<Props> = ({
             <p className="font-semibold truncate text-sm text-slate-900">{table.name}</p>
           </AccordionHeaderChrome>
           <div className="flex items-center gap-2 shrink-0">
-            {onDuplicate && (
+            {onDuplicate && table.duplicableEnProtocolo && (
               <button onClick={() => onDuplicate(selection.tableId)}
                 className="text-slate-400 hover:text-teal-600 transition-colors p-1" title="Duplicar tabla">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1540,7 +1545,7 @@ export const CatalogTableView: React.FC<Props> = ({
       ) : !isPrint && !readOnly && onRemove ? (
         /* Desktop con título oculto: solo botones */
         <div className="flex justify-end px-2 py-1 bg-slate-50 border-b border-slate-100">
-          {onDuplicate && (
+          {onDuplicate && table.duplicableEnProtocolo && (
             <button onClick={() => onDuplicate(selection.tableId)}
               className="text-slate-400 hover:text-teal-600 transition-colors p-1" title="Duplicar tabla">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

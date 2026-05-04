@@ -9,7 +9,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { exportSolicitudesExcel, exportSolicitudesPDF } from '../../utils/exports/exportSolicitudesFacturacion';
 import type { SolicitudFacturacion, SolicitudFacturacionEstado, Cliente } from '@ags/shared';
 import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -122,113 +121,108 @@ export const FacturacionList = () => {
   const hasActiveFilter = !!(filters.search || filters.cliente || filters.estado || filters.fechaDesde || filters.fechaHasta);
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Facturacion" subtitle="Solicitudes de facturacion y seguimiento" />
-
-      {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Pendientes</p>
-          <p className="text-xl font-black text-amber-600">{pendientes.length}</p>
-          <p className="text-[11px] text-slate-500">U$S {montoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-        </Card>
-        <Card>
-          <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Facturadas</p>
-          <p className="text-xl font-black text-blue-600">{facturadas.length}</p>
-          <p className="text-[11px] text-slate-500">U$S {montoFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-        </Card>
-        <Card>
-          <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Total solicitudes</p>
-          <p className="text-xl font-black text-slate-700">{solicitudes.length}</p>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <div className="flex gap-3 items-end flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <input
-              type="text"
-              value={filters.search}
-              onChange={e => setFilter('search', e.target.value)}
-              placeholder="Buscar por presupuesto, cliente, nro factura..."
-              className="w-full border border-slate-200 rounded-md px-3 py-1.5 text-xs"
-            />
-          </div>
-          <div className="w-48">
+    <div className="h-full flex flex-col bg-slate-50">
+      <PageHeader
+        title="Facturacion"
+        count={loading ? undefined : filtradas.length}
+        subtitle="Solicitudes de facturacion y seguimiento"
+        actions={canAdminAction ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportSolicitudesExcel(filtradas, { filtrosLabel: buildFiltrosLabel() })}
+            >
+              Exportar Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await exportSolicitudesPDF(filtradas, { filtrosLabel: buildFiltrosLabel() });
+              }}
+            >
+              Exportar PDF
+            </Button>
+          </>
+        ) : undefined}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="text"
+            value={filters.search}
+            onChange={e => setFilter('search', e.target.value)}
+            placeholder="Buscar por presupuesto, cliente, nro factura..."
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56"
+          />
+          <div className="min-w-[120px]">
             <SearchableSelect
+              size="sm"
               value={filters.cliente}
               onChange={v => setFilter('cliente', v)}
-              options={[{ value: '', label: 'Todos los clientes' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
-              placeholder="Cliente..."
+              options={[{ value: '', label: 'Cliente: Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              placeholder="Cliente"
             />
           </div>
-          <div className="w-36">
-            <select
+          <div className="min-w-[100px]">
+            <SearchableSelect
+              size="sm"
               value={filters.estado}
-              onChange={e => setFilter('estado', e.target.value)}
-              className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs"
-            >
-              <option value="">Todos los estados</option>
-              {(Object.entries(SOLICITUD_FACTURACION_ESTADO_LABELS) as [SolicitudFacturacionEstado, string][]).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400">Desde</label>
-            <input
-              type="date"
-              value={filters.fechaDesde}
-              onChange={e => setFilter('fechaDesde', e.target.value)}
-              className="border border-slate-200 rounded-md px-2 py-1.5 text-xs w-32"
+              onChange={v => setFilter('estado', v)}
+              options={[
+                { value: '', label: 'Estado: Todos' },
+                ...(Object.entries(SOLICITUD_FACTURACION_ESTADO_LABELS) as [SolicitudFacturacionEstado, string][]).map(([value, label]) => ({ value, label })),
+              ]}
+              placeholder="Estado"
             />
           </div>
-          <div className="flex flex-col gap-0.5">
-            <label className="text-[10px] font-mono uppercase tracking-wide text-slate-400">Hasta</label>
-            <input
-              type="date"
-              value={filters.fechaHasta}
-              onChange={e => setFilter('fechaHasta', e.target.value)}
-              className="border border-slate-200 rounded-md px-2 py-1.5 text-xs w-32"
-            />
-          </div>
+          <input
+            type="date"
+            value={filters.fechaDesde}
+            onChange={e => setFilter('fechaDesde', e.target.value)}
+            title="Desde"
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+          <input
+            type="date"
+            value={filters.fechaHasta}
+            onChange={e => setFilter('fechaHasta', e.target.value)}
+            title="Hasta"
+            className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
           {hasActiveFilter && (
-            <button onClick={resetFilters} className="text-[11px] text-teal-600 hover:text-teal-700 font-medium">
-              Limpiar
-            </button>
-          )}
-          {canAdminAction && (
-            <div className="flex gap-2 ml-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportSolicitudesExcel(filtradas, { filtrosLabel: buildFiltrosLabel() })}
-              >
-                Exportar Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await exportSolicitudesPDF(filtradas, { filtrosLabel: buildFiltrosLabel() });
-                }}
-              >
-                Exportar PDF
-              </Button>
-            </div>
+            <Button size="sm" variant="ghost" onClick={() => resetFilters()}>Limpiar</Button>
           )}
         </div>
-      </Card>
+      </PageHeader>
 
-      {/* Table */}
-      <Card>
+      {/* KPI strip — mismo formato que PresupuestoDashboard */}
+      <div className="grid grid-cols-3 gap-2 px-5 pt-3 pb-3">
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pendientes</p>
+          <p className="text-lg font-black text-amber-600">{pendientes.length}</p>
+          <p className="text-[10px] text-slate-400 mt-1">U$S {montoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Facturadas</p>
+          <p className="text-lg font-black text-blue-600">{facturadas.length}</p>
+          <p className="text-[10px] text-slate-400 mt-1">U$S {montoFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Total solicitudes</p>
+          <p className="text-lg font-black text-slate-700">{solicitudes.length}</p>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 px-5 pb-4">
         {loading ? (
-          <p className="text-center text-sm text-slate-400 py-8">Cargando...</p>
+          <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando...</p></div>
         ) : filtradas.length === 0 ? (
-          <p className="text-center text-sm text-slate-400 py-8">No hay solicitudes de facturacion</p>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <p className="text-center text-sm text-slate-400 py-12">No hay solicitudes de facturacion</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto h-full">
             <table ref={tableRef} className="w-full text-xs table-fixed">
               {colWidths ? (
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
@@ -245,8 +239,8 @@ export const FacturacionList = () => {
                   <col style={{ width: '11%' }} />
                 </colgroup>
               )}
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-50 border-b border-slate-200">
                   <SortableHeader label="Fecha" field="createdAt" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(0)} relative`}>
                     <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
                     <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
@@ -301,7 +295,7 @@ export const FacturacionList = () => {
             </table>
           </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 };

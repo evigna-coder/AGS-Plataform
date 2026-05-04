@@ -41,48 +41,43 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
     }
   }, [openTab, navigateInActiveTab]);
 
+  /** Right-click → abrir en nueva ventana Electron (con fallback a tab interna en browser). */
+  const handleContextMenu = useCallback((e: React.MouseEvent, path: string, label?: string, icon?: string) => {
+    if (path.startsWith('#')) return;
+    e.preventDefault();
+    if (window.electronAPI?.openModuleWindow) {
+      window.electronAPI.openModuleWindow(path);
+    } else {
+      const meta = label && icon ? { label, icon } : getNavMeta(path);
+      openTab(path, meta.label, meta.icon);
+    }
+  }, [openTab]);
+
   const renderNode = (item: NavItem, depth: number): React.ReactNode => {
     if (item.children) return renderGroupNode(item, depth);
     return renderLeafNode(item, depth);
   };
 
-  // ── Top-level leaf: full treatment with "open in new window" button ──
+  // ── Top-level leaf ──
   const renderTopLeaf = (item: NavItem) => {
     const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
     return (
-      <div key={item.path} className="flex items-center">
-        <a
-          href={item.path}
-          onClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
-          onAuxClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
-          className={`flex-1 flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
-            isActive
-              ? 'border-teal-500 bg-slate-800 text-white font-medium'
-              : 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
-          }`}
-          title={collapsed ? item.name : undefined}
-        >
-          <span className="text-base leading-none shrink-0">{item.icon}</span>
-          {!collapsed && <span className="leading-tight whitespace-nowrap">{item.name}</span>}
-        </a>
-        {!collapsed && (
-          <button
-            onClick={() => {
-              if (window.electronAPI?.openModuleWindow) {
-                window.electronAPI.openModuleWindow(item.path);
-              } else {
-                openTab(item.path, item.name, item.icon ?? '📄');
-              }
-            }}
-            className="shrink-0 p-1.5 mr-1 rounded text-slate-600 hover:text-slate-200 hover:bg-slate-700 transition-colors"
-            title="Abrir en nueva ventana"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </button>
-        )}
-      </div>
+      <a
+        key={item.path}
+        href={item.path}
+        onClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
+        onAuxClick={(e) => handleNavClick(e, item.path, item.name, item.icon)}
+        onContextMenu={(e) => handleContextMenu(e, item.path, item.name, item.icon)}
+        className={`flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
+          isActive
+            ? 'border-teal-500 bg-slate-800 text-white font-medium'
+            : 'border-transparent text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+        }`}
+        title={collapsed ? item.name : 'Click derecho: abrir en nueva ventana'}
+      >
+        <span className="text-base leading-none shrink-0">{item.icon}</span>
+        {!collapsed && <span className="leading-tight whitespace-nowrap">{item.name}</span>}
+      </a>
     );
   };
 
@@ -102,6 +97,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
           href={item.path}
           onClick={(e) => handleNavClick(e, item.path)}
           onAuxClick={(e) => handleNavClick(e, item.path)}
+          onContextMenu={(e) => handleContextMenu(e, item.path, item.name, item.icon)}
+          title="Click derecho: abrir en nueva ventana"
           className={`flex items-center gap-2 py-1.5 ${basePadding} pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
             isActive
               ? 'border-teal-500 bg-slate-800 text-white font-medium'

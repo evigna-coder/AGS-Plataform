@@ -73,6 +73,7 @@ interface ProtocolSectionProps {
     otNumber?: string;
     sistemaNombre?: string;
     moduloModelo?: string;
+    moduloDescripcion?: string;
     moduloMarca?: string;
     agsVisibleId?: string;
     numeroSerie?: string;
@@ -221,6 +222,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onChangeResultado={handleCatalogResultado}
                 onToggleSection={handleToggleChecklistSection}
                 onRemove={handleRemoveCatalogTable}
+                onDuplicate={handleDuplicateTable}
                 onDuplicateSection={(sectionId) => handleDuplicateSection(sel.tableId, sectionId)}
                 onRemoveSection={(sectionId) => handleRemoveSection(sel.tableId, sectionId)}
                 signatureClient={signatureClient}
@@ -252,6 +254,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                   ...variables,
                   'equipo.modelo': coverData?.sistemaNombre || sistema || '',
                   'equipo.moduloModelo': coverData?.moduloModelo || '',
+                  'equipo.moduloDescripcion': coverData?.moduloDescripcion || '',
                   'equipo.marca': coverData?.moduloMarca || '',
                   'equipo.serie': coverData?.numeroSerie || '',
                   'equipo.id': coverData?.agsVisibleId || '',

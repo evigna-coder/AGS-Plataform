@@ -13,6 +13,7 @@ interface Props {
   onChangeResultado?: (tableId: string, value: ProtocolSelection['resultado']) => void;
   onToggleSection?: (tableId: string, itemId: string, isNA: boolean) => void;
   onRemove?: (tableId: string) => void;
+  onDuplicate?: (tableId: string) => void;
   onDuplicateSection?: (sectionItemId: string) => void;
   onRemoveSection?: (sectionItemId: string) => void;
   /** Datos de la OT para inyectar en ítems con showDate / showSignatures */
@@ -609,6 +610,7 @@ export const CatalogChecklistView: React.FC<Props> = ({
   onChangeResultado,
   onToggleSection,
   onRemove,
+  onDuplicate,
   onDuplicateSection,
   onRemoveSection,
   signatureClient,
@@ -699,6 +701,10 @@ export const CatalogChecklistView: React.FC<Props> = ({
               >
                 {allGlobalChecked ? 'Destildar todas' : 'Tildar todas'}
               </button>
+            )}
+            {!readOnly && !isPrint && onDuplicate && tableSnapshot.duplicableEnProtocolo && (
+              <button onClick={() => onDuplicate(selection.tableId)}
+                className="text-slate-400 hover:text-teal-600 text-xs" title="Duplicar tabla">+ Duplicar</button>
             )}
             {!readOnly && !isPrint && onRemove && (
               <button onClick={() => onRemove(selection.tableId)}

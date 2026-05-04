@@ -287,6 +287,11 @@ export const TableCatalogEditorPage = () => {
                     onChange={e => setMeta('attachToNext', e.target.checked)} />
                   Vincular con tabla siguiente
                 </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={entry.duplicableEnProtocolo ?? false}
+                    onChange={e => setMeta('duplicableEnProtocolo', e.target.checked)} />
+                  Duplicable en protocolo
+                </label>
               </div>
               {!['checklist', 'text', 'signatures', 'cover'].includes(entry.tableType) && (
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">

@@ -313,6 +313,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
               clienteSector: sector,
               sistema,
               moduloModelo,
+              moduloDescripcion,
               moduloMarca,
               moduloSerie,
               codigoInternoCliente,

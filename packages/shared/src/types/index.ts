@@ -1884,6 +1884,8 @@ export interface TableCatalogEntry {
   attachToPrevious?: boolean;
   /** Si true, este bloque se mantiene en la misma página que la tabla siguiente. */
   attachToNext?: boolean;
+  /** Si true, el ingeniero puede duplicar la tabla entera en el protocolo (clon completo del bloque). */
+  duplicableEnProtocolo?: boolean;
   /** Título que aparece en el header de cada página del protocolo (ej. "Protocolo de verificación GC-MS"). */
   headerTitle?: string | null;
   /** Número de formulario de calidad para el footer (ej. "QF-AGS-012 Rev.01"). */
