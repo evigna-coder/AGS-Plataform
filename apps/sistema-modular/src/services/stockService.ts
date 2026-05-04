@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MinikitTemplate, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
 
@@ -548,100 +548,6 @@ export const minikitsService = {
       callback(items);
     }, err => {
       console.error('minikits subscribe error:', err);
-      onError?.(err);
-    });
-  },
-};
-
-// ========== PLANTILLAS DE MINIKIT ==========
-
-export const minikitTemplatesService = {
-  async getAll(activoOnly: boolean = true): Promise<MinikitTemplate[]> {
-    let q;
-    if (activoOnly) {
-      q = query(collection(db, 'minikitTemplates'), where('activo', '==', true));
-    } else {
-      q = query(collection(db, 'minikitTemplates'));
-    }
-    const snap = await getDocs(q);
-    const items = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-      createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-      updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-    })) as MinikitTemplate[];
-    items.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    return items;
-  },
-
-  async getById(id: string): Promise<MinikitTemplate | null> {
-    const snap = await getDoc(doc(db, 'minikitTemplates', id));
-    if (!snap.exists()) return null;
-    return {
-      id: snap.id,
-      ...snap.data(),
-      createdAt: snap.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-      updatedAt: snap.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-    } as MinikitTemplate;
-  },
-
-  async create(data: Omit<MinikitTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const id = crypto.randomUUID();
-    const payload = deepCleanForFirestore({
-      ...data,
-      ...getCreateTrace(),
-      activo: data.activo !== undefined ? data.activo : true,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-    const batch = createBatch();
-    batch.set(doc(db, 'minikitTemplates', id), payload);
-    batchAudit(batch, { action: 'create', collection: 'minikit_templates', documentId: id, after: payload });
-    await batch.commit();
-    return id;
-  },
-
-  async update(id: string, data: Partial<Omit<MinikitTemplate, 'id' | 'createdAt'>>): Promise<void> {
-    const payload = deepCleanForFirestore({
-      ...data,
-      ...getUpdateTrace(),
-      updatedAt: Timestamp.now(),
-    });
-    const batch = createBatch();
-    batch.update(docRef('minikitTemplates', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'minikit_templates', documentId: id, after: payload });
-    await batch.commit();
-  },
-
-  async delete(id: string): Promise<void> {
-    const batch = createBatch();
-    batch.delete(docRef('minikitTemplates', id));
-    batchAudit(batch, { action: 'delete', collection: 'minikit_templates', documentId: id });
-    await batch.commit();
-  },
-
-  subscribe(
-    activoOnly: boolean,
-    callback: (items: MinikitTemplate[]) => void,
-    onError?: (err: Error) => void,
-  ): () => void {
-    let q;
-    if (activoOnly) {
-      q = query(collection(db, 'minikitTemplates'), where('activo', '==', true));
-    } else {
-      q = query(collection(db, 'minikitTemplates'));
-    }
-    return onSnapshot(q, snap => {
-      const items = snap.docs.map(d => ({
-        id: d.id,
-        ...d.data(),
-        createdAt: d.data().createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-        updatedAt: d.data().updatedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
-      })) as MinikitTemplate[];
-      items.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      callback(items);
-    }, err => {
-      console.error('minikitTemplates subscribe error:', err);
       onError?.(err);
     });
   },

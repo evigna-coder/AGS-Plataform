@@ -1,12 +1,18 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { minikitsService, unidadesService, ingenierosService, minikitTemplatesService } from '../../services/firebaseService';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { minikitsService, unidadesService, ingenierosService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
-import type { Minikit, MinikitTemplate, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
+import { MinikitRequeridosModal } from '../../components/stock/MinikitRequeridosModal';
+import { MinikitVerificacionCard } from '../../components/stock/MinikitVerificacionCard';
+import { MinikitRequeridosCard } from '../../components/stock/MinikitRequeridosCard';
+import { ReponerMinikitModal } from '../../components/stock/ReponerMinikitModal';
+import { DuplicateMinikitModal } from '../../components/stock/DuplicateMinikitModal';
+import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ESTADO_LABELS: Record<EstadoMinikit, string> = {
   en_base: 'En base', en_campo: 'En campo', en_transito: 'En transito', en_revision: 'En revision',
@@ -32,8 +38,11 @@ const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
 
 export const MinikitDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const goBack = useNavigateBack();
   const confirm = useConfirm();
+  const { hasRole, firebaseUser, usuario } = useAuth();
+  const canVerify = hasRole('admin', 'admin_soporte');
   const [minikit, setMinikit] = useState<Minikit | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,15 +51,13 @@ export const MinikitDetail = () => {
   const [selectedIngenieroId, setSelectedIngenieroId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [template, setTemplate] = useState<MinikitTemplate | null>(null);
+  const [showRequeridosEditor, setShowRequeridosEditor] = useState(false);
+  const [showDuplicate, setShowDuplicate] = useState(false);
+  const [reponerFor, setReponerFor] = useState<{ req: MinikitRequeridoItem; deficit: number } | null>(null);
 
   const loadRelated = useCallback(async (mk: Minikit) => {
     const allUnidades = await unidadesService.getAll({ activoOnly: true });
     setUnidades(allUnidades.filter(u => u.ubicacion?.tipo === 'minikit' && u.ubicacion?.referenciaId === mk.id));
-    if (mk.templateId) {
-      const tmpl = await minikitTemplatesService.getById(mk.templateId);
-      setTemplate(tmpl);
-    } else { setTemplate(null); }
   }, []);
 
   useEffect(() => {
@@ -92,12 +99,40 @@ export const MinikitDetail = () => {
   };
 
   const handleDevolver = async () => {
-    if (!id || !await confirm('Devolver este minikit a base?')) return;
+    if (!id || !await confirm('Devolver este minikit a base? Quedará en revisión hasta que admin_soporte cierre el control físico.')) return;
     setSaving(true);
     try {
-      await minikitsService.update(id, { estado: 'en_base', asignadoA: null });
+      await minikitsService.update(id, { estado: 'en_revision', asignadoA: null });
     } catch { alert('Error al devolver minikit'); }
     finally { setSaving(false); }
+  };
+
+  const handleCerrarVerificacion = async (observaciones: string | null) => {
+    if (!id) return;
+    const byUid = firebaseUser?.uid ?? '';
+    const byName = usuario?.nombre ?? usuario?.email ?? 'desconocido';
+    setSaving(true);
+    try {
+      await minikitsService.update(id, {
+        estado: 'en_base',
+        ultimaVerificacion: {
+          fecha: new Date().toISOString(),
+          byUid,
+          byName,
+          observaciones,
+        },
+      });
+    } catch {
+      alert('Error al cerrar verificación');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveRequeridos = async (requeridos: MinikitRequeridoItem[], sectores: string[]) => {
+    if (!id) return;
+    await minikitsService.update(id, { requeridos, sectores });
+    setShowRequeridosEditor(false);
   };
 
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-50"><p className="text-slate-400">Cargando...</p></div>;
@@ -107,6 +142,9 @@ export const MinikitDetail = () => {
       <Link to="/stock/minikits" className="text-teal-600 hover:underline text-sm font-medium">Volver a minikits</Link>
     </div>
   );
+
+  const requeridos = minikit.requeridos ?? [];
+  const sectores = minikit.sectores ?? [];
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -125,6 +163,7 @@ export const MinikitDetail = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowDuplicate(true)} disabled={saving}>Duplicar</Button>
             {minikit.estado !== 'en_campo' && <Button size="sm" onClick={openAsignar} disabled={saving}>Asignar</Button>}
             {minikit.asignadoA && <Button size="sm" variant="outline" onClick={handleDevolver} disabled={saving}>Devolver</Button>}
           </div>
@@ -141,7 +180,6 @@ export const MinikitDetail = () => {
                 <LV label="Descripcion" value={minikit.descripcion} />
                 <LV label="Estado" value={<Badge label={ESTADO_LABELS[minikit.estado]} color={ESTADO_COLORS[minikit.estado]} />} />
                 <LV label="Asignado a" value={minikit.asignadoA ? `${minikit.asignadoA.tipo === 'ingeniero' ? 'Ing.' : 'OT'} ${minikit.asignadoA.nombre}` : null} />
-                {minikit.templateNombre && <LV label="Plantilla" value={minikit.templateNombre} />}
               </div>
             </Card>
 
@@ -201,63 +239,65 @@ export const MinikitDetail = () => {
               )}
             </Card>
 
-            {template && <TemplateComparisonCard template={template} unidades={unidades} />}
+            <MinikitVerificacionCard
+              estado={minikit.estado}
+              requeridos={requeridos}
+              unidades={unidades}
+              ultimaVerificacion={minikit.ultimaVerificacion ?? null}
+              canVerify={canVerify}
+              saving={saving}
+              onCerrarVerificacion={handleCerrarVerificacion}
+              onReponer={(req, deficit) => setReponerFor({ req, deficit })}
+            />
+
+            <MinikitRequeridosCard
+              requeridos={requeridos}
+              unidades={unidades}
+              onEdit={() => setShowRequeridosEditor(true)}
+            />
           </div>
         </div>
       </div>
+
+      {showRequeridosEditor && (
+        <MinikitRequeridosModal
+          initialRequeridos={requeridos}
+          initialSectores={sectores}
+          onClose={() => setShowRequeridosEditor(false)}
+          onSave={handleSaveRequeridos}
+        />
+      )}
+
+      {showDuplicate && (
+        <DuplicateMinikitModal
+          source={minikit}
+          onClose={() => setShowDuplicate(false)}
+          onCreated={(newId) => {
+            setShowDuplicate(false);
+            navigate(`/stock/minikits/${newId}`);
+          }}
+        />
+      )}
+
+      {reponerFor && (
+        <ReponerMinikitModal
+          minikitId={minikit.id}
+          minikitCodigo={minikit.codigo}
+          minikitNombre={minikit.nombre}
+          articuloId={reponerFor.req.articuloId}
+          articuloCodigo={reponerFor.req.articuloCodigo}
+          articuloDescripcion={reponerFor.req.articuloDescripcion}
+          deficit={reponerFor.deficit}
+          creadoPor={usuario?.nombre ?? usuario?.email ?? 'Admin'}
+          onClose={() => setReponerFor(null)}
+          onSuccess={async () => {
+            setReponerFor(null);
+            // refrescar las unidades del minikit para que la cuenta actualice
+            if (minikit) await loadRelated(minikit);
+          }}
+        />
+      )}
     </div>
   );
 };
 
-// --- Template Comparison ---
-const TemplateComparisonCard = ({ template, unidades }: { template: MinikitTemplate; unidades: UnidadStock[] }) => {
-  const comparison = useMemo(() => {
-    return template.items.map(tmplItem => {
-      const actual = unidades.filter(u => u.articuloId === tmplItem.articuloId).length;
-      const diff = actual - tmplItem.cantidadMinima;
-      const status: 'ok' | 'warning' | 'missing' = diff >= 0 ? 'ok' : diff >= -1 ? 'warning' : 'missing';
-      return { ...tmplItem, actual, diff, status };
-    });
-  }, [template, unidades]);
-
-  const statusColors = { ok: 'bg-green-100 text-green-700', warning: 'bg-amber-100 text-amber-700', missing: 'bg-red-100 text-red-700' };
-  const statusLabels = { ok: 'Completo', warning: 'Casi', missing: 'Faltante' };
-  const allOk = comparison.every(c => c.status === 'ok');
-
-  return (
-    <Card compact title={`Plantilla: ${template.nombre}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${allOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-          {allOk ? 'Cumple plantilla' : 'No cumple plantilla'}
-        </span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Artículo</th>
-              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Mínimo</th>
-              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Actual</th>
-              <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.map((c, i) => (
-              <tr key={i} className="border-b border-slate-50 last:border-0">
-                <td className="text-xs py-2 pr-3">
-                  <span className="font-mono text-teal-600 font-semibold">{c.articuloCodigo}</span>
-                  <span className="text-slate-600 ml-1.5">{c.articuloDescripcion}</span>
-                </td>
-                <td className="text-xs py-2 text-center text-slate-500">{c.cantidadMinima}</td>
-                <td className="text-xs py-2 text-center font-medium">{c.actual}</td>
-                <td className="text-xs py-2 text-center">
-                  <Badge label={statusLabels[c.status]} color={statusColors[c.status]} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-};

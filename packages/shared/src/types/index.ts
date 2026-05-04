@@ -2477,6 +2477,24 @@ export interface AsignacionMinikit {
   desde: string;
 }
 
+/** Artículo requerido en la configuración de un minikit con cantidad mínima exigida. */
+export interface MinikitRequeridoItem {
+  articuloId: string;
+  articuloCodigo: string;
+  articuloDescripcion: string;
+  cantidadMinima: number;
+  sector?: string | null;
+}
+
+/** Última revisión física hecha por admin_soporte cuando un minikit vuelve a base. */
+export interface MinikitVerificacion {
+  /** ISO date when the verification was closed */
+  fecha: string;
+  byUid: string;
+  byName: string;
+  observaciones?: string | null;
+}
+
 export interface Minikit {
   id: string;
   /** Código identificador (ej: "MKGC1") */
@@ -2485,8 +2503,12 @@ export interface Minikit {
   descripcion?: string | null;
   estado: EstadoMinikit;
   asignadoA?: AsignacionMinikit | null;
-  templateId?: string | null;
-  templateNombre?: string | null;
+  /** Configuración inline: artículos exigidos por el minikit (1:1, no compartido). */
+  requeridos?: MinikitRequeridoItem[];
+  /** Sectores definidos para agrupar items requeridos (ej: "Caja 1", "Bolsa A"). */
+  sectores?: string[];
+  /** Última verificación física al volver a base (control + reposición admin_soporte). */
+  ultimaVerificacion?: MinikitVerificacion | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -2494,27 +2516,6 @@ export interface Minikit {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
-}
-
-// --- Plantillas de Minikit ---
-
-export interface MinikitTemplateItem {
-  articuloId: string;
-  articuloCodigo: string;
-  articuloDescripcion: string;
-  cantidadMinima: number;
-  sector?: string | null;
-}
-
-export interface MinikitTemplate {
-  id: string;
-  nombre: string;
-  descripcion?: string | null;
-  sectores: string[];
-  items: MinikitTemplateItem[];
-  activo: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // --- Asignaciones de Stock ---

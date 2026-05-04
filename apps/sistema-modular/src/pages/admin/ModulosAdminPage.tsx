@@ -46,7 +46,7 @@ function Toggle({
 }
 
 interface ModuleRowProps {
-  mod: { path: string; name: string; icon: string };
+  mod: { path: string; name: string; icon: string; parentName?: string };
   flag: { enabled: boolean; updatedBy: string } | undefined;
   defaultEnabled: boolean;
   disabled?: boolean;
@@ -57,11 +57,14 @@ function ModuleRow({ mod, flag, defaultEnabled, disabled, onToggle }: ModuleRowP
   const effectiveEnabled = flag ? flag.enabled : defaultEnabled;
   const isOverride = !!flag;
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 border-b border-slate-100 hover:bg-slate-50">
+    <div className={`flex items-center justify-between py-2.5 px-3 border-b border-slate-100 hover:bg-slate-50 ${mod.parentName ? 'pl-9' : ''}`}>
       <div className="flex items-center gap-3 min-w-0">
         <span className="text-lg shrink-0">{mod.icon}</span>
         <div className="min-w-0">
-          <div className="text-sm text-slate-900 truncate">{mod.name}</div>
+          <div className="text-sm text-slate-900 truncate">
+            {mod.parentName && <span className="text-slate-400">{mod.parentName} › </span>}
+            {mod.name}
+          </div>
           <div className="font-mono text-[10px] uppercase tracking-wide text-slate-500">
             {mod.path}
             {isOverride && <span className="ml-2 text-teal-700">· OVERRIDE</span>}

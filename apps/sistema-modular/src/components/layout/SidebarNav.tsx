@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useTabs, getNavMeta } from '../../contexts/TabsContext';
 import { useNavigation, NavItem } from './navigation';
 
@@ -10,24 +9,26 @@ interface SidebarNavProps {
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse }) => {
   const { activeTabPath, openTab, navigateInActiveTab } = useTabs();
-  const { canAccess } = useAuth();
 
-  // Extract pathname (without search params) for active highlighting
   const pathname = activeTabPath.split('?')[0];
 
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-    pathname.startsWith('/stock') ? { '/stock': true } : {}
-  );
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-  const toggleGroup = (path: string) => {
-    setExpandedGroups(prev => ({ ...prev, [path]: !prev[path] }));
+  /** Recursivo: el grupo se auto-expande cuando la ruta activa cae adentro suyo (a cualquier profundidad). */
+  const isPathInside = (item: NavItem): boolean => {
+    if (!item.path.startsWith('#')) {
+      if (pathname === item.path || pathname.startsWith(item.path + '/')) return true;
+    }
+    return item.children?.some(isPathInside) ?? false;
   };
 
-  const isStockExpanded = expandedGroups['/stock'] || pathname.startsWith('/stock');
+  /** Toggle invierte el estado *visible* — un click siempre cierra/abre lo que se ve. */
+  const toggleGroup = (item: NavItem) => {
+    const currentlyExpanded = expandedGroups[item.path] ?? isPathInside(item);
+    setExpandedGroups(prev => ({ ...prev, [item.path]: !currentlyExpanded }));
+  };
 
-  const visibleNav = useNavigation().filter(item =>
-    !item.modulo || canAccess(item.modulo)
-  );
+  const visibleNav = useNavigation();
 
   /** Normal click → navigate active tab. Ctrl/Meta/middle → open new tab. */
   const handleNavClick = useCallback((e: React.MouseEvent, path: string, label?: string, icon?: string) => {
@@ -40,15 +41,14 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
     }
   }, [openTab, navigateInActiveTab]);
 
-  const renderNavItem = (item: NavItem) => {
-    const isActive =
-      pathname === item.path ||
-      pathname.startsWith(item.path + '/');
+  const renderNode = (item: NavItem, depth: number): React.ReactNode => {
+    if (item.children) return renderGroupNode(item, depth);
+    return renderLeafNode(item, depth);
+  };
 
-    if (item.children) {
-      return renderGroupItem(item, isActive);
-    }
-
+  // ── Top-level leaf: full treatment with "open in new window" button ──
+  const renderTopLeaf = (item: NavItem) => {
+    const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
     return (
       <div key={item.path} className="flex items-center">
         <a
@@ -71,7 +71,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
               if (window.electronAPI?.openModuleWindow) {
                 window.electronAPI.openModuleWindow(item.path);
               } else {
-                openTab(item.path, item.name, item.icon);
+                openTab(item.path, item.name, item.icon ?? '📄');
               }
             }}
             className="shrink-0 p-1.5 mr-1 rounded text-slate-600 hover:text-slate-200 hover:bg-slate-700 transition-colors"
@@ -86,12 +86,50 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
     );
   };
 
-  const renderGroupItem = (item: NavItem, isActive: boolean) => {
-    const isExpanded = !collapsed && (item.path === '/stock' ? isStockExpanded : !!expandedGroups[item.path]);
+  // ── Nested leaf: smaller, indented per depth ──
+  const renderNestedLeaf = (item: NavItem, depth: number) => {
+    const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
+    // depth 1: pl-7 (con icon) / pl-10 (sin icon).  depth 2+: indent extra.
+    const basePadding = depth === 1
+      ? (item.icon ? 'pl-7' : 'pl-10')
+      : (item.icon ? 'pl-12' : 'pl-14');
+    return (
+      <div key={item.path}>
+        {item.separator && (
+          <div className="border-t border-slate-700 mx-3 my-1.5" />
+        )}
+        <a
+          href={item.path}
+          onClick={(e) => handleNavClick(e, item.path)}
+          onAuxClick={(e) => handleNavClick(e, item.path)}
+          className={`flex items-center gap-2 py-1.5 ${basePadding} pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
+            isActive
+              ? 'border-teal-500 bg-slate-800 text-white font-medium'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
+          }`}
+        >
+          {item.icon && <span className="text-sm leading-none shrink-0">{item.icon}</span>}
+          <span>{item.name}</span>
+        </a>
+      </div>
+    );
+  };
+
+  const renderLeafNode = (item: NavItem, depth: number) => {
+    return depth === 0 ? renderTopLeaf(item) : renderNestedLeaf(item, depth);
+  };
+
+  // ── Top-level group: full-size header ──
+  const renderTopGroup = (item: NavItem) => {
+    const userToggle = expandedGroups[item.path];
+    const isExpanded = !collapsed && (userToggle ?? isPathInside(item));
+    const isActive =
+      (!item.path.startsWith('#') && (pathname === item.path || pathname.startsWith(item.path + '/'))) ||
+      isPathInside(item);
     return (
       <div key={item.path}>
         <button
-          onClick={() => collapsed ? onCollapse(false) : toggleGroup(item.path)}
+          onClick={() => collapsed ? onCollapse(false) : toggleGroup(item)}
           className={`w-full flex items-center gap-3 py-2 px-3 text-sm transition-all border-l-2 ${
             isActive
               ? 'border-teal-500 bg-slate-800 text-white font-medium'
@@ -109,33 +147,46 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
         </button>
         {isExpanded && !collapsed && (
           <div className="ml-2 space-y-0.5 mt-0.5">
-            {item.children!.map((child) => {
-              const childActive = pathname === child.path ||
-                pathname.startsWith(child.path + '/');
-              return (
-                <div key={child.path}>
-                  {child.separator && (
-                    <div className="border-t border-slate-700 mx-3 my-1.5" />
-                  )}
-                  <a
-                    href={child.path}
-                    onClick={(e) => handleNavClick(e, child.path)}
-                    onAuxClick={(e) => handleNavClick(e, child.path)}
-                    className={`block py-1.5 pl-10 pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
-                      childActive
-                        ? 'border-teal-500 bg-slate-800 text-white font-medium'
-                        : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
-                    }`}
-                  >
-                    {child.name}
-                  </a>
-                </div>
-              );
-            })}
+            {item.children!.map(c => renderNode(c, 1))}
           </div>
         )}
       </div>
     );
+  };
+
+  // ── Nested group (sub-grupo dentro de un grupo): header más chico, indentado ──
+  const renderNestedGroup = (item: NavItem, depth: number) => {
+    const userToggle = expandedGroups[item.path];
+    const isExpanded = userToggle ?? isPathInside(item);
+    const isActive = isPathInside(item);
+    return (
+      <div key={item.path}>
+        {item.separator && (
+          <div className="border-t border-slate-700 mx-3 my-1.5" />
+        )}
+        <button
+          onClick={() => toggleGroup(item)}
+          className={`w-full flex items-center gap-2 py-1.5 ${item.icon ? 'pl-7' : 'pl-10'} pr-3 text-xs transition-all border-l-2 whitespace-nowrap ${
+            isActive
+              ? 'border-teal-500 text-white font-medium'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
+          }`}
+        >
+          {item.icon && <span className="text-sm leading-none shrink-0">{item.icon}</span>}
+          <span className="flex-1 text-left">{item.name}</span>
+          <span className={`text-[10px] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        {isExpanded && (
+          <div className="space-y-0.5 mt-0.5">
+            {item.children!.map(c => renderNode(c, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderGroupNode = (item: NavItem, depth: number) => {
+    return depth === 0 ? renderTopGroup(item) : renderNestedGroup(item, depth);
   };
 
   return (
@@ -145,7 +196,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
       }`}
     >
       <nav className="flex-1 px-2 py-4 space-y-0.5">
-        {visibleNav.map(renderNavItem)}
+        {visibleNav.map(item => renderNode(item, 0))}
       </nav>
     </aside>
   );
