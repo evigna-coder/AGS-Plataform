@@ -668,6 +668,9 @@ export interface Posta {
   estadoAnterior: TicketEstado;
   estadoNuevo: TicketEstado;
   accionRequerida?: string;
+  /** Evento del sistema (cambio de fecha, etc.). Cuando está presente, la
+   *  posta se renderiza como evento, no como observación del usuario. */
+  evento?: string;
 }
 
 

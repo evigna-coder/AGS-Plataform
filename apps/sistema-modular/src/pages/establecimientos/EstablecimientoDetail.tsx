@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { establecimientosService, clientesService, sistemasService, condicionesPagoService, contactosEstablecimientoService } from '../../services/firebaseService';
 import type { Establecimiento, Cliente, Sistema, ContactoEstablecimiento, CondicionPago } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
@@ -7,46 +7,14 @@ import { Button } from '../../components/ui/Button';
 import { EstablecimientoInfoSidebar } from '../../components/establecimientos/EstablecimientoInfoSidebar';
 import { ContactosSection, emptyContactoForm, type ContactoFormData } from '../../components/establecimientos/ContactosSection';
 import { CreateEquipoModal } from '../../components/equipos/CreateEquipoModal';
+import { SistemaExpandableRow } from '../../components/equipos/SistemaExpandableRow';
+import { SistemasSearchBox } from '../../components/equipos/SistemasSearchBox';
+import { useSistemasSearch } from '../../hooks/useSistemasSearch';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 import { MoveSistemaModal } from '../../components/equipos/MoveSistemaModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-
-const ChevronRight = () => (
-  <svg className="w-4 h-4 text-slate-300 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-  </svg>
-);
-
-const SistemaRow = ({ s, selected, onToggle }: { s: Sistema; selected?: boolean; onToggle?: (s: Sistema) => void }) => {
-  const { pathname } = useLocation();
-  return (
-  <div className="flex items-center gap-1.5">
-    {onToggle && (
-      <input
-        type="checkbox"
-        checked={!!selected}
-        onChange={() => onToggle(s)}
-        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 shrink-0"
-      />
-    )}
-    <Link key={s.id} to={`/equipos/${s.id}`} state={{ from: pathname }} className="flex-1 flex justify-between items-center px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-xs font-medium text-slate-900 truncate">{s.nombre}</p>
-          {s.sector && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-600">{s.sector}</span>}
-          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.activo ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
-            {s.activo ? 'Activo' : 'Inactivo'}
-          </span>
-        </div>
-        {s.codigoInternoCliente && <p className="text-[11px] text-slate-400 truncate">{s.codigoInternoCliente}</p>}
-      </div>
-      <ChevronRight />
-    </Link>
-  </div>
-  );
-};
 
 export const EstablecimientoDetail = () => {
   const confirm = useConfirm();
@@ -73,6 +41,15 @@ export const EstablecimientoDetail = () => {
   const [showCreateEquipo, setShowCreateEquipo] = useState(false);
   const [selectedSistemaIds, setSelectedSistemaIds] = useState<Set<string>>(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
+  const {
+    query: sistemaQuery, setQuery: setSistemaQuery,
+    filtered: filteredSistemas,
+    matchedViaModulo,
+    matchedModuloIds,
+    isSearching: isSearchingSistemas,
+    modulosBySistema,
+    loadingModulos,
+  } = useSistemasSearch(sistemas);
   const [showContactoModal, setShowContactoModal] = useState(false);
   const [editingContacto, setEditingContacto] = useState<ContactoEstablecimiento | null>(null);
   const [contactoForm, setContactoForm] = useState<ContactoFormData>(emptyContactoForm);
@@ -385,17 +362,34 @@ export const EstablecimientoDetail = () => {
                   <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
                 </div>
               </div>
+              {sistemas.length > 0 && (
+                <div className="mb-2">
+                  <SistemasSearchBox
+                    value={sistemaQuery}
+                    onChange={setSistemaQuery}
+                    resultCount={filteredSistemas.length}
+                    totalCount={sistemas.length}
+                    loading={loadingModulos}
+                  />
+                </div>
+              )}
               {sistemas.length === 0 ? (
                 <div className="text-center py-4">
                   <p className="text-slate-400 text-xs mb-2">Sin sistemas registrados</p>
                   <Button variant="outline" size="sm" onClick={() => setShowCreateEquipo(true)}>+ Agregar</Button>
                 </div>
+              ) : filteredSistemas.length === 0 ? (
+                <p className="text-slate-400 text-xs text-center py-4">Sin resultados para "{sistemaQuery}"</p>
               ) : (
                 <div className="space-y-1.5">
-                  {sistemas.map(s => (
-                    <SistemaRow
+                  {filteredSistemas.map(s => (
+                    <SistemaExpandableRow
                       key={s.id}
-                      s={s}
+                      sistema={s}
+                      establecimientos={est ? [est] : []}
+                      modulos={modulosBySistema[s.id]}
+                      forceOpen={isSearchingSistemas && matchedViaModulo.has(s.id)}
+                      matchedModuloIds={matchedModuloIds}
                       selected={selectedSistemaIds.has(s.id)}
                       onToggle={(sys) => {
                         setSelectedSistemaIds(prev => {

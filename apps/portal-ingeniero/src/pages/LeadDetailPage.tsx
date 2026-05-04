@@ -79,7 +79,7 @@ export default function LeadDetailPage() {
         deUsuarioNombre: usuario.displayName,
         aUsuarioId: lead.asignadoA || usuario.id,
         aUsuarioNombre: usuarios.find(u => u.id === (lead.asignadoA || usuario.id))?.displayName || usuario.displayName,
-        comentario: `Próximo contacto cambiado a ${fechaLabel}`,
+        evento: `Próximo contacto cambiado a ${fechaLabel}`,
         estadoAnterior: lead.estado,
         estadoNuevo: lead.estado,
       };
