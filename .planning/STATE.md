@@ -3,6 +3,21 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: "Completed 04-05-PLAN.md (email integration + smoke E2E approved); Phase 4 (Anexo Consumibles) COMPLETA — 6/6 requirements"
+last_updated: "2026-05-05T13:22:44.738Z"
+last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
+progress:
+  total_phases: 12
+  completed_phases: 9
+  total_plans: 55
+  completed_plans: 54
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: "Completed 04-05-PLAN.md (email integration + smoke E2E approved); Phase 4 (Anexo Consumibles) COMPLETA — 6/6 requirements done"
 last_updated: "2026-05-05T13:13:00.000Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split) + bdf8fcb (modal integration). Smoke E2E aprobado por usuario. Side-track commits durante smoke: f7aeb1f (fix sistemaId/responsable persist), 3c8eb22 (firestore rule consumibles_por_modulo), 9f0124b (UX código+descripción desde catálogos). Phase 4 cerrada."
