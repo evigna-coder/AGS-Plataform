@@ -3,6 +3,22 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: "Completed 04-05-PLAN.md (email integration + smoke E2E approved); Phase 4 (Anexo Consumibles) COMPLETA — 6/6 requirements done"
+last_updated: "2026-05-05T13:13:00.000Z"
+last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split) + bdf8fcb (modal integration). Smoke E2E aprobado por usuario. Side-track commits durante smoke: f7aeb1f (fix sistemaId/responsable persist), 3c8eb22 (firestore rule consumibles_por_modulo), 9f0124b (UX código+descripción desde catálogos). Phase 4 cerrada."
+progress:
+  total_phases: 12
+  completed_phases: 9
+  total_plans: 55
+  completed_plans: 54
+  percent: 98
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: Completed 04-04-PLAN.md (AnexoConsumiblesPDF + buildAnexosFromPresupuesto + barrel re-exports)
 last_updated: "2026-04-29T15:45:45.906Z"
 last_activity: "2026-04-29 — Plan 04-04: feat(04-04) e61f112 (AnexoConsumiblesPDF + generator) + 24cbb9a (buildAnexosFromPresupuesto orchestrator) + ede9c60 (re-exports en pdf/index.ts)."
@@ -182,12 +198,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — PLAN 04-04 COMPLETE
-Plan: 4 of 5 complete (04-01 foundation types ✓ ; 04-02 service + admin CRUD ✓ ; 04-03 editor + flag wiring ✓ ; 04-04 AnexoConsumiblesPDF + buildAnexosFromPresupuesto ✓ ; 04-05 email integration pendiente)
-Status: Wave 2 cerrada. Builder de anexos + componente PDF react-pdf disponibles vía '../pdf' barrel exports. Plan 04-05 puede proceder con EnviarPresupuestoModal integration (checkbox + preview + N adjuntos).
-Last activity: 2026-04-29 — Plan 04-04: feat(04-04) e61f112 (AnexoConsumiblesPDF + generator) + 24cbb9a (buildAnexosFromPresupuesto orchestrator) + ede9c60 (re-exports en pdf/index.ts).
+Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — COMPLETA (5/5 plans, 6/6 requirements)
+Plan: 5 of 5 complete (04-01 foundation types ✓ ; 04-02 service + admin CRUD ✓ ; 04-03 editor + flag wiring ✓ ; 04-04 AnexoConsumiblesPDF + buildAnexosFromPresupuesto ✓ ; 04-05 email integration + smoke E2E ✓)
+Status: Phase 4 cerrada end-to-end. El cliente recibe principal + N anexos de consumibles vía mail OAuth con token-first order preservado. Listo para verify-work y transición a próximas phases (5/7/8).
+Last activity: 2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05).
 
-Progress: [██████████] 96% (v2.0 milestone — 53/55 plans)
+Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Performance Metrics
 
@@ -237,6 +253,7 @@ Progress: [██████████] 96% (v2.0 milestone — 53/55 plans)
 | Phase 04-presupuestos-anexo-consumibles P03 | 5min | 3 tasks | 3 files |
 | Phase 04-presupuestos-anexo-consumibles P02 | 8min | 3 tasks | 6 files |
 | Phase 04-presupuestos-anexo-consumibles P04 | 9min | 3 tasks | 3 files |
+| Phase 04-presupuestos-anexo-consumibles P05 | 16min | 3 tasks + 1 checkpoint | 4 files |
 
 ## Accumulated Context
 
@@ -328,6 +345,13 @@ Progress: [██████████] 96% (v2.0 milestone — 53/55 plans)
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: Flag requiereAnexoConsumibles cross-plantilla — si CUALQUIER plantilla con mismo servicioCode lo marca, se respeta. Previene falsos negativos cuando el flag está tildado en HPLC 1260 pero no en HPLC 1260 Infinity.
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: buildAnexosFromPresupuesto recibe modulosBySistema + plantillas pre-cargados (mismo patrón que generatePresupuestoPDF.tsx). NO llama Firestore para módulos/plantillas. Solo lookup consumibles_por_modulo se hace inline (cacheado por código en Map con null-sentinel).
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-04]: 4 casos edge — (i) sin código + warning, (ii) código no en catálogo + warning, (iii) lista vacía intencional → SKIP silencioso, terminal (sin módulos ni plantilla) → no se genera anexo + warning. Si modulosOut.length === 0 después de procesar todos → skip-ear el anexo entero.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Default ON al abrir el modal: si hay anexos disponibles, includeAnexos arranca tildado. Operación natural ('mandar todo') = 1 click. Destildar es el caso excepcional.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Mandatory hook split — useEnviarAnexos.ts (90 LOC) extraído ANTES de pasar 280 LOC en useEnviarPresupuesto.ts (217 LOC). Razón: dos máquinas de estado entrelazadas (token-first OAuth + anexo prep) sobre el mismo archivo cruzan el umbral de revisión en una pasada. La API pública del orquestador NO cambia.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Stage 2.5 'preparing_anexos' insertado entre 'generating_pdf' y 'sending'. Token-first order de Phase 7 PRESERVADO: si Stage 2.5 falla, setStatus('error') + return ANTES de sendGmail. El presupuesto NO transiciona a 'enviado'.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Pre-load fire-and-forget en useEffect on open=true. loadAnexos() no bloquea el render; anexosLoading flag muestra spinner italic. El vendedor edita destinatarios/mensaje en paralelo a la carga de catálogos.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Preview por anexo individual (no merge). Si N>1, dropdown selector + 'Ver anexo' abre el seleccionado en nueva pestaña — paridad con el envío real (N adjuntos separados).
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Soft-warnings vs terminal-warnings UI distinction. Terminal (sistema_sin_modulos_ni_plantilla) → banner amarillo prominente. Soft (modulo_sin_codigo / codigo_no_en_catalogo) → <details> colapsado. Evita ruido visual cuando catálogo legacy tiene muchos módulos sin código identificable.
+- [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Smoke surfaceó 3 bugs preexistentes — commits separados (f7aeb1f sistemaId/responsable, 3c8eb22 firestore rule, 9f0124b UX código+descripción). NO atribuibles al plan 04-05; documentados en SUMMARY 'Side-track commits during smoke'.
 
 ### Pending Todos
 
@@ -341,6 +365,6 @@ Progress: [██████████] 96% (v2.0 milestone — 53/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-04-29T15:45:45.893Z
-Stopped at: Completed 04-04-PLAN.md (AnexoConsumiblesPDF + buildAnexosFromPresupuesto + barrel re-exports)
+Last session: 2026-05-05T13:13:00.000Z
+Stopped at: "Completed 04-05-PLAN.md (email integration + smoke E2E approved); Phase 4 (Anexo Consumibles) COMPLETA — 6/6 requirements"
 Resume file: None
