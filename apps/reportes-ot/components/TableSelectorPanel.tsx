@@ -69,28 +69,36 @@ export const TableSelectorPanel: React.FC<Props> = ({
     }).catch(() => {});
   }, [hasMultipleProjects, firebase, projectNames.size]);
 
-  // Cuando llegan nuevas sugerencias desde el padre (cambio de tipoServicio):
-  // abrir panel, cargar tablas y pre-tildar las sugeridas (solo si un proyecto).
+  // Clave estable basada en IDs: evita re-firing del effect cuando el padre
+  // recrea el array de sugeridas con el mismo contenido. Sin esto, cada re-render
+  // re-tildaba todas las sugeridas pisando lo que el usuario había deseleccionado.
+  const suggestedKey = useMemo(
+    () => (suggestedTables ?? []).map(t => t.id).sort().join('|'),
+    [suggestedTables],
+  );
+
+  // Cuando llegan nuevas sugerencias desde el padre (cambio real de tipoServicio):
+  // abrir panel, cargar tablas y pre-tildar las sugeridas SOLO si no hay selección
+  // guardada. Si ya hay selección (OT existente / reload), respetarla — el usuario
+  // pudo haber deseleccionado tablas a propósito.
   useEffect(() => {
     if (!suggestedTables || suggestedTables.length === 0) return;
     setOpen(true);
     setAvailableTables(suggestedTables);
     setSelectedProjectId(null);
 
-    // Detectar si hay múltiples proyectos
     const pids = new Set(suggestedTables.map(t => t.projectId).filter(Boolean));
-    if (pids.size <= 1) {
-      // Un solo proyecto (o ninguno): pre-tildar todo como antes
-      setChecked(prev => {
-        const next = new Set(prev);
-        suggestedTables.forEach(t => next.add(t.id));
-        return next;
-      });
+    const hasSavedSelection = existingSelections.length > 0;
+
+    if (pids.size <= 1 && !hasSavedSelection) {
+      // Primer arribo, un solo proyecto, sin selección previa → ayuda: tildar todas
+      setChecked(new Set(suggestedTables.map(t => t.id)));
     } else {
-      // Múltiples proyectos: solo mantener las existentes, no pre-tildar
+      // Hay selección guardada o múltiples proyectos: respetar lo elegido por el usuario
       setChecked(new Set(existingSelections.map(s => s.tableId)));
     }
-  }, [suggestedTables]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- existingSelections leído al momento del fire; depender de él recargaría el panel en cada cambio
+  }, [suggestedKey]);
 
   // Sincronizar checked cuando cambian existingSelections desde afuera
   useEffect(() => {
