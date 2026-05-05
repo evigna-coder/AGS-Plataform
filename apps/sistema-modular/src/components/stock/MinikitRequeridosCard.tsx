@@ -7,13 +7,15 @@ interface Props {
   requeridos: MinikitRequeridoItem[];
   unidades: UnidadStock[];
   onEdit: () => void;
+  /** Si se pasa, muestra "+ Reponer" en cada fila con falta. */
+  onReponer?: (req: MinikitRequeridoItem, deficit: number) => void;
 }
 
 const Badge = ({ label, color }: { label: string; color: string }) => (
   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${color}`}>{label}</span>
 );
 
-export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit }: Props) => {
+export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit, onReponer }: Props) => {
   const comparison = useMemo(() => {
     return requeridos.map(req => {
       const actual = unidades.filter(u => u.articuloId === req.articuloId).length;
@@ -61,6 +63,7 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit }: Props) =
               <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Mínimo</th>
               <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Actual</th>
               <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Estado</th>
+              {onReponer && <th className="text-[11px] font-medium text-slate-400 tracking-wider py-2 text-center">Acción</th>}
             </tr>
           </thead>
           <tbody>
@@ -76,6 +79,21 @@ export const MinikitRequeridosCard = ({ requeridos, unidades, onEdit }: Props) =
                 <td className="text-xs py-2 text-center">
                   <Badge label={statusLabels[c.status]} color={statusColors[c.status]} />
                 </td>
+                {onReponer && (
+                  <td className="text-xs py-2 text-center">
+                    {c.status !== 'ok' ? (
+                      <button
+                        type="button"
+                        onClick={() => onReponer(c, c.cantidadMinima - c.actual)}
+                        className="text-teal-600 hover:underline font-medium text-[11px]"
+                      >
+                        + Reponer
+                      </button>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -7,7 +7,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { MinikitRequeridosModal } from '../../components/stock/MinikitRequeridosModal';
 import { MinikitVerificacionCard } from '../../components/stock/MinikitVerificacionCard';
 import { MinikitRequeridosCard } from '../../components/stock/MinikitRequeridosCard';
-import { ReponerMinikitModal } from '../../components/stock/ReponerMinikitModal';
+import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
 import { DuplicateMinikitModal } from '../../components/stock/DuplicateMinikitModal';
 import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -135,6 +135,15 @@ export const MinikitDetail = () => {
     setShowRequeridosEditor(false);
   };
 
+  const handleIniciarControl = async () => {
+    if (!id || !await confirm('Iniciar control físico? El minikit pasa a estado "en revisión".')) return;
+    setSaving(true);
+    try {
+      await minikitsService.update(id, { estado: 'en_revision' });
+    } catch { alert('Error al iniciar control'); }
+    finally { setSaving(false); }
+  };
+
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-50"><p className="text-slate-400">Cargando...</p></div>;
   if (!minikit) return (
     <div className="h-full flex flex-col items-center justify-center bg-slate-50 gap-4">
@@ -164,6 +173,9 @@ export const MinikitDetail = () => {
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setShowDuplicate(true)} disabled={saving}>Duplicar</Button>
+            {canVerify && minikit.estado !== 'en_campo' && minikit.estado !== 'en_revision' && (
+              <Button size="sm" variant="outline" onClick={handleIniciarControl} disabled={saving}>Iniciar control</Button>
+            )}
             {minikit.estado !== 'en_campo' && <Button size="sm" onClick={openAsignar} disabled={saving}>Asignar</Button>}
             {minikit.asignadoA && <Button size="sm" variant="outline" onClick={handleDevolver} disabled={saving}>Devolver</Button>}
           </div>
@@ -254,6 +266,7 @@ export const MinikitDetail = () => {
               requeridos={requeridos}
               unidades={unidades}
               onEdit={() => setShowRequeridosEditor(true)}
+              onReponer={canVerify ? (req, deficit) => setReponerFor({ req, deficit }) : undefined}
             />
           </div>
         </div>
@@ -280,19 +293,26 @@ export const MinikitDetail = () => {
       )}
 
       {reponerFor && (
-        <ReponerMinikitModal
-          minikitId={minikit.id}
-          minikitCodigo={minikit.codigo}
-          minikitNombre={minikit.nombre}
-          articuloId={reponerFor.req.articuloId}
-          articuloCodigo={reponerFor.req.articuloCodigo}
-          articuloDescripcion={reponerFor.req.articuloDescripcion}
-          deficit={reponerFor.deficit}
-          creadoPor={usuario?.nombre ?? usuario?.email ?? 'Admin'}
+        <CreateMovimientoModal
+          open={true}
+          title="Reponer artículo al minikit"
+          subtitle={`${reponerFor.req.articuloCodigo} → ${minikit.codigo} (${minikit.nombre})`}
+          init={{
+            lockTipo: 'transferencia',
+            lockArticulo: {
+              id: reponerFor.req.articuloId,
+              codigo: reponerFor.req.articuloCodigo,
+              descripcion: reponerFor.req.articuloDescripcion,
+            },
+            lockDestino: {
+              tipo: 'minikit',
+              id: minikit.id,
+              nombre: `${minikit.codigo} - ${minikit.nombre}`,
+            },
+          }}
           onClose={() => setReponerFor(null)}
-          onSuccess={async () => {
+          onCreated={async () => {
             setReponerFor(null);
-            // refrescar las unidades del minikit para que la cuenta actualice
             if (minikit) await loadRelated(minikit);
           }}
         />
