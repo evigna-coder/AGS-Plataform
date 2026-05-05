@@ -554,7 +554,11 @@ function ChecklistItemRow({
   if (item.itemType === 'pass_fail') {
     const result = (answer as { itemType: 'pass_fail'; result: string } | undefined)?.result ?? '';
     if (isPrint) {
-      const label = isNA ? 'N/A' : result === 'CUMPLE' ? 'Cumple' : result === 'NO_CUMPLE' ? 'No cumple' : '—';
+      const label = isNA || result === 'NA'
+        ? 'N/A'
+        : result === 'CUMPLE' ? 'Cumple'
+        : result === 'NO_CUMPLE' ? 'No cumple'
+        : '—';
       return (
         <div className="py-1 border-b border-slate-100"
           style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
