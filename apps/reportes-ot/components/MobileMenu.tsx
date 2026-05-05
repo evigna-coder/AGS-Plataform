@@ -40,17 +40,25 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   // Detectar si es móvil
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // En desktop, mostrar botones normales (compactos; cerrar sesión vive en el topbar; duplicar OT oculto)
+  // En desktop, mostrar botones normales (compactos)
   if (!isMobile) {
     return (
       <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50">
         {!isPreviewMode && (
-          <button
-            onClick={onNewReport}
-            className="bg-slate-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
-          >
-            Nuevo reporte
-          </button>
+          <>
+            <button
+              onClick={onNewReport}
+              className="bg-slate-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
+            >
+              Nuevo reporte
+            </button>
+            <button
+              onClick={onDuplicateOT}
+              className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
+            >
+              Duplicar OT
+            </button>
+          </>
         )}
         {!isPreviewMode ? (
           <>
@@ -106,6 +114,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             </button>
           </div>
         )}
+        <button
+          onClick={onSignOut}
+          className="bg-slate-500/80 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:bg-slate-600 hover:scale-105 active:scale-95"
+        >
+          Cerrar sesión
+        </button>
       </div>
     );
   }
