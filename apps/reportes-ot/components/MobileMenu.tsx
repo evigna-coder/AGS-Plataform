@@ -40,54 +40,51 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   // Detectar si es móvil
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // En desktop, mostrar botones normales
+  // En desktop, mostrar botones normales (compactos; cerrar sesión vive en el topbar; duplicar OT oculto)
   if (!isMobile) {
     return (
-      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 no-print z-50">
+      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50">
         {!isPreviewMode && (
-          <div className="flex flex-col gap-2">
-            <button 
-              onClick={onNewReport} 
-              className="bg-slate-600 text-white font-black px-6 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-slate-500/50"
-            >
-              Nuevo reporte
-            </button>
-            <button 
-              onClick={onDuplicateOT} 
-              className="bg-purple-600 text-white font-black px-6 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50"
-            >
-              Duplicar OT
-            </button>
-          </div>
+          <button
+            onClick={onNewReport}
+            className="bg-slate-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
+          >
+            Nuevo reporte
+          </button>
         )}
         {!isPreviewMode ? (
           <>
             {status === 'FINALIZADO' && hasPdfBlob ? (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 items-end">
                 <button
                   onClick={onSharePDF}
                   disabled={isSharing}
-                  className="bg-purple-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-purple-600 text-white font-bold px-4 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSharing ? 'Compartiendo...' : 'Compartir / Enviar PDF'}
                 </button>
                 <button
                   onClick={onDownloadPDF}
-                  className="bg-blue-600 text-white font-black px-8 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95 shadow-blue-500/50"
+                  className="bg-blue-600 text-white font-bold px-4 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95"
                 >
                   Descargar PDF
                 </button>
               </div>
             ) : status === 'FINALIZADO' ? (
-              <button 
-                onClick={onFinalSubmit} 
+              <button
+                onClick={onFinalSubmit}
                 disabled={isGenerating}
-                className="bg-emerald-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-emerald-600 text-white font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGenerating ? (generationStep || 'Generando PDF…') : 'Generar PDF'}
               </button>
             ) : (
-              <button onClick={onReview} className="bg-blue-600 text-white font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-blue-500/50">Revisar y Continuar</button>
+              <button
+                onClick={onReview}
+                className="bg-blue-600 text-white font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95"
+              >
+                Revisar y continuar
+              </button>
             )}
           </>
         ) : (
@@ -95,7 +92,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             {onBackToEdit && (
               <button
                 onClick={onBackToEdit}
-                className="bg-slate-700 text-white font-black px-6 py-3 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all hover:scale-105 active:scale-95"
+                className="bg-slate-700 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
               >
                 Volver a Editar
               </button>
@@ -103,18 +100,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             <button
               onClick={onFinalSubmit}
               disabled={isGenerating || !hasSignatures}
-              className={`font-black px-12 py-4 rounded-full shadow-2xl uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'}`}
+              className={`font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white'}`}
             >
               {isGenerating ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
             </button>
           </div>
         )}
-        <button
-          onClick={onSignOut}
-          className="mt-2 bg-slate-500/80 text-white font-bold px-5 py-2.5 rounded-full shadow-lg uppercase tracking-widest text-[10px] transition-all hover:bg-slate-600 hover:scale-105 active:scale-95"
-        >
-          Cerrar sesión
-        </button>
       </div>
     );
   }

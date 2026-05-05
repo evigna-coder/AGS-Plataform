@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
 
@@ -658,6 +658,25 @@ export const movimientosService = {
 // ========== REMITOS ==========
 
 export const remitosService = {
+  /**
+   * Sugiere el próximo correlativo en formato `PPPP-NNNNNNNN` (talonario preimpreso)
+   * a partir del máximo ya registrado en `remitos`. Read-only — no consume número
+   * (la numeración real la define el papel físico). Permite override manual.
+   */
+  async getProximoNumeroPreimpreso(prefix: string = '0001'): Promise<string> {
+    const snap = await getDocs(collection(db, 'remitos'));
+    let max = 0;
+    for (const d of snap.docs) {
+      const numero = d.data().numero as string | undefined;
+      if (!numero) continue;
+      const m = numero.match(/^(\d{4})-(\d{8})$/);
+      if (!m || m[1] !== prefix) continue;
+      const n = parseInt(m[2], 10);
+      if (n > max) max = n;
+    }
+    return `${prefix}-${String(max + 1).padStart(8, '0')}`;
+  },
+
   // Atómico vía counter doc — antes era scan-and-max no transaccional.
   async getNextRemitoNumber(): Promise<string> {
     const counterRef = doc(db, '_counters', 'remitoNumber');
@@ -834,16 +853,33 @@ export const remitosService = {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const isDevolucion = input.tipo === 'devolucion';
+    const proveedorNombre = input.proveedorNombre ?? 'proveedor';
 
-    const remitoLineas: RemitoItem[] = input.items.map(it => ({
-      id: crypto.randomUUID(),
-      cantidad: 1,
-      tipoItem: 'entrega',
-      devuelto: false,
-      fichaId: it.fichaId,
-      fichaNumero: it.fichaNumero,
-      fichaDescripcion: it.descripcion,
-    }));
+    // Una línea por parte si el item se deriva por partes; una sola línea si el
+    // módulo va completo (o si es devolución al cliente, donde partes no aplica).
+    const remitoLineas: RemitoItem[] = input.items.flatMap(it => {
+      const tienePartes = !isDevolucion && (it.partes?.length ?? 0) > 0;
+      if (tienePartes) {
+        return it.partes!.map(p => ({
+          id: crypto.randomUUID(),
+          cantidad: 1,
+          tipoItem: 'entrega' as const,
+          devuelto: false,
+          fichaId: it.fichaId,
+          fichaNumero: it.fichaNumero,
+          fichaDescripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.itemSubId})`,
+        }));
+      }
+      return [{
+        id: crypto.randomUUID(),
+        cantidad: 1,
+        tipoItem: 'entrega' as const,
+        devuelto: false,
+        fichaId: it.fichaId,
+        fichaNumero: it.fichaNumero,
+        fichaDescripcion: it.descripcion,
+      }];
+    });
 
     // Agrupar items por fichaId para hacer un solo update por ficha
     const itemsByFicha = new Map<string, typeof input.items>();
@@ -883,32 +919,90 @@ export const remitosService = {
     batch.set(docRef('remitos', id), remitoPayload);
     batchAudit(batch, { action: 'create', collection: 'remitos', documentId: id, after: remitoPayload });
 
-    const nuevoEstadoItem = isDevolucion ? 'en_envio' : 'derivado_proveedor';
-    const motivoBase = isDevolucion
-      ? `Remito de devolución ${input.numero}`
-      : `Remito de derivación a ${input.proveedorNombre ?? 'proveedor'} ${input.numero}`;
     const creadoPor = getCreateTrace().createdByName ?? 'Sistema';
 
     for (const [fichaId, itemsDeFicha] of itemsByFicha) {
       const fichaSnap = await getDoc(doc(db, 'fichasPropiedad', fichaId));
       if (!fichaSnap.exists()) continue;
       const ficha = fichaSnap.data() as FichaPropiedad;
-      const itemIdsAfectados = new Set(itemsDeFicha.map(it => it.itemId));
+      const inputByItemId = new Map(itemsDeFicha.map(it => [it.itemId, it]));
 
       const updatedItems: ItemFicha[] = (ficha.items ?? []).map(it => {
-        if (!itemIdsAfectados.has(it.id)) return it;
+        const inputItem = inputByItemId.get(it.id);
+        if (!inputItem) return it;
+
+        const tienePartes = !isDevolucion && (inputItem.partes?.length ?? 0) > 0;
+        const nuevoEstado = isDevolucion
+          ? 'en_envio'
+          : (tienePartes ? 'esperando_repuesto' : 'derivado_proveedor');
+
+        const motivoBase = isDevolucion
+          ? `Remito de devolución ${input.numero}`
+          : (tienePartes
+              ? `Derivación parcial — remito ${input.numero} a ${proveedorNombre}`
+              : `Remito de derivación a ${proveedorNombre} ${input.numero}`);
+
         const entry: HistorialFicha = {
           id: crypto.randomUUID(),
           fecha: now,
           estadoAnterior: it.estado,
-          estadoNuevo: nuevoEstadoItem,
+          estadoNuevo: nuevoEstado,
           nota: motivoBase,
           creadoPor,
         };
+
+        // Para derivación a proveedor también dejamos rastro estructurado en
+        // `derivaciones[]` — alimenta la vista histórica del item y permite
+        // marcar "recibido" cuando vuelven las partes.
+        let nuevasDerivaciones: DerivacionProveedor[] = it.derivaciones ?? [];
+        if (!isDevolucion) {
+          const proveedorId = input.proveedorId ?? '';
+          if (tienePartes) {
+            for (const p of inputItem.partes!) {
+              const der: DerivacionProveedor = {
+                id: crypto.randomUUID(),
+                proveedorId,
+                proveedorNombre,
+                remitoSalidaId: id,
+                remitoSalidaNumero: input.numero,
+                remitoRetornoId: null,
+                fechaEnvio: now,
+                fechaRetorno: null,
+                descripcion: `${p.descripcion}${p.serie ? ` · S/N ${p.serie}` : ''} (de ${it.subId})`,
+                estado: 'enviado',
+                alcance: 'parte',
+                parte: {
+                  articuloId: p.articuloId ?? null,
+                  articuloCodigo: p.articuloCodigo ?? null,
+                  descripcion: p.descripcion,
+                  serie: p.serie ?? null,
+                },
+              };
+              nuevasDerivaciones = [...nuevasDerivaciones, der];
+            }
+          } else {
+            const der: DerivacionProveedor = {
+              id: crypto.randomUUID(),
+              proveedorId,
+              proveedorNombre,
+              remitoSalidaId: id,
+              remitoSalidaNumero: input.numero,
+              remitoRetornoId: null,
+              fechaEnvio: now,
+              fechaRetorno: null,
+              descripcion: inputItem.descripcion,
+              estado: 'enviado',
+              alcance: 'modulo_completo',
+            };
+            nuevasDerivaciones = [...nuevasDerivaciones, der];
+          }
+        }
+
         return {
           ...it,
-          estado: nuevoEstadoItem,
+          estado: nuevoEstado,
           historial: [...(it.historial ?? []), entry],
+          derivaciones: nuevasDerivaciones,
           remitoDevolucionId: isDevolucion ? id : (it.remitoDevolucionId ?? null),
         };
       });
@@ -946,8 +1040,17 @@ export interface CreateRemitoItemsInput {
   transportista?: DatosTransportista | null;
   fecha: string;
   /**
-   * Items a incluir. Cada uno referencia su ficha + el item dentro de la ficha.
-   * `descripcion` es lo que va a la columna "Descripción" del papel impreso.
+   * Items a incluir. Cada uno referencia su ficha + el item (módulo) dentro de la ficha.
+   *
+   * - Si `partes` está vacío/ausente: viaja el módulo completo. Una sola línea en el remito.
+   *   En `derivacion_proveedor` el módulo padre transiciona a `derivado_proveedor` y se
+   *   crea 1 `DerivacionProveedor` con `alcance: 'modulo_completo'`.
+   * - Si `partes` tiene 1+ entradas: viajan solo esas partes (no el módulo). Una línea
+   *   por parte. El módulo padre queda en planta y transiciona a `esperando_repuesto`,
+   *   con N `DerivacionProveedor` (`alcance: 'parte'`) — una por parte.
+   *
+   * `partes` solo aplica para `tipo: 'derivacion_proveedor'`. En devoluciones al cliente
+   * se ignora.
    */
   items: Array<{
     fichaId: string;
@@ -955,6 +1058,12 @@ export interface CreateRemitoItemsInput {
     itemId: string;
     itemSubId: string;
     descripcion: string;
+    partes?: Array<{
+      articuloId?: string | null;
+      articuloCodigo?: string | null;
+      descripcion: string;
+      serie?: string | null;
+    }>;
   }>;
   observaciones?: string | null;
   proveedorId?: string | null;

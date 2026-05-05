@@ -2786,10 +2786,26 @@ export interface DerivacionProveedor {
   proveedorNombre: string;
   remitoSalidaId?: string | null;
   remitoRetornoId?: string | null;
+  remitoSalidaNumero?: string | null;
   fechaEnvio?: string | null;
   fechaRetorno?: string | null;
   descripcion: string;
   estado: 'pendiente' | 'enviado' | 'recibido';
+  /**
+   * Si la derivación corresponde al módulo entero o solo a una parte.
+   * Default: 'modulo_completo' (compat con derivaciones legacy sin alcance).
+   */
+  alcance?: 'modulo_completo' | 'parte';
+  /** Datos de la parte derivada — solo cuando `alcance === 'parte'`. */
+  parte?: {
+    articuloId?: string | null;
+    articuloCodigo?: string | null;
+    descripcion: string;
+    serie?: string | null;
+  } | null;
+  /** OT asociada a esta derivación, si la parte/módulo derivado generó una. */
+  otId?: string | null;
+  otNumero?: string | null;
 }
 
 export interface RepuestoPendiente {
