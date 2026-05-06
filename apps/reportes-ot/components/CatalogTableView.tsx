@@ -922,8 +922,11 @@ export const CatalogTableView: React.FC<Props> = ({
   const extractUnitFromSpec = (specVal: string): string | null => {
     const s = specVal.trim();
     if (!s) return null;
-    // Unidad separada por espacio ("2.000 mV") O pegada al número ("0.50ºC")
-    const m = s.match(/[\d\s]([A-Za-z%°ºª][A-Za-z0-9.%°ºª/]{0,10})\s*$/);
+    // Sólo extraer unidad si la spec tiene un dígito (descartar prosa como "Líneas rectas, esquinas redondeadas").
+    if (!/\d/.test(s)) return null;
+    // La unidad debe estar inmediatamente después de un número (sólo espacios opcionales en medio):
+    // "2.000 mV" → "mV", "0.50ºC" → "ºC". Si entre el número y el final hay otra palabra, no es unidad.
+    const m = s.match(/\d\s*([A-Za-z%°ºª][A-Za-z0-9.%°ºª/]{0,10})\s*$/);
     return m ? m[1].trim() : null;
   };
 

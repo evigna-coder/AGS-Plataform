@@ -116,11 +116,11 @@ export const ColumnasList = () => {
                 </colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '44%' }} />
-                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '28%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '80px' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '22%' }} />
                   <col style={{ width: '110px' }} />
                 </colgroup>
               )}
@@ -155,7 +155,24 @@ export const ColumnasList = () => {
                         ))}
                       </div>
                     </td>
-                    <td className={`px-3 py-2 text-center text-xs text-slate-600 font-mono ${getAlignClass(4)}`}>{c.series.length}</td>
+                    <td className={`px-3 py-2 ${getAlignClass(4)}`}>
+                      {c.series.length === 0 ? (
+                        <span className="text-[10px] text-slate-300 italic">Sin series</span>
+                      ) : (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {c.series.slice(0, 3).map((s, i) => (
+                            <span key={i}
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200"
+                              title={s.serie}>
+                              {s.serie || '(vacío)'}
+                            </span>
+                          ))}
+                          {c.series.length > 3 && (
+                            <span className="text-[10px] text-slate-400">+{c.series.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-center whitespace-nowrap">
                       <div className="flex items-center justify-end gap-0.5">
                         <Link to={`/columnas/${c.id}/editar`}
