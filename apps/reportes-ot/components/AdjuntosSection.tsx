@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { FirebaseService } from '../services/firebaseService';
 import type { AdjuntoMeta } from '../types/instrumentos';
+import { useAdjuntoPdfThumbnails } from '../hooks/useAdjuntoPdfThumbnails';
 
 interface Props {
   firebase: FirebaseService;
@@ -15,6 +16,10 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
   const [uploadProgress, setUploadProgress] = useState('');
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const pdfThumbnails = useAdjuntoPdfThumbnails(adjuntos, firebase);
 
   const handleFiles = async (files: File[]) => {
     if (!otNumber || files.length === 0) return;
@@ -79,11 +84,7 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
     }
   };
 
-  const handleMove = async (index: number, direction: -1 | 1) => {
-    const targetIdx = index + direction;
-    if (targetIdx < 0 || targetIdx >= adjuntos.length) return;
-    const reordered = [...adjuntos];
-    [reordered[index], reordered[targetIdx]] = [reordered[targetIdx], reordered[index]];
+  const persistOrden = async (reordered: AdjuntoMeta[]) => {
     const updated = reordered.map((a, i) => ({ ...a, orden: i }));
     setAdjuntos(updated);
     try {
@@ -91,6 +92,25 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
     } catch (err) {
       console.error('Error reordenando:', err);
     }
+  };
+
+  const handleMove = (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= adjuntos.length) return;
+    const reordered = [...adjuntos];
+    [reordered[index], reordered[targetIdx]] = [reordered[targetIdx], reordered[index]];
+    void persistOrden(reordered);
+  };
+
+  const handleDrop = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const sourceIdx = adjuntos.findIndex(a => a.id === sourceId);
+    const targetIdx = adjuntos.findIndex(a => a.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+    const reordered = [...adjuntos];
+    const [moved] = reordered.splice(sourceIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    void persistOrden(reordered);
   };
 
   const formatSize = (bytes: number) => {
@@ -139,21 +159,78 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
         )
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {adjuntos.map((adj, idx) => (
-            <div key={adj.id} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+          {adjuntos.map((adj, idx) => {
+            const isImage = adj.mimeType.startsWith('image/');
+            const isPdf = adj.mimeType === 'application/pdf';
+            const pdfThumb = isPdf ? pdfThumbnails[adj.id] : undefined;
+            const isDragging = draggingId === adj.id;
+            const isDragOver = dragOverId === adj.id && draggingId !== adj.id;
+            return (
+            <div
+              key={adj.id}
+              draggable={!readOnly}
+              onDragStart={(e) => {
+                if (readOnly) return;
+                setDraggingId(adj.id);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', adj.id);
+              }}
+              onDragEnd={() => {
+                setDraggingId(null);
+                setDragOverId(null);
+              }}
+              onDragOver={(e) => {
+                if (readOnly || !draggingId || draggingId === adj.id) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dragOverId !== adj.id) setDragOverId(adj.id);
+              }}
+              onDragLeave={() => {
+                if (dragOverId === adj.id) setDragOverId(null);
+              }}
+              onDrop={(e) => {
+                if (readOnly) return;
+                e.preventDefault();
+                const sourceId = e.dataTransfer.getData('text/plain') || draggingId;
+                if (sourceId) handleDrop(sourceId, adj.id);
+                setDraggingId(null);
+                setDragOverId(null);
+              }}
+              className={`border rounded-lg overflow-hidden bg-white transition-all ${
+                isDragging ? 'opacity-40 scale-95' : ''
+              } ${
+                isDragOver ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200'
+              } ${!readOnly ? 'cursor-move' : ''}`}
+            >
               {/* Preview */}
-              <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden">
-                {adj.mimeType.startsWith('image/') ? (
-                  <img src={adj.url} alt={adj.caption || adj.fileName} className="w-full h-full object-cover" />
+              <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden relative">
+                {isImage ? (
+                  <img src={adj.url} alt={adj.caption || adj.fileName} className="w-full h-full object-cover pointer-events-none" />
+                ) : pdfThumb ? (
+                  <>
+                    <img src={pdfThumb} alt={adj.caption || adj.fileName} className="w-full h-full object-cover pointer-events-none" />
+                    <span className="absolute bottom-1 right-1 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide pointer-events-none">PDF</span>
+                  </>
                 ) : (
-                  <div className="text-center p-2">
-                    <svg className="w-8 h-8 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span className="block text-[11px] font-bold text-slate-500 uppercase mt-1">
-                      {adj.fileName.split('.').pop()?.toUpperCase() || 'FILE'}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px] mx-auto">{adj.fileName}</p>
+                  <div className="text-center p-2 pointer-events-none">
+                    {isPdf ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <svg className="w-6 h-6 text-slate-300 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10px] text-slate-400">Cargando…</span>
+                      </div>
+                    ) : (
+                      <>
+                        <svg className="w-8 h-8 mx-auto text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span className="block text-[11px] font-bold text-slate-500 uppercase mt-1">
+                          {adj.fileName.split('.').pop()?.toUpperCase() || 'FILE'}
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px] mx-auto">{adj.fileName}</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -197,7 +274,8 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
