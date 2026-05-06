@@ -243,6 +243,52 @@ export const fichasService = {
     await this.update(fichaId, { items });
   },
 
+  /**
+   * Marca una derivación como recibida. Si la derivación corresponde al módulo
+   * entero (`alcance: 'modulo_completo'`) y el item estaba en `derivado_proveedor`,
+   * lo transiciona automáticamente a `en_reparacion` para que pueda volver al
+   * flujo de taller (y eventualmente ser re-derivado si hace falta otro envío).
+   * Para derivaciones de partes (`alcance: 'parte'`) NO toca el estado del módulo
+   * padre — el técnico debe moverlo a mano cuando reinstaló físicamente la parte.
+   */
+  async markDerivacionRecibida(fichaId: string, itemId: string, derivacionId: string): Promise<void> {
+    const ficha = await this.getById(fichaId);
+    if (!ficha) throw new Error('Ficha no encontrada');
+    const now = new Date().toISOString();
+    const creadoPor = getCreateTrace().createdByName ?? 'admin';
+
+    const items = ficha.items.map(it => {
+      if (it.id !== itemId) return it;
+      const derivIdx = it.derivaciones.findIndex(d => d.id === derivacionId);
+      if (derivIdx === -1) return it;
+      const deriv = it.derivaciones[derivIdx];
+
+      const updatedDerivaciones = [...it.derivaciones];
+      updatedDerivaciones[derivIdx] = { ...deriv, estado: 'recibido', fechaRetorno: now };
+
+      const wasModuloCompleto = (deriv.alcance ?? 'modulo_completo') === 'modulo_completo';
+      if (wasModuloCompleto && it.estado === 'derivado_proveedor') {
+        const entry: HistorialFicha = {
+          id: crypto.randomUUID(),
+          fecha: now,
+          estadoAnterior: 'derivado_proveedor',
+          estadoNuevo: 'en_reparacion',
+          nota: `Módulo recibido del proveedor${deriv.remitoSalidaNumero ? ` — remito ${deriv.remitoSalidaNumero}` : ''}`,
+          creadoPor,
+        };
+        return {
+          ...it,
+          estado: 'en_reparacion' as const,
+          historial: [...it.historial, entry],
+          derivaciones: updatedDerivaciones,
+        };
+      }
+      return { ...it, derivaciones: updatedDerivaciones };
+    });
+
+    await this.update(fichaId, { items });
+  },
+
   /** Agrega una derivación a proveedor a un item específico. */
   async addItemDerivacion(
     fichaId: string,

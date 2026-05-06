@@ -22,10 +22,8 @@ export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
   const { pathname } = useLocation();
   const fromState = { from: pathname };
 
-  const handleMarkReceived = async (derivIdx: number) => {
-    const updated = [...item.derivaciones];
-    updated[derivIdx] = { ...updated[derivIdx], estado: 'recibido', fechaRetorno: new Date().toISOString() };
-    await fichasService.updateItem(ficha.id, item.id, { derivaciones: updated });
+  const handleMarkReceived = async (derivacionId: string) => {
+    await fichasService.markDerivacionRecibida(ficha.id, item.id, derivacionId);
     onUpdate();
   };
 
@@ -35,7 +33,7 @@ export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
         <p className="text-sm text-slate-400">Sin derivaciones</p>
       ) : (
         <div className="space-y-3">
-          {item.derivaciones.map((d, idx) => {
+          {item.derivaciones.map((d) => {
             const esParte = d.alcance === 'parte';
             return (
               <div key={d.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -67,7 +65,7 @@ export function FichaDerivacionSection({ ficha, item, onUpdate }: Props) {
                   )}
                 </div>
                 {d.estado === 'enviado' && (
-                  <Button variant="ghost" size="sm" className="mt-2" onClick={() => handleMarkReceived(idx)}>
+                  <Button variant="ghost" size="sm" className="mt-2" onClick={() => handleMarkReceived(d.id)}>
                     Marcar recibido
                   </Button>
                 )}

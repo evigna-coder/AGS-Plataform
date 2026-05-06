@@ -84,21 +84,18 @@ export function FichaDetail() {
     i.estado !== 'entregado' && i.estado !== 'en_envio' && i.estado !== 'derivado_proveedor'
   );
 
-  // ¿Hay items con remito ya impreso esperando confirmación de entrega?
+  // Items con remito de DEVOLUCIÓN AL CLIENTE impreso, esperando confirmación.
+  // Los items en `derivado_proveedor` NO entran acá — su retorno se confirma
+  // desde "Marcar recibido" en cada derivación (`FichaDerivacionSection`).
   const itemsEnEnvio = ficha.items.filter(i => i.estado === 'en_envio');
-  const itemsDerivados = ficha.items.filter(i => i.estado === 'derivado_proveedor');
 
-  // Confirma la entrega: pasa todos los items en `en_envio` (o todos los derivados,
-  // según corresponda) al estado `entregado`. Útil cuando vuelve el remito firmado.
   const handleConfirmarEntrega = async () => {
-    if (!ficha) return;
-    const targets = [...itemsEnEnvio, ...itemsDerivados];
-    if (targets.length === 0) return;
-    const msg = targets.length === 1
-      ? `Confirmar entrega del item ${targets[0].subId}?`
-      : `Confirmar entrega de ${targets.length} items?`;
+    if (!ficha || itemsEnEnvio.length === 0) return;
+    const msg = itemsEnEnvio.length === 1
+      ? `Confirmar entrega del item ${itemsEnEnvio[0].subId}?`
+      : `Confirmar entrega de ${itemsEnEnvio.length} items?`;
     if (!window.confirm(msg)) return;
-    for (const it of targets) {
+    for (const it of itemsEnEnvio) {
       await fichasService.transitionItem(
         ficha.id,
         it.id,
@@ -130,11 +127,11 @@ export function FichaDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {(itemsEnEnvio.length > 0 || itemsDerivados.length > 0) && (
+          {itemsEnEnvio.length > 0 && (
             <Button variant="primary" size="sm" onClick={() => void handleConfirmarEntrega()}>
               Confirmar entrega
-              {(itemsEnEnvio.length + itemsDerivados.length) > 1 && (
-                <span className="ml-1 opacity-80">({itemsEnEnvio.length + itemsDerivados.length})</span>
+              {itemsEnEnvio.length > 1 && (
+                <span className="ml-1 opacity-80">({itemsEnEnvio.length})</span>
               )}
             </Button>
           )}

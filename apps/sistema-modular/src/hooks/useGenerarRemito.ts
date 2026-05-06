@@ -73,9 +73,16 @@ export function useGenerarRemito({ open, ficha }: Args) {
     const out: ElegibleItem[] = [];
     for (const f of all) {
       for (const it of (f.items ?? [])) {
+        // Estados terminales / en tránsito de salida: nunca elegibles.
         if (it.estado === 'entregado') continue;
         if (it.estado === 'en_envio') continue;
-        if (it.estado === 'derivado_proveedor') continue;
+        // Para `derivado_proveedor` no nos basamos en el badge: el estado puede
+        // quedar stuck por data legacy o si la transición automática al recibir
+        // no corrió. Lo que importa es si hay alguna derivación todavía afuera.
+        // Si todas están recibidas, el item está físicamente en planta y puede
+        // re-derivarse en otro remito.
+        const tieneDerivacionAfuera = it.derivaciones.some(d => d.estado === 'enviado');
+        if (tieneDerivacionAfuera) continue;
         out.push({ ficha: f, item: it, key: `${f.id}:${it.id}` });
       }
     }
