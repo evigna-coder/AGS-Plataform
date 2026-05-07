@@ -1091,7 +1091,7 @@ export const CatalogTableView: React.FC<Props> = ({
       const rSpecCol = rule.specColumn || String(rule.factoryThreshold) || '';
       if (!rSrcCol || !rTgtCol || !rSpecCol) continue;
       for (const row of table.templateRows) {
-        if (row.isTitle || row.isSelector) continue;
+        if (row.isTitle || row.isSelector || row.isCheckboxRow) continue;
         if (!ruleAppliesToRow(rule, row.rowId)) continue;
         const rowInst = getRowInstanceValue(row.rowId);
         const rowClientSpec = rowInst ? getInstanceClientSpec(rowInst) : clientSpecEnabled;
@@ -2052,6 +2052,33 @@ export const CatalogTableView: React.FC<Props> = ({
                   </tr>
                 );
               }
+              if (row.isCheckboxRow) {
+                const checked = selection.filledData[row.rowId]?.['_check_'] === '1';
+                return (
+                  <tr key={row.rowId} className={isPrint ? 'border-b border-slate-200' : 'border-b border-slate-100'}>
+                    <td
+                      colSpan={Math.max(visibleColumns.length, 1)}
+                      className={`px-2 ${compact ? 'py-1.5' : 'py-2'} align-top`}
+                    >
+                      <label className={`flex items-start gap-2 ${readOnly || isPrint ? 'cursor-default' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={readOnly || isPrint}
+                          onChange={(e) => onChangeData(selection.tableId, row.rowId, '_check_', e.target.checked ? '1' : '')}
+                          className="mt-0.5 w-3.5 h-3.5 accent-teal-600 shrink-0 disabled:cursor-default"
+                        />
+                        <span
+                          className={`${isPrint ? 'text-[10px]' : 'text-xs'} text-slate-700 leading-relaxed text-justify whitespace-pre-line`}
+                          style={{ hyphens: 'auto' }}
+                        >
+                          {row.checkboxText ?? ''}
+                        </span>
+                      </label>
+                    </td>
+                  </tr>
+                );
+              }
               if (row.isSelector) {
                 const selectorValue = selection.filledData[row.rowId]?.['_selector_'] ?? '';
                 const isDup = row.rowId.startsWith('dup_');
@@ -2282,7 +2309,7 @@ export const CatalogTableView: React.FC<Props> = ({
       {/* Footer print: observaciones */}
       {isPrint && selection.observaciones && (
         <div className="px-2 py-1 border-t border-slate-200">
-          <span className="text-[9px] text-slate-600">
+          <span className="text-[9px] text-slate-600 whitespace-pre-line block" style={{ textAlign: 'justify', hyphens: 'auto' }}>
             <strong>Obs.:</strong> {selection.observaciones}
           </span>
         </div>

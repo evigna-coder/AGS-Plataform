@@ -3,7 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import type { TableCatalogColumn, TableCatalogRow, TableHeaderField } from '@ags/shared';
 
-type RowMode = 'data' | 'title' | 'selector';
+type RowMode = 'data' | 'title' | 'selector' | 'checkbox';
 
 interface Props {
   row: TableCatalogRow;
@@ -19,9 +19,10 @@ interface Props {
 
 export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields = [], onSave, onDelete, onCancel }: Props) => {
   const [cells, setCells] = useState<Record<string, string | number | boolean | null>>(row.cells);
-  const initialMode: RowMode = row.isSelector ? 'selector' : row.isTitle ? 'title' : 'data';
+  const initialMode: RowMode = row.isCheckboxRow ? 'checkbox' : row.isSelector ? 'selector' : row.isTitle ? 'title' : 'data';
   const [mode, setMode] = useState<RowMode>(initialMode);
   const [titleText, setTitleText] = useState(row.titleText ?? '');
+  const [checkboxText, setCheckboxText] = useState(row.checkboxText ?? '');
   const [selectorLabel, setSelectorLabel] = useState(row.selectorLabel ?? '');
   const [selectorOptionsText, setSelectorOptionsText] = useState((row.selectorOptions ?? []).join(', '));
   const [selectorColumn, setSelectorColumn] = useState(row.selectorColumn ?? 0);
@@ -71,12 +72,20 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   };
 
   const handleSave = () => {
-    if (mode === 'title') {
-      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: undefined });
+    if (mode === 'checkbox') {
+      onSave({
+        ...row, cells: {}, isCheckboxRow: true, checkboxText: checkboxText || null,
+        isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
+        rowSpan: undefined, spanColumns: undefined, columnSpans: undefined,
+        duplicableEnProtocolo: undefined, defaultVisible: undefined, manualConclusion: undefined,
+        variable: null, cellUnits: null,
+      });
+    } else if (mode === 'title') {
+      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: undefined, isCheckboxRow: false, checkboxText: null });
     } else if (mode === 'selector') {
       const options = selectorOptionsText.split(',').map(o => o.trim()).filter(Boolean);
       const effectiveSelectorCol = selectorColumn > 0 ? selectorColumn : undefined;
-      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: duplicableEnProtocolo || undefined });
+      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: duplicableEnProtocolo || undefined, isCheckboxRow: false, checkboxText: null });
     } else {
       // Filtrar spans <= 1 y construir el objeto limpio
       const cleanSpans: Record<string, number> = {};
@@ -91,6 +100,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
       const cleanCellUnits = Object.fromEntries(Object.entries(cellUnits).filter(([, v]) => v !== ''));
       onSave({
         ...row, cells, isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
+        isCheckboxRow: false, checkboxText: null,
         rowSpan: undefined, spanColumns: undefined,
         columnSpans: hasSpans ? cleanSpans : undefined,
         visibleWhenSelector: visWhen,
@@ -123,7 +133,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   // En modo selector, la primera columna se reemplaza por el dropdown; el resto son editables
   const restColumns = mode === 'selector' && columns.length > 1 ? columns.slice(1) : [];
 
-  const modeLabel: Record<RowMode, string> = { data: 'Editar fila', title: 'Título de sección', selector: 'Fila selector' };
+  const modeLabel: Record<RowMode, string> = { data: 'Editar fila', title: 'Título de sección', selector: 'Fila selector', checkbox: 'Fila checkbox de confirmación' };
 
   return (
     <div className="border border-slate-900 rounded-lg p-4 bg-slate-50 space-y-3">
@@ -144,10 +154,14 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
             <input type="radio" name="rowMode" checked={mode === 'selector'} onChange={() => setMode('selector')} />
             Selector
           </label>
+          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase cursor-pointer">
+            <input type="radio" name="rowMode" checked={mode === 'checkbox'} onChange={() => setMode('checkbox')} />
+            Checkbox
+          </label>
         </div>
       </div>
 
-      {mode !== 'title' && (
+      {mode !== 'title' && mode !== 'checkbox' && (
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
             <input
@@ -192,6 +206,20 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
             value={titleText}
             onChange={e => setTitleText(e.target.value)}
             placeholder="Ej: Sección 1 — Preparación del sistema"
+          />
+        </div>
+      ) : mode === 'checkbox' ? (
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-slate-600 uppercase">Texto del checkbox</label>
+          <p className="text-[10px] text-slate-500">
+            La fila ocupa todo el ancho y se renderiza como <code>[☐] texto</code>. El técnico tilda al completar el paso. El texto se muestra justificado.
+          </p>
+          <textarea
+            value={checkboxText}
+            onChange={e => setCheckboxText(e.target.value)}
+            rows={4}
+            placeholder="Ej: Realice el test de pérdidas del HSS en conjunto con el puerto de inyección..."
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
       ) : mode === 'selector' ? (

@@ -197,7 +197,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
 
             <div className="mt-2 mb-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Informe Técnico</label>
-              <div className="text-[12px] whitespace-pre-wrap border-l-4 border-blue-600 pl-3 py-2 bg-slate-50/50 rounded-r-lg leading-relaxed min-h-[35mm]">
+              <div className="text-[12px] whitespace-pre-wrap border-l-4 border-blue-600 pl-3 py-2 bg-slate-50/50 rounded-r-lg leading-relaxed min-h-[35mm]" style={{ textAlign: 'justify', hyphens: 'auto' }}>
                 {tipoServicio && <p className="mb-2 font-bold">{tipoServicio}</p>}
                 <p className="italic">{reporteTecnico || "Sin descripción registrada."}</p>
               </div>
@@ -256,7 +256,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
               <div className="grid grid-cols-12 gap-3 mb-2">
                 <div className="col-span-8 border border-slate-200 p-2.5 rounded-lg bg-white">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase mb-1 border-b border-slate-200 pb-0.5">OBSERVACIONES / ACCIONES A TOMAR</h4>
-                  <p className="text-[11px] italic text-slate-700 leading-tight">
+                  <p className="text-[11px] italic text-slate-700 leading-tight whitespace-pre-line" style={{ textAlign: 'justify', hyphens: 'auto' }}>
                     {accionesInternaOnly
                       ? "Sin observaciones pendientes."
                       : (accionesTomar || "Sin observaciones pendientes.")}

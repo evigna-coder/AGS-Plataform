@@ -11,6 +11,11 @@ interface Props {
 
 type Stage = 'idle' | 'preview' | 'confirming' | 'executing' | 'done';
 
+const formatFechaAR = (iso: string): string => {
+  const [y, m, d] = iso.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
+};
+
 export const MigracionPatronesModal: React.FC<Props> = ({ open, onClose, onCompleted }) => {
   const { loading, preview, result, error, progress, generarPreview, ejecutarMigracion, reset } = useMigracionPatrones();
   const [stage, setStage] = useState<Stage>('idle');
@@ -127,7 +132,7 @@ export const MigracionPatronesModal: React.FC<Props> = ({ open, onClose, onCompl
                                 {g.lotes.map((l, idx) => (
                                   <li key={idx} className="text-[11px] text-slate-600 flex items-center gap-2">
                                     <span className="font-mono">Lote: {l.lote || '(vacío)'}</span>
-                                    {l.fechaVencimiento && <span>· Vence: {l.fechaVencimiento}</span>}
+                                    {l.fechaVencimiento && <span>· Vence: {formatFechaAR(l.fechaVencimiento)}</span>}
                                     {l.certificadoUrl && <span className="text-teal-600">· ✓ cert</span>}
                                   </li>
                                 ))}

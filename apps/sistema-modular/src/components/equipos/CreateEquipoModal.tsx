@@ -96,7 +96,7 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
         clienteId: form.clienteId || null,
         categoriaId: form.categoriaId,
         nombre: finalNombre,
-        software: form.software.trim() || null,
+        software: form.software.trim() || undefined,
         codigoInternoCliente: form.codigoInternoCliente.trim() || `PROV-${Date.now().toString(36).toUpperCase()}`,
         sector: form.sector.trim() || null,
         configuracionGC: isGC ? {

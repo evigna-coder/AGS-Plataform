@@ -193,18 +193,18 @@ export function ConceptosServicio() {
       <Modal open={showModal} onClose={() => { setShowModal(false); resetForm(); }} title={editingId ? 'Editar concepto' : 'Nuevo concepto de servicio'}>
         <div className="space-y-4 p-5">
           <div className="grid grid-cols-[auto_1fr] gap-3">
-            <Input size="sm" label="Codigo" value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej: MP1_CN_60" />
-            <Input size="sm" label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Ej: Servicio de calibración GC MSD rango 30 km" />
+            <Input inputSize="sm" label="Codigo" value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Ej: MP1_CN_60" />
+            <Input inputSize="sm" label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Ej: Servicio de calibración GC MSD rango 30 km" />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Input size="sm" label="Valor base *" type="number" min={0} step={0.01} value={String(valorBase)} onChange={e => setValorBase(Number(e.target.value) || 0)} />
+            <Input inputSize="sm" label="Valor base *" type="number" min={0} step={0.01} value={String(valorBase)} onChange={e => setValorBase(Number(e.target.value) || 0)} />
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Moneda</label>
               <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={moneda} onChange={e => setMoneda(e.target.value as MonedaPresupuesto)}>
                 {MONEDAS.map(m => <option key={m} value={m}>{m} ({MONEDA_SIMBOLO[m]})</option>)}
               </select>
             </div>
-            <Input size="sm" label="Factor actualiz." type="number" min={0} step={0.01} value={String(factor)} onChange={e => setFactor(Number(e.target.value) || 1)} />
+            <Input inputSize="sm" label="Factor actualiz." type="number" min={0} step={0.01} value={String(factor)} onChange={e => setFactor(Number(e.target.value) || 1)} />
           </div>
           <p className="text-[11px] text-slate-400">
             Precio efectivo: <span className="font-semibold text-teal-700">{MONEDA_SIMBOLO[moneda]} {(valorBase * factor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
@@ -232,7 +232,7 @@ export function ConceptosServicio() {
       {/* Factor global modal */}
       <Modal open={showFactorModal} onClose={() => setShowFactorModal(false)} title="Actualizar factor global" subtitle="Aplica a todos los conceptos activos">
         <div className="p-5 space-y-3">
-          <Input size="sm" label="Nuevo factor de actualizacion" type="number" min={0} step={0.01} value={factorGlobal} onChange={e => setFactorGlobal(e.target.value)} placeholder="Ej: 1.15" />
+          <Input inputSize="sm" label="Nuevo factor de actualizacion" type="number" min={0} step={0.01} value={factorGlobal} onChange={e => setFactorGlobal(e.target.value)} placeholder="Ej: 1.15" />
           <p className="text-[11px] text-slate-400">Esto actualizará el factor de <strong>todos</strong> los conceptos activos. El valor base no se modifica.</p>
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl">

@@ -26,7 +26,7 @@ const TIPO_ICON: Record<TipoOrigenDestino, string> = {
 
 export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreated, init = {}, title, subtitle }) => {
   const { usuario, firebaseUser } = useAuth();
-  const creadoPor = usuario?.nombre ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
+  const creadoPor = usuario?.displayName ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
   const h = useCreateMovimientoForm(open, onClose, onCreated, init, creadoPor);
 
   const articuloLockeado = !!init.lockArticulo;

@@ -50,6 +50,7 @@ export const TiposServicio = () => {
         await tiposServicioService.create({
           nombre: formData.nombre.trim(),
           activo: true,
+          requiresProtocol: false,
         });
       }
       await loadData();

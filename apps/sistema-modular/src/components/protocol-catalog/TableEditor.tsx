@@ -411,6 +411,10 @@ export const TableEditor = ({ table, onChange }: Props) => {
                   onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isSelector: true, selectorLabel: '', selectorOptions: [] })}>
                   + Fila selector
                 </Button>
+                <Button size="sm" variant="outline"
+                  onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isCheckboxRow: true, checkboxText: '' })}>
+                  + Fila checkbox
+                </Button>
                 <Button size="sm"
                   onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {} })}>
                   + Fila
@@ -467,6 +471,8 @@ export const TableEditor = ({ table, onChange }: Props) => {
                           ? <span className="font-bold text-slate-500 uppercase text-xs">📌 {row.titleText || '(título vacío)'}</span>
                           : row.isSelector
                           ? <span className="font-bold text-blue-600 text-xs">🔽 {row.selectorLabel || '(selector)'}: [{(row.selectorOptions ?? []).join(', ') || '...'}]</span>
+                          : row.isCheckboxRow
+                          ? <span className="font-bold text-teal-700 text-xs">☐ {row.checkboxText ? row.checkboxText.slice(0, 80) + (row.checkboxText.length > 80 ? '…' : '') : '(checkbox vacío)'}</span>
                           : <>
                               {row.rowSpan && row.rowSpan > 1 && <span className="text-amber-600 text-xs font-bold mr-1">⇕{row.rowSpan}</span>}
                               {Object.values(row.cells).filter(Boolean).slice(0, 3).map(v => displaySpec(String(v))).join(' | ') || '(fila vacía)'}
@@ -523,6 +529,10 @@ export const TableEditor = ({ table, onChange }: Props) => {
               <Button size="sm" variant="outline"
                 onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isSelector: true, selectorLabel: '', selectorOptions: [] })}>
                 + Fila selector
+              </Button>
+              <Button size="sm" variant="outline"
+                onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {}, isCheckboxRow: true, checkboxText: '' })}>
+                + Fila checkbox
               </Button>
               <Button size="sm"
                 onClick={() => setSelectedRow({ rowId: crypto.randomUUID(), cells: {} })}>

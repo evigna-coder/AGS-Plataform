@@ -235,7 +235,16 @@ export const EquipoNew = () => {
 
   const handleEditModulo = (index: number) => {
     setEditingModuloIndex(index);
-    setModuloForm(modulos[index]);
+    const m = modulos[index];
+    setModuloForm({
+      categoriaModuloId: '',
+      modeloCodigo: '',
+      nombre: m.nombre ?? '',
+      descripcion: m.descripcion ?? '',
+      serie: m.serie ?? '',
+      firmware: m.firmware ?? '',
+      observaciones: m.observaciones ?? '',
+    });
     setShowModuloModal(true);
   };
 

@@ -28,6 +28,13 @@ const CAT_OPTIONS = [
   ...CATS_PATRON.map(([k, v]) => ({ value: k, label: v })),
 ];
 
+/** Formatea YYYY-MM-DD (date-only) a DD/MM/AAAA sin tropezar con timezone. */
+function formatFechaAR(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
+}
+
 /** Calcula el estado global de un patrón basado en el lote más crítico. */
 function estadoGlobal(patron: Patron): 'vigente' | 'por_vencer' | 'vencido' | 'sin_cert' {
   if (!patron.lotes.length) return 'sin_cert';
@@ -215,7 +222,7 @@ export const PatronesList = () => {
                             {p.lotes.slice(0, 3).map((l, i) => (
                               <span key={i}
                                 className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200"
-                                title={l.fechaVencimiento ? `Vence: ${l.fechaVencimiento}` : undefined}>
+                                title={l.fechaVencimiento ? `Vence: ${formatFechaAR(l.fechaVencimiento)}` : undefined}>
                                 {l.lote || '(vacío)'}
                               </span>
                             ))}

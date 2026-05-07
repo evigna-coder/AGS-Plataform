@@ -110,7 +110,7 @@ export const MinikitDetail = () => {
   const handleCerrarVerificacion = async (observaciones: string | null) => {
     if (!id) return;
     const byUid = firebaseUser?.uid ?? '';
-    const byName = usuario?.nombre ?? usuario?.email ?? 'desconocido';
+    const byName = usuario?.displayName ?? usuario?.email ?? 'desconocido';
     setSaving(true);
     try {
       await minikitsService.update(id, {

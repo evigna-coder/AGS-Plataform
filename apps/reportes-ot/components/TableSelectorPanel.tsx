@@ -225,6 +225,12 @@ export const TableSelectorPanel: React.FC<Props> = ({
 
       for (const row of table.templateRows) {
         if (row.isTitle) continue;
+        // Filas checkbox: arrancan sin tilde (filledData[rowId]['_check_'] = '').
+        // No se inicializan celdas porque la fila no tiene columnas — ocupa todo el ancho.
+        if (row.isCheckboxRow) {
+          filledData[row.rowId] = { _check_: '' };
+          continue;
+        }
         filledData[row.rowId] = {};
 
         // Filas selector: dejar vacío sólo la columna del dropdown (y la columna

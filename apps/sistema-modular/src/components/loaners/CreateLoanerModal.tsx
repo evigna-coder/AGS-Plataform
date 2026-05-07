@@ -96,7 +96,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
           <h3 className="text-xs font-semibold text-slate-700 mb-3">Identificacion del equipo</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-              <Input size="sm" label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} error={errors.descripcion} placeholder="Ej: Bomba cuaternaria 1260 Infinity II" />
+              <Input inputSize="sm" label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} error={errors.descripcion} placeholder="Ej: Bomba cuaternaria 1260 Infinity II" />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Vincular a articulo de stock</label>
@@ -105,7 +105,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
                 {articulos.map(a => <option key={a.id} value={a.id}>{a.codigo} — {a.descripcion}</option>)}
               </select>
             </div>
-            <Input size="sm" label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
+            <Input inputSize="sm" label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1">Categoria de equipo</label>
               <select className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs" value={categoriaEquipo} onChange={e => setCategoriaEquipo(e.target.value)}>
@@ -113,7 +113,7 @@ export function CreateLoanerModal({ open, onClose, onCreated }: Props) {
                 {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <Input size="sm" label="Condicion *" value={condicion} onChange={e => setCondicion(e.target.value)} error={errors.condicion} placeholder="Ej: Bueno, Reacondicionado" />
+            <Input inputSize="sm" label="Condicion *" value={condicion} onChange={e => setCondicion(e.target.value)} error={errors.condicion} placeholder="Ej: Bueno, Reacondicionado" />
           </div>
         </div>
       </div>

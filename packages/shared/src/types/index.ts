@@ -1659,6 +1659,15 @@ export interface TableCatalogRow {
    * automática posible.
    */
   manualConclusion?: boolean;
+  /**
+   * Si true, la fila se renderiza como un checkbox de confirmación full-width:
+   * `[☐] checkboxText`. El estado tildado/no se guarda en filledData[rowId]['_check_'].
+   * Útil para pasos de confirmación dentro de tablas de validación
+   * (ej. "Realice el test de pérdidas..." → técnico tilda al completar).
+   */
+  isCheckboxRow?: boolean;
+  /** Texto del checkbox (multilínea, justified). Sólo cuando isCheckboxRow === true. */
+  checkboxText?: string | null;
 }
 
 export interface TableCatalogRule {

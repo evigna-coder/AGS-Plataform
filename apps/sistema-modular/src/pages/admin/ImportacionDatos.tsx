@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { useExcelMigration, type ValidationIssue } from '../../hooks/useExcelMigration';
-import { useStockMigration } from '../../hooks/useStockMigration';
+import { useExcelMigration, type ValidationIssue, type MigrationSummary } from '../../hooks/useExcelMigration';
+import { useStockMigration, type StockMigrationSummary } from '../../hooks/useStockMigration';
 import { DedupModulos } from './migraciones/DedupModulos';
 import { RepairSistemaEstablecimiento } from './migraciones/RepairSistemaEstablecimiento';
 import { UnificarSistemasDuplicados } from './migraciones/UnificarSistemasDuplicados';
@@ -236,7 +236,7 @@ function ExecuteSection({ canExecute, step, execute, progressLog, summary, summa
   step: string;
   execute: () => void;
   progressLog: string[];
-  summary: Record<string, { created: number; skipped: number }> | null;
+  summary: MigrationSummary | StockMigrationSummary | null;
   summaryKeys: string[];
 }) {
   return (
@@ -270,7 +270,7 @@ function ExecuteSection({ canExecute, step, execute, progressLog, summary, summa
           <p className="text-sm font-semibold text-emerald-800 mb-2">Migracion completada</p>
           <div className={`grid grid-cols-${summaryKeys.length} gap-3`}>
             {summaryKeys.map(key => {
-              const val = (summary as Record<string, { created: number; skipped: number }>)[key];
+              const val = (summary as unknown as Record<string, { created: number; skipped: number }>)[key];
               if (!val) return null;
               return (
                 <div key={key} className="text-center">

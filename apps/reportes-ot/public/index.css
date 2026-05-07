@@ -321,6 +321,11 @@ body.pdf-generating .protocol-screen-wrapper {
 }
 
 /* ─── Contenido de texto enriquecido (CatalogTextView) ─────────────────────── */
+/* Justificar párrafos por defecto. text-align en estilos inline del usuario lo overridea. */
+.catalog-text-content {
+  text-align: justify;
+  hyphens: auto;
+}
 .catalog-text-content ul {
   list-style-type: disc;
   padding-left: 1.5em;

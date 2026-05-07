@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, addDoc } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, Marca } from '@ags/shared';
+import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, CategoriaPatron, Marca } from '@ags/shared';
 import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
@@ -243,7 +243,7 @@ function toInstrumento(id: string, data: any): InstrumentoPatron {
 export const instrumentosService = {
   async getAll(filters?: {
     tipo?: 'instrumento' | 'patron';
-    categoria?: CategoriaInstrumento;
+    categoria?: CategoriaInstrumento | CategoriaPatron;
     activoOnly?: boolean;
   }): Promise<InstrumentoPatron[]> {
     let q = query(collection(db, 'instrumentos'));
@@ -357,7 +357,7 @@ export const instrumentosService = {
   },
 
   subscribe(
-    filters: { tipo?: 'instrumento' | 'patron'; categoria?: CategoriaInstrumento; activoOnly?: boolean } | undefined,
+    filters: { tipo?: 'instrumento' | 'patron'; categoria?: CategoriaInstrumento | CategoriaPatron; activoOnly?: boolean } | undefined,
     callback: (items: InstrumentoPatron[]) => void,
     onError?: (error: Error) => void,
   ) {

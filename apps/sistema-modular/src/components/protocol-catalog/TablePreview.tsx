@@ -136,6 +136,18 @@ export const TablePreview = ({ table }: Props) => {
                         {row.titleText || ''}
                       </td>
                     </tr>
+                  ) : row.isCheckboxRow ? (
+                    <tr key={row.rowId} className="bg-white">
+                      <td colSpan={Math.max(table.columns.length, 1)}
+                        className="px-3 py-2 border border-slate-200 align-top">
+                        <div className="flex items-start gap-2">
+                          <input type="checkbox" disabled className="mt-0.5 w-3.5 h-3.5 accent-teal-600 shrink-0" />
+                          <span className="text-xs text-slate-700 leading-relaxed text-justify whitespace-pre-line" style={{ hyphens: 'auto' }}>
+                            {row.checkboxText || '(checkbox vacío)'}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
                   ) : row.isSelector ? (() => {
                     const splitSelector = (row.selectorColumn ?? 0) > 0;
                     const dropdownCol = row.selectorColumn ?? 0;
