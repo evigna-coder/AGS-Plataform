@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { join, extname } = require('path');
 const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
+const crypto = require('crypto');
 const http = require('http');
 const os = require('os');
 
@@ -63,6 +64,81 @@ function startStaticServer(distPath) {
       const port = server.address().port;
       console.log(`[StaticServer] Serving ${distPath} on http://localhost:${port}`);
       resolve(port);
+    });
+  });
+}
+
+// ===== Google OAuth manual (Electron) =====
+// Abre una ventana, deja al user logear en Google, intercepta el redirect al
+// handler de Firebase y extrae el id_token del fragment. Devuelve los tokens
+// para que el renderer los use con signInWithCredential.
+function runGoogleOAuthFlow({ clientId, authDomain, hd }) {
+  return new Promise((resolve, reject) => {
+    const redirectUri = `https://${authDomain}/__/auth/handler`;
+    const state = crypto.randomBytes(16).toString('hex');
+    const nonce = crypto.randomBytes(16).toString('hex');
+
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'id_token token');
+    authUrl.searchParams.set('scope', 'openid email profile');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('nonce', nonce);
+    authUrl.searchParams.set('prompt', 'select_account');
+    if (hd) authUrl.searchParams.set('hd', hd);
+
+    const win = new BrowserWindow({
+      width: 500,
+      height: 700,
+      autoHideMenuBar: true,
+      title: 'Iniciar sesión con Google',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    let resolved = false;
+
+    const handleNavigation = (event, url) => {
+      if (!url || !url.startsWith(redirectUri)) return;
+
+      // Implicit flow devuelve los tokens en el fragment (#)
+      const fragment = url.includes('#') ? url.split('#')[1] : '';
+      const params = new URLSearchParams(fragment);
+      const idToken = params.get('id_token');
+      const accessToken = params.get('access_token');
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      const returnedState = params.get('state');
+
+      try { event.preventDefault(); } catch {}
+      resolved = true;
+      try { win.close(); } catch {}
+
+      if (error) {
+        return reject(new Error(`OAuth error: ${error}${errorDescription ? ' - ' + errorDescription : ''}`));
+      }
+      if (returnedState !== state) {
+        return reject(new Error('OAuth state mismatch — posible ataque CSRF'));
+      }
+      if (!idToken) {
+        return reject(new Error('Google no devolvió id_token'));
+      }
+
+      resolve({ idToken, accessToken, nonce });
+    };
+
+    win.webContents.on('will-redirect', handleNavigation);
+    win.webContents.on('will-navigate', handleNavigation);
+
+    win.on('closed', () => {
+      if (!resolved) reject(new Error('User cancelled sign-in'));
+    });
+
+    win.loadURL(authUrl.toString()).catch(err => {
+      if (!resolved) reject(new Error(`No se pudo abrir Google OAuth: ${err.message}`));
     });
   });
 }
@@ -192,6 +268,26 @@ function registerIpcHandlers() {
     const existing = getDriveConfig();
     saveDriveConfig({ ...existing, ...config });
     return true;
+  });
+
+  // IPC: Google Sign-In via OAuth manual.
+  // signInWithPopup de Firebase rompe en Electron porque la nav cross-origin
+  // del popup pierde window.opener -> el handler de Firebase no puede postMessage
+  // al parent y devuelve auth/popup-closed-by-user.
+  // Acá hacemos el OAuth implicit flow nosotros: abrimos una ventana, escuchamos
+  // el redirect a `https://<authDomain>/__/auth/handler`, extraemos id_token del
+  // fragment y lo devolvemos. El renderer hace signInWithCredential con eso.
+  ipcMain.handle('auth:google-signin', async (_event, opts) => {
+    const { clientId, authDomain, hd } = opts || {};
+    if (!clientId || !authDomain) {
+      return { error: 'Falta clientId o authDomain' };
+    }
+    try {
+      const result = await runGoogleOAuthFlow({ clientId, authDomain, hd });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
   });
 
   // Shell: abrir archivo con app por defecto del sistema

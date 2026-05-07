@@ -3,6 +3,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  signInWithCredential,
   getRedirectResult,
   setPersistence,
   browserLocalPersistence,
@@ -13,6 +14,20 @@ import {
   type Unsubscribe,
 } from 'firebase/auth';
 import { app } from './firebaseService';
+
+// Tipos para la API expuesta por preload.cjs en Electron.
+type ElectronAuthAPI = {
+  signInWithGoogle: (opts: {
+    clientId: string;
+    authDomain: string;
+    hd?: string;
+  }) => Promise<{ ok?: boolean; error?: string; idToken?: string; accessToken?: string; nonce?: string }>;
+};
+declare global {
+  interface Window {
+    authAPI?: ElectronAuthAPI;
+  }
+}
 
 const auth = getAuth(app);
 const ALLOWED_DOMAIN = 'agsanalitica.com';
@@ -60,6 +75,26 @@ export async function signInWithGoogle(): Promise<User | null> {
   // "logueás → te echa por dominio → vuelve a auto-loguear con la misma".
   provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: 'select_account' });
   try {
+    // Electron desktop: usar OAuth manual via main process. signInWithPopup
+    // queda roto en Electron por la pérdida de window.opener en cross-origin nav.
+    if (window.authAPI?.signInWithGoogle) {
+      const clientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
+      const authDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+      if (!clientId || !authDomain) {
+        throw new Error('Faltan VITE_GOOGLE_OAUTH_CLIENT_ID o VITE_FIREBASE_AUTH_DOMAIN en el build');
+      }
+      const result = await window.authAPI.signInWithGoogle({
+        clientId,
+        authDomain,
+        hd: ALLOWED_DOMAIN,
+      });
+      if (result.error || !result.idToken) {
+        throw new Error(result.error || 'No se obtuvo id_token de Google');
+      }
+      const credential = GoogleAuthProvider.credential(result.idToken, result.accessToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      return userCredential.user;
+    }
     // Mobile (Safari iOS sobre todo): usar redirect — popup rompe por ITP, las
     // cookies del popup no vuelven al parent y queda en loop. Desktop sigue con
     // popup por mejor UX.

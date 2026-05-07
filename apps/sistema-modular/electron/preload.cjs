@@ -41,6 +41,13 @@ try {
     getConfig: () => ipcRenderer.invoke('drive:get-config'),
     saveConfig: (config) => ipcRenderer.invoke('drive:save-config', config),
   });
+
+  // API de Auth: OAuth manual de Google para Electron.
+  // signInWithPopup de Firebase no funciona en Electron (window.opener se pierde
+  // en cross-origin nav). Usamos esta API en lugar del popup en main process.
+  contextBridge.exposeInMainWorld('authAPI', {
+    signInWithGoogle: (opts) => ipcRenderer.invoke('auth:google-signin', opts),
+  });
   
   console.log('[Preload] Electron API expuesta correctamente');
 } catch (error) {
