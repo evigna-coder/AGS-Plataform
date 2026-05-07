@@ -1672,6 +1672,39 @@ export const CatalogTableView: React.FC<Props> = ({
         </div>
       )}
 
+      {/* Filas checkbox: renderizadas full-width entre el header y la tabla. */}
+      {(() => {
+        const checkboxRows = table.templateRows.filter(r => r.isCheckboxRow);
+        if (checkboxRows.length === 0) return null;
+        return (
+          <div className={`px-3 ${compact ? 'py-1.5' : 'py-2'} space-y-1.5 border-b border-slate-200 bg-white`}>
+            {checkboxRows.map(row => {
+              const checked = selection.filledData[row.rowId]?.['_check_'] === '1';
+              return (
+                <label
+                  key={row.rowId}
+                  className={`flex items-start gap-2 ${readOnly || isPrint ? 'cursor-default' : 'cursor-pointer'}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={readOnly || isPrint}
+                    onChange={(e) => onChangeData(selection.tableId, row.rowId, '_check_', e.target.checked ? '1' : '')}
+                    className="mt-0.5 w-3.5 h-3.5 accent-teal-600 shrink-0 disabled:cursor-default"
+                  />
+                  <span
+                    className={`${isPrint ? 'text-[10px]' : 'text-xs'} text-slate-700 leading-relaxed text-justify whitespace-pre-line`}
+                    style={{ hyphens: 'auto' }}
+                  >
+                    {row.checkboxText ?? ''}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Tabla */}
       <div className={isPrint ? '' : readOnly ? '' : 'overflow-x-auto'}>
         {(() => {
@@ -2053,31 +2086,8 @@ export const CatalogTableView: React.FC<Props> = ({
                 );
               }
               if (row.isCheckboxRow) {
-                const checked = selection.filledData[row.rowId]?.['_check_'] === '1';
-                return (
-                  <tr key={row.rowId} className={isPrint ? 'border-b border-slate-200' : 'border-b border-slate-100'}>
-                    <td
-                      colSpan={Math.max(visibleColumns.length, 1)}
-                      className={`px-2 ${compact ? 'py-1.5' : 'py-2'} align-top`}
-                    >
-                      <label className={`flex items-start gap-2 ${readOnly || isPrint ? 'cursor-default' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={readOnly || isPrint}
-                          onChange={(e) => onChangeData(selection.tableId, row.rowId, '_check_', e.target.checked ? '1' : '')}
-                          className="mt-0.5 w-3.5 h-3.5 accent-teal-600 shrink-0 disabled:cursor-default"
-                        />
-                        <span
-                          className={`${isPrint ? 'text-[10px]' : 'text-xs'} text-slate-700 leading-relaxed text-justify whitespace-pre-line`}
-                          style={{ hyphens: 'auto' }}
-                        >
-                          {row.checkboxText ?? ''}
-                        </span>
-                      </label>
-                    </td>
-                  </tr>
-                );
+                // Filas checkbox se renderizan fuera del <table>, en su propio bloque arriba del thead.
+                return null;
               }
               if (row.isSelector) {
                 const selectorValue = selection.filledData[row.rowId]?.['_selector_'] ?? '';

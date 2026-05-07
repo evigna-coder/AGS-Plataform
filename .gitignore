@@ -9,6 +9,10 @@ coverage/
 # Production
 dist/
 build/
+# Excepción: assets de build del instalable de sistema-modular (ícono, etc.)
+!apps/sistema-modular/build/
+# Pero no commitear releases generados ahí
+apps/sistema-modular/release/
 
 # Misc
 .DS_Store

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { join } = require('path');
 const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
 const os = require('os');
@@ -6,6 +6,67 @@ const os = require('os');
 // Configuración de la ventana
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const port = 3001;
+
+// ===== Auto-updater =====
+// Skip en dev: electron-updater requiere app empaquetada y un latest.yml accesible.
+function setupAutoUpdater(targetWindow) {
+  if (isDev) {
+    console.log('[AutoUpdater] Skipping in dev mode');
+    return;
+  }
+
+  let autoUpdater;
+  try {
+    autoUpdater = require('electron-updater').autoUpdater;
+  } catch (err) {
+    console.error('[AutoUpdater] electron-updater not available:', err.message);
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('error', (err) => {
+    console.error('[AutoUpdater] Error:', err?.message || err);
+  });
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[AutoUpdater] Checking for update...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('[AutoUpdater] Update available:', info?.version);
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('[AutoUpdater] Up to date');
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`[AutoUpdater] Downloading: ${Math.round(progress.percent)}% (${Math.round(progress.bytesPerSecond / 1024)} KB/s)`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[AutoUpdater] Downloaded:', info?.version);
+    const choice = dialog.showMessageBoxSync(targetWindow, {
+      type: 'info',
+      buttons: ['Reiniciar ahora', 'Después'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Actualización disponible',
+      message: `AGS Sistema Modular v${info?.version} está lista para instalar.`,
+      detail: 'Reinicie la aplicación para aplicar la actualización. Los cambios sin guardar se perderán.',
+    });
+    if (choice === 0) {
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  // Primera verificación 10s después del arranque (no bloquea el primer render)
+  setTimeout(() => autoUpdater.checkForUpdates().catch(err => console.error('[AutoUpdater]', err?.message)), 10_000);
+  // Re-check cada 4 horas
+  setInterval(() => autoUpdater.checkForUpdates().catch(err => console.error('[AutoUpdater]', err?.message)), 4 * 60 * 60 * 1000);
+}
 
 // ===== Google Drive Auth (Service Account) =====
 const AGS_DIR = join(os.homedir(), '.ags');
@@ -417,7 +478,8 @@ if (!gotTheLock) {
   // Cuando Electron esté listo
   app.whenReady().then(() => {
     registerIpcHandlers();
-    createWindow();
+    const mainWindow = createWindow();
+    setupAutoUpdater(mainWindow);
 
     app.on('activate', () => {
       // En macOS, recrear ventana cuando se hace clic en el dock

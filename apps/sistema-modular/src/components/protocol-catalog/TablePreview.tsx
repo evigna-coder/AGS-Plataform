@@ -15,6 +15,24 @@ export const TablePreview = ({ table }: Props) => {
         <span className="text-xs text-slate-400 uppercase font-bold">{table.tableType}</span>
       </div>
 
+      {/* Filas checkbox: renderizadas full-width entre el header y la tabla. */}
+      {(() => {
+        const checkboxRows = table.templateRows.filter(r => r.isCheckboxRow);
+        if (checkboxRows.length === 0) return null;
+        return (
+          <div className="px-4 py-2 space-y-1.5 border-b border-slate-300 bg-white">
+            {checkboxRows.map(row => (
+              <label key={row.rowId} className="flex items-start gap-2 cursor-default">
+                <input type="checkbox" disabled className="mt-0.5 w-3.5 h-3.5 accent-teal-600 shrink-0" />
+                <span className="text-xs text-slate-700 leading-relaxed text-justify whitespace-pre-line" style={{ hyphens: 'auto' }}>
+                  {row.checkboxText || '(checkbox vacío)'}
+                </span>
+              </label>
+            ))}
+          </div>
+        );
+      })()}
+
       {table.columns.length === 0 ? (
         <div className="p-6 text-center text-slate-400 text-sm">Sin columnas definidas</div>
       ) : (
@@ -137,17 +155,8 @@ export const TablePreview = ({ table }: Props) => {
                       </td>
                     </tr>
                   ) : row.isCheckboxRow ? (
-                    <tr key={row.rowId} className="bg-white">
-                      <td colSpan={Math.max(table.columns.length, 1)}
-                        className="px-3 py-2 border border-slate-200 align-top">
-                        <div className="flex items-start gap-2">
-                          <input type="checkbox" disabled className="mt-0.5 w-3.5 h-3.5 accent-teal-600 shrink-0" />
-                          <span className="text-xs text-slate-700 leading-relaxed text-justify whitespace-pre-line" style={{ hyphens: 'auto' }}>
-                            {row.checkboxText || '(checkbox vacío)'}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
+                    // Render arriba del <table>, no acá. Skip dentro de tbody.
+                    null
                   ) : row.isSelector ? (() => {
                     const splitSelector = (row.selectorColumn ?? 0) > 0;
                     const dropdownCol = row.selectorColumn ?? 0;

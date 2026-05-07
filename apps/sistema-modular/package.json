@@ -1,15 +1,15 @@
 {
   "name": "@ags/sistema-modular",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --port 3001",
     "dev:electron": "concurrently -k -n \"VITE,ELECTRON\" -c \"blue,green\" \"vite --port 3001\" \"node scripts/wait-and-start-electron.cjs\" || exit 0",
-    "build": "vite build && electron-builder",
+    "build": "vite build && electron-builder --publish never",
     "build:web": "vite build",
-    "build:desktop": "vite build --mode desktop && electron-builder",
+    "build:desktop": "vite build --mode desktop && electron-builder --publish never",
     "preview": "vite preview",
     "electron": "node scripts/start-electron.cjs",
     "electron:dev": "node scripts/start-electron.cjs --dev",
@@ -19,13 +19,17 @@
     "e2e:report": "npx tsx e2e/generate-report.ts",
     "e2e:full": "npx playwright test --project=chromium && npx tsx e2e/generate-report.ts",
     "test:stock-amplio": "tsx src/services/__tests__/stockAmplio.test.ts",
-    "test:cuotas-facturacion": "tsx src/services/__tests__/cuotasFacturacion.test.ts"
+    "test:cuotas-facturacion": "tsx src/services/__tests__/cuotasFacturacion.test.ts",
+    "release:patch": "node scripts/release.cjs patch",
+    "release:minor": "node scripts/release.cjs minor",
+    "release:major": "node scripts/release.cjs major"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/utilities": "^3.2.2",
     "@react-pdf/renderer": "^4.3.2",
     "date-fns": "^4.1.0",
+    "electron-updater": "^6.8.3",
     "firebase": "^12.11.0",
     "google-auth-library": "^9.15.1",
     "jszip": "^3.10.1",
@@ -51,6 +55,7 @@
     "electron": "^40.0.0",
     "electron-builder": "^25.1.8",
     "firebase-admin": "^13.0.0",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.21.0",
@@ -62,12 +67,13 @@
     "appId": "com.agsanalitica.sistema-modular",
     "productName": "AGS Sistema Modular",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*",
-      "node_modules/**/*"
+      "electron/**/*",
+      "package.json"
     ],
     "win": {
       "target": [
@@ -78,13 +84,22 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "artifactName": "AGS-Sistema-Modular-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "AGS Sistema Modular"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "evigna-coder",
+      "repo": "AGS-Plataform",
+      "releaseType": "release",
+      "private": true
     }
   }
 }

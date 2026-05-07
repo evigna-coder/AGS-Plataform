@@ -1,0 +1,45 @@
+name: Release sistema-modular
+
+on:
+  push:
+    tags:
+      - 'sistema-modular-v*'
+
+# Permite que el workflow cree releases en este repo.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build sistema-modular (vite)
+        working-directory: apps/sistema-modular
+        run: pnpm exec vite build --mode desktop
+
+      - name: Build & publish installer (electron-builder)
+        working-directory: apps/sistema-modular
+        env:
+          # GH_TOKEN: token usado por electron-builder para publicar al release de GitHub.
+          # Tambien queda embebido en app-update.yml para que el cliente instalado pueda
+          # consultar releases de un repo privado.
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: pnpm exec electron-builder --win --publish always
