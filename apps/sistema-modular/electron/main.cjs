@@ -1,11 +1,71 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const { join } = require('path');
+const { join, extname } = require('path');
 const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
+const http = require('http');
 const os = require('os');
 
 // Configuración de la ventana
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
-const port = 3001;
+const devPort = 3001;
+
+// Puerto del servidor estático interno en producción (asignado dinámicamente).
+// Necesario porque Firebase Auth rechaza file:// (auth/unauthorized-domain).
+let prodPort = null;
+
+function getAppOrigin() {
+  return isDev ? `http://localhost:${devPort}` : `http://localhost:${prodPort}`;
+}
+
+// Servidor estático mínimo para servir el bundle de Vite en producción.
+// Soporta SPA fallback (cualquier ruta no-archivo devuelve index.html).
+function startStaticServer(distPath) {
+  const mimeTypes = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.mjs': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.ico': 'image/x-icon',
+    '.map': 'application/json',
+    '.webmanifest': 'application/manifest+json',
+  };
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      try {
+        let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+        if (urlPath === '/') urlPath = '/index.html';
+        let filePath = join(distPath, urlPath);
+        if (!filePath.startsWith(distPath)) {
+          res.writeHead(403); res.end('Forbidden'); return;
+        }
+        if (!existsSync(filePath)) {
+          // SPA fallback: rutas tipo /clientes/123 -> index.html
+          filePath = join(distPath, 'index.html');
+        }
+        const mime = mimeTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
+        const content = readFileSync(filePath);
+        res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache' });
+        res.end(content);
+      } catch (err) {
+        console.error('[StaticServer]', err.message);
+        res.writeHead(500); res.end('Server error');
+      }
+    });
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      console.log(`[StaticServer] Serving ${distPath} on http://localhost:${port}`);
+      resolve(port);
+    });
+  });
+}
 
 // ===== Auto-updater =====
 // Skip en dev: electron-updater requiere app empaquetada y un latest.yml accesible.
@@ -176,12 +236,7 @@ function registerIpcHandlers() {
       backgroundColor: '#f1f5f9',
     });
 
-    if (isDev) {
-      moduleWindow.loadURL(`http://localhost:${port}${route}`);
-    } else {
-      const indexPath = join(__dirname, '../dist/index.html');
-      moduleWindow.loadFile(indexPath, { hash: route });
-    }
+    moduleWindow.loadURL(`${getAppOrigin()}${route}`);
 
     moduleWindow.once('ready-to-show', () => {
       moduleWindow.show();
@@ -295,11 +350,11 @@ function createWindow() {
   // Cargar la aplicación
   if (isDev) {
     // Modo desarrollo: cargar desde Vite dev server
-    console.log(`Intentando cargar desde http://localhost:${port}`);
-    
+    console.log(`Intentando cargar desde http://localhost:${devPort}`);
+
     // Función para intentar cargar con retry
     const loadApp = (retries = 5) => {
-      mainWindow.loadURL(`http://localhost:${port}`)
+      mainWindow.loadURL(`http://localhost:${devPort}`)
         .then(() => {
           console.log('Página cargada exitosamente');
           mainWindow.webContents.openDevTools();
@@ -316,7 +371,7 @@ function createWindow() {
                   <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px;">
                     <h1 style="color: #dc2626; margin-bottom: 1rem;">⚠️ Error de Conexión</h1>
                     <p style="color: #64748b; margin-bottom: 0.5rem;">No se pudo conectar al servidor Vite.</p>
-                    <p style="color: #64748b; margin-bottom: 1rem;">Asegúrate de que el servidor esté corriendo en el puerto ${port}</p>
+                    <p style="color: #64748b; margin-bottom: 1rem;">Asegúrate de que el servidor esté corriendo en el puerto ${devPort}</p>
                     <p style="color: #94a3b8; font-size: 0.875rem; margin-top: 1rem;">Abre DevTools (F12) para más detalles</p>
                   </div>
                 </div>
@@ -333,13 +388,13 @@ function createWindow() {
     // Abrir DevTools inmediatamente para debugging
     mainWindow.webContents.openDevTools();
   } else {
-    // Modo producción: cargar desde archivos estáticos
-    const indexPath = join(__dirname, '../dist/index.html');
-    if (existsSync(indexPath)) {
-      mainWindow.loadFile(indexPath);
-    } else {
-      console.error('No se encontró el archivo index.html en dist/');
+    // Modo producción: cargar desde el servidor estático interno (localhost).
+    // Necesario para Firebase Auth — file:// dispara auth/unauthorized-domain.
+    if (!prodPort) {
+      console.error('Servidor estático no inicializado antes de createWindow');
+      return mainWindow;
     }
+    mainWindow.loadURL(`http://localhost:${prodPort}/`);
   }
 
   // Asegurar que la ventana esté visible y al frente
@@ -391,7 +446,7 @@ function createWindow() {
             <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
               <h1 style="color: #dc2626; margin-bottom: 1rem;">⚠️ Error de Conexión</h1>
               <p style="color: #64748b; margin-bottom: 0.5rem;">No se pudo conectar al servidor Vite.</p>
-              <p style="color: #64748b; margin-bottom: 1rem;">Asegúrate de que el servidor esté corriendo en el puerto ${port}</p>
+              <p style="color: #64748b; margin-bottom: 1rem;">Asegúrate de que el servidor esté corriendo en el puerto ${devPort}</p>
               <p style="color: #94a3b8; font-size: 0.875rem;">Error: ${errorDescription}</p>
             </div>
           </div>
@@ -431,7 +486,7 @@ function createWindow() {
       };
     }
     // URLs de la misma app (localhost en dev) → abrir como ventana Electron con preload
-    const appOrigin = isDev ? `http://localhost:${port}` : 'file://';
+    const appOrigin = getAppOrigin();
     if (url.startsWith(appOrigin)) {
       return {
         action: 'allow',
@@ -476,8 +531,18 @@ if (!gotTheLock) {
   });
 
   // Cuando Electron esté listo
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     registerIpcHandlers();
+    if (!isDev) {
+      const distPath = join(__dirname, '..', 'dist');
+      try {
+        prodPort = await startStaticServer(distPath);
+      } catch (err) {
+        console.error('No se pudo arrancar el servidor estático:', err);
+        app.quit();
+        return;
+      }
+    }
     const mainWindow = createWindow();
     setupAutoUpdater(mainWindow);
 
