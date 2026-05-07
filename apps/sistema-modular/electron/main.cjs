@@ -309,43 +309,39 @@ function createWindow() {
     skipTaskbar: false // Mostrar en la barra de tareas
   });
 
-  // Configurar Content Security Policy en el header de respuesta
-  // En desarrollo, necesitamos 'unsafe-eval' para Vite HMR y React Fast Refresh
-  // Esta advertencia es normal en desarrollo y no aparecerá en producción
-  if (isDev) {
-    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
-            "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
-            "img-src 'self' data: blob: http://localhost:* https:; " +
-            "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
-            "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
-          ]
-        }
-      });
+  // Content Security Policy: solo aplica a URLs propias.
+  // No pisamos los headers de sitios externos (accounts.google.com, etc.) porque
+  // eso rompe el popup de Firebase Auth — la CSP nuestra es más restrictiva
+  // que la de Google y bloquea sus scripts.
+  const ourCsp = isDev
+    ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
+      "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
+      "img-src 'self' data: blob: http://localhost:* https:; " +
+      "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
+      "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
+    : "default-src 'self'; " +
+      "script-src 'self' https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "img-src 'self' data: blob: https:; " +
+      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "connect-src 'self' data: blob: https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;";
+
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const url = details.url || '';
+    const isOurOrigin = url.startsWith('http://localhost:') || url.startsWith('http://127.0.0.1:') || url.startsWith('devtools://');
+    if (!isOurOrigin) {
+      // Sitio externo (auth de Google, etc.) — dejá pasar sus headers tal cual
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [ourCsp],
+      },
     });
-  } else {
-    // En producción, usar CSP más estricta sin unsafe-eval
-    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self'; " +
-            "script-src 'self' https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-            "img-src 'self' data: blob: https:; " +
-            "font-src 'self' data: https://fonts.gstatic.com; " +
-            "connect-src 'self' data: blob: https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
-          ]
-        }
-      });
-    });
-  }
+  });
 
   // Cargar la aplicación
   if (isDev) {
