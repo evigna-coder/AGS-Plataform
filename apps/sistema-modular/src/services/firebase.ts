@@ -85,8 +85,15 @@ try {
   // Si en el futuro queremos persistencia, hay que estabilizar el puerto del
   // static server (fixed port o registrar protocol app://).
   try {
-    db = initializeFirestore(app, { localCache: memoryLocalCache() });
-    console.log('%c✅ Firestore inicializado (cache en memoria)', 'color: green; font-weight: bold');
+    // experimentalForceLongPolling: el AV de tu máquina (Avast) y/o el firewall
+    // pueden estar interceptando el WebChannel/WebSocket que Firestore usa por
+    // defecto, dejando al SDK reportando "client is offline" eternamente. Forzar
+    // long-polling cae a HTTP plano que ningún AV bloquea.
+    db = initializeFirestore(app, {
+      localCache: memoryLocalCache(),
+      experimentalForceLongPolling: true,
+    });
+    console.log('%c✅ Firestore inicializado (memoria + long-polling)', 'color: green; font-weight: bold');
   } catch (innerErr) {
     console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', innerErr);
     db = getFirestore(app);

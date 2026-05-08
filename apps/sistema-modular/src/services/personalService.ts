@@ -219,16 +219,27 @@ export const proveedoresService = {
 export const usuariosService = {
   async upsertOnLogin(user: { uid: string; email: string; displayName: string; photoURL: string | null }): Promise<UsuarioAGS> {
     const ref = doc(db, 'usuarios', user.uid);
-    // getDoc (cache-first, fallback automático a server). Robusto en Electron
-    // donde el SDK de Firestore a veces reporta "client is offline" inmediatamente
-    // post signInWithCredential aunque la red esté OK (race condition con la
-    // adquisición del token).
-    //
-    // Trade-off: si el cache local tiene una versión stale del doc (ej. el user
-    // se aprobó después del último login), al loguear de nuevo va a mostrar el
-    // estado viejo brevemente — al rato la sincro de Firestore lo refresca.
-    // Aceptamos ese flash raro a cambio de estabilidad.
-    const existing = await getDoc(ref);
+    // Retry con backoff: el SDK de Firestore en Electron a veces reporta
+    // "client is offline" la primera vez post signInWithCredential porque su
+    // conexión al server (long-polling) recién se está estableciendo. 3 intentos
+    // con 600ms / 1.2s / 1.8s suelen alcanzar para que la sesión se enganche.
+    let existing: Awaited<ReturnType<typeof getDoc>> | null = null;
+    let lastErr: unknown = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        existing = await getDoc(ref);
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        const isOffline = /offline/i.test(msg);
+        if (!isOffline || i === 2) throw err;
+        console.warn(`[upsertOnLogin] retry ${i + 1}/3 tras offline:`, msg);
+        await new Promise(r => setTimeout(r, 600 * (i + 1)));
+      }
+    }
+    if (!existing) throw lastErr ?? new Error('No se pudo leer doc usuario');
     if (existing.exists()) {
       await updateDoc(ref, { lastLoginAt: Timestamp.now() });
       const d = existing.data() as Record<string, any>;
