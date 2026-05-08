@@ -4,7 +4,7 @@ import { qfDocumentosService } from '../../services/qfDocumentosService';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
-import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -113,11 +113,26 @@ export function QFDocumentosList() {
   }, [docs, filters]);
 
   const sorted = useMemo(() => {
-    const items = filtered.map(d => ({
-      ...d,
-      __ultimaRevisionCambios: d.historial?.[d.historial.length - 1]?.cambios ?? '',
-    }));
-    return sortByField(items, filters.sortField, filters.sortDir as SortDir);
+    const field = filters.sortField;
+    const dir = filters.sortDir as SortDir;
+    // Comparator self-contained — no field.split / reduce / synthetic field.
+    // El patrón anterior con sortByField + objeto extendido tiraba "Cannot access X
+    // before initialization" en algunos builds minificados (TDZ tras tree-shaking).
+    const getValue = (d: QFDocumento): string => {
+      if (field === '__ultimaRevisionCambios') {
+        const h = d.historial;
+        return (h && h.length > 0 ? h[h.length - 1].cambios : '') ?? '';
+      }
+      const v = (d as unknown as Record<string, unknown>)[field];
+      if (v == null) return '';
+      return typeof v === 'string' ? v : String(v);
+    };
+    const items = [...filtered];
+    items.sort((a, b) => {
+      const cmp = getValue(a).localeCompare(getValue(b));
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    return items;
   }, [filtered, filters.sortField, filters.sortDir]);
 
   const handleSort = (f: string) => {
@@ -225,7 +240,8 @@ export function QFDocumentosList() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sorted.map(d => {
-                  const ultimaRevision = d.__ultimaRevisionCambios;
+                  const h = d.historial;
+                  const ultimaRevision = (h && h.length > 0 ? h[h.length - 1].cambios : '') ?? '';
                   return (
                     <tr key={d.id} className="hover:bg-slate-50">
                       {!isHidden(0) && (
