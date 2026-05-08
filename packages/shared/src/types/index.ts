@@ -2085,6 +2085,9 @@ export const CATEGORIA_PATRON_LABELS: Record<CategoriaPatron, string> = {
 /** Estado del certificado (calculado en runtime, no se persiste) */
 export type EstadoCertificado = 'vigente' | 'por_vencer' | 'vencido' | 'sin_certificado';
 
+/** Estado operativo del instrumento respecto a calibración (se persiste). */
+export type EstadoCalibracion = 'operativo' | 'en_calibracion';
+
 /** Calcula el estado del certificado según la fecha de vencimiento */
 export function calcularEstadoCertificado(
   vencimiento: string | null | undefined,
@@ -2099,6 +2102,29 @@ export function calcularEstadoCertificado(
   const diffDias = Math.ceil((venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDias <= diasAlerta) return 'por_vencer';
   return 'vigente';
+}
+
+/**
+ * Entrada del historial de certificados de un instrumento.
+ * Se mueve aquí el cert vigente cuando se sube uno nuevo (recalibración).
+ */
+export interface CertificadoHistorialEntry {
+  /** UUID propio de la entrada */
+  id: string;
+  certificadoUrl: string;
+  certificadoNombre: string;
+  certificadoStoragePath: string;
+  certificadoEmisor?: string | null;
+  certificadoFechaEmision?: string | null;
+  certificadoVencimiento?: string | null;
+  /** ISO — cuándo se movió al historial (i.e. cuándo lo reemplazó otro) */
+  reemplazadoEn: string;
+  /** Quién hizo el reemplazo */
+  reemplazadoPorUid?: string | null;
+  reemplazadoPorNombre?: string | null;
+  /** Vinculación opcional al remito de la derivación que lo retornó */
+  remitoDerivacionId?: string | null;
+  remitoDerivacionNumero?: string | null;
 }
 
 /** Instrumento o Patrón de referencia con certificado vinculado */
@@ -2132,6 +2158,20 @@ export interface InstrumentoPatron {
   /** Asignación actual (ingeniero) */
   asignadoAId?: string | null;
   asignadoANombre?: string | null;
+  /** Historial de certificados anteriores. Se llena al recalibrar. */
+  certificadosHistorial?: CertificadoHistorialEntry[];
+  /** Estado operativo (no derivado de fecha): operativo | en_calibracion */
+  estadoCalibracion?: EstadoCalibracion;
+  /** Si está en calibración: a qué proveedor se derivó */
+  calibracionProveedorId?: string | null;
+  calibracionProveedorNombre?: string | null;
+  /** Remito generado al derivar (FK + número desnormalizado) */
+  calibracionRemitoId?: string | null;
+  calibracionRemitoNumero?: string | null;
+  /** ISO — cuándo se envió a calibrar */
+  calibracionFechaEnvio?: string | null;
+  /** Observaciones libres del envío */
+  calibracionObservaciones?: string | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;

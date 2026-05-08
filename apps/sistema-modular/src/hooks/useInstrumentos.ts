@@ -93,6 +93,20 @@ export function useInstrumentos() {
     }
   }, []);
 
+  const derivarACalibracion = useCallback(async (
+    instrumentoId: string,
+    payload: Parameters<typeof instrumentosService.derivarACalibracion>[1],
+  ) => {
+    await instrumentosService.derivarACalibracion(instrumentoId, payload);
+  }, []);
+
+  const retornarDeCalibracion = useCallback(async (
+    instrumentoId: string,
+    input: Parameters<typeof instrumentosService.retornarDeCalibracion>[1],
+  ) => {
+    return await instrumentosService.retornarDeCalibracion(instrumentoId, input);
+  }, []);
+
   return {
     instrumentos,
     loading,
@@ -104,5 +118,7 @@ export function useInstrumentos() {
     deleteInstrumento,
     uploadCertificado,
     uploadTrazabilidad,
+    derivarACalibracion,
+    retornarDeCalibracion,
   };
 }

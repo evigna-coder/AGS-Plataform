@@ -7,12 +7,14 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { formatFechaAR } from '../../utils/formatFecha';
 import {
   CATEGORIA_INSTRUMENTO_LABELS,
   CATEGORIA_PATRON_LABELS,
   calcularEstadoCertificado,
   type CategoriaInstrumento,
   type CategoriaPatron,
+  type CertificadoHistorialEntry,
   type InstrumentoPatron,
   type Marca,
 } from '@ags/shared';
@@ -59,6 +61,13 @@ export const InstrumentoEditorPage = () => {
   const [reemplazaA, setReemplazaA] = useState<string | null>(null);
   const [reemplazadoPor, setReemplazadoPor] = useState<string | null>(null);
 
+  // Calibración + historial (solo lectura)
+  const [certificadosHistorial, setCertificadosHistorial] = useState<CertificadoHistorialEntry[]>([]);
+  const [estadoCalibracion, setEstadoCalibracion] = useState<'operativo' | 'en_calibracion' | undefined>(undefined);
+  const [calibracionProveedorNombre, setCalibracionProveedorNombre] = useState<string | null>(null);
+  const [calibracionRemitoNumero, setCalibracionRemitoNumero] = useState<string | null>(null);
+  const [calibracionFechaEnvio, setCalibracionFechaEnvio] = useState<string | null>(null);
+
   const certFileRef = useRef<HTMLInputElement>(null);
   const trazFileRef = useRef<HTMLInputElement>(null);
   const [uploadingCert, setUploadingCert] = useState(false);
@@ -89,6 +98,11 @@ export const InstrumentoEditorPage = () => {
         setTrazabilidadNombre(inst.trazabilidadNombre || null);
         setReemplazaA(inst.reemplazaA || null);
         setReemplazadoPor(inst.reemplazadoPor || null);
+        setCertificadosHistorial(inst.certificadosHistorial ?? []);
+        setEstadoCalibracion(inst.estadoCalibracion);
+        setCalibracionProveedorNombre(inst.calibracionProveedorNombre ?? null);
+        setCalibracionRemitoNumero(inst.calibracionRemitoNumero ?? null);
+        setCalibracionFechaEnvio(inst.calibracionFechaEnvio ?? null);
         setLoading(false);
       });
     }
@@ -317,6 +331,64 @@ export const InstrumentoEditorPage = () => {
               onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadTraz(f); e.target.value = ''; }} />
           </div>
         </Card>
+
+        {/* Calibración en curso */}
+        {!isNew && estadoCalibracion === 'en_calibracion' && (
+          <Card compact>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-blue-800">En calibración</h3>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800">
+                {calibracionProveedorNombre ?? 'Proveedor'}
+              </span>
+            </div>
+            <div className="text-xs text-slate-600 space-y-1">
+              {calibracionFechaEnvio && <p>Enviado: <strong>{formatFechaAR(calibracionFechaEnvio)}</strong></p>}
+              {calibracionRemitoNumero && <p>Remito: <span className="font-mono">{calibracionRemitoNumero}</span></p>}
+              <p className="text-slate-400">Para retornar el instrumento, usá el botón «Retornar» del listado.</p>
+            </div>
+          </Card>
+        )}
+
+        {/* Historial de certificados */}
+        {!isNew && certificadosHistorial.length > 0 && (
+          <Card compact>
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">
+              Historial de certificados
+              <span className="ml-2 text-xs font-normal text-slate-500">({certificadosHistorial.length})</span>
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-200">
+                    <th className="py-1.5 pr-3 font-medium">Archivo</th>
+                    <th className="py-1.5 pr-3 font-medium">Emisor</th>
+                    <th className="py-1.5 pr-3 font-medium">Vencía</th>
+                    <th className="py-1.5 pr-3 font-medium">Reemplazado</th>
+                    <th className="py-1.5 pr-3 font-medium">Remito</th>
+                    <th className="py-1.5 font-medium">Por</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {certificadosHistorial.map(h => (
+                    <tr key={h.id}>
+                      <td className="py-1.5 pr-3">
+                        <a href={h.certificadoUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-teal-600 hover:underline truncate inline-block max-w-[240px]">
+                          {h.certificadoNombre}
+                        </a>
+                      </td>
+                      <td className="py-1.5 pr-3 text-slate-600">{h.certificadoEmisor || '—'}</td>
+                      <td className="py-1.5 pr-3 text-slate-600">{formatFechaAR(h.certificadoVencimiento) || '—'}</td>
+                      <td className="py-1.5 pr-3 text-slate-600">{formatFechaAR(h.reemplazadoEn)}</td>
+                      <td className="py-1.5 pr-3 text-slate-600 font-mono">{h.remitoDerivacionNumero || '—'}</td>
+                      <td className="py-1.5 text-slate-500">{h.reemplazadoPorNombre || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         {/* Reemplazo (solo edición) */}
         {!isNew && (reemplazaA || reemplazadoPor) && (

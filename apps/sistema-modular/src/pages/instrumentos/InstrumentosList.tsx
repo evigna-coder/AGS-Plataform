@@ -7,6 +7,12 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateInstrumentoModal } from '../../components/instrumentos/CreateInstrumentoModal';
+import { DerivarCalibracionModal } from '../../components/instrumentos/DerivarCalibracionModal';
+import { RetornarCalibracionModal } from '../../components/instrumentos/RetornarCalibracionModal';
+import { InstrumentosListPDF } from '../../components/instrumentos/InstrumentosListPDF';
+import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
+import { formatFechaAR } from '../../utils/formatFecha';
+import { getCurrentUser } from '../../services/currentUser';
 import {
   CATEGORIA_INSTRUMENTO_LABELS,
   CATEGORIA_PATRON_LABELS,
@@ -23,11 +29,14 @@ import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
-const ESTADO_BADGE: Record<EstadoCertificado, { label: string; cls: string }> = {
+type EstadoEfectivo = EstadoCertificado | 'en_calibracion';
+
+const ESTADO_BADGE: Record<EstadoEfectivo, { label: string; cls: string }> = {
   vigente: { label: 'Vigente', cls: 'bg-green-100 text-green-800' },
   por_vencer: { label: 'Por vencer', cls: 'bg-amber-100 text-amber-800' },
   vencido: { label: 'Vencido', cls: 'bg-red-100 text-red-800' },
   sin_certificado: { label: 'Sin cert.', cls: 'bg-slate-100 text-slate-500' },
+  en_calibracion: { label: 'En calibración', cls: 'bg-blue-100 text-blue-800' },
 };
 
 const ALL_CAT_LABELS: Record<string, string> = { ...CATEGORIA_INSTRUMENTO_LABELS, ...CATEGORIA_PATRON_LABELS };
@@ -45,6 +54,7 @@ const ESTADO_CERT_OPTIONS = [
   { value: 'vigente', label: 'Vigente' },
   { value: 'por_vencer', label: 'Por vencer' },
   { value: 'vencido', label: 'Vencido' },
+  { value: 'en_calibracion', label: 'En calibración' },
   { value: 'sin_certificado', label: 'Sin certificado' },
 ];
 
@@ -55,12 +65,20 @@ const FILTER_SCHEMA = {
   showInactive: { type: 'boolean' as const, default: false },
 };
 
+function getEstadoEfectivo(i: InstrumentoPatron): EstadoEfectivo {
+  if (i.estadoCalibracion === 'en_calibracion') return 'en_calibracion';
+  return calcularEstadoCertificado(i.certificadoVencimiento);
+}
+
 export const InstrumentosList = () => {
 
   const confirm = useConfirm();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('instrumentos-list');
   const { instrumentos, loading, error, listInstrumentos, deactivateInstrumento } = useInstrumentos();
   const [showCreate, setShowCreate] = useState(false);
+  const [derivarTarget, setDerivarTarget] = useState<InstrumentoPatron | null>(null);
+  const [retornarTarget, setRetornarTarget] = useState<InstrumentoPatron | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const [filters, setFilter, setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('nombre');
@@ -88,12 +106,13 @@ export const InstrumentosList = () => {
 
   const filtered = useMemo(() => {
     let result = instrumentos;
-    if (filters.estadoCert) result = result.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === filters.estadoCert);
+    if (filters.estadoCert) result = result.filter(i => getEstadoEfectivo(i) === filters.estadoCert);
     return sortByField(result, sortField, sortDir);
   }, [instrumentos, filters.estadoCert, sortField, sortDir]);
 
-  const vencidos = instrumentos.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === 'vencido');
-  const porVencer = instrumentos.filter(i => calcularEstadoCertificado(i.certificadoVencimiento) === 'por_vencer');
+  const vencidos = instrumentos.filter(i => getEstadoEfectivo(i) === 'vencido');
+  const porVencer = instrumentos.filter(i => getEstadoEfectivo(i) === 'por_vencer');
+  const enCalibracion = instrumentos.filter(i => i.estadoCalibracion === 'en_calibracion');
 
   const handleDeactivate = async (inst: InstrumentoPatron) => {
     if (!await confirm(`¿Desactivar "${inst.nombre}"?`)) return;
@@ -102,6 +121,32 @@ export const InstrumentosList = () => {
       reload();
     } catch {
       alert('Error al desactivar el instrumento');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (filtered.length === 0) return;
+    setExporting(true);
+    try {
+      const filtrosLabel = [
+        filters.tipo && `Tipo: ${filters.tipo}`,
+        filters.categoria && `Categoría: ${ALL_CAT_LABELS[filters.categoria] || filters.categoria}`,
+        filters.estadoCert && `Estado: ${ESTADO_BADGE[filters.estadoCert as EstadoEfectivo]?.label ?? filters.estadoCert}`,
+        filters.showInactive && 'Incluye inactivos',
+      ].filter(Boolean).join(' · ');
+      const user = getCurrentUser();
+      await openRemitoPdfInNewTab(
+        <InstrumentosListPDF
+          items={filtered}
+          generadoPor={user?.displayName ?? null}
+          filtros={filtrosLabel || undefined}
+        />,
+      );
+    } catch (err) {
+      console.error('Error exportando PDF:', err);
+      alert('No se pudo generar el PDF');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -114,11 +159,17 @@ export const InstrumentosList = () => {
         subtitle="Gestionar instrumentos, patrones y certificados de calibración"
         count={isInitialLoad ? undefined : filtered.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo instrumento</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => void handleExportPdf()}
+              disabled={exporting || filtered.length === 0}>
+              {exporting ? 'Generando…' : 'Exportar PDF'}
+            </Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo instrumento</Button>
+          </div>
         }
       >
         <div className="space-y-2">
-          {(vencidos.length > 0 || porVencer.length > 0) && (
+          {(vencidos.length > 0 || porVencer.length > 0 || enCalibracion.length > 0) && (
             <div className="flex gap-2 flex-wrap">
               {vencidos.length > 0 && (
                 <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
@@ -128,6 +179,11 @@ export const InstrumentosList = () => {
               {porVencer.length > 0 && (
                 <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1">
                   <span className="text-amber-700 text-[11px] font-medium">{porVencer.length} cert. por vencer (30d)</span>
+                </div>
+              )}
+              {enCalibracion.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                  <span className="text-blue-700 text-[11px] font-medium">{enCalibracion.length} en calibración</span>
                 </div>
               )}
             </div>
@@ -182,13 +238,13 @@ export const InstrumentosList = () => {
                 <colgroup>
                   <col style={{ width: '10%' }} />
                   <col style={{ width: 80 }} />
-                  <col style={{ width: '16%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '14%' }} />
                   <col style={{ width: 90 }} />
-                  <col style={{ width: 80 }} />
-                  <col style={{ width: 110 }} />
+                  <col style={{ width: 95 }} />
+                  <col style={{ width: 140 }} />
                 </colgroup>
               )}
               <thead className="sticky top-0 z-10">
@@ -218,8 +274,10 @@ export const InstrumentosList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(inst => {
-                  const estado = calcularEstadoCertificado(inst.certificadoVencimiento);
+                  const estado = getEstadoEfectivo(inst);
                   const badge = ESTADO_BADGE[estado];
+                  const enCalibracion = inst.estadoCalibracion === 'en_calibracion';
+                  const necesitaCalibrar = !enCalibracion && (estado === 'vencido' || estado === 'por_vencer' || estado === 'sin_certificado');
                   return (
                     <tr key={inst.id} className={`hover:bg-slate-50 transition-colors ${!inst.activo ? 'opacity-50' : ''}`}>
                       <td className={`px-3 py-2 text-xs font-semibold text-teal-600 truncate ${getAlignClass(0)}`} title={inst.nombre}>{inst.nombre}</td>
@@ -245,7 +303,11 @@ export const InstrumentosList = () => {
                           </a>
                         ) : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(6)}`}>{inst.certificadoVencimiento || <span className="text-slate-300">—</span>}</td>
+                      <td className={`px-3 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(6)}`}>
+                        {inst.certificadoVencimiento
+                          ? formatFechaAR(inst.certificadoVencimiento)
+                          : <span className="text-slate-300">—</span>}
+                      </td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(7)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>
                           {badge.label}
@@ -253,11 +315,23 @@ export const InstrumentosList = () => {
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-end gap-0.5">
+                          {enCalibracion && (
+                            <button onClick={() => setRetornarTarget(inst)}
+                              className="text-[10px] font-medium text-blue-600 hover:text-blue-800 px-1 py-0.5 rounded hover:bg-blue-50">
+                              Retornar
+                            </button>
+                          )}
+                          {necesitaCalibrar && inst.activo && (
+                            <button onClick={() => setDerivarTarget(inst)}
+                              className="text-[10px] font-medium text-amber-600 hover:text-amber-800 px-1 py-0.5 rounded hover:bg-amber-50">
+                              Derivar
+                            </button>
+                          )}
                           <Link to={`/instrumentos/${inst.id}/editar`}
                             className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100">
                             Editar
                           </Link>
-                          {inst.activo && (
+                          {inst.activo && !enCalibracion && (
                             <button onClick={() => handleDeactivate(inst)}
                               className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50">
                               Desactivar
@@ -275,6 +349,22 @@ export const InstrumentosList = () => {
       </div>
 
       <CreateInstrumentoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={reload} />
+      {derivarTarget && (
+        <DerivarCalibracionModal
+          open={!!derivarTarget}
+          instrumento={derivarTarget}
+          onClose={() => setDerivarTarget(null)}
+          onDerivado={reload}
+        />
+      )}
+      {retornarTarget && (
+        <RetornarCalibracionModal
+          open={!!retornarTarget}
+          instrumento={retornarTarget}
+          onClose={() => setRetornarTarget(null)}
+          onRetornado={reload}
+        />
+      )}
     </div>
   );
 };

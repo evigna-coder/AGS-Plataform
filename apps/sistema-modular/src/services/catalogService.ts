@@ -1,7 +1,8 @@
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp, addDoc } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, CategoriaPatron, Marca } from '@ags/shared';
+import type { TableCatalogEntry, InstrumentoPatron, CategoriaInstrumento, CategoriaPatron, Marca, CertificadoHistorialEntry } from '@ags/shared';
 import { db, storage, createBatch, newDocRef, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
+import { getCurrentUserTrace } from './currentUser';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // --- Biblioteca de Tablas (/tableCatalog) ---
@@ -354,6 +355,92 @@ export const instrumentosService = {
 
   async deleteStorageFile(storagePath: string): Promise<void> {
     await deleteObject(storageRef(storage, storagePath));
+  },
+
+  // ── Calibración: derivación a proveedor y retorno ──
+
+  /**
+   * Marca el instrumento como `en_calibracion` y guarda los datos del envío
+   * (proveedor + remito generado). NO crea el remito — eso lo hace el caller
+   * via `remitosService.create`. Solo persiste la referencia.
+   */
+  async derivarACalibracion(instrumentoId: string, payload: {
+    proveedorId: string;
+    proveedorNombre: string;
+    remitoId: string;
+    remitoNumero: string;
+    fechaEnvio: string;
+    observaciones?: string | null;
+  }): Promise<void> {
+    await this.update(instrumentoId, {
+      estadoCalibracion: 'en_calibracion',
+      calibracionProveedorId: payload.proveedorId,
+      calibracionProveedorNombre: payload.proveedorNombre,
+      calibracionRemitoId: payload.remitoId,
+      calibracionRemitoNumero: payload.remitoNumero,
+      calibracionFechaEnvio: payload.fechaEnvio,
+      calibracionObservaciones: payload.observaciones ?? null,
+    });
+  },
+
+  /**
+   * Retorna el instrumento de calibración: mueve el cert vigente al historial,
+   * sube el cert nuevo, lo deja como vigente y vuelve a `operativo`. El archivo
+   * antiguo NO se borra de Storage — queda accesible vía la URL guardada en el
+   * historial.
+   */
+  async retornarDeCalibracion(instrumentoId: string, input: {
+    nuevoCert: File;
+    nuevoEmisor?: string | null;
+    nuevoFechaEmision?: string | null;
+    nuevoVencimiento: string;
+  }): Promise<{ url: string; path: string }> {
+    const inst = await this.getById(instrumentoId);
+    if (!inst) throw new Error(`Instrumento ${instrumentoId} no encontrado`);
+
+    const actor = getCurrentUserTrace();
+    const historial: CertificadoHistorialEntry[] = [...(inst.certificadosHistorial ?? [])];
+    if (inst.certificadoUrl && inst.certificadoStoragePath) {
+      historial.unshift({
+        id: crypto.randomUUID(),
+        certificadoUrl: inst.certificadoUrl,
+        certificadoNombre: inst.certificadoNombre ?? 'Certificado',
+        certificadoStoragePath: inst.certificadoStoragePath,
+        certificadoEmisor: inst.certificadoEmisor ?? null,
+        certificadoFechaEmision: inst.certificadoFechaEmision ?? null,
+        certificadoVencimiento: inst.certificadoVencimiento ?? null,
+        reemplazadoEn: new Date().toISOString(),
+        reemplazadoPorUid: actor?.uid ?? null,
+        reemplazadoPorNombre: actor?.name ?? null,
+        remitoDerivacionId: inst.calibracionRemitoId ?? null,
+        remitoDerivacionNumero: inst.calibracionRemitoNumero ?? null,
+      });
+    }
+
+    // Sufijo timestamp para no pisar el archivo antiguo en Storage.
+    const safeName = input.nuevoCert.name;
+    const path = `certificados/${instrumentoId}/${Date.now()}-${safeName}`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, input.nuevoCert, { contentType: input.nuevoCert.type || 'application/pdf' });
+    const url = await getDownloadURL(fileRef);
+
+    await this.update(instrumentoId, {
+      certificadoUrl: url,
+      certificadoNombre: safeName,
+      certificadoStoragePath: path,
+      certificadoEmisor: input.nuevoEmisor ?? null,
+      certificadoFechaEmision: input.nuevoFechaEmision ?? null,
+      certificadoVencimiento: input.nuevoVencimiento,
+      certificadosHistorial: historial,
+      estadoCalibracion: 'operativo',
+      calibracionProveedorId: null,
+      calibracionProveedorNombre: null,
+      calibracionRemitoId: null,
+      calibracionRemitoNumero: null,
+      calibracionFechaEnvio: null,
+      calibracionObservaciones: null,
+    });
+    return { url, path };
   },
 
   subscribe(
