@@ -417,19 +417,21 @@ function createWindow() {
   // No pisamos los headers de sitios externos (accounts.google.com, etc.) porque
   // eso rompe el popup de Firebase Auth — la CSP nuestra es más restrictiva
   // que la de Google y bloquea sus scripts.
-  const ourCsp = isDev
-    ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
-      "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: http://localhost:* https:; " +
-      "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
-      "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;"
-    : "default-src 'self'; " +
-      "script-src 'self' https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: https:; " +
-      "font-src 'self' data: https://fonts.gstatic.com; " +
-      "connect-src 'self' data: blob: https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;";
+  // CSP unificada para dev y prod. Originalmente teníamos CSP estricta en prod
+  // (sin 'unsafe-inline', 'unsafe-eval', 'wasm-unsafe-eval', etc.) que iba
+  // descubriendo features rotas a medida que la app se usaba (PDF generation
+  // necesita wasm-unsafe-eval, algunos libs precisan unsafe-eval, etc.).
+  //
+  // Dado que es una app Electron de uso interno (no servida desde internet),
+  // la CSP estricta no aporta seguridad real — el riesgo es el código que
+  // nosotros mismos shipeamos. Relajamos para evitar más sorpresas.
+  const ourCsp =
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app data: blob:; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com; " +
+    "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
+    "img-src 'self' data: blob: http://localhost:* https:; " +
+    "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
+    "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;";
 
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url || '';
