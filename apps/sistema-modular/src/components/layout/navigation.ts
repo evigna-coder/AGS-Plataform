@@ -94,7 +94,6 @@ export const navigation: NavItem[] = [
   {
     name: 'Personas', path: '#personas', icon: '🧑‍💼',
     children: [
-      { name: 'Usuarios', path: '/usuarios', icon: '👤', modulo: 'usuarios' },
       // Ingenieros usa el gate de `usuarios` — mismo "padrón de personal".
       { name: 'Ingenieros', path: '/stock/ingenieros', icon: '👷', modulo: 'usuarios' },
     ],
@@ -103,6 +102,7 @@ export const navigation: NavItem[] = [
   {
     name: 'Admin', path: '/admin', icon: '⚙️', modulo: 'admin',
     children: [
+      { name: 'Usuarios', path: '/usuarios', icon: '👤', modulo: 'usuarios' },
       { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐', modulo: 'table-catalog' },
       { name: 'Auditoría', path: '/admin/auditoria', icon: '🔍', separator: true },
       { name: 'Importar Excel', path: '/admin/importar' },
@@ -185,6 +185,11 @@ export function useNavigation(): NavItem[] {
   const isDesktopMvp = import.meta.env.VITE_DESKTOP_MVP === 'true';
 
   const filterNode = (node: NavItem, inheritedModulo: ModuloId | undefined): NavItem | null => {
+    // Si el nodo tiene su propio módulo y el user no lo puede acceder, ocultar
+    // el nodo completo (incluyendo grupos con hijos visibles). Esto hace que
+    // p.ej. el grupo "Admin" (modulo: 'admin') se oculte para non-admins
+    // aunque uno de sus hijos (table-catalog) esté permitido por rol.
+    if (node.modulo && !canAccess(node.modulo)) return null;
     const effectiveModulo = node.modulo ?? inheritedModulo;
     if (!node.children) {
       if (!isPathFlagAllowed(node.path, flags, isDesktopMvp)) return null;

@@ -250,6 +250,10 @@ export const usuariosService = {
         photoURL: d.photoURL ?? null,
         role: d.role ?? null,
         status: d.status,
+        // permisos: el override per-user que controla qué módulos ve cada
+        // usuario individualmente. SIN esto, canAccess() siempre cae a los
+        // defaults del rol y los unticks en /usuarios/{id} se ignoraban.
+        permisos: d.permisos ?? null,
         createdAt: d.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
