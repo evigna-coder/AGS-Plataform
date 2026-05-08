@@ -218,6 +218,24 @@ export function batchAudit(
  *   si querés diff sobre strings ISO.
  * - undefined se trata como ausencia de la clave.
  */
+/** Convierte undefined → null recursivamente. Firestore rechaza undefined; null
+ * es válido. Necesario en el payload del audit porque `before`/`after` vienen
+ * directos del doc del usuario y pueden tener undefined en campos opcionales.
+ */
+function nullifyUndefined(v: unknown): unknown {
+  if (v === undefined) return null;
+  if (v === null) return null;
+  if (Array.isArray(v)) return v.map(nullifyUndefined);
+  if (typeof v === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      out[k] = nullifyUndefined(val);
+    }
+    return out;
+  }
+  return v;
+}
+
 export function auditDiff(
   before: Record<string, unknown> | null | undefined,
   after: Record<string, unknown> | null | undefined,
@@ -234,8 +252,11 @@ export function auditDiff(
     // Comparación por JSON. Aproximación pragmática que evita falsos positivos
     // por orden de keys y captura cambios en arrays/objetos anidados.
     if (JSON.stringify(bv) !== JSON.stringify(av)) {
-      changedBefore[k] = bv;
-      changedAfter[k] = av;
+      // Firestore no acepta undefined → convertir a null. Aplica recursivo
+      // por si bv/av son objetos con undefined dentro (ej. cliente con
+      // convenioMultilateral: undefined).
+      changedBefore[k] = nullifyUndefined(bv);
+      changedAfter[k] = nullifyUndefined(av);
       any = true;
     }
   }
@@ -299,6 +320,9 @@ export function logBusinessEvent(params: {
   batch?: ReturnType<typeof writeBatch>;
 }): void {
   const user = getCurrentUserTrace();
+  // details viene de los servicios y puede tener undefined en campos opcionales;
+  // Firestore rechaza undefined, así que normalizamos a null recursivo.
+  const cleanedDetails = params.details ? (nullifyUndefined(params.details) as Record<string, unknown>) : null;
   const entry = {
     action: 'business_event' as AuditAction,
     eventName: params.eventName,
@@ -307,7 +331,7 @@ export function logBusinessEvent(params: {
     userId: user?.uid ?? 'unknown',
     userName: user?.name ?? 'unknown',
     timestamp: Timestamp.now(),
-    details: params.details ?? null,
+    details: cleanedDetails,
     entityLabel: params.entityLabel ?? null,
   };
   if (params.batch) {
