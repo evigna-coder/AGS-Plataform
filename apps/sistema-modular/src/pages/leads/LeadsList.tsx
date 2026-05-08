@@ -125,6 +125,14 @@ export const LeadsList = () => {
     return areas.length > 0 ? new Set(areas) : null;
   }, [usuario, isAdmin]);
 
+  // Declarado arriba de leadsSorted porque su useMemo lo referencia para
+  // case 'asignadoA'. Si está declarado después tira TDZ "Cannot access
+  // before initialization" cuando se sortea por la columna Usuario.
+  const getResponsableNombre = (id: string | null) => {
+    if (!id) return '—';
+    return usuarios.find(u => u.id === id)?.displayName || '—';
+  };
+
   const leadsFiltered = useMemo(() => {
     let result = leads;
 
@@ -213,11 +221,6 @@ export const LeadsList = () => {
     leadsFiltered.reduce((sum, l) => sum + (l.valorEstimado || 0), 0),
     [leadsFiltered]
   );
-
-  const getResponsableNombre = (id: string | null) => {
-    if (!id) return '—';
-    return usuarios.find(u => u.id === id)?.displayName || '—';
-  };
 
   const formatDate = (d?: string) => {
     if (!d) return '—';
