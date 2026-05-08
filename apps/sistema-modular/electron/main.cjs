@@ -626,23 +626,20 @@ app.on('child-process-gone', (_e, det) => console.error('[App] child-process-gon
 process.on('uncaughtException', (err) => console.error('[Main] uncaughtException:', err));
 process.on('unhandledRejection', (err) => console.error('[Main] unhandledRejection:', err));
 
-// Prevenir múltiples instancias.
-// IMPORTANTE: el primer launch post-instalación/update suele fallar este check
-// porque el proceso anterior (el que se reemplazó) todavía retiene el lock unos
-// segundos. En lugar de quit (que dejaba la app cerrada hasta que el user la
-// volviera a abrir manualmente), relaunch — la nueva instancia arranca después
-// de que el SO libera el lock.
+// Single-instance lock: lo intentamos pero NO actuamos si falla.
+//
+// Antes hacíamos quit / relaunch al fallar, pero eso causaba un blip visible
+// post-install (el proceso viejo retenía el lock unos segundos, el nuevo
+// fallaba y se relanzaba — el user veía la app cerrarse y volver a abrir).
+//
+// Ahora: si falla el lock, simplemente seguimos. En el peor caso de que un
+// user abra el shortcut dos veces, tendrá dos ventanas (acceptable). El
+// 'second-instance' event sigue funcionando para focusear la ventana
+// existente cuando el lock SÍ se obtuvo correctamente.
 const gotTheLock = app.requestSingleInstanceLock();
 console.log('[App] requestSingleInstanceLock →', gotTheLock);
 
-if (!gotTheLock) {
-  console.log('[App] Lock ocupado (probable transición post-update). Relanzando en 1.5s...');
-  setTimeout(() => {
-    console.log('[App] Ejecutando relaunch + exit');
-    app.relaunch();
-    app.exit(0);
-  }, 1500);
-} else {
+{
   app.on('second-instance', () => {
     // Si alguien intenta abrir otra instancia, enfocar la ventana existente
     const existingWindow = BrowserWindow.getAllWindows()[0];

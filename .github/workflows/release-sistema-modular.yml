@@ -62,7 +62,10 @@ jobs:
 
       - name: Build sistema-modular (vite)
         working-directory: apps/sistema-modular
-        run: pnpm exec vite build --mode desktop
+        # Sin --mode desktop: cargar .env.desktop activaba VITE_DESKTOP_MVP=true
+        # que restringe el sidebar a 5 módulos. El usuario quiere todos los
+        # módulos visibles (RBAC ya filtra por rol).
+        run: pnpm exec vite build
 
       - name: Build & publish installer (electron-builder)
         working-directory: apps/sistema-modular
