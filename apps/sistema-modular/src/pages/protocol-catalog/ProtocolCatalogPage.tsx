@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
+import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { useTableCatalog } from '../../hooks/useTableCatalog';
 import { useTableProjects } from '../../hooks/useTableProjects';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { ColMenu, type ColMenuHandle } from '../../components/ui/ColMenu';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -12,6 +14,20 @@ import { ProjectSelector } from '../../components/protocol-catalog/ProjectSelect
 import { BulkAddModelosModal } from '../../components/protocol-catalog/BulkAddModelosModal';
 import type { TableCatalogEntry, TableProject } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+
+const thBase = 'px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-slate-400 relative select-none';
+
+const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
+  active ? (
+    <svg className="w-3 h-3 text-teal-500 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d={dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+    </svg>
+  ) : (
+    <svg className="w-3 h-3 text-slate-300 inline-block ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+    </svg>
+  );
 
 const SYS_TYPES = ['HPLC', 'GC', 'MSD', 'HSS', 'UV', 'OSMOMETRO', 'POLARIMETRO', 'HTA', 'OTRO'];
 const LS_KEY = 'ags:tableCatalog:activeProject';
@@ -58,6 +74,49 @@ export const TableCatalogPage = () => {
     setSortField(s.field); setSortDir(s.dir);
   };
   const sortedTables = useMemo(() => sortByField(tables, sortField, sortDir), [tables, sortField, sortDir]);
+
+  // Resizable / alignable / hideable columns. Index 0 = checkbox (no resize),
+  // 1..9 = data columns, último = acciones (no resize).
+  const {
+    tableRef, colAligns,
+    onResizeStart, onAutoFit, setAlign, getAlignClass,
+    isHidden, hideCol, showAllCols, hiddenCols,
+  } = useResizableColumns('table-catalog');
+
+  const colMenuRefs = useRef(new Map<number, ColMenuHandle>());
+  const openColMenuAt = useCallback((i: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    colMenuRefs.current.get(i)?.openAt(e.clientX, e.clientY);
+  }, []);
+  const setColMenuRef = useCallback((i: number) => (handle: ColMenuHandle | null) => {
+    if (handle) colMenuRefs.current.set(i, handle);
+    else colMenuRefs.current.delete(i);
+  }, []);
+
+  const renderTh = (i: number, sortKey: string, label: string) => {
+    if (isHidden(i)) return null;
+    const active = sortField === sortKey;
+    return (
+      <th
+        className={`${thBase} cursor-pointer hover:text-slate-600 ${getAlignClass(i)}`}
+        onClick={() => handleSort(sortKey)}
+        onContextMenu={(e) => openColMenuAt(i, e)}
+      >
+        <ColMenu
+          ref={setColMenuRef(i)}
+          align={colAligns?.[i] ?? 'left'}
+          onAlign={(a) => setAlign(i, a)}
+          onHide={() => hideCol(i)}
+        />
+        {label}<SortIcon active={active} dir={sortDir} />
+        <div
+          onMouseDown={(e) => { e.stopPropagation(); onResizeStart(i, e); }}
+          onDoubleClick={() => onAutoFit(i)}
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40"
+        />
+      </th>
+    );
+  };
 
   const selectProject = useCallback((pid: string | null | undefined) => {
     setActiveProjectId(pid);
@@ -228,8 +287,16 @@ export const TableCatalogPage = () => {
           <Card><div className="text-center py-12"><p className="text-slate-400">No hay tablas en este proyecto.</p></div></Card>
         ) : (
           <Card>
+            {hiddenCols.length > 0 && (
+              <button
+                onClick={showAllCols}
+                className="text-[10px] text-slate-500 hover:text-teal-700 mb-2 underline block"
+              >
+                Mostrar {hiddenCols.length} columna{hiddenCols.length > 1 ? 's' : ''} oculta{hiddenCols.length > 1 ? 's' : ''}
+              </button>
+            )}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table ref={tableRef} className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 w-10">
@@ -237,20 +304,16 @@ export const TableCatalogPage = () => {
                         ref={el => { if (el) el.indeterminate = someSelected; }}
                         onChange={toggleAll} className="w-4 h-4 accent-blue-600 cursor-pointer" />
                     </th>
-                    {([
-                      ['#', 'orden'],
-                      ['Nombre', 'name'],
-                      ['SysType', 'sysType'],
-                      ['Modelos', 'modelos'],
-                      ['Tipo', 'tableType'],
-                      ['Cols', 'columns.length'],
-                      ['Filas', 'templateRows.length'],
-                      ['Default', 'isDefault'],
-                      ['Estado', 'status'],
-                    ] as [string, string][]).map(([label, field]) => (
-                      <SortableHeader key={field} label={label} field={field} currentField={sortField} currentDir={sortDir} onSort={handleSort} className="px-3 py-2 text-center font-medium text-slate-400 tracking-wider text-xs" />
-                    ))}
-                    <th className="px-3 py-2 text-center font-medium text-slate-400 tracking-wider text-xs">Acciones</th>
+                    {renderTh(1, 'orden', '#')}
+                    {renderTh(2, 'name', 'Nombre')}
+                    {renderTh(3, 'sysType', 'SysType')}
+                    {renderTh(4, 'modelos', 'Modelos')}
+                    {renderTh(5, 'tableType', 'Tipo')}
+                    {renderTh(6, 'columns.length', 'Cols')}
+                    {renderTh(7, 'templateRows.length', 'Filas')}
+                    {renderTh(8, 'isDefault', 'Default')}
+                    {renderTh(9, 'status', 'Estado')}
+                    <th className={`${thBase} text-right text-slate-400`}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -259,21 +322,25 @@ export const TableCatalogPage = () => {
                     return (
                       <tr key={t.id} className={`hover:bg-slate-50 ${sel ? 'bg-blue-50/60' : ''}`}>
                         <td className="px-4 py-3"><input type="checkbox" checked={sel} onChange={() => toggleOne(t.id)} className="w-4 h-4 accent-blue-600 cursor-pointer" /></td>
-                        <td className="px-4 py-3 text-slate-400 text-xs text-center font-mono">{t.orden || '—'}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900">{t.name}</td>
-                        <td className="px-4 py-3 text-slate-600 font-mono text-xs">{t.sysType || '—'}</td>
-                        <td className="px-4 py-3 text-xs text-slate-500 max-w-[180px] truncate" title={t.modelos?.join(', ') || 'Todos'}>
-                          {t.modelos?.length ? t.modelos.join(', ') : <span className="text-slate-300">Todos</span>}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 text-xs">{TABLE_TYPE_LABELS[t.tableType] ?? t.tableType}</td>
-                        <td className="px-4 py-3 text-slate-600 text-center">{t.columns.length}</td>
-                        <td className="px-4 py-3 text-slate-600 text-center">{t.templateRows.length}</td>
-                        <td className="px-4 py-3 text-center">{t.isDefault ? <span className="text-green-600 font-bold text-xs">✓</span> : <span className="text-slate-300 text-xs">—</span>}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${STATUS_COLORS[t.status] ?? 'bg-slate-100 text-slate-600'}`}>{STATUS_LABELS[t.status] ?? t.status}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-3">
+                        {!isHidden(1) && <td className={`px-4 py-3 text-slate-400 text-xs font-mono ${getAlignClass(1)}`}>{t.orden || '—'}</td>}
+                        {!isHidden(2) && <td className={`px-4 py-3 font-bold text-slate-900 ${getAlignClass(2)}`}>{t.name}</td>}
+                        {!isHidden(3) && <td className={`px-4 py-3 text-slate-600 font-mono text-xs ${getAlignClass(3)}`}>{t.sysType || '—'}</td>}
+                        {!isHidden(4) && (
+                          <td className={`px-4 py-3 text-xs text-slate-500 max-w-[180px] truncate ${getAlignClass(4)}`} title={t.modelos?.join(', ') || 'Todos'}>
+                            {t.modelos?.length ? t.modelos.join(', ') : <span className="text-slate-300">Todos</span>}
+                          </td>
+                        )}
+                        {!isHidden(5) && <td className={`px-4 py-3 text-slate-500 text-xs ${getAlignClass(5)}`}>{TABLE_TYPE_LABELS[t.tableType] ?? t.tableType}</td>}
+                        {!isHidden(6) && <td className={`px-4 py-3 text-slate-600 ${getAlignClass(6)}`}>{t.columns.length}</td>}
+                        {!isHidden(7) && <td className={`px-4 py-3 text-slate-600 ${getAlignClass(7)}`}>{t.templateRows.length}</td>}
+                        {!isHidden(8) && <td className={`px-4 py-3 ${getAlignClass(8)}`}>{t.isDefault ? <span className="text-green-600 font-bold text-xs">✓</span> : <span className="text-slate-300 text-xs">—</span>}</td>}
+                        {!isHidden(9) && (
+                          <td className={`px-4 py-3 ${getAlignClass(9)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${STATUS_COLORS[t.status] ?? 'bg-slate-100 text-slate-600'}`}>{STATUS_LABELS[t.status] ?? t.status}</span>
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <div className="inline-flex gap-3">
                             <Link to={`/table-catalog/${t.id}/edit`}><button className="text-blue-600 hover:underline font-medium text-xs">Editar</button></Link>
                             <button onClick={() => handleClone(t)} className="text-slate-600 hover:underline font-medium text-xs">Clonar</button>
                             {t.status !== 'published' && <button onClick={() => handlePublish(t)} className="text-green-600 hover:underline font-medium text-xs">Publicar</button>}

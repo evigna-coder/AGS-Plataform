@@ -11,17 +11,36 @@ interface Props {
   onSuccess: () => void;
 }
 
+function toIsoDate(iso: string): string {
+  // Convierte una fecha ISO completa (con tiempo) a yyyy-mm-dd para input type=date
+  try { return new Date(iso).toISOString().slice(0, 10); } catch { return iso.slice(0, 10); }
+}
+
+function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function EditarQFModal({ qf, onClose, onSuccess }: Props) {
   const [nombre, setNombre] = useState(qf.nombre);
   const [descripcion, setDescripcion] = useState(qf.descripcion ?? '');
   const [estado, setEstado] = useState<QFEstado>(qf.estado);
+  const [overrideFechaAlta, setOverrideFechaAlta] = useState(false);
+  const [fechaAlta, setFechaAlta] = useState<string>(toIsoDate(qf.fechaCreacion));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fechaActualIso = toIsoDate(qf.fechaCreacion);
+  const fechaAltaCambiada = overrideFechaAlta && fechaAlta !== fechaActualIso;
 
   const dirty =
     nombre.trim() !== qf.nombre ||
     (descripcion || '').trim() !== (qf.descripcion ?? '') ||
-    estado !== qf.estado;
+    estado !== qf.estado ||
+    fechaAltaCambiada;
 
   const handleSubmit = async () => {
     setError(null);
@@ -36,6 +55,9 @@ export function EditarQFModal({ qf, onClose, onSuccess }: Props) {
       }
       if (estado !== qf.estado) {
         await qfDocumentosService.setEstado(qf.id, estado);
+      }
+      if (fechaAltaCambiada) {
+        await qfDocumentosService.updateFechaCreacion(qf.id, fechaAlta);
       }
       onSuccess();
     } catch (e) {
@@ -109,6 +131,32 @@ export function EditarQFModal({ qf, onClose, onSuccess }: Props) {
           <p className="mt-1 text-[10px] text-slate-400">
             Cambiar a obsoleto preserva el historial completo; el documento sale del listado de vigentes pero sigue consultable.
           </p>
+        </div>
+
+        <div className="pt-1 border-t border-slate-100">
+          <label className="flex items-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={overrideFechaAlta}
+              onChange={(e) => setOverrideFechaAlta(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Modificar fecha de alta
+          </label>
+          {overrideFechaAlta && (
+            <div className="mt-1.5">
+              <input
+                type="date"
+                value={fechaAlta}
+                onChange={(e) => setFechaAlta(e.target.value)}
+                max={todayISO()}
+                className="text-xs border border-slate-300 rounded-lg px-2 py-1 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Actualiza tanto la fecha del documento como la fecha de la primera entrada del historial. Las versiones posteriores conservan su fecha original.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}

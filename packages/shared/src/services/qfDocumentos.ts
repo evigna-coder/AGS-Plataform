@@ -75,6 +75,9 @@ export interface CreateQFInput {
   cambiosIniciales: string;
   /** Versión inicial (2 dígitos). Default: "01". Útil para cargar documentos que ya venían versionados. */
   versionInicial?: string;
+  /** Fecha de alta del protocolo (ISO yyyy-mm-dd). Default: hoy. Para cargar protocolos
+   * que ya existían en papel y querés respetar la fecha original. */
+  fechaCreacion?: string;
 }
 
 export interface QFDocumentosServiceDeps {
@@ -127,10 +130,16 @@ export function makeQfDocumentosService(deps: QFDocumentosServiceDeps) {
         throw new Error(`Ya existe un documento con el número ${numeroCompleto}`);
       }
 
+      // Si pasaron fechaCreacion (ISO yyyy-mm-dd), usarla como fecha de alta del
+      // protocolo; sino, ahora. fechaUltimaActualizacion siempre = ahora (la última
+      // edición es esta).
+      const fechaAlta = input.fechaCreacion
+        ? Timestamp.fromDate(new Date(input.fechaCreacion + 'T00:00:00'))
+        : Timestamp.now();
       const now = Timestamp.now();
       const historialEntry = {
         version: versionInicial,
-        fecha: now,
+        fecha: fechaAlta,
         usuarioEmail: user.email,
         usuarioNombre: user.displayName,
         cambios: input.cambiosIniciales.trim(),
@@ -145,7 +154,7 @@ export function makeQfDocumentosService(deps: QFDocumentosServiceDeps) {
         nombre: input.nombre.trim(),
         descripcion: input.descripcion?.trim() || null,
         estado: 'vigente' as QFEstado,
-        fechaCreacion: now,
+        fechaCreacion: fechaAlta,
         fechaUltimaActualizacion: now,
         ultimoUsuarioEmail: user.email,
         ultimoUsuarioNombre: user.displayName,
@@ -201,6 +210,31 @@ export function makeQfDocumentosService(deps: QFDocumentosServiceDeps) {
         ultimoUsuarioNombre: user.displayName,
       });
       await updateDoc(doc(db, COL, id), payload);
+    },
+
+    /** Edita la fecha de creación (alta) del QF. Actualiza tanto fechaCreacion
+     * como la fecha de la primera entrada del historial (que representa la creación). */
+    async updateFechaCreacion(id: string, fechaIso: string): Promise<void> {
+      const user = getCurrentUser();
+      if (!user) throw new Error('Usuario no autenticado');
+      const ref = doc(db, COL, id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) throw new Error('QF no encontrado');
+
+      const data = snap.data() as RawDocData;
+      const newFecha = Timestamp.fromDate(new Date(fechaIso + 'T00:00:00'));
+
+      const newHistorial = [...(data.historial ?? [])];
+      if (newHistorial.length > 0) {
+        newHistorial[0] = { ...newHistorial[0], fecha: newFecha };
+      }
+
+      await updateDoc(ref, cleanFirestoreData({
+        fechaCreacion: newFecha,
+        historial: newHistorial,
+        ultimoUsuarioEmail: user.email,
+        ultimoUsuarioNombre: user.displayName,
+      }));
     },
 
     /** Cambia estado (vigente ↔ obsoleto). Preserva historial. */

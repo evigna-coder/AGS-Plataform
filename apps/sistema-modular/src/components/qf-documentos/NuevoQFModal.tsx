@@ -14,6 +14,14 @@ interface Props {
   defaultFamilia?: number;
 }
 
+function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', defaultFamilia = 7 }: Props) {
   const [tipo, setTipo] = useState<QFTipo>(defaultTipo);
   const [familia, setFamilia] = useState<string>(String(defaultFamilia));
@@ -22,6 +30,8 @@ export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', def
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [cambios, setCambios] = useState('');
+  const [overrideFechaAlta, setOverrideFechaAlta] = useState(false);
+  const [fechaAlta, setFechaAlta] = useState<string>(todayISO());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +46,7 @@ export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', def
     setTipo(defaultTipo); setFamilia(String(defaultFamilia));
     setNumero(''); setVersionInicial('01');
     setNombre(''); setDescripcion(''); setCambios('');
+    setOverrideFechaAlta(false); setFechaAlta(todayISO());
     setError(null); setSaving(false);
   };
 
@@ -53,6 +64,7 @@ export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', def
         tipo, familia: familiaNum, numero: numeroPadded,
         nombre, descripcion: descripcion || null, cambiosIniciales: cambios,
         versionInicial: versionPadded,
+        fechaCreacion: overrideFechaAlta ? fechaAlta : undefined,
       });
       reset();
       onCreated();
@@ -150,6 +162,32 @@ export function NuevoQFModal({ open, onClose, onCreated, defaultTipo = 'QF', def
           <p className="mt-1 text-[10px] text-slate-400">
             Se guarda como primera entrada del historial. Las versiones anteriores no se registran retroactivamente.
           </p>
+        </div>
+
+        <div className="pt-1 border-t border-slate-100">
+          <label className="flex items-center gap-2 text-[11px] text-slate-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={overrideFechaAlta}
+              onChange={(e) => setOverrideFechaAlta(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Modificar fecha de alta
+          </label>
+          {overrideFechaAlta && (
+            <div className="mt-1.5">
+              <input
+                type="date"
+                value={fechaAlta}
+                onChange={(e) => setFechaAlta(e.target.value)}
+                max={todayISO()}
+                className="text-xs border border-slate-300 rounded-lg px-2 py-1 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                El QF quedará registrado con esta fecha en lugar del momento actual.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}
