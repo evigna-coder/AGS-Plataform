@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
 import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
+import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
 import { agendaService } from './agendaService';
@@ -414,10 +414,29 @@ export const ordenesTrabajoService = {
       updatedAt: Timestamp.now(),
     });
 
+    // Si hay transición de estadoAdmin, capturar el estado previo para evento.
+    let previousEstado: OTEstadoAdmin | undefined;
+    if (data.estadoAdmin) {
+      const prev = await this.getByOtNumber(otNumber);
+      previousEstado = prev?.estadoAdmin;
+    }
+
     const batch = createBatch();
     batch.update(docRef('reportes', otNumber), cleanedData);
     batchAudit(batch, { action: 'update', collection: 'ordenes_trabajo', documentId: otNumber, after: cleanedData });
     await batch.commit();
+
+    // Evento de negocio: transición de estado. Hace que el cambio aparezca como
+    // un "ot.estado_cambiado" destacado en la auditoría, además del update genérico.
+    if (data.estadoAdmin && previousEstado !== data.estadoAdmin) {
+      logBusinessEvent({
+        eventName: 'ot.estado_cambiado',
+        collection: 'ordenes_trabajo',
+        documentId: otNumber,
+        details: { from: previousEstado ?? null, to: data.estadoAdmin },
+        entityLabel: `OT ${otNumber}`,
+      });
+    }
 
     // ── Auto-sync lead when OT estadoAdmin changes ──
     if (data.estadoAdmin) {
@@ -794,6 +813,19 @@ export const ordenesTrabajoService = {
         console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
       }
     }
+
+    // Evento de negocio: OT cerrada administrativamente.
+    logBusinessEvent({
+      eventName: 'ot.cerrada',
+      collection: 'ordenes_trabajo',
+      documentId: otNumber,
+      entityLabel: `OT ${otNumber}`,
+      details: {
+        adminTicketId: txResult.adminTicketId,
+        pptosNotificados: presupuestoIds,
+        notas: cierreData.notas ?? null,
+      },
+    });
 
     return {
       adminTicketId: txResult.adminTicketId,

@@ -104,7 +104,8 @@ export const navigation: NavItem[] = [
     name: 'Admin', path: '/admin', icon: '⚙️', modulo: 'admin',
     children: [
       { name: 'Biblioteca Tablas', path: '/table-catalog', icon: '📐', modulo: 'table-catalog' },
-      { name: 'Importar Excel', path: '/admin/importar', separator: true },
+      { name: 'Auditoría', path: '/admin/auditoria', icon: '🔍', separator: true },
+      { name: 'Importar Excel', path: '/admin/importar' },
       { name: 'Revisión clienteId', path: '/admin/revision-clienteid' },
       { name: 'Módulos', path: '/admin/modulos' },
       { name: 'Config Flujos', path: '/admin/config-flujos', separator: true },

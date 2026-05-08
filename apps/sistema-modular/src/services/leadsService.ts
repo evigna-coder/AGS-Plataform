@@ -7,7 +7,7 @@ import {
   TICKET_ESTADO_ORDER,
   parseLeadDoc, syncFlatFromContactos,
 } from '@ags/shared';
-import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, getCurrentUserTrace, onSnapshot } from './firebase';
+import { db, storage, deepCleanForFirestore, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, batchAudit, logBusinessEvent, getCurrentUserTrace, onSnapshot } from './firebase';
 
 /** Si el payload crea/transiciona a motivoLlamado=ventas_insumos, devuelve los campos de stamp. */
 function ventasInsumosStamp(incomingMotivo: MotivoLlamado | undefined, currentMotivo?: MotivoLlamado, hasStamp?: boolean): { ventasInsumosCreadoPor: string; ventasInsumosCreadoEn: string } | null {
@@ -278,6 +278,19 @@ export const leadsService = {
     batch.update(docRef('leads', id), data);
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'derivar', posta } });
     await batch.commit();
+    logBusinessEvent({
+      eventName: 'ticket.derivado',
+      collection: 'leads',
+      documentId: id,
+      details: {
+        de: postaFinal.deUsuarioId,
+        deNombre: postaFinal.deUsuarioNombre,
+        a: nuevoAsignadoA || null,
+        aNombre: nuevoAsignadoNombre || null,
+        area: area ?? null,
+        comentario: posta.comentario || null,
+      },
+    });
   },
 
   async completarAccion(id: string, posta: Posta) {
@@ -291,6 +304,12 @@ export const leadsService = {
     });
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'completarAccion', posta } });
     await batch.commit();
+    logBusinessEvent({
+      eventName: 'ticket.accion_completada',
+      collection: 'leads',
+      documentId: id,
+      details: { estadoNuevo: posta.estadoNuevo, comentario: posta.comentario || null },
+    });
   },
 
   async finalizar(id: string, posta: Posta) {
@@ -304,6 +323,12 @@ export const leadsService = {
     });
     batchAudit(batch, { action: 'update', collection: 'leads', documentId: id, after: { accion: 'finalizar' } });
     await batch.commit();
+    logBusinessEvent({
+      eventName: 'ticket.finalizado',
+      collection: 'leads',
+      documentId: id,
+      details: { comentario: posta.comentario || null },
+    });
   },
 
   async agregarComentario(id: string, posta: Posta) {

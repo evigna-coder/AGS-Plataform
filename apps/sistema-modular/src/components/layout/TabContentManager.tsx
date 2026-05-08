@@ -21,7 +21,7 @@ import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
 import { UsuariosList } from '../../pages/usuarios';
-import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage, BackfillResponsablesPage, BackfillVentasInsumosDerivadorPage } from '../../pages/admin';
+import { ImportacionDatos, RevisionClienteIdPage, ModulosAdminPage, ConfigFlujosPage, AccionesPendientesPage, RelinkearArticulosPage, BackfillTicketNumerosPage, BackfillClienteIdsPage, BackfillResponsablesPage, BackfillVentasInsumosDerivadorPage, AuditoriaPage } from '../../pages/admin';
 import { AgendaPage } from '../../pages/agenda';
 import { PendientesList } from '../../pages/pendientes';
 import { FacturacionList, FacturacionDetail } from '../../pages/facturacion';
@@ -174,6 +174,7 @@ function AppRoutes() {
       {/* Documentos QF — visible para todos los usuarios autenticados */}
       <Route path="/qf-documentos" element={<ProtectedRoute><QFDocumentosList /></ProtectedRoute>} />
       {/* Admin */}
+      <Route path="/admin/auditoria" element={<ProtectedRoute allowedRoles={['admin']}><AuditoriaPage /></ProtectedRoute>} />
       <Route path="/admin/importar" element={<ProtectedRoute allowedRoles={['admin']}><ImportacionDatos /></ProtectedRoute>} />
       <Route path="/admin/revision-clienteid" element={<ProtectedRoute allowedRoles={['admin']}><RevisionClienteIdPage /></ProtectedRoute>} />
       <Route path="/admin/modulos" element={<ProtectedRoute allowedRoles={['admin']}><ModulosAdminPage /></ProtectedRoute>} />

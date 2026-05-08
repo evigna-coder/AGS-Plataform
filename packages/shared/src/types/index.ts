@@ -1930,8 +1930,12 @@ export interface TableCatalogEntry {
    * Grupos de columnas para cabeceras multi-nivel.
    * Genera una fila extra de <th> con colspan. Las columnas no agrupadas ocupan rowSpan=2.
    * Ej: [{ label: 'ALS', startCol: 4, span: 2 }] → "ALS" abarca columnas 4 y 5.
+   *
+   * Cuando mergeHeader === true, el header se colapsa a UNA sola fila: el label del grupo
+   * abarca con colspan las columnas del grupo (sin sub-headers debajo). Las columnas de
+   * datos siguen siendo independientes — sólo se merge el header.
    */
-  columnGroups?: { label: string; startCol: number; span: number }[];
+  columnGroups?: { label: string; startCol: number; span: number; mergeHeader?: boolean }[];
   /** Número QF de la carátula (solo tableType === 'cover'). Ej: "QF7.0506" */
   coverQF?: string | null;
   /** Revisión de la carátula (solo tableType === 'cover'). Ej: "Rev. 09" */
@@ -3696,7 +3700,12 @@ export interface FCMTokenRecord {
 
 // --- Audit Log ---
 
-export type AuditAction = 'create' | 'update' | 'delete';
+/** Tipo de acción auditada.
+ * - create/update/delete: CRUD estándar sobre una colección.
+ * - business_event: evento nombrado del dominio (ej. 'presupuesto.enviado',
+ *   'ot.cerrada', 'ticket.derivado'). Llevan eventName y opcionalmente details.
+ */
+export type AuditAction = 'create' | 'update' | 'delete' | 'business_event';
 
 export interface AuditLogEntry {
   id: string;
@@ -3706,7 +3715,15 @@ export interface AuditLogEntry {
   userId: string;
   userName: string;
   timestamp: string;
+  /** Para action='update' guardamos solo los campos cambiados (diff), no el doc completo. */
   changes?: { before?: Record<string, unknown>; after?: Record<string, unknown> } | null;
+  /** Nombre del evento de negocio. Solo presente cuando action='business_event'. */
+  eventName?: string | null;
+  /** Detalles adicionales del evento de negocio (objeto libre). */
+  details?: Record<string, unknown> | null;
+  /** Etiqueta human-readable de la entidad (ej. "Cliente Pepito SA", "OT 1234").
+   * Permite mostrar el log sin hacer join contra la colección referenciada. */
+  entityLabel?: string | null;
 }
 
 // --- Agenda ---

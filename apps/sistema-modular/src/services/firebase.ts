@@ -191,6 +191,135 @@ export function batchAudit(
   batch.set(auditRef, buildAuditEntry(params));
 }
 
+/* ============================================================================
+ * AUDIT v2 — diff-based updates + business events
+ *
+ * Diseño:
+ * - `auditDiff(before, after)` calcula los campos que cambiaron y los devuelve
+ *   en formato { before: {...changedKeys}, after: {...changedKeys} }. Reduce
+ *   storage en Firestore a 1/N comparado con guardar el doc completo en cada
+ *   update.
+ * - `auditUpdate(...)` es la API recomendada para updates: calcula el diff
+ *   solo, agrega entityLabel opcional y soporta tanto fire-and-forget como
+ *   in-batch (si pasás `batch`).
+ * - `logBusinessEvent(...)` registra eventos nombrados del dominio (no CRUD)
+ *   tipo 'presupuesto.enviado', 'ot.cerrada'. Estos son los que más valor
+ *   aportan en la auditoría — los CRUD muchas veces son ruido.
+ * - Las funciones viejas (`logAudit`, `batchAudit`) siguen exportadas y
+ *   funcionando igual; los call sites existentes no se rompen.
+ * ============================================================================ */
+
+/** Calcula el diff entre dos objetos. Devuelve solo las claves cuyos valores
+ * difieren (comparación profunda vía JSON). Si nada cambió devuelve null.
+ *
+ * Limitaciones intencionales:
+ * - JSON.stringify NO maneja Date/Timestamp idénticos como iguales si la
+ *   referencia difiere — usar antes de cleanFirestoreData/después de toDate
+ *   si querés diff sobre strings ISO.
+ * - undefined se trata como ausencia de la clave.
+ */
+export function auditDiff(
+  before: Record<string, unknown> | null | undefined,
+  after: Record<string, unknown> | null | undefined,
+): { before: Record<string, unknown>; after: Record<string, unknown> } | null {
+  const b = before ?? {};
+  const a = after ?? {};
+  const keys = new Set<string>([...Object.keys(b), ...Object.keys(a)]);
+  const changedBefore: Record<string, unknown> = {};
+  const changedAfter: Record<string, unknown> = {};
+  let any = false;
+  for (const k of keys) {
+    const bv = (b as Record<string, unknown>)[k];
+    const av = (a as Record<string, unknown>)[k];
+    // Comparación por JSON. Aproximación pragmática que evita falsos positivos
+    // por orden de keys y captura cambios en arrays/objetos anidados.
+    if (JSON.stringify(bv) !== JSON.stringify(av)) {
+      changedBefore[k] = bv;
+      changedAfter[k] = av;
+      any = true;
+    }
+  }
+  if (!any) return null;
+  return { before: changedBefore, after: changedAfter };
+}
+
+/** Audit de update con diff automático.
+ * - Si pasás `batch`, agrega el set al batch (no se ejecuta hasta batch.commit()).
+ * - Si no pasás `batch`, hace fire-and-forget (no bloquea, no retorna await).
+ * - Si before === after (nada cambió), no escribe nada (skip silencioso).
+ */
+export function auditUpdate(params: {
+  collection: string;
+  documentId: string;
+  before: object;
+  after: object;
+  entityLabel?: string;
+  batch?: ReturnType<typeof writeBatch>;
+}): void {
+  const diff = auditDiff(
+    params.before as Record<string, unknown>,
+    params.after as Record<string, unknown>,
+  );
+  if (!diff) return; // nada cambió → no auditar
+  const user = getCurrentUserTrace();
+  const entry = {
+    action: 'update' as AuditAction,
+    collection: params.collection,
+    documentId: params.documentId,
+    userId: user?.uid ?? 'unknown',
+    userName: user?.name ?? 'unknown',
+    timestamp: Timestamp.now(),
+    changes: diff,
+    entityLabel: params.entityLabel ?? null,
+  };
+  if (params.batch) {
+    const ref = doc(collection(db, 'audit_log'));
+    params.batch.set(ref, entry);
+  } else {
+    addDoc(collection(db, 'audit_log'), entry).catch(err =>
+      console.error('Audit update failed:', err)
+    );
+  }
+}
+
+/** Audit de evento de negocio (no CRUD).
+ * `eventName` debe ser dotted/scoped: 'presupuesto.enviado', 'ot.cerrada',
+ * 'ticket.derivado', 'factura.solicitada'. Mantener un namespace por entidad
+ * facilita filtrar después.
+ *
+ * `details` es opcional — para guardar contexto del evento (ej. el destinatario
+ * de la derivación, el estado al que se cerró, etc.).
+ */
+export function logBusinessEvent(params: {
+  eventName: string;
+  collection: string;
+  documentId: string;
+  details?: object | null;
+  entityLabel?: string;
+  batch?: ReturnType<typeof writeBatch>;
+}): void {
+  const user = getCurrentUserTrace();
+  const entry = {
+    action: 'business_event' as AuditAction,
+    eventName: params.eventName,
+    collection: params.collection,
+    documentId: params.documentId,
+    userId: user?.uid ?? 'unknown',
+    userName: user?.name ?? 'unknown',
+    timestamp: Timestamp.now(),
+    details: params.details ?? null,
+    entityLabel: params.entityLabel ?? null,
+  };
+  if (params.batch) {
+    const ref = doc(collection(db, 'audit_log'));
+    params.batch.set(ref, entry);
+  } else {
+    addDoc(collection(db, 'audit_log'), entry).catch(err =>
+      console.error('Audit business_event failed:', err)
+    );
+  }
+}
+
 // Re-export currentUser utilities for convenience
 export { getCreateTrace, getUpdateTrace, getCurrentUserTrace } from './currentUser';
 

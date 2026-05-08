@@ -8,3 +8,4 @@ export { default as BackfillTicketNumerosPage } from './BackfillTicketNumerosPag
 export { default as BackfillClienteIdsPage } from './BackfillClienteIdsPage';
 export { default as BackfillResponsablesPage } from './BackfillResponsablesPage';
 export { default as BackfillVentasInsumosDerivadorPage } from './BackfillVentasInsumosDerivadorPage';
+export { default as AuditoriaPage } from './AuditoriaPage';

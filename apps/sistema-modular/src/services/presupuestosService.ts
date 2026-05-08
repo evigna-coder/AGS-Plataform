@@ -10,7 +10,7 @@ const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
   ventas: 'ventas_equipos',
   contrato: 'administracion',
 };
-import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, getCurrentUserTrace, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
+import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, getCurrentUserTrace, createBatch, newDocRef, docRef, batchAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
 import { adminConfigService } from './adminConfigService';
 import { usuariosService } from './personalService';
@@ -508,6 +508,15 @@ export const presupuestosService = {
     batch.update(docRef('presupuestos', id), cleaned);
     batchAudit(batch, { action: 'update', collection: 'presupuestos', documentId: id, after: cleaned });
     await batch.commit();
+
+    // Evento de negocio: presupuesto enviado al cliente.
+    logBusinessEvent({
+      eventName: 'presupuesto.enviado',
+      collection: 'presupuestos',
+      documentId: id,
+      entityLabel: hint?.numero ? `Pres. ${hint.numero}` : `Pres. ${id}`,
+      details: { fechaEnvio: today },
+    });
 
     // Lead sync: prefer the hint; if any piece is missing, fall back to getById once.
     let origenTipo = hint?.origenTipo ?? undefined;
@@ -1277,6 +1286,18 @@ export const presupuestosService = {
       }
     }
 
+    // Evento de negocio: presupuesto aceptado.
+    logBusinessEvent({
+      eventName: 'presupuesto.aceptado',
+      collection: 'presupuestos',
+      documentId: presupuestoId,
+      entityLabel: pres.numero ? `Pres. ${pres.numero}` : `Pres. ${presupuestoId}`,
+      details: {
+        requerimientosCreados: newReqIds.length,
+        requerimientosIds: newReqIds,
+      },
+    });
+
     return { requerimientosIds: newReqIds };
   },
 
@@ -1808,6 +1829,20 @@ export const presupuestosService = {
         console.error('Error actualizando lead:', e);
       }
     }
+
+    // Evento de negocio: revisión de presupuesto creada (anula el anterior).
+    logBusinessEvent({
+      eventName: 'presupuesto.revision_creada',
+      collection: 'presupuestos',
+      documentId: result.id,
+      entityLabel: `Pres. ${newNumero}`,
+      details: {
+        anuladoNumero: original.numero,
+        anuladoId: id,
+        nuevoNumero: newNumero,
+        motivo,
+      },
+    });
 
     console.log(`✅ Revisión creada: ${newNumero} (anulado: ${original.numero})`);
     return result;

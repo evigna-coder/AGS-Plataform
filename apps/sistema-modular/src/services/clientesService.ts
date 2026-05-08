@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, deleteDoc, query, where, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Cliente, ContactoCliente } from '@ags/shared';
-import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
+import { db, normalizeCuit, generateLegacyClientId, getCreateTrace, getUpdateTrace, createBatch, batchAudit, auditUpdate, logBusinessEvent, docRef as firestoreDocRef, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';
 
 // Servicio para Clientes (id = CUIT normalizado o LEGACY-{uuid})
@@ -138,28 +138,57 @@ export const clientesService = {
     return this.getById(normalizeCuit(cuit));
   },
 
-  // Actualizar cliente
+  // Actualizar cliente. Audita con diff (solo campos cambiados).
   async update(id: string, data: Partial<Omit<Cliente, 'id' | 'createdAt' | 'updatedAt'>>) {
+    const ref = firestoreDocRef('clientes', id);
+    const beforeSnap = await getDoc(ref);
+    if (!beforeSnap.exists()) throw new Error(`Cliente ${id} no encontrado`);
+    const before = beforeSnap.data();
+
     const payload = {
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
+    const after = { ...before, ...payload };
+
     const batch = createBatch();
-    batch.update(firestoreDocRef('clientes', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'clientes', documentId: id, after: payload });
+    batch.update(ref, payload);
+    auditUpdate({
+      collection: 'clientes',
+      documentId: id,
+      before,
+      after,
+      entityLabel: (before.razonSocial as string) || id,
+      batch,
+    });
     await batch.commit();
     invalidateCache('clientes');
   },
 
-  // Baja lógica (marcar como inactivo)
+  // Baja lógica. Emite tanto el update con diff como el evento de negocio
+  // 'cliente.desactivado' para que destaque en la auditoría.
   async deactivate(id: string) {
     await this.update(id, { activo: false });
+    const cliente = await this.getById(id);
+    logBusinessEvent({
+      eventName: 'cliente.desactivado',
+      collection: 'clientes',
+      documentId: id,
+      entityLabel: cliente?.razonSocial,
+    });
   },
 
-  // Activar cliente
+  // Reactivación. Análogo a deactivate.
   async activate(id: string) {
     await this.update(id, { activo: true });
+    const cliente = await this.getById(id);
+    logBusinessEvent({
+      eventName: 'cliente.reactivado',
+      collection: 'clientes',
+      documentId: id,
+      entityLabel: cliente?.razonSocial,
+    });
   },
 };
 

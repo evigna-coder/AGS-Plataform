@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
 import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
-import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, onSnapshot } from './firebase';
+import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 
 // ========== POSICIONES DE STOCK ==========
 
@@ -254,6 +254,11 @@ export const articulosService = {
 
   async deactivate(id: string): Promise<void> {
     await this.update(id, { activo: false });
+    logBusinessEvent({
+      eventName: 'articulo.dado_de_baja',
+      collection: 'articulos',
+      documentId: id,
+    });
   },
 
   async delete(id: string): Promise<void> {
@@ -612,6 +617,18 @@ export const movimientosService = {
     batch.set(doc(db, 'movimientosStock', id), payload);
     batchAudit(batch, { action: 'create', collection: 'movimientos_stock', documentId: id, after: payload });
     await batch.commit();
+    logBusinessEvent({
+      eventName: 'stock.movimiento_creado',
+      collection: 'movimientos_stock',
+      documentId: id,
+      details: {
+        tipo: (data as any).tipo ?? null,
+        articuloId: (data as any).articuloId ?? null,
+        cantidad: (data as any).cantidad ?? null,
+        origenTipo: (data as any).origenTipo ?? null,
+        destinoTipo: (data as any).destinoTipo ?? null,
+      },
+    });
     return id;
   },
 
