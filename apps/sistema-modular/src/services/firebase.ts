@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentSingleTabManager, memoryLocalCache, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, memoryLocalCache, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
@@ -70,36 +70,32 @@ export let storage: ReturnType<typeof getStorage>;
 try {
   // Reutilizar instancia existente en HMR (Vite hot-reload)
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  // Cache strategy:
-  // 1) persistentLocalCache + persistentSingleTabManager — IndexedDB cache, ok para Electron.
-  //    (NO usamos persistentMultipleTabManager: probó ser flaky en Electron, dejaba a
-  //    db undefined si la inicialización fallaba en silencio.)
-  // 2) Si falla (db ya inicializado en HMR, IndexedDB bloqueado, etc.) -> getFirestore(app).
-  // 3) Último recurso -> memoryLocalCache (sin offline, pero siempre instancia válida).
+  // Cache strategy: in-memory (default del SDK).
+  //
+  // Probamos persistentLocalCache (IndexedDB) pero falla en el .exe de Electron
+  // porque nuestro static server usa puerto random cada launch — el origen
+  // (http://localhost:<port>) cambia, así que IndexedDB ve un origen nuevo y
+  // arranca con cache vacío. Combinado con la race condition entre
+  // signInWithCredential y la primera read de Firestore, generaba
+  // "FirebaseError: Failed to get document because the client is offline"
+  // y la app se colgaba en "Cargando perfil...".
+  //
+  // En memoria → cero cache entre sessions, pero la app siempre lee del server
+  // y nunca falla por offline. Para AGS (always-online, tool interno) está OK.
+  // Si en el futuro queremos persistencia, hay que estabilizar el puerto del
+  // static server (fixed port o registrar protocol app://).
   try {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentSingleTabManager({}),
-      }),
-    });
-    console.log('%c✅ Firestore con caché persistente (IndexedDB)', 'color: green; font-weight: bold');
+    db = initializeFirestore(app, { localCache: memoryLocalCache() });
+    console.log('%c✅ Firestore inicializado (cache en memoria)', 'color: green; font-weight: bold');
   } catch (innerErr) {
-    console.warn('[Firestore] persistentLocalCache falló, intentando getFirestore:', innerErr);
-    try {
-      db = getFirestore(app);
-      console.log('%c✅ Firestore con instancia existente', 'color: green; font-weight: bold');
-    } catch (getErr) {
-      console.warn('[Firestore] getFirestore también falló, usando memoryLocalCache:', getErr);
-      db = initializeFirestore(app, { localCache: memoryLocalCache() });
-      console.log('%c⚠️ Firestore con caché en memoria (sin offline)', 'color: orange; font-weight: bold');
-    }
+    console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', innerErr);
+    db = getFirestore(app);
   }
   storage = getStorage(app);
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
-  // Última red: instancia mínima sin cache. Mejor algo que undefined.
   if (app! && !db!) {
-    try { db = initializeFirestore(app, { localCache: memoryLocalCache() }); } catch {}
+    try { db = getFirestore(app); } catch {}
   }
 }
 
