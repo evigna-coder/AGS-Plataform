@@ -605,12 +605,20 @@ function createWindow() {
   return mainWindow;
 }
 
-// Prevenir múltiples instancias
+// Prevenir múltiples instancias.
+// IMPORTANTE: el primer launch post-instalación/update suele fallar este check
+// porque el proceso anterior (el que se reemplazó) todavía retiene el lock unos
+// segundos. En lugar de quit (que dejaba la app cerrada hasta que el user la
+// volviera a abrir manualmente), relaunch — la nueva instancia arranca después
+// de que el SO libera el lock.
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  console.log('Otra instancia ya está corriendo, cerrando...');
-  app.quit();
+  console.log('Lock ocupado (probable transición post-update). Relanzando en 1.5s...');
+  setTimeout(() => {
+    app.relaunch();
+    app.exit(0);
+  }, 1500);
 } else {
   app.on('second-instance', () => {
     // Si alguien intenta abrir otra instancia, enfocar la ventana existente

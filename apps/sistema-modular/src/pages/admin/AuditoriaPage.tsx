@@ -134,23 +134,66 @@ function formatTs(iso: string): string {
 
 /** Diccionario de campos técnicos → nombre humano. Para el resumen del cambio. */
 const FIELD_LABELS: Record<string, string> = {
-  razonSocial: 'razón social', nombre: 'nombre', activo: 'activo', cuit: 'CUIT',
-  estado: 'estado', estadoAdmin: 'estado administrativo', fechaCierre: 'fecha de cierre',
-  asignadoA: 'responsable', asignadoNombre: 'responsable', areaActual: 'área',
-  prioridad: 'prioridad', proximoContacto: 'próximo contacto', motivoLlamado: 'motivo',
+  // Generic
+  status: 'estado', activo: 'activo', name: 'nombre', nombre: 'nombre',
+  description: 'descripción', descripcion: 'descripción', descripción: 'descripción',
+  estado: 'estado', orden: 'orden', email: 'email', telefono: 'teléfono',
+  direccion: 'dirección', observaciones: 'observaciones', notas: 'notas',
+  // Cliente
+  razonSocial: 'razón social', cuit: 'CUIT',
+  // OT
+  estadoAdmin: 'estado administrativo', fechaCierre: 'fecha de cierre',
+  fechaInicio: 'fecha de inicio', clienteId: 'cliente', sistemaId: 'sistema',
+  budgets: 'presupuestos vinculados', tecnicos: 'técnicos asignados',
+  // Tickets
+  asignadoA: 'responsable', asignadoNombre: 'responsable',
+  areaActual: 'área', prioridad: 'prioridad',
+  proximoContacto: 'próximo contacto', motivoLlamado: 'motivo del llamado',
+  motivoOtros: 'motivo (otros)', accionPendiente: 'acción pendiente',
+  ultimaObservacion: 'última observación', postas: 'historial de postas',
+  finalizadoAt: 'fecha de finalización', derivadoPor: 'derivado por',
+  // Presupuesto
   fechaEnvio: 'fecha de envío', validUntil: 'válido hasta', items: 'items',
-  observaciones: 'observaciones', descripcion: 'descripción', telefono: 'teléfono',
-  email: 'email', direccion: 'dirección', precio: 'precio', cantidad: 'cantidad',
+  precio: 'precio', cantidad: 'cantidad', moneda: 'moneda',
+  motivoAnulacion: 'motivo de anulación', anuladoPorId: 'anulado por',
+  origenTipo: 'tipo de origen', origenId: 'origen',
+  ordenesCompraIds: 'órdenes de compra', adjuntos: 'adjuntos',
+  // QF
   fechaCreacion: 'fecha de creación', fechaUltimaActualizacion: 'última actualización',
-  versionActual: 'versión actual', historial: 'historial', software: 'software',
+  versionActual: 'versión actual', historial: 'historial',
+  // Sistema / Equipo
+  software: 'software', categoriaId: 'categoría',
+  configuracionGC: 'configuración GC', sector: 'sector',
+  codigoInternoCliente: 'código interno cliente',
+  // Tabla / Protocolo
+  tableType: 'tipo de tabla', allowClientSpec: 'permite especificación cliente',
+  templateRows: 'filas plantilla', validationRules: 'reglas de validación',
+  sysType: 'tipo de sistema', columns: 'columnas', modelos: 'modelos',
+  isDefault: 'es por defecto', tipoServicio: 'tipo de servicio',
+  projectId: 'proyecto',
+  // Stock / Artículo
+  codigoArticulo: 'código de artículo', codigo: 'código',
+  categorias: 'categorías', marca: 'marca', lotes: 'lotes',
+  posicionArancelaria: 'posición arancelaria', origen: 'origen',
+  proveedorId: 'proveedor', stockMinimo: 'stock mínimo',
+  unidadMedida: 'unidad de medida',
 };
 const SKIP_FIELDS = new Set([
   'updatedAt', 'updatedBy', 'updatedByName', 'createdAt', 'createdBy', 'createdByName',
   'numero', // se muestra ya en entityLabel
 ]);
 
+/** camelCase / snake_case → "Tres palabras separadas". Fallback para cuando un
+ * campo no está en FIELD_LABELS (ej. campos nuevos que no fueron mapeados). */
+function humanize(k: string): string {
+  return k
+    .replace(/([a-z])([A-Z])/g, '$1 $2')   // camelCase → camel Case
+    .replace(/_/g, ' ')                    // snake_case → snake case
+    .replace(/^./, (c) => c.toLowerCase()); // primera minúscula
+}
+
 function fieldLabel(k: string): string {
-  return FIELD_LABELS[k] || k;
+  return FIELD_LABELS[k] || humanize(k);
 }
 
 function describeChanges(e: AuditLogEntry): string {
