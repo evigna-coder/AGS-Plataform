@@ -605,6 +605,17 @@ function createWindow() {
   return mainWindow;
 }
 
+// Logging de eventos críticos del main para debug del cierre post-update.
+// Aparece en stderr del binario; en producción solo se ve si el user abre cmd
+// y corre el .exe desde ahí, o si conecta DevTools al main.
+app.on('before-quit', (e) => console.log('[App] before-quit', e));
+app.on('will-quit', (e) => console.log('[App] will-quit', e));
+app.on('quit', (_e, code) => console.log('[App] quit code=', code));
+app.on('render-process-gone', (_e, wc, det) => console.error('[App] render-process-gone:', det));
+app.on('child-process-gone', (_e, det) => console.error('[App] child-process-gone:', det));
+process.on('uncaughtException', (err) => console.error('[Main] uncaughtException:', err));
+process.on('unhandledRejection', (err) => console.error('[Main] unhandledRejection:', err));
+
 // Prevenir múltiples instancias.
 // IMPORTANTE: el primer launch post-instalación/update suele fallar este check
 // porque el proceso anterior (el que se reemplazó) todavía retiene el lock unos
@@ -612,10 +623,12 @@ function createWindow() {
 // volviera a abrir manualmente), relaunch — la nueva instancia arranca después
 // de que el SO libera el lock.
 const gotTheLock = app.requestSingleInstanceLock();
+console.log('[App] requestSingleInstanceLock →', gotTheLock);
 
 if (!gotTheLock) {
-  console.log('Lock ocupado (probable transición post-update). Relanzando en 1.5s...');
+  console.log('[App] Lock ocupado (probable transición post-update). Relanzando en 1.5s...');
   setTimeout(() => {
+    console.log('[App] Ejecutando relaunch + exit');
     app.relaunch();
     app.exit(0);
   }, 1500);

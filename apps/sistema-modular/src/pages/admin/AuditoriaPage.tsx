@@ -196,30 +196,81 @@ function fieldLabel(k: string): string {
   return FIELD_LABELS[k] || humanize(k);
 }
 
-function describeChanges(e: AuditLogEntry): string {
-  if (e.action === 'business_event') {
-    if (!e.details) return '';
-    const parts: string[] = [];
-    for (const [k, v] of Object.entries(e.details)) {
-      if (SKIP_FIELDS.has(k)) continue;
-      parts.push(`${fieldLabel(k)}: ${stringify(v)}`);
-    }
-    return parts.join(', ');
-  }
-  if (!e.changes) return '';
-  if (e.action === 'update') {
-    const keys = Object.keys(e.changes.after ?? {}).filter(k => !SKIP_FIELDS.has(k));
-    if (keys.length === 0) return '—';
-    return keys.map(fieldLabel).join(', ');
-  }
+function v(x: unknown): string {
+  if (x === null || x === undefined || x === '') return '';
+  if (typeof x === 'string') return x;
+  if (typeof x === 'number' || typeof x === 'boolean') return String(x);
   return '';
 }
 
-function stringify(v: unknown): string {
-  if (v === null || v === undefined) return '—';
-  if (typeof v === 'string') return v;
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-  try { return JSON.stringify(v); } catch { return '[object]'; }
+/** Compone una sentencia natural describiendo lo que pasó. Recibe el entry y
+ * devuelve "Eliminó artículo 5188-5367 por 4 unidades", etc.
+ *
+ * El usuario va al inicio de la frase ("Esteban eliminó...") afuera, cuando
+ * unimos esto con userName en la celda. */
+function describeAction(e: AuditLogEntry): string {
+  const label = e.entityLabel || '';
+  const d = e.details || {};
+
+  // Eventos de negocio: caso por caso porque cada uno tiene su narrativa.
+  if (e.action === 'business_event') {
+    const en = e.eventName || '';
+    switch (en) {
+      case 'cliente.desactivado': return `dio de baja al cliente ${label}`;
+      case 'cliente.reactivado': return `reactivó al cliente ${label}`;
+      case 'ot.estado_cambiado': {
+        const from = v(d.from); const to = v(d.to);
+        return `cambió estado de la ${label}${from && to ? ` de ${from} a ${to}` : to ? ` a ${to}` : ''}`;
+      }
+      case 'ot.cerrada': return `cerró administrativamente la ${label}${v(d.notas) ? ` (${v(d.notas)})` : ''}`;
+      case 'presupuesto.enviado': return `envió el ${label}`;
+      case 'presupuesto.aceptado': {
+        const reqs = Number(d.requerimientosCreados ?? 0);
+        return `aceptó el ${label}${reqs > 0 ? ` (generó ${reqs} requerimiento${reqs === 1 ? '' : 's'} de compra)` : ''}`;
+      }
+      case 'presupuesto.rechazado': return `rechazó el ${label}`;
+      case 'presupuesto.revision_creada':
+        return `creó revisión ${v(d.nuevoNumero) || label}${v(d.anuladoNumero) ? ` (anuló ${v(d.anuladoNumero)})` : ''}${v(d.motivo) ? ` — motivo: ${v(d.motivo)}` : ''}`;
+      case 'ticket.derivado': {
+        const aNombre = v(d.aNombre); const area = v(d.area);
+        const partes = ['derivó el ticket'];
+        if (label) partes.push(label);
+        if (aNombre) partes.push(`a ${aNombre}`);
+        if (area) partes.push(`(área: ${area})`);
+        return partes.join(' ');
+      }
+      case 'ticket.reasignado': return `reasignó el ticket ${label}${v(d.aNombre) ? ` a ${v(d.aNombre)}` : ''}`;
+      case 'ticket.accion_completada': return `completó acción del ticket ${label}`;
+      case 'ticket.finalizado': return `finalizó el ticket ${label}${v(d.comentario) ? ` (${v(d.comentario)})` : ''}`;
+      case 'ticket.reabierto': return `reabrió el ticket ${label}`;
+      case 'stock.movimiento_creado': {
+        const tipo = v(d.tipo) || 'movimiento';
+        const cantidad = Number(d.cantidad ?? 0);
+        const articulo = v(d.articuloCodigo) || v(d.articuloId);
+        const partes = [`registró ${tipo}`];
+        if (cantidad) partes.push(`de ${cantidad} unidad${cantidad === 1 ? '' : 'es'}`);
+        if (articulo) partes.push(`del artículo ${articulo}`);
+        return partes.join(' ');
+      }
+      case 'articulo.dado_de_baja': return `dio de baja al artículo ${label}`;
+      default: {
+        // Evento sin descriptor específico — describirlo genéricamente
+        return `disparó evento "${en}"${label ? ` en ${label}` : ''}`;
+      }
+    }
+  }
+
+  // CRUD genérico
+  const moduloHumano = collectionLabel(e.collection).toLowerCase();
+  if (e.action === 'create') return `creó ${moduloHumano}${label ? ` ${label}` : ''}`;
+  if (e.action === 'delete') return `eliminó ${moduloHumano}${label ? ` ${label}` : ''}`;
+  if (e.action === 'update') {
+    const keys = Object.keys(e.changes?.after ?? {}).filter(k => !SKIP_FIELDS.has(k));
+    if (keys.length === 0) return `modificó ${moduloHumano}${label ? ` ${label}` : ''}`;
+    const camposTxt = keys.map(fieldLabel).slice(0, 4).join(', ') + (keys.length > 4 ? `, +${keys.length - 4} más` : '');
+    return `modificó ${moduloHumano}${label ? ` ${label}` : ''} (${camposTxt})`;
+  }
+  return '';
 }
 
 export default function AuditoriaPage() {
@@ -380,8 +431,8 @@ export default function AuditoriaPage() {
                           {e.entityLabel && <span className="ml-1 text-slate-500">— {e.entityLabel}</span>}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{collectionLabel(e.collection)}</td>
-                        <td className="px-3 py-2 text-[11px] text-slate-500 truncate max-w-[280px]" title={describeChanges(e)}>
-                          {describeChanges(e) || <span className="text-slate-300">—</span>}
+                        <td className="px-3 py-2 text-[11px] text-slate-500 truncate max-w-[280px]" title={describeAction(e)}>
+                          {describeAction(e) || <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-3 py-2 text-right whitespace-nowrap">
                           <span className="text-[10px] text-slate-400">{expanded ? '▼' : '▶'}</span>

@@ -21,7 +21,7 @@ function LeadNotificationListener() {
 }
 
 function AuthGate() {
-  const { loading, authError, firebaseUser, isAuthenticated, isPending, isDisabled } = useAuth();
+  const { loading, authError, firebaseUser, usuario, isAuthenticated, isPending, isDisabled } = useAuth();
 
   if (loading) {
     return (
@@ -49,6 +49,19 @@ function AuthGate() {
   }
 
   if (!firebaseUser) return <LoginPage />;
+  // firebaseUser ya cargó pero usuario aún no llegó del Firestore. Mostrar
+  // loading en vez de PendingApprovalPage para evitar el flash de "cuenta
+  // pendiente" que aparecía cuando el doc todavía no estaba leído.
+  if (!usuario) {
+    return (
+      <div className="h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <span className="text-teal-600 font-bold text-xl tracking-tight">AGS</span>
+          <p className="text-xs text-slate-400 mt-2">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
   if (isDisabled) {
     return (
       <div className="h-screen bg-slate-50 flex items-center justify-center">
@@ -62,7 +75,10 @@ function AuthGate() {
       </div>
     );
   }
-  if (isPending || !isAuthenticated) return <PendingApprovalPage />;
+  // Acá ya tenemos usuario seguro: chequear pending explícito (no el fallback
+  // !isAuthenticated, que era ambiguo).
+  if (isPending) return <PendingApprovalPage />;
+  if (!isAuthenticated) return <PendingApprovalPage />;
 
   return (
     <>

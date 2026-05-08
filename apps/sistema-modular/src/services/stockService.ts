@@ -617,14 +617,32 @@ export const movimientosService = {
     batch.set(doc(db, 'movimientosStock', id), payload);
     batchAudit(batch, { action: 'create', collection: 'movimientos_stock', documentId: id, after: payload });
     await batch.commit();
+
+    // Resolver código del artículo para que la auditoría muestre algo legible
+    // ("artículo 5188-5367") en lugar del ID interno. Best-effort: si la lectura
+    // falla cae al ID.
+    let articuloCodigo: string | null = null;
+    const articuloId = (data as any).articuloId ?? null;
+    if (articuloId) {
+      try {
+        const snap = await getDoc(doc(db, 'articulos', articuloId));
+        if (snap.exists()) articuloCodigo = (snap.data().codigoArticulo ?? snap.data().codigo) ?? null;
+      } catch {
+        // best-effort
+      }
+    }
+    const tipo = (data as any).tipo ?? null;
+    const cantidad = (data as any).cantidad ?? null;
     logBusinessEvent({
       eventName: 'stock.movimiento_creado',
       collection: 'movimientos_stock',
       documentId: id,
+      entityLabel: articuloCodigo ? `Mov. ${tipo ?? ''} — ${articuloCodigo}`.trim() : undefined,
       details: {
-        tipo: (data as any).tipo ?? null,
-        articuloId: (data as any).articuloId ?? null,
-        cantidad: (data as any).cantidad ?? null,
+        tipo,
+        articuloId,
+        articuloCodigo,
+        cantidad,
         origenTipo: (data as any).origenTipo ?? null,
         destinoTipo: (data as any).destinoTipo ?? null,
       },
