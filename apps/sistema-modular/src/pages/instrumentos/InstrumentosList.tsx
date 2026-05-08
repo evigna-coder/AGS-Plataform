@@ -10,7 +10,7 @@ import { CreateInstrumentoModal } from '../../components/instrumentos/CreateInst
 import { DerivarCalibracionModal } from '../../components/instrumentos/DerivarCalibracionModal';
 import { RetornarCalibracionModal } from '../../components/instrumentos/RetornarCalibracionModal';
 import { InstrumentosListPDF } from '../../components/instrumentos/InstrumentosListPDF';
-import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
+import { downloadPdf, todayForFilename } from '../../utils/remitoPdfActions';
 import { formatFechaAR } from '../../utils/formatFecha';
 import { getCurrentUser } from '../../services/currentUser';
 import {
@@ -135,12 +135,13 @@ export const InstrumentosList = () => {
         filters.showInactive && 'Incluye inactivos',
       ].filter(Boolean).join(' · ');
       const user = getCurrentUser();
-      await openRemitoPdfInNewTab(
+      await downloadPdf(
         <InstrumentosListPDF
           items={filtered}
           generadoPor={user?.displayName ?? null}
           filtros={filtrosLabel || undefined}
         />,
+        `Listado de instrumentos - ${todayForFilename()}`,
       );
     } catch (err) {
       console.error('Error exportando PDF:', err);
