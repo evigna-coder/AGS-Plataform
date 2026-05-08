@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, memoryLocalCache, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
@@ -85,10 +85,9 @@ try {
   // Si en el futuro queremos persistencia, hay que estabilizar el puerto del
   // static server (fixed port o registrar protocol app://).
   try {
-    // experimentalForceLongPolling: el AV de tu máquina (Avast) y/o el firewall
-    // pueden estar interceptando el WebChannel/WebSocket que Firestore usa por
-    // defecto, dejando al SDK reportando "client is offline" eternamente. Forzar
-    // long-polling cae a HTTP plano que ningún AV bloquea.
+    // experimentalForceLongPolling: AV/firewall pueden interceptar el
+    // WebChannel/WebSocket que Firestore usa por defecto. Long-polling cae a
+    // HTTP plano que pasa todo proxy/AV.
     db = initializeFirestore(app, {
       localCache: memoryLocalCache(),
       experimentalForceLongPolling: true,
@@ -98,6 +97,9 @@ try {
     console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', innerErr);
     db = getFirestore(app);
   }
+  // Enable network explícito: por si el SDK arranca en modo offline por defecto
+  // en este entorno (Electron + memory cache + sin sesión previa).
+  enableNetwork(db).catch(err => console.warn('[Firestore] enableNetwork falló:', err));
   storage = getStorage(app);
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
