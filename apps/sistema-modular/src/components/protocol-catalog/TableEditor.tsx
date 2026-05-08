@@ -342,6 +342,18 @@ export const TableEditor = ({ table, onChange }: Props) => {
                     />
                     <label className="text-[10px] text-slate-500">cols</label>
                   </div>
+                  <label className="flex items-center gap-1 cursor-pointer" title="Si está tildado, el header se colapsa a una sola fila: el label del grupo abarca con colspan, sin sub-headers debajo. Las columnas de datos siguen separadas.">
+                    <input
+                      type="checkbox"
+                      checked={!!g.mergeHeader}
+                      onChange={e => {
+                        const groups = [...(table.columnGroups ?? [])];
+                        groups[gi] = { ...groups[gi], mergeHeader: e.target.checked || undefined };
+                        upd('columnGroups', groups);
+                      }}
+                    />
+                    <span className="text-[10px] font-bold text-slate-600 uppercase">Header combinado</span>
+                  </label>
                   <span className="text-[10px] text-indigo-500 flex-1 text-right">
                     {table.columns.slice(g.startCol, g.startCol + g.span).map(c => c.label).join(' + ')}
                   </span>

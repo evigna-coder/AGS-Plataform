@@ -730,13 +730,13 @@ export const CatalogTableView: React.FC<Props> = ({
     selection.columnVisibility?.[col.key] ?? !col.hiddenByDefault;
   const visibleColumns = table.columns.filter(isColumnVisible);
   // Recalcular columnGroups para reflejar solo columnas visibles (span y startCol ajustados)
-  const visibleGroups: Array<{ startCol: number; span: number; label: string }> = [];
+  const visibleGroups: Array<{ startCol: number; span: number; label: string; mergeHeader?: boolean }> = [];
   for (const g of (table.columnGroups ?? [])) {
     const groupCols = table.columns.slice(g.startCol, g.startCol + g.span);
     const visibleInGroup = groupCols.filter(isColumnVisible);
     if (visibleInGroup.length === 0) continue;
     const firstVisibleIdx = visibleColumns.indexOf(visibleInGroup[0]);
-    visibleGroups.push({ startCol: firstVisibleIdx, span: visibleInGroup.length, label: g.label });
+    visibleGroups.push({ startCol: firstVisibleIdx, span: visibleInGroup.length, label: g.label, mergeHeader: g.mergeHeader });
   }
   const [showColMenu, setShowColMenu] = React.useState(false);
   const hasHiddenCapableCols = table.columns.some(c => c.hiddenByDefault) ||
@@ -1812,6 +1812,10 @@ export const CatalogTableView: React.FC<Props> = ({
               // Con grupos: título (opcional) + dos filas de headers
               // Fila 1: grupos (colspan) + columnas no agrupadas (rowSpan=2)
               // Fila 2: sub-columnas de cada grupo
+              // Excepción: si todos los grupos tienen mergeHeader=true, no se renderiza la fila 2.
+              // Los grupos con mergeHeader colapsan a un único <th colspan rowSpan>.
+              const hasNonMergedGroups = groups.some(g => !g.mergeHeader);
+              const topRowSpan = hasNonMergedGroups ? 2 : 1;
               const trClass = 'bg-slate-100';
               return (
                 <>
@@ -1822,19 +1826,21 @@ export const CatalogTableView: React.FC<Props> = ({
                       if (groupedCols.has(colIdx)) {
                         const group = groups.find(g => g.startCol === colIdx);
                         if (!group) return null; // columna interior del grupo, skip
-                        // Primera columna del grupo: render el grupo con colspan
+                        // Primera columna del grupo: render el grupo con colspan.
+                        // Si mergeHeader → rowSpan=topRowSpan (cubre la fila de sub-headers); si no → rowSpan=1.
                         const lastGroupColIdx = group.startCol + group.span - 1;
+                        const groupRowSpan = group.mergeHeader ? topRowSpan : 1;
                         return (
-                          <th key={`group-${colIdx}`} colSpan={group.span}
+                          <th key={`group-${colIdx}`} colSpan={group.span} rowSpan={groupRowSpan}
                             className={`${thClass(lastGroupColIdx)} ${isPrint ? '' : 'border-b border-slate-200'}`}
                             style={thStyle}>
                             {group.label}
                           </th>
                         );
                       }
-                      // Columna no agrupada: rowSpan=2
+                      // Columna no agrupada: rowSpan=topRowSpan
                       return (
-                        <th key={col.key} rowSpan={2}
+                        <th key={col.key} rowSpan={topRowSpan}
                           className={`${thClass(colIdx)} ${col.align === 'right' ? '!text-right' : ''} ${isPrint ? '' : 'border-b border-slate-200'}`}
                           style={{ ...thStyle, ...(col.width ? { width: `${col.width}mm` } : {}) }}>
                           {col.label || null}
@@ -1870,8 +1876,9 @@ export const CatalogTableView: React.FC<Props> = ({
                       );
                     })}
                   </tr>
+                  {hasNonMergedGroups && (
                   <tr className={`${trClass} ${isPrint ? '' : 'border-b border-slate-200'}`}>
-                    {groups.flatMap(g =>
+                    {groups.filter(g => !g.mergeHeader).flatMap(g =>
                       visibleColumns.slice(g.startCol, g.startCol + g.span).map((col, i) => {
                         const colIdx = g.startCol + i;
                         const isLastInGroup = i === g.span - 1;
@@ -1910,6 +1917,7 @@ export const CatalogTableView: React.FC<Props> = ({
                       })
                     )}
                   </tr>
+                  )}
                 </>
               );
             })()}

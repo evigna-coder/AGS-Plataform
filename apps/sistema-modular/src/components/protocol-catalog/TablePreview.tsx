@@ -70,6 +70,9 @@ export const TablePreview = ({ table }: Props) => {
                   );
                 }
 
+                // Si todos los grupos son merged, no hace falta segunda fila de sub-headers.
+                const hasNonMergedGroups = groups.some(g => !g.mergeHeader);
+                const topRowSpan = hasNonMergedGroups ? 2 : 1;
                 return (
                   <>
                     {titleRow}
@@ -78,26 +81,30 @@ export const TablePreview = ({ table }: Props) => {
                         if (groupedCols.has(colIdx)) {
                           const group = groups.find(g => g.startCol === colIdx);
                           if (!group) return null;
-                          return <th key={`group-${colIdx}`} colSpan={group.span} className={thBase}>{group.label}</th>;
+                          // Grupo merged → colspan + rowSpan=2 (si hay otra fila debajo). Grupo multi-nivel → solo colspan.
+                          const groupRowSpan = group.mergeHeader ? topRowSpan : 1;
+                          return <th key={`group-${colIdx}`} colSpan={group.span} rowSpan={groupRowSpan} className={thBase}>{group.label}</th>;
                         }
                         return (
-                          <th key={col.key} rowSpan={2} className={thBase}
+                          <th key={col.key} rowSpan={topRowSpan} className={thBase}
                             style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
                             {col.label}{col.unit ? ` (${col.unit})` : ''}{col.required ? ' *' : ''}
                           </th>
                         );
                       })}
                     </tr>
-                    <tr className="bg-slate-50">
-                      {groups.flatMap(g =>
-                        table.columns.slice(g.startCol, g.startCol + g.span).map(col => (
-                          <th key={col.key} className={thBase}
-                            style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
-                            {col.label}{col.unit ? ` (${col.unit})` : ''}
-                          </th>
-                        ))
-                      )}
-                    </tr>
+                    {hasNonMergedGroups && (
+                      <tr className="bg-slate-50">
+                        {groups.filter(g => !g.mergeHeader).flatMap(g =>
+                          table.columns.slice(g.startCol, g.startCol + g.span).map(col => (
+                            <th key={col.key} className={thBase}
+                              style={col.width ? { width: `${col.width}mm`, minWidth: `${col.width}mm` } : undefined}>
+                              {col.label}{col.unit ? ` (${col.unit})` : ''}
+                            </th>
+                          ))
+                        )}
+                      </tr>
+                    )}
                   </>
                 );
               })()}
