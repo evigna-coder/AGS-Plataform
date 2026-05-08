@@ -88,10 +88,18 @@ function runGoogleOAuthFlow({ clientId, authDomain, hd }) {
     authUrl.searchParams.set('prompt', 'select_account');
     if (hd) authUrl.searchParams.set('hd', hd);
 
+    // Log de la URL OAuth completa al main process. Útil cuando algo falla con
+    // 400 desde Google: pegando esto desde la consola del .exe se ve el
+    // client_id y redirect_uri exactos que se están enviando.
+    console.log('[OAuth] auth URL:', authUrl.toString());
+    console.log('[OAuth] clientId:', clientId);
+    console.log('[OAuth] redirectUri:', redirectUri);
+
     const win = new BrowserWindow({
       width: 500,
       height: 700,
-      autoHideMenuBar: true,
+      autoHideMenuBar: false, // Dejamos la barra visible para poder ver la URL
+                              // si Google rechaza con 400 (diagnóstico).
       title: 'Iniciar sesión con Google',
       webPreferences: {
         nodeIntegration: false,

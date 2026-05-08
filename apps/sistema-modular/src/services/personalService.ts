@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, getDocFromServer, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, Timestamp, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Ingeniero, Proveedor, UsuarioAGS, UserRole, UserStatus, UserPermissionsOverride, CertificadoIngeniero } from '@ags/shared';
 import { getCached, setCache, invalidateCache } from './serviceCache';
@@ -219,20 +219,19 @@ export const proveedoresService = {
 export const usuariosService = {
   async upsertOnLogin(user: { uid: string; email: string; displayName: string; photoURL: string | null }): Promise<UsuarioAGS> {
     const ref = doc(db, 'usuarios', user.uid);
-    // getDocFromServer fuerza fetch del servidor (no cache). Sin esto, IndexedDB
-    // local podía devolver una versión vieja con status='pendiente' aunque el
-    // admin ya hubiera aprobado al usuario, generando flash de "cuenta pendiente"
-    // hasta que la sincro de Firestore se completara.
-    let existing;
-    try {
-      existing = await getDocFromServer(ref);
-    } catch {
-      // Sin red → fallback a cache (mejor mostrar algo que crashear).
-      existing = await getDoc(ref);
-    }
+    // getDoc (cache-first, fallback automático a server). Robusto en Electron
+    // donde el SDK de Firestore a veces reporta "client is offline" inmediatamente
+    // post signInWithCredential aunque la red esté OK (race condition con la
+    // adquisición del token).
+    //
+    // Trade-off: si el cache local tiene una versión stale del doc (ej. el user
+    // se aprobó después del último login), al loguear de nuevo va a mostrar el
+    // estado viejo brevemente — al rato la sincro de Firestore lo refresca.
+    // Aceptamos ese flash raro a cambio de estabilidad.
+    const existing = await getDoc(ref);
     if (existing.exists()) {
       await updateDoc(ref, { lastLoginAt: Timestamp.now() });
-      const d = existing.data();
+      const d = existing.data() as Record<string, any>;
       return {
         id: existing.id,
         email: d.email,
