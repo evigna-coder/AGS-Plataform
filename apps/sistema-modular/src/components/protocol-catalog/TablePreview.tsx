@@ -224,7 +224,7 @@ export const TablePreview = ({ table }: Props) => {
                             key={col.key}
                             rowSpan={isSpanning ? colSpan : undefined}
                             className={[
-                              'px-3 py-2 border border-slate-200 text-slate-700',
+                              'px-3 py-2 border border-slate-200 text-slate-700 whitespace-pre-line',
                               (() => {
                                 const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
                                 return isGroupCell
@@ -234,7 +234,7 @@ export const TablePreview = ({ table }: Props) => {
                               boundaryAbove ? 'border-t border-t-slate-300' : '',
                             ].join(' ')}
                           >
-                            {row.cells[col.key] != null ? String(row.cells[col.key]) : '—'}
+                            {row.cells[col.key] != null ? String(row.cells[col.key]).replace(/\\n/g, '\n') : '—'}
                           </td>
                         );
                       })}

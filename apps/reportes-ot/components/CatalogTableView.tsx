@@ -523,7 +523,8 @@ function renderDefaultCell(
   const rawValue = filledData[rowId]?.[col.key] ?? '';
 
   if (col.type === 'fixed_text') {
-    return <span className="text-[10px] text-slate-600">{col.fixedValue ?? ''}</span>;
+    const fixed = (col.fixedValue ?? '').replace(/\\n/g, '\n');
+    return <span className="text-[10px] text-slate-600 whitespace-pre-line">{fixed}</span>;
   }
 
   if (col.type === 'checkbox') {
@@ -1129,10 +1130,12 @@ export const CatalogTableView: React.FC<Props> = ({
     // Excluir columnas de spec y conclusión — necesitan su propio procesamiento.
     const isExtraRow = rowId.startsWith('extra_');
     if (!isExtraRow && col.isLabelColumn && !allSpecColKeys.has(col.key) && !allConclusionColKeys.has(col.key)) {
-      const labelVal = String(table.templateRows.find(r => r.rowId === rowId)?.cells[col.key] ?? '').trim();
+      const labelValRaw = String(table.templateRows.find(r => r.rowId === rowId)?.cells[col.key] ?? '').trim();
+      // Convertir `\n` literal (escapeado por escritura previa al editor con textarea) a salto real.
+      const labelVal = labelValRaw.replace(/\\n/g, '\n');
       if (!labelVal) return <span />;
-      if (isPrint) return <span className="text-[10px]">{labelVal}</span>;
-      return <span className="text-[10px] text-slate-700 cursor-default">{labelVal}</span>;
+      if (isPrint) return <span className="text-[10px] whitespace-pre-line">{labelVal}</span>;
+      return <span className="text-[10px] text-slate-700 cursor-default whitespace-pre-line">{labelVal}</span>;
     }
 
     // ── Multi-select (dropdown con checkboxes, valores apilados) ─────────────

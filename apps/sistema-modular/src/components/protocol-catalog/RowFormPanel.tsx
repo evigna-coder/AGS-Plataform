@@ -362,16 +362,31 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
                       className="w-4 h-4 accent-slate-900"
                     />
                   </div>
-                ) : (
-                  <Input
-                    type={col.type === 'date_input' ? 'date' : 'text'}
+                ) : (col.type === 'fixed_text' || col.type === 'text_input') ? (
+                  // Textarea para texto libre/fijo: permite Enter para saltos de línea reales,
+                  // necesario cuando una celda con rowSpan tiene contenido multi-línea.
+                  <textarea
                     value={String(cells[col.key] ?? '')}
                     onChange={e => handleChange(col.key, e.target.value)}
+                    rows={1}
+                    onInput={(e) => {
+                      const t = e.currentTarget;
+                      t.style.height = 'auto';
+                      t.style.height = t.scrollHeight + 'px';
+                    }}
                     placeholder={
                       col.type === 'fixed_text'
                         ? col.fixedValue ?? '(valor fijo)'
                         : (col.expectedValue ?? '')
                     }
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm leading-snug resize-y focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder:text-slate-400"
+                  />
+                ) : (
+                  <Input
+                    type={col.type === 'date_input' ? 'date' : 'text'}
+                    value={String(cells[col.key] ?? '')}
+                    onChange={e => handleChange(col.key, e.target.value)}
+                    placeholder={col.expectedValue ?? ''}
                   />
                 )}
               </div>
