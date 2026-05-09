@@ -1419,6 +1419,8 @@ export const CatalogTableView: React.FC<Props> = ({
       const hasContent = trimmed.length > 0 &&
         /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/.test(trimmed) && !isJustUnit && !isNA;
       if (hasContent) {
+        // Convertir literal `\n` (escapeado por escritura previa al editor con textarea) a salto real.
+        const factoryDisplay = factoryVal.replace(/\\n/g, '\n');
         // Para columnas text_input/number_input, verificar si el valor de fábrica
         // varía entre filas. Si cada fila tiene un valor distinto, es un label (read-only).
         // Si todas las filas tienen el mismo valor, es un placeholder/unidad (editable).
@@ -1432,12 +1434,12 @@ export const CatalogTableView: React.FC<Props> = ({
             // (cae al renderDefaultCell más abajo)
           } else {
             // Valores distintos por fila → label descriptivo → read-only
-            if (isPrint) return <span className="text-[10px]">{factoryVal}</span>;
-            return <span className="text-[10px] text-slate-700 cursor-default">{factoryVal}</span>;
+            if (isPrint) return <span className="text-[10px]" style={{ whiteSpace: 'pre-line' }}>{factoryDisplay}</span>;
+            return <span className="text-[10px] text-slate-700 cursor-default" style={{ whiteSpace: 'pre-line' }}>{factoryDisplay}</span>;
           }
         } else {
-          if (isPrint) return <span className="text-[10px]">{factoryVal}</span>;
-          return <span className="text-[10px] text-slate-700 cursor-default">{factoryVal}</span>;
+          if (isPrint) return <span className="text-[10px]" style={{ whiteSpace: 'pre-line' }}>{factoryDisplay}</span>;
+          return <span className="text-[10px] text-slate-700 cursor-default" style={{ whiteSpace: 'pre-line' }}>{factoryDisplay}</span>;
         }
       }
     }
