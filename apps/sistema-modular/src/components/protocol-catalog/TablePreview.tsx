@@ -223,8 +223,9 @@ export const TablePreview = ({ table }: Props) => {
                           <td
                             key={col.key}
                             rowSpan={isSpanning ? colSpan : undefined}
+                            style={{ whiteSpace: 'pre-line' }}
                             className={[
-                              'px-3 py-2 border border-slate-200 text-slate-700 whitespace-pre-line',
+                              'px-3 py-2 border border-slate-200 text-slate-700',
                               (() => {
                                 const alignCls = col.align === 'left' ? 'text-left' : col.align === 'right' ? 'text-right' : 'text-center';
                                 return isGroupCell

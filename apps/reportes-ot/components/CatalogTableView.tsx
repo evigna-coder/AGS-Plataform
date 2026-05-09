@@ -524,7 +524,7 @@ function renderDefaultCell(
 
   if (col.type === 'fixed_text') {
     const fixed = (col.fixedValue ?? '').replace(/\\n/g, '\n');
-    return <span className="text-[10px] text-slate-600 whitespace-pre-line">{fixed}</span>;
+    return <span className="text-[10px] text-slate-600" style={{ whiteSpace: 'pre-line' }}>{fixed}</span>;
   }
 
   if (col.type === 'checkbox') {
@@ -1134,8 +1134,8 @@ export const CatalogTableView: React.FC<Props> = ({
       // Convertir `\n` literal (escapeado por escritura previa al editor con textarea) a salto real.
       const labelVal = labelValRaw.replace(/\\n/g, '\n');
       if (!labelVal) return <span />;
-      if (isPrint) return <span className="text-[10px] whitespace-pre-line">{labelVal}</span>;
-      return <span className="text-[10px] text-slate-700 cursor-default whitespace-pre-line">{labelVal}</span>;
+      if (isPrint) return <span className="text-[10px]" style={{ whiteSpace: 'pre-line' }}>{labelVal}</span>;
+      return <span className="text-[10px] text-slate-700 cursor-default" style={{ whiteSpace: 'pre-line' }}>{labelVal}</span>;
     }
 
     // ── Multi-select (dropdown con checkboxes, valores apilados) ─────────────
