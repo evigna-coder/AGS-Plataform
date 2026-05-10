@@ -223,7 +223,10 @@ export const TablePreview = ({ table }: Props) => {
                           <td
                             key={col.key}
                             rowSpan={isSpanning ? colSpan : undefined}
-                            style={{ whiteSpace: 'pre-line' }}
+                            style={{
+                              whiteSpace: 'pre-line',
+                              ...(col.fontSize ? { fontSize: `${col.fontSize}px`, lineHeight: 1.35 } : {}),
+                            }}
                             className={[
                               'px-3 py-2 border border-slate-200 text-slate-700',
                               (() => {

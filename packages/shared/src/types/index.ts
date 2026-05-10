@@ -1592,6 +1592,13 @@ export interface TableCatalogColumn {
    * equipo en calibración.
    */
   disableAutoFill?: boolean;
+  /**
+   * Tamaño de fuente del contenido de las celdas de esta columna, en pixeles.
+   * Si no se define, usa el tamaño default del render (10px). Sobreescribe el
+   * fontSize de la tabla. Útil cuando una columna específica tiene texto largo
+   * o multilínea y necesita ser más legible.
+   */
+  fontSize?: number | null;
 }
 
 export interface TableCatalogRow {

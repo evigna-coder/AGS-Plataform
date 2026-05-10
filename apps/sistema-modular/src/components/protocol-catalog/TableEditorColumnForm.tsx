@@ -115,6 +115,18 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
               <option value="right">Der</option>
             </select>
           </div>
+          <div className="flex items-center gap-1.5" title="Tamaño de fuente del contenido en pixeles. Vacío = default (10px). Útil cuando la columna tiene texto largo o multilínea.">
+            <label className="text-xs font-medium text-slate-500">Tamaño (px)</label>
+            <input
+              type="number"
+              min={6}
+              max={20}
+              value={d.fontSize ?? ''}
+              onChange={e => setD({ ...d, fontSize: e.target.value ? parseInt(e.target.value) || null : null })}
+              placeholder="auto"
+              className="w-16 border border-slate-300 rounded-lg px-2 py-1 text-xs text-center"
+            />
+          </div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>

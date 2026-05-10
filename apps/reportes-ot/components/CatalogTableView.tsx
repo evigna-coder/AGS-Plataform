@@ -705,17 +705,34 @@ export const CatalogTableView: React.FC<Props> = ({
   const table = selection.tableSnapshot;
   // Inyectar CSS de fontSize en <head> en vez de inline dentro de la tabla,
   // para evitar que html2canvas vea el <style> en el árbol capturado y falle en renderBackgroundImage.
+  // Maneja tanto el fontSize a nivel de tabla como el override por columna (col.fontSize).
+  // El selector incluye tbody td * para vencer las clases de Tailwind text-[10px] de los hijos.
+  const colFontSizeKey = table.columns.map(c => `${c.key}:${c.fontSize ?? 0}`).join(',');
   React.useEffect(() => {
-    if (!table.fontSize) return;
+    let css = '';
+    if (table.fontSize) {
+      css += `
+        table[data-catalog-table-id="${selection.tableId}"] tbody td,
+        table[data-catalog-table-id="${selection.tableId}"] tbody td * { font-size: ${table.fontSize}px !important; line-height: 1.35 !important; }
+      `;
+    }
+    for (const col of table.columns) {
+      if (col.fontSize) {
+        // CSS.escape no siempre disponible en old Safari; el escape simple cubre keys razonables.
+        const safeKey = col.key.replace(/"/g, '\\"');
+        css += `
+          table[data-catalog-table-id="${selection.tableId}"] tbody td[data-col-key="${safeKey}"],
+          table[data-catalog-table-id="${selection.tableId}"] tbody td[data-col-key="${safeKey}"] * { font-size: ${col.fontSize}px !important; }
+        `;
+      }
+    }
+    if (!css) return;
     const styleEl = document.createElement('style');
     styleEl.setAttribute('data-ags-table-font', selection.tableId);
-    styleEl.textContent = `
-      table[data-catalog-table-id="${selection.tableId}"] tbody td,
-      table[data-catalog-table-id="${selection.tableId}"] tbody td * { font-size: ${table.fontSize}px !important; line-height: 1.35 !important; }
-    `;
+    styleEl.textContent = css;
     document.head.appendChild(styleEl);
     return () => { styleEl.remove(); };
-  }, [table.fontSize, selection.tableId]);
+  }, [table.fontSize, selection.tableId, colFontSizeKey]);
   const compact = table.compactDisplay ?? false;
   const clientSpecEnabled = selection.clientSpecEnabled ?? false;
 
@@ -2253,6 +2270,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         <td
                           key={col.key}
                           data-col-label={col.label || ''}
+                          data-col-key={col.key}
                           rowSpan={isSpanning ? colSpan : undefined}
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
