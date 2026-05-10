@@ -2198,6 +2198,8 @@ export interface PatronLote {
   lote: string;
   /** Fecha de vencimiento del lote (ISO string) */
   fechaVencimiento: string | null;
+  /** Cantidad disponible de este lote (unidades, viales, frascos, etc.) */
+  cantidad?: number | null;
   /** Emisor del certificado */
   certificadoEmisor?: string | null;
   /** URL pública del certificado PDF */

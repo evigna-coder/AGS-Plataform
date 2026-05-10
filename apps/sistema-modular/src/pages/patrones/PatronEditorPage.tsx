@@ -28,6 +28,7 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
 const emptyLote = (): PatronLote => ({
   lote: '',
   fechaVencimiento: null,
+  cantidad: null,
   certificadoEmisor: null,
   certificadoUrl: null,
   certificadoStoragePath: null,
@@ -250,7 +251,7 @@ export const PatronEditorPage = () => {
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
                       <div>
                         <label className={lbl}>Código de lote *</label>
                         <Input value={lote.lote}
@@ -263,18 +264,27 @@ export const PatronEditorPage = () => {
                           onChange={e => updateLote(idx, 'fechaVencimiento', e.target.value || null)} />
                       </div>
                       <div>
+                        <label className={lbl}>Cantidad</label>
+                        <Input type="number" min="0" step="1" value={lote.cantidad ?? ''}
+                          onChange={e => {
+                            const v = e.target.value;
+                            updateLote(idx, 'cantidad', v === '' ? null : Number(v));
+                          }}
+                          placeholder="Ej: 1" />
+                      </div>
+                      <div>
                         <label className={lbl}>Emisor del certificado</label>
                         <Input value={lote.certificadoEmisor ?? ''}
                           onChange={e => updateLote(idx, 'certificadoEmisor', e.target.value || null)}
                           placeholder="Ej: Agilent Technologies" />
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-4">
                         <label className={lbl}>Notas</label>
                         <Input value={lote.notas ?? ''}
                           onChange={e => updateLote(idx, 'notas', e.target.value || null)}
                           placeholder="Observaciones del lote" />
                       </div>
-                      <div className="col-span-3 pt-2 border-t border-slate-200">
+                      <div className="col-span-4 pt-2 border-t border-slate-200">
                         <label className={lbl}>Certificado PDF</label>
                         <div className="flex items-center gap-2">
                           {lote.certificadoUrl ? (

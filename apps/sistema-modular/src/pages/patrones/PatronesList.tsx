@@ -8,6 +8,9 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreatePatronModal } from '../../components/patrones/CreatePatronModal';
 import { MigracionPatronesModal } from '../../components/patrones/MigracionPatronesModal';
+import { PatronesListPDF } from '../../components/patrones/PatronesListPDF';
+import { downloadPdf, todayForFilename } from '../../utils/remitoPdfActions';
+import { getCurrentUser } from '../../services/currentUser';
 import {
   CATEGORIA_PATRON_LABELS,
   calcularEstadoCertificado,
@@ -45,6 +48,21 @@ function estadoGlobal(patron: Patron): 'vigente' | 'por_vencer' | 'vencido' | 's
   return 'vigente';
 }
 
+/** Vencimiento próximo: el más cercano (vigente/por_vencer); si no hay, el más reciente vencido. */
+function proximoVencimiento(patron: Patron): string | null {
+  const fechas = patron.lotes.map(l => l.fechaVencimiento).filter((f): f is string => !!f);
+  if (fechas.length === 0) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const futuras = fechas.filter(f => f >= today).sort();
+  if (futuras.length > 0) return futuras[0];
+  return fechas.sort().reverse()[0];
+}
+
+/** Suma cantidades de todos los lotes del patrón. */
+function totalCantidad(patron: Patron): number {
+  return patron.lotes.reduce((sum, l) => sum + (typeof l.cantidad === 'number' ? l.cantidad : 0), 0);
+}
+
 const FILTER_SCHEMA = {
   categoria: { type: 'string' as const, default: '' },
   showInactive: { type: 'boolean' as const, default: false },
@@ -59,10 +77,11 @@ const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
 
 export const PatronesList = () => {
   const confirm = useConfirm();
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('patrones-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('patrones-list-v2');
   const { patrones, loading, error, listPatrones, deactivatePatron } = usePatrones();
   const [showCreate, setShowCreate] = useState(false);
   const [showMigracion, setShowMigracion] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [filters, setFilter, _setFilters, resetFilters] = useUrlFilters(FILTER_SCHEMA);
   const [sortField, setSortField] = useState('codigoArticulo');
@@ -97,6 +116,31 @@ export const PatronesList = () => {
     }
   };
 
+  const handleExportPdf = async () => {
+    if (filtered.length === 0) return;
+    setExporting(true);
+    try {
+      const filtrosLabel = [
+        filters.categoria && `Categoría: ${CATEGORIA_PATRON_LABELS[filters.categoria as CategoriaPatron] || filters.categoria}`,
+        filters.showInactive && 'Incluye inactivos',
+      ].filter(Boolean).join(' · ');
+      const user = getCurrentUser();
+      await downloadPdf(
+        <PatronesListPDF
+          items={filtered}
+          generadoPor={user?.displayName ?? null}
+          filtros={filtrosLabel || undefined}
+        />,
+        `Listado de patrones - ${todayForFilename()}`,
+      );
+    } catch (err) {
+      console.error('Error exportando PDF:', err);
+      alert('No se pudo generar el PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const isInitialLoad = loading && patrones.length === 0;
 
   return (
@@ -107,6 +151,10 @@ export const PatronesList = () => {
         count={isInitialLoad ? undefined : filtered.length}
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void handleExportPdf()}
+              disabled={exporting || filtered.length === 0}>
+              {exporting ? 'Generando…' : 'Exportar PDF'}
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowMigracion(true)} title="Migrar patrones antiguos desde la colección instrumentos">
               Migrar desde instrumentos
             </Button>
@@ -169,11 +217,13 @@ export const PatronesList = () => {
                 </colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '30%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '17%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '7%' }} />
                   <col style={{ width: '110px' }} />
                 </colgroup>
               )}
@@ -193,13 +243,21 @@ export const PatronesList = () => {
                   </SortableHeader>
                   <th className={`${thClass} ${getAlignClass(3)} relative`}>Categorías<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thClass} ${getAlignClass(4)} relative`}>Lotes<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(5)} relative`}>Vencimiento<ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(6)} relative`}>Cantidad<ColAlignIcon align={colAligns?.[6] || 'right'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(p => {
                   const estado = estadoGlobal(p);
                   const badge = ESTADO_BADGE[estado];
+                  const venc = proximoVencimiento(p);
+                  const cantidad = totalCantidad(p);
+                  const tieneCantidad = p.lotes.some(l => typeof l.cantidad === 'number');
+                  const vencCls = estado === 'vencido' ? 'text-red-600 font-medium'
+                    : estado === 'por_vencer' ? 'text-amber-700 font-medium'
+                    : 'text-slate-600';
                   return (
                     <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${!p.activo ? 'opacity-50' : ''}`}>
                       <td className={`px-3 py-2 text-xs font-semibold text-teal-600 font-mono truncate ${getAlignClass(0)}`} title={p.codigoArticulo}>{p.codigoArticulo || <span className="text-slate-300">—</span>}</td>
@@ -234,6 +292,13 @@ export const PatronesList = () => {
                             </span>
                           </div>
                         )}
+                      </td>
+                      <td className={`px-3 py-2 text-xs whitespace-nowrap ${vencCls} ${getAlignClass(5)}`}
+                        title={p.lotes.length > 1 ? 'Vencimiento más próximo entre lotes' : undefined}>
+                        {venc ? formatFechaAR(venc) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className={`px-3 py-2 text-xs font-mono whitespace-nowrap ${colAligns?.[6] ? getAlignClass(6) : 'text-right'}`}>
+                        {tieneCantidad ? cantidad : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-end gap-0.5">
