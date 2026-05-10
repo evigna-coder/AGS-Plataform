@@ -1956,6 +1956,13 @@ export interface TableCatalogEntry {
    * donde la carátula debe identificar el módulo, no el sistema completo.
    */
   coverAutoFillFromModulo?: boolean;
+  /**
+   * Campos extra editables que se muestran en la carátula (solo tableType === 'cover').
+   * El ingeniero los completa en la ejecución del protocolo. Útil para datos como
+   * "Versión del software" o "Estación de trabajo" que dependen del trabajo y no del
+   * sistema. Se persisten en `selection.filledData['_cover_'][fieldId]`.
+   */
+  coverExtraFields?: { id: string; label: string }[];
   /** FK a /tableProjects/{projectId}. Agrupa tablas en un proyecto. */
   projectId?: string | null;
   status: 'draft' | 'published' | 'archived';

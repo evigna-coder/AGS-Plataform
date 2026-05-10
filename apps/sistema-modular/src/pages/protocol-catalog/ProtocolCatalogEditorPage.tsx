@@ -468,6 +468,44 @@ export const TableCatalogEditorPage = () => {
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1.5">Aparecen en el pie de la carátula, separados por una línea degradé.</p>
               </div>
+
+              {/* Campos extra editables — los completa el ingeniero al ejecutar el protocolo */}
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Campos extra editables</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">El ingeniero los completa en el protocolo. Aparecen en la carátula antes del nombre del ingeniero. Ej. "Versión del software", "Estación de trabajo".</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const next = [...(entry.coverExtraFields ?? []), { id: crypto.randomUUID().slice(0, 8), label: '' }];
+                    setMeta('coverExtraFields', next);
+                  }}>+ Campo</Button>
+                </div>
+                {(entry.coverExtraFields ?? []).length === 0 ? (
+                  <p className="text-[10px] text-slate-400 italic">Sin campos extra. Click en "+ Campo" para agregar.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(entry.coverExtraFields ?? []).map((f, i) => (
+                      <div key={f.id} className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        <Input
+                          value={f.label}
+                          placeholder='Ej: "Versión del software"'
+                          onChange={e => {
+                            const next = [...(entry.coverExtraFields ?? [])];
+                            next[i] = { ...next[i], label: e.target.value };
+                            setMeta('coverExtraFields', next);
+                          }}
+                          className="flex-1"
+                        />
+                        <button onClick={() => {
+                          const next = (entry.coverExtraFields ?? []).filter((_, j) => j !== i);
+                          setMeta('coverExtraFields', next.length ? next : null);
+                        }} className="text-red-500 text-xs font-bold px-2" title="Quitar campo">×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Card>
           ) : entry.tableType === 'text' ? (
             <Card>

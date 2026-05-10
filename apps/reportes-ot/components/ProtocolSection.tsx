@@ -189,6 +189,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 numeroSerie={coverData?.numeroSerie}
                 ingenieroNombre={coverData?.ingenieroNombre || aclaracionEspecialista}
                 logoSrc={coverData?.logoSrc}
+                onChangeData={handleCatalogCellChange}
               />
             ) : sel.tableSnapshot.tableType === 'signatures' ? (
               <CatalogSignaturesView

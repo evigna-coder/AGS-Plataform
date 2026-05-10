@@ -18,7 +18,12 @@ interface Props {
   numeroSerie?: string;
   ingenieroNombre?: string;
   logoSrc?: string;
+  /** Callback para actualizar valores de campos extra editables (coverExtraFields). */
+  onChangeData?: (tableId: string, rowId: string, colKey: string, value: string) => void;
 }
+
+/** rowId sintético donde se guardan los valores de los coverExtraFields. */
+const COVER_EXTRA_ROW_ID = '_cover_';
 
 /**
  * Carátula del protocolo — estilo editorial AGS.
@@ -38,6 +43,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   numeroSerie,
   ingenieroNombre,
   logoSrc,
+  onChangeData,
 }) => {
   const table = selection.tableSnapshot;
   const titulo = table.name || 'Protocolo';
@@ -65,11 +71,25 @@ export const CatalogCoverView: React.FC<Props> = ({
   const modeloValue = table.coverAutoFillFromModulo
     ? (moduloModelo || sistemaNombre || sistemaModelo || '—')
     : (sistemaNombre || sistemaModelo || '—');
-  const datos = [
+
+  // Campos extra editables (coverExtraFields) — el ingeniero los completa, se persisten
+  // en selection.filledData['_cover_'][fieldId]. Se insertan antes de "Ing. de Soporte Técnico".
+  const extras: { label: string; value: string; mono?: boolean; editable: true; fieldId: string }[] =
+    (table.coverExtraFields ?? []).map(f => ({
+      label: f.label || '(sin etiqueta)',
+      value: selection.filledData[COVER_EXTRA_ROW_ID]?.[f.id] ?? '',
+      editable: true,
+      fieldId: f.id,
+    }));
+  type DatoStatic = { label: string; value: string; mono?: boolean; editable?: false; fieldId?: undefined };
+  type DatoEditable = { label: string; value: string; mono?: boolean; editable: true; fieldId: string };
+  type DatoEntry = DatoStatic | DatoEditable;
+  const datos: DatoEntry[] = [
     { label: 'Fecha', value: formatFecha(fechaInicio) },
     { label: 'Modelo', value: modeloValue },
     { label: 'ID', value: agsVisibleId || '—', mono: true },
     { label: 'N° de Serie', value: numeroSerie || '—', mono: true },
+    ...extras,
     { label: 'Ing. de Soporte Técnico', value: ingenieroNombre || '—' },
   ];
 
@@ -115,9 +135,19 @@ export const CatalogCoverView: React.FC<Props> = ({
           )}
           <div className="grid grid-cols-2 gap-3 max-w-sm text-left">
             {datos.map(d => (
-              <div key={d.label}>
+              <div key={d.editable ? d.fieldId : d.label}>
                 <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400" style={{ fontFamily: 'Newsreader, serif' }}>{d.label}</p>
-                <p className={`text-xs text-slate-700 ${d.mono ? 'font-mono font-medium' : ''}`}>{d.value}</p>
+                {d.editable ? (
+                  <input
+                    type="text"
+                    value={d.value}
+                    onChange={(e) => onChangeData?.(selection.tableId, COVER_EXTRA_ROW_ID, d.fieldId, e.target.value)}
+                    placeholder="—"
+                    className="w-full text-xs text-slate-700 border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-300"
+                  />
+                ) : (
+                  <p className={`text-xs text-slate-700 ${d.mono ? 'font-mono font-medium' : ''}`}>{d.value}</p>
+                )}
               </div>
             ))}
           </div>
@@ -241,7 +271,7 @@ export const CatalogCoverView: React.FC<Props> = ({
           marginBottom: '46mm',
         }}>
           {datos.map(d => (
-            <div key={d.label}>
+            <div key={d.editable ? d.fieldId : d.label}>
               <p style={{
                 fontFamily: 'Newsreader, serif',
                 fontSize: 9,
@@ -258,7 +288,7 @@ export const CatalogCoverView: React.FC<Props> = ({
                 color: '#1e293b',
                 paddingBottom: 6,
                 borderBottom: '1px solid #e2e8f0',
-              }}>{d.value}</p>
+              }}>{d.value || '—'}</p>
             </div>
           ))}
         </div>
