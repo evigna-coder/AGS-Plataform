@@ -143,7 +143,10 @@ function ChecklistItemRow({
     return (
       <div className={`py-2.5 ${isPrint ? '' : 'px-3'}`} style={{ paddingLeft: `${indent + 8}px` }}>
         {item.label && (item.showLabel !== false) && (
-          <p className={`text-xs font-semibold mb-2 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+          <p
+            className={`text-xs font-semibold mb-2 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}
+            style={{ textAlign: 'justify', hyphens: 'auto' }}
+          >
             {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
             {item.label}
           </p>
@@ -338,7 +341,10 @@ function ChecklistItemRow({
 
   const isInline = item.itemType === 'value_input';
   const labelEl = (
-    <span className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'} ${isInline ? 'shrink-0' : 'flex-1'}`}>
+    <span
+      className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'} ${isInline ? 'shrink-0' : 'flex-1'}`}
+      style={isInline ? undefined : { textAlign: 'justify', hyphens: 'auto', display: 'inline-block', width: '100%' }}
+    >
       {item.numberPrefix && (
         <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>
       )}

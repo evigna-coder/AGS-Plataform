@@ -45,7 +45,10 @@ export const ProtocolResultBlock: React.FC<ProtocolResultBlockProps> = ({
               Observaciones técnicas
             </label>
             {readOnly ? (
-              <p className="text-[11px] text-slate-700 whitespace-pre-wrap">
+              <p
+                className="text-[11px] text-slate-700 whitespace-pre-wrap"
+                style={{ textAlign: 'justify', hyphens: 'auto' }}
+              >
                 {observations || '—'}
               </p>
             ) : (

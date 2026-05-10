@@ -172,7 +172,10 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
               {r.accionesTomar && (
                 <div className="px-5 py-3">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wide mb-2">Acciones a Tomar</h3>
-                  <p className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap">{r.accionesTomar}</p>
+                  <p
+                    className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap"
+                    style={{ textAlign: 'justify', hyphens: 'auto' }}
+                  >{r.accionesTomar}</p>
                 </div>
               )}
 
