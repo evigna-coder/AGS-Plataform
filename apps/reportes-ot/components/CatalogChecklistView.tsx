@@ -254,6 +254,43 @@ function ChecklistItemRow({
     );
   }
 
+  // ── selector ──────────────────────────────────────────────────────────────
+  // Se evalúa ANTES del check de depth === 0 para que un selector colocado en
+  // cabecera (depth=0) renderice su dropdown en lugar del divisor de sección.
+  if (item.itemType === 'selector') {
+    const selected = (answer as { itemType: 'selector'; selected: string } | undefined)?.selected ?? '';
+    if (isPrint) {
+      return (
+        <div className="py-1 px-3 bg-slate-50 border-b border-slate-200" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.4' }}>
+          <span className="text-[11px] text-slate-800">
+            {item.numberPrefix && <span className="font-mono text-slate-400 mr-1">{item.numberPrefix}</span>}
+            {item.label}
+          </span>
+          {selected && <span className="text-[11px] font-semibold text-slate-800 ml-1.5">{selected}</span>}
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1.5 py-1.5 px-2 bg-slate-50/50" style={{ paddingLeft: `${indent + 8}px` }}>
+        <span className={`text-xs leading-snug shrink-0 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+          {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
+          {item.label}
+        </span>
+        <select
+          value={selected}
+          disabled={disabled}
+          onChange={e => onAnswer({ itemType: 'selector', selected: e.target.value })}
+          className="text-[11px] border border-slate-300 rounded px-2 py-1 bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed"
+        >
+          <option value="">Seleccionar...</option>
+          {(item.selectorOptions ?? []).map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
   // Cabeceras (depth 0): divider con acciones
   if (item.depth === 0) {
     return (
@@ -308,41 +345,6 @@ function ChecklistItemRow({
       {item.label}
     </span>
   );
-
-  // ── selector ──────────────────────────────────────────────────────────────
-  if (item.itemType === 'selector') {
-    const selected = (answer as { itemType: 'selector'; selected: string } | undefined)?.selected ?? '';
-    if (isPrint) {
-      return (
-        <div className="py-1 px-3 bg-slate-50 border-b border-slate-200" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.4' }}>
-          <span className="text-[11px] text-slate-800">
-            {item.numberPrefix && <span className="font-mono text-slate-400 mr-1">{item.numberPrefix}</span>}
-            {item.label}
-          </span>
-          {selected && <span className="text-[11px] font-semibold text-slate-800 ml-1.5">{selected}</span>}
-        </div>
-      );
-    }
-    return (
-      <div className="flex items-center gap-1.5 py-1.5 px-2 bg-slate-50/50" style={{ paddingLeft: `${indent + 8}px` }}>
-        <span className={`text-xs leading-snug shrink-0 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-          {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
-          {item.label}
-        </span>
-        <select
-          value={selected}
-          disabled={disabled}
-          onChange={e => onAnswer({ itemType: 'selector', selected: e.target.value })}
-          className="text-[11px] border border-slate-300 rounded px-2 py-1 bg-white text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed"
-        >
-          <option value="">Seleccionar...</option>
-          {(item.selectorOptions ?? []).map(opt => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-      </div>
-    );
-  }
 
   // ── checkbox ────────────────────────────────────────────────────────────────
   if (item.itemType === 'checkbox') {
