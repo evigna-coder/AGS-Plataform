@@ -530,10 +530,14 @@ export function useAppLogic(
   };
 
   /**
-   * Vacía todos los campos auto-fill de cliente + equipo. Para usar en modo
-   * "Protocolo en blanco" cuando el ingeniero quiere mandar el PDF sin esos datos
-   * pero conservando las tablas del protocolo cargadas.
-   * NO toca: otNumber, tipoServicio, fechaInicio, fechaFin (datos del servicio en sí).
+   * Vacía los datos específicos del cliente y la instancia del equipo, conservando
+   * la identidad del equipo (sistema/módulo) para que la carátula siga mostrando
+   * de qué tipo de equipo es el protocolo. Para usar en modo "Protocolo en blanco"
+   * cuando el ingeniero manda el PDF sin datos del cliente pero conservando el contexto.
+   *
+   * Limpia: razón social, contacto, email, dirección, sector, ID interno, serie, ingeniero.
+   * Conserva: sistema, módulo marca/modelo/descripción (identidad del equipo),
+   *           otNumber, tipoServicio, fechas (datos del servicio).
    */
   const clearAutofillFields = () => {
     setters.setRazonSocial('');
@@ -543,10 +547,6 @@ export function useAppLogic(
     setters.setLocalidad('');
     setters.setProvincia('');
     setters.setSector('');
-    setters.setSistema('');
-    setters.setModuloModelo('');
-    setters.setModuloMarca('');
-    setters.setModuloDescripcion('');
     setters.setModuloSerie('');
     setters.setCodigoInternoCliente('');
     setters.setAclaracionEspecialista('');

@@ -375,9 +375,9 @@ const App: React.FC = () => {
           <button
             onClick={app.clearAutofillFields}
             className="bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-1 rounded font-bold uppercase tracking-wide text-[10px]"
-            title="Vacía razón social, dirección, sector, contacto, sistema, modelo, serie e ID. Conserva las tablas del protocolo."
+            title="Vacía razón social, dirección, sector, contacto, ID interno, serie e ingeniero. Conserva el sistema/módulo (identidad del equipo) y las tablas del protocolo."
           >
-            Vaciar datos cliente + equipo
+            Vaciar datos cliente
           </button>
           <button
             onClick={app.newReport}
