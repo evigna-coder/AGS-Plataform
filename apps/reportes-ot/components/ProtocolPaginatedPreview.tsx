@@ -382,7 +382,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
             blankPreviewMode={blankPreviewMode}
           />
         ) : sel.tableSnapshot.tableType === 'text' ? (
-          <CatalogTextView selection={sel} readOnly />
+          <CatalogTextView selection={sel} readOnly isPrint />
         ) : (
           <CatalogTableView selection={sel} readOnly isPrint onChangeData={() => {}} variables={protocolVariables} liveTemplateRows={catalogTables?.find(t => t.id === sel.tableId)?.templateRows} siblingSelections={sortedSelections} />
         );

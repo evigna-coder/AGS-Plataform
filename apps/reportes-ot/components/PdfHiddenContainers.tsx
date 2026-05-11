@@ -59,7 +59,7 @@ export const PdfHiddenContainers: React.FC<PdfHiddenContainersProps> = ({
                   fechaInicio={fechaInicio} fechaFin={fechaFin}
                 />
               ) : sel.tableSnapshot.tableType === 'text' ? (
-                <CatalogTextView selection={sel} readOnly />
+                <CatalogTextView selection={sel} readOnly isPrint />
               ) : sel.tableSnapshot.tableType === 'checklist' ? (
                 <CatalogChecklistView selection={sel} readOnly isPrint onChangeData={() => {}}
                   signatureClient={signatureClient} signatureEngineer={signatureEngineer}
