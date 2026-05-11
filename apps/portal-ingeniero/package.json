@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ags/shared": "workspace:*",
-    "firebase": "^12.7.0",
+    "firebase": "^12.11.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.12.0"
