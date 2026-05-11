@@ -471,6 +471,13 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       if (!container) return;
       const children = Array.from(container.children) as HTMLElement[];
       const heights: number[] = children.map(child => child.offsetHeight + 16);
+      // [DEBUG] log heights and pagination capacity
+      if (typeof window !== 'undefined') {
+        console.log('[HEIGHTS] CONTENT_HEIGHT_PX =', CONTENT_HEIGHT_PX);
+        contentItems.forEach((it, i) => {
+          console.log(`[HEIGHTS] idx=${i} h=${heights[i]}px glue=${it.glueWithPrev} name="${(it as any).headerTitle || it.key}"`);
+        });
+      }
 
       const pagesResult: PageDef[] = [];
       let currentPageItems: ContentItem[] = [];
