@@ -309,8 +309,6 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
 
     for (let idx = 0; idx < sortedSelections.length; idx++) {
       const sel = sortedSelections[idx];
-      const prevHasAttachToNext = idx > 0 && (sortedSelections[idx - 1].tableSnapshot.attachToNext ?? false);
-      const glue = (sel.tableSnapshot.attachToPrevious ?? false) || prevHasAttachToNext;
 
       // Buscar headerTitle/footerQF: snapshot → catálogo vivo → proyecto
       const live = catalogTables?.find(t => t.id === sel.tableId);
@@ -318,6 +316,22 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       const project = projectId ? catalogProjects?.find(p => p.id === projectId) : null;
       const headerTitle = sel.tableSnapshot.headerTitle || live?.headerTitle || project?.headerTitle || null;
       const footerQF = sel.tableSnapshot.footerQF || live?.footerQF || project?.footerQF || null;
+
+      // attachToPrevious / attachToNext: leer del catálogo vivo si existe (el admin
+      // puede haber tildado "Vincular con tabla anterior/siguiente" después de
+      // crear la OT — el snapshot de la OT no lo tendría, pero el catálogo sí).
+      // Fallback al snapshot si no hay live.
+      const liveOrSnapshot = (key: 'attachToPrevious' | 'attachToNext'): boolean => {
+        const liveVal = (live as { attachToPrevious?: boolean; attachToNext?: boolean } | undefined)?.[key];
+        if (liveVal !== undefined) return liveVal;
+        return sel.tableSnapshot[key] ?? false;
+      };
+      const prevSel = idx > 0 ? sortedSelections[idx - 1] : null;
+      const prevLive = prevSel ? catalogTables?.find(t => t.id === prevSel.tableId) : null;
+      const prevAttachToNext = prevSel
+        ? ((prevLive as { attachToNext?: boolean } | undefined)?.attachToNext ?? prevSel.tableSnapshot.attachToNext ?? false)
+        : false;
+      const glue = liveOrSnapshot('attachToPrevious') || prevAttachToNext;
 
       // Carátulas: página completa sin header/footer
       if (sel.tableSnapshot.tableType === 'cover') {
