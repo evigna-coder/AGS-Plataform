@@ -10,6 +10,12 @@ interface Props {
   isPrint?: boolean;
   onRemove?: (tableId: string) => void;
   onChangeData?: (tableId: string, rowId: string, colKey: string, value: string) => void;
+  /**
+   * Alineación de texto del catálogo VIVO. Si el admin editó la tabla del catálogo
+   * después de crear la OT (snapshot quedó viejo), el padre puede pasar el valor
+   * actualizado acá. Tiene prioridad sobre selection.tableSnapshot.textAlign.
+   */
+  liveTextAlign?: 'justify' | 'left' | 'center' | 'right' | null;
 }
 
 /** Parsea texto con variables {nombre} y devuelve fragmentos de texto y variables */
@@ -102,10 +108,13 @@ export const CatalogTextView: React.FC<Props> = ({
   isPrint = false,
   onRemove,
   onChangeData,
+  liveTextAlign,
 }) => {
   const table = selection.tableSnapshot;
   const textContent = table.textContent ?? '';
   const isInline = (table.textDisplayMode ?? 'card') === 'inline';
+  // Resolver alineación: prop liveTextAlign (catálogo vivo) > snapshot > default 'justify'
+  const resolvedTextAlign = liveTextAlign ?? table.textAlign ?? 'justify';
 
   // ─── Modo inline: texto suelto sin recuadro ───────────────────────────
   if (isInline) {
@@ -137,7 +146,7 @@ export const CatalogTextView: React.FC<Props> = ({
           isPrint={isPrint}
           onChangeData={onChangeData}
           className={`catalog-text-content ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-          style={{ textAlign: table.textAlign ?? 'justify', hyphens: 'auto' }}
+          style={{ textAlign: resolvedTextAlign, hyphens: 'auto' }}
         />
       </div>
     );
@@ -186,7 +195,7 @@ export const CatalogTextView: React.FC<Props> = ({
           isPrint={isPrint}
           onChangeData={onChangeData}
           className={`catalog-text-content px-3 py-2 ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-          style={{ textAlign: table.textAlign ?? 'justify', hyphens: 'auto' }}
+          style={{ textAlign: resolvedTextAlign, hyphens: 'auto' }}
         />
         {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
       </div>

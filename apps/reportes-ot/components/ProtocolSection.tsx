@@ -216,6 +216,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 isPrint={false}
                 onRemove={handleRemoveCatalogTable}
                 onChangeData={handleCatalogCellChange}
+                liveTextAlign={(allPublishedTables?.find(t => t.id === sel.tableId) as { textAlign?: 'justify' | 'left' | 'center' | 'right' } | undefined)?.textAlign}
               />
             ) : sel.tableSnapshot.tableType === 'checklist' ? (
               <CatalogChecklistView
