@@ -61,8 +61,8 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
             onChange={e => setD({ ...d, expectedValue: e.target.value || null })} />
         )}
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-y-2">
+        <div className="flex items-center gap-4 flex-wrap">
           <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer">
             <input type="checkbox" checked={d.required} onChange={e => setD({ ...d, required: e.target.checked })} />
             Obligatorio
@@ -128,7 +128,7 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
             />
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0 ml-auto">
           <Button size="sm" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button size="sm" onClick={handleSave}
             disabled={!d.key}>Guardar</Button>
