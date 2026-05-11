@@ -57,9 +57,15 @@ export const CatalogCoverView: React.FC<Props> = ({
   // Línea principal de marca:
   // - default: "sistema / marca módulo"
   // - coverAutoFillFromModulo: "marca módulo / modelo módulo" (mantenimiento de accesorios)
-  const brandLine = table.coverAutoFillFromModulo
+  // En modo blank preview, el ingeniero puede sobreescribir el brand line manualmente
+  // (lo guardamos en filledData[_cover_][_brand_line_]); si no hay override, usamos
+  // el computado de sistema/módulo.
+  const brandLineComputed = table.coverAutoFillFromModulo
     ? [moduloMarca, moduloModelo].filter(Boolean).join(' / ')
     : [sistemaNombre || sistemaModelo, moduloMarca].filter(Boolean).join(' / ');
+  const BRAND_LINE_KEY = '_brand_line_';
+  const brandLineOverride = selection.filledData[COVER_EXTRA_ROW_ID]?.[BRAND_LINE_KEY];
+  const brandLine = brandLineOverride !== undefined ? brandLineOverride : brandLineComputed;
   // Línea secundaria: description del catálogo (ej. "Series 1100 / 1120 / 1200")
   const modelLine = table.description || '';
 
@@ -136,11 +142,21 @@ export const CatalogCoverView: React.FC<Props> = ({
           </div>
           <p className="text-xl font-bold text-slate-900 mb-0.5" style={{ fontFamily: 'Newsreader, serif' }}>{mainTitle}</p>
           {subTitle && <p className="text-sm text-slate-400 mb-3" style={{ fontFamily: 'Newsreader, serif' }}>{subTitle}</p>}
-          {brandLine && (
+          {(brandLine || blankPreviewMode) && (
             <div className="flex items-start gap-2 mb-4">
               <div className="w-[3px] rounded bg-blue-900 self-stretch shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-slate-700">{brandLine}</p>
+              <div className="flex-1">
+                {blankPreviewMode ? (
+                  <input
+                    type="text"
+                    value={brandLine}
+                    placeholder="Equipo / Marca (editable en blank preview)"
+                    onChange={(e) => onChangeData?.(selection.tableId, COVER_EXTRA_ROW_ID, BRAND_LINE_KEY, e.target.value)}
+                    className="w-full text-xs font-medium text-slate-700 border border-dashed border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-400"
+                  />
+                ) : (
+                  <p className="text-xs font-medium text-slate-700">{brandLine}</p>
+                )}
                 {modelLine && <p className="text-xs text-slate-500">{modelLine}</p>}
               </div>
             </div>
