@@ -333,6 +333,23 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         : false;
       const glue = liveOrSnapshot('attachToPrevious') || prevAttachToNext;
 
+      // [DEBUG temporal] log glue decisions
+      if (typeof window !== 'undefined') {
+        console.log(`[GLUE] idx=${idx}`, {
+          name: sel.tableSnapshot.name,
+          tableId: sel.tableId,
+          orden: sel.tableSnapshot.orden,
+          snapshotAttachPrev: sel.tableSnapshot.attachToPrevious,
+          snapshotAttachNext: sel.tableSnapshot.attachToNext,
+          liveAttachPrev: (live as any)?.attachToPrevious,
+          liveAttachNext: (live as any)?.attachToNext,
+          liveFound: !!live,
+          prevName: prevSel?.tableSnapshot.name,
+          prevAttachToNext,
+          finalGlue: glue,
+        });
+      }
+
       // Carátulas: página completa sin header/footer
       if (sel.tableSnapshot.tableType === 'cover') {
         const node = <CatalogCoverView
