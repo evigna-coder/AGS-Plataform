@@ -315,9 +315,15 @@ const App: React.FC = () => {
       },
     ];
 
+    // Modo "Protocolo en blanco": filtrar tabs irrelevantes (reporte/firmas/envío)
+    // para que el ingeniero sólo vea Datos del servicio + Protocolos.
+    const stepsFiltered = app.blankPreviewMode
+      ? wizardSteps.filter(s => s.key === 'datos' || s.key === 'protocolos')
+      : wizardSteps;
+
     return (
       <WizardLayout
-        steps={wizardSteps}
+        steps={stepsFiltered}
         extra={
           <>
             <PdfHiddenContainers
@@ -357,6 +363,22 @@ const App: React.FC = () => {
 
   return (
     <div id="report-container" className={`max-w-5xl mx-auto bg-white transition-all duration-300 pb-32 ${app.isPreviewMode ? 'p-0 min-h-screen shadow-none' : 'px-4 md:px-8 pt-2 md:pt-4 pb-4 md:pb-8 my-0 md:my-8 min-h-screen shadow-xl border border-slate-100'} print:p-0 print:m-0 print:shadow-none print:min-h-0 print:bg-white`}>
+
+      {app.blankPreviewMode && (
+        <div className="sticky top-0 z-50 bg-amber-100 border-b-2 border-amber-400 px-4 py-2 text-amber-900 text-xs font-semibold flex items-center justify-between no-print">
+          <span>
+            <strong>MODO PROTOCOLO EN BLANCO</strong> · No se guarda en Firestore.
+            Completá cliente/sistema/tipoServicio y descargá el PDF en blanco para enviar al cliente.
+          </span>
+          <button
+            onClick={app.newReport}
+            className="text-amber-900 underline font-semibold hover:text-amber-700"
+            title="Volver al inicio"
+          >
+            Salir
+          </button>
+        </div>
+      )}
 
       {!app.isPreviewMode && (
         <>
@@ -576,6 +598,9 @@ const App: React.FC = () => {
         onDownloadPDF={app.downloadPDF}
         onSignOut={signOut}
         onBackToEdit={app.isPreviewMode ? () => app.setIsPreviewMode(false) : undefined}
+        blankPreviewMode={app.blankPreviewMode}
+        onStartBlankPreview={app.startBlankPreview}
+        onDownloadBlankProtocol={app.downloadBlankProtocol}
       />
 
       {/* Modals */}

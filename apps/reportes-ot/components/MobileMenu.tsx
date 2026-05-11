@@ -16,6 +16,10 @@ interface MobileMenuProps {
   onDownloadPDF: () => void;
   onSignOut: () => void;
   onBackToEdit?: () => void;
+  /** Modo "Protocolo en blanco" — para enviar protocolo vacío a cliente. */
+  blankPreviewMode?: boolean;
+  onStartBlankPreview?: () => void;
+  onDownloadBlankProtocol?: () => void;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -33,7 +37,10 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onSharePDF,
   onDownloadPDF,
   onSignOut,
-  onBackToEdit
+  onBackToEdit,
+  blankPreviewMode = false,
+  onStartBlankPreview,
+  onDownloadBlankProtocol,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -42,6 +49,26 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 
   // En desktop, mostrar botones normales (compactos)
   if (!isMobile) {
+    // ── Modo "Protocolo en blanco": menú simplificado ──
+    if (blankPreviewMode) {
+      return (
+        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50">
+          <button
+            onClick={onDownloadBlankProtocol}
+            disabled={isGenerating}
+            className="bg-blue-600 text-white font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? (generationStep || 'Generando…') : 'Descargar PDF en blanco'}
+          </button>
+          <button
+            onClick={onNewReport}
+            className="bg-slate-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
+          >
+            Volver al inicio
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="fixed bottom-6 right-6 flex flex-col items-end gap-2 no-print z-50">
         {!isPreviewMode && (
@@ -52,6 +79,15 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             >
               Nuevo reporte
             </button>
+            {onStartBlankPreview && (
+              <button
+                onClick={onStartBlankPreview}
+                className="bg-teal-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"
+                title="Generar PDF del protocolo vacío para enviar al cliente"
+              >
+                Protocolo en blanco
+              </button>
+            )}
             <button
               onClick={onDuplicateOT}
               className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-full shadow-md uppercase tracking-wide text-[10px] transition-all hover:scale-105 active:scale-95"

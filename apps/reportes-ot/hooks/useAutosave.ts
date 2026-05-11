@@ -11,6 +11,8 @@ export interface UseAutosaveOptions {
   hasUserInteracted: RefObject<boolean>;
   isModoFirma: boolean;
   isPreviewMode: boolean;
+  /** Si true, skipea el autosave entero (modo "Protocolo en blanco" no persiste). */
+  blankPreviewMode?: boolean;
   debounceMs?: number;
 }
 
@@ -30,6 +32,7 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
     hasUserInteracted,
     isModoFirma,
     isPreviewMode,
+    blankPreviewMode = false,
     debounceMs = 700
   } = options;
 
@@ -44,6 +47,7 @@ export const useAutosave = (options: UseAutosaveOptions): void => {
       !isValidOt ||                      // ⛔ OT no tiene formato válido (5 dígitos + opcional .NN)
       isModoFirma ||
       isPreviewMode ||
+      blankPreviewMode ||                // ⛔ vista previa en blanco: no se persiste
       status === 'FINALIZADO'           // ⛔ reporte ya finalizado, no sobrescribir
     ) {
       return;

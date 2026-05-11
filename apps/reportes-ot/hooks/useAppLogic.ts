@@ -479,6 +479,16 @@ export function useAppLogic(
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  /**
+   * Modo "Protocolo en blanco": permite generar un PDF imprimible del protocolo vacío
+   * (carátula + tablas sin datos cargados) para enviar a clientes que lo solicitan antes
+   * del servicio. En este modo:
+   * - NO se persiste nada en Firestore.
+   * - Las secciones de Reporte técnico / Firmas / Acciones / Adjuntos se ocultan.
+   * - La carátula permite vaciar los campos autofilled.
+   * - El PDF generado solo contiene carátula + protocolo (sin Hoja 1).
+   */
+  const [blankPreviewMode, setBlankPreviewMode] = useState(false);
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
@@ -499,6 +509,23 @@ export function useAppLogic(
   
   // Wrapper para newReport que pasa showConfirm
   const newReport = () => {
+    // Salir del modo blank preview si estaba activo
+    if (blankPreviewMode) setBlankPreviewMode(false);
+    newReportFromHook(modal.showConfirm);
+  };
+
+  /**
+   * Inicia el modo "Protocolo en blanco". Limpia el form igual que newReport y
+   * activa el flag para que la UI oculte secciones de Hoja 1 / Firmas / Acciones y
+   * el guardado a Firestore se saltee.
+   */
+  const startBlankPreview = () => {
+    newReportFromHook(modal.showConfirm);
+    setBlankPreviewMode(true);
+  };
+
+  const exitBlankPreview = () => {
+    setBlankPreviewMode(false);
     newReportFromHook(modal.showConfirm);
   };
 
@@ -623,6 +650,7 @@ export function useAppLogic(
   );
   const {
     generatePDFBlob: generatePDFBlobFromHook,
+    generateBlankProtocolBlob,
     handleFinalSubmit: handleFinalSubmitFromHook,
     confirmClientAndFinalize: confirmClientAndFinalizeFromHook,
     isGenerating,
@@ -632,6 +660,34 @@ export function useAppLogic(
     setIsPreviewMode,
     setPdfBlob: setGeneratedPdfBlob
   } = pdfGeneration;
+
+  /**
+   * Descarga el PDF del protocolo en blanco (modo blank preview).
+   * Llama a generateBlankProtocolBlob, descarga directo, no guarda nada.
+   */
+  const downloadBlankProtocol = async () => {
+    try {
+      const blob = await generateBlankProtocolBlob();
+      if (!blob) {
+        modal.showAlert({ message: 'No hay tablas de protocolo para imprimir. Seleccioná cliente, sistema y tipo de servicio primero.', type: 'warning' });
+        return;
+      }
+      const idPart = codigoInternoCliente ? ` ID ${codigoInternoCliente}` : '';
+      const sysPart = sistema ? ` - ${sistema}` : '';
+      const filename = `Protocolo en blanco${idPart}${sysPart}.pdf`.replace(/[/\\:*?"<>|]/g, '_');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generando protocolo en blanco:', err);
+      modal.showAlert({ message: 'Error generando el PDF en blanco. Revisá la consola.', type: 'error' });
+    }
+  };
 
   // Hook de autosave - guarda automáticamente con debounce
   useAutosave({
@@ -643,6 +699,7 @@ export function useAppLogic(
     hasUserInteracted,
     isModoFirma,
     isPreviewMode,
+    blankPreviewMode,
     debounceMs: 700
   });
 
@@ -1047,6 +1104,8 @@ export function useAppLogic(
     gemini, firebase, entitySelectors, modal,
     // OT management
     otManagement, loadOT, newReport, confirmLoadOt, confirmCreateNewOt,
+    // Blank preview mode
+    blankPreviewMode, startBlankPreview, exitBlankPreview, downloadBlankProtocol,
     showNewOtModal: otManagement.modals.showNewOtModal,
     setShowNewOtModal: otManagement.modals.setShowNewOtModal,
     pendingOt: otManagement.modals.pendingOt,

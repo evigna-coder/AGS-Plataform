@@ -48,6 +48,9 @@ export interface UsePDFGenerationReturn {
   // Funciones
   generatePDFBlob: () => Promise<Blob>;
   generatePDFs: () => Promise<GeneratedPDFs>;
+  /** Genera SOLO el protocolo (carátula + tablas), sin Hoja 1, fotos ni certs.
+   *  Para el modo "Protocolo en blanco" — el cliente recibe el documento vacío. */
+  generateBlankProtocolBlob: () => Promise<Blob | null>;
   handleFinalSubmit: () => Promise<void>;
   confirmClientAndFinalize: () => Promise<void>;
 
@@ -626,6 +629,27 @@ export const usePDFGeneration = (
     return result.reportBlob;
   };
 
+  /**
+   * Genera SOLO el bloque de protocolo (carátula + tablas) — para el modo
+   * "Protocolo en blanco". Salta Hoja 1, fotos, adjuntos y certs.
+   * Retorna null si no hay protocolSelections que renderizar.
+   */
+  const generateBlankProtocolBlob = async (): Promise<Blob | null> => {
+    const { protocolSelections } = formState;
+    if (!protocolSelections || protocolSelections.length === 0) return null;
+    document.body.classList.add('pdf-generating');
+    try {
+      await nextTwoFrames();
+      await document.fonts.ready;
+      await preloadFromContainer(document.getElementById('pdf-container-tablas-pdf'));
+      setGenerationStep('Renderizando protocolo…');
+      const protocolBlob = await generateProtocolPagesBlob();
+      return protocolBlob;
+    } finally {
+      document.body.classList.remove('pdf-generating');
+    }
+  };
+
   // Helper para detectar si es móvil
   const isMobileDevice = (): boolean => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -964,6 +988,7 @@ export const usePDFGeneration = (
   return {
     generatePDFBlob,
     generatePDFs,
+    generateBlankProtocolBlob,
     handleFinalSubmit,
     confirmClientAndFinalize,
     isGenerating,
