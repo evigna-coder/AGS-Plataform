@@ -3,7 +3,12 @@ import type { TableProject } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import { useConfirm } from '../ui/ConfirmDialog';
+
+// Sentinels para los valores especiales del SearchableSelect (que sólo acepta strings)
+const ALL_VALUE = '__all__';
+const NONE_VALUE = '__none__';
 
 interface Props {
   projects: TableProject[];
@@ -89,78 +94,95 @@ export const ProjectSelector: React.FC<Props> = memo(({
     }
   };
 
-  const pillBase = 'text-xs font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer whitespace-nowrap';
-  const pillActive = 'bg-teal-50 text-teal-700 border-teal-200';
-  const pillInactive = 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700';
+  // SearchableSelect mapping: string sentinels para "Todas" (undefined) y "Sin proyecto" (null)
+  const dropdownValue =
+    activeProjectId === undefined ? ALL_VALUE :
+    activeProjectId === null ? NONE_VALUE :
+    activeProjectId;
+  const dropdownOptions = [
+    { value: ALL_VALUE, label: 'Todas las tablas' },
+    { value: NONE_VALUE, label: 'Sin proyecto asignado' },
+    ...projects.map(p => ({ value: p.id, label: p.name })),
+  ];
+  const handleDropdownChange = (val: string) => {
+    if (val === ALL_VALUE) onSelect(undefined);
+    else if (val === NONE_VALUE) onSelect(null);
+    else onSelect(val);
+  };
+
+  const activeProject = typeof activeProjectId === 'string'
+    ? projects.find(p => p.id === activeProjectId) ?? null
+    : null;
+  const showProjectMenu = !!activeProject;
+  const MANAGE_MENU_ID = '__manage__';
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[11px] font-medium text-slate-400 mr-1">Proyecto:</span>
+      <span className="text-[11px] font-medium text-slate-400 mr-1 whitespace-nowrap">Proyecto:</span>
 
-      {/* Pill: Todas */}
-      <button className={`${pillBase} ${activeProjectId === undefined ? pillActive : pillInactive}`}
-        onClick={() => onSelect(undefined)}>
-        Todas
-      </button>
+      <div className="flex-1 min-w-[280px] max-w-[460px]">
+        <SearchableSelect
+          value={dropdownValue}
+          onChange={handleDropdownChange}
+          options={dropdownOptions}
+          placeholder="Filtrar por proyecto..."
+          size="sm"
+        />
+      </div>
 
-      {/* Pill: Sin proyecto */}
-      <button className={`${pillBase} ${activeProjectId === null ? pillActive : pillInactive}`}
-        onClick={() => onSelect(null)}>
-        Sin proyecto
-      </button>
-
-      {/* Pills: cada proyecto */}
-      {projects.map(p => (
-        <div key={p.id} className="relative">
-          {editId === p.id ? (
-            <div className="flex items-center gap-1">
-              <input value={editName} onChange={e => setEditName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setEditId(null); }}
-                className="text-xs border border-teal-300 rounded-full px-3 py-1.5 w-40 focus:outline-none focus:ring-1 focus:ring-teal-400"
-                autoFocus />
-              <button onClick={() => handleRename(p.id)} className="text-xs text-teal-600 font-medium">OK</button>
-              <button onClick={() => setEditId(null)} className="text-xs text-slate-400">✕</button>
-            </div>
-          ) : (
-            <button className={`${pillBase} ${activeProjectId === p.id ? pillActive : pillInactive}`}
-              onClick={() => onSelect(p.id)}
-              onContextMenu={e => { e.preventDefault(); setMenuId(menuId === p.id ? null : p.id); }}>
-              {p.name}
-            </button>
-          )}
-
-          {/* Menú contextual */}
-          {menuId === p.id && (
+      {/* Acciones del proyecto seleccionado (rename / settings / modelos / delete) */}
+      {showProjectMenu && (
+        <div className="relative">
+          <button
+            onClick={() => setMenuId(menuId === MANAGE_MENU_ID ? null : MANAGE_MENU_ID)}
+            className="text-xs text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300 rounded px-2 py-1.5 font-medium"
+            title="Gestionar este proyecto"
+          >
+            ⋮ Gestionar
+          </button>
+          {menuId === MANAGE_MENU_ID && activeProject && (
             <div ref={menuRef}
-              className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-20 min-w-[120px]">
-              <button onClick={() => { setEditId(p.id); setEditName(p.name); setMenuId(null); }}
+              className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-20 min-w-[180px]">
+              <button onClick={() => { setEditId(activeProject.id); setEditName(activeProject.name); setMenuId(null); }}
                 className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
                 Renombrar
               </button>
               {onUpdateSettings && (
-                <button onClick={() => openSettings(p)}
+                <button onClick={() => openSettings(activeProject)}
                   className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
                   Encabezado / Pie
                 </button>
               )}
               {onBulkAddModelos && (
-                <button onClick={() => { onBulkAddModelos(p); setMenuId(null); }}
+                <button onClick={() => { onBulkAddModelos(activeProject); setMenuId(null); }}
                   className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
                   Agregar modelos a tablas…
                 </button>
               )}
-              <button onClick={() => handleDelete(p.id)}
+              <button onClick={() => handleDelete(activeProject.id)}
                 className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50">
                 Eliminar
               </button>
             </div>
           )}
         </div>
-      ))}
+      )}
+
+      {/* Inline rename del proyecto activo */}
+      {editId && activeProject && editId === activeProject.id && (
+        <div className="flex items-center gap-1">
+          <input value={editName} onChange={e => setEditName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleRename(activeProject.id); if (e.key === 'Escape') setEditId(null); }}
+            className="text-xs border border-teal-300 rounded-lg px-3 py-1.5 w-48 focus:outline-none focus:ring-1 focus:ring-teal-400"
+            autoFocus />
+          <button onClick={() => handleRename(activeProject.id)} className="text-xs text-teal-600 font-medium">OK</button>
+          <button onClick={() => setEditId(null)} className="text-xs text-slate-400">✕</button>
+        </div>
+      )}
 
       {/* Botón + */}
       <button onClick={() => setShowCreate(true)}
-        className="text-xs text-teal-600 hover:text-teal-800 font-medium px-2 py-1.5">
+        className="text-xs text-teal-600 hover:text-teal-800 font-medium px-2 py-1.5 whitespace-nowrap">
         + Nuevo
       </button>
 
