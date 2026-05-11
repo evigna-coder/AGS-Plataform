@@ -529,6 +529,29 @@ export function useAppLogic(
     newReportFromHook(modal.showConfirm);
   };
 
+  /**
+   * Vacía todos los campos auto-fill de cliente + equipo. Para usar en modo
+   * "Protocolo en blanco" cuando el ingeniero quiere mandar el PDF sin esos datos
+   * pero conservando las tablas del protocolo cargadas.
+   * NO toca: otNumber, tipoServicio, fechaInicio, fechaFin (datos del servicio en sí).
+   */
+  const clearAutofillFields = () => {
+    setters.setRazonSocial('');
+    setters.setContacto('');
+    setters.setEmailPrincipal('');
+    setters.setDireccion('');
+    setters.setLocalidad('');
+    setters.setProvincia('');
+    setters.setSector('');
+    setters.setSistema('');
+    setters.setModuloModelo('');
+    setters.setModuloMarca('');
+    setters.setModuloDescripcion('');
+    setters.setModuloSerie('');
+    setters.setCodigoInternoCliente('');
+    setters.setAclaracionEspecialista('');
+  };
+
   // Auto-cargar reporte cuando se abre con ?reportId=XXX
   const autoLoadedRef = useRef(false);
   useEffect(() => {
@@ -1105,7 +1128,7 @@ export function useAppLogic(
     // OT management
     otManagement, loadOT, newReport, confirmLoadOt, confirmCreateNewOt,
     // Blank preview mode
-    blankPreviewMode, startBlankPreview, exitBlankPreview, downloadBlankProtocol,
+    blankPreviewMode, startBlankPreview, exitBlankPreview, downloadBlankProtocol, clearAutofillFields,
     showNewOtModal: otManagement.modals.showNewOtModal,
     setShowNewOtModal: otManagement.modals.setShowNewOtModal,
     pendingOt: otManagement.modals.pendingOt,

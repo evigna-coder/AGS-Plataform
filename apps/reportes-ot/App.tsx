@@ -367,11 +367,18 @@ const App: React.FC = () => {
     <div id="report-container" className={`max-w-5xl mx-auto bg-white transition-all duration-300 pb-32 ${app.isPreviewMode ? 'p-0 min-h-screen shadow-none' : 'px-4 md:px-8 pt-2 md:pt-4 pb-4 md:pb-8 my-0 md:my-8 min-h-screen shadow-xl border border-slate-100'} print:p-0 print:m-0 print:shadow-none print:min-h-0 print:bg-white`}>
 
       {app.blankPreviewMode && (
-        <div className="sticky top-0 z-50 bg-amber-100 border-b-2 border-amber-400 px-4 py-2 text-amber-900 text-xs font-semibold flex items-center justify-between no-print">
-          <span>
+        <div className="sticky top-0 z-50 bg-amber-100 border-b-2 border-amber-400 px-4 py-2 text-amber-900 text-xs font-semibold flex items-center justify-between gap-3 no-print">
+          <span className="flex-1">
             <strong>MODO PROTOCOLO EN BLANCO</strong> · No se guarda en Firestore.
             Completá cliente/sistema/tipoServicio y descargá el PDF en blanco para enviar al cliente.
           </span>
+          <button
+            onClick={app.clearAutofillFields}
+            className="bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-1 rounded font-bold uppercase tracking-wide text-[10px]"
+            title="Vacía razón social, dirección, sector, contacto, sistema, modelo, serie e ID. Conserva las tablas del protocolo."
+          >
+            Vaciar datos cliente + equipo
+          </button>
           <button
             onClick={app.newReport}
             className="text-amber-900 underline font-semibold hover:text-amber-700"
