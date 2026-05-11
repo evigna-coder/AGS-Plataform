@@ -21,6 +21,8 @@ import { getProtocolTemplateForServiceType } from './utils/protocolSelector';
 import { createEmptyProtocolDataForTemplate } from './data/sampleProtocol';
 import { signOut } from './services/authService';
 import { Part } from './types';
+import { ProtocolPaginatedPreview } from './components/ProtocolPaginatedPreview';
+import { LOGO_SRC, ISO_LOGO_SRC } from './constants/logos';
 
 const App: React.FC = () => {
   const queryParams = new URLSearchParams(window.location.search);
@@ -554,6 +556,61 @@ const App: React.FC = () => {
         aclaracionCliente={app.aclaracionCliente} aclaracionEspecialista={app.aclaracionEspecialista}
         fechaInicio={app.fechaInicio} fechaFin={app.fechaFin}
       />
+
+      {/* Modo "Protocolo en blanco": montamos ProtocolPaginatedPreview offscreen
+          para que produzca los [data-protocol-page] que necesita generateProtocolPagesBlob.
+          No se ve en la UI normal — sólo se usa al disparar la generación del PDF. */}
+      {app.blankPreviewMode && app.protocolSelections.length > 0 && (
+        <div
+          id="pdf-preview-tablas"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '210mm',
+            transform: 'translateX(calc(-100% - 50px))',
+            background: 'white',
+            pointerEvents: 'none',
+            zIndex: 0,
+            opacity: 0.001,
+          }}
+          aria-hidden
+          className="flex flex-col gap-6"
+        >
+          <ProtocolPaginatedPreview
+            protocolSelections={app.protocolSelections}
+            instrumentosSeleccionados={app.instrumentosSeleccionados}
+            patronesSeleccionados={app.patronesSeleccionados}
+            columnasSeleccionadas={app.columnasSeleccionadas}
+            meta={{
+              otNumber: app.otNumber,
+              razonSocial: app.razonSocial,
+              clienteContacto: app.contacto,
+              clienteDireccion: fullDireccion,
+              clienteSector: app.sector,
+              sistema: app.sistema,
+              moduloModelo: app.moduloModelo,
+              moduloDescripcion: app.moduloDescripcion,
+              moduloMarca: app.moduloMarca,
+              moduloSerie: app.moduloSerie,
+              codigoInternoCliente: app.codigoInternoCliente,
+              fechaInicio: app.fechaInicio,
+              tipoServicio: app.tipoServicio,
+              logoSrc: LOGO_SRC,
+              isoLogoSrc: ISO_LOGO_SRC,
+              ingenieroNombre: app.aclaracionEspecialista,
+            }}
+            signatureClient={null}
+            signatureEngineer={null}
+            aclaracionCliente=""
+            aclaracionEspecialista={app.aclaracionEspecialista}
+            fechaInicio={app.fechaInicio}
+            fechaFin={app.fechaFin}
+            catalogTables={app.allPublishedTables}
+            catalogProjects={app.allProjects}
+          />
+        </div>
+      )}
 
       {/* Preview Mode */}
       {app.isPreviewMode && (
