@@ -113,10 +113,10 @@ export const CatalogTextView: React.FC<Props> = ({
   const table = selection.tableSnapshot;
   const textContent = table.textContent ?? '';
   const isInline = (table.textDisplayMode ?? 'card') === 'inline';
-  // Resolver alineación: prop liveTextAlign (catálogo vivo) > snapshot > default 'left'.
-  // El admin opta-in explícitamente a 'justify' desde el editor cuando el contenido
-  // es un párrafo largo (Objetivo, Alcance). Para textos cortos (labels), 'left' luce mejor.
-  const resolvedTextAlign = liveTextAlign ?? table.textAlign ?? 'left';
+  // Resolver alineación: prop liveTextAlign (catálogo vivo) > snapshot > default 'justify'.
+  // Default 'justify' por retrocompat (las tablas viejas no tenían el campo).
+  // Para textos cortos donde justify queda mal, el admin opta-in a 'left' desde el editor.
+  const resolvedTextAlign = liveTextAlign ?? table.textAlign ?? 'justify';
 
   // ─── Modo inline: texto suelto sin recuadro ───────────────────────────
   if (isInline) {
