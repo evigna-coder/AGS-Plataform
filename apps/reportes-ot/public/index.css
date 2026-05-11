@@ -321,11 +321,9 @@ body.pdf-generating .protocol-screen-wrapper {
 }
 
 /* ─── Contenido de texto enriquecido (CatalogTextView) ─────────────────────── */
-/* Justificar párrafos por defecto. text-align en estilos inline del usuario lo overridea. */
-.catalog-text-content {
-  text-align: justify;
-  hyphens: auto;
-}
+/* La alineación del texto se aplica inline por tabla vía table.textAlign (default
+   'justify' en CatalogTextView). Si querés overridear el align para una tabla
+   específica, configurálo desde el editor de catálogo, no acá. */
 .catalog-text-content ul {
   list-style-type: disc;
   padding-left: 1.5em;

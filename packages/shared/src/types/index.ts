@@ -1889,6 +1889,12 @@ export interface TableCatalogEntry {
    */
   textDisplayMode?: 'card' | 'inline';
   /**
+   * Alineación horizontal del contenido (solo tableType === 'text').
+   * Default: 'justify' (recomendado para párrafos largos como objetivos/alcance).
+   * Usar 'left' para textos cortos / labels donde justify queda feo.
+   */
+  textAlign?: 'justify' | 'left' | 'center' | 'right';
+  /**
    * Campos de encabezado que se muestran arriba de la tabla (ej. selector de inyector).
    * El técnico elige una opción por campo antes de completar la tabla.
    */

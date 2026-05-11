@@ -511,9 +511,22 @@ export const TableCatalogEditorPage = () => {
             <Card>
               <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Contenido de texto</h3>
               <div className="flex items-center gap-4 mb-3">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 flex-1">
                   Escribí el texto que aparecerá en el protocolo (objetivos, alcance, procedimientos, etc.)
                 </p>
+                <div className="flex items-center gap-1.5 shrink-0" title="Justificada queda bien en párrafos largos. Para textos cortos (1-2 oraciones) usá Izquierda para que no se separe.">
+                  <label className="text-xs font-medium text-slate-600">Alineación</label>
+                  <select
+                    value={entry.textAlign ?? 'justify'}
+                    onChange={e => setMeta('textAlign', e.target.value as 'justify' | 'left' | 'center' | 'right')}
+                    className="border border-slate-300 rounded-lg px-2 py-1 text-xs"
+                  >
+                    <option value="justify">Justificada</option>
+                    <option value="left">Izquierda</option>
+                    <option value="center">Centro</option>
+                    <option value="right">Derecha</option>
+                  </select>
+                </div>
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer whitespace-nowrap shrink-0">
                   <input type="checkbox"
                     checked={(entry.textDisplayMode ?? 'card') === 'inline'}

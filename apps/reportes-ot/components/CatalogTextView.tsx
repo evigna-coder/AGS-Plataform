@@ -40,6 +40,7 @@ function TextContentWithVars({
   isPrint,
   onChangeData,
   className,
+  style,
 }: {
   html: string;
   filledData: Record<string, Record<string, string>>;
@@ -48,11 +49,12 @@ function TextContentWithVars({
   isPrint: boolean;
   onChangeData?: (tableId: string, rowId: string, colKey: string, value: string) => void;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const hasVars = /\{[^}]+\}/.test(html);
 
   if (!hasVars) {
-    return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className={className} style={style} dangerouslySetInnerHTML={{ __html: html }} />;
   }
 
   // Extraer texto plano del HTML para parsear variables
@@ -63,7 +65,7 @@ function TextContentWithVars({
   const ROW_KEY = '_text_vars_';
 
   return (
-    <div className={className}>
+    <div className={className} style={style}>
       {parts.map((part, i) => {
         if (part.type === 'text') {
           return <span key={i}>{part.value}</span>;
@@ -135,6 +137,7 @@ export const CatalogTextView: React.FC<Props> = ({
           isPrint={isPrint}
           onChangeData={onChangeData}
           className={`catalog-text-content ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
+          style={{ textAlign: table.textAlign ?? 'justify', hyphens: 'auto' }}
         />
       </div>
     );
@@ -183,6 +186,7 @@ export const CatalogTextView: React.FC<Props> = ({
           isPrint={isPrint}
           onChangeData={onChangeData}
           className={`catalog-text-content px-3 py-2 ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
+          style={{ textAlign: table.textAlign ?? 'justify', hyphens: 'auto' }}
         />
         {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
       </div>
