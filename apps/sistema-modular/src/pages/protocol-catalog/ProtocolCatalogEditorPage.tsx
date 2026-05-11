@@ -514,15 +514,15 @@ export const TableCatalogEditorPage = () => {
                 <p className="text-xs text-slate-400 flex-1">
                   Escribí el texto que aparecerá en el protocolo (objetivos, alcance, procedimientos, etc.)
                 </p>
-                <div className="flex items-center gap-1.5 shrink-0" title="Justificada queda bien en párrafos largos. Para textos cortos (1-2 oraciones) usá Izquierda para que no se separe.">
+                <div className="flex items-center gap-1.5 shrink-0" title="Default: Izquierda. Para párrafos largos (Objetivo, Alcance) podés elegir Justificada.">
                   <label className="text-xs font-medium text-slate-600">Alineación</label>
                   <select
-                    value={entry.textAlign ?? 'justify'}
+                    value={entry.textAlign ?? 'left'}
                     onChange={e => setMeta('textAlign', e.target.value as 'justify' | 'left' | 'center' | 'right')}
                     className="border border-slate-300 rounded-lg px-2 py-1 text-xs"
                   >
-                    <option value="justify">Justificada</option>
                     <option value="left">Izquierda</option>
+                    <option value="justify">Justificada</option>
                     <option value="center">Centro</option>
                     <option value="right">Derecha</option>
                   </select>
