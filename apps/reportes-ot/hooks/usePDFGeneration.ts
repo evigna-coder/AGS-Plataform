@@ -251,6 +251,12 @@ export const usePDFGeneration = (
           fontFamily: window.getComputedStyle(el).fontFamily,
           color: window.getComputedStyle(el).color,
           textAlign: window.getComputedStyle(el).textAlign,
+          // Detectar si el input es inline (chico, dentro de un párrafo) o block-level
+          // (ej. celda de tabla con width: 100%). Para inline preservamos su ancho;
+          // para block-level seguimos forzando 100% como antes.
+          isInline: el.parentElement?.tagName === 'SPAN' || el.parentElement?.tagName === 'P'
+            || /inline/.test(window.getComputedStyle(el.parentElement || el).display),
+          widthPx: el.offsetWidth,
         }));
         const selectValues = Array.from(origSelects).map(el => ({
           text: el.options[el.selectedIndex]?.text || el.value || '',
@@ -281,8 +287,16 @@ export const usePDFGeneration = (
           span.style.fontFamily = data.fontFamily;
           span.style.color = data.color;
           span.style.textAlign = data.textAlign;
-          span.style.display = 'inline-block';
-          span.style.width = '100%';
+          // Inputs inline (variables dentro de párrafos): preservar ancho original
+          // así el flujo del texto no se rompe. Inputs block-level (celdas de tabla):
+          // mantener width: 100% para que llenen la celda.
+          if (data.isInline) {
+            span.style.display = 'inline';
+            if (data.widthPx > 0) span.style.minWidth = data.widthPx + 'px';
+          } else {
+            span.style.display = 'inline-block';
+            span.style.width = '100%';
+          }
           el.replaceWith(span);
         });
         const clonedSelects = clone.querySelectorAll<HTMLSelectElement>('select');
