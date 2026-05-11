@@ -126,6 +126,8 @@ interface Props {
   catalogTables?: { id: string; projectId?: string | null; headerTitle?: string | null; footerQF?: string | null; templateRows?: import('@ags/shared').TableCatalogRow[] }[];
   /** Proyectos del catálogo para resolver headerTitle/footerQF a nivel proyecto */
   catalogProjects?: { id: string; headerTitle?: string | null; footerQF?: string | null }[];
+  /** Si true, las carátulas vacían el bloque grilla y las firmas vacían las fechas. */
+  blankPreviewMode?: boolean;
 }
 
 /** Obtiene headerTitle de la primera selection de la página */
@@ -278,6 +280,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
   meta,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin, catalogTables, catalogProjects,
+  blankPreviewMode = false,
 }) => {
   const measureRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<PageDef[]>([]);
@@ -329,6 +332,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
           numeroSerie={meta.moduloSerie}
           ingenieroNombre={meta.ingenieroNombre || aclaracionEspecialista}
           logoSrc={meta.logoSrc}
+          blankPreviewMode={blankPreviewMode}
         />;
         items.push({ key: sel.tableId, node, isCover: true, headerTitle, footerQF });
         continue;
@@ -375,6 +379,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
             signatureClient={signatureClient} signatureEngineer={signatureEngineer}
             aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
             fechaInicio={fechaInicio} fechaFin={fechaFin}
+            blankPreviewMode={blankPreviewMode}
           />
         ) : sel.tableSnapshot.tableType === 'text' ? (
           <CatalogTextView selection={sel} readOnly />

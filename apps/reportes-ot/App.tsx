@@ -615,6 +615,7 @@ const App: React.FC = () => {
             fechaFin={app.fechaFin}
             catalogTables={app.allPublishedTables}
             catalogProjects={app.allProjects}
+            blankPreviewMode
           />
         </div>
       )}

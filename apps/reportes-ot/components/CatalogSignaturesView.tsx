@@ -13,6 +13,8 @@ interface Props {
   aclaracionEspecialista: string;
   fechaInicio: string;
   fechaFin: string;
+  /** Si true, las fechas se renderizan vacías ("—") para el "Protocolo en blanco". */
+  blankPreviewMode?: boolean;
 }
 
 export const CatalogSignaturesView: React.FC<Props> = ({
@@ -24,6 +26,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
   aclaracionEspecialista,
   fechaInicio,
   fechaFin,
+  blankPreviewMode = false,
 }) => {
   const table = selection.tableSnapshot;
   const signatureMode = table.signatureMode ?? 'both';
@@ -39,6 +42,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
 
   // Build date text with interpolated dates
   const formatDate = (iso: string) => {
+    if (blankPreviewMode) return '—';
     if (!iso) return '—';
     try {
       // Extraer YYYY-MM-DD del inicio de la string (maneja fecha pura y ISO con tiempo)

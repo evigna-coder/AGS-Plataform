@@ -20,6 +20,12 @@ interface Props {
   logoSrc?: string;
   /** Callback para actualizar valores de campos extra editables (coverExtraFields). */
   onChangeData?: (tableId: string, rowId: string, colKey: string, value: string) => void;
+  /**
+   * Si true, la grilla de datos (FECHA / MODELO / ID / N° SERIE / INGENIERO + extras)
+   * se renderiza vacía con "—". El título y la línea de marca/sistema se conservan
+   * para dar contexto. Para el modo "Protocolo en blanco".
+   */
+  blankPreviewMode?: boolean;
 }
 
 /** rowId sintético donde se guardan los valores de los coverExtraFields. */
@@ -44,6 +50,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   ingenieroNombre,
   logoSrc,
   onChangeData,
+  blankPreviewMode = false,
 }) => {
   const table = selection.tableSnapshot;
   const titulo = table.name || 'Protocolo';
@@ -68,16 +75,21 @@ export const CatalogCoverView: React.FC<Props> = ({
   const mainTitle = titleParts[0] || titulo;
   const subTitle = titleParts.length > 1 ? titleParts.slice(1).join(' / ') : '';
 
-  const modeloValue = table.coverAutoFillFromModulo
-    ? (moduloModelo || sistemaNombre || sistemaModelo || '—')
-    : (sistemaNombre || sistemaModelo || '—');
+  // En blank preview, los datos del bloque grilla se vacían pero la línea de marca/título
+  // se conserva. Modelo/fecha/ID/serie/ingeniero quedan en "—" para que el cliente los
+  // complete manualmente. Los coverExtraFields también arrancan vacíos.
+  const modeloValue = blankPreviewMode
+    ? '—'
+    : (table.coverAutoFillFromModulo
+        ? (moduloModelo || sistemaNombre || sistemaModelo || '—')
+        : (sistemaNombre || sistemaModelo || '—'));
 
   // Campos extra editables (coverExtraFields) — el ingeniero los completa, se persisten
   // en selection.filledData['_cover_'][fieldId]. Se insertan antes de "Ing. de Soporte Técnico".
   const extras: { label: string; value: string; mono?: boolean; editable: true; fieldId: string }[] =
     (table.coverExtraFields ?? []).map(f => ({
       label: f.label || '(sin etiqueta)',
-      value: selection.filledData[COVER_EXTRA_ROW_ID]?.[f.id] ?? '',
+      value: blankPreviewMode ? '' : (selection.filledData[COVER_EXTRA_ROW_ID]?.[f.id] ?? ''),
       editable: true,
       fieldId: f.id,
     }));
@@ -85,12 +97,12 @@ export const CatalogCoverView: React.FC<Props> = ({
   type DatoEditable = { label: string; value: string; mono?: boolean; editable: true; fieldId: string };
   type DatoEntry = DatoStatic | DatoEditable;
   const datos: DatoEntry[] = [
-    { label: 'Fecha', value: formatFecha(fechaInicio) },
+    { label: 'Fecha', value: blankPreviewMode ? '—' : formatFecha(fechaInicio) },
     { label: 'Modelo', value: modeloValue },
-    { label: 'ID', value: agsVisibleId || '—', mono: true },
-    { label: 'N° de Serie', value: numeroSerie || '—', mono: true },
+    { label: 'ID', value: blankPreviewMode ? '—' : (agsVisibleId || '—'), mono: true },
+    { label: 'N° de Serie', value: blankPreviewMode ? '—' : (numeroSerie || '—'), mono: true },
     ...extras,
-    { label: 'Ing. de Soporte Técnico', value: ingenieroNombre || '—' },
+    { label: 'Ing. de Soporte Técnico', value: blankPreviewMode ? '—' : (ingenieroNombre || '—') },
   ];
 
   // Footer data from catalog entry
