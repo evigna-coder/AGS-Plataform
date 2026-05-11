@@ -86,6 +86,8 @@ interface ProtocolSectionProps {
   variables?: Record<string, string>;
   /** Catálogo vivo completo — para resolver variables en snapshots obsoletos */
   allPublishedTables?: TableCatalogEntry[];
+  /** Si true, la carátula y firmas vacían sus campos auto-fill ("Protocolo en blanco"). */
+  blankPreviewMode?: boolean;
 }
 
 export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
@@ -106,6 +108,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   markUserInteracted,
   variables,
   allPublishedTables,
+  blankPreviewMode = false,
 }) => {
   // En viewports <1024px (mobile + tablet portrait) el protocolo pasa a modo tarjetas.
   // Preview mode y PDF export siempre usan scroll clásico (tabla real para fidelidad del PDF).
@@ -190,6 +193,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 ingenieroNombre={coverData?.ingenieroNombre || aclaracionEspecialista}
                 logoSrc={coverData?.logoSrc}
                 onChangeData={handleCatalogCellChange}
+                blankPreviewMode={blankPreviewMode}
               />
             ) : sel.tableSnapshot.tableType === 'signatures' ? (
               <CatalogSignaturesView
@@ -202,6 +206,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 aclaracionEspecialista={aclaracionEspecialista}
                 fechaInicio={fechaInicio}
                 fechaFin={fechaFin}
+                blankPreviewMode={blankPreviewMode}
               />
             ) : sel.tableSnapshot.tableType === 'text' ? (
               <CatalogTextView

@@ -207,6 +207,7 @@ const App: React.FC = () => {
               'ags.web': 'www.agsanalitica.com',
             }}
             allPublishedTables={app.allPublishedTables}
+            blankPreviewMode={app.blankPreviewMode}
           />
         ),
       }] : []),
@@ -552,6 +553,7 @@ const App: React.FC = () => {
           'ags.web': 'www.agsanalitica.com',
         }}
         allPublishedTables={app.allPublishedTables}
+        blankPreviewMode={app.blankPreviewMode}
       />
 
       {/* Hidden PDF containers */}
