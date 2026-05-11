@@ -333,23 +333,6 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         : false;
       const glue = liveOrSnapshot('attachToPrevious') || prevAttachToNext;
 
-      // [DEBUG temporal] log glue decisions
-      if (typeof window !== 'undefined') {
-        console.log(`[GLUE] idx=${idx}`, {
-          name: sel.tableSnapshot.name,
-          tableId: sel.tableId,
-          orden: sel.tableSnapshot.orden,
-          snapshotAttachPrev: sel.tableSnapshot.attachToPrevious,
-          snapshotAttachNext: sel.tableSnapshot.attachToNext,
-          liveAttachPrev: (live as any)?.attachToPrevious,
-          liveAttachNext: (live as any)?.attachToNext,
-          liveFound: !!live,
-          prevName: prevSel?.tableSnapshot.name,
-          prevAttachToNext,
-          finalGlue: glue,
-        });
-      }
-
       // Carátulas: página completa sin header/footer
       if (sel.tableSnapshot.tableType === 'cover') {
         const node = <CatalogCoverView
@@ -471,13 +454,6 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
       if (!container) return;
       const children = Array.from(container.children) as HTMLElement[];
       const heights: number[] = children.map(child => child.offsetHeight + 16);
-      // [DEBUG] log heights and pagination capacity
-      if (typeof window !== 'undefined') {
-        console.log('[HEIGHTS] CONTENT_HEIGHT_PX =', CONTENT_HEIGHT_PX);
-        contentItems.forEach((it, i) => {
-          console.log(`[HEIGHTS] idx=${i} h=${heights[i]}px glue=${it.glueWithPrev} name="${(it as any).headerTitle || it.key}"`);
-        });
-      }
 
       const pagesResult: PageDef[] = [];
       let currentPageItems: ContentItem[] = [];
@@ -596,14 +572,14 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
         pagesResult.push({ items: currentPageItems });
       }
 
-      // Glue fix: if first item on a page has glueWithPrev, pull from previous page.
-      // IMPORTANTE: no mover slices (una porción de una tabla grande no puede
-      // "pegarse" a nada; mover un slice arruina la paginación). Si el item a mover
-      // es un slice, se omite — se rompe el glue en ese borde.
-      // CAPACIDAD: nunca mover si el destino se desbordaría. Cadenas largas de glue
-      // (TestFunc → Seteos → Estándar → Muestras → Conclusión → Firmas → ...) podían
-      // acumular todo en una sola página > CONTENT_HEIGHT_PX y quedar recortadas por
-      // overflow:hidden. Si no entra, se rompe el glue en ese borde.
+      // Glue fix: si la primera celda de una página tiene glueWithPrev, intentar
+      // ATTACH el item al final de la página previa (movemos current → prev).
+      // (Antes se intentaba pull prev → current; eso fallaba cuando el último item
+      // previo era un slice, dejando huecos cuando el slice final no ocupaba
+      // la página entera y rompiendo glue espuriamente.)
+      // No mover si:
+      //   - El item a mover es a su vez un slice (un slice no puede pegarse).
+      //   - La página destino se desbordaría con la suma.
       let changed = true;
       while (changed) {
         changed = false;
@@ -612,21 +588,22 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
           if (page.items.length > 0 && page.items[0].glueWithPrev) {
             const prevPage = pagesResult[p - 1];
             if (prevPage.items.length > 0) {
-              const candidate = prevPage.items[prevPage.items.length - 1];
-              if (candidate.sliceOffset !== undefined) {
-                // Slice: no mover. Romper glue para que este borde no intente pegarse.
+              const itemToMove = page.items[0];
+              if (itemToMove.sliceOffset !== undefined) {
+                // Slice: no se mueve. Romper glue.
                 page.items[0] = { ...page.items[0], glueWithPrev: false };
                 continue;
               }
-              const candidateHeight = candidate.measuredHeight || 0;
-              const destSum = page.items.reduce((acc, it) => acc + (it.measuredHeight || 0), 0);
-              if (destSum + candidateHeight > CONTENT_HEIGHT_PX) {
-                // Pulling causaría overflow → romper glue acá.
+              const itemHeight = itemToMove.measuredHeight || 0;
+              const prevSum = prevPage.items.reduce((acc, it) => acc + (it.measuredHeight || 0), 0);
+              if (prevSum + itemHeight > CONTENT_HEIGHT_PX) {
+                // Page previa ya no tiene espacio para este item → romper glue.
                 page.items[0] = { ...page.items[0], glueWithPrev: false };
                 continue;
               }
-              const movedItem = prevPage.items.pop()!;
-              page.items.unshift(movedItem);
+              // Mover item UP a la página previa.
+              page.items.shift();
+              prevPage.items.push(itemToMove);
               changed = true;
             }
           }
