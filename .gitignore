@@ -13,6 +13,9 @@ build/
 !apps/sistema-modular/build/
 # Pero no commitear releases generados ahí
 apps/sistema-modular/release/
+# Tampoco zips de release sueltos (>100MB, GitHub los rechaza)
+apps/sistema-modular/release.zip
+apps/sistema-modular/*.zip
 
 # Misc
 .DS_Store
