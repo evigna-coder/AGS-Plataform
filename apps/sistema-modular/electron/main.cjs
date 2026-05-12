@@ -19,6 +19,31 @@ function getAppOrigin() {
 
 // Servidor estático mínimo para servir el bundle de Vite en producción.
 // Soporta SPA fallback (cualquier ruta no-archivo devuelve index.html).
+//
+// Puerto determinístico: probamos PREFERRED_PORTS en orden. IndexedDB (donde
+// Firebase Auth persiste la sesión) está aislado por origen, así que si el
+// puerto cambia entre arranques el user pierde la sesión y tiene que loguearse
+// de nuevo. Antes usábamos listen(0) (puerto random) → cada launch arrancaba
+// con sesión vacía. Con un puerto fijo, IndexedDB ve el mismo origen y la
+// sesión persiste.
+const PREFERRED_PORTS = [43217, 43218, 43219, 43220, 43221];
+
+function tryListen(server, port) {
+  return new Promise((resolve, reject) => {
+    const onError = (err) => {
+      server.removeListener('listening', onListening);
+      reject(err);
+    };
+    const onListening = () => {
+      server.removeListener('error', onError);
+      resolve(server.address().port);
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, '127.0.0.1');
+  });
+}
+
 function startStaticServer(distPath) {
   const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
@@ -37,35 +62,50 @@ function startStaticServer(distPath) {
     '.map': 'application/json',
     '.webmanifest': 'application/manifest+json',
   };
-  return new Promise((resolve, reject) => {
-    const server = http.createServer((req, res) => {
-      try {
-        let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-        if (urlPath === '/') urlPath = '/index.html';
-        let filePath = join(distPath, urlPath);
-        if (!filePath.startsWith(distPath)) {
-          res.writeHead(403); res.end('Forbidden'); return;
-        }
-        if (!existsSync(filePath)) {
-          // SPA fallback: rutas tipo /clientes/123 -> index.html
-          filePath = join(distPath, 'index.html');
-        }
-        const mime = mimeTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
-        const content = readFileSync(filePath);
-        res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache' });
-        res.end(content);
-      } catch (err) {
-        console.error('[StaticServer]', err.message);
-        res.writeHead(500); res.end('Server error');
+  const server = http.createServer((req, res) => {
+    try {
+      let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+      if (urlPath === '/') urlPath = '/index.html';
+      let filePath = join(distPath, urlPath);
+      if (!filePath.startsWith(distPath)) {
+        res.writeHead(403); res.end('Forbidden'); return;
       }
-    });
-    server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const port = server.address().port;
-      console.log(`[StaticServer] Serving ${distPath} on http://localhost:${port}`);
-      resolve(port);
-    });
+      if (!existsSync(filePath)) {
+        // SPA fallback: rutas tipo /clientes/123 -> index.html
+        filePath = join(distPath, 'index.html');
+      }
+      const mime = mimeTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
+      const content = readFileSync(filePath);
+      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache' });
+      res.end(content);
+    } catch (err) {
+      console.error('[StaticServer]', err.message);
+      res.writeHead(500); res.end('Server error');
+    }
   });
+
+  return (async () => {
+    for (const port of PREFERRED_PORTS) {
+      try {
+        const bound = await tryListen(server, port);
+        console.log(`[StaticServer] Serving ${distPath} on http://localhost:${bound}`);
+        return bound;
+      } catch (err) {
+        if (err && err.code === 'EADDRINUSE') {
+          console.warn(`[StaticServer] Puerto ${port} ocupado, probando siguiente...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+    // Todos los puertos preferidos ocupados → fallback a random.
+    // En este caso la sesión Firebase NO va a persistir (origen distinto), pero
+    // la app al menos arranca.
+    console.warn('[StaticServer] Todos los puertos preferidos ocupados, usando random (sesión NO persistirá)');
+    const bound = await tryListen(server, 0);
+    console.log(`[StaticServer] Serving ${distPath} on http://localhost:${bound}`);
+    return bound;
+  })();
 }
 
 // ===== Google OAuth manual (Electron) =====
