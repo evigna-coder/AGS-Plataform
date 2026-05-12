@@ -377,6 +377,7 @@ export const ProtocolPaginatedPreview: React.FC<Props> = ({
             signatureClient={signatureClient} signatureEngineer={signatureEngineer}
             aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
             fechaInicio={fechaInicio} fechaFin={fechaFin}
+            blankPreviewMode={blankPreviewMode}
           />;
           items.push({
             key: groups.length > 1 ? `${sel.tableId}__g${g}` : sel.tableId,

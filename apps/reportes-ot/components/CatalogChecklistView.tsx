@@ -23,6 +23,8 @@ interface Props {
   aclaracionEspecialista?: string;
   fechaInicio?: string;
   fechaFin?: string;
+  /** Si true, las fechas (showDate / Fecha de realización) se renderizan vacías. */
+  blankPreviewMode?: boolean;
 }
 
 const RESULTADO_COLORS = {
@@ -76,6 +78,7 @@ function ChecklistItemRow({
   aclaracionEspecialista,
   fechaInicio,
   fechaFin,
+  blankPreviewMode = false,
 }: {
   item: ChecklistItem;
   answer: ChecklistItemAnswer | undefined;
@@ -93,6 +96,7 @@ function ChecklistItemRow({
   aclaracionEspecialista?: string;
   fechaInicio?: string;
   fechaFin?: string;
+  blankPreviewMode?: boolean;
 }) {
   const indent = item.depth * 16;
   const disabled = readOnly || isNA;
@@ -367,6 +371,7 @@ function ChecklistItemRow({
     // Formatear fecha en texto largo: "27 de marzo de 2026"
     const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const fmtDate = (raw?: string) => {
+      if (blankPreviewMode) return null;
       if (!raw) return null;
       // Extraer YYYY-MM-DD del inicio (maneja fecha pura y ISO con tiempo, evita desfase de timezone)
       const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
@@ -631,6 +636,7 @@ export const CatalogChecklistView: React.FC<Props> = ({
   aclaracionEspecialista,
   fechaInicio,
   fechaFin,
+  blankPreviewMode = false,
 }) => {
   const { tableSnapshot, checklistData = {}, collapsedSections = [] } = selection;
   const items = tableSnapshot.checklistItems ?? [];
@@ -769,6 +775,7 @@ export const CatalogChecklistView: React.FC<Props> = ({
                 signatureClient={signatureClient} signatureEngineer={signatureEngineer}
                 aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
                 fechaInicio={fechaInicio} fechaFin={fechaFin}
+                blankPreviewMode={blankPreviewMode}
               />
             );
           }
@@ -795,6 +802,7 @@ export const CatalogChecklistView: React.FC<Props> = ({
                 signatureClient={signatureClient} signatureEngineer={signatureEngineer}
                 aclaracionCliente={aclaracionCliente} aclaracionEspecialista={aclaracionEspecialista}
                 fechaInicio={fechaInicio} fechaFin={fechaFin}
+                blankPreviewMode={blankPreviewMode}
               />
             </div>
           );

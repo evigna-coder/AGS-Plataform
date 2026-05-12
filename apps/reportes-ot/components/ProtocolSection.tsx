@@ -238,6 +238,7 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 aclaracionEspecialista={aclaracionEspecialista}
                 fechaInicio={fechaInicio}
                 fechaFin={fechaFin}
+                blankPreviewMode={blankPreviewMode}
               />
             ) : (
               <CatalogTableView
