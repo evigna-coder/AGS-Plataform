@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { vehiculosService, serviciosVehiculoService, historialTallerService, registrosKmService } from '../../services/firebaseService';
 import { ServiciosPanel } from '../../components/vehiculos/ServiciosPanel';
 import { HistorialTallerPanel } from '../../components/vehiculos/HistorialTallerPanel';
 import { RegistroKmPanel } from '../../components/vehiculos/RegistroKmPanel';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
 
 type Tab = 'servicios' | 'historial' | 'km';
 
 export const VehiculoDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const [vehiculo, setVehiculo] = useState<Vehiculo | null>(null);
   const [servicios, setServicios] = useState<ServicioVehiculo[]>([]);
   const [historial, setHistorial] = useState<VisitaTaller[]>([]);
@@ -56,7 +57,7 @@ export const VehiculoDetail = () => {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/vehiculos')} className="text-slate-400 hover:text-slate-600 text-sm">← Volver</button>
+          <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600 text-sm">← Volver</button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="font-mono text-xl font-bold tracking-wider text-slate-900">{vehiculo.patente}</h1>

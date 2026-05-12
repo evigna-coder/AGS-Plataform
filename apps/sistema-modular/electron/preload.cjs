@@ -48,7 +48,23 @@ try {
   contextBridge.exposeInMainWorld('authAPI', {
     signInWithGoogle: (opts) => ipcRenderer.invoke('auth:google-signin', opts),
   });
-  
+
+  // API de Auto-Update: el main envía eventos cuando hay una actualización,
+  // y el renderer muestra un banner no-modal con "Reiniciar". Si el user
+  // confirma, se invoca quit-and-install.
+  // Los `on*` devuelven una función para desuscribirse.
+  const subscribe = (channel, cb) => {
+    const handler = (_event, payload) => cb(payload);
+    ipcRenderer.on(channel, handler);
+    return () => ipcRenderer.removeListener(channel, handler);
+  };
+  contextBridge.exposeInMainWorld('updateAPI', {
+    onAvailable: (cb) => subscribe('update:available', cb),
+    onProgress: (cb) => subscribe('update:progress', cb),
+    onDownloaded: (cb) => subscribe('update:downloaded', cb),
+    quitAndInstall: () => ipcRenderer.invoke('update:quit-and-install'),
+  });
+
   console.log('[Preload] Electron API expuesta correctamente');
 } catch (error) {
   console.error('[Preload] Error al exponer API:', error);

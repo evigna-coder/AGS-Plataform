@@ -4,6 +4,7 @@ import type { Lead, Posta, ContactoTicket } from '@ags/shared';
 import { getSimplifiedEstadoLabel, getSimplifiedEstadoColor } from '@ags/shared';
 import { leadsService, usuariosService } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigateBack } from '../hooks/useNavigateBack';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { LeadSidebar } from '../components/leads/LeadSidebar';
@@ -16,6 +17,7 @@ import FinalizarLeadModal from '../components/leads/FinalizarLeadModal';
 export default function LeadDetailPage() {
   const { leadId } = useParams<{ leadId: string }>();
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const { usuario } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,16 +27,16 @@ export default function LeadDetailPage() {
   const [comentario, setComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
 
-  // Escape key → back to grid
+  // Escape key → go back (preserves filters via browser history / state.from)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !showDerivar && !showFinalizar) {
-        navigate('/leads');
+        goBack();
       }
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [navigate, showDerivar, showFinalizar]);
+  }, [goBack, showDerivar, showFinalizar]);
 
   // Entidades vinculadas (read-only)
   const [linkedOTs, setLinkedOTs] = useState<string[]>([]);
@@ -150,7 +152,7 @@ export default function LeadDetailPage() {
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10 px-3 md:px-5 pt-3 md:pt-4 pb-2 md:pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600 shrink-0">
+            <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600 shrink-0">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>

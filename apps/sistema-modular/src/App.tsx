@@ -5,6 +5,7 @@ import { FloatingPresupuestoProvider } from './contexts/FloatingPresupuestoConte
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { Layout } from './components/Layout';
+import { UpdateBanner } from './components/UpdateBanner';
 import { LoginPage, PendingApprovalPage } from './pages/auth';
 import { useQRLeadNotifications } from './hooks/useQRLeadNotifications';
 import { useLeadNotifications } from './hooks/useLeadNotifications';
@@ -90,6 +91,7 @@ function AuthGate() {
       <FloatingPresupuestoProvider>
       <TabsProvider>
         <Layout />
+        <UpdateBanner />
       </TabsProvider>
       </FloatingPresupuestoProvider>
       </BackgroundTasksProvider>

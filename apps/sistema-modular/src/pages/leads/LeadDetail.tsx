@@ -34,16 +34,8 @@ export const LeadDetail = () => {
 
   const [moduloNombre, setModuloNombre] = useState<string | null>(null);
 
-  // Escape key → back to grid
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showDerivar && !showFinalizar && !showCrearPresupuesto) {
-        goBack();
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [goBack, showDerivar, showFinalizar, showCrearPresupuesto]);
+  // Escape key is handled globally by useLayoutKeyboardShortcuts; modals on this
+  // page use <Modal> (role="dialog") so the global handler skips when one is open.
 
   // Entidades vinculadas
   const [linkedPresupuestos, setLinkedPresupuestos] = useState<{ id: string; numero: string; estado: string }[]>([]);

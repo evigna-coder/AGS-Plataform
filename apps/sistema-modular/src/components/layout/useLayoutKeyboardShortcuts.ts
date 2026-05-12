@@ -1,29 +1,22 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useTabs } from '../../contexts/TabsContext';
 import { MODULE_ROOTS } from './navigation';
 
 /**
  * Global keyboard shortcuts for the Layout:
- * - Escape: navigate to parent route (blur input first if focused)
+ * - Escape: go back (state.from → navigate(-1) → module-root fallback). Same
+ *   behavior as the header arrow button. Previously this navigated to a computed
+ *   "parent path" which jumped to the listing instead of returning to the actual
+ *   referrer (e.g. cliente → establecimiento → Escape landed on /establecimientos
+ *   instead of the cliente). It also dropped URL search params, resetting list
+ *   filters.
  * - Ctrl+Tab / Ctrl+Shift+Tab: cycle through tabs
  * - Ctrl+1-9: jump to tab by position
  */
 export function useLayoutKeyboardShortcuts() {
-  const { tabs, activeTabId, activeTabPath, switchTab, navigateInActiveTab } = useTabs();
+  const { tabs, activeTabId, activeTabPath, switchTab, goBackInActiveTab } = useTabs();
 
   const pathname = activeTabPath.split('?')[0];
-
-  // Compute parent path by stripping the last segment, but never go past a module root
-  const getParentPath = useCallback((currentPath: string): string | null => {
-    if (MODULE_ROOTS.has(currentPath)) return null; // already at root
-    const segments = currentPath.split('/').filter(Boolean);
-    while (segments.length > 1) {
-      segments.pop();
-      const candidate = '/' + segments.join('/');
-      return candidate;
-    }
-    return '/' + segments[0]; // fallback to top-level module
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,7 +43,7 @@ export function useLayoutKeyboardShortcuts() {
         return;
       }
 
-      // ── Escape → navigate to parent ──
+      // ── Escape → go back ──
       if (e.key !== 'Escape') return;
       // If user is in an input, blur it first — second Escape will navigate
       const tag = (e.target as HTMLElement)?.tagName;
@@ -60,13 +53,11 @@ export function useLayoutKeyboardShortcuts() {
         return;
       }
       if (document.querySelector('[role="dialog"], .modal-overlay, [data-modal]')) return;
-
-      const parent = getParentPath(pathname);
-      if (!parent) return; // at module root, don't navigate
+      if (MODULE_ROOTS.has(pathname)) return; // at module root, nothing to go back to
       e.preventDefault();
-      navigateInActiveTab(parent);
+      goBackInActiveTab();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pathname, getParentPath, tabs, activeTabId, switchTab, navigateInActiveTab]);
+  }, [pathname, tabs, activeTabId, switchTab, goBackInActiveTab]);
 }

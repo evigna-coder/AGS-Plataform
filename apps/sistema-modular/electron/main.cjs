@@ -104,6 +104,11 @@ function runGoogleOAuthFlow({ clientId, authDomain, hd }) {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        // Partition persistente: si Firebase necesita re-autenticar (cache
+        // miss, token expirado), Google retiene la cookie de sesión y el user
+        // ve "Continuar como X" en vez de tener que escribir email/password
+        // de cero. La partition vive en %APPDATA%/<app>/Partitions/agsauth.
+        partition: 'persist:agsauth',
       },
     });
 
@@ -153,19 +158,28 @@ function runGoogleOAuthFlow({ clientId, authDomain, hd }) {
 
 // ===== Auto-updater =====
 // Skip en dev: electron-updater requiere app empaquetada y un latest.yml accesible.
+//
+// UX (post v1.1.28):
+//   - Download silencioso de fondo (autoDownload=true).
+//   - autoInstallOnAppQuit=true → si el user cierra normal, instala en quit.
+//   - update-downloaded NO bloquea con dialog.showMessageBoxSync (modal que
+//     tapaba la app). En su lugar emitimos evento al renderer; un banner
+//     no-modal le da al user opción de reiniciar cuando quiera.
+//   - Check inicial: 3s tras arranque (antes 10s). Re-check cada 1h (antes 4h).
+let _autoUpdater = null;
 function setupAutoUpdater(targetWindow) {
   if (isDev) {
     console.log('[AutoUpdater] Skipping in dev mode');
     return;
   }
 
-  let autoUpdater;
   try {
-    autoUpdater = require('electron-updater').autoUpdater;
+    _autoUpdater = require('electron-updater').autoUpdater;
   } catch (err) {
     console.error('[AutoUpdater] electron-updater not available:', err.message);
     return;
   }
+  const autoUpdater = _autoUpdater;
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -180,6 +194,7 @@ function setupAutoUpdater(targetWindow) {
 
   autoUpdater.on('update-available', (info) => {
     console.log('[AutoUpdater] Update available:', info?.version);
+    try { targetWindow?.webContents.send('update:available', { version: info?.version }); } catch {}
   });
 
   autoUpdater.on('update-not-available', () => {
@@ -188,28 +203,21 @@ function setupAutoUpdater(targetWindow) {
 
   autoUpdater.on('download-progress', (progress) => {
     console.log(`[AutoUpdater] Downloading: ${Math.round(progress.percent)}% (${Math.round(progress.bytesPerSecond / 1024)} KB/s)`);
+    try {
+      targetWindow?.webContents.send('update:progress', {
+        percent: Math.round(progress.percent),
+        bytesPerSecond: progress.bytesPerSecond,
+      });
+    } catch {}
   });
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[AutoUpdater] Downloaded:', info?.version);
-    const choice = dialog.showMessageBoxSync(targetWindow, {
-      type: 'info',
-      buttons: ['Reiniciar ahora', 'Después'],
-      defaultId: 0,
-      cancelId: 1,
-      title: 'Actualización disponible',
-      message: `AGS Sistema Modular v${info?.version} está lista para instalar.`,
-      detail: 'Reinicie la aplicación para aplicar la actualización. Los cambios sin guardar se perderán.',
-    });
-    if (choice === 0) {
-      autoUpdater.quitAndInstall();
-    }
+    try { targetWindow?.webContents.send('update:downloaded', { version: info?.version }); } catch {}
   });
 
-  // Primera verificación 10s después del arranque (no bloquea el primer render)
-  setTimeout(() => autoUpdater.checkForUpdates().catch(err => console.error('[AutoUpdater]', err?.message)), 10_000);
-  // Re-check cada 4 horas
-  setInterval(() => autoUpdater.checkForUpdates().catch(err => console.error('[AutoUpdater]', err?.message)), 4 * 60 * 60 * 1000);
+  setTimeout(() => autoUpdater.checkForUpdates().catch(err => console.error('[AutoUpdater]', err?.message)), 3_000);
+  setInterval(() => autoUpdater.checkForUpdates().catch(err => console.error('[AutoUpdater]', err?.message)), 60 * 60 * 1000);
 }
 
 // ===== Google Drive Auth (Service Account) =====
@@ -296,6 +304,17 @@ function registerIpcHandlers() {
     } catch (err) {
       return { error: err?.message || String(err) };
     }
+  });
+
+  // IPC: gatillar quit+install del auto-updater desde el banner del renderer.
+  // El renderer escucha 'update:downloaded' y, si el user clickea "Reiniciar",
+  // invoca esto. Si no hay updater (dev / electron-updater faltante) no-op.
+  ipcMain.handle('update:quit-and-install', () => {
+    if (_autoUpdater?.quitAndInstall) {
+      try { _autoUpdater.quitAndInstall(); return { ok: true }; }
+      catch (err) { return { error: err?.message || String(err) }; }
+    }
+    return { error: 'AutoUpdater no disponible' };
   });
 
   // Shell: abrir archivo con app por defecto del sistema

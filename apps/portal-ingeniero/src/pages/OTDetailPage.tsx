@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useOTForm } from '../hooks/useOTForm';
+import { useNavigateBack } from '../hooks/useNavigateBack';
 import { OTStatusBadge } from '../components/ordenes-trabajo/OTStatusBadge';
 import { PartesForm } from '../components/ordenes-trabajo/PartesForm';
 import { SignaturePad, type SignaturePadHandle } from '../components/ordenes-trabajo/SignaturePad';
@@ -26,7 +27,7 @@ const lbl = 'block text-xs font-medium text-slate-500 mb-1';
 
 export default function OTDetailPage() {
   const { otNumber } = useParams<{ otNumber: string }>();
-  const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const form = useOTForm(otNumber);
   const [tab, setTab] = useState<Tab>('detalle');
   const [finalizing, setFinalizing] = useState(false);
@@ -61,7 +62,7 @@ export default function OTDetailPage() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="shrink-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate('/ordenes-trabajo')} className="text-slate-400 hover:text-slate-600 p-1">
+        <button onClick={() => goBack()} className="text-slate-400 hover:text-slate-600 p-1">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>

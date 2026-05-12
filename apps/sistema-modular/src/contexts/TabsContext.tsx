@@ -19,8 +19,12 @@ interface TabsContextType {
   switchTab: (id: string) => void;
   /** Navigate within the active tab's MemoryRouter. Accepts path string or delta number. */
   navigateInActiveTab: (to: string | number, options?: { replace?: boolean; state?: any }) => void;
+  /** Trigger the active tab's goBack (state.from → navigate(-1) → module-root fallback). */
+  goBackInActiveTab: () => void;
   /** Called by TabRouterBridge to register a tab's navigate function */
   registerTabNavigate: (tabId: string, navigate: NavigateFunction | null) => void;
+  /** Called by TabRouterBridge to register a tab's goBack function */
+  registerTabGoBack: (tabId: string, goBack: (() => void) | null) => void;
   /** Called by TabRouterBridge when a tab's location changes */
   updateTabLocation: (tabId: string, pathname: string, search: string) => void;
 }
@@ -99,12 +103,22 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Registry of per-tab navigate functions (from MemoryRouters)
   const tabNavigators = useRef(new Map<string, NavigateFunction>());
+  // Registry of per-tab goBack functions (from MemoryRouters via useNavigateBack)
+  const tabGoBackers = useRef(new Map<string, () => void>());
 
   const registerTabNavigate = useCallback((tabId: string, navigate: NavigateFunction | null) => {
     if (navigate) {
       tabNavigators.current.set(tabId, navigate);
     } else {
       tabNavigators.current.delete(tabId);
+    }
+  }, []);
+
+  const registerTabGoBack = useCallback((tabId: string, goBack: (() => void) | null) => {
+    if (goBack) {
+      tabGoBackers.current.set(tabId, goBack);
+    } else {
+      tabGoBackers.current.delete(tabId);
     }
   }, []);
 
@@ -134,6 +148,11 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (nav) nav(to as any, options);
   }, [activeTabId]);
 
+  const goBackInActiveTab = useCallback(() => {
+    const goBack = tabGoBackers.current.get(activeTabId);
+    if (goBack) goBack();
+  }, [activeTabId]);
+
   const openTab = useCallback((path: string, label?: string, icon?: string) => {
     const meta = label && icon ? { label, icon } : getNavMeta(path);
     const id = generateTabId();
@@ -157,6 +176,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return next;
     });
     tabNavigators.current.delete(closingId);
+    tabGoBackers.current.delete(closingId);
   }, [activeTabId]);
 
   const switchTab = useCallback((id: string) => {
@@ -175,7 +195,9 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <TabsContext.Provider value={{
       tabs, activeTabId, activeTabPath,
       openTab, closeTab, switchTab,
-      navigateInActiveTab, registerTabNavigate, updateTabLocation,
+      navigateInActiveTab, goBackInActiveTab,
+      registerTabNavigate, registerTabGoBack,
+      updateTabLocation,
     }}>
       {children}
     </TabsContext.Provider>

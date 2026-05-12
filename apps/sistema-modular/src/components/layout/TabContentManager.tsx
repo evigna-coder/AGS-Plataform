@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { MemoryRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTabs } from '../../contexts/TabsContext';
+import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 
 // ── Page imports ──
@@ -33,14 +34,23 @@ import { QFDocumentosList } from '../../pages/qf-documentos';
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
   const navigate = useNavigate();
+  const goBack = useNavigateBack();
   const location = useLocation();
-  const { registerTabNavigate, updateTabLocation } = useTabs();
+  const { registerTabNavigate, registerTabGoBack, updateTabLocation } = useTabs();
 
   // Register this tab's navigate function so external code can navigate within it
   useEffect(() => {
     registerTabNavigate(tabId, navigate);
     return () => registerTabNavigate(tabId, null);
   }, [tabId, navigate, registerTabNavigate]);
+
+  // Register this tab's goBack (state.from → navigate(-1) → module-root fallback)
+  // so global shortcuts (Escape) can trigger the same back behavior as the
+  // header arrow button.
+  useEffect(() => {
+    registerTabGoBack(tabId, goBack);
+    return () => registerTabGoBack(tabId, null);
+  }, [tabId, goBack, registerTabGoBack]);
 
   // Sync location changes → TabsContext + browser URL (if active)
   useEffect(() => {
