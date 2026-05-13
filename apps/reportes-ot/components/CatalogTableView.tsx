@@ -927,10 +927,25 @@ export const CatalogTableView: React.FC<Props> = ({
   // Nota: computeOperator puede ser null en reglas legacy — se trata como resta por defecto
   const computeRules = (table.validationRules ?? []).filter(r => r.operator === 'compute' && (r.operandColumn || r.factoryThreshold != null));
 
-  /** Valor de fábrica para cualquier columna y fila (del template) */
+  /** Valor de fábrica para cualquier columna y fila (del template).
+   *  Si la fila no tiene valor propio pero una fila previa tiene un rowSpan
+   *  que cubre esta posición (celda combinada hacia abajo), hereda el valor
+   *  del "owner" — así las filas combinadas validan contra el mismo spec/ref. */
   const getFactoryValue = (rowId: string, colKey: string): string => {
-    const row = table.templateRows.find(r => r.rowId === rowId);
-    return row ? String(row.cells?.[colKey] ?? '') : '';
+    const rowIdx = table.templateRows.findIndex(r => r.rowId === rowId);
+    if (rowIdx < 0) return '';
+    const ownValue = String(table.templateRows[rowIdx].cells?.[colKey] ?? '');
+    if (ownValue) return ownValue;
+    for (let prev = rowIdx - 1; prev >= 0; prev--) {
+      const prevRow = table.templateRows[prev];
+      const colSpansVal = prevRow.columnSpans?.[colKey];
+      const legacySpan = prevRow.rowSpan && prevRow.spanColumns?.includes(colKey) ? prevRow.rowSpan : 1;
+      const span = colSpansVal && colSpansVal > 1 ? colSpansVal : legacySpan;
+      if (span > 1 && prev + span > rowIdx) {
+        return String(prevRow.cells?.[colKey] ?? '');
+      }
+    }
+    return '';
   };
 
   /** Valor de fábrica del campo especificación para una fila (del template) */
