@@ -709,6 +709,9 @@ export const CatalogChecklistView: React.FC<Props> = ({
           {renderTitle ? (
             <AccordionHeaderChrome isCompact={accordionActive} expanded={expanded} onToggle={toggle} completed={completed}>
               <span className="text-xs font-bold text-slate-800 tracking-tight">{tableSnapshot.name}</span>
+              {tableSnapshot.description && (
+                <p className={`text-[10px] text-slate-500 mt-0.5 whitespace-pre-line leading-snug text-justify ${isPrint ? '' : 'line-clamp-4'}`}>{tableSnapshot.description}</p>
+              )}
             </AccordionHeaderChrome>
           ) : <div />}
           <div className="flex items-center gap-3">
