@@ -13,6 +13,7 @@ import {
 import { handleValidateCuit } from './afip.js';
 export { processMailQueue } from './mailer.js';
 export { onLeadWritten } from './notifications.js';
+export { onClientSignature } from './onClientSignature.js';
 
 initializeApp();
 

@@ -98,7 +98,12 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
   }));
 
   const moduloOptions: SelectOption[] = modulos.map(m => ({
-    value: m.id, label: m.nombre + (m.serie ? ` — S/N ${m.serie}` : ''),
+    value: m.id,
+    label: [
+      m.nombre,
+      m.descripcion,
+      m.serie ? `S/N ${m.serie}` : null,
+    ].filter(Boolean).join(' — '),
   }));
 
   // ── Acciones de selección ──
