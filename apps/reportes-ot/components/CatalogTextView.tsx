@@ -148,7 +148,7 @@ export const CatalogTextView: React.FC<Props> = ({
           isPrint={isPrint}
           onChangeData={onChangeData}
           className={`catalog-text-content ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-          style={{ textAlign: resolvedTextAlign, hyphens: 'auto' }}
+          style={{ textAlign: resolvedTextAlign }}
         />
       </div>
     );
@@ -197,7 +197,7 @@ export const CatalogTextView: React.FC<Props> = ({
           isPrint={isPrint}
           onChangeData={onChangeData}
           className={`catalog-text-content px-3 py-2 ${isPrint ? 'text-[9px] leading-snug' : 'text-xs leading-relaxed text-slate-700'}`}
-          style={{ textAlign: resolvedTextAlign, hyphens: 'auto' }}
+          style={{ textAlign: resolvedTextAlign }}
         />
         {accordionActive && expanded && <AccordionConfirmButton onConfirm={markCompleted} completed={completed} />}
       </div>

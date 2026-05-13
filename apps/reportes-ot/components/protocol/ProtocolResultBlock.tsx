@@ -47,7 +47,7 @@ export const ProtocolResultBlock: React.FC<ProtocolResultBlockProps> = ({
             {readOnly ? (
               <p
                 className="text-[11px] text-slate-700 whitespace-pre-wrap"
-                style={{ textAlign: 'justify', hyphens: 'auto' }}
+                style={{ textAlign: 'justify' }}
               >
                 {observations || '—'}
               </p>

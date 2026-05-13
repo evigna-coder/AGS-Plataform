@@ -21,7 +21,7 @@ export const ProtocolTextBlock: React.FC<ProtocolTextBlockProps> = ({
       )}
       <p
         className="text-[11px] text-slate-700 leading-snug whitespace-pre-wrap"
-        style={{ fontSize: '11px', textAlign: 'justify', hyphens: 'auto' }}
+        style={{ fontSize: '11px', textAlign: 'justify' }}
       >
         {content}
       </p>

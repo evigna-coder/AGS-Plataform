@@ -149,7 +149,7 @@ function ChecklistItemRow({
         {item.label && (item.showLabel !== false) && (
           <p
             className={`text-xs font-semibold mb-2 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}
-            style={{ textAlign: 'justify', hyphens: 'auto' }}
+            style={{ textAlign: 'justify' }}
           >
             {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
             {item.label}
@@ -347,7 +347,7 @@ function ChecklistItemRow({
   const labelEl = (
     <span
       className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'} ${isInline ? 'shrink-0' : 'flex-1'}`}
-      style={isInline ? undefined : { textAlign: 'justify', hyphens: 'auto', display: 'inline-block', width: '100%' }}
+      style={isInline ? undefined : { textAlign: 'justify', display: 'inline-block', width: '100%' }}
     >
       {item.numberPrefix && (
         <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>

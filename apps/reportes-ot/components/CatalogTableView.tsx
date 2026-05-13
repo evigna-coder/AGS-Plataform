@@ -1716,7 +1716,7 @@ export const CatalogTableView: React.FC<Props> = ({
                   />
                   <span
                     className={`${isPrint ? 'text-[10px]' : 'text-xs'} text-slate-700 leading-relaxed text-justify whitespace-pre-line`}
-                    style={{ hyphens: 'auto' }}
+                    style={{  }}
                   >
                     {row.checkboxText ?? ''}
                   </span>
@@ -2350,7 +2350,7 @@ export const CatalogTableView: React.FC<Props> = ({
       {/* Footer print: observaciones */}
       {isPrint && selection.observaciones && (
         <div className="px-2 py-1 border-t border-slate-200">
-          <span className="text-[9px] text-slate-600 whitespace-pre-line block" style={{ textAlign: 'justify', hyphens: 'auto' }}>
+          <span className="text-[9px] text-slate-600 whitespace-pre-line block" style={{ textAlign: 'justify' }}>
             <strong>Obs.:</strong> {selection.observaciones}
           </span>
         </div>
