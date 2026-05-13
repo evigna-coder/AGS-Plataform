@@ -28,7 +28,6 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
 
   const addColumn = () => {
     const label = newColLabel.trim();
-    if (!label) return;
     const key = `col_${crypto.randomUUID().slice(0, 6)}`;
     onChange([...columns, { key, label }], rows.map(r => ({ ...r, [key]: '' })));
     setNewColLabel('');
@@ -100,7 +99,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
             >
               {col.isRowHeader && <span className="text-[9px] text-orange-500">H</span>}
               {col.group && <span className="text-[9px] text-blue-400">[{col.group}]</span>}
-              {col.label}
+              {col.label || <span className="italic text-slate-400">(sin nombre)</span>}
               {col.options && col.options.length > 0 && (
                 <span className="text-[9px] bg-teal-600 text-white px-1 rounded-sm">{col.options.length}</span>
               )}
@@ -115,7 +114,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addColumn(); } }}
             className="flex-1"
           />
-          <Button size="sm" variant="outline" onClick={addColumn} disabled={!newColLabel.trim()}>+ Col</Button>
+          <Button size="sm" variant="outline" onClick={addColumn}>+ Col</Button>
         </div>
       </div>
 
@@ -123,7 +122,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
       {editingCol && (
         <div className="border border-teal-300 rounded-lg p-3 bg-teal-50/50 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-teal-700">Columna: {editingCol.label}</p>
+            <p className="text-[11px] font-bold text-teal-700">Columna: {editingCol.label || <span className="italic font-normal text-teal-400">(sin nombre)</span>}</p>
             <button onClick={() => removeColumn(editingCol.key)} className="text-[10px] text-red-500 hover:text-red-700 font-medium">
               Eliminar columna
             </button>
@@ -224,7 +223,7 @@ export const EmbeddedTableEditor = ({ columns, rows, onChange }: Props) => {
                 {columns.map(col => (
                   <th key={col.key} className="px-2 py-1.5 text-center font-bold text-slate-600 border-b border-slate-200">
                     {col.group && <span className="text-[9px] text-blue-400 mr-1">[{col.group}]</span>}
-                    {col.label}
+                    {col.label || <span className="italic font-normal text-slate-300">(vacío)</span>}
                     {col.isRowHeader && <span className="ml-1 text-[9px] text-orange-400">H</span>}
                     {col.options && col.options.length > 0 && <span className="ml-1 text-[9px] text-teal-500">▾</span>}
                   </th>
