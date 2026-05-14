@@ -120,8 +120,8 @@ export function makeQfDocumentosService(deps: QFDocumentosServiceDeps) {
       const numero = input.numero.padStart(4, '0');
       const numeroCompleto = formatQFNumeroCompleto(input.tipo, input.familia, numero);
       const versionInicial = (input.versionInicial || '01').replace(/\D/g, '').padStart(2, '0').slice(-2);
-      if (!/^\d{2}$/.test(versionInicial) || versionInicial === '00') {
-        throw new Error('La versión inicial debe ser un número entre 01 y 99.');
+      if (!/^\d{2}$/.test(versionInicial)) {
+        throw new Error('La versión inicial debe ser un número entre 00 y 99.');
       }
 
       const ref = doc(db, COL, numeroCompleto);

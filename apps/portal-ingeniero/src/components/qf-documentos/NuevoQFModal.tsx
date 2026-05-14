@@ -148,7 +148,7 @@ export default function NuevoQFModal({ open, onClose, onCreated, defaultTipo = '
             onChange={(e) => setCambios(e.target.value)}
             rows={3}
             className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-            placeholder={versionPadded === '01' ? 'Qué contiene esta primera versión' : 'Qué contiene esta versión (resumen al día de alta)'}
+            placeholder={versionPadded === '01' || versionPadded === '00' ? 'Qué contiene esta primera versión' : 'Qué contiene esta versión (resumen al día de alta)'}
           />
           <p className="mt-1 text-[10px] text-slate-400">
             Se guarda como primera entrada del historial. Las versiones anteriores no se registran retroactivamente.
