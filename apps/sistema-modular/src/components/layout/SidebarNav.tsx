@@ -31,8 +31,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ collapsed, onCollapse })
 
   const visibleNav = useNavigation();
 
-  /** Normal click → navigate active tab. Ctrl/Meta/middle → open new tab. */
+  /** Normal click → navigate active tab. Ctrl/Meta/middle → open new tab.
+   *  Right-click → no-op acá: lo maneja onContextMenu (menú con "Abrir en
+   *  nueva pestaña/ventana"). Sin este guard, onAuxClick también dispara con
+   *  botón derecho (e.button === 2) y caía al else, navegando el tab activo
+   *  al módulo target antes de que el menú contextual apareciera. */
   const handleNavClick = useCallback((e: React.MouseEvent, path: string, label?: string, icon?: string) => {
+    if (e.button === 2) return; // right click → onContextMenu se encarga
     e.preventDefault();
     if (e.ctrlKey || e.metaKey || e.button === 1) {
       const meta = label && icon ? { label, icon } : getNavMeta(path);
