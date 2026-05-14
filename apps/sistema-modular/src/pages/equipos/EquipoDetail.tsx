@@ -14,6 +14,7 @@ import { EquipoInfoSidebar } from '../../components/equipos/EquipoInfoSidebar';
 import { ModulosList, type ModuloFormData } from '../../components/equipos/ModulosList';
 import { PendientesClienteSection } from '../../components/pendientes/PendientesClienteSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const EquipoDetail = () => {
@@ -33,6 +34,16 @@ export const EquipoDetail = () => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>(null);
+
+  // Padre jerárquico: establecimiento si lo tiene, sino el cliente, sino el
+  // listado de equipos. Recalculado cuando llegan los datos del sistema.
+  useDeclareParent(
+    sistema?.establecimientoId
+      ? `/establecimientos/${sistema.establecimientoId}`
+      : sistema?.clienteId
+        ? `/clientes/${sistema.clienteId}`
+        : '/equipos'
+  );
 
   // Real-time subscription for the sistema document
   useEffect(() => {

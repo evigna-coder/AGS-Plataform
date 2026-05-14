@@ -12,11 +12,14 @@ import { ImportacionDocumentosSection } from '../../components/stock/Importacion
 import { ImportacionItemsSection } from '../../components/stock/ImportacionItemsSection';
 import { ImportacionIngresarStockModal } from '../../components/stock/ImportacionIngresarStockModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 export const ImportacionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/stock/importaciones');
   const [imp, setImp] = useState<Importacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [showIngresarStock, setShowIngresarStock] = useState(false);

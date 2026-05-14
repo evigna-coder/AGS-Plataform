@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import type { Proveedor } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 const tipoBadge = (tipo: string) =>
   tipo === 'internacional'
@@ -44,6 +45,8 @@ export const ProveedorDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/stock/proveedores');
   const [proveedor, setProveedor] = useState<Proveedor | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);

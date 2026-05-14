@@ -11,6 +11,7 @@ import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoMo
 import { DuplicateMinikitModal } from '../../components/stock/DuplicateMinikitModal';
 import type { Minikit, MinikitRequeridoItem, UnidadStock, Ingeniero, CondicionUnidad, EstadoMinikit } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -38,6 +39,7 @@ const LV = ({ label, value }: { label: string; value: React.ReactNode }) => (
 
 export const MinikitDetail = () => {
   const { id } = useParams<{ id: string }>();
+  useDeclareParent('/stock/minikits');
   const navigate = useNavigate();
   const goBack = useNavigateBack();
   const confirm = useConfirm();

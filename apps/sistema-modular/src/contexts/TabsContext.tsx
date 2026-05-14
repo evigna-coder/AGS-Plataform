@@ -19,12 +19,20 @@ interface TabsContextType {
   switchTab: (id: string) => void;
   /** Navigate within the active tab's MemoryRouter. Accepts path string or delta number. */
   navigateInActiveTab: (to: string | number, options?: { replace?: boolean; state?: any }) => void;
-  /** Trigger the active tab's goBack (state.from → navigate(-1) → module-root fallback). */
+  /** Trigger the active tab's goBack (parent declarado → state.from → navigate(-1)). */
   goBackInActiveTab: () => void;
   /** Called by TabRouterBridge to register a tab's navigate function */
   registerTabNavigate: (tabId: string, navigate: NavigateFunction | null) => void;
   /** Called by TabRouterBridge to register a tab's goBack function */
   registerTabGoBack: (tabId: string, goBack: (() => void) | null) => void;
+  /** Called by Detail pages via useDeclareParent: registra el padre jerárquico
+   *  semántico. Permite que goBack vuelva al padre real (ej. equipo →
+   *  establecimiento padre) sin depender del history del browser, que se
+   *  enredaba en loops cuando se mezclaban entradas a un mismo Detail desde
+   *  distintos referrers. */
+  setActiveTabParent: (parent: string | null) => void;
+  /** Lectura del parent declarado del tab activo (usado por useNavigateBack). */
+  getActiveTabParent: () => string | null;
   /** Called by TabRouterBridge when a tab's location changes */
   updateTabLocation: (tabId: string, pathname: string, search: string) => void;
 }
@@ -105,6 +113,11 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const tabNavigators = useRef(new Map<string, NavigateFunction>());
   // Registry of per-tab goBack functions (from MemoryRouters via useNavigateBack)
   const tabGoBackers = useRef(new Map<string, () => void>());
+  // Registry of per-tab parent paths declarados por cada Detail page via
+  // useDeclareParent. Es un ref para que las lecturas sean siempre frescas
+  // sin forzar re-renders de useNavigateBack (que se reconstruye en cada
+  // useEffect dep change).
+  const tabParents = useRef(new Map<string, string>());
 
   const registerTabNavigate = useCallback((tabId: string, navigate: NavigateFunction | null) => {
     if (navigate) {
@@ -121,6 +134,18 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       tabGoBackers.current.delete(tabId);
     }
   }, []);
+
+  const setActiveTabParent = useCallback((parent: string | null) => {
+    if (parent) {
+      tabParents.current.set(activeTabId, parent);
+    } else {
+      tabParents.current.delete(activeTabId);
+    }
+  }, [activeTabId]);
+
+  const getActiveTabParent = useCallback((): string | null => {
+    return tabParents.current.get(activeTabId) ?? null;
+  }, [activeTabId]);
 
   const updateTabLocation = useCallback((tabId: string, pathname: string, search: string) => {
     const fullPath = pathname + search;
@@ -177,6 +202,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     tabNavigators.current.delete(closingId);
     tabGoBackers.current.delete(closingId);
+    tabParents.current.delete(closingId);
   }, [activeTabId]);
 
   const switchTab = useCallback((id: string) => {
@@ -197,6 +223,7 @@ export const TabsProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       openTab, closeTab, switchTab,
       navigateInActiveTab, goBackInActiveTab,
       registerTabNavigate, registerTabGoBack,
+      setActiveTabParent, getActiveTabParent,
       updateTabLocation,
     }}>
       {children}

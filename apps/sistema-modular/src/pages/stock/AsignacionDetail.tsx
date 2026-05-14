@@ -4,6 +4,7 @@ import { asignacionesService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { InventarioIngenieroModal } from '../../components/stock/InventarioIngenieroModal';
 import type { Asignacion, ItemAsignacion, EstadoItemAsignacion } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -19,6 +20,8 @@ export const AsignacionDetail = () => {
 
   const confirm = useConfirm();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/stock/asignaciones/historial');
   const [asg, setAsg] = useState<Asignacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

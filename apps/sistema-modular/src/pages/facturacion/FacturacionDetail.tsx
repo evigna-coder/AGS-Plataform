@@ -7,6 +7,7 @@ import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLOR
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
@@ -24,6 +25,8 @@ export const FacturacionDetail = () => {
   const [solicitud, setSolicitud] = useState<SolicitudFacturacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  useDeclareParent('/facturacion');
 
   // Nota del contable (editable for admin/admin_soporte)
   const [notaDraft, setNotaDraft] = useState('');

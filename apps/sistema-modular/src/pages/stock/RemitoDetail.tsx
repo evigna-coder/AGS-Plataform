@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { getRemitoItemCodigo, getRemitoItemDescripcion, getTipoEntidadLabel } from '../../utils/inventarioToRemitoItem';
 import type { Remito, RemitoItem, TipoRemito, EstadoRemito, TipoRemitoItem } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 const TIPO_LABELS: Record<TipoRemito, string> = { salida_campo: 'Salida a campo', entrega_cliente: 'Entrega a cliente', devolucion: 'Devolucion', interno: 'Interno', derivacion_proveedor: 'Derivacion proveedor', loaner_salida: 'Loaner salida' };
 const ESTADO_LABELS: Record<EstadoRemito, string> = { borrador: 'Borrador', confirmado: 'Confirmado', en_transito: 'En transito', completado: 'Completado', completado_parcial: 'Parcial', cancelado: 'Cancelado' };
@@ -32,6 +33,8 @@ const formatDate = (iso: string | null | undefined) => {
 export const RemitoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/stock/remitos');
   const [remito, setRemito] = useState<Remito | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);

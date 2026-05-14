@@ -5,6 +5,7 @@ import { ServiciosPanel } from '../../components/vehiculos/ServiciosPanel';
 import { HistorialTallerPanel } from '../../components/vehiculos/HistorialTallerPanel';
 import { RegistroKmPanel } from '../../components/vehiculos/RegistroKmPanel';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
 
 type Tab = 'servicios' | 'historial' | 'km';
@@ -12,6 +13,8 @@ type Tab = 'servicios' | 'historial' | 'km';
 export const VehiculoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/vehiculos');
   const [vehiculo, setVehiculo] = useState<Vehiculo | null>(null);
   const [servicios, setServicios] = useState<ServicioVehiculo[]>([]);
   const [historial, setHistorial] = useState<VisitaTaller[]>([]);

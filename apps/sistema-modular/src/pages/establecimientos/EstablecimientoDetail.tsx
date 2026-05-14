@@ -14,6 +14,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 import { MoveSistemaModal } from '../../components/equipos/MoveSistemaModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export const EstablecimientoDetail = () => {
@@ -53,6 +54,10 @@ export const EstablecimientoDetail = () => {
   const [showContactoModal, setShowContactoModal] = useState(false);
   const [editingContacto, setEditingContacto] = useState<ContactoEstablecimiento | null>(null);
   const [contactoForm, setContactoForm] = useState<ContactoFormData>(emptyContactoForm);
+
+  // Padre jerárquico: el cliente al que pertenece (si tenemos el id), o el
+  // listado de establecimientos. Se recalcula cuando llega el dato del est.
+  useDeclareParent(est?.clienteCuit ? `/clientes/${est.clienteCuit}` : '/establecimientos');
   // Real-time subscription for the establecimiento document
   useEffect(() => {
     if (!id) return;

@@ -12,6 +12,7 @@ import { LoanerExtraccionModal } from '../../components/loaners/LoanerExtraccion
 import { LoanerVentaModal } from '../../components/loaners/LoanerVentaModal';
 import type { Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 export function LoanerDetail() {
@@ -19,6 +20,8 @@ export function LoanerDetail() {
   const confirm = useConfirm();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/loaners');
   const [loaner, setLoaner] = useState<Loaner | null>(null);
   const [loading, setLoading] = useState(true);
 

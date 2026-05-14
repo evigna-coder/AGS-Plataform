@@ -10,12 +10,15 @@ import { OCItemsTable } from '../../components/stock/OCItemsTable';
 import { OCStatusTransition } from '../../components/stock/OCStatusTransition';
 import { OCImportacionesSection } from '../../components/stock/OCImportacionesSection';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 export const OCDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/stock/ordenes-compra');
   const [oc, setOc] = useState<OrdenCompra | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);

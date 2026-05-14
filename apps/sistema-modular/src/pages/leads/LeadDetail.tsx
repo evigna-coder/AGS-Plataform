@@ -16,6 +16,7 @@ import type { ContactoTicket } from '@ags/shared';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
 import { TicketPendientesChips } from '../../components/pendientes/TicketPendientesChips';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 export const LeadDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +34,9 @@ export const LeadDetail = () => {
   const [enviandoComentario, setEnviandoComentario] = useState(false);
 
   const [moduloNombre, setModuloNombre] = useState<string | null>(null);
+
+  // Padre jerárquico: listado de tickets.
+  useDeclareParent('/leads');
 
   // Escape key is handled globally by useLayoutKeyboardShortcuts; modals on this
   // page use <Modal> (role="dialog") so the global handler skips when one is open.

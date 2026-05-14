@@ -6,11 +6,15 @@ import { Button } from '../../components/ui/Button';
 import { ClienteInfoSidebar } from '../../components/clientes/ClienteInfoSidebar';
 import { ClienteMainContent } from '../../components/clientes/ClienteMainContent';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 export const ClienteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
+
+  // Padre jerárquico: listado de clientes.
+  useDeclareParent('/clientes');
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>([]);

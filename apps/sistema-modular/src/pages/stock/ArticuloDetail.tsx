@@ -7,6 +7,7 @@ import { AddUnitForm } from './AddUnitForm';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
 import type { UnitFormData } from './AddUnitForm';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 const CONDICION_COLORS: Record<CondicionUnidad, string> = {
   nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700',
@@ -38,6 +39,8 @@ const Badge = ({ label, color }: { label: string; color: string }) => (
 export const ArticuloDetail = () => {
   const { id } = useParams<{ id: string }>();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/stock/articulos');
   const [articulo, setArticulo] = useState<Articulo | null>(null);
   const [marca, setMarca] = useState<Marca | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);

@@ -11,6 +11,7 @@ import { useOTDetail } from '../../hooks/useOTDetail';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import type { OTEstadoAdmin } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 const ESTADO_COLORS: Record<string, string> = {
   CREADA: 'bg-slate-100 text-slate-600',
@@ -26,6 +27,9 @@ export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
   const goBack = useNavigateBack();
   const ot = useOTDetail(otNumber);
+
+  // Padre jerárquico: listado de OTs (siempre, independiente del referrer).
+  useDeclareParent('/ordenes-trabajo');
   const [showCrearLead, setShowCrearLead] = useState(false);
   const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
 

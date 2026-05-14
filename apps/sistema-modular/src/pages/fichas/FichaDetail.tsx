@@ -12,11 +12,14 @@ import { EditFichaModal } from '../../components/fichas/EditFichaModal';
 import { GenerarRemitoDevolucionModal } from '../../components/remitos/GenerarRemitoDevolucionModal';
 import type { FichaPropiedad, Loaner } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { useDeclareParent } from '../../hooks/useDeclareParent';
 
 export function FichaDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const goBack = useNavigateBack();
+
+  useDeclareParent('/fichas');
   const [ficha, setFicha] = useState<FichaPropiedad | null>(null);
   const [loading, setLoading] = useState(true);
   const [loanerModalOpen, setLoanerModalOpen] = useState(false);
