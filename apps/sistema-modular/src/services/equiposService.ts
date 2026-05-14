@@ -240,9 +240,12 @@ export const sistemasService = {
       q = query(collection(db, 'sistemas'));
     }
     const querySnapshot = await getDocs(q);
+    // Spread primero, id después: docs migrados con un campo `id` en su data
+    // sobrescribían el doc.id real y rompían los delete por ID. Ver
+    // comentario en modulosService.getBySistema.
     let sistemas = querySnapshot.docs.map(d => ({
-      id: d.id,
       ...d.data(),
+      id: d.id,
       createdAt: d.data().createdAt?.toDate().toISOString(),
       updatedAt: d.data().updatedAt?.toDate().toISOString(),
     })) as Sistema[];
@@ -272,8 +275,8 @@ export const sistemasService = {
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
-        id: docSnap.id,
         ...data,
+        id: docSnap.id,
         ubicaciones: data.ubicaciones || [],
         otIds: data.otIds || [],
         createdAt: data.createdAt?.toDate().toISOString(),
@@ -689,9 +692,13 @@ export const modulosService = {
   // Obtener todos los modulos de un sistema
   async getBySistema(sistemaId: string) {
     const querySnapshot = await getDocs(collection(db, 'sistemas', sistemaId, 'modulos'));
+    // OJO: el spread va PRIMERO y el id DESPUÉS. Algunos docs migrados desde
+    // Excel/sistemas viejos tienen un campo `id` en su data; si pusiéramos
+    // `id: d.id` antes, el spread lo sobrescribía con un id falso y los
+    // siguientes deletes apuntaban a docs inexistentes (no-op silencioso).
     return querySnapshot.docs.map(d => ({
-      id: d.id,
       ...d.data(),
+      id: d.id,
       sistemaId,
     })) as ModuloSistema[];
   },
@@ -702,8 +709,8 @@ export const modulosService = {
     const docSnap = await getDoc(ref);
     if (docSnap.exists()) {
       return {
-        id: docSnap.id,
         ...docSnap.data(),
+        id: docSnap.id,
         sistemaId,
       } as ModuloSistema;
     }
