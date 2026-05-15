@@ -242,32 +242,237 @@ export async function recomputeEquivalenciaDenormalization(articuloId: string): 
   }
 }
 
+// ── desagregarUnidades — plan 13-03 implementation (atomic model) ─────────────
+
 /**
- * Stub — plan 13-03 owns the implementation.
- * In test mode, pre-validates stock availability to make STKE-04b assertable.
- * In prod mode, always throws NOT_IMPLEMENTED (loud-fail on premature caller).
+ * Atomically converts N origen UnidadStock docs (estado: consumido) into
+ * N×factor new destino UnidadStock docs (estado: disponible) at the same
+ * ubicacion, plus one MovimientoStock audit log with subtipo='conversion'.
+ *
+ * Atomic model: 1 UnidadStock doc = 1 physical unit (Phase 9 convention).
+ *
+ * @returns { movimientoId, cantidadDestino } on success.
+ * @throws 'Stock insuficiente' | 'Artículo origen no existe' | etc. on failure.
  */
-export async function desagregarUnidades(_params: {
+export async function desagregarUnidades(params: {
   articuloOrigenId: string;
   cantidad: number;
   ubicacion: UbicacionStock;
   solicitadoPorNombre: string;
 }): Promise<{ movimientoId: string; cantidadDestino: number }> {
+  // ── Step 1: Argument validation (synchronous, fail-fast) ────────────────
+  if (params.cantidad <= 0 || !Number.isInteger(params.cantidad)) {
+    throw new Error('Cantidad debe ser entero positivo');
+  }
+  if (!params.solicitadoPorNombre) {
+    throw new Error('solicitadoPorNombre requerido para audit');
+  }
+
+  // ── Step 2: Pre-fetch stable data OUTSIDE the tx ────────────────────────
+  const origen = await fetchArticulo(params.articuloOrigenId);
+  if (!origen) throw new Error('Artículo origen no existe');
+  if ((origen.equivalencias?.length ?? 0) === 0) {
+    throw new Error('Artículo origen no tiene equivalencia configurada');
+  }
+  const eq = origen.equivalencias[0];
+
+  const destino = await fetchArticulo(eq.articuloIdDestino);
+  if (!destino) throw new Error('Artículo destino no existe');
+
+  // ── Step 3: Pre-generate IDs (deterministic paths inside tx) ───────────
+  const rawCantidadDestino = params.cantidad * eq.factor;
+  if (Math.abs(rawCantidadDestino - Math.round(rawCantidadDestino)) > 1e-9) {
+    throw new Error(
+      `Conversión genera cantidad destino no entera (${rawCantidadDestino}) — ajuste el factor o la cantidad`,
+    );
+  }
+  const cantidadDestino = Math.round(rawCantidadDestino);
+  const movId = crypto.randomUUID();
+  const nuevasDestinoIds = Array.from({ length: cantidadDestino }, () => crypto.randomUUID());
+  const nowIso = new Date().toISOString();
+
+  // ── Step 4: Execute — branch on test vs prod ────────────────────────────
   if (_testState) {
-    const origen = _testState.collections.articulos.find(a => a.id === _params.articuloOrigenId);
-    if (!origen?.equivalencias?.length) throw new Error('Sin equivalencia configurada');
-    const disponibles = _testState.collections.unidades.filter(
+    await _runConversionInTestMode(
+      _testState,
+      params,
+      destino.id,
+      movId,
+      nuevasDestinoIds,
+    );
+    return { movimientoId: movId, cantidadDestino };
+  }
+
+  // Production path: real Firestore runTransaction
+  await _runConversionInProd(
+    params,
+    origen,
+    destino,
+    eq,
+    cantidadDestino,
+    movId,
+    nuevasDestinoIds,
+    nowIso,
+  );
+
+  // ── Step 5: Post-tx audit (fire-and-forget) ─────────────────────────────
+  void logEvent('stock.conversion_realizada', movId, {
+    articuloOrigenId: params.articuloOrigenId,
+    articuloDestinoId: destino.id,
+    cantidadOrigen: params.cantidad,
+    cantidadDestino,
+    factor: eq.factor,
+  });
+
+  return { movimientoId: movId, cantidadDestino };
+}
+
+/** Runs conversion entirely against MockEquivalenciasState (unit test path). */
+async function _runConversionInTestMode(
+  state: MockEquivalenciasState,
+  params: { articuloOrigenId: string; cantidad: number; ubicacion: UbicacionStock },
+  destinoId: string,
+  movId: string,
+  nuevasDestinoIds: string[],
+): Promise<void> {
+  // Find candidatas (FIFO by index — fixture has no createdAt)
+  const candidatas = state.collections.unidades
+    .filter(
       u =>
-        u.articuloId === _params.articuloOrigenId &&
+        u.articuloId === params.articuloOrigenId &&
         u.estado === 'disponible' &&
         u.activo !== false &&
-        u.ubicacion.referenciaId === _params.ubicacion.referenciaId,
+        u.ubicacion.referenciaId === params.ubicacion.referenciaId,
+    )
+    .slice(0, params.cantidad);
+
+  if (candidatas.length < params.cantidad) {
+    throw new Error(
+      `Stock insuficiente: ${candidatas.length} disponibles, ${params.cantidad} solicitadas`,
     );
-    if (disponibles.length < _params.cantidad) {
-      throw new Error(
-        `stock insuficiente: ${disponibles.length} disponible(s), se requieren ${_params.cantidad}`,
-      );
+  }
+
+  // Mark origen units as consumido
+  for (const u of candidatas) {
+    const idx = state.collections.unidades.findIndex(x => x.id === u.id);
+    if (idx !== -1) {
+      state.collections.unidades[idx] = { ...state.collections.unidades[idx], estado: 'consumido' };
     }
   }
-  throw new Error('NOT_IMPLEMENTED — plan 13-03 owns this function. Loud-fail on premature caller.');
+
+  // Create new destino units
+  for (const newId of nuevasDestinoIds) {
+    state.collections.unidades.push({
+      id: newId,
+      articuloId: destinoId,
+      estado: 'disponible',
+      ubicacion: params.ubicacion as { tipo: string; referenciaId: string; referenciaNombre: string },
+      activo: true,
+    });
+  }
+
+  // Write MovimientoStock
+  state.collections.movimientosStock.push({
+    id: movId,
+    tipo: 'transferencia',
+    subtipo: 'conversion',
+  });
+}
+
+/** Runs conversion via real Firestore runTransaction (production path). */
+async function _runConversionInProd(
+  params: { articuloOrigenId: string; cantidad: number; ubicacion: UbicacionStock; solicitadoPorNombre: string },
+  origen: MockArticulo,
+  destino: MockArticulo,
+  eq: { articuloIdDestino: string; articuloCodigoDestino: string; articuloDescripcionDestino: string; factor: number },
+  cantidadDestino: number,
+  movId: string,
+  nuevasDestinoIds: string[],
+  nowIso: string,
+): Promise<void> {
+  const fb = await getFirebaseModules();
+  const { runTransaction: _runTx } = await import('firebase/firestore');
+
+  // Pre-fetch candidatas (outside tx for query support)
+  const candidatasSnap = await fb.getDocs(
+    fb.query(
+      fb.collection(fb.db, 'unidades'),
+      fb.where('articuloId', '==', params.articuloOrigenId),
+      fb.where('estado', '==', 'disponible'),
+      fb.where('activo', '==', true),
+      fb.where('ubicacion.referenciaId', '==', params.ubicacion.referenciaId),
+    ),
+  );
+  type CandidataRow = { id: string; createdAt?: string; [k: string]: unknown };
+  const candidatas: CandidataRow[] = candidatasSnap.docs
+    .map((d: { id: string; data(): Record<string, unknown> }) => ({ id: d.id, ...d.data() }))
+    .sort((a: CandidataRow, b: CandidataRow) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
+    .slice(0, params.cantidad);
+
+  if (candidatas.length < params.cantidad) {
+    throw new Error(
+      `Stock insuficiente: ${candidatas.length} disponibles, ${params.cantidad} solicitadas`,
+    );
+  }
+
+  await _runTx(fb.db, async (tx) => {
+    // READ FIRST — validate state under lock
+    const snaps = await Promise.all(
+      candidatas.map((u: any) => tx.get(fb.doc(fb.db, 'unidades', u.id))),
+    );
+    for (const snap of snaps) {
+      if (!snap.exists() || (snap.data() as any).estado !== 'disponible') {
+        throw new Error('Unidad ya no disponible (race con otro proceso)');
+      }
+    }
+
+    // WRITE — bajas
+    for (const u of candidatas) {
+      tx.update(fb.doc(fb.db, 'unidades', (u as any).id), fb.deepCleanForFirestore({
+        estado: 'consumido',
+        ...fb.getUpdateTrace(),
+        updatedAt: nowIso,
+      }));
+    }
+
+    // WRITE — altas destino
+    for (const newId of nuevasDestinoIds) {
+      tx.set(fb.doc(fb.db, 'unidades', newId), fb.deepCleanForFirestore({
+        articuloId: destino.id,
+        articuloCodigo: (destino as any).codigo,
+        articuloDescripcion: (destino as any).descripcion ?? null,
+        condicion: 'nuevo',
+        estado: 'disponible',
+        ubicacion: params.ubicacion,
+        activo: true,
+        ...fb.getUpdateTrace(),
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      }));
+    }
+
+    // WRITE — MovimientoStock (4 STKE-01 destino-side fields; NO codigo/descripcion on mov)
+    tx.set(fb.doc(fb.db, 'movimientosStock', movId), fb.deepCleanForFirestore({
+      id: movId,
+      tipo: 'transferencia',
+      subtipo: 'conversion',
+      unidadId: candidatas[0] ? (candidatas[0] as any).id : null,
+      articuloId: params.articuloOrigenId,
+      articuloCodigo: (origen as any).codigo,
+      articuloDescripcion: (origen as any).descripcion ?? null,
+      cantidad: params.cantidad,
+      articuloDestinoId: destino.id,
+      cantidadDestino,
+      factorConversion: eq.factor,
+      origenTipo: params.ubicacion.tipo,
+      origenId: params.ubicacion.referenciaId,
+      origenNombre: params.ubicacion.referenciaNombre,
+      destinoTipo: params.ubicacion.tipo,
+      destinoId: params.ubicacion.referenciaId,
+      destinoNombre: params.ubicacion.referenciaNombre,
+      motivo: `Conversión ${(origen as any).codigo} × ${params.cantidad} → ${(destino as any).codigo} × ${cantidadDestino} (factor ${eq.factor})`,
+      creadoPor: params.solicitadoPorNombre,
+      createdAt: nowIso,
+    }));
+  });
 }
