@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 13-01-PLAN.md (ArticuloEquivalencia + Articulo.equivalencias + MovimientoStock.subtipo — STKE-01 foundation types)
-last_updated: "2026-05-15T11:55:04.689Z"
+stopped_at: "Completed 13-00-PLAN.md (Wave 0 RED baseline — test:equivalencias script + e2e fixme specs)"
+last_updated: "2026-05-15T11:56:27.177Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
   completed_phases: 9
   total_plans: 63
-  completed_plans: 55
+  completed_plans: 56
   percent: 87
 ---
 
@@ -286,6 +286,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 04-presupuestos-anexo-consumibles P04 | 9min | 3 tasks | 3 files |
 | Phase 04-presupuestos-anexo-consumibles P05 | 16min | 3 tasks + 1 checkpoint | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P01 | 12min | 1 tasks | 4 files |
+| Phase 13-stock-equivalencias-compra-uso P00 | 268s | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -390,6 +391,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: articuloDestinoCodigo/articuloDestinoDescripcion dropped from MovimientoStock (CONTEXT M6 trim) — recover at display-time via articulosService.getById(articuloDestinoId)
 - [Phase 13-stock-equivalencias-compra-uso]: articuloIdDestinoEquivalencia flat field on Articulo for Firestore where() index — source-of-truth stays in equivalencias[], always kept in sync by service
 - [Phase 13-stock-equivalencias-compra-uso]: subtipo as string literal not enum on MovimientoStock — avoids forcing enum import on existing consumers that only read tipo
+- [Phase 13-stock-equivalencias-compra-uso]: Wave 0 scaffolding files partially committed by 13-01; 13-00 added spec file + package.json script to complete baseline
 
 ### Pending Todos
 
@@ -403,6 +405,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T11:55:04.684Z
-Stopped at: Completed 13-01-PLAN.md (ArticuloEquivalencia + Articulo.equivalencias + MovimientoStock.subtipo — STKE-01 foundation types)
+Last session: 2026-05-15T11:56:27.173Z
+Stopped at: Completed 13-00-PLAN.md (Wave 0 RED baseline — test:equivalencias script + e2e fixme specs)
 Resume file: None
