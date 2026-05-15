@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 13-02-PLAN.md (equivalenciasService link/unlink + denorm recompute — STKE-02 GREEN)
-last_updated: "2026-05-15T12:03:38.583Z"
+stopped_at: Completed 13-04-PLAN.md (EquivalenciaSection in EditArticuloModal — STKE-03 GREEN)
+last_updated: "2026-05-15T12:11:25.779Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
   completed_phases: 9
   total_plans: 63
-  completed_plans: 57
+  completed_plans: 58
   percent: 87
 ---
 
@@ -288,6 +288,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 13-stock-equivalencias-compra-uso P01 | 12min | 1 tasks | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P00 | 268s | 3 tasks | 2 files |
 | Phase 13-stock-equivalencias-compra-uso P02 | 626 | 2 tasks | 4 files |
+| Phase 13-stock-equivalencias-compra-uso P04 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -395,6 +396,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: Wave 0 scaffolding files partially committed by 13-01; 13-00 added spec file + package.json script to complete baseline
 - [Phase 13-stock-equivalencias-compra-uso]: MockEquivalenciasState (not FirestoreDouble) is what __setTestFirestore accepts — matches Wave 0 fixture shape from plan 13-00; FirestoreDouble is an exported interface for plan 13-03 tx-mock tests
 - [Phase 13-stock-equivalencias-compra-uso]: Both directions of articulosService<->equivalenciasService are lazy imports — eliminates module-load cycle without barrel workarounds
+- [Phase 13-stock-equivalencias-compra-uso]: useEquivalenciaSection self-loads articulo via articulosService.getById when prop absent — avoids extending useEditArticuloForm; EquivalenciaSection takes only articuloId prop
 
 ### Pending Todos
 
@@ -408,6 +410,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T12:03:38.578Z
-Stopped at: Completed 13-02-PLAN.md (equivalenciasService link/unlink + denorm recompute — STKE-02 GREEN)
+Last session: 2026-05-15T12:11:25.775Z
+Stopped at: Completed 13-04-PLAN.md (EquivalenciaSection in EditArticuloModal — STKE-03 GREEN)
 Resume file: None
