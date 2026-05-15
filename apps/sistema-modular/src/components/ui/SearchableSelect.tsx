@@ -5,7 +5,7 @@ export type { SearchableSelectOption } from './useSearchableSelect';
 interface SearchableSelectProps {
   value: string;
   onChange: (value: string) => void;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; linkedCode?: string; subLabel?: string }[];
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -135,7 +135,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   aria-selected={option.value === value}
                 >
                   {isCreate && <span className="mr-1">+</span>}
-                  {option.label}
+                  <span>{option.label}</span>
+                  {!isCreate && option.subLabel && (
+                    <div className="text-[10px] text-slate-400 mt-0.5">{option.subLabel}</div>
+                  )}
                 </li>
               );
             })}

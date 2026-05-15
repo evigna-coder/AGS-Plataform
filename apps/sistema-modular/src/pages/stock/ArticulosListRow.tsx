@@ -1,4 +1,5 @@
 import type { Articulo, CategoriaEquipoStock, TipoArticulo } from '@ags/shared';
+import { EquivalenciaBadge } from '../../components/stock/EquivalenciaBadge';
 
 const CATEGORIA_LABELS: Record<CategoriaEquipoStock, string> = {
   HPLC: 'HPLC', GC: 'GC', MSD: 'MSD', UV: 'UV', OSMOMETRO: 'Osmometro', GENERAL: 'General',
@@ -68,31 +69,11 @@ export function ArticulosListRow({
               {art.codigo}
             </button>
             {hasEquivalencia && (
-              // EquivalenciaBadge is imported lazily via dynamic import to avoid circular deps.
-              // Rendered inline here — Phase 13 STKE-07 badge slot.
-              <span
-                className="group relative inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-mono cursor-help select-none"
-                data-testid="equivalencia-badge"
-              >
-                ⇄
-                {/* Hover tooltip — pure CSS/Tailwind, no library */}
-                <span
-                  className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[200px]
-                    invisible group-hover:visible opacity-0 group-hover:opacity-100
-                    transition-opacity duration-150
-                    bg-slate-800 text-white text-[10px] rounded px-2 py-1 shadow-lg z-50 whitespace-nowrap"
-                  data-testid="equivalencia-badge-tooltip"
-                >
-                  {art.equivalencias?.[0] ? (
-                    <>
-                      {art.codigo} → {art.equivalencias[0].articuloCodigoDestino}
-                      {' '}× {art.equivalencias[0].factor}
-                    </>
-                  ) : (
-                    'Tiene equivalente'
-                  )}
-                </span>
-              </span>
+              <EquivalenciaBadge
+                origenCodigo={art.equivalencias?.[0] ? art.codigo : undefined}
+                destinoCodigo={art.equivalencias?.[0]?.articuloCodigoDestino}
+                factor={art.equivalencias?.[0]?.factor}
+              />
             )}
           </span>
         </td>

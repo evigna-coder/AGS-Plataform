@@ -3,6 +3,12 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } fr
 export interface SearchableSelectOption {
   value: string;
   label: string;
+  /** Phase 13 STKE-07 — companion code of a linked equivalencia pair. Matched by the filter so
+   *  searching either the compra or uso code routes to the same option entry. Optional. */
+  linkedCode?: string;
+  /** Phase 13 STKE-07 — optional secondary line shown below the main label in the dropdown
+   *  (e.g., "↔ 5188-5367"). Optional; existing consumers unaffected. */
+  subLabel?: string;
 }
 
 interface UseSearchableSelectParams {
@@ -35,7 +41,13 @@ export function useSearchableSelect({
 
   const searchLower = searchTerm.toLowerCase();
   const filteredOptions = useMemo(() =>
-    searchLower ? options.filter(opt => opt.label.toLowerCase().includes(searchLower)) : options,
+    searchLower
+      ? options.filter(opt =>
+          opt.label.toLowerCase().includes(searchLower) ||
+          opt.value.toLowerCase().includes(searchLower) ||
+          (opt.linkedCode?.toLowerCase().includes(searchLower) ?? false)
+        )
+      : options,
     [options, searchLower]
   );
 
