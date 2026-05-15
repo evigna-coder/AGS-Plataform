@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 13-06-PLAN.md (dual display + post-UAT gap fix in ViewArticuloModal; STKE-06 delivered)
-last_updated: "2026-05-15T15:00:33.541Z"
+stopped_at: "Checkpoint Task 6: VISUAL UAT gate — badge + on-demand expansion (13-07)"
+last_updated: "2026-05-15T15:16:38.023Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 63
-  completed_plans: 61
+  completed_plans: 62
   percent: 87
 ---
 
@@ -293,6 +293,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 13-stock-equivalencias-compra-uso P05 | 224 | 2 tasks | 2 files |
 | Phase 13 P06 | 6min | 3 tasks | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P06 | 9min | 5 tasks | 5 files |
+| Phase 13-stock-equivalencias-compra-uso P07 | 11min | 5 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -407,6 +408,10 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: mode='loading' is first-class return value from useEquivalenciaDual (M5 fix) — prevents null→loading→destino flicker during async discovery
 - [Phase 13-stock-equivalencias-compra-uso]: Row ordering in dual display: viewer's article is anchor — mode=origen shows origen row first; mode=destino shows destino row first (m4 spec)
 - [Phase 13]: ViewArticuloModal (Ver button) is the real articulo detail surface for list users — dual display must be wired there, not just in the route-based ArticuloDetail page
+- [Phase 13-stock-equivalencias-compra-uso]: ArticulosListThead as co-located inner component: keeps thead definition alongside shell without new import chain
+- [Phase 13-stock-equivalencias-compra-uso]: EquivalenciaBadge tooltip pure CSS/Tailwind (group/group-hover:visible) — no tooltip library; shows origen→destino×factor on hover
+- [Phase 13-stock-equivalencias-compra-uso]: seedEquivalenciaPair uses Firestore client SDK (not admin) — project decision I1 from Phase 8 Wave 0; no admin SDK configured
+- [Phase 13-stock-equivalencias-compra-uso]: shouldExpandRow exact-match-only (not substring) — prevents lista from expanding all linked rows simultaneously per CONTEXT spec
 
 ### Pending Todos
 
@@ -420,6 +425,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T15:00:33.537Z
-Stopped at: Completed 13-06-PLAN.md (dual display + post-UAT gap fix in ViewArticuloModal; STKE-06 delivered)
+Last session: 2026-05-15T15:16:21.973Z
+Stopped at: Checkpoint Task 6: VISUAL UAT gate — badge + on-demand expansion (13-07)
 Resume file: None
