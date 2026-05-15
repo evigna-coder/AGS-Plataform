@@ -270,7 +270,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
   6. El audit (`MovimientoStock` con `subtipo: 'conversion'`) es visible en el histórico del artículo identificando claramente origen, destino, factor aplicado y unidades por lado.
   7. Las equivalencias y conversiones no rompen consumidores existentes: `MovimientoStock.tipo` sigue siendo el enum actual (subtipo es opcional), y los servicios que no conocen el subtipo siguen leyendo "transferencia" sin cambio de comportamiento.
 
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 
 Plans:
 - [ ] 13-00-PLAN.md — Wave 0 RED baseline: unit tests + Playwright fixme + test:equivalencias script
