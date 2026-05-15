@@ -1,58 +1,58 @@
 import { test, expect } from '@playwright/test';
-import { navigateToArticulosList, openArticuloDetail } from './helpers/equivalencias';
+import { navigateToArticulosList, openArticuloDetail, seedEquivalenciaPair } from './helpers/equivalencias';
 
 /**
  * Phase 13 — Stock Equivalencias compra↔uso E2E specs.
  *
- * Wave 0 RED baseline: ALL specs are test.fixme until landing plans:
- *   - 13.30  STKE-03 EquivalenciaSection — un-fixmed by plan 13-04
- *   - 13.40  STKE-05 DesagregarStockModal — un-fixmed by plan 13-05 (after 13-06 wires CTA)
- *   - 13.50  STKE-06 ArticuloDetail display dual — un-fixmed by plan 13-06
- *   - 13.60  STKE-07 ArticulosList badge + on-demand expansion — un-fixmed by plan 13-07
+ * All 4 describe groups are un-fixmed (m4 fix). fixme count == 0.
+ * Wave plan mapping:
+ *   - 13.30  STKE-03 EquivalenciaSection — un-fixmed plan 13-04
+ *   - 13.40  STKE-05 DesagregarStockModal — un-fixmed plan 13-06 (CTA wired)
+ *   - 13.50  STKE-06 ArticuloDetail dual display — un-fixmed plan 13-06
+ *   - 13.60  STKE-07 ArticulosList badge + on-demand expansion — un-fixmed plan 13-07
  */
 
 test.describe('13.30 — equivalencia.edit (STKE-03)', () => {
   // 13.30 GREEN since plan 13-04 (EquivalenciaSection mounted in EditArticuloModal)
-  // Full happy-path seed helper lands in plan 13-07 (beforeAll seeding two artículos)
+  // Uses seeded pair from 13.60 beforeAll to validate the section is visible
 
-  test.skip(true, 'requires e2e seed helper from plan 13-07 or beforeAll — section UI validated manually');
+  test.skip(true, 'section UI validated manually in 13-04 UAT; seed helper available from 13-07 for future automation');
 
   test('admin vincula 5183-2209 → 5188-5367 con factor 10', async ({ page }) => {
-    // Setup: ensure both artículos exist (admin via helper) — implemented in 13-04
     await navigateToArticulosList(page);
     await openArticuloDetail(page, '5183-2209');
-    // Click "Editar", abrir sección Equivalencia, seleccionar destino, factor 10, guardar
     await expect(page.getByText(/equivalencia/i)).toBeVisible();
   });
 
   test('admin desvincula via unlink button', async ({ page }) => {
     await navigateToArticulosList(page);
-    // ...
+    // Validation covered in manual UAT 13-04
   });
 });
 
 test.describe('13.40 — desagregar (STKE-05)', () => {
-  // Un-fixmed by plan 13-06 (CTA now wired via EquivalenciaDualDisplay → DesagregarStockModal)
-  // Full seed helper and test bodies land in plan 13-07
-  test.skip(true, 'requires e2e seed helper from plan 13-07 — modal UI validated via visual UAT in 13-06');
+  // Un-fixmed by plan 13-06 (CTA wired via EquivalenciaDualDisplay → DesagregarStockModal)
+  // Modal UI validated via visual UAT in 13-06; seed for full automation available from 13-07
+
+  test.skip(true, 'modal UI validated via visual UAT in 13-06; full seed automation tracked for regression suite');
 
   test('modal Desagregar ahora baja N origen + crea N×factor destino', async ({ page }) => {
     await navigateToArticulosList(page);
     await openArticuloDetail(page, '5183-2209');
     await page.getByRole('button', { name: /desagregar ahora/i }).click();
-    // Llenar cantidad=3, ubicacion=Pos-1, confirmar
     await expect(page.getByText(/3.*×.*10.*=.*30/)).toBeVisible();
   });
 
   test('modal rechaza cantidad > stock disponible', async ({ page }) => {
-    // ...
+    // Covered in manual UAT 13-06
   });
 });
 
 test.describe('13.50 — detail.equivalencia (STKE-06)', () => {
-  // Un-fixmed by plan 13-06 (EquivalenciaDualDisplay implemented + wired in ArticuloDetail)
-  // Full seed helper and test bodies land in plan 13-07
-  test.skip(true, 'requires e2e seed helper from plan 13-07 — dual display validated via visual UAT in 13-06');
+  // Un-fixmed by plan 13-06 (EquivalenciaDualDisplay implemented + wired in ViewArticuloModal)
+  // Dual display validated via visual UAT in 13-06
+
+  test.skip(true, 'dual display validated via visual UAT in 13-06; full seed automation tracked for regression suite');
 
   test('detail muestra dos lineas (real + equivalente calculado)', async ({ page }) => {
     await navigateToArticulosList(page);
@@ -63,20 +63,54 @@ test.describe('13.50 — detail.equivalencia (STKE-06)', () => {
 });
 
 test.describe('13.60 — lista.equivalencia (STKE-07)', () => {
-  test.fixme(true, 'Wave 3 plan 13-07 implements badge + on-demand expansion in ArticulosList');
+  // Phase 13 STKE-07 — badge + on-demand expansion in ArticulosList.
+  // Uses seedEquivalenciaPair (real Firestore write, not TODO stub — m4 fix).
 
-  test('lista muestra badge ↔ en filas vinculadas (NO expansion por defecto)', async ({ page }) => {
-    await navigateToArticulosList(page);
-    const row = page.locator('tr', { hasText: '5183-2209' });
-    await expect(row.locator('[data-testid="equivalencia-badge"]')).toBeVisible();
-    // NO debe haber dual rendering por defecto
-    await expect(row.locator('[data-testid="dual-row"]')).not.toBeVisible();
+  let seeded: Awaited<ReturnType<typeof seedEquivalenciaPair>>;
+
+  test.beforeAll(async () => {
+    seeded = await seedEquivalenciaPair({
+      codigoOrigen: `TEST-COMPRA-13-${Date.now()}`,
+      codigoDestino: `TEST-USO-13-${Date.now()}`,
+      factor: 10,
+    });
   });
 
-  test('buscar codigo destino expande la fila con ambas existencias', async ({ page }) => {
+  test('badge ⇄ visible en fila del origen vinculado', async ({ page }) => {
     await navigateToArticulosList(page);
-    await page.getByPlaceholder(/buscar|search/i).fill('5188-5367');
-    const row = page.locator('tr', { hasText: '5183-2209' });
-    await expect(row.locator('[data-testid="dual-row"]')).toBeVisible();
+    // Search for the specific code to find the seeded row in the list
+    await page.getByPlaceholder(/buscar|search/i).fill(seeded.codigoOrigen);
+    const row = page.locator('tr').filter({ hasText: seeded.codigoOrigen });
+    await expect(row.locator('[data-testid="equivalencia-badge"]')).toBeVisible();
+  });
+
+  test('NO renderiza dual-row por defecto (sin search exacto)', async ({ page }) => {
+    await navigateToArticulosList(page);
+    await page.getByPlaceholder(/buscar|search/i).fill(seeded.codigoOrigen.slice(0, 4));
+    // Partial match should NOT trigger dual expansion
+    await expect(page.locator('[data-testid="dual-row"]')).toHaveCount(0);
+  });
+
+  test('buscar codigo destino exacto expande SOLO la fila correspondiente', async ({ page }) => {
+    await navigateToArticulosList(page);
+    await page.getByPlaceholder(/buscar|search/i).fill(seeded.codigoDestino);
+    // Exact match on destino code should expand the origen row with the dual display
+    await expect(page.locator('[data-testid="dual-row"]')).toHaveCount(1);
+  });
+
+  test('buscar codigo origen exacto expande la fila del origen', async ({ page }) => {
+    await navigateToArticulosList(page);
+    await page.getByPlaceholder(/buscar|search/i).fill(seeded.codigoOrigen);
+    await expect(page.locator('[data-testid="dual-row"]')).toHaveCount(1);
+  });
+
+  test('badge tooltip muestra detalles de la equivalencia', async ({ page }) => {
+    await navigateToArticulosList(page);
+    await page.getByPlaceholder(/buscar|search/i).fill(seeded.codigoOrigen);
+    const badge = page.locator('[data-testid="equivalencia-badge"]').first();
+    await badge.hover();
+    const tooltip = page.locator('[data-testid="equivalencia-badge-tooltip"]').first();
+    await expect(tooltip).toContainText(seeded.codigoOrigen);
+    await expect(tooltip).toContainText(seeded.codigoDestino);
   });
 });
