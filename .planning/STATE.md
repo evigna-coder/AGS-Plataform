@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 13-03-PLAN.md (desagregarUnidades runTransaction — STKE-04 GREEN)
-last_updated: "2026-05-15T12:59:39.722Z"
+stopped_at: Completed 13-05-PLAN.md (DesagregarStockModal + useDesagregarStock hook — STKE-05)
+last_updated: "2026-05-15T13:06:35.533Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
   completed_phases: 9
   total_plans: 63
-  completed_plans: 59
+  completed_plans: 60
   percent: 87
 ---
 
@@ -290,6 +290,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 13-stock-equivalencias-compra-uso P02 | 626 | 2 tasks | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P04 | 5min | 2 tasks | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P03 | 226 | 1 tasks | 1 files |
+| Phase 13-stock-equivalencias-compra-uso P05 | 224 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -399,6 +400,8 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: Both directions of articulosService<->equivalenciasService are lazy imports — eliminates module-load cycle without barrel workarounds
 - [Phase 13-stock-equivalencias-compra-uso]: useEquivalenciaSection self-loads articulo via articulosService.getById when prop absent — avoids extending useEditArticuloForm; EquivalenciaSection takes only articuloId prop
 - [Phase 13-stock-equivalencias-compra-uso]: Atomic UnidadStock model confirmed (1 doc = 1 physical unit): desagregarUnidades marks N origen docs consumido + creates N*factor destino docs disponible + 1 MovimientoStock subtipo=conversion. MovimientoStock does NOT write articuloDestinoCodigo/Descripcion — recover at display-time via articulosService.getById(articuloDestinoId)
+- [Phase 13-stock-equivalencias-compra-uso]: auth.usuario?.displayName used (not .nombre) — UsuarioAGS has displayName not nombre; corrected in useDesagregarStock
+- [Phase 13-stock-equivalencias-compra-uso]: DesagregarStockModal uses success block (replaces form body) not toast — user sees N→M before closing; 13.40 E2E fixme stays until 13-06 wires CTA
 
 ### Pending Todos
 
@@ -412,6 +415,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T12:59:39.718Z
-Stopped at: Completed 13-03-PLAN.md (desagregarUnidades runTransaction — STKE-04 GREEN)
+Last session: 2026-05-15T13:06:35.529Z
+Stopped at: Completed 13-05-PLAN.md (DesagregarStockModal + useDesagregarStock hook — STKE-05)
 Resume file: None
