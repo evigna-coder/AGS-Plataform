@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
 stopped_at: Completed 13-07-PLAN.md (ArticulosList pre-extract + badge + on-demand expansion + STKE-07 UAT approved — Phase 13 COMPLETE)
-last_updated: "2026-05-15T15:31:12.740Z"
+last_updated: "2026-05-15T15:36:35.113Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
