@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: Completed 13-05-PLAN.md (DesagregarStockModal + useDesagregarStock hook — STKE-05)
-last_updated: "2026-05-15T13:06:35.533Z"
+stopped_at: "Checkpoint: 13-06-PLAN.md Task 4 — visual UAT pending user approval (Tasks 1-3 committed)"
+last_updated: "2026-05-15T13:15:10.117Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
   completed_phases: 9
   total_plans: 63
-  completed_plans: 60
+  completed_plans: 61
   percent: 87
 ---
 
@@ -291,6 +291,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 13-stock-equivalencias-compra-uso P04 | 5min | 2 tasks | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P03 | 226 | 1 tasks | 1 files |
 | Phase 13-stock-equivalencias-compra-uso P05 | 224 | 2 tasks | 2 files |
+| Phase 13 P06 | 6min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -402,6 +403,8 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: Atomic UnidadStock model confirmed (1 doc = 1 physical unit): desagregarUnidades marks N origen docs consumido + creates N*factor destino docs disponible + 1 MovimientoStock subtipo=conversion. MovimientoStock does NOT write articuloDestinoCodigo/Descripcion — recover at display-time via articulosService.getById(articuloDestinoId)
 - [Phase 13-stock-equivalencias-compra-uso]: auth.usuario?.displayName used (not .nombre) — UsuarioAGS has displayName not nombre; corrected in useDesagregarStock
 - [Phase 13-stock-equivalencias-compra-uso]: DesagregarStockModal uses success block (replaces form body) not toast — user sees N→M before closing; 13.40 E2E fixme stays until 13-06 wires CTA
+- [Phase 13-stock-equivalencias-compra-uso]: mode='loading' is first-class return value from useEquivalenciaDual (M5 fix) — prevents null→loading→destino flicker during async discovery
+- [Phase 13-stock-equivalencias-compra-uso]: Row ordering in dual display: viewer's article is anchor — mode=origen shows origen row first; mode=destino shows destino row first (m4 spec)
 
 ### Pending Todos
 
@@ -415,6 +418,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T13:06:35.529Z
-Stopped at: Completed 13-05-PLAN.md (DesagregarStockModal + useDesagregarStock hook — STKE-05)
+Last session: 2026-05-15T13:14:59.100Z
+Stopped at: Checkpoint: 13-06-PLAN.md Task 4 — visual UAT pending user approval (Tasks 1-3 committed)
 Resume file: None
