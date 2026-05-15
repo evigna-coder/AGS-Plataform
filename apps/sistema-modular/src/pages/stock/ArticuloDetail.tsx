@@ -4,6 +4,8 @@ import { articulosService, unidadesService, marcasService } from '../../services
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { AddUnitForm } from './AddUnitForm';
+import { EquivalenciaDualDisplay } from '../../components/stock/EquivalenciaDualDisplay';
+import { DesagregarStockModal } from '../../components/stock/DesagregarStockModal';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
 import type { UnitFormData } from './AddUnitForm';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
@@ -47,6 +49,8 @@ export const ArticuloDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [desagregarTarget, setDesagregarTarget] = useState<Articulo | null>(null);
+  const [dualRefreshKey, setDualRefreshKey] = useState(0);
 
   const loadUnidades = useCallback(async () => {
     if (!id) return;
@@ -118,6 +122,13 @@ export const ArticuloDetail = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="mb-4">
+          <EquivalenciaDualDisplay
+            articulo={articulo}
+            onDesagregarClick={(origen) => setDesagregarTarget(origen)}
+            refreshKey={dualRefreshKey}
+          />
+        </div>
         <div className="flex gap-5">
           <div className="w-72 shrink-0 space-y-4">
             <Card compact>
@@ -172,6 +183,15 @@ export const ArticuloDetail = () => {
           </div>
         </div>
       </div>
+      <DesagregarStockModal
+        open={!!desagregarTarget}
+        onClose={() => setDesagregarTarget(null)}
+        articulo={desagregarTarget}
+        onSuccess={() => {
+          setDesagregarTarget(null);
+          setDualRefreshKey(k => k + 1);
+        }}
+      />
     </div>
   );
 };

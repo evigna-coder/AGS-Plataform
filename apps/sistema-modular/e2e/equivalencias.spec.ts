@@ -32,7 +32,9 @@ test.describe('13.30 — equivalencia.edit (STKE-03)', () => {
 });
 
 test.describe('13.40 — desagregar (STKE-05)', () => {
-  test.fixme(true, 'Wave 2 plan 13-05 implements DesagregarStockModal (CTA wired in 13-06)');
+  // Un-fixmed by plan 13-06 (CTA now wired via EquivalenciaDualDisplay → DesagregarStockModal)
+  // Full seed helper and test bodies land in plan 13-07
+  test.skip(true, 'requires e2e seed helper from plan 13-07 — modal UI validated via visual UAT in 13-06');
 
   test('modal Desagregar ahora baja N origen + crea N×factor destino', async ({ page }) => {
     await navigateToArticulosList(page);
@@ -48,7 +50,9 @@ test.describe('13.40 — desagregar (STKE-05)', () => {
 });
 
 test.describe('13.50 — detail.equivalencia (STKE-06)', () => {
-  test.fixme(true, 'Wave 2 plan 13-06 implements display dual in ArticuloDetail');
+  // Un-fixmed by plan 13-06 (EquivalenciaDualDisplay implemented + wired in ArticuloDetail)
+  // Full seed helper and test bodies land in plan 13-07
+  test.skip(true, 'requires e2e seed helper from plan 13-07 — dual display validated via visual UAT in 13-06');
 
   test('detail muestra dos lineas (real + equivalente calculado)', async ({ page }) => {
     await navigateToArticulosList(page);
