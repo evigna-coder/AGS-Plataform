@@ -24,3 +24,10 @@ export * from './vehiculosService';
 export * from './dispositivosService';
 export * from './facturacionService';
 export * from './contratosService';
+export {
+  linkEquivalencia,
+  unlinkEquivalencia,
+  findOrigenDeDestino,
+  desagregarUnidades,
+  recomputeEquivalenciaDenormalization,
+} from './equivalenciasService';
