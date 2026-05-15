@@ -2444,6 +2444,26 @@ export interface TratamientoArancelario {
   ingresosBrutos?: number | null;
 }
 
+/**
+ * Equivalencia 1→1 entre código de compra y código de uso (Phase 13).
+ *
+ * Vive en el artículo de COMPRA (el origen) y apuntando al artículo de USO (el destino).
+ * Sentido único; el reverso (uso→compra) se deriva en runtime como `1 / factor`.
+ *
+ * Campos denormalizados (`articuloCodigoDestino`, `articuloDescripcionDestino`) se persisten
+ * para evitar joins en listas; se refrescan via `articulosService.update()` cuando el destino se renombra.
+ */
+export interface ArticuloEquivalencia {
+  /** FK → articulos (del lado de uso) */
+  articuloIdDestino: string;
+  /** Desnormalizado para display sin join */
+  articuloCodigoDestino: string;
+  /** Desnormalizado para display sin join */
+  articuloDescripcionDestino: string;
+  /** Factor multiplicativo: cantidad destino = cantidad origen × factor. Acepta decimales (ej. 0.1, 0.5, 10, 100). */
+  factor: number;
+}
+
 export interface Articulo {
   id: string;
   /** Part number único */
@@ -2475,6 +2495,20 @@ export interface Articulo {
   updatedByName?: string | null;
   /** Snapshot del stock extendido, poblado por Cloud Function (09-02). Optional — no breaking. */
   resumenStock?: StockAmplio | null;
+  /**
+   * Phase 13 STKE-01 — vinculación 1→1 con artículo de uso. Tipo: ArticuloEquivalencia[].
+   * Vive en el artículo de COMPRA. En v1 a lo sumo un elemento (la forma array deja la puerta abierta a futuro).
+   * Use `articulosService.linkEquivalencia/unlinkEquivalencia` para mutarlo — no escribir directo.
+   */
+  equivalencias?: ArticuloEquivalencia[];
+  /**
+   * Phase 13 STKE-01 — campo plano denormalizado de `equivalencias[0]?.articuloIdDestino`.
+   * Existe sólo para que Firestore pueda indexar `where('articuloIdDestinoEquivalencia', '==', X)`
+   * — Firestore NO soporta `array-contains` sobre propiedades dentro de un objeto del array.
+   * Source-of-truth es `equivalencias[]`; este campo es siempre derivado y se mantiene en sync.
+   * `null` cuando no hay equivalencia configurada.
+   */
+  articuloIdDestinoEquivalencia?: string | null;
 }
 
 // --- StockAmplio — 4-bucket extended stock shape (Phase 9) ---
@@ -2698,6 +2732,22 @@ export interface MovimientoStock {
   motivo?: string | null;
   creadoPor: string;
   createdAt: string;
+  /**
+   * Phase 13 STKE-01 — refinación opcional del `tipo`.
+   * Cuando un MovimientoStock tipo 'transferencia' es una conversión compra↔uso,
+   * lleva `subtipo: 'conversion'`. Consumidores actuales que sólo leen `tipo` siguen funcionando sin cambio.
+   */
+  subtipo?: 'conversion';
+  /**
+   * Phase 13 — id del artículo DESTINO cuando subtipo='conversion'.
+   * Null/omitido en transferencias normales. Resolvé `articuloDestinoCodigo` y
+   * `articuloDestinoDescripcion` al display-time via articulosService.getById (no se denormalizan acá).
+   */
+  articuloDestinoId?: string | null;
+  /** Phase 13 — cantidad creada del lado destino (cantidadOrigen × factor). */
+  cantidadDestino?: number | null;
+  /** Phase 13 — factor de conversión registrado al momento de la operación (estabiliza histórico). */
+  factorConversion?: number | null;
 }
 
 // --- Remitos (despachos digitales) ---
