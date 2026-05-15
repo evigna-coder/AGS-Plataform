@@ -5,15 +5,18 @@ import type { Articulo, ArticuloEquivalencia } from '@ags/shared';
 
 interface UseEquivalenciaSectionParams {
   articuloId: string | null;
-  articulo: Articulo | null;
+  /** Optional: pass the already-loaded articulo to avoid an extra fetch. */
+  articulo?: Articulo | null;
   onMutated?: () => void;
 }
 
 export function useEquivalenciaSection({
   articuloId,
-  articulo,
+  articulo: articuloProp,
   onMutated,
 }: UseEquivalenciaSectionParams) {
+  // Internal articulo state — populated from prop or fetched when prop not provided
+  const [articuloInternal, setArticuloInternal] = useState<Articulo | null>(null);
   const [articulosDestino, setArticulosDestino] = useState<Articulo[]>([]);
   const [loadingArticulos, setLoadingArticulos] = useState(false);
   const [selectedDestinoId, setSelectedDestinoId] = useState('');
@@ -21,6 +24,20 @@ export function useEquivalenciaSection({
   const [linking, setLinking] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const articulo = articuloProp !== undefined ? articuloProp : articuloInternal;
+
+  // Load the articulo when it wasn't passed as a prop
+  useEffect(() => {
+    if (articuloProp !== undefined || !articuloId) return;
+    articulosService.getById(articuloId).then(a => setArticuloInternal(a ?? null));
+  }, [articuloId, articuloProp]);
+
+  // Re-load when onMutated fires (keep equivalencia display in sync)
+  const reloadArticulo = useCallback(() => {
+    if (!articuloId) return;
+    articulosService.getById(articuloId).then(a => setArticuloInternal(a ?? null));
+  }, [articuloId]);
 
   // Derived from the loaded articulo — at most one equivalencia in v1
   const currentEquivalencia: ArticuloEquivalencia | null = useMemo(
@@ -36,7 +53,6 @@ export function useEquivalenciaSection({
       .getAll({ activoOnly: true })
       .then(all => {
         // Filter: exclude self, and any artículo already used as a destination
-        // (articuloIdDestinoEquivalencia null/undefined = not a destination yet)
         const filtered = all.filter(
           a =>
             a.id !== articuloId &&
@@ -65,13 +81,14 @@ export function useEquivalenciaSection({
       await linkEquivalencia(articuloId, selectedDestinoId, parsed);
       setSelectedDestinoId('');
       setFactor('');
+      reloadArticulo();
       onMutated?.();
     } catch (e) {
       setError((e as Error)?.message ?? 'Error al vincular');
     } finally {
       setLinking(false);
     }
-  }, [articuloId, selectedDestinoId, factor, onMutated]);
+  }, [articuloId, selectedDestinoId, factor, onMutated, reloadArticulo]);
 
   const unlink = useCallback(async () => {
     if (!articuloId) return;
@@ -79,13 +96,14 @@ export function useEquivalenciaSection({
     setUnlinking(true);
     try {
       await unlinkEquivalencia(articuloId);
+      reloadArticulo();
       onMutated?.();
     } catch (e) {
       setError((e as Error)?.message ?? 'Error al desvincular');
     } finally {
       setUnlinking(false);
     }
-  }, [articuloId, onMutated]);
+  }, [articuloId, onMutated, reloadArticulo]);
 
   const clearError = useCallback(() => setError(null), []);
 

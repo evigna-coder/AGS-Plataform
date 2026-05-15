@@ -2,6 +2,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useEditArticuloForm, formatPA } from '../../hooks/useEditArticuloForm';
+import { EquivalenciaSection } from './EquivalenciaSection';
 import type { CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
 interface Props {
@@ -162,6 +163,13 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
             )}
           </div>
         )}
+
+        {/* Equivalencia */}
+        <hr className="border-[#E5E5E5]" />
+        <EquivalenciaSection
+          articuloId={articuloId}
+          onMutated={onSaved}
+        />
 
         {/* Notas */}
         <hr className="border-[#E5E5E5]" />

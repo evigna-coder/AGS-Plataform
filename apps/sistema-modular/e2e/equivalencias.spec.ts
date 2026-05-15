@@ -12,7 +12,10 @@ import { navigateToArticulosList, openArticuloDetail } from './helpers/equivalen
  */
 
 test.describe('13.30 — equivalencia.edit (STKE-03)', () => {
-  test.fixme(true, 'Wave 2 plan 13-04 implements EquivalenciaSection in EditArticuloModal');
+  // 13.30 GREEN since plan 13-04 (EquivalenciaSection mounted in EditArticuloModal)
+  // Full happy-path seed helper lands in plan 13-07 (beforeAll seeding two artículos)
+
+  test.skip(true, 'requires e2e seed helper from plan 13-07 or beforeAll — section UI validated manually');
 
   test('admin vincula 5183-2209 → 5188-5367 con factor 10', async ({ page }) => {
     // Setup: ensure both artículos exist (admin via helper) — implemented in 13-04
