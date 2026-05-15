@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { articulosService, unidadesService, marcasService } from '../../services/firebaseService';
+import { EquivalenciaDualDisplay } from './EquivalenciaDualDisplay';
+import { DesagregarStockModal } from './DesagregarStockModal';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
 
 interface Props {
@@ -34,6 +36,8 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
   const [marca, setMarca] = useState<Marca | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(false);
+  const [desagregarTarget, setDesagregarTarget] = useState<Articulo | null>(null);
+  const [dualRefreshKey, setDualRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     if (!articuloId) return;
@@ -73,6 +77,7 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
   }
 
   return (
+    <>
     <Modal open={open} onClose={onClose} title={articulo.codigo}
       subtitle={articulo.descripcion.slice(0, 60)} maxWidth="lg"
       footer={<>
@@ -141,6 +146,12 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
           </div>
         )}
 
+        <EquivalenciaDualDisplay
+          articulo={articulo}
+          onDesagregarClick={(origen) => setDesagregarTarget(origen)}
+          refreshKey={dualRefreshKey}
+        />
+
         {/* Unidades */}
         <hr className="border-[#E5E5E5]" />
         <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">
@@ -187,5 +198,16 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
         )}
       </div>
     </Modal>
+    <DesagregarStockModal
+      open={!!desagregarTarget}
+      onClose={() => setDesagregarTarget(null)}
+      articulo={desagregarTarget}
+      onSuccess={() => {
+        setDesagregarTarget(null);
+        setDualRefreshKey(k => k + 1);
+        load();
+      }}
+    />
+    </>
   );
 };
