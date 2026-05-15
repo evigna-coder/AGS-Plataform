@@ -33,7 +33,11 @@ export const ContratosList = () => {
     sortDir:   { type: 'string' as const, default: 'desc' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
-  const debouncedSearch = useDebounce(filters.search, 300);
+  // Local search state for responsive typing — syncs to URL debounced
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const debouncedSearch = useDebounce(localSearch, 300);
+  useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
+  useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
@@ -69,7 +73,7 @@ export const ContratosList = () => {
       <PageHeader title="Contratos" count={filtrados.length} subtitle={`${activos.length} activo(s)`}
         actions={<Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo Contrato</Button>}>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="text" placeholder="Buscar por numero, cliente..." value={filters.search} onChange={e => setFilter('search', e.target.value)}
+          <input type="text" placeholder="Buscar por numero, cliente..." value={localSearch} onChange={e => setLocalSearch(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-56" />
           <div className="w-48">
             <SearchableSelect size="sm" value={filters.cliente} onChange={v => setFilter('cliente', v)}

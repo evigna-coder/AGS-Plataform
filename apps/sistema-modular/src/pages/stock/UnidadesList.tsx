@@ -81,7 +81,11 @@ export const UnidadesList = () => {
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
-  const debouncedSearch = useDebounce(filters.search, 300);
+  // Local search state for responsive typing — syncs to URL debounced
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const debouncedSearch = useDebounce(localSearch, 300);
+  useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
+  useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('unidades-list');
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -136,8 +140,8 @@ export const UnidadesList = () => {
           <input
             type="text"
             placeholder="Buscar por codigo o descripcion..."
-            value={filters.search}
-            onChange={e => setFilter('search', e.target.value)}
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <select

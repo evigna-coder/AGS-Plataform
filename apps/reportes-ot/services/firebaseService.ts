@@ -463,20 +463,61 @@ export class FirebaseService {
     } catch (e) { console.error('Error cargando establecimientos:', e); return []; }
   }
 
-  async getContactosByEstablecimiento(estabId: string): Promise<ContactoOption[]> {
+  // Lee contactos del establecimiento + (si se pasa clienteId) de la subcolección
+  // legacy `clientes/{clienteId}/contactos`. Algunos clientes viejos nunca migraron
+  // sus contactos al establecimiento — sin este merge aparecen vacíos en campo.
+  async getContactosByEstablecimiento(estabId: string, clienteId?: string): Promise<ContactoOption[]> {
     try {
-      const snap = await getDocs(collection(db, 'establecimientos', estabId, 'contactos'));
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as ContactoOption));
+      const tasks: Promise<any>[] = [getDocs(collection(db, 'establecimientos', estabId, 'contactos'))];
+      if (clienteId) tasks.push(getDocs(collection(db, 'clientes', clienteId, 'contactos')).catch(() => null));
+      const [estabSnap, cliSnap] = await Promise.all(tasks);
+      const out: ContactoOption[] = [];
+      const seen = new Set<string>();
+      const pushDoc = (d: any) => {
+        const data = d.data();
+        const c: ContactoOption = {
+          id: d.id,
+          nombre: data.nombre || '',
+          email: data.email || '',
+          esPrincipal: data.esPrincipal ?? false,
+          ...(data.sector ? { sector: data.sector } : {}),
+        };
+        const key = (c.email || '').toLowerCase() || `id:${c.id}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(c);
+      };
+      estabSnap.docs.forEach(pushDoc);
+      if (cliSnap) cliSnap.docs.forEach(pushDoc);
+      return out;
     } catch (e) { console.error('Error cargando contactos:', e); return []; }
   }
 
-  async getSistemasByEstablecimiento(estabId: string): Promise<SistemaOption[]> {
+  // Lee sistemas del establecimiento + (si se pasa clienteId) sistemas legacy
+  // vinculados por `clienteCuit`/`clienteId` directos (datos de migración sin
+  // establecimientoId). El filtro `activo` se aplica en memoria para incluir
+  // documentos donde el campo no existe (la query estricta `==true` los excluiría).
+  async getSistemasByEstablecimiento(estabId: string, clienteId?: string): Promise<SistemaOption[]> {
     try {
-      const q = query(collection(db, 'sistemas'), where('establecimientoId', '==', estabId), where('activo', '==', true));
-      const snap = await getDocs(q);
-      return snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as SistemaOption))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      const queries: Promise<any>[] = [
+        getDocs(query(collection(db, 'sistemas'), where('establecimientoId', '==', estabId))),
+      ];
+      if (clienteId) {
+        queries.push(getDocs(query(collection(db, 'sistemas'), where('clienteCuit', '==', clienteId))).catch(() => null));
+        queries.push(getDocs(query(collection(db, 'sistemas'), where('clienteId', '==', clienteId))).catch(() => null));
+      }
+      const snaps = await Promise.all(queries);
+      const map = new Map<string, SistemaOption>();
+      for (const snap of snaps) {
+        if (!snap) continue;
+        snap.docs.forEach((d: any) => {
+          if (map.has(d.id)) return;
+          const data = d.data();
+          if (data.activo === false) return;
+          map.set(d.id, { id: d.id, ...data } as SistemaOption);
+        });
+      }
+      return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando sistemas:', e); return []; }
   }
 

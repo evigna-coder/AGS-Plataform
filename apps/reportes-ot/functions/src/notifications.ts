@@ -300,7 +300,10 @@ async function sendPushNotifications(event: NotificationEvent): Promise<void> {
   const messages: Array<{
     token: string;
     data: Record<string, string>;
-    webpush: { fcmOptions: { link: string } };
+    webpush: {
+      headers: { Urgency: 'high'; TTL: string };  // ← agregado
+      fcmOptions: { link: string };
+    };
   }> = [];
 
   for (const userId of recipientIds) {
@@ -331,6 +334,10 @@ async function sendPushNotifications(event: NotificationEvent): Promise<void> {
           url: `/leads/${event.leadId}`,
         },
         webpush: {
+          headers: {
+            Urgency: 'high',
+            TTL: '86400',
+          },
           fcmOptions: {
             link: `${portalUrl}/leads/${event.leadId}`,
           },

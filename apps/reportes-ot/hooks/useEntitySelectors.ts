@@ -190,11 +190,13 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     const estabSectores = estab.sectores?.filter(Boolean) || [];
     setSectores(estabSectores);
 
-    // Cargar contactos y sistemas en paralelo
+    // Cargar contactos y sistemas en paralelo. Pasamos clienteId para
+    // mergear datos legacy (contactos en /clientes/{id}/contactos y sistemas
+    // vinculados por clienteCuit/clienteId sin establecimientoId).
     setLoadingSistemas(true);
     const [conts, syss] = await Promise.all([
-      firebase.getContactosByEstablecimiento(id),
-      firebase.getSistemasByEstablecimiento(id),
+      firebase.getContactosByEstablecimiento(id, clienteId ?? undefined),
+      firebase.getSistemasByEstablecimiento(id, clienteId ?? undefined),
     ]);
     setLoadingSistemas(false);
 
@@ -357,10 +359,10 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     const estabSectores = estabMatch.sectores?.filter(Boolean) || [];
     setSectores(estabSectores);
 
-    // Cargar contactos y sistemas
+    // Cargar contactos y sistemas (pasamos clienteId para merge legacy)
     const [conts, syss] = await Promise.all([
-      firebase.getContactosByEstablecimiento(estabMatch.id),
-      firebase.getSistemasByEstablecimiento(estabMatch.id),
+      firebase.getContactosByEstablecimiento(estabMatch.id, match.id),
+      firebase.getSistemasByEstablecimiento(estabMatch.id, match.id),
     ]);
     setAllContactos(conts);
     setAllSistemas(syss);

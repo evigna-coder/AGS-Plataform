@@ -281,6 +281,10 @@ async function sendPushNotifications(event) {
                     url: `/leads/${event.leadId}`,
                 },
                 webpush: {
+                    headers: {
+                        Urgency: 'high',
+                        TTL: '86400',
+                    },
                     fcmOptions: {
                         link: `${portalUrl}/leads/${event.leadId}`,
                     },
