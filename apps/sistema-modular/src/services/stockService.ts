@@ -231,6 +231,23 @@ export const articulosService = {
     batch.update(docRef('articulos', id), payload);
     batchAudit(batch, { action: 'update', collection: 'articulos', documentId: id, after: payload });
     await batch.commit();
+
+    // Phase 13 STKE-02 — recompute denormalized equivalencia fields on origenes pointing to this articulo.
+    // LAZY DYNAMIC IMPORT: avoids module-load cycle with equivalenciasService.ts (which also imports
+    // articulosService via dynamic import for prod-path reads). By the time this function executes at
+    // runtime, both modules are fully initialized; the import resolves instantly.
+    const codigoChanged = data.codigo !== undefined;
+    const descChanged = data.descripcion !== undefined;
+    if (codigoChanged || descChanged) {
+      void (async () => {
+        try {
+          const { recomputeEquivalenciaDenormalization } = await import('./equivalenciasService');
+          await recomputeEquivalenciaDenormalization(id);
+        } catch (err) {
+          console.error('[articulosService.update] equivalencia denormalization recompute failed:', err);
+        }
+      })();
+    }
   },
 
   subscribeById(

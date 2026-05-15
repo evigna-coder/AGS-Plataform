@@ -37,7 +37,6 @@ export interface MockMovimientoStock {
   id: string;
   tipo: string;
   subtipo?: string;
-  [key: string]: unknown;
 }
 
 export interface MockEquivalenciasState {
