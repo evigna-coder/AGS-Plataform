@@ -3,11 +3,27 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
+stopped_at: Completed 13-01-PLAN.md (ArticuloEquivalencia + Articulo.equivalencias + MovimientoStock.subtipo — STKE-01 foundation types)
+last_updated: "2026-05-15T11:55:04.689Z"
+last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
+progress:
+  total_phases: 15
+  completed_phases: 9
+  total_plans: 63
+  completed_plans: 55
+  percent: 87
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: executing
 stopped_at: "Completed 04-05-PLAN.md (email integration + smoke E2E approved); Phase 4 (Anexo Consumibles) COMPLETA — 6/6 requirements"
 last_updated: "2026-05-05T13:22:44.738Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
-  total_phases: 12
+  [█████████░] 87%
   completed_phases: 9
   total_plans: 55
   completed_plans: 54
@@ -269,12 +285,16 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 04-presupuestos-anexo-consumibles P02 | 8min | 3 tasks | 6 files |
 | Phase 04-presupuestos-anexo-consumibles P04 | 9min | 3 tasks | 3 files |
 | Phase 04-presupuestos-anexo-consumibles P05 | 16min | 3 tasks + 1 checkpoint | 4 files |
+| Phase 13-stock-equivalencias-compra-uso P01 | 12min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - 2026-04-25 — Phase 12 added: Esquema Facturación Porcentual + Anticipos (cuotas % + hitos + MIXTA per-moneda; opt-in, no rompe Tier-1 legacy). Plan de referencia: `.claude/plans/facturacion-anticipos-y-porcentajes.md`.
+- 2026-05-15 — Phase 13 added: Stock — Equivalencias compra↔uso. Primera de 3 fases consecutivas. Diseño completo en `memory/project_stock_v2_decisions.md`. Driver: 2 semanas de runway con sistema viejo; user carga posiciones y minikits en paralelo a la implementación.
+- 2026-05-15 — Phase 14 added: Stock — Patrones con BOM (composición y consumo desagregado). Diseño en `memory/project_stock_v2_decisions.md`. Depende de Phase 13.
+- 2026-05-15 — Phase 15 added: Stock — Venta de loaner espejo a stock. Diseño en `memory/project_stock_v2_decisions.md`. Depende de Phase 14.
 
 ### Decisions
 
@@ -367,6 +387,9 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Preview por anexo individual (no merge). Si N>1, dropdown selector + 'Ver anexo' abre el seleccionado en nueva pestaña — paridad con el envío real (N adjuntos separados).
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Soft-warnings vs terminal-warnings UI distinction. Terminal (sistema_sin_modulos_ni_plantilla) → banner amarillo prominente. Soft (modulo_sin_codigo / codigo_no_en_catalogo) → <details> colapsado. Evita ruido visual cuando catálogo legacy tiene muchos módulos sin código identificable.
 - [Phase 04-presupuestos-anexo-consumibles]: [Phase 04-05]: Smoke surfaceó 3 bugs preexistentes — commits separados (f7aeb1f sistemaId/responsable, 3c8eb22 firestore rule, 9f0124b UX código+descripción). NO atribuibles al plan 04-05; documentados en SUMMARY 'Side-track commits during smoke'.
+- [Phase 13-stock-equivalencias-compra-uso]: articuloDestinoCodigo/articuloDestinoDescripcion dropped from MovimientoStock (CONTEXT M6 trim) — recover at display-time via articulosService.getById(articuloDestinoId)
+- [Phase 13-stock-equivalencias-compra-uso]: articuloIdDestinoEquivalencia flat field on Articulo for Firestore where() index — source-of-truth stays in equivalencias[], always kept in sync by service
+- [Phase 13-stock-equivalencias-compra-uso]: subtipo as string literal not enum on MovimientoStock — avoids forcing enum import on existing consumers that only read tipo
 
 ### Pending Todos
 
@@ -380,6 +403,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-05T13:13:00.000Z
-Stopped at: "Completed 04-05-PLAN.md (email integration + smoke E2E approved); Phase 4 (Anexo Consumibles) COMPLETA — 6/6 requirements"
+Last session: 2026-05-15T11:55:04.684Z
+Stopped at: Completed 13-01-PLAN.md (ArticuloEquivalencia + Articulo.equivalencias + MovimientoStock.subtipo — STKE-01 foundation types)
 Resume file: None

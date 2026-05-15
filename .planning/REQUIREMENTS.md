@@ -86,7 +86,7 @@
 
 ### Stock — Equivalencias compra↔uso (Phase 13)
 
-- [ ] **STKE-01**: Tipos foundation en `@ags/shared` — `Articulo.equivalencias?: { articuloIdDestino, articuloCodigoDestino, articuloDescripcionDestino, factor }[]` (en v1 a lo sumo un elemento por ser 1→1) + `MovimientoStock.subtipo?: 'conversion'` (compatible con consumidores que sólo leen `tipo: 'transferencia'`).
+- [x] **STKE-01**: Tipos foundation en `@ags/shared` — `Articulo.equivalencias?: { articuloIdDestino, articuloCodigoDestino, articuloDescripcionDestino, factor }[]` (en v1 a lo sumo un elemento por ser 1→1) + `MovimientoStock.subtipo?: 'conversion'` (compatible con consumidores que sólo leen `tipo: 'transferencia'`).
 - [ ] **STKE-02**: `articulosService` extendido con `linkEquivalencia(origenId, destinoId, factor)` / `unlinkEquivalencia(origenId)` validando 1→1 (rechazar si origen ya tiene equivalencia, si destino ya es destino de otro origen, si crea ciclo A→B→A, o si factor ≤ 0).
 - [ ] **STKE-03**: UI de vinculación — en la ficha/edición del artículo de compra, sección "Equivalencia (código de uso)" con `SearchableSelect` de artículos destino + input numérico de factor (acepta decimales). Botón unlink para romper la vinculación.
 - [ ] **STKE-04**: `desagregarUnidades(articuloOrigenId, cantidad, ubicacion)` como `runTransaction` atómica que baja N del origen, alta `N × factor` del destino en la misma ubicación, y crea `MovimientoStock { tipo: 'transferencia', subtipo: 'conversion' }` con audit completo. Falla atómicamente si no hay stock suficiente.
@@ -176,7 +176,7 @@
 | TEST-03 | Phase 11 | Pending |
 | TEST-04 | Phase 11 | Pending |
 | TEST-05 | Phase 11 | Pending |
-| STKE-01 | Phase 13 | Pending |
+| STKE-01 | Phase 13 | Complete |
 | STKE-02 | Phase 13 | Pending |
 | STKE-03 | Phase 13 | Pending |
 | STKE-04 | Phase 13 | Pending |
