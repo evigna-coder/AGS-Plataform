@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 status: executing
-stopped_at: "Checkpoint Task 6: VISUAL UAT gate — badge + on-demand expansion (13-07)"
-last_updated: "2026-05-15T15:16:38.023Z"
+stopped_at: Completed 13-07-PLAN.md (ArticulosList pre-extract + badge + on-demand expansion + STKE-07 UAT approved — Phase 13 COMPLETE)
+last_updated: "2026-05-15T15:31:12.740Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
 progress:
   total_phases: 15
@@ -294,6 +294,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 13 P06 | 6min | 3 tasks | 4 files |
 | Phase 13-stock-equivalencias-compra-uso P06 | 9min | 5 tasks | 5 files |
 | Phase 13-stock-equivalencias-compra-uso P07 | 11min | 5 tasks | 9 files |
+| Phase 13-stock-equivalencias-compra-uso P07 | 11min | 6 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -412,6 +413,9 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: EquivalenciaBadge tooltip pure CSS/Tailwind (group/group-hover:visible) — no tooltip library; shows origen→destino×factor on hover
 - [Phase 13-stock-equivalencias-compra-uso]: seedEquivalenciaPair uses Firestore client SDK (not admin) — project decision I1 from Phase 8 Wave 0; no admin SDK configured
 - [Phase 13-stock-equivalencias-compra-uso]: shouldExpandRow exact-match-only (not substring) — prevents lista from expanding all linked rows simultaneously per CONTEXT spec
+- [Phase 13-stock-equivalencias-compra-uso]: EquivalenciaBadge tooltip pure CSS/Tailwind (group/group-hover:visible) — no tooltip library; shows origen→destino×factor on hover
+- [Phase 13-stock-equivalencias-compra-uso]: seedEquivalenciaPair uses Firestore client SDK (not admin) — project decision I1 from Phase 8 Wave 0; no admin SDK configured
+- [Phase 13-stock-equivalencias-compra-uso]: shouldExpandRow exact-match-only (not substring) — prevents lista from expanding all linked rows simultaneously per CONTEXT spec
 
 ### Pending Todos
 
@@ -425,6 +429,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T15:16:21.973Z
-Stopped at: Checkpoint Task 6: VISUAL UAT gate — badge + on-demand expansion (13-07)
+Last session: 2026-05-15T15:31:12.736Z
+Stopped at: Completed 13-07-PLAN.md (ArticulosList pre-extract + badge + on-demand expansion + STKE-07 UAT approved — Phase 13 COMPLETE)
 Resume file: None

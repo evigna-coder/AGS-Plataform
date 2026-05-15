@@ -78,7 +78,7 @@ completed: 2026-05-15
 - **Duration:** ~11 min
 - **Started:** 2026-05-15T15:04:25Z
 - **Completed:** 2026-05-15T15:15:27Z
-- **Tasks:** 5 of 6 complete (Task 6 is a checkpoint awaiting UAT)
+- **Tasks:** 6 of 6 complete (Task 6 UAT approved by user)
 - **Files modified:** 9
 
 ## Accomplishments
@@ -106,7 +106,9 @@ completed: 2026-05-15
 2. **Task 3: EquivalenciaBadge + useSearchableSelect linkedCode** - `7d67f8b` (feat)
 3. **Task 5: Real seedEquivalenciaPair + 13.60 E2E un-fixmed** - `112bb94` (feat)
 
-**Plan metadata:** (docs commit pending after checkpoint Task 6 approval)
+4. **Task 6: Visual UAT — badge + on-demand expansion** — APPROVED by user (checkpoint resolved)
+
+**Plan metadata:** (docs commit closes plan — see Final Commit below)
 
 ## Files Created/Modified
 
@@ -149,17 +151,27 @@ None other — plan executed largely as specified.
 
 None — no external service configuration required. Dev server with `pnpm dev:modular` is sufficient for UAT.
 
+## UAT Outcome
+
+Task 6 visual UAT was approved. User confirmed:
+- Badge `⇄` appears on linked rows (teal pill, subtle)
+- Hover tooltip displays `origen → destino × factor` (CSS-only, no library)
+- Default lista renders normally — NO dual expansion visible without search
+- Typing an exact codigo (compra or uso code) expands the matching row inline with EquivalenciaDualDisplay
+- Exact-match-only behavior felt correct — no partial-search false positives
+
+Phase 13 is now complete. STKE-01..07 all GREEN.
+
 ## Next Phase Readiness
 
-**Task 6 (UAT checkpoint) is still pending.** The checkpoint was reached after Tasks 1-5 completed successfully. Visual UAT verification required before the plan can be marked fully complete.
-
-After UAT approval:
-- Phase 13 STKE-01..07 will all be GREEN
-- Phase 14 (Stock Patrones BOM) can start — the `ArticulosListRow` badge slot is ready for BOM indicators
+Phase 14 (Stock Patrones BOM) can begin:
+- `ArticulosListRow` badge slot is ready for BOM indicators
+- `useEquivalenciaListExpansion` hook pattern established for future expansion hooks
+- SearchableSelect `linkedCode` extension ready for any future linked-pair consumers
 
 ---
 *Phase: 13-stock-equivalencias-compra-uso*
-*Completed: 2026-05-15 (Tasks 1-5; Task 6 UAT pending)*
+*Completed: 2026-05-15*
 
 ## Self-Check
 
@@ -173,5 +185,6 @@ Verifying artifacts exist and commits are present:
 - [x] commit 7c9e19c — FOUND
 - [x] commit 7d67f8b — FOUND
 - [x] commit 112bb94 — FOUND
+- [x] Task 6 UAT — APPROVED by user
 
 ## Self-Check: PASSED
