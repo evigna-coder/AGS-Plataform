@@ -84,6 +84,16 @@
 - [ ] **TEST-04**: Integración de suite E2E en CI (GitHub Actions) con cache de emulador Firestore y pnpm install.
 - [ ] **TEST-05**: Mocks de Gmail y Google Maps via `page.route()` para prevenir side effects en CI.
 
+### Stock — Equivalencias compra↔uso (Phase 13)
+
+- [ ] **STKE-01**: Tipos foundation en `@ags/shared` — `Articulo.equivalencias?: { articuloIdDestino, articuloCodigoDestino, articuloDescripcionDestino, factor }[]` (en v1 a lo sumo un elemento por ser 1→1) + `MovimientoStock.subtipo?: 'conversion'` (compatible con consumidores que sólo leen `tipo: 'transferencia'`).
+- [ ] **STKE-02**: `articulosService` extendido con `linkEquivalencia(origenId, destinoId, factor)` / `unlinkEquivalencia(origenId)` validando 1→1 (rechazar si origen ya tiene equivalencia, si destino ya es destino de otro origen, si crea ciclo A→B→A, o si factor ≤ 0).
+- [ ] **STKE-03**: UI de vinculación — en la ficha/edición del artículo de compra, sección "Equivalencia (código de uso)" con `SearchableSelect` de artículos destino + input numérico de factor (acepta decimales). Botón unlink para romper la vinculación.
+- [ ] **STKE-04**: `desagregarUnidades(articuloOrigenId, cantidad, ubicacion)` como `runTransaction` atómica que baja N del origen, alta `N × factor` del destino en la misma ubicación, y crea `MovimientoStock { tipo: 'transferencia', subtipo: 'conversion' }` con audit completo. Falla atómicamente si no hay stock suficiente.
+- [ ] **STKE-05**: CTA "Desagregar ahora" en `ArticuloDetail` del lado de compra — modal con cantidad a desagregar, ubicación origen (con stock visible), preview del resultado (`N × factor = M`).
+- [ ] **STKE-06**: Display dual en `ArticuloDetail` — dos líneas: stock real del artículo (siempre) + lado opuesto calculado (reverso `÷ factor` si estoy en uso, directo `× factor` si estoy en compra). Visible siempre dentro del detail.
+- [ ] **STKE-07**: Display dual on-demand en lista de artículos y `SearchableSelect` — badge "tiene equivalente" en filas normales; al buscar específicamente uno de los códigos vinculados, despliega la fila con ambas existencias. No renderizar el desglose en todas las filas a la vez.
+
 ## v2.1 Requirements (Deferred)
 
 ### Presupuestos avanzados
@@ -166,11 +176,19 @@
 | TEST-03 | Phase 11 | Pending |
 | TEST-04 | Phase 11 | Pending |
 | TEST-05 | Phase 11 | Pending |
+| STKE-01 | Phase 13 | Pending |
+| STKE-02 | Phase 13 | Pending |
+| STKE-03 | Phase 13 | Pending |
+| STKE-04 | Phase 13 | Pending |
+| STKE-05 | Phase 13 | Pending |
+| STKE-06 | Phase 13 | Pending |
+| STKE-07 | Phase 13 | Pending |
 
 **Coverage:**
 - v2.0 requirements: **49 total** (4 PREC + 6 ANXC + 5 CSVC + 5 PRIC + 4 PTYP + 2 REV + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
-- Mapped: **49/49** ✓ — no orphaned requirements
+- v2.x stock evolution: **7 STKE** (Phase 13 — equivalencias compra↔uso)
+- Mapped: **56/56** ✓ — no orphaned requirements
 
 ---
 *Requirements defined: 2026-04-19*
-*Last updated: 2026-04-19 — added REV-01/02 (revisiones con opción de mantener anterior) + confirmed TC MIXTA snapshot at oc_recibida*
+*Last updated: 2026-05-15 — added STKE-01..07 (Phase 13 stock equivalencias compra↔uso)*

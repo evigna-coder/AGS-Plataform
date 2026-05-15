@@ -254,3 +254,43 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | 7/7 | Complete   | 2026-04-25 | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
 | 12. Esquema Facturación Porcentual + Anticipos | 8/8 | Complete   | 2026-04-26 | - |
+
+
+### Phase 13: Stock — Equivalencias compra↔uso
+
+**Goal:** Modelar la relación 1→1 entre código de compra (ej. caja 5183-2209) y código de uso (ej. ampolla 5188-5367) mediante un campo `Articulo.equivalencias[]` con factor, y habilitar la **conversión manual diferida** ("Desagregar ahora") que dispara una transferencia atómica baja-origen / alta-destino registrada como `MovimientoStock` tipo `transferencia` con subtipo `conversion`. Ambos códigos coexisten en stock; la ficha y la búsqueda muestran un **display dual** (stock real del lado en que vive + equivalente calculado del lado opuesto) bajo demanda, sin tocar el sistema de patrones ni los reportes técnicos.
+**Depends on:** Phase 12
+**Requirements:** STKE-01, STKE-02, STKE-03, STKE-04, STKE-05, STKE-06, STKE-07
+**Success Criteria** (what must be TRUE):
+  1. Un admin puede vincular dos artículos como par compra→uso desde la ficha del artículo de compra, con un factor numérico (entero o decimal). El sistema rechaza vincular si destino o factor son inválidos o si crearía un ciclo (A→B→A).
+  2. La equivalencia es siempre 1→1: un artículo de compra apunta a a lo sumo un artículo de uso, y un artículo de uso es destino de a lo sumo un artículo de compra. La UI bloquea intentos N→M y muestra el motivo.
+  3. Al disparar "Desagregar ahora" sobre N unidades del código de compra con stock disponible en una ubicación, se ejecuta una `runTransaction` que: (a) baja N del artículo origen, (b) alta `N × factor` en el artículo destino en la misma ubicación, (c) crea un `MovimientoStock` con `tipo: 'transferencia'`, `subtipo: 'conversion'`, ambas referencias de artículo, ubicación y unidades. Falla atómicamente si cualquiera de las tres falla.
+  4. La ficha de un artículo con equivalencia (sea código de compra o de uso) muestra **dos líneas**: la línea con stock real del artículo abierto + una línea calculada del lado opuesto (reverso 1/factor para uso→compra, directo ×factor para compra→uso). Si el lado de compra tiene stock, aparece el CTA "Desagregar ahora".
+  5. La lista de artículos y el `SearchableSelect` muestran cada artículo como fila normal colapsada; cuando un artículo tiene equivalente, exhiben un badge/icono "tiene equivalente". El desglose dual sólo se despliega bajo demanda al buscar específicamente uno de los códigos vinculados (no se renderiza en todas las filas a la vez).
+  6. El audit (`MovimientoStock` con `subtipo: 'conversion'`) es visible en el histórico del artículo identificando claramente origen, destino, factor aplicado y unidades por lado.
+  7. Las equivalencias y conversiones no rompen consumidores existentes: `MovimientoStock.tipo` sigue siendo el enum actual (subtipo es opcional), y los servicios que no conocen el subtipo siguen leyendo "transferencia" sin cambio de comportamiento.
+
+**Plans:** TBD
+
+Plans:
+- [ ] TBD (created by /gsd:plan-phase 13)
+
+### Phase 14: Stock — Patrones con BOM (composición y consumo desagregado)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 13
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 14 to break down)
+
+### Phase 15: Stock — Venta de loaner espejo a stock
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 14
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 15 to break down)
