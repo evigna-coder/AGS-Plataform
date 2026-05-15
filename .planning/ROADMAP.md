@@ -270,10 +270,17 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
   6. El audit (`MovimientoStock` con `subtipo: 'conversion'`) es visible en el histórico del artículo identificando claramente origen, destino, factor aplicado y unidades por lado.
   7. Las equivalencias y conversiones no rompen consumidores existentes: `MovimientoStock.tipo` sigue siendo el enum actual (subtipo es opcional), y los servicios que no conocen el subtipo siguen leyendo "transferencia" sin cambio de comportamiento.
 
-**Plans:** TBD
+**Plans:** 8 plans
 
 Plans:
-- [ ] TBD (created by /gsd:plan-phase 13)
+- [ ] 13-00-PLAN.md — Wave 0 RED baseline: unit tests + Playwright fixme + test:equivalencias script
+- [ ] 13-01-PLAN.md — Tipos @ags/shared: ArticuloEquivalencia + Articulo.equivalencias + flat articuloIdDestinoEquivalencia + MovimientoStock.subtipo='conversion' (STKE-01)
+- [ ] 13-02-PLAN.md — equivalenciasService: linkEquivalencia/unlinkEquivalencia/findOrigenDeDestino + DI hook + denormalization recompute on rename (STKE-02)
+- [ ] 13-03-PLAN.md — desagregarUnidades runTransaction (atomic baja-origen + alta-destino + MovimientoStock subtipo=conversion). NOT autonomous: UnidadStock-shape checkpoint (STKE-04)
+- [ ] 13-04-PLAN.md — EquivalenciaSection en EditArticuloModal + useEquivalenciaSection hook (STKE-03)
+- [ ] 13-05-PLAN.md — DesagregarStockModal + useDesagregarStock hook (preview N × factor + ubicacion picker) (STKE-05)
+- [ ] 13-06-PLAN.md — ArticuloDetail display dual (origen y destino) + CTA wired a DesagregarStockModal. NOT autonomous: visual UAT (STKE-06)
+- [ ] 13-07-PLAN.md — ArticulosList pre-extract (Row+Filters) + EquivalenciaBadge + on-demand expansion + SearchableSelect linkedCode. NOT autonomous: visual UAT (STKE-07)
 
 ### Phase 14: Stock — Patrones con BOM (composición y consumo desagregado)
 
