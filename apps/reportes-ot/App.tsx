@@ -112,6 +112,10 @@ const App: React.FC = () => {
               tiempoViaje={app.tiempoViaje} setTiempoViaje={app.setTiempoViaje}
               manualHoras={app.manualHoras} setManualHoras={app.setManualHoras}
               entitySelectors={app.entitySelectors}
+              destinatariosExtras={app.destinatariosExtras}
+              setDestinatariosExtras={app.setDestinatariosExtras}
+              destinatariosManuales={app.destinatariosManuales}
+              setDestinatariosManuales={app.setDestinatariosManuales}
               markUserInteracted={app.markUserInteracted}
             />
             <SidebarPanel
@@ -290,10 +294,16 @@ const App: React.FC = () => {
                   </button>
                 </>
               ) : app.status === 'FINALIZADO' ? (
-                <button onClick={app.handleFinalSubmit} disabled={app.isGenerating}
-                  className="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm active:bg-emerald-700 disabled:opacity-50">
-                  {app.isGenerating ? 'Generando PDF...' : 'Generar PDF'}
-                </button>
+                <>
+                  <button onClick={() => app.handleFinalSubmit()} disabled={app.isGenerating || app.isSendingEmail}
+                    className="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm active:bg-emerald-700 disabled:opacity-50">
+                    {app.isGenerating ? 'Generando PDF...' : 'Generar PDF'}
+                  </button>
+                  <button onClick={app.sendByEmail} disabled={app.isGenerating || app.isSendingEmail}
+                    className="w-full py-3 rounded-xl bg-teal-700 text-white font-semibold text-sm active:bg-teal-800 disabled:opacity-50">
+                    {app.isSendingEmail ? (app.generationStep || 'Enviando...') : 'Enviar por Mail'}
+                  </button>
+                </>
               ) : (
                 <button onClick={app.handleReview}
                   className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm active:bg-blue-700">
@@ -427,6 +437,10 @@ const App: React.FC = () => {
               tiempoViaje={app.tiempoViaje} setTiempoViaje={app.setTiempoViaje}
               manualHoras={app.manualHoras} setManualHoras={app.setManualHoras}
               entitySelectors={app.entitySelectors}
+              destinatariosExtras={app.destinatariosExtras}
+              setDestinatariosExtras={app.setDestinatariosExtras}
+              destinatariosManuales={app.destinatariosManuales}
+              setDestinatariosManuales={app.setDestinatariosManuales}
               markUserInteracted={app.markUserInteracted}
             />
             <SidebarPanel
@@ -661,6 +675,8 @@ const App: React.FC = () => {
         onDuplicateOT={() => app.setShowDuplicateModal(true)}
         onReview={app.handleReview}
         onFinalSubmit={app.handleFinalSubmit}
+        onFinalSubmitAndEmail={app.sendByEmail}
+        isSendingEmail={app.isSendingEmail}
         onSharePDF={app.shareReportPDF}
         onDownloadPDF={app.downloadPDF}
         onSignOut={signOut}

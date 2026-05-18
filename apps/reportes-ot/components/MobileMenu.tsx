@@ -12,6 +12,9 @@ interface MobileMenuProps {
   onDuplicateOT: () => void;
   onReview: () => void;
   onFinalSubmit: () => void;
+  /** Confirma y envía por mail en vez de descargar. Misma validación que onFinalSubmit. */
+  onFinalSubmitAndEmail?: () => void;
+  isSendingEmail?: boolean;
   onSharePDF: () => void;
   onDownloadPDF: () => void;
   onSignOut: () => void;
@@ -34,6 +37,8 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onDuplicateOT,
   onReview,
   onFinalSubmit,
+  onFinalSubmitAndEmail,
+  isSendingEmail = false,
   onSharePDF,
   onDownloadPDF,
   onSignOut,
@@ -143,11 +148,21 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             )}
             <button
               onClick={onFinalSubmit}
-              disabled={isGenerating || !hasSignatures}
-              className={`font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white'}`}
+              disabled={isGenerating || isSendingEmail || !hasSignatures}
+              className={`font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white'} disabled:opacity-50`}
             >
               {isGenerating ? 'Generando PDF...' : 'Finalizar y Descargar PDF'}
             </button>
+            {onFinalSubmitAndEmail && (
+              <button
+                onClick={onFinalSubmitAndEmail}
+                disabled={isGenerating || isSendingEmail || !hasSignatures}
+                className={`font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 ${!hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-teal-700 text-white hover:bg-teal-800'} disabled:opacity-50`}
+                title="Confirma y envía por mail (al contacto principal + contactos adicionales)"
+              >
+                {isSendingEmail ? (generationStep || 'Enviando…') : 'Finalizar y Enviar por Mail'}
+              </button>
+            )}
           </div>
         )}
         <button
@@ -281,13 +296,27 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                     setIsOpen(false);
                     onFinalSubmit();
                   }}
-                  disabled={isGenerating || !hasSignatures}
+                  disabled={isGenerating || isSendingEmail || !hasSignatures}
                   className={`font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 whitespace-nowrap ${
                     !hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-emerald-600 text-white shadow-emerald-500/50'
-                  }`}
+                  } disabled:opacity-50`}
                 >
                   {isGenerating ? (generationStep || 'Finalizando…') : 'Finalizar PDF'}
                 </button>
+                {onFinalSubmitAndEmail && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      onFinalSubmitAndEmail();
+                    }}
+                    disabled={isGenerating || isSendingEmail || !hasSignatures}
+                    className={`font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 whitespace-nowrap ${
+                      !hasSignatures ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-teal-700 text-white shadow-teal-500/50'
+                    } disabled:opacity-50`}
+                  >
+                    {isSendingEmail ? (generationStep || 'Enviando…') : 'Finalizar y Enviar Mail'}
+                  </button>
+                )}
               </>
             )}
             <button

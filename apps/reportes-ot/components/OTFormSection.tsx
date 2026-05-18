@@ -53,6 +53,7 @@ function TimeSelect15({ value, onChange, disabled, label }: {
 // ── Contacto principal con toggle manual ──
 function ContactoPrincipal({
   contacto, setContacto, emailPrincipal, setEmailPrincipal, entitySelectors, readOnly,
+  destinatariosExtras, setDestinatariosExtras, destinatariosManuales, setDestinatariosManuales,
 }: {
   contacto: string;
   setContacto: (v: string) => void;
@@ -60,6 +61,10 @@ function ContactoPrincipal({
   setEmailPrincipal: (v: string) => void;
   entitySelectors: any;
   readOnly: boolean;
+  destinatariosExtras: string[];
+  setDestinatariosExtras: (v: string[]) => void;
+  destinatariosManuales: { nombre: string; email: string }[];
+  setDestinatariosManuales: (v: { nombre: string; email: string }[]) => void;
 }) {
   const [manualMode, setManualMode] = useState(false);
 
@@ -118,19 +123,30 @@ function ContactoPrincipal({
         contactos={entitySelectors.contactos}
         contactoPrincipalId={entitySelectors.contactoId}
         readOnly={readOnly}
+        extras={destinatariosExtras}
+        setExtras={setDestinatariosExtras}
+        manualExtras={destinatariosManuales}
+        setManualExtras={setDestinatariosManuales}
       />
     </div>
   );
 }
 
-// ── Contactos adicionales (para futuro envío directo) ──
-function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
+// ── Contactos adicionales (destinatarios para envío por mail) ──
+// `extras` (contactoIds) y `manualExtras` están en useReportForm — se persisten
+// con el resto del reporte. Solo el form de carga ad-hoc queda como state local.
+function ContactosAdicionales({
+  contactos, contactoPrincipalId, readOnly,
+  extras, setExtras, manualExtras, setManualExtras,
+}: {
   contactos: { id: string; nombre: string; email: string; esPrincipal: boolean }[];
   contactoPrincipalId: string | null;
   readOnly: boolean;
+  extras: string[];
+  setExtras: (v: string[]) => void;
+  manualExtras: { nombre: string; email: string }[];
+  setManualExtras: (v: { nombre: string; email: string }[]) => void;
 }) {
-  const [extras, setExtras] = useState<string[]>([]);
-  const [manualExtras, setManualExtras] = useState<{ nombre: string; email: string }[]>([]);
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualNombre, setManualNombre] = useState('');
   const [manualEmail, setManualEmail] = useState('');
@@ -138,25 +154,25 @@ function ContactosAdicionales({ contactos, contactoPrincipalId, readOnly }: {
   const available = contactos.filter(c => c.id !== contactoPrincipalId && !extras.includes(c.id));
 
   const addContacto = useCallback((id: string) => {
-    if (id) setExtras(prev => [...prev, id]);
-  }, []);
+    if (id) setExtras([...extras, id]);
+  }, [extras, setExtras]);
 
   const removeContacto = useCallback((id: string) => {
-    setExtras(prev => prev.filter(x => x !== id));
-  }, []);
+    setExtras(extras.filter(x => x !== id));
+  }, [extras, setExtras]);
 
   const addManual = useCallback(() => {
     const nombre = manualNombre.trim();
     if (!nombre) return;
-    setManualExtras(prev => [...prev, { nombre, email: manualEmail.trim() }]);
+    setManualExtras([...manualExtras, { nombre, email: manualEmail.trim() }]);
     setManualNombre('');
     setManualEmail('');
     setShowManualForm(false);
-  }, [manualNombre, manualEmail]);
+  }, [manualNombre, manualEmail, manualExtras, setManualExtras]);
 
   const removeManual = useCallback((idx: number) => {
-    setManualExtras(prev => prev.filter((_, i) => i !== idx));
-  }, []);
+    setManualExtras(manualExtras.filter((_, i) => i !== idx));
+  }, [manualExtras, setManualExtras]);
 
   const selectedExtras = contactos.filter(c => extras.includes(c.id));
 
@@ -284,6 +300,11 @@ interface OTFormSectionProps {
   setManualHoras: (v: boolean) => void;
   // Entity selectors
   entitySelectors: any;
+  // Destinatarios adicionales (para envío por mail)
+  destinatariosExtras: string[];
+  setDestinatariosExtras: (v: string[]) => void;
+  destinatariosManuales: { nombre: string; email: string }[];
+  setDestinatariosManuales: (v: { nombre: string; email: string }[]) => void;
   // Interaction marker
   markUserInteracted: () => void;
 }
@@ -300,7 +321,10 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
   horaInicio, setHoraInicio, horaFin, setHoraFin,
   horasTrabajadas, setHorasTrabajadas, tiempoViaje, setTiempoViaje,
   manualHoras, setManualHoras,
-  entitySelectors, markUserInteracted,
+  entitySelectors,
+  destinatariosExtras, setDestinatariosExtras,
+  destinatariosManuales, setDestinatariosManuales,
+  markUserInteracted,
 }) => {
   return (
     <div
@@ -445,6 +469,10 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
                 setEmailPrincipal={setEmailPrincipal}
                 entitySelectors={entitySelectors}
                 readOnly={readOnly}
+                destinatariosExtras={destinatariosExtras}
+                setDestinatariosExtras={setDestinatariosExtras}
+                destinatariosManuales={destinatariosManuales}
+                setDestinatariosManuales={setDestinatariosManuales}
               />
             )}
           </>

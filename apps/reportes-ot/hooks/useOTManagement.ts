@@ -195,7 +195,9 @@ export const useOTManagement = (
     setPatronesSeleccionados,
     setColumnasSeleccionadas,
     setCertificadosIngenieroSeleccionados,
-    setResolvedIngenieroId
+    setResolvedIngenieroId,
+    setDestinatariosExtras,
+    setDestinatariosManuales,
   } = setters;
 
   /** Pre-carga la firma del usuario autenticado si el reporte no tiene firma */
@@ -293,6 +295,9 @@ export const useOTManagement = (
         setColumnasSeleccionadas(data.columnasSeleccionadas || []);
         // Certificados de ingeniero seleccionados
         setCertificadosIngenieroSeleccionados(data.certificadosIngenieroSeleccionados || []);
+        // Destinatarios adicionales (para envío por mail)
+        setDestinatariosExtras(data.destinatariosExtras || []);
+        setDestinatariosManuales(data.destinatariosManuales || []);
         // Plantilla esperada según tipo de servicio; si no hay protocolo para este tipo, limpiar
         const expectedTemplate = getProtocolTemplateForServiceType(data.tipoServicio ?? null);
         if (!expectedTemplate) {
@@ -440,6 +445,8 @@ export const useOTManagement = (
     setInstrumentosSeleccionados([]);
     setPatronesSeleccionados([]);
     setColumnasSeleccionadas([]);
+    setDestinatariosExtras([]);
+    setDestinatariosManuales([]);
     setClientConfirmed(false);
     setStatus('BORRADOR');
 
@@ -586,6 +593,8 @@ export const useOTManagement = (
     setInstrumentosSeleccionados([]);
     setPatronesSeleccionados([]);
     setColumnasSeleccionadas([]);
+    setDestinatariosExtras([]);
+    setDestinatariosManuales([]);
 
     // Habilitar autosave DESPUÉS de establecer todos los estados
     hasUserInteracted.current = true;

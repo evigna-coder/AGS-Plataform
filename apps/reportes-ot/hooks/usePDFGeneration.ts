@@ -32,12 +32,23 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 const A4_POINTS = { width: 595.28, height: 841.89 };
 
 
-interface GeneratedPDFs {
+export interface GeneratedPDFs {
   reportBlob: Blob;
   reportFilename: string;
   protocolBlob: Blob | null;
   protocolFilename: string | null;
 }
+
+/**
+ * Callback de entrega final del PDF. Reemplaza el `downloadPDF()` por defecto
+ * cuando se quiere enviar por mail (o cualquier otra acción). Si retorna
+ * rechazo, el flow muestra el error pero NO revierte estado (el reporte ya
+ * está finalizado en Firestore).
+ */
+export type DeliveryFn = (
+  result: GeneratedPDFs,
+  helpers: { setStep: (s: string) => void }
+) => Promise<void>;
 
 /** Sanitiza un string para uso como nombre de archivo */
 function sanitizeFilename(s: string): string {
@@ -51,8 +62,8 @@ export interface UsePDFGenerationReturn {
   /** Genera SOLO el protocolo (carátula + tablas), sin Hoja 1, fotos ni certs.
    *  Para el modo "Protocolo en blanco" — el cliente recibe el documento vacío. */
   generateBlankProtocolBlob: () => Promise<Blob | null>;
-  handleFinalSubmit: () => Promise<void>;
-  confirmClientAndFinalize: () => Promise<void>;
+  handleFinalSubmit: (delivery?: DeliveryFn) => Promise<void>;
+  confirmClientAndFinalize: (delivery?: DeliveryFn) => Promise<void>;
 
   // Estados
   isGenerating: boolean;
@@ -710,8 +721,18 @@ export const usePDFGeneration = (
     return false;
   };
 
-  // Finalizar y descargar PDF
-  const handleFinalSubmit = async () => {
+  // Default delivery: descarga ambos archivos al disco.
+  const defaultDelivery: DeliveryFn = async (result, { setStep }) => {
+    setStep('Descargando archivo(s)…');
+    downloadPDF(result.reportBlob, result.reportFilename);
+    if (result.protocolBlob && result.protocolFilename) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      downloadPDF(result.protocolBlob, result.protocolFilename);
+    }
+  };
+
+  // Finalizar y entregar PDF (descarga por defecto; email opcional via delivery)
+  const handleFinalSubmit = async (delivery: DeliveryFn = defaultDelivery) => {
     if (!validateBeforeClientConfirm()) {
       return;
     }
@@ -816,13 +837,8 @@ export const usePDFGeneration = (
           console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
         }
 
-        // Descargar archivo(s)
-        setGenerationStep('Descargando archivo(s)…');
-        downloadPDF(result.reportBlob, result.reportFilename);
-        if (result.protocolBlob && result.protocolFilename) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          downloadPDF(result.protocolBlob, result.protocolFilename);
-        }
+        // Entregar: descarga (default) o email (via delivery callback)
+        await delivery(result, { setStep: setGenerationStep });
       } catch (pdfError) {
         console.error("Error al generar PDF:", pdfError);
         showAlert({
@@ -846,8 +862,8 @@ export const usePDFGeneration = (
     }
   };
 
-  // Confirmar firma del cliente, finalizar reporte y generar PDF
-  const confirmClientAndFinalize = async () => {
+  // Confirmar firma del cliente, finalizar reporte y entregar PDF
+  const confirmClientAndFinalize = async (delivery: DeliveryFn = defaultDelivery) => {
     if (!validateBeforeClientConfirm()) {
       return;
     }
@@ -968,13 +984,8 @@ export const usePDFGeneration = (
           console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
         }
 
-        // Descargar archivo(s)
-        setGenerationStep('Descargando archivo(s)…');
-        downloadPDF(result.reportBlob, result.reportFilename);
-        if (result.protocolBlob && result.protocolFilename) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          downloadPDF(result.protocolBlob, result.protocolFilename);
-        }
+        // Entregar: descarga (default) o email (via delivery callback)
+        await delivery(result, { setStep: setGenerationStep });
 
         console.log("PDF(s) generado(s) exitosamente");
 

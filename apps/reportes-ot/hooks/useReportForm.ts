@@ -74,6 +74,12 @@ export interface ReportFormState {
 
   // Certificados de ingeniero seleccionados
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
+
+  // Destinatarios adicionales para envío por mail (chips bajo el contacto principal).
+  // `destinatariosExtras` referencia contactoIds del establecimiento; `destinatariosManuales`
+  // son entradas ad-hoc tipeadas por el técnico.
+  destinatariosExtras: string[];
+  destinatariosManuales: { nombre: string; email: string }[];
 }
 
 export interface ReportState {
@@ -119,6 +125,8 @@ export interface ReportState {
   columnasSeleccionadas: ColumnaSeleccionada[];
   certificadosIngenieroSeleccionados: CertificadoIngeniero[];
   resolvedIngenieroId: string | null;
+  destinatariosExtras: string[];
+  destinatariosManuales: { nombre: string; email: string }[];
 }
 
 export interface UseReportFormReturn {
@@ -172,6 +180,8 @@ export interface UseReportFormReturn {
     setColumnasSeleccionadas: (value: ColumnaSeleccionada[]) => void;
     setCertificadosIngenieroSeleccionados: (value: CertificadoIngeniero[]) => void;
     setResolvedIngenieroId: (value: string | null) => void;
+    setDestinatariosExtras: (value: string[]) => void;
+    setDestinatariosManuales: (value: { nombre: string; email: string }[]) => void;
   };
 
   // Computed
@@ -230,6 +240,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   const [columnasSeleccionadas, setColumnasSeleccionadas] = useState<ColumnaSeleccionada[]>([]);
   const [certificadosIngenieroSeleccionados, setCertificadosIngenieroSeleccionados] = useState<CertificadoIngeniero[]>([]);
   const [resolvedIngenieroId, setResolvedIngenieroId] = useState<string | null>(null);
+  const [destinatariosExtras, setDestinatariosExtras] = useState<string[]>([]);
+  const [destinatariosManuales, setDestinatariosManuales] = useState<{ nombre: string; email: string }[]>([]);
   const [otInput, setOtInput] = useState(initialOtNumber);
   const [status, setStatus] = useState<'BORRADOR' | 'FINALIZADO'>('BORRADOR');
   const [clientConfirmed, setClientConfirmed] = useState(false);
@@ -258,7 +270,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
-    certificadosIngenieroSeleccionados, resolvedIngenieroId
+    certificadosIngenieroSeleccionados, resolvedIngenieroId,
+    destinatariosExtras, destinatariosManuales,
   }), [
     otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
@@ -268,7 +281,8 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     aclaracionEspecialista, signatureClient, aclaracionCliente,
     protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
-    certificadosIngenieroSeleccionados, resolvedIngenieroId
+    certificadosIngenieroSeleccionados, resolvedIngenieroId,
+    destinatariosExtras, destinatariosManuales,
   ]);
 
   const formState: ReportFormState = {
@@ -316,7 +330,9 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     patronesSeleccionados,
     columnasSeleccionadas,
     certificadosIngenieroSeleccionados,
-    resolvedIngenieroId
+    resolvedIngenieroId,
+    destinatariosExtras,
+    destinatariosManuales,
   };
 
   return {
@@ -366,7 +382,9 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setPatronesSeleccionados,
       setColumnasSeleccionadas,
       setCertificadosIngenieroSeleccionados,
-      setResolvedIngenieroId
+      setResolvedIngenieroId,
+      setDestinatariosExtras,
+      setDestinatariosManuales,
     },
     readOnly,
     reportState,

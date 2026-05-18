@@ -1,0 +1,251 @@
+import { useCallback, useState } from 'react';
+import { sendGmail, approxMimeSize, GMAIL_SIZE_LIMIT_BYTES } from '../services/gmailService';
+import { useGoogleOAuth } from './useGoogleOAuth';
+import { buildSubject, buildHtmlBody, resolveRecipients } from '../utils/buildEmailContent';
+import type { DeliveryFn, GeneratedPDFs } from './usePDFGeneration';
+import type { FirebaseService } from '../services/firebaseService';
+import type { ReportFormState } from './useReportForm';
+import type { ContactoOption } from '../types/entities';
+import type { AlertOptions, ConfirmOptions } from './useModal';
+
+const BCC_INTERNO = 'reportes@agsanalitica.com';
+
+export type EmailSendStatus =
+  | 'idle'
+  | 'authorizing'
+  | 'preparing'
+  | 'checking_size'
+  | 'sending'
+  | 'sent'
+  | 'error';
+
+interface UseSendReportByEmailDeps {
+  formState: ReportFormState;
+  contactosDB: ContactoOption[];
+  firebase: FirebaseService;
+  otNumber: string;
+  handleFinalSubmit: (delivery: DeliveryFn) => Promise<void>;
+  showAlert: (opts: AlertOptions) => void;
+  showConfirm: (opts: ConfirmOptions) => Promise<boolean>;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1] || '');
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Hook que expone una acción `sendByEmail()`. Internamente:
+ *  1. Resuelve destinatarios desde formState + contactosDB.
+ *  2. Ejecuta `handleFinalSubmit` (guarda + genera PDFs + sube a Storage) con
+ *     un delivery callback que hace el envío en lugar de la descarga.
+ *  3. Si los adjuntos exceden 24 MB, ofrece al técnico caer a descarga manual.
+ *  4. Persiste `enviadoPorEmail` en el doc del reporte en éxito.
+ *
+ * Ya que el reporte queda en FINALIZADO antes del envío (token-first guardado),
+ * si el mail falla el reporte NO se revierte — el técnico puede reintentar
+ * descargando o reabriendo el flow.
+ */
+export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
+  const { formState, contactosDB, firebase, otNumber, handleFinalSubmit, showAlert, showConfirm } = deps;
+  const { requestToken } = useGoogleOAuth();
+  const [status, setStatus] = useState<EmailSendStatus>('idle');
+  const [error, setError] = useState<string>('');
+
+  const sendByEmail = useCallback(async () => {
+    setError('');
+
+    const to = resolveRecipients(
+      formState.emailPrincipal,
+      formState.destinatariosExtras,
+      formState.destinatariosManuales,
+      contactosDB,
+    );
+
+    if (to.length === 0) {
+      showAlert({
+        title: 'Sin destinatarios',
+        message: 'No hay direcciones de mail cargadas. Completá el email del contacto principal o agregá un destinatario adicional antes de enviar.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    const variant = formState.protocolSelections && formState.protocolSelections.length > 0
+      ? 'reporte-con-anexos'
+      : 'reporte-solo';
+
+    const subject = buildSubject({
+      otNumber,
+      razonSocial: formState.razonSocial,
+      contactoPrincipal: formState.contacto,
+      sistema: formState.sistema,
+      moduloModelo: formState.moduloModelo,
+      moduloSerie: formState.moduloSerie,
+      fechaInicio: formState.fechaInicio,
+      fechaFin: formState.fechaFin,
+      tecnicoNombre: formState.aclaracionEspecialista,
+    });
+
+    const htmlBody = buildHtmlBody({
+      otNumber,
+      razonSocial: formState.razonSocial,
+      contactoPrincipal: formState.contacto,
+      sistema: formState.sistema,
+      moduloModelo: formState.moduloModelo,
+      moduloSerie: formState.moduloSerie,
+      fechaInicio: formState.fechaInicio,
+      fechaFin: formState.fechaFin,
+      tecnicoNombre: formState.aclaracionEspecialista,
+    }, variant);
+
+    const emailDelivery: DeliveryFn = async (result: GeneratedPDFs, { setStep }) => {
+      setStep('Preparando adjuntos…');
+      setStatus('preparing');
+
+      const reportBase64 = await blobToBase64(result.reportBlob);
+      const attachments: { filename: string; mimeType: string; base64Data: string }[] = [
+        { filename: result.reportFilename, mimeType: 'application/pdf', base64Data: reportBase64 },
+      ];
+      if (result.protocolBlob && result.protocolFilename) {
+        const protoBase64 = await blobToBase64(result.protocolBlob);
+        attachments.push({
+          filename: result.protocolFilename,
+          mimeType: 'application/pdf',
+          base64Data: protoBase64,
+        });
+      }
+
+      setStep('Verificando tamaño…');
+      setStatus('checking_size');
+      const totalSize = approxMimeSize(attachments, htmlBody);
+      const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
+
+      if (totalSize > GMAIL_SIZE_LIMIT_BYTES) {
+        setStatus('error');
+        const wantsDownload = await showConfirm({
+          title: 'Adjuntos demasiado pesados',
+          message:
+            `Los archivos pesan ${sizeMB} MB y superan el límite de Gmail (24 MB).\n\n` +
+            '¿Querés descargarlos ahora para enviarlos manualmente?',
+          confirmText: 'Descargar',
+          cancelText: 'Cancelar',
+          confirmType: 'warning',
+          onConfirm: () => {},
+        });
+        if (wantsDownload) {
+          setStep('Descargando archivo(s)…');
+          downloadBlob(result.reportBlob, result.reportFilename);
+          if (result.protocolBlob && result.protocolFilename) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            downloadBlob(result.protocolBlob, result.protocolFilename);
+          }
+        }
+        // Aborto silencioso — el reporte ya está FINALIZADO, no hay rollback
+        throw new Error('SIZE_LIMIT_EXCEEDED');
+      }
+
+      setStep('Autorizando Gmail…');
+      setStatus('authorizing');
+      let accessToken: string;
+      try {
+        accessToken = await Promise.race([
+          requestToken(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('TOKEN_TIMEOUT')), 15000),
+          ),
+        ]);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const friendly = msg === 'TOKEN_TIMEOUT'
+          ? 'La autorización de Gmail tardó demasiado. Verificá que los pop-ups no estén bloqueados.'
+          : `No se pudo autorizar Gmail: ${msg}`;
+        setError(friendly);
+        setStatus('error');
+        throw err;
+      }
+
+      setStep('Enviando mail…');
+      setStatus('sending');
+      try {
+        await sendGmail({
+          accessToken,
+          to,
+          bcc: [BCC_INTERNO],
+          subject,
+          htmlBody,
+          attachments,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(`No se pudo enviar el mail: ${msg}`);
+        setStatus('error');
+        throw err;
+      }
+
+      // Persistir metadata. No-bloqueante: si falla, el mail ya salió.
+      setStep('Registrando envío…');
+      try {
+        await firebase.saveReport(otNumber, {
+          enviadoPorEmail: {
+            fecha: new Date().toISOString(),
+            destinatarios: to,
+            bcc: [BCC_INTERNO],
+            adjuntoTamanoMB: Number(sizeMB),
+            variante: variant,
+          },
+        });
+      } catch (metaErr) {
+        console.warn('[useSendReportByEmail] No se pudo guardar metadata enviadoPorEmail:', metaErr);
+      }
+
+      setStatus('sent');
+    };
+
+    try {
+      await handleFinalSubmit(emailDelivery);
+    } catch (err) {
+      // Errores ya fueron capturados y reportados dentro del delivery.
+      // SIZE_LIMIT_EXCEEDED es flujo esperado (no mostrar alert extra).
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg !== 'SIZE_LIMIT_EXCEEDED' && msg !== 'TOKEN_TIMEOUT') {
+        console.error('[useSendReportByEmail] error:', err);
+        if (!error) {
+          showAlert({
+            title: 'Error enviando mail',
+            message: msg || 'Error desconocido. El reporte se guardó igual, podés reintentar.',
+            type: 'error',
+          });
+        }
+      }
+    }
+  }, [
+    formState, contactosDB, otNumber, handleFinalSubmit, requestToken,
+    firebase, showAlert, showConfirm, error,
+  ]);
+
+  return {
+    sendByEmail,
+    status,
+    error,
+    isSending: status !== 'idle' && status !== 'sent' && status !== 'error',
+  };
+}

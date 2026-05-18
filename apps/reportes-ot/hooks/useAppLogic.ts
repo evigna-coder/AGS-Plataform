@@ -8,6 +8,7 @@ import { calcHours, isValidTimeHHMM } from '../services/time';
 import { useReportForm } from './useReportForm';
 import { useOTManagement } from './useOTManagement';
 import { usePDFGeneration } from './usePDFGeneration';
+import { useSendReportByEmail } from './useSendReportByEmail';
 import { useAutosave } from './useAutosave';
 import { useModal } from './useModal';
 import { getProtocolTemplateForServiceType, getProtocolTemplateById } from '../utils/protocolSelector';
@@ -65,7 +66,8 @@ export function useAppLogic(
     accionesTomar, accionesInternaOnly, articulos, signatureEngineer, aclaracionEspecialista,
     signatureClient, aclaracionCliente, protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
-    certificadosIngenieroSeleccionados, resolvedIngenieroId
+    certificadosIngenieroSeleccionados, resolvedIngenieroId,
+    destinatariosExtras, destinatariosManuales,
   } = formState;
 
   const { setManualHoras } = reportForm.setters;
@@ -163,7 +165,8 @@ export function useAppLogic(
     setArticulos, setSignatureEngineer, setAclaracionEspecialista,
     setSignatureClient, setAclaracionCliente, setProtocolTemplateId, setProtocolData,
     setProtocolSelections, setInstrumentosSeleccionados, setPatronesSeleccionados, setColumnasSeleccionadas, setCertificadosIngenieroSeleccionados,
-    setResolvedIngenieroId
+    setResolvedIngenieroId,
+    setDestinatariosExtras, setDestinatariosManuales,
   } = setters;
 
   // Handlers para tablas dinámicas del catálogo
@@ -684,6 +687,17 @@ export function useAppLogic(
     setPdfBlob: setGeneratedPdfBlob
   } = pdfGeneration;
 
+  // Hook de envío por mail — wrapper sobre handleFinalSubmit con delivery callback
+  const sendByEmailHook = useSendReportByEmail({
+    formState,
+    contactosDB: entitySelectors.contactos,
+    firebase,
+    otNumber,
+    handleFinalSubmit: handleFinalSubmitFromHook,
+    showAlert: modal.showAlert,
+    showConfirm: modal.showConfirm,
+  });
+
   /**
    * Descarga el PDF del protocolo en blanco (modo blank preview).
    * Llama a generateBlankProtocolBlob, descarga directo, no guarda nada.
@@ -1087,6 +1101,7 @@ export function useAppLogic(
     protocolTemplateId, protocolData, protocolSelections,
     instrumentosSeleccionados, patronesSeleccionados, columnasSeleccionadas,
     certificadosIngenieroSeleccionados, resolvedIngenieroId,
+    destinatariosExtras, destinatariosManuales,
     // Protocol
     protocolTemplate,
     // Date display
@@ -1112,6 +1127,7 @@ export function useAppLogic(
     setPatronesSeleccionados, setColumnasSeleccionadas,
     setCertificadosIngenieroSeleccionados,
     setResolvedIngenieroId,
+    setDestinatariosExtras, setDestinatariosManuales,
     // Catalog handlers
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
     handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
@@ -1137,6 +1153,10 @@ export function useAppLogic(
     generatePDFBlob, handleFinalSubmit, confirmClientAndFinalize,
     isGenerating, generationStep, isPreviewMode, generatedPdfBlob, setIsPreviewMode, setGeneratedPdfBlob,
     assetPreloader,
+    // Envío por mail
+    sendByEmail: sendByEmailHook.sendByEmail,
+    emailSendStatus: sendByEmailHook.status,
+    isSendingEmail: sendByEmailHook.isSending,
     // Computed
     baseInputClass, totalHs, fullDireccion,
     isLockedByClient,
