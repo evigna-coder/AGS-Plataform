@@ -3566,6 +3566,7 @@ export type AppId = 'sistema-modular' | 'portal-ingeniero' | 'reportes-ot';
 
 /** Identificadores de módulo (agrupan rutas relacionadas) */
 export type ModuloId =
+  | 'dashboard'
   | 'clientes'
   | 'establecimientos'
   | 'equipos'
@@ -3592,7 +3593,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'usuarios', 'admin'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -3604,7 +3605,7 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
   },
   ventas: {
     apps: ['sistema-modular'],
@@ -3622,6 +3623,7 @@ export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[
 
 /** Mapeo de ruta → módulo (para ProtectedRoute) */
 export const RUTA_MODULO: Record<string, ModuloId> = {
+  '/dashboard': 'dashboard',
   '/clientes': 'clientes',
   '/establecimientos': 'establecimientos',
   '/equipos': 'equipos',
@@ -3649,6 +3651,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
 
 /** Labels para UI */
 export const MODULO_LABELS: Record<ModuloId, string> = {
+  'dashboard': 'Dashboard',
   'clientes': 'Clientes',
   'establecimientos': 'Establecimientos',
   'equipos': 'Equipos',

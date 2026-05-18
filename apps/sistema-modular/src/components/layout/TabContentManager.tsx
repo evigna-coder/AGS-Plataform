@@ -30,6 +30,7 @@ import { ContratosList, ContratoDetail } from '../../pages/contratos';
 import { TiposEquipoList } from '../../pages/tipos-equipo';
 import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
 import { QFDocumentosList } from '../../pages/qf-documentos';
+import { DashboardPage } from '../../pages/dashboard';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -71,6 +72,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/clientes" replace />} />
+      {/* Dashboard */}
+      <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'admin_ing_soporte']}><DashboardPage /></ProtectedRoute>} />
       {/* Clientes */}
       <Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ClientesList /></ProtectedRoute>} />
       <Route path="/clientes/nuevo" element={<Navigate to="/clientes" replace />} />

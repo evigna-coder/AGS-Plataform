@@ -21,6 +21,7 @@ export interface NavItem {
 }
 
 export const navigation: NavItem[] = [
+  { name: 'Dashboard', path: '/dashboard', icon: '📊', modulo: 'dashboard' },
   {
     name: 'Comercial', path: '#comercial', icon: '🤝',
     children: [

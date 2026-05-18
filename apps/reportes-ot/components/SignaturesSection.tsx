@@ -38,7 +38,6 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
         `}
       >
         <SignaturePad
-          key={signatureClient || 'client-pad'}
           ref={clientPadRef}
           label="Firma del Cliente"
           initialValue={signatureClient}
@@ -94,7 +93,6 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
         }`}
       >
         <SignaturePad
-          key={signatureEngineer || 'eng-pad'}
           ref={engineerPadRef}
           label="Firma del Especialista AGS"
           initialValue={signatureEngineer}
