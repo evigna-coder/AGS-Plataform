@@ -1,6 +1,37 @@
 
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 
+/**
+ * Recorta el whitespace alrededor de los trazos. Devuelve un canvas nuevo
+ * con sólo el bounding box del trazo + padding. Usado al exportar la firma
+ * para que el PDF no la vea como una imagen mayormente vacía.
+ */
+function trimCanvas(canvas: HTMLCanvasElement, padding = 10): HTMLCanvasElement {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const { width: w, height: h } = canvas;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let top = h, bottom = -1, left = w, right = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 0) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+  if (right < left) return canvas; // canvas vacío
+  const tw = right - left + 1 + padding * 2;
+  const th = bottom - top + 1 + padding * 2;
+  const out = document.createElement('canvas');
+  out.width = tw;
+  out.height = th;
+  out.getContext('2d')!.drawImage(canvas, left - padding, top - padding, tw, th, 0, 0, tw, th);
+  return out;
+}
+
 interface SignaturePadProps {
   label: string;
   onClear: () => void;
@@ -43,10 +74,21 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
     const img = new Image();
     img.onload = () => {
-      // Dibujar a tamaño completo del canvas (1:1) para evitar achicamiento progresivo
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      // Soporta dos casos sin pixelar:
+      //  - PNG full-canvas (savedSignatureRef in-session): scale=1, x=0, y=0 → render 1:1.
+      //  - PNG ya recortado (initialValue post-reload): centrado a su tamaño natural,
+      //    capeado a 1 para no upscalear (origen del pixelado anterior).
+      const imgW = img.naturalWidth / dpr;
+      const imgH = img.naturalHeight / dpr;
+      const scale = Math.min(rect.width / imgW, rect.height / imgH, 1);
+      const w = imgW * scale;
+      const h = imgH * scale;
+      const x = (rect.width - w) / 2;
+      const y = (rect.height - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
     };
     img.src = dataUrl;
   }, []);
@@ -69,7 +111,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     getSignature: () => {
       if (!hasDrawnRef.current) return null;
       const canvas = canvasRef.current;
-      if (canvas) return canvas.toDataURL('image/png');
+      if (canvas) return trimCanvas(canvas).toDataURL('image/png');
       return savedSignatureRef.current;
     },
     clear: () => {
@@ -164,8 +206,10 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
 
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // Full canvas para restaurar in-session pixel-perfect (IntersectionObserver).
     savedSignatureRef.current = canvas.toDataURL('image/png');
-    onEnd?.(canvas.toDataURL('image/png'));
+    // Versión recortada para el reporte / Firestore.
+    onEnd?.(trimCanvas(canvas).toDataURL('image/png'));
   };
 
   const clear = () => {

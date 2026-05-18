@@ -26,6 +26,11 @@ type ManualFields = 'cliente' | 'sistema';
 export function useEntitySelectors(firebase: FirebaseService, setters: FormSetters) {
   // ── IDs de selección (transitorios, no se persisten) ──
   const [clienteId, setClienteId] = useState<string | null>(null);
+  // Ref espejo del clienteId — los callbacks (selectEstablecimiento) leen acá
+  // para evitar stale closure: cuando selectCliente() auto-dispara
+  // selectEstablecimiento() para un cliente con 1 solo establecimiento, el
+  // setClienteId aún no se commiteó en el closure capturado al renderizar.
+  const clienteIdRef = useRef<string | null>(null);
   const [establecimientoId, setEstablecimientoId] = useState<string | null>(null);
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [sistemaId, setSistemaId] = useState<string | null>(null);
@@ -113,6 +118,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     if (!cliente) return;
 
     setClienteId(id);
+    clienteIdRef.current = id;
     setters.setRazonSocial(cliente.razonSocial);
 
     // Limpiar downstream
@@ -190,13 +196,15 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     const estabSectores = estab.sectores?.filter(Boolean) || [];
     setSectores(estabSectores);
 
-    // Cargar contactos y sistemas en paralelo. Pasamos clienteId para
-    // mergear datos legacy (contactos en /clientes/{id}/contactos y sistemas
-    // vinculados por clienteCuit/clienteId sin establecimientoId).
+    // Cargar contactos y sistemas en paralelo. Pasamos clienteId (vía ref para
+    // evitar stale closure) para mergear datos legacy: contactos en
+    // /clientes/{id}/contactos y sistemas vinculados por clienteCuit/clienteId
+    // sin establecimientoId.
+    const cliId = clienteIdRef.current ?? undefined;
     setLoadingSistemas(true);
     const [conts, syss] = await Promise.all([
-      firebase.getContactosByEstablecimiento(id, clienteId ?? undefined),
-      firebase.getSistemasByEstablecimiento(id, clienteId ?? undefined),
+      firebase.getContactosByEstablecimiento(id, cliId),
+      firebase.getSistemasByEstablecimiento(id, cliId),
     ]);
     setLoadingSistemas(false);
 
@@ -239,9 +247,12 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
-    // Filtrar contactos y sistemas por sector
-    const filteredContactos = allContactos.filter(c => c.sector === sector);
-    const filteredSistemas = allSistemas.filter(s => s.sector === sector);
+    // Filtrar contactos y sistemas por sector. Incluimos también los que no
+    // tienen sector definido (legacy data sin migrar) — sin esto, contactos y
+    // sistemas viejos quedan invisibles para cualquier sector elegido.
+    const isUnassigned = (val: any) => val == null || val === '';
+    const filteredContactos = allContactos.filter(c => c.sector === sector || isUnassigned(c.sector));
+    const filteredSistemas = allSistemas.filter(s => s.sector === sector || isUnassigned(s.sector));
     setContactos(filteredContactos);
     setSistemas(filteredSistemas);
 
@@ -345,6 +356,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     }
 
     setClienteId(match.id);
+    clienteIdRef.current = match.id;
     const estabs = await firebase.getEstablecimientosByCliente(match.id);
     setEstablecimientos(estabs);
 
@@ -423,6 +435,7 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
   // ── Reset completo (para nuevo reporte) ──
   const reset = useCallback(() => {
     setClienteId(null);
+    clienteIdRef.current = null;
     setEstablecimientoId(null);
     setSelectedSector(null);
     setSistemaId(null);

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Firma — validación trim vs canvas completo</title>
+<style>
+  body { font: 13px/1.4 -apple-system, system-ui, sans-serif; background:#f8fafc; padding:24px; color:#0f172a; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  h2 { font-size:13px; margin:20px 0 6px; color:#475569; text-transform:uppercase; letter-spacing:.05em; }
+  .legend { color:#64748b; font-size:12px; margin-bottom:18px; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; }
+  .card .label { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; margin-bottom:8px; }
+  .stats { font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size:11px; color:#334155; background:#f1f5f9; padding:8px 10px; border-radius:6px; margin-bottom:10px; white-space:pre-wrap; }
+  .page-mock { width:347px; background:#fff; border:1px dashed #cbd5e1; padding:10px; border-radius:8px; }
+  .sig-box {
+    height: 56px; width: 100%;
+    border-bottom: 1px solid #0f172a;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 4px;
+    background: repeating-linear-gradient(45deg, #fafafa 0 6px, #f1f5f9 6px 12px);
+  }
+  .sig-box img { max-height: 100%; max-width: 100%; object-fit: contain; display:block; }
+  .caption { font-size:10px; color:#64748b; margin-top:6px; text-align:center; text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .bbox-overlay { position:relative; display:inline-block; }
+  .bbox-overlay .bbox { position:absolute; border:1.5px dashed #ef4444; pointer-events:none; }
+  .raw-img { display:block; background:#fff; border:1px solid #e2e8f0; }
+  details { margin-top:16px; }
+  summary { cursor:pointer; font-size:12px; color:#0d6e6e; }
+  .pill { display:inline-block; background:#0d6e6e; color:#fff; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; margin-left:6px; }
+  textarea { width:100%; height:120px; font-family:monospace; font-size:10px; padding:8px; border:1px solid #cbd5e1; border-radius:6px; }
+  button { background:#0d6e6e; color:#fff; border:0; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer; text-transform:uppercase; letter-spacing:.05em; font-size:11px; }
+  button:hover { background:#0a5959; }
+  #input-section { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:20px; }
+  #results { display:none; }
+</style>
+</head>
+<body>
+  <h1>Validación firma — render en el reporte</h1>
+  <p class="legend">
+    Compara el render <span class="pill">ACTUAL</span> (canvas completo: <code>canvas.toDataURL()</code> tal cual)
+    contra el <span class="pill">PROPUESTO</span> (mismo PNG recortado al bounding box del trazo + 10px padding).
+    El recuadro punteado simula la cajita real del reporte: <b>h-14</b> (56 px alto) × <b>~347 px</b> de ancho con <code>object-contain</code>.
+  </p>
+
+  <div id="input-section">
+    <label class="label" style="display:block;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:6px;">Pegá el data URL de la firma:</label>
+    <textarea id="dataurl-input" placeholder="data:image/png;base64,iVBORw0KGgo..."></textarea>
+    <div style="margin-top:8px;"><button onclick="run()">Validar</button></div>
+  </div>
+
+  <div id="results">
+    <div id="stats" class="stats"></div>
+
+    <h2>1) PNG crudo + bounding box detectado</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="label">PNG actual guardado en Firestore</div>
+        <div id="raw-actual"></div>
+        <div class="caption">Tamaño nativo (1:1). El rectángulo rojo es el bounding box del trazo.</div>
+      </div>
+      <div class="card">
+        <div class="label">PNG recortado (propuesta)</div>
+        <div id="raw-trim"></div>
+        <div class="caption">Mismo trazo, sin whitespace alrededor. Esto es lo que iría a Firestore con el fix.</div>
+      </div>
+    </div>
+
+    <h2>2) Cómo queda en la cajita del reporte (h-14, object-contain)</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="label"><span class="pill">ACTUAL</span> Canvas completo</div>
+        <div class="page-mock">
+          <div class="sig-box"><img id="sig-actual" /></div>
+        </div>
+        <div class="caption">Lo que ven hoy los clientes en el PDF</div>
+      </div>
+      <div class="card">
+        <div class="label"><span class="pill">PROPUESTO</span> Trim</div>
+        <div class="page-mock">
+          <div class="sig-box"><img id="sig-trim" /></div>
+        </div>
+        <div class="caption">Lo que verían con el fix aplicado</div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Ver el data URL recortado (por si querés copiarlo y probarlo en otro lado)</summary>
+      <textarea id="trimUrl" style="margin-top:8px;"></textarea>
+    </details>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function detectBBox(canvas) {
+  const ctx = canvas.getContext('2d');
+  const { width: w, height: h } = canvas;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let top = h, bottom = -1, left = w, right = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = data[(y * w + x) * 4 + 3];
+      if (a > 0) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+  if (right < left) return null;
+  return { left, top, right, bottom, w: right - left + 1, h: bottom - top + 1 };
+}
+
+function trimCanvas(canvas, bbox, padding = 10) {
+  const tw = bbox.w + padding * 2;
+  const th = bbox.h + padding * 2;
+  const out = document.createElement('canvas');
+  out.width = tw;
+  out.height = th;
+  out.getContext('2d').drawImage(canvas, bbox.left - padding, bbox.top - padding, tw, th, 0, 0, tw, th);
+  return out;
+}
+
+function fit(w, h, boxW, boxH) {
+  const s = Math.min(boxW / w, boxH / h);
+  return { w: Math.round(w * s), h: Math.round(h * s), s: s.toFixed(3) };
+}
+
+function run() {
+  const dataUrl = $('dataurl-input').value.trim();
+  if (!dataUrl.startsWith('data:image')) {
+    alert('No parece un data URL válido. Tiene que empezar con "data:image/png;base64,..."');
+    return;
+  }
+
+  const img = new Image();
+  img.onload = () => {
+    $('results').style.display = 'block';
+    $('raw-actual').innerHTML = '';
+    $('raw-trim').innerHTML = '';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+
+    const bbox = detectBBox(canvas);
+    if (!bbox) {
+      $('stats').textContent = 'PNG vacío — no se detectó tinta (alpha=0 en todos los pixels).';
+      return;
+    }
+
+    // PNG actual con overlay de bbox
+    const wrap = document.createElement('div');
+    wrap.className = 'bbox-overlay';
+    const imgEl = document.createElement('img');
+    imgEl.src = dataUrl;
+    imgEl.className = 'raw-img';
+    imgEl.style.width = img.naturalWidth + 'px';
+    imgEl.style.height = img.naturalHeight + 'px';
+    wrap.appendChild(imgEl);
+    const box = document.createElement('div');
+    box.className = 'bbox';
+    box.style.left = bbox.left + 'px';
+    box.style.top = bbox.top + 'px';
+    box.style.width = bbox.w + 'px';
+    box.style.height = bbox.h + 'px';
+    wrap.appendChild(box);
+    $('raw-actual').appendChild(wrap);
+
+    // PNG recortado
+    const trimmed = trimCanvas(canvas, bbox, 10);
+    const trimUrl = trimmed.toDataURL('image/png');
+    const trimImgEl = document.createElement('img');
+    trimImgEl.src = trimUrl;
+    trimImgEl.className = 'raw-img';
+    trimImgEl.style.width = trimmed.width + 'px';
+    trimImgEl.style.height = trimmed.height + 'px';
+    $('raw-trim').appendChild(trimImgEl);
+
+    $('sig-actual').src = dataUrl;
+    $('sig-trim').src = trimUrl;
+
+    const aspectActual = (img.naturalWidth / img.naturalHeight).toFixed(2);
+    const aspectTrim = (trimmed.width / trimmed.height).toFixed(2);
+    const renderActual = fit(img.naturalWidth, img.naturalHeight, 347, 56);
+    const renderTrim = fit(trimmed.width, trimmed.height, 347, 56);
+
+    const inkAreaActual = bbox.w * bbox.h * renderActual.s * renderActual.s;
+    const totalAreaActual = renderActual.w * renderActual.h;
+    const fillActual = ((inkAreaActual / totalAreaActual) * 100).toFixed(1);
+
+    $('stats').textContent =
+`PNG nativo: ${img.naturalWidth} × ${img.naturalHeight}  (aspect ${aspectActual})
+Bounding box del trazo: x=${bbox.left}..${bbox.right}  y=${bbox.top}..${bbox.bottom}  →  ${bbox.w} × ${bbox.h}
+PNG recortado (con padding 10px): ${trimmed.width} × ${trimmed.height}  (aspect ${aspectTrim})
+
+Render en cajita del reporte (347 × 56 con object-contain):
+  ACTUAL    → ${renderActual.w} × ${renderActual.h} px  (escala ${renderActual.s})
+  PROPUESTO → ${renderTrim.w} × ${renderTrim.h} px  (escala ${renderTrim.s})
+
+Cobertura del trazo en la imagen renderizada:
+  ACTUAL    → ${fillActual}% del área visible es tinta (el resto es whitespace)
+  PROPUESTO → ~99% (sólo el padding queda fuera)`;
+
+    $('trimUrl').value = trimUrl;
+  };
+  img.onerror = () => alert('Error cargando la imagen. Revisá el data URL.');
+  img.src = dataUrl;
+}
+</script>
+</body>
+</html>
