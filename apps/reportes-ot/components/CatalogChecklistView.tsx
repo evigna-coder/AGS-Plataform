@@ -39,6 +39,9 @@ const RESULTADO_LABELS = {
   PENDIENTE: 'Pendiente',
 };
 
+const NA_CHIP_CLASSES =
+  'ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold tracking-wider uppercase bg-slate-100 text-slate-500 border border-slate-200 align-middle';
+
 // ─── Helper: detectar si un ítem está dentro de una sección N/A ───────────────
 function buildNASet(items: ChecklistItem[], collapsedSections: string[]): Set<string> {
   const collapsed = new Set(collapsedSections);
@@ -148,11 +151,12 @@ function ChecklistItemRow({
       <div className={`py-2.5 ${isPrint ? '' : 'px-3'}`} style={{ paddingLeft: `${indent + 8}px` }}>
         {item.label && (item.showLabel !== false) && (
           <p
-            className={`text-xs font-semibold mb-2 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}
+            className={`text-xs font-semibold mb-2 ${isNA ? 'text-slate-400' : 'text-slate-800'}`}
             style={{ textAlign: 'justify' }}
           >
             {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
             {item.label}
+            {isNA && <span className={NA_CHIP_CLASSES}>N/A</span>}
           </p>
         )}
         <table data-checklist-internal-table className={`w-full text-xs border-collapse ${isNA ? 'opacity-40' : ''}`}>
@@ -279,9 +283,10 @@ function ChecklistItemRow({
     }
     return (
       <div className="flex items-center gap-1.5 py-1.5 px-2 bg-slate-50/50" style={{ paddingLeft: `${indent + 8}px` }}>
-        <span className={`text-xs leading-snug shrink-0 ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+        <span className={`text-xs leading-snug shrink-0 ${isNA ? 'text-slate-400' : 'text-slate-800'}`}>
           {item.numberPrefix && <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>}
           {item.label}
+          {isNA && <span className={NA_CHIP_CLASSES}>N/A</span>}
         </span>
         <select
           value={selected}
@@ -346,13 +351,14 @@ function ChecklistItemRow({
   const isInline = item.itemType === 'value_input';
   const labelEl = (
     <span
-      className={`text-xs leading-snug ${isNA ? 'line-through text-slate-400' : 'text-slate-800'} ${isInline ? 'shrink-0' : 'flex-1'}`}
+      className={`text-xs leading-snug ${isNA ? 'text-slate-400' : 'text-slate-800'} ${isInline ? 'shrink-0' : 'flex-1'}`}
       style={isInline ? undefined : { textAlign: 'justify', display: 'inline-block', width: '100%' }}
     >
       {item.numberPrefix && (
         <span className="font-mono text-slate-400 mr-1.5">{item.numberPrefix}</span>
       )}
       {item.label}
+      {isNA && <span className={NA_CHIP_CLASSES}>N/A</span>}
     </span>
   );
 
@@ -457,13 +463,14 @@ function ChecklistItemRow({
     if (isPrint) {
       return (
         <div className="py-1 text-[11px] text-slate-800" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
-          <span className={isNA ? 'line-through text-slate-400' : ''}>
+          <span className={isNA ? 'text-slate-400' : ''}>
             {isNA
               ? <span className="text-slate-400 mr-1">—</span>
               : <span className="mr-1">{checked ? '☑' : '☐'}</span>
             }
             {item.numberPrefix && <span className="text-slate-400 mr-1">{item.numberPrefix}</span>}
             {item.label}
+            {isNA && <span className={NA_CHIP_CLASSES}>N/A</span>}
             {valueInline && linkedValue && (
               <span className="font-semibold ml-1">{linkedValue}
                 {item.linkedValueUnit && <span className="text-slate-500 ml-0.5">{item.linkedValueUnit}</span>}
@@ -539,10 +546,12 @@ function ChecklistItemRow({
       return (
         <div className="py-1 text-[11px] text-slate-800" style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
           {item.numberPrefix && <span className="text-slate-400 mr-1">{item.numberPrefix}</span>}
-          <span className={isNA ? 'line-through text-slate-400' : ''}>{item.label}</span>
-          {(isNA || value) && (
-            <span className="font-semibold ml-1">{isNA ? 'N/A' : value}</span>
-          )}
+          <span className={isNA ? 'text-slate-400' : ''}>{item.label}</span>
+          {isNA ? (
+            <span className={NA_CHIP_CLASSES}>N/A</span>
+          ) : value ? (
+            <span className="font-semibold ml-1">{value}</span>
+          ) : null}
           {value && item.unit && <span className="text-slate-500 ml-0.5">{item.unit}</span>}
         </div>
       );
@@ -575,11 +584,12 @@ function ChecklistItemRow({
       return (
         <div className="py-1 border-b border-slate-100"
           style={{ paddingLeft: `${indent + 8}px`, lineHeight: '1.5' }}>
-          <span className={`text-[11px] ${isNA ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+          <span className={`text-[11px] ${isNA ? 'text-slate-400' : 'text-slate-800'}`}>
             {item.numberPrefix && <span className="font-mono text-slate-400 mr-1">{item.numberPrefix}</span>}
             {item.label}
+            {isNA && <span className={NA_CHIP_CLASSES}>N/A</span>}
           </span>
-          {label !== '—' && (
+          {!isNA && label !== '—' && (
             <span className={`text-[11px] font-bold ml-2 ${result === 'CUMPLE' ? 'text-emerald-700' : result === 'NO_CUMPLE' ? 'text-red-700' : 'text-slate-400'}`}>
               {label}
             </span>
