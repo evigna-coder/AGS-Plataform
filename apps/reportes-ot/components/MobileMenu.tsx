@@ -118,15 +118,35 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                 >
                   Descargar PDF
                 </button>
+                {onFinalSubmitAndEmail && (
+                  <button
+                    onClick={onFinalSubmitAndEmail}
+                    disabled={isGenerating || isSendingEmail}
+                    className="bg-teal-700 text-white font-bold px-4 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSendingEmail ? (generationStep || 'Enviando…') : 'Enviar por Mail'}
+                  </button>
+                )}
               </div>
             ) : status === 'FINALIZADO' ? (
-              <button
-                onClick={onFinalSubmit}
-                disabled={isGenerating}
-                className="bg-emerald-600 text-white font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGenerating ? (generationStep || 'Generando PDF…') : 'Generar PDF'}
-              </button>
+              <div className="flex flex-col gap-2 items-end">
+                <button
+                  onClick={onFinalSubmit}
+                  disabled={isGenerating || isSendingEmail}
+                  className="bg-emerald-600 text-white font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (generationStep || 'Generando PDF…') : 'Generar PDF'}
+                </button>
+                {onFinalSubmitAndEmail && (
+                  <button
+                    onClick={onFinalSubmitAndEmail}
+                    disabled={isGenerating || isSendingEmail}
+                    className="bg-teal-700 text-white font-bold px-5 py-2 rounded-full shadow-md uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSendingEmail ? (generationStep || 'Enviando…') : 'Enviar por Mail'}
+                  </button>
+                )}
+              </div>
             ) : (
               <button
                 onClick={onReview}
@@ -254,18 +274,44 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
                     >
                       Descargar PDF
                     </button>
+                    {onFinalSubmitAndEmail && (
+                      <button
+                        onClick={() => {
+                          setIsOpen(false);
+                          onFinalSubmitAndEmail();
+                        }}
+                        disabled={isGenerating || isSendingEmail}
+                        className="bg-teal-700 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-teal-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {isSendingEmail ? (generationStep || 'Enviando…') : 'Enviar por Mail'}
+                      </button>
+                    )}
                   </>
                 ) : status === 'FINALIZADO' ? (
-                  <button 
-                    onClick={() => {
-                      setIsOpen(false);
-                      onFinalSubmit();
-                    }} 
-                    disabled={isGenerating}
-                    className="bg-emerald-600 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {isGenerating ? (generationStep || 'Generando…') : 'Generar PDF'}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        onFinalSubmit();
+                      }}
+                      disabled={isGenerating || isSendingEmail}
+                      className="bg-emerald-600 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {isGenerating ? (generationStep || 'Generando…') : 'Generar PDF'}
+                    </button>
+                    {onFinalSubmitAndEmail && (
+                      <button
+                        onClick={() => {
+                          setIsOpen(false);
+                          onFinalSubmitAndEmail();
+                        }}
+                        disabled={isGenerating || isSendingEmail}
+                        className="bg-teal-700 text-white font-black px-4 py-2.5 rounded-full shadow-xl uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-teal-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {isSendingEmail ? (generationStep || 'Enviando…') : 'Enviar por Mail'}
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <button 
                     onClick={() => {

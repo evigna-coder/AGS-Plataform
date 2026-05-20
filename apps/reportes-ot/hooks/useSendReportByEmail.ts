@@ -89,6 +89,24 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
       return;
     }
 
+    // Pedimos el token ANTES de finalizar el reporte. El popup de Google debe
+    // abrirse en respuesta directa al click del usuario; si lo dejamos para
+    // después del save+PDF+upload, el browser bloquea el popup por user-gesture
+    // consumido. Bonus: si el user cancela la autorización, el reporte no se
+    // marca FINALIZADO ni se sube PDF — fail fast antes de tocar Firestore.
+    setStatus('authorizing');
+    let accessToken: string;
+    try {
+      accessToken = await requestToken();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const friendly = `No se pudo autorizar Gmail: ${msg}`;
+      setError(friendly);
+      setStatus('error');
+      showAlert({ title: 'Autorización cancelada', message: friendly, type: 'error' });
+      return;
+    }
+
     const variant = formState.protocolSelections && formState.protocolSelections.length > 0
       ? 'reporte-con-anexos'
       : 'reporte-solo';
@@ -115,6 +133,10 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
       fechaInicio: formState.fechaInicio,
       fechaFin: formState.fechaFin,
       tecnicoNombre: formState.aclaracionEspecialista,
+      tipoServicio: formState.tipoServicio,
+      incluyeInstrumentos: (formState.instrumentosSeleccionados?.length ?? 0) > 0,
+      incluyePatrones: (formState.patronesSeleccionados?.length ?? 0) > 0,
+      incluyeCertificadosIngenieros: (formState.certificadosIngenieroSeleccionados?.length ?? 0) > 0,
     }, variant);
 
     const emailDelivery: DeliveryFn = async (result: GeneratedPDFs, { setStep }) => {
@@ -163,26 +185,6 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
         throw new Error('SIZE_LIMIT_EXCEEDED');
       }
 
-      setStep('Autorizando Gmail…');
-      setStatus('authorizing');
-      let accessToken: string;
-      try {
-        accessToken = await Promise.race([
-          requestToken(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('TOKEN_TIMEOUT')), 15000),
-          ),
-        ]);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const friendly = msg === 'TOKEN_TIMEOUT'
-          ? 'La autorización de Gmail tardó demasiado. Verificá que los pop-ups no estén bloqueados.'
-          : `No se pudo autorizar Gmail: ${msg}`;
-        setError(friendly);
-        setStatus('error');
-        throw err;
-      }
-
       setStep('Enviando mail…');
       setStatus('sending');
       try {
@@ -222,11 +224,16 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
 
     try {
       await handleFinalSubmit(emailDelivery);
+      showAlert({
+        title: 'Reporte enviado',
+        message: `Se envió el reporte de la OT ${otNumber} a:\n\n${to.join('\n')}`,
+        type: 'success',
+      });
     } catch (err) {
       // Errores ya fueron capturados y reportados dentro del delivery.
       // SIZE_LIMIT_EXCEEDED es flujo esperado (no mostrar alert extra).
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg !== 'SIZE_LIMIT_EXCEEDED' && msg !== 'TOKEN_TIMEOUT') {
+      if (msg !== 'SIZE_LIMIT_EXCEEDED') {
         console.error('[useSendReportByEmail] error:', err);
         if (!error) {
           showAlert({

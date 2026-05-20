@@ -292,6 +292,10 @@ const App: React.FC = () => {
                     className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm active:bg-blue-700">
                     Descargar PDF
                   </button>
+                  <button onClick={app.sendByEmail} disabled={app.isGenerating || app.isSendingEmail}
+                    className="w-full py-3 rounded-xl bg-teal-700 text-white font-semibold text-sm active:bg-teal-800 disabled:opacity-50">
+                    {app.isSendingEmail ? (app.generationStep || 'Enviando...') : 'Enviar por Mail'}
+                  </button>
                 </>
               ) : app.status === 'FINALIZADO' ? (
                 <>

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { auth } from '../services/authService';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const SCOPES = 'https://www.googleapis.com/auth/gmail.send';
@@ -67,11 +68,17 @@ export function useGoogleOAuth() {
       return Promise.reject(new Error('Google Identity Services no cargado. Recargá la página.'));
     }
 
+    // Email del usuario ya logueado en Firebase — lo pasamos como hint a Google
+    // para que use directamente esa cuenta y no muestre el selector si hay
+    // múltiples sesiones de Google abiertas en el browser.
+    const hintEmail = auth.currentUser?.email ?? undefined;
+
     const runFlow = (promptMode: '' | 'none'): Promise<string> => new Promise((resolve, reject) => {
       const client = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         prompt: promptMode,
+        hint: hintEmail,
         callback: (response: any) => {
           if (response.error) {
             reject(new Error(response.error_description || response.error));

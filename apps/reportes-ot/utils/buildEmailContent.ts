@@ -22,6 +22,11 @@ export interface EmailContentParams {
   fechaInicio: string;          // ISO
   fechaFin: string;              // ISO
   tecnicoNombre: string;         // aclaracionEspecialista
+  tipoServicio?: string;         // Ej: "Mantenimiento preventivo", "Calificación de operación", etc.
+  /** Flags para decidir qué tipos de certificados embebidos mencionar en la lista de adjuntos. */
+  incluyeInstrumentos?: boolean;
+  incluyePatrones?: boolean;
+  incluyeCertificadosIngenieros?: boolean;
 }
 
 export function buildSubject(params: EmailContentParams): string {
@@ -49,9 +54,11 @@ function fmtFechaIntervencion(fechaInicio: string): string {
 }
 
 function buildResumenLines(params: EmailContentParams): string {
-  const { otNumber, sistema, moduloModelo, tecnicoNombre, fechaInicio, fechaFin } = params;
+  const { otNumber, sistema, moduloModelo, tecnicoNombre, fechaInicio, fechaFin, tipoServicio } = params;
   const lines: string[] = [];
   lines.push(`<li>OT: #${escapeHtml(otNumber)}</li>`);
+  const tipo = tipoServicio?.trim();
+  if (tipo) lines.push(`<li>Tipo: ${escapeHtml(tipo)}</li>`);
   if (sistema) {
     const equipo = moduloModelo ? `${sistema} — ${moduloModelo}` : sistema;
     lines.push(`<li>Equipo: ${escapeHtml(equipo)}</li>`);
@@ -68,21 +75,31 @@ function buildIntro(params: EmailContentParams, variant: EmailVariant): string {
 
   if (variant === 'reporte-con-anexos') {
     return `Adjuntamos el reporte de la orden de trabajo realizada el día ${escapeHtml(fechaInt)} ` +
-           `sobre el equipo ${escapeHtml(equipo)}${sn}, junto con el protocolo de calificación ` +
-           `y los certificados de los instrumentos utilizados.`;
+           `sobre el equipo ${escapeHtml(equipo)}${sn}, junto con el protocolo y la documentación asociada.`;
   }
   return `Adjuntamos el reporte de la orden de trabajo realizada el día ${escapeHtml(fechaInt)} ` +
          `sobre el equipo ${escapeHtml(equipo)}${sn}.`;
 }
 
-function buildAttachmentList(variant: EmailVariant): string {
+function buildAttachmentList(params: EmailContentParams, variant: EmailVariant): string {
   if (variant === 'reporte-solo') return '';
+  const items: string[] = [
+    '<li>Reporte de OT</li>',
+    '<li>Protocolo del trabajo realizado</li>',
+  ];
+  if (params.incluyeInstrumentos) {
+    items.push('<li>Certificados de instrumentos (incluidos en el protocolo)</li>');
+  }
+  if (params.incluyePatrones) {
+    items.push('<li>Certificados de patrones (incluidos en el protocolo)</li>');
+  }
+  if (params.incluyeCertificadosIngenieros) {
+    items.push('<li>Certificados de ingenieros (incluidos en el protocolo)</li>');
+  }
   return `
       <p style="margin: 16px 0 6px 0;">Archivos adjuntos:</p>
       <ul style="margin: 0 0 16px 18px; padding: 0;">
-        <li>Reporte de OT</li>
-        <li>Protocolo de calificación</li>
-        <li>Certificados de trazabilidad de instrumentos</li>
+        ${items.join('\n        ')}
       </ul>`;
 }
 
@@ -90,7 +107,7 @@ export function buildHtmlBody(params: EmailContentParams, variant: EmailVariant)
   const greetingText = escapeHtml(greeting(params.contactoPrincipal));
   const intro = buildIntro(params, variant);
   const resumen = buildResumenLines(params);
-  const attachmentList = buildAttachmentList(variant);
+  const attachmentList = buildAttachmentList(params, variant);
   const tecnico = escapeHtml(params.tecnicoNombre || 'Equipo Técnico AGS');
 
   return `<!DOCTYPE html>
