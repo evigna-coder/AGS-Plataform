@@ -17,6 +17,7 @@ export interface EmailContentParams {
   razonSocial: string;
   sistema: string;
   moduloModelo: string;
+  moduloDescripcion?: string;    // Texto descriptivo del módulo (ej. "Cromatógrafo gaseoso / Headspace")
   moduloSerie: string;
   fechaInicio: string;          // ISO
   fechaFin: string;              // ISO
@@ -52,14 +53,23 @@ function fmtFechaIntervencion(fechaInicio: string): string {
 }
 
 function buildResumenLines(params: EmailContentParams): string {
-  const { otNumber, sistema, moduloModelo, tecnicoNombre, fechaInicio, fechaFin, tipoServicio } = params;
+  const { otNumber, sistema, moduloModelo, moduloDescripcion, tecnicoNombre, fechaInicio, fechaFin, tipoServicio } = params;
   const lines: string[] = [];
   lines.push(`<li>OT: #${escapeHtml(otNumber)}</li>`);
   const tipo = tipoServicio?.trim();
   if (tipo) lines.push(`<li>Tipo: ${escapeHtml(tipo)}</li>`);
-  if (sistema) {
-    const equipo = moduloModelo ? `${sistema} — ${moduloModelo}` : sistema;
-    lines.push(`<li>Equipo: ${escapeHtml(equipo)}</li>`);
+  // Equipo: junta descripción + sistema + modelo, dedupeando duplicados (ej. cuando
+  // sistema y moduloModelo coinciden — "GC 7890 — GC 7890" → "GC 7890").
+  const equipoParts: string[] = [];
+  const pushUnique = (s: string | undefined) => {
+    const t = s?.trim();
+    if (t && !equipoParts.includes(t)) equipoParts.push(t);
+  };
+  pushUnique(moduloDescripcion);
+  pushUnique(sistema);
+  pushUnique(moduloModelo);
+  if (equipoParts.length > 0) {
+    lines.push(`<li>Equipo: ${escapeHtml(equipoParts.join(' — '))}</li>`);
   }
   if (tecnicoNombre) lines.push(`<li>Técnico: ${escapeHtml(tecnicoNombre)}</li>`);
   lines.push(`<li>Fecha: ${escapeHtml(fmtDateRange(fechaInicio, fechaFin))}</li>`);

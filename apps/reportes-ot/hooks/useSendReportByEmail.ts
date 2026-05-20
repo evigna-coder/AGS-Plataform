@@ -127,6 +127,7 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
       razonSocial: formState.razonSocial,
       sistema: formState.sistema,
       moduloModelo: formState.moduloModelo,
+      moduloDescripcion: formState.moduloDescripcion,
       moduloSerie: formState.moduloSerie,
       fechaInicio: formState.fechaInicio,
       fechaFin: formState.fechaFin,
