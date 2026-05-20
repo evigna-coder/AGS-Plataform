@@ -15,7 +15,6 @@ export type EmailVariant = 'reporte-solo' | 'reporte-con-anexos';
 export interface EmailContentParams {
   otNumber: string;
   razonSocial: string;
-  contactoPrincipal: string;   // Persona de contacto (form.contacto). Si vacío → fallback "Estimado/a"
   sistema: string;
   moduloModelo: string;
   moduloSerie: string;
@@ -37,9 +36,8 @@ export function buildSubject(params: EmailContentParams): string {
   return parts.join(' — ');
 }
 
-function greeting(contactoPrincipal: string): string {
-  const name = contactoPrincipal?.trim();
-  return name ? `Estimado/a ${name},` : 'Estimado / Estimada,';
+function greeting(): string {
+  return 'Estimado/a,';
 }
 
 function fmtDateRange(fechaInicio: string, fechaFin: string): string {
@@ -104,7 +102,7 @@ function buildAttachmentList(params: EmailContentParams, variant: EmailVariant):
 }
 
 export function buildHtmlBody(params: EmailContentParams, variant: EmailVariant): string {
-  const greetingText = escapeHtml(greeting(params.contactoPrincipal));
+  const greetingText = escapeHtml(greeting());
   const intro = buildIntro(params, variant);
   const resumen = buildResumenLines(params);
   const attachmentList = buildAttachmentList(params, variant);

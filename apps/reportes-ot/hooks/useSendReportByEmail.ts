@@ -114,7 +114,6 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
     const subject = buildSubject({
       otNumber,
       razonSocial: formState.razonSocial,
-      contactoPrincipal: formState.contacto,
       sistema: formState.sistema,
       moduloModelo: formState.moduloModelo,
       moduloSerie: formState.moduloSerie,
@@ -126,7 +125,6 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
     const htmlBody = buildHtmlBody({
       otNumber,
       razonSocial: formState.razonSocial,
-      contactoPrincipal: formState.contacto,
       sistema: formState.sistema,
       moduloModelo: formState.moduloModelo,
       moduloSerie: formState.moduloSerie,
