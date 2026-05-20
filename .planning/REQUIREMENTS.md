@@ -94,6 +94,17 @@
 - [x] **STKE-06**: Display dual en `ArticuloDetail` — dos líneas: stock real del artículo (siempre) + lado opuesto calculado (reverso `÷ factor` si estoy en uso, directo `× factor` si estoy en compra). Visible siempre dentro del detail.
 - [x] **STKE-07**: Display dual on-demand en lista de artículos y `SearchableSelect` — badge "tiene equivalente" en filas normales; al buscar específicamente uno de los códigos vinculados, despliega la fila con ambas existencias. No renderizar el desglose en todas las filas a la vez.
 
+### Stock — Patrones con BOM (Phase 14)
+
+- [ ] **BOM-01**: Tipos foundation en `@ags/shared` — `ComponentePatron` interface + `Patron.componentes?: ComponentePatron[]` (BOM declarativo, vacío = legacy) + `PatronLote.componentesConsumidos?: { codigoComponente, cantidadConsumida }[]` (acumulado de consumo por componente) + `MovimientoStock` extension (`entidadTipo?: 'articulo' | 'patron'` + `patronId?` + `lote?` + `codigoComponente?`) + `OrigenRequerimiento` extension (nuevo valor `'patron_minimo'`) + `RequerimientoCompra` extension (`patronId? + loteId? + codigoComponente?`) + `AdminConfigFlujos.usuarioRequerimientosPatronId?`. Todas las extensiones son backwards-compatible (campos opcionales; consumidores que no leen los campos siguen funcionando).
+- [ ] **BOM-02**: Pure helpers en `packages/shared/src/utils/patronBom.ts` — `computeSaldoComponente(patron, lote, codigoComponente)` (devuelve `Infinity` si no hay BOM = modo legacy; defaultea `lote.cantidad ?? 0` para evitar `NaN`); `computeLoteStatus(patron, lote)` (`'active' | 'bloqueado' | 'agotado'`); `computePatronStatus(patron)` (agrega lotes); `findLoteFifoDisponible(patron, fechaActual)` (FIFO por vencimiento entre lotes con saldo y status != bloqueado/agotado); `buildPatronesConsumidosSugerencia(patronesSeleccionados, patrones)` (dedupe por `${patronId}::${lote}` y expande 1 ampolla por componente). Sin Firestore, sin async, testeable directamente.
+- [ ] **BOM-03**: `patronesService.consumirComponentes(...)` con `runTransaction` atómica calcada de `equivalenciasService.desagregarUnidades` — pre-fetch fuera de tx; READ-FIRST (`tx.get` del patrón bajo lock); recomputar `lotes[]` aplicando consumos y validar saldos no-negativos; `tx.update` del patrón con `deepCleanForFirestore`; 1 `MovimientoStock` por componente consumido (granularidad fina: 2 patrones × 3 ampollas = 6 movimientos) con `entidadTipo: 'patron' + patronId + lote + codigoComponente + tipo: 'consumo' + otNumber`. **Idempotente en re-cierre admin:** antes de escribir, query `movimientosService` por `otNumber + entidadTipo='patron'`; si existen, lanzar error "Patrones ya descontados para esta OT" (la sección entra en read-only).
+- [ ] **BOM-04**: Editor "Componentes (BOM)" en `PatronEditorPage` con sub-componente extraído `PatronComponentesEditor.tsx` (porque el padre ya tiene 334 LOC, sobre budget) — inputs simples por componente: `codigoComponente` (text), `descripcion` (text), `cantidadPorKit` (number), `unidadMedida` (text), `stockMinimo` (number opcional). Agregar/quitar componentes inline (botones "+/x"). Editorial Teal, JetBrains Mono uppercase labels, `text-[10px]` tracking-wide. Guarda en el editor: rechazar rename de `codigoComponente` si ya existen consumos para ese código (pitfall 1 de RESEARCH); rechazar duplicados de `lote` (pitfall 3); persistencia via `patronesService.update()` con `deepCleanForFirestore`.
+- [ ] **BOM-05**: Paso "Patrones consumidos" en `OTCierreAdminSection` con sub-componente extraído `CierrePatronesConsumidosSection.tsx` + hook `useCierrePatronesConsumidos.ts` (porque el padre ya tiene 244 LOC, casi en budget) — auto-prefill desde `OT.patronesSeleccionados` (dedupe por `${patronId}::${lote}`, 1 ampolla por componente del kit); FIFO por vencimiento cuando lote ambiguo; tabla editable admin (cambiar cantidades, agregar/quitar filas); idempotencia: si `movimientosService.getAll({ otNumber, entidadTipo:'patron' })` retorna >0, render read-only con banner "Ya descontado el dd/mm/yyyy por X"; al confirmar, invoca `patronesService.consumirComponentes(...)` con `motivo` registrando divergencias vs reporte técnico; reporte técnico INTOCABLE (cero writes a `OT.patronesSeleccionados`).
+- [ ] **BOM-06**: Badge "BOM" + badge "lote bloqueado" en `PatronesList` con filtro nuevo "Bloqueados" persistido via `useUrlFilters` (schema-based; jamás `useState`); alerta inline en `PatronEditorPage` mostrando qué componente está en crítico por lote; pre-extracción de `PatronRow.tsx` y `PatronComponentesAlertBanner.tsx` antes de agregar features (PatronesList ya está en 330 LOC sobre budget). Helper `computeLoteStatus`/`computePatronStatus` de BOM-02 driven.
+- [ ] **BOM-07**: Excepción frozen autorizada — `apps/reportes-ot/components/InstrumentoSelectorPanel.tsx` (619 LOC, sin refactor en esta fase, intervención mínima): tab "Patrones" muestra badge rojo "AGOTADO" sobre lote bloqueado y deshabilita su selección (checkbox disabled + visual fade). Importa `computeLoteStatus` desde `@ags/shared/utils/patronBom`. Sin tocar: pipeline PDF (`ProtocolSection`, hojas, html2canvas, html2pdf, pdf-lib merge), lógica de firma, otros componentes UI del app. Ejecutar con `CLAUDE_ALLOW_REPORTES_OT=1` (hook `guard-reportes-ot.js`).
+- [ ] **BOM-08**: Auto-creación de `RequerimientoCompra` con `origen: 'patron_minimo'` cuando un componente cae bajo `stockMinimo` (default 0); disparado **inline desde `patronesService.consumirComponentes`** post-commit (best-effort, no bloquea la tx; precedente: Phase 9 política "Cloud Functions SOLO para denormalización"). Idempotente: skip silencioso si ya existe REQ abierto (`estado != 'comprado' && != 'cancelado'`) con mismos `(patronId, loteId, codigoComponente)` (precedente: Phase 8 Regla G). Asignado a `adminConfigService.getWithDefaults().usuarioRequerimientosPatronId`; configurable desde `/admin/config-flujos` (nuevo `SearchableSelect` "Requerimientos de patrón"). Numeración correlativa via `requerimientosService.getNextNumber()` (pre-gen fuera de tx).
+
 ## v2.1 Requirements (Deferred)
 
 ### Presupuestos avanzados
@@ -183,12 +194,20 @@
 | STKE-05 | Phase 13 | Complete |
 | STKE-06 | Phase 13 | Complete |
 | STKE-07 | Phase 13 | Complete |
+| BOM-01 | Phase 14 | Pending |
+| BOM-02 | Phase 14 | Pending |
+| BOM-03 | Phase 14 | Pending |
+| BOM-04 | Phase 14 | Pending |
+| BOM-05 | Phase 14 | Pending |
+| BOM-06 | Phase 14 | Pending |
+| BOM-07 | Phase 14 | Pending |
+| BOM-08 | Phase 14 | Pending |
 
 **Coverage:**
 - v2.0 requirements: **49 total** (4 PREC + 6 ANXC + 5 CSVC + 5 PRIC + 4 PTYP + 2 REV + 7 FLOW + 5 STKP + 6 FMT + 5 TEST)
-- v2.x stock evolution: **7 STKE** (Phase 13 — equivalencias compra↔uso)
-- Mapped: **56/56** ✓ — no orphaned requirements
+- v2.x stock evolution: **15 total** (7 STKE Phase 13 — equivalencias + 8 BOM Phase 14 — patrones con BOM)
+- Mapped: **64/64** ✓ — no orphaned requirements
 
 ---
 *Requirements defined: 2026-04-19*
-*Last updated: 2026-05-15 — added STKE-01..07 (Phase 13 stock equivalencias compra↔uso)*
+*Last updated: 2026-05-20 — added BOM-01..08 (Phase 14 stock patrones con BOM)*

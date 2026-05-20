@@ -284,13 +284,31 @@ Plans:
 
 ### Phase 14: Stock — Patrones con BOM (composición y consumo desagregado)
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Modelar cada Patrón como un BOM (Bill-of-Materials) declarativo de componentes (ampollas/viales/frascos), con conteo desagregado de consumo por componente al nivel de cada PatronLote. El descuento contable ocurre exclusivamente desde el cierre administrativo de la OT vía runTransaction atómica, generando 1 MovimientoStock por componente consumido (granularidad fina) con auto-Requerimiento de patrón asignado al usuario configurable cuando un componente cae bajo su stockMinimo. La selectora del técnico en reportes-ot bloquea visualmente los lotes con algún componente agotado (excepción autorizada al frozen-surface, scope acotado al InstrumentoSelectorPanel). Patrones existentes sin BOM siguen funcionando como hoy (backwards-compat por extensión opcional de tipos).
 **Depends on:** Phase 13
-**Plans:** 0 plans
+**Requirements:** BOM-01, BOM-02, BOM-03, BOM-04, BOM-05, BOM-06, BOM-07, BOM-08
+**Success Criteria** (what must be TRUE):
+  1. Un admin puede declarar componentes (BOM) de un patrón desde PatronEditorPage (sección 'Componentes (BOM)') — caso simple (3 ampollas iguales = 1 componente cantidadPorKit=3) y caso complejo (8 ampollas distintas = 8 componentes cantidadPorKit=1) están soportados.
+  2. PatronesList muestra badges 'BOM' (teal) y 'BLOQUEADO'/'AGOTADO' (rose) calculados con computePatronStatus; filtro 'Bloqueados' persiste en URL vía useUrlFilters.
+  3. El paso 'Patrones consumidos' del cierre admin auto-prefila desde reportes/{otNumber}.patronesSeleccionados (dedupe por (patronId, lote), 1 ampolla por componente), permite edición admin, y al confirmar dispara runTransaction atómico que escribe N MovimientoStock con entidadTipo='patron' (1 por componente).
+  4. Re-cierre admin sobre la misma OT NO duplica el descuento: consumirComponentes verifica existencia previa de movimientos y lanza error que la UI captura en banner read-only.
+  5. Cuando un componente cae bajo stockMinimo (default 0), se auto-crea un RequerimientoCompra con origen='patron_minimo' asignado al usuario configurado en /admin/config-flujos (usuarioRequerimientosPatronId), idempotente por (patronId, loteId, codigoComponente).
+  6. Selector de patrones en reportes-ot (apps/reportes-ot/components/InstrumentoSelectorPanel.tsx) muestra badge AGOTADO/BLOQUEADO y deshabilita el checkbox del lote afectado; PDF pipeline NO regresiona (cambio scoped, sin tocar ProtocolSection/html2pdf/pdf-lib).
+  7. Reporte técnico INTOCABLE: el admin puede ajustar el consumo contable, pero patronesSeleccionados queda como lo firmó el técnico; las divergencias se anotan en MovimientoStock.motivo.
+  8. Patrones existentes sin componentes[] siguen funcionando exactamente como antes (computeLoteStatus devuelve 'active' para legacy, ningún consumidor existente se rompe).
+
+**Plans:** 9 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 14 to break down)
+- [ ] 14-00-test-infra-baseline-PLAN.md — Wave 0 RED baseline: scripts/test-patron-bom.ts + patronBom.test.ts (14 tests) + fixtures + package.json (BOM-01..08 cubrirá downstream)
+- [ ] 14-01-tipos-y-helpers-puros-PLAN.md — Tipos foundation @ags/shared (ComponentePatron, Patron.componentes, PatronLote.componentesConsumidos, MovimientoStock + Requerimiento + AdminConfigFlujos extensions) + utils/patronBom.ts (5 pure helpers) (BOM-01, BOM-02)
+- [ ] 14-02-consumir-componentes-service-PLAN.md — patronesService.consumirComponentes runTransaction atómico + __setTestFirestore DI hook + idempotency on re-cierre admin (BOM-03)
+- [ ] 14-03-auto-requerimiento-patron-PLAN.md — autoCrearRequerimientosPatron helper (best-effort post-commit, idempotente por triplet) + adminConfigService.usuarioRequerimientosPatronId (BOM-08 backend)
+- [ ] 14-04-patron-componentes-editor-PLAN.md — Editor 'Componentes (BOM)' en PatronEditorPage con sub-componente extraído PatronComponentesEditor.tsx + guardas de rename y duplicados. NOT autonomous: visual UAT (BOM-04)
+- [ ] 14-05-patrones-list-badges-y-filtro-PLAN.md — PatronesList badges BOM/BLOQUEADO + filtro 'Bloqueados' via useUrlFilters; alert banner en PatronEditorPage; pre-extracción de PatronRow + PatronComponentesAlertBanner. NOT autonomous: visual UAT (BOM-06)
+- [ ] 14-06-cierre-admin-patrones-consumidos-PLAN.md — Paso 'Patrones consumidos' en OTCierreAdminSection + CierrePatronesConsumidosSection sub-componente + useCierrePatronesConsumidos hook + ConfigFlujosPage UI extension. NOT autonomous: 9-step UAT (BOM-05, BOM-08 UI)
+- [ ] 14-07-reportes-ot-selector-badge-PLAN.md — InstrumentoSelectorPanel badge AGOTADO + disable lote bloqueado (frozen-exception scoped, CLAUDE_ALLOW_REPORTES_OT=1). NOT autonomous: visual UAT + PDF regression check (BOM-07)
+- [ ] 14-08-release-prep-PLAN.md — Validación full suite + RELEASE-CHECKLIST smoke + surface 'pnpm release:minor' command to user. NOT autonomous: user cuts the tag manually
 
 ### Phase 15: Stock — Venta de loaner espejo a stock
 
