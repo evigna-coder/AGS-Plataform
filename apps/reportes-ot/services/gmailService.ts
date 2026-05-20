@@ -53,18 +53,36 @@ function toUrlSafeBase64(str: string): string {
     .replace(/=+$/, '');
 }
 
+/** Timeout para el fetch a Gmail. Suficiente para subir ~20 MB MIME en red mobile lenta;
+ *  más allá de esto asumimos que la conexión se murió y abortamos para no quedar colgados. */
+const GMAIL_FETCH_TIMEOUT_MS = 90_000;
+
 export async function sendGmail(params: EmailParams): Promise<{ id: string; threadId: string }> {
   const raw = buildMimeMessage(params);
   const encoded = toUrlSafeBase64(raw);
 
-  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${params.accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ raw: encoded }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GMAIL_FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ raw: encoded }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error('El envío del mail tardó demasiado (red lenta o caída). Reintentá con mejor conexión.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

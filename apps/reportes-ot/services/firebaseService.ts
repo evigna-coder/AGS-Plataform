@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, deleteDoc, collection, getDocs, query, where, orderBy, writeBatch, runTransaction, Timestamp } from "firebase/firestore";
 import { OT_TO_LEAD_ESTADO } from "@ags/shared";
-import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject, getBlob } from "firebase/storage";
 import type { TableCatalogEntry } from '../types/tableCatalog';
 import type { ClienteOption, EstablecimientoOption, ContactoOption, SistemaOption, ModuloOption } from '../types/entities';
 import type { InstrumentoPatronOption, AdjuntoMeta, CertificadoIngeniero, Patron, Columna } from '../types/instrumentos';
@@ -529,12 +529,34 @@ export class FirebaseService {
   }
 
   /**
-   * Sube un Blob de PDF a Firebase Storage y devuelve la URL de descarga
+   * Sube un Blob de PDF a Firebase Storage y devuelve la URL de descarga.
+   * Tiene timeout de 90s: si la red mobile se cae a la mitad, el SDK de
+   * Firebase queda esperando para siempre. El timeout cancela el task y
+   * tira un error explícito para que la UI pueda recuperarse.
    */
   async uploadReportBlob(ot: string, blob: Blob, filename: string): Promise<string> {
+    const UPLOAD_TIMEOUT_MS = 90_000;
     try {
       const storageRef = ref(storage, `reports/${ot}/${filename}`);
-      await uploadBytes(storageRef, blob, { contentType: 'application/pdf' });
+      const task = uploadBytesResumable(storageRef, blob, { contentType: 'application/pdf' });
+
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        task.cancel();
+      }, UPLOAD_TIMEOUT_MS);
+
+      try {
+        await task;
+      } catch (err: any) {
+        if (timedOut || err?.code === 'storage/canceled') {
+          throw new Error('La subida del PDF tardó demasiado (red lenta o caída). El reporte ya quedó guardado, reintentá con mejor conexión.');
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
       const url = await getDownloadURL(storageRef);
       return url;
     } catch (error: any) {
