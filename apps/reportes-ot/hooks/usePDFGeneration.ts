@@ -733,6 +733,10 @@ export const usePDFGeneration = (
 
   // Finalizar y entregar PDF (descarga por defecto; email opcional via delivery)
   const handleFinalSubmit = async (delivery: DeliveryFn = defaultDelivery) => {
+    // Algunos call-sites pasan handler directo a onClick (ej. MobileMenu),
+    // por lo que delivery puede llegar como MouseEvent en vez de función. Caer
+    // al default en ese caso para no romper el flujo principal de descarga.
+    if (typeof delivery !== 'function') delivery = defaultDelivery;
     if (!validateBeforeClientConfirm()) {
       return;
     }
@@ -864,6 +868,10 @@ export const usePDFGeneration = (
 
   // Confirmar firma del cliente, finalizar reporte y entregar PDF
   const confirmClientAndFinalize = async (delivery: DeliveryFn = defaultDelivery) => {
+    // Algunos call-sites pasan handler directo a onClick (ej. SignaturesSection),
+    // por lo que delivery puede llegar como MouseEvent en vez de función. Caer
+    // al default en ese caso para no romper el flujo principal de descarga.
+    if (typeof delivery !== 'function') delivery = defaultDelivery;
     if (!validateBeforeClientConfirm()) {
       return;
     }
