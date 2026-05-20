@@ -890,16 +890,14 @@ export const usePDFGeneration = (
 
     setIsGenerating(true);
 
-    // Paso 0: Re-fetchear adjuntos por si se subieron desde otro dispositivo
-    if (setAdjuntos && otNumber) {
-      setGenerationStep('Sincronizando adjuntos…');
-      try {
-        const freshAdjuntos = await firebase.getAdjuntosByOT(otNumber);
-        setAdjuntos(freshAdjuntos);
-      } catch (err) {
-        console.warn('[PDF] Error refrescando adjuntos:', err);
-      }
-    }
+    // Nota: NO re-fetcheamos adjuntos acá. El listener onSnapshot
+    // (useAppLogic.ts → listenAdjuntosByOT) ya mantiene `adjuntos` sincronizado
+    // en tiempo real con Firestore, incluyendo subidas desde otros dispositivos.
+    // El re-fetch manual rompía el reordenamiento drag-and-drop: si la batch
+    // update de updateAdjuntosOrden (que corre fire-and-forget desde persistOrden)
+    // aún no había terminado, el getAdjuntosByOT traía los `orden` viejos y
+    // pisaba el state optimistic — el PDF salía con orden incorrecto aunque
+    // visualmente se vieran ordenados.
 
     setGenerationStep('Guardando reporte…');
 
