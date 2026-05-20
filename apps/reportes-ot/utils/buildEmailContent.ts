@@ -83,7 +83,7 @@ function buildAttachmentList(params: EmailContentParams, variant: EmailVariant):
   if (variant === 'reporte-solo') return '';
   const items: string[] = [
     '<li>Reporte de servicio</li>',
-    '<li>Protocolo del trabajo realizado</li>',
+    '<li>Protocolo de servicio</li>',
   ];
   if (params.incluyeInstrumentos) {
     items.push('<li>Certificados de instrumentos (incluidos en el protocolo)</li>');
