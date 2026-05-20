@@ -219,7 +219,7 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
                     <tr key={p.id}>
                       <td className="px-3 py-1 font-mono truncate">{p.codigo}</td>
                       <td className="px-3 py-1 break-words line-clamp-1">{p.descripcion}</td>
-                      <td className="px-3 py-1 text-center font-black">{p.cantidad}</td>
+                      <td className="px-3 py-1 text-center font-black">{p.cantidadTexto ?? p.cantidad}</td>
                       <td className="px-3 py-1 truncate">{p.origen}</td>
                     </tr>
                   ))}

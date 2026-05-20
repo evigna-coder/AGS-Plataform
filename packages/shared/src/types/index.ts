@@ -165,6 +165,12 @@ export interface Part {
   descripcion: string;
   nroSerie?: string;
   cantidad: number;
+  /**
+   * Override visual para cantidad. Cuando se setea, el reporte y la UI lo muestran
+   * en lugar del número (ej. "1/10" cuando se usa una parte de un kit). El campo
+   * `cantidad` sigue siendo el valor numérico para descuentos de stock y cálculos.
+   */
+  cantidadTexto?: string;
   origen: string;
   /** FK opcional a artículos de stock (integración futura) */
   stockArticuloId?: string | null;

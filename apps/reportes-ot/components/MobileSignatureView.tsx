@@ -32,7 +32,7 @@ interface ReportPreview {
   horasTrabajadas?: string;
   reporteTecnico?: string;
   accionesTomar?: string;
-  articulos?: { codigo: string; descripcion: string; cantidad: number }[];
+  articulos?: { codigo: string; descripcion: string; cantidad: number; cantidadTexto?: string }[];
   signatureEngineer?: string;
   aclaracionEspecialista?: string;
 }
@@ -187,7 +187,7 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
                     {r.articulos.map((art, i) => (
                       <div key={i} className="flex justify-between text-[11px] text-slate-700 py-0.5 border-b border-slate-50">
                         <span>{art.codigo} — {art.descripcion}</span>
-                        <span className="font-bold ml-2">x{art.cantidad}</span>
+                        <span className="font-bold ml-2">x{art.cantidadTexto ?? art.cantidad}</span>
                       </div>
                     ))}
                   </div>

@@ -305,12 +305,29 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
 
                   <td className="px-4 py-1.5">
                     <input
-                      type="number"
-                      min="0"
-                      value={p.cantidad}
-                      maxLength={5}
+                      type="text"
+                      value={p.cantidadTexto ?? String(p.cantidad)}
+                      maxLength={8}
                       disabled={readOnly}
-                      onChange={e => onUpdatePart(p.id, 'cantidad', Number(e.target.value) || 0)}
+                      onChange={e => {
+                        const raw = e.target.value.trim();
+                        // Número puro (entero o decimal) → guardar como número, limpiar override.
+                        if (/^\d+(\.\d+)?$/.test(raw)) {
+                          onUpdatePart(p.id, { cantidad: Number(raw), cantidadTexto: undefined });
+                          return;
+                        }
+                        if (raw === '') {
+                          onUpdatePart(p.id, { cantidad: 0, cantidadTexto: undefined });
+                          return;
+                        }
+                        // Formato libre (ej. "1/10" para kits): guardar texto + extraer numerador
+                        // como valor numérico aproximado (lo usa el cierre admin para descuento de stock).
+                        const numerator = raw.match(/^(\d+)/);
+                        onUpdatePart(p.id, {
+                          cantidad: numerator ? Number(numerator[1]) : 0,
+                          cantidadTexto: raw,
+                        });
+                      }}
                       className={`w-full outline-none text-center
                         ${readOnly ? 'bg-transparent text-slate-400 cursor-not-allowed' : ''}
                       `}
