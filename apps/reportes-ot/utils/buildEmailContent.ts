@@ -65,9 +65,9 @@ function buildResumenLines(params: EmailContentParams): string {
     const t = s?.trim();
     if (t && !equipoParts.includes(t)) equipoParts.push(t);
   };
-  pushUnique(moduloDescripcion);
   pushUnique(sistema);
   pushUnique(moduloModelo);
+  pushUnique(moduloDescripcion);
   if (equipoParts.length > 0) {
     lines.push(`<li>Equipo: ${escapeHtml(equipoParts.join(' — '))}</li>`);
   }
