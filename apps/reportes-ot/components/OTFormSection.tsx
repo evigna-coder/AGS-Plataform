@@ -163,12 +163,22 @@ function ContactosAdicionales({
 
   const addManual = useCallback(() => {
     const nombre = manualNombre.trim();
-    if (!nombre) return;
-    setManualExtras([...manualExtras, { nombre, email: manualEmail.trim() }]);
+    const email = manualEmail.trim();
+    if (!nombre && !email) return;
+    // Si no se completó el nombre, usar el email como display — para envíos
+    // ad-hoc donde sólo importa la dirección.
+    setManualExtras([...manualExtras, { nombre: nombre || email, email }]);
     setManualNombre('');
     setManualEmail('');
     setShowManualForm(false);
   }, [manualNombre, manualEmail, manualExtras, setManualExtras]);
+
+  const handleManualKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addManual();
+    }
+  }, [addManual]);
 
   const removeManual = useCallback((idx: number) => {
     setManualExtras(manualExtras.filter((_, i) => i !== idx));
@@ -224,14 +234,16 @@ function ContactosAdicionales({
         <div className="flex items-center gap-2 flex-wrap mt-1">
           <input type="text" value={manualNombre}
             onChange={(e) => setManualNombre(e.target.value)}
-            placeholder="Nombre"
+            onKeyDown={handleManualKeyDown}
+            placeholder="Nombre (opcional)"
             className="border rounded-lg px-2 py-1 text-xs bg-white border-slate-300" />
           <input type="email" value={manualEmail}
             onChange={(e) => setManualEmail(e.target.value)}
+            onKeyDown={handleManualKeyDown}
             placeholder="correo@ejemplo.com"
             className="border rounded-lg px-2 py-1 text-xs bg-white border-slate-300" />
           <button type="button" onClick={addManual}
-            disabled={!manualNombre.trim()}
+            disabled={!manualNombre.trim() && !manualEmail.trim()}
             className="text-[11px] px-2 py-1 rounded bg-teal-700 text-white hover:bg-teal-800 disabled:opacity-40">
             agregar
           </button>
