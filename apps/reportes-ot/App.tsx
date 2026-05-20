@@ -255,7 +255,7 @@ const App: React.FC = () => {
             generationStep={app.generationStep}
             assetProgress={app.assetPreloader.progress}
             assetReady={app.assetPreloader.isReady}
-            onConfirmClientAndFinalize={app.confirmClientAndFinalize}
+            onConfirmClientAndFinalize={app.confirmClientWithDeliveryChoice}
           />
         ),
       },
@@ -478,7 +478,7 @@ const App: React.FC = () => {
             generationStep={app.generationStep}
             assetProgress={app.assetPreloader.progress}
             assetReady={app.assetPreloader.isReady}
-            onConfirmClientAndFinalize={app.confirmClientAndFinalize}
+            onConfirmClientAndFinalize={app.confirmClientWithDeliveryChoice}
           />
 
           <ObservationsBillingSection

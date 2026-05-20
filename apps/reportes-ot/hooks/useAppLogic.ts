@@ -1075,6 +1075,28 @@ export function useAppLogic(
   // Confirmar firma del cliente, finalizar reporte y generar PDF (wrapper del hook)
   const confirmClientAndFinalize = confirmClientAndFinalizeFromHook;
 
+  /**
+   * Variante con elección de entrega: muestra un modal preguntando si el técnico
+   * quiere mandar el reporte por mail o solo descargarlo. Usada desde el botón
+   * "Confirmar firma del cliente" de SignaturesSection.
+   */
+  const confirmClientWithDeliveryChoice = async () => {
+    const wantsEmail = await modal.showConfirm({
+      title: 'Reporte listo',
+      message: 'El reporte fue firmado. ¿Querés enviarlo por mail al cliente o solo descargarlo?',
+      confirmText: 'Enviar por mail',
+      cancelText: 'Solo descargar',
+      confirmType: 'info',
+      onConfirm: () => {},
+      onCancel: () => {},
+    });
+    if (wantsEmail) {
+      await sendByEmailHook.sendByEmail();
+    } else {
+      await confirmClientAndFinalizeFromHook();
+    }
+  };
+
   const fullDireccion = [direccion, localidad, provincia].filter(Boolean).join(', ');
 
 
@@ -1150,7 +1172,7 @@ export function useAppLogic(
     pendingOt: otManagement.modals.pendingOt,
     setPendingOt: otManagement.modals.setPendingOt,
     // PDF
-    generatePDFBlob, handleFinalSubmit, confirmClientAndFinalize,
+    generatePDFBlob, handleFinalSubmit, confirmClientAndFinalize, confirmClientWithDeliveryChoice,
     isGenerating, generationStep, isPreviewMode, generatedPdfBlob, setIsPreviewMode, setGeneratedPdfBlob,
     assetPreloader,
     // Envío por mail
