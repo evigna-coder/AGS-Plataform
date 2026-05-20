@@ -31,7 +31,7 @@ export interface EmailContentParams {
 
 export function buildSubject(params: EmailContentParams): string {
   const { otNumber, razonSocial, sistema } = params;
-  const parts = [`Reporte de OT #${otNumber}`];
+  const parts = [`Reporte de servicio #${otNumber}`];
   if (razonSocial) parts.push(razonSocial);
   if (sistema) parts.push(sistema);
   return parts.join(' — ');
@@ -84,7 +84,7 @@ function buildIntro(params: EmailContentParams, variant: EmailVariant): string {
 function buildAttachmentList(params: EmailContentParams, variant: EmailVariant): string {
   if (variant === 'reporte-solo') return '';
   const items: string[] = [
-    '<li>Reporte de OT</li>',
+    '<li>Reporte de servicio</li>',
     '<li>Protocolo del trabajo realizado</li>',
   ];
   if (params.incluyeInstrumentos) {
@@ -129,7 +129,7 @@ ${attachmentList}
 
     <p style="margin: 16px 0 4px 0;">Saludos cordiales,</p>
     <p style="margin: 0; font-weight: bold;">${tecnico}</p>
-    <p style="margin: 0; color: #4b5563; font-size: 13px;">AGS Analítica</p>
+    <p style="margin: 0; color: #4b5563; font-size: 13px;">AGS Analítica S.A.</p>
   </div>
 </body>
 </html>`;
