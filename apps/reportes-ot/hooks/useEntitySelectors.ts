@@ -23,7 +23,17 @@ interface FormSetters {
 
 type ManualFields = 'cliente' | 'sistema';
 
-export function useEntitySelectors(firebase: FirebaseService, setters: FormSetters) {
+export function useEntitySelectors(
+  firebase: FirebaseService,
+  setters: FormSetters,
+  /**
+   * Marca al usuario como "interactuó". Necesario porque los SmartSelect llaman
+   * a estos select* con un string (no eventos DOM), y el autosave depende del
+   * `hasUserInteracted` global. Sin esto, una selección de contacto/cliente/equipo
+   * que no se siga de tipear en otro input se pierde silenciosamente.
+   */
+  markUserInteracted?: () => void,
+) {
   // ── IDs de selección (transitorios, no se persisten) ──
   const [clienteId, setClienteId] = useState<string | null>(null);
   // Ref espejo del clienteId — los callbacks (selectEstablecimiento) leen acá
@@ -158,7 +168,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     } finally {
       setLoadingEstablecimientos(false);
     }
-  }, [clientes, firebase, setters]);
+    markUserInteracted?.();
+  }, [clientes, firebase, setters, markUserInteracted]);
 
   const selectEstablecimiento = useCallback(async (
     id: string,
@@ -227,7 +238,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
       }
     }
     // Si hay sectores, esperar selección de sector para filtrar
-  }, [establecimientos, firebase, setters]);
+    markUserInteracted?.();
+  }, [establecimientos, firebase, setters, markUserInteracted]);
 
   const selectSector = useCallback((sector: string) => {
     setSelectedSector(sector);
@@ -267,7 +279,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     if (filteredSistemas.length === 1) {
       selectSistema(filteredSistemas[0].id, filteredSistemas);
     }
-  }, [allContactos, allSistemas, setters]);
+    markUserInteracted?.();
+  }, [allContactos, allSistemas, setters, markUserInteracted]);
 
   const selectContacto = useCallback((id: string) => {
     const c = contactos.find(ct => ct.id === id);
@@ -275,7 +288,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setContactoId(id);
     setters.setContacto(c.nombre);
     setters.setEmailPrincipal(c.email || '');
-  }, [contactos, setters]);
+    markUserInteracted?.();
+  }, [contactos, setters, markUserInteracted]);
 
   const selectSistema = useCallback(async (
     id: string,
@@ -306,7 +320,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     } finally {
       setLoadingModulos(false);
     }
-  }, [sistemas, firebase, setters]);
+    markUserInteracted?.();
+  }, [sistemas, firebase, setters, markUserInteracted]);
 
   const selectModulo = useCallback((id: string, modsOverride?: ModuloOption[]) => {
     const list = modsOverride || modulos;
@@ -317,7 +332,8 @@ export function useEntitySelectors(firebase: FirebaseService, setters: FormSette
     setters.setModuloMarca(mod.marca || '');
     setters.setModuloDescripcion(mod.descripcion || '');
     setters.setModuloSerie(mod.serie || '');
-  }, [modulos, setters]);
+    markUserInteracted?.();
+  }, [modulos, setters, markUserInteracted]);
 
   // ── Toggle modo manual ──
   const toggleManualMode = useCallback((field: ManualFields) => {

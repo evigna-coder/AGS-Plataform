@@ -54,6 +54,7 @@ function TimeSelect15({ value, onChange, disabled, label }: {
 function ContactoPrincipal({
   contacto, setContacto, emailPrincipal, setEmailPrincipal, entitySelectors, readOnly,
   destinatariosExtras, setDestinatariosExtras, destinatariosManuales, setDestinatariosManuales,
+  markUserInteracted,
 }: {
   contacto: string;
   setContacto: (v: string) => void;
@@ -65,6 +66,7 @@ function ContactoPrincipal({
   setDestinatariosExtras: (v: string[]) => void;
   destinatariosManuales: { nombre: string; email: string }[];
   setDestinatariosManuales: (v: { nombre: string; email: string }[]) => void;
+  markUserInteracted: () => void;
 }) {
   const [manualMode, setManualMode] = useState(false);
 
@@ -127,6 +129,7 @@ function ContactoPrincipal({
         setExtras={setDestinatariosExtras}
         manualExtras={destinatariosManuales}
         setManualExtras={setDestinatariosManuales}
+        markUserInteracted={markUserInteracted}
       />
     </div>
   );
@@ -138,6 +141,7 @@ function ContactoPrincipal({
 function ContactosAdicionales({
   contactos, contactoPrincipalId, readOnly,
   extras, setExtras, manualExtras, setManualExtras,
+  markUserInteracted,
 }: {
   contactos: { id: string; nombre: string; email: string; esPrincipal: boolean }[];
   contactoPrincipalId: string | null;
@@ -146,6 +150,7 @@ function ContactosAdicionales({
   setExtras: (v: string[]) => void;
   manualExtras: { nombre: string; email: string }[];
   setManualExtras: (v: { nombre: string; email: string }[]) => void;
+  markUserInteracted: () => void;
 }) {
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualNombre, setManualNombre] = useState('');
@@ -154,12 +159,16 @@ function ContactosAdicionales({
   const available = contactos.filter(c => c.id !== contactoPrincipalId && !extras.includes(c.id));
 
   const addContacto = useCallback((id: string) => {
-    if (id) setExtras([...extras, id]);
-  }, [extras, setExtras]);
+    if (id) {
+      setExtras([...extras, id]);
+      markUserInteracted();
+    }
+  }, [extras, setExtras, markUserInteracted]);
 
   const removeContacto = useCallback((id: string) => {
     setExtras(extras.filter(x => x !== id));
-  }, [extras, setExtras]);
+    markUserInteracted();
+  }, [extras, setExtras, markUserInteracted]);
 
   const addManual = useCallback(() => {
     const nombre = manualNombre.trim();
@@ -171,7 +180,8 @@ function ContactosAdicionales({
     setManualNombre('');
     setManualEmail('');
     setShowManualForm(false);
-  }, [manualNombre, manualEmail, manualExtras, setManualExtras]);
+    markUserInteracted();
+  }, [manualNombre, manualEmail, manualExtras, setManualExtras, markUserInteracted]);
 
   const handleManualKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -182,7 +192,8 @@ function ContactosAdicionales({
 
   const removeManual = useCallback((idx: number) => {
     setManualExtras(manualExtras.filter((_, i) => i !== idx));
-  }, [manualExtras, setManualExtras]);
+    markUserInteracted();
+  }, [manualExtras, setManualExtras, markUserInteracted]);
 
   const selectedExtras = contactos.filter(c => extras.includes(c.id));
 
@@ -485,6 +496,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
                 setDestinatariosExtras={setDestinatariosExtras}
                 destinatariosManuales={destinatariosManuales}
                 setDestinatariosManuales={setDestinatariosManuales}
+                markUserInteracted={markUserInteracted}
               />
             )}
           </>

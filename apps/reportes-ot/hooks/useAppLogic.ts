@@ -495,7 +495,7 @@ export function useAppLogic(
 
   const gemini = useMemo(() => new GeminiService(), []);
   const firebase = useMemo(() => new FirebaseService(), []);
-  const entitySelectors = useEntitySelectors(firebase, setters);
+  const entitySelectors = useEntitySelectors(firebase, setters, markUserInteracted);
 
   // Hook de modales para reemplazar alert() y confirm()
   const modal = useModal();
