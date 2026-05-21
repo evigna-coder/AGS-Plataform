@@ -333,12 +333,14 @@ export type InletType =
   | 'SSL'   // Split/Splitless
   | 'COC'   // Cool on Column
   | 'PTV'   // Programmed Temperature Vaporization
-  | 'PP';   // Purged Packed
+  | 'PP'    // Purged Packed
+  | 'UNIS';
 
 /** Tipos de detector para GC */
 export type DetectorType =
   | 'FID'   // Flame Ionization Detector
-  | 'NCD'   // Nitrogen/Phosphorus Detector
+  | 'NCD'   // Nitrogen Chemiluminescence Detector
+  | 'NPD'   // Nitrogen Phosphorus Detector
   | 'FPD'   // Flame Photometric Detector
   | 'ECD'   // Electron Capture Detector
   | 'uECD'  // Micro Electron Capture Detector
@@ -373,12 +375,14 @@ export const INLET_LABELS: Record<InletType, string> = {
   COC: 'COC (Cool on Column)',
   PTV: 'PTV (Programmed Temperature Vaporization)',
   PP: 'PP (Purged Packed)',
+  UNIS: 'UNIS',
 };
 
 /** Etiquetas legibles para DetectorType */
 export const DETECTOR_LABELS: Record<DetectorType, string> = {
   FID: 'FID (Flame Ionization Detector)',
-  NCD: 'NCD (Nitrogen/Phosphorus Detector)',
+  NCD: 'NCD (Nitrogen Chemiluminescence Detector)',
+  NPD: 'NPD (Nitrogen Phosphorus Detector)',
   FPD: 'FPD (Flame Photometric Detector)',
   ECD: 'ECD (Electron Capture Detector)',
   uECD: 'uECD (Micro Electron Capture Detector)',

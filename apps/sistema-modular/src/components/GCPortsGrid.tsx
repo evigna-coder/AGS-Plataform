@@ -12,12 +12,14 @@ const INLET_OPTIONS: Array<{ value: InletType; label: string }> = [
   { value: 'COC', label: 'COC' },
   { value: 'PTV', label: 'PTV' },
   { value: 'PP', label: 'PP' },
+  { value: 'UNIS', label: 'UNIS' },
 ];
 
 const DETECTOR_OPTIONS: Array<{ value: DetectorType; label: string }> = [
   { value: 'FID', label: 'FID' },
   { value: 'TCD', label: 'TCD' },
   { value: 'NCD', label: 'NCD' },
+  { value: 'NPD', label: 'NPD' },
   { value: 'FPD', label: 'FPD' },
   { value: 'ECD', label: 'ECD' },
   { value: 'uECD', label: 'uECD' },
