@@ -577,10 +577,18 @@ export class FirebaseService {
     try {
       const q = query(collection(db, 'instrumentos'), where('activo', '==', true));
       const snap = await getDocs(q);
-      return snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return snap.docs
+        .map(d => ({ id: d.id, data: d.data() }))
+        // Excluir instrumentos en calibración, sin certificado, o con cert vencido.
+        .filter(({ data }) => {
+          if (data.estadoCalibracion === 'en_calibracion') return false;
+          if (!data.certificadoVencimiento) return false;
+          const v = new Date(data.certificadoVencimiento); v.setHours(0, 0, 0, 0);
+          return v >= today;
+        })
+        .map(({ id, data }) => ({
+          id,
           nombre: data.nombre,
           tipo: data.tipo,
           marca: data.marca,
@@ -592,8 +600,8 @@ export class FirebaseService {
           certificadoVencimiento: data.certificadoVencimiento ?? null,
           certificadoUrl: data.certificadoUrl ?? null,
           trazabilidadUrl: data.trazabilidadUrl ?? null,
-        } as InstrumentoPatronOption;
-      }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        } as InstrumentoPatronOption))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando instrumentos:', e); return []; }
   }
 
@@ -615,20 +623,31 @@ export class FirebaseService {
     try {
       const q = query(collection(db, 'patrones'), where('activo', '==', true));
       const snap = await getDocs(q);
-      return snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          codigoArticulo: data.codigoArticulo ?? '',
-          descripcion: data.descripcion ?? '',
-          marca: data.marca ?? '',
-          categorias: data.categorias ?? [],
-          lotes: data.lotes ?? [],
-          activo: data.activo !== false,
-          createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? new Date().toISOString(),
-          updatedAt: data.updatedAt?.toDate?.().toISOString() ?? data.updatedAt ?? new Date().toISOString(),
-        } as Patron;
-      }).sort((a, b) => a.codigoArticulo.localeCompare(b.codigoArticulo));
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return snap.docs
+        .map(d => {
+          const data = d.data();
+          // Filtrar lotes sin código, sin fecha o con fecha vencida.
+          const lotes = (data.lotes ?? []).filter((l: any) => {
+            if (!l?.lote || !l?.fechaVencimiento) return false;
+            const v = new Date(l.fechaVencimiento); v.setHours(0, 0, 0, 0);
+            return v >= today;
+          });
+          return {
+            id: d.id,
+            codigoArticulo: data.codigoArticulo ?? '',
+            descripcion: data.descripcion ?? '',
+            marca: data.marca ?? '',
+            categorias: data.categorias ?? [],
+            lotes,
+            activo: data.activo !== false,
+            createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? new Date().toISOString(),
+            updatedAt: data.updatedAt?.toDate?.().toISOString() ?? data.updatedAt ?? new Date().toISOString(),
+          } as Patron;
+        })
+        // Si el patrón quedó sin lotes vigentes, no se muestra.
+        .filter(p => p.lotes.length > 0)
+        .sort((a, b) => a.codigoArticulo.localeCompare(b.codigoArticulo));
     } catch (e) { console.error('Error cargando patrones:', e); return []; }
   }
 
