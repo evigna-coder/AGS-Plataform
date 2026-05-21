@@ -344,7 +344,15 @@ export function useEntitySelectors(
   // Reconstruye la cadena de selección sin limpiar los campos del formulario
   const tryMatchExistingData = useCallback(async (
     razonSocial: string,
-    formData?: { direccion?: string; sistema?: string; codigoInternoCliente?: string; moduloModelo?: string; moduloSerie?: string },
+    formData?: {
+      direccion?: string;
+      sistema?: string;
+      codigoInternoCliente?: string;
+      moduloModelo?: string;
+      moduloSerie?: string;
+      moduloDescripcion?: string;
+      moduloMarca?: string;
+    },
   ) => {
     if (!razonSocial.trim()) return;
 
@@ -445,8 +453,18 @@ export function useEntitySelectors(
       mods.find(m => m.nombre?.toLowerCase().trim() === nombreTarget);
     if (modMatch) {
       setModuloId(modMatch.id);
+      // Backfill: si el snapshot del reporte tiene los campos descriptivos vacíos
+      // (típicamente porque la OT se finalizó antes de que cargaran esos datos
+      // en sistema-modular), los rellenamos desde el módulo live. Solo si están
+      // vacíos en el reporte — no pisamos texto que el técnico haya cargado a mano.
+      if (!formData.moduloDescripcion?.trim() && modMatch.descripcion) {
+        setters.setModuloDescripcion(modMatch.descripcion);
+      }
+      if (!formData.moduloMarca?.trim() && modMatch.marca) {
+        setters.setModuloMarca(modMatch.marca);
+      }
     }
-  }, [clientes, firebase]);
+  }, [clientes, firebase, setters]);
 
   // ── Reset completo (para nuevo reporte) ──
   const reset = useCallback(() => {

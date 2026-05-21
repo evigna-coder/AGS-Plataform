@@ -568,6 +568,8 @@ export function useAppLogic(
             codigoInternoCliente: loaded.codigoInternoCliente,
             moduloModelo: loaded.moduloModelo,
             moduloSerie: loaded.moduloSerie,
+            moduloDescripcion: loaded.moduloDescripcion,
+            moduloMarca: loaded.moduloMarca,
           }).catch(() => {});
         }
       }).catch(err => {
@@ -797,6 +799,8 @@ export function useAppLogic(
           codigoInternoCliente: loaded.codigoInternoCliente,
           moduloModelo: loaded.moduloModelo,
           moduloSerie: loaded.moduloSerie,
+          moduloDescripcion: loaded.moduloDescripcion,
+          moduloMarca: loaded.moduloMarca,
         }).catch(() => {});
       }
     } catch (error: any) {

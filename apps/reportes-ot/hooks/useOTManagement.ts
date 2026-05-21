@@ -338,6 +338,8 @@ export const useOTManagement = (
           codigoInternoCliente: data.codigoInternoCliente || '',
           moduloModelo: data.moduloModelo || '',
           moduloSerie: data.moduloSerie || '',
+          moduloDescripcion: data.moduloDescripcion || '',
+          moduloMarca: data.moduloMarca || '',
         };
       } else {
         // 🟡 NO EXISTE → mostrar modal de confirmación
