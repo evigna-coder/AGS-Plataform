@@ -1866,6 +1866,12 @@ export interface TableCatalogEntry {
   /** Si `true`, el ingeniero puede agregar filas vacías extra durante la ejecución del protocolo. */
   allowExtraRows?: boolean;
   /**
+   * Si `true`, el ingeniero puede eliminar cualquier fila (incluidas las del template)
+   * durante la ejecución del protocolo. Aplica solo a `tableType: 'informational' | 'validation'`.
+   * No modifica el template en la biblioteca — el borrado vive en esta selección.
+   */
+  allowRowDeletion?: boolean;
+  /**
    * Tipos de servicio con los que se asocia esta tabla (ej. "Calificación de operación").
    * Si está vacío o ausente, la tabla no se filtra por servicio y aparece siempre.
    */

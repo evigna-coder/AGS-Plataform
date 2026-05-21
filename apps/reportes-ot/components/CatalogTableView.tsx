@@ -2254,6 +2254,7 @@ export const CatalogTableView: React.FC<Props> = ({
               const isDup = row.rowId.startsWith('dup_');
               const canDuplicate = !!row.duplicableEnProtocolo && !!onDuplicateRow && !readOnly && !isPrint;
               const canRemoveDup = isDup && !!onRemoveRow && !readOnly && !isPrint;
+              const canRemoveTemplate = !!table.allowRowDeletion && !isExtra && !isDup && !!onRemoveRow && !readOnly && !isPrint;
               const groupStart = isGroupStart(idx);
               const boundaryAbove = hasMergeBoundaryAbove(idx);
               return (
@@ -2265,7 +2266,7 @@ export const CatalogTableView: React.FC<Props> = ({
                   }
                 >
                   {(() => {
-                    const hasActions = canDuplicate || canRemoveDup || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
+                    const hasActions = canDuplicate || canRemoveDup || canRemoveTemplate || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
                     // Última celda renderizada (última columna no cubierta por un span).
                     let lastRenderedIdx = -1;
                     for (let i = visibleColumns.length - 1; i >= 0; i--) {
@@ -2309,7 +2310,7 @@ export const CatalogTableView: React.FC<Props> = ({
                                   </svg>
                                 </button>
                               )}
-                              {(canRemoveDup || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
+                              {(canRemoveDup || canRemoveTemplate || (isExtra && !readOnly && !isPrint && onRemoveRow)) && (
                                 <button
                                   onClick={() => onRemoveRow!(selection.tableId, row.rowId)}
                                   className="text-slate-300 hover:text-red-500 transition-colors"

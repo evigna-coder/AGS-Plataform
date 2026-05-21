@@ -300,6 +300,16 @@ export const TableCatalogEditorPage = () => {
                   Permitir agregar filas extra en protocolo
                 </label>
               )}
+              {['informational', 'validation'].includes(entry.tableType) && (
+                <label
+                  className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer"
+                  title="Permite al ingeniero quitar filas (incluidas las del template) durante la ejecución. El template en la biblioteca no se modifica."
+                >
+                  <input type="checkbox" checked={entry.allowRowDeletion ?? false}
+                    onChange={e => setMeta('allowRowDeletion', e.target.checked)} />
+                  Permitir eliminar filas en protocolo
+                </label>
+              )}
               {!['checklist', 'text', 'signatures', 'cover'].includes(entry.tableType) && (
                 <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer" title="Renderiza la tabla con el mismo estilo compacto que las tablas de Instrumentos y Patrones (texto más pequeño, celdas compactas, inputs inline).">
                   <input type="checkbox" checked={entry.compactDisplay ?? false}
