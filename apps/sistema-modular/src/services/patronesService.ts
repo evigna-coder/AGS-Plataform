@@ -3,6 +3,7 @@ import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'fi
 import type { Patron, CategoriaPatron } from '@ags/shared';
 import type { MockPatronBomState } from '../__tests__/fixtures/patronBom';
 import { buildConsumirComponentes } from './patronesConsumirHelpers';
+import { buildUpdatePatron } from './patronesUpdateHelpers';
 
 // Phase 14 BOM-03 — ./firebase es lazy-import (mirror Phase 13 equivalenciasService pattern)
 // para que el test runner tsx/Node pueda cargar este módulo sin disparar `import.meta.env`
@@ -44,6 +45,13 @@ let _testState: MockPatronBomState | null = null;
 export function __setTestFirestore(state: MockPatronBomState | null): void {
   _testState = state;
 }
+
+// Phase 14 BOM-04 — bound update with rename guard + DI test path.
+// Helper accepts a superset of getFirebaseModules() so we can pass it directly.
+const _updatePatron = buildUpdatePatron({
+  getTestState: () => _testState,
+  getFirebaseModules,
+});
 
 // --- Patrones (colección /patrones) ---
 // Cada patrón es un estándar/material de referencia con múltiples lotes.
@@ -104,17 +112,9 @@ export const patronesService = {
     return id;
   },
 
+  // Phase 14 BOM-04 — delegates to _updatePatron (guard + DI test path).
   async update(id: string, data: Partial<Omit<Patron, 'id' | 'createdAt'>>): Promise<void> {
-    const { createBatch, docRef, batchAudit, deepCleanForFirestore, getUpdateTrace } = await getFirebaseModules();
-    const payload = deepCleanForFirestore({
-      ...data,
-      ...getUpdateTrace(),
-      updatedAt: Timestamp.now(),
-    });
-    const batch = createBatch();
-    batch.update(docRef('patrones', id), payload);
-    batchAudit(batch, { action: 'update', collection: 'patrones', documentId: id, after: payload });
-    await batch.commit();
+    return _updatePatron(id, data);
   },
 
   async deactivate(id: string): Promise<void> {
