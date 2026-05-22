@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { CierreAdministrativo, Part } from '@ags/shared';
+import type { CierreAdministrativo, Part, PatronSeleccionado } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CierreStockSelector } from './CierreStockSelector';
 import { CierrePDFPreview } from './CierrePDFPreview';
 import { CierreFacturacionWizard } from './CierreFacturacionWizard';
+import { CierrePatronesConsumidosSection } from './CierrePatronesConsumidosSection';
 
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
@@ -28,6 +29,8 @@ interface Props {
   budgets?: string[];
   clienteId?: string;
   clienteNombre?: string;
+  patronesSeleccionados?: PatronSeleccionado[];
+  onPatronesConsumidosConfirmados?: () => void;
 }
 
 export const OTCierreAdminSection: React.FC<Props> = ({
@@ -35,6 +38,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
   horasTrabajadas, tiempoViaje, articulos, readOnly, estadoAdmin,
   razonSocial, tipoServicio, ingenieroNombre,
   otNumber, budgets, clienteId, clienteNombre,
+  patronesSeleccionados, onPatronesConsumidosConfirmados,
 }) => {
   const isClosed = estadoAdmin === 'FINALIZADO';
   const disabled = readOnly || isClosed;
@@ -153,6 +157,16 @@ export const OTCierreAdminSection: React.FC<Props> = ({
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
           />
         </div>
+
+        {/* Patrones consumidos (BOM-05) — sub-component cargado siempre que haya otNumber.
+           Internamente decide loading/read-only/editable y skip cuando no hay BOM. */}
+        {otNumber && (
+          <CierrePatronesConsumidosSection
+            otNumber={otNumber}
+            patronesSeleccionados={patronesSeleccionados ?? []}
+            onConfirmed={onPatronesConsumidosConfirmados}
+          />
+        )}
 
         {/* Stock origin selector */}
         {articulos.length > 0 && (

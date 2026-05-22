@@ -7,6 +7,7 @@ import { ingenierosService } from '../services/personalService';
 import type {
   WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema,
   Ingeniero, OTEstadoAdmin, CierreAdministrativo, Part, OTEstadoHistorial,
+  PatronSeleccionado,
 } from '@ags/shared';
 
 export interface EditOTFormState {
@@ -31,6 +32,13 @@ export interface EditOTFormState {
   tiempoViaje: string;
   status: 'BORRADOR' | 'FINALIZADO';
   estadoHistorial: OTEstadoHistorial[];
+  /**
+   * Phase 14 BOM-05 — patronesSeleccionados leídos del reporte técnico via
+   * ordenesTrabajoService.getPatronesSeleccionados. Solo se usan en read-mode
+   * por CierrePatronesConsumidosSection — nunca se persisten desde acá
+   * (el reporte técnico queda intocable).
+   */
+  patronesSeleccionados: PatronSeleccionado[];
 }
 
 const INITIAL_CIERRE: CierreAdministrativo = {
@@ -51,6 +59,7 @@ const INITIAL_FORM: EditOTFormState = {
   tiempoViaje: '',
   status: 'BORRADOR',
   estadoHistorial: [],
+  patronesSeleccionados: [],
 };
 
 export function useEditOTForm(open: boolean, otNumber: string, onClose: () => void, onSaved: () => void) {
@@ -79,7 +88,10 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       sistemasService.getAll(),
       tiposServicioService.getAll(),
       ingenierosService.getAll(true),
-    ]).then(async ([ot, c, s, ts, ings]) => {
+      // Phase 14 BOM-05 — best-effort read; empty array si no hay reporte/campo
+      // (deja CierrePatronesConsumidosSection en estado "sin BOM en esta OT")
+      ordenesTrabajoService.getPatronesSeleccionados(otNumber).catch(() => [] as PatronSeleccionado[]),
+    ]).then(async ([ot, c, s, ts, ings, patronesSel]) => {
       if (!ot) { alert('OT no encontrada'); onClose(); return; }
       setOtOriginal(ot);
       setClientes(c);
@@ -125,6 +137,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         tiempoViaje: ot.tiempoViaje || '',
         status: (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'BORRADOR'),
         estadoHistorial: ot.estadoHistorial || [],
+        patronesSeleccionados: patronesSel ?? [],
       });
       setLoading(false);
     }).catch(() => { alert('Error al cargar la OT'); onClose(); });

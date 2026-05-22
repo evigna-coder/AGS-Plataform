@@ -80,6 +80,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
               budgets={h.otOriginal?.budgets}
               clienteId={h.form.clienteId}
               clienteNombre={h.otOriginal?.razonSocial}
+              patronesSeleccionados={h.form.patronesSeleccionados}
             />
           )}
           {/* Historial de estados */}
