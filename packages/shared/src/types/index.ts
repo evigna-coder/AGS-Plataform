@@ -1026,6 +1026,8 @@ export interface AdminConfigFlujos {
   updatedAt: string;
   updatedBy?: string | null;
   updatedByName?: string | null;
+  /** Phase 14 BOM-08 — usuario asignado a Requerimientos auto-generados de patrón (componente bajo stockMinimo). */
+  usuarioRequerimientosPatronId?: string | null;
 }
 
 // --- Orden de Compra (OC) ---
@@ -2270,6 +2272,24 @@ export interface PatronLote {
   certificadoFechaEmision?: string | null;
   /** Notas u observaciones del lote */
   notas?: string | null;
+  /** Phase 14 BOM-01 — acumulado de consumo por componente. Si el patrón no tiene BOM (componentes=[]), este array queda vacío/omitido. */
+  componentesConsumidos?: PatronComponenteConsumido[];
+}
+
+/** Phase 14 BOM-01 — un componente declarativo del BOM de un patrón.
+ *  `codigoComponente` es texto libre interno del patrón (NO FK a Articulo). */
+export interface ComponentePatron {
+  codigoComponente: string;
+  descripcion: string;
+  cantidadPorKit: number;
+  unidadMedida: string;
+  stockMinimo?: number | null;
+}
+
+/** Phase 14 BOM-01 — acumulado de consumo histórico por componente, vivo dentro de un PatronLote. */
+export interface PatronComponenteConsumido {
+  codigoComponente: string;
+  cantidadConsumida: number;
 }
 
 /**
@@ -2297,6 +2317,8 @@ export interface Patron {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+  /** Phase 14 BOM-01 — BOM declarativo del patrón. Vacío/omitido = legacy sin desagregación. */
+  componentes?: ComponentePatron[];
 }
 
 // =============================================
@@ -2793,6 +2815,14 @@ export interface MovimientoStock {
   cantidadDestino?: number | null;
   /** Phase 13 — factor de conversión registrado al momento de la operación (estabiliza histórico). */
   factorConversion?: number | null;
+  /** Phase 14 BOM-01 — tipo de entidad del movimiento. Default 'articulo' si ausente (backwards-compat). */
+  entidadTipo?: 'articulo' | 'patron';
+  /** Phase 14 BOM-01 — id del patrón cuando entidadTipo='patron'. Null para entidadTipo='articulo'. */
+  patronId?: string | null;
+  /** Phase 14 BOM-01 — código del lote (string natural, NO id; ver RESEARCH pitfall 3). */
+  lote?: string | null;
+  /** Phase 14 BOM-01 — código del componente consumido (match exacto con Patron.componentes[].codigoComponente). */
+  codigoComponente?: string | null;
 }
 
 // --- Remitos (despachos digitales) ---
@@ -3232,7 +3262,7 @@ export interface PosicionArancelaria {
 // =============================================
 
 export type EstadoRequerimiento = 'pendiente' | 'aprobado' | 'en_compra' | 'comprado' | 'cancelado';
-export type OrigenRequerimiento = 'manual' | 'presupuesto' | 'stock_minimo' | 'ingeniero';
+export type OrigenRequerimiento = 'manual' | 'presupuesto' | 'stock_minimo' | 'ingeniero' | 'patron_minimo';
 
 export const ESTADO_REQUERIMIENTO_LABELS: Record<EstadoRequerimiento, string> = {
   pendiente: 'Pendiente',
@@ -3255,6 +3285,7 @@ export const ORIGEN_REQUERIMIENTO_LABELS: Record<OrigenRequerimiento, string> = 
   presupuesto: 'Presupuesto',
   stock_minimo: 'Stock mínimo',
   ingeniero: 'Ingeniero',
+  patron_minimo: 'Patrón (mínimo)',
 };
 
 export interface RequerimientoCompra {
@@ -3294,6 +3325,12 @@ export interface RequerimientoCompra {
   createdByName?: string | null;
   updatedBy?: string | null;
   updatedByName?: string | null;
+  /** Phase 14 BOM-08 — sólo cuando origen='patron_minimo'. */
+  patronId?: string | null;
+  /** Phase 14 BOM-08 — código de lote (string natural, NO id). */
+  loteId?: string | null;
+  /** Phase 14 BOM-08 — código del componente que cayó bajo stockMinimo. */
+  codigoComponente?: string | null;
 }
 
 export type UrgenciaRequerimiento = 'baja' | 'media' | 'alta' | 'critica';
