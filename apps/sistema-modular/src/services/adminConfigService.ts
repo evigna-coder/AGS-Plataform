@@ -14,9 +14,18 @@ const DOC_ID = 'flujos';
  * Defaults aplicados por `getWithDefaults()` cuando el doc aún no existe.
  * `mailFacturacion` es required en el tipo; este default asegura que los callers
  * nunca reciban undefined.
+ *
+ * Phase 14 BOM-08 — `usuarioRequerimientosPatronId` default `null`: indica
+ * "sin responsable configurado" → `autoCrearRequerimientosPatron` se saltea
+ * silenciosamente (best-effort). El admin configura el responsable real desde
+ * `/admin/config-flujos` (UI landea en plan 14-06).
  */
-export const ADMIN_CONFIG_DEFAULTS: Pick<AdminConfigFlujos, 'mailFacturacion'> = {
+export const ADMIN_CONFIG_DEFAULTS: Pick<
+  AdminConfigFlujos,
+  'mailFacturacion' | 'usuarioRequerimientosPatronId'
+> = {
   mailFacturacion: 'mbarrios@agsanalitica.com',
+  usuarioRequerimientosPatronId: null,
 };
 
 function parseConfig(data: any): AdminConfigFlujos {
