@@ -39,6 +39,7 @@ import {
 import {
   __setTestFirestore,
   consumirComponentes,
+  patronesService,
 } from '../services/patronesService';
 
 import {
@@ -312,4 +313,110 @@ test('[BOM-08 auto-req idempotency] crossing stockMinimo twice (across two OTs) 
     creadoPor: 'u1',
   });
   assert.equal(state.requerimientos.size, 1, 'second OT does NOT create a duplicate REQ (auto-req idempotent)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// BOM-04 — service-layer rename guard (defense-in-depth contra UI bypass)
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Helper for BOM-04: patron con componentes BOM y lotes con consumos previos */
+function buildPatronConConsumos(): any {
+  return {
+    id: 'P-RENAME',
+    codigoArticulo: 'RENAME-001',
+    descripcion: 'Patron con consumos previos',
+    marca: 'Test',
+    categorias: [],
+    activo: true,
+    componentes: [
+      { codigoComponente: 'amp-A', descripcion: 'Ampolla A', cantidadPorKit: 1, unidadMedida: 'amp', stockMinimo: 0 },
+    ],
+    lotes: [
+      {
+        lote: 'L1',
+        cantidad: 5,
+        fechaVencimiento: '2027-01-01',
+        componentesConsumidos: [{ codigoComponente: 'amp-A', cantidadConsumida: 1 }],
+      },
+    ],
+  };
+}
+
+test('[BOM-04 service guard] rename of consumed componente throws orphan error', async () => {
+  const state = buildState();
+  state.patrones.set('P-RENAME', buildPatronConConsumos());
+  __setTestFirestore(state);
+
+  await assert.rejects(
+    () => patronesService.update('P-RENAME', {
+      componentes: [
+        { codigoComponente: 'amp-B', descripcion: 'B', cantidadPorKit: 1, unidadMedida: 'amp', stockMinimo: 0 },
+      ],
+    }),
+    /hu[eé]rfan.*amp-A/i,
+    'BOM-04: must reject rename when amp-A still has consumos in lotes',
+  );
+
+  __setTestFirestore(null);
+});
+
+test('[BOM-04 service guard] keeping all consumed codigos does NOT throw (rename + add new is fine)', async () => {
+  const state = buildState();
+  state.patrones.set('P-RENAME', buildPatronConConsumos());
+  __setTestFirestore(state);
+
+  // Keep amp-A (still has consumos) + add amp-B (new) — must succeed
+  await patronesService.update('P-RENAME', {
+    componentes: [
+      { codigoComponente: 'amp-A', descripcion: 'Ampolla A (renamed desc)', cantidadPorKit: 2, unidadMedida: 'amp', stockMinimo: 1 },
+      { codigoComponente: 'amp-B', descripcion: 'B', cantidadPorKit: 1, unidadMedida: 'amp', stockMinimo: 0 },
+    ],
+  });
+
+  const updated = state.patrones.get('P-RENAME');
+  assert.equal(updated.componentes.length, 2, 'both componentes persisted');
+  assert.equal(updated.componentes[0].codigoComponente, 'amp-A', 'amp-A retained');
+  assert.equal(updated.componentes[0].descripcion, 'Ampolla A (renamed desc)', 'desc/cantidad updates allowed');
+
+  __setTestFirestore(null);
+});
+
+test('[BOM-04 service guard] patches WITHOUT componentes key do NOT trigger guard', async () => {
+  const state = buildState();
+  state.patrones.set('P-RENAME', buildPatronConConsumos());
+  __setTestFirestore(state);
+
+  // Only update unrelated fields → guard must NOT inspect consumos, must NOT throw
+  await patronesService.update('P-RENAME', {
+    descripcion: 'Descripción actualizada',
+  });
+
+  const updated = state.patrones.get('P-RENAME');
+  assert.equal(updated.descripcion, 'Descripción actualizada', 'unrelated field updated');
+  assert.equal(updated.componentes.length, 1, 'componentes untouched');
+
+  __setTestFirestore(null);
+});
+
+test('[BOM-04 service guard] patron with no consumos allows free rename', async () => {
+  const state = buildState();
+  // Patron with componente BUT lotes have no componentesConsumidos
+  state.patrones.set('P-FREE', {
+    ...buildPatronConConsumos(),
+    id: 'P-FREE',
+    lotes: [{ lote: 'L1', cantidad: 5, fechaVencimiento: '2027-01-01', componentesConsumidos: [] }],
+  });
+  __setTestFirestore(state);
+
+  // Free to rename amp-A → amp-X because no consumos referencen amp-A
+  await patronesService.update('P-FREE', {
+    componentes: [
+      { codigoComponente: 'amp-X', descripcion: 'X', cantidadPorKit: 1, unidadMedida: 'amp', stockMinimo: 0 },
+    ],
+  });
+
+  const updated = state.patrones.get('P-FREE');
+  assert.equal(updated.componentes[0].codigoComponente, 'amp-X', 'rename allowed when no consumos');
+
+  __setTestFirestore(null);
 });
