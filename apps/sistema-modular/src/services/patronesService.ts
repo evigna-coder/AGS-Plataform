@@ -1,6 +1,8 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { Patron, CategoriaPatron } from '@ags/shared';
+import type { MockPatronBomState } from '../__tests__/fixtures/patronBom';
+import { buildConsumirComponentes } from './patronesConsumirHelpers';
 
 // Phase 14 BOM-03 — ./firebase es lazy-import (mirror Phase 13 equivalenciasService pattern)
 // para que el test runner tsx/Node pueda cargar este módulo sin disparar `import.meta.env`
@@ -32,6 +34,15 @@ async function getFirebaseModules() {
     };
   }
   return _fb;
+}
+
+// --- Test injection (Phase 14 BOM-03) — mirrors equivalenciasService.__setTestFirestore ---
+// Unit tests inject a MockPatronBomState so all reads/writes hit in-memory Maps instead
+// of Firestore. Production code never touches this. consumirComponentes dispatches to
+// _consumirComponentesInTest when testState is set, otherwise _consumirComponentesInProd.
+let _testState: MockPatronBomState | null = null;
+export function __setTestFirestore(state: MockPatronBomState | null): void {
+  _testState = state;
 }
 
 // --- Patrones (colección /patrones) ---
@@ -215,29 +226,22 @@ export const patronesService = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 14 BOM-03 — stubs (real implementation lands en plan 14-02).
-// Estos exports existen para desbloquear `pnpm test:patron-bom` (los tests de
-// BOM-02 helpers se cargan en el mismo archivo que los de BOM-03 — sin estos
-// stubs el módulo no carga y ningún test corre). Pattern: `cargarOC` stub de
-// Phase 8 plan 08-01 (THROW loud, no fake data).
+// Phase 14 BOM-03 — consumirComponentes: re-export bound to the local DI state.
+// Implementation lives in ./patronesConsumirHelpers.ts (factory pattern: the
+// helper module receives `_testState` getter + lazy firebase loader as deps,
+// avoiding a circular import while keeping the service file small).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Phase 14 BOM-03 — DI hook (TEST-ONLY). Real impl en 14-02. */
-export function __setTestFirestore(_state: unknown): void {
-  // No-op stub: 14-02 reemplaza con el setter real del mock state.
-}
+export type { ConsumirComponentesParams, ConsumirComponentesResult } from './patronesConsumirHelpers';
 
-/** Phase 14 BOM-03 — descuento atómico de componentes (NO-OP STUB). Real impl en 14-02. */
-export async function consumirComponentes(
-  _input: {
-    otNumber: string;
-    consumos: Array<{
-      patronId: string;
-      lote: string;
-      componentes: Array<{ codigoComponente: string; cantidad: number }>;
-    }>;
-    creadoPor: string;
+export const consumirComponentes = buildConsumirComponentes({
+  getTestState: () => _testState,
+  getFirebaseModules: async () => {
+    const fb = await getFirebaseModules();
+    return {
+      db: fb.db,
+      deepCleanForFirestore: fb.deepCleanForFirestore,
+      getUpdateTrace: fb.getUpdateTrace,
+    };
   },
-): Promise<{ movimientoIds: string[] }> {
-  throw new Error('NOT_IMPLEMENTED — patronesService.consumirComponentes lands en plan 14-02');
-}
+});
