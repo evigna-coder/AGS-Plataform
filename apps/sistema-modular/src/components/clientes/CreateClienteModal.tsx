@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { clientesService } from '../../services/firebaseService';
 import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
+import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
 import type { CondicionIva } from '@ags/shared';
 
 interface Props {
@@ -162,7 +163,21 @@ export const CreateClienteModal: React.FC<Props> = ({ open, onClose, onCreated }
           <h4 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Domicilio fiscal</h4>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-3">
-              <Input inputSize="sm" label="Dirección" value={form.direccionFiscal} onChange={e => set('direccionFiscal', e.target.value)} />
+              <AddressAutocomplete
+                label="Dirección"
+                value={form.direccionFiscal}
+                onChange={e => set('direccionFiscal', e.target.value)}
+                onSelectAddress={(res: AutocompleteResult) => {
+                  setForm(prev => ({
+                    ...prev,
+                    direccionFiscal: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                    localidadFiscal: res.localidad || prev.localidadFiscal,
+                    provinciaFiscal: res.provincia || prev.provinciaFiscal,
+                    codigoPostalFiscal: res.codigoPostal || prev.codigoPostalFiscal,
+                    pais: res.pais || prev.pais,
+                  }));
+                }}
+              />
             </div>
             <Input inputSize="sm" label="Localidad" value={form.localidadFiscal} onChange={e => set('localidadFiscal', e.target.value)} />
             <Input inputSize="sm" label="Provincia" value={form.provinciaFiscal} onChange={e => set('provinciaFiscal', e.target.value)} />

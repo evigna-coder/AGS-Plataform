@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { establecimientosService, clientesService, condicionesPagoService } from '../../services/firebaseService';
+import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
 import type { Cliente, CondicionPago } from '@ags/shared';
 
 interface Props {
@@ -26,6 +27,7 @@ const emptyForm = {
   clienteCuit: '', nombre: '', direccion: '', localidad: '', provincia: '',
   pais: 'Argentina', codigoPostal: '', tipo: '', condicionPagoId: '',
   tipoServicio: '', infoPagos: '', pagaEnTiempo: false, sueleDemorar: false,
+  lat: null as number | null, lng: null as number | null, placeId: '',
 };
 
 export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onCreated, preselectedClienteId }) => {
@@ -66,6 +68,8 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
         nombre: form.nombre.trim(), direccion: form.direccion.trim(),
         localidad: form.localidad.trim(), provincia: form.provincia.trim(),
         pais: form.pais.trim() || null, codigoPostal: form.codigoPostal.trim() || null,
+        lat: form.lat ?? null, lng: form.lng ?? null,
+        placeId: form.placeId.trim() || null,
         tipo: form.tipo || null, condicionPagoId: form.condicionPagoId || null,
         tipoServicio: form.tipoServicio || null, infoPagos: form.infoPagos.trim() || null,
         pagaEnTiempo: form.pagaEnTiempo, sueleDemorar: form.sueleDemorar,
@@ -115,8 +119,24 @@ export const CreateEstablecimientoModal: React.FC<Props> = ({ open, onClose, onC
           <h4 className="text-xs font-semibold text-slate-700 mb-3">Ubicacion</h4>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <Input inputSize="sm" label="Direccion *" value={form.direccion}
-                onChange={e => set('direccion', e.target.value)} />
+              <AddressAutocomplete
+                label="Direccion *"
+                value={form.direccion}
+                onChange={e => set('direccion', e.target.value)}
+                onSelectAddress={(res: AutocompleteResult) => {
+                  setForm(prev => ({
+                    ...prev,
+                    direccion: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                    localidad: res.localidad || prev.localidad,
+                    provincia: res.provincia || prev.provincia,
+                    pais: res.pais || prev.pais,
+                    codigoPostal: res.codigoPostal || prev.codigoPostal,
+                    lat: res.lat ?? null,
+                    lng: res.lng ?? null,
+                    placeId: res.placeId ?? '',
+                  }));
+                }}
+              />
             </div>
             <Input inputSize="sm" label="Localidad *" value={form.localidad}
               onChange={e => set('localidad', e.target.value)} />

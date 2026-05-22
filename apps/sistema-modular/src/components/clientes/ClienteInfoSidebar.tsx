@@ -3,6 +3,7 @@ import type { Cliente } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { validateCuitAfip, isValidCuitLocal, type CuitValidationResult } from '../../services/afipService';
+import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
 
 interface ClienteInfoSidebarProps {
   cliente: Cliente;
@@ -128,11 +129,20 @@ export const ClienteInfoSidebar = ({ cliente, editing, formData, setFormData }: 
         <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3">Domicilio fiscal</h3>
         {editing ? (
           <div className="space-y-3">
-            <Input
-              inputSize="sm"
+            <AddressAutocomplete
               label="Direccion"
               value={formData.direccionFiscal ?? ''}
               onChange={(e) => setFormData({ ...formData, direccionFiscal: e.target.value })}
+              onSelectAddress={(res: AutocompleteResult) => {
+                setFormData({
+                  ...formData,
+                  direccionFiscal: res.street ? (res.number ? `${res.street} ${res.number}` : res.street) : res.formattedAddress,
+                  localidadFiscal: res.localidad || formData.localidadFiscal,
+                  provinciaFiscal: res.provincia || formData.provinciaFiscal,
+                  codigoPostalFiscal: res.codigoPostal || formData.codigoPostalFiscal,
+                  pais: res.pais || formData.pais,
+                });
+              }}
             />
             <Input
               inputSize="sm"
