@@ -341,6 +341,7 @@ export function useEntitySelectors(
       moduloSerie?: string;
       moduloDescripcion?: string;
       moduloMarca?: string;
+      contacto?: string;
     },
   ) => {
     if (!razonSocial.trim()) return;
@@ -415,6 +416,21 @@ export function useEntitySelectors(
     }
     setContactos(conts);
     setSistemas(visibleSistemas);
+
+    // Intentar match del contacto guardado contra la lista del establecimiento.
+    // Sin esto, al recargar una OT el dropdown queda en placeholder aunque
+    // `contacto` esté persistido — el componente cree que no hay selección.
+    // Si no matchea (contacto tipeado a mano), contactoId queda null y la UI
+    // cae en modo manual implícito para mostrar el nombre cargado.
+    if (formData.contacto) {
+      const contactoTarget = formData.contacto.toLowerCase().trim();
+      const contactoMatch = conts.find(
+        c => c.nombre.toLowerCase().trim() === contactoTarget
+      );
+      if (contactoMatch) {
+        setContactoId(contactoMatch.id);
+      }
+    }
 
     // Intentar match del sistema
     if (!formData.sistema) return;

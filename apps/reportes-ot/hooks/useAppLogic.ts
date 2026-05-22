@@ -612,6 +612,7 @@ export function useAppLogic(
             moduloSerie: loaded.moduloSerie,
             moduloDescripcion: loaded.moduloDescripcion,
             moduloMarca: loaded.moduloMarca,
+            contacto: loaded.contacto,
           }).catch(() => {});
         }
       }).catch(err => {
@@ -870,6 +871,7 @@ export function useAppLogic(
           moduloSerie: loaded.moduloSerie,
           moduloDescripcion: loaded.moduloDescripcion,
           moduloMarca: loaded.moduloMarca,
+          contacto: loaded.contacto,
         }).catch(() => {});
       }
     } catch (error: any) {
@@ -1120,6 +1122,7 @@ export function useAppLogic(
           codigoInternoCliente,
           moduloModelo,
           moduloSerie,
+          contacto,
         }).catch(() => {});
       }
 

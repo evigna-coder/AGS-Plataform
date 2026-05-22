@@ -340,6 +340,7 @@ export const useOTManagement = (
           moduloSerie: data.moduloSerie || '',
           moduloDescripcion: data.moduloDescripcion || '',
           moduloMarca: data.moduloMarca || '',
+          contacto: data.contacto || '',
         };
       } else {
         // 🟡 NO EXISTE → mostrar modal de confirmación

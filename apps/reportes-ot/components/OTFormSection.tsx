@@ -70,14 +70,18 @@ function ContactoPrincipal({
 }) {
   const [manualMode, setManualMode] = useState(false);
 
+  // Modo manual efectivo: el toggle explícito, o el caso implícito en que
+  // hay un `contacto` cargado (de Firestore o tipeado a mano) pero ningún
+  // contactoId matcheado contra la lista de la DB. Sin esto, al reabrir una
+  // OT con contacto manual o desfasado se renderiza el dropdown vacío y el
+  // nombre persistido queda invisible.
+  const effectiveManualMode = manualMode || (!!contacto && !entitySelectors.contactoId);
+
   const toggleManual = useCallback(() => {
-    setManualMode(prev => {
-      const next = !prev;
-      setContacto('');
-      setEmailPrincipal('');
-      return next;
-    });
-  }, [setContacto, setEmailPrincipal]);
+    setManualMode(!effectiveManualMode);
+    setContacto('');
+    setEmailPrincipal('');
+  }, [effectiveManualMode, setContacto, setEmailPrincipal]);
 
   return (
     <div data-required-field="contacto">
@@ -86,12 +90,12 @@ function ContactoPrincipal({
         {!readOnly && (
           <button type="button" onClick={toggleManual}
             className="text-[10px] text-teal-700 hover:text-teal-900 underline">
-            {manualMode ? '↺ usar selector' : '+ ingresar manual'}
+            {effectiveManualMode ? '↺ usar selector' : '+ ingresar manual'}
           </button>
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {manualMode ? (
+        {effectiveManualMode ? (
           <input
             type="text"
             value={contacto}
