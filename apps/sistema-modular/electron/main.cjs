@@ -357,6 +357,25 @@ function registerIpcHandlers() {
     return { error: 'AutoUpdater no disponible' };
   });
 
+  // Window: blur+focus OS-level para destrabar el keyboard input router de
+  // Chromium tras un write a Firestore (long-polling deja al router stuck;
+  // el teclado no llega al elemento focuseado en el DOM). blurWebView NO
+  // alcanzó porque opera al nivel del renderer; el bug es a nivel del browser
+  // process. blur/focus de la BrowserWindow sí dispara WM_KILLFOCUS/WM_SETFOCUS
+  // que es lo que hace alt+tab — único costo: ~50ms de dimming del título.
+  // Guard de isFocused() evita robar foco si el user alt-tabbed a otra app.
+  // Ver memory/project_search_inputs_disabled_after_write.md
+  ipcMain.on('window:flash-focus', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed() || !win.isFocused()) return;
+    try {
+      win.blur();
+      setTimeout(() => { if (!win.isDestroyed()) win.focus(); }, 50);
+    } catch (err) {
+      console.warn('[flash-focus] falló:', err?.message);
+    }
+  });
+
   // Shell: abrir archivo con app por defecto del sistema
   ipcMain.handle('shell:open-path', async (_event, filePath) => {
     const { shell } = require('electron');

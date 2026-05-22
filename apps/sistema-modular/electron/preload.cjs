@@ -31,6 +31,11 @@ try {
     // Abrir un módulo de sistema-modular en nueva ventana Electron (con preload)
     openModuleWindow: (route) => {
       ipcRenderer.send('open-module-window', route);
+    },
+    // Flash de foco webview (blur+focus interno) — workaround para destrabar
+    // SearchableSelect tras write a Firestore. Ver memory.
+    flashFocus: () => {
+      ipcRenderer.send('window:flash-focus');
     }
   });
 
