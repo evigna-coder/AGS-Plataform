@@ -168,6 +168,9 @@ const App: React.FC = () => {
             handleRemoveSection={app.handleRemoveSection}
             handleAddRow={app.handleAddRow} handleRemoveRow={app.handleRemoveRow} handleDuplicateRow={app.handleDuplicateRow}
             handleHeaderDataChange={app.handleHeaderDataChange}
+            handleHeaderTableCellChange={app.handleHeaderTableCellChange}
+            handleAddHeaderTableRow={app.handleAddHeaderTableRow}
+            handleRemoveHeaderTableRow={app.handleRemoveHeaderTableRow}
             handleColumnVisibilityChange={app.handleColumnVisibilityChange}
             handleColumnHeaderDataChange={app.handleColumnHeaderDataChange}
             handleChecklistAnswer={app.handleChecklistAnswer}

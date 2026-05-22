@@ -5,6 +5,7 @@ import { RowFormPanel } from './RowFormPanel';
 import { TableEditorColumnForm } from './TableEditorColumnForm';
 import { TableEditorRuleForm } from './TableEditorRuleForm';
 import { TableEditorHeaderFieldForm } from './TableEditorHeaderFieldForm';
+import { HeaderTableEditor } from './HeaderTableEditor';
 import type { TableCatalogEntry, TableCatalogColumn, TableCatalogRow, TableCatalogRule } from '@ags/shared';
 
 type Tab = 'columns' | 'rows' | 'rules' | 'headers';
@@ -96,11 +97,13 @@ export const TableEditor = ({ table, onChange }: Props) => {
     ? ['columns', 'rows', 'rules', 'headers']
     : ['columns', 'rows', 'headers'];
 
+  const headerTableCols = table.headerTableColumns?.length ?? 0;
+  const headerTotal = headerFields.length + headerTableCols + (table.headerLabel ? 1 : 0);
   const tabLabel: Record<Tab, string> = {
     columns: `Columnas (${table.columns.length})`,
     rows: `Filas (${table.templateRows.length})`,
     rules: `Reglas (${table.validationRules.length})`,
-    headers: `Encabezados (${headerFields.length})`,
+    headers: `Encabezados (${headerTotal})`,
   };
 
   const saveColumn = (col: TableCatalogColumn) => {
@@ -602,17 +605,48 @@ export const TableEditor = ({ table, onChange }: Props) => {
 
       {/* Header fields */}
       {activeTab === 'headers' && (
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
+        <div className="space-y-3">
+          {/* Título del bloque de encabezado */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+              Título del encabezado
+            </label>
+            <input
+              type="text"
+              value={table.headerLabel ?? ''}
+              placeholder='ej. "Usuarios autorizados para este test:"'
+              onChange={e => upd('headerLabel', e.target.value || null)}
+              className="w-full border border-slate-300 rounded px-2 py-1 text-xs"
+            />
+            <p className="text-xs text-slate-400">
+              Renderiza arriba del bloque de encabezado (campos inline + mini-tabla). Dejá vacío para no mostrar título.
+            </p>
+          </div>
+
+          {/* Mini-tabla de encabezado */}
+          <HeaderTableEditor
+            columns={table.headerTableColumns ?? []}
+            rows={table.headerTableRows ?? []}
+            allowExtraRows={!!table.headerTableAllowExtraRows}
+            onChange={next => onChange({
+              ...table,
+              headerTableColumns: next.columns,
+              headerTableRows: next.rows,
+              headerTableAllowExtraRows: next.allowExtraRows,
+            })}
+          />
+
+          {/* Campos inline existentes */}
+          <div className="flex justify-between items-center pt-2 border-t border-slate-200">
             <span className="text-xs text-slate-500">
-              {headerFields.length} campo(s) de encabezado
+              Campos inline ({headerFields.length})
             </span>
             {!addingHeader && editingHeaderIdx === null && (
               <Button size="sm" onClick={() => setAddingHeader(true)}>+ Agregar campo</Button>
             )}
           </div>
           <p className="text-xs text-slate-400">
-            Selectores que aparecen arriba de la tabla (ej: "Inyector" con opciones ALS, SSL, PTV, COC).
+            Inputs sueltos arriba de la tabla (ej: "Inyector" con opciones ALS/SSL/PTV/COC, o "Usuario 1" texto libre).
           </p>
           {headerFields.map((hf, i) => (
             <div key={hf.fieldId}>

@@ -481,6 +481,12 @@ interface Props {
   onRemoveRow?: (tableId: string, rowId: string) => void;
   onDuplicateRow?: (tableId: string, originalRowId: string) => void;
   onChangeHeaderData?: (tableId: string, fieldId: string, value: string, instanceValue?: string) => void;
+  /** Cambio de una celda en la mini-tabla de encabezado (headerTableColumns/Rows) */
+  onChangeHeaderTableCell?: (tableId: string, rowId: string, colKey: string, value: string) => void;
+  /** Agrega una fila extra a la mini-tabla de encabezado (solo si headerTableAllowExtraRows). */
+  onAddHeaderTableRow?: (tableId: string) => void;
+  /** Elimina una fila extra de la mini-tabla de encabezado. */
+  onRemoveHeaderTableRow?: (tableId: string, rowId: string) => void;
   /** Toggle de visibilidad de columna en la instancia (sobrescribe hiddenByDefault del template) */
   onChangeColumnVisibility?: (tableId: string, colKey: string, visible: boolean) => void;
   /** Cambio del input editable en el encabezado de una columna (feature headerEditable) */
@@ -696,6 +702,9 @@ export const CatalogTableView: React.FC<Props> = ({
   onRemoveRow,
   onDuplicateRow,
   onChangeHeaderData,
+  onChangeHeaderTableCell,
+  onAddHeaderTableRow,
+  onRemoveHeaderTableRow,
   onChangeColumnVisibility,
   onChangeColumnHeader,
   variables,
@@ -1621,6 +1630,88 @@ export const CatalogTableView: React.FC<Props> = ({
           </label>
         </div>
       )}
+
+      {/* Título descriptivo del bloque de encabezado (headerLabel) */}
+      {table.headerLabel && !groupingField && (
+        <div className="px-3 py-2 border-b border-slate-200 bg-white">
+          <span className={`font-semibold ${isPrint ? 'text-[10px]' : 'text-xs text-slate-800'}`}>
+            {table.headerLabel}
+          </span>
+        </div>
+      )}
+
+      {/* Mini-tabla de encabezado (headerTableColumns/Rows) */}
+      {(table.headerTableColumns?.length ?? 0) > 0 && !groupingField && (() => {
+        const cols = table.headerTableColumns!;
+        const templateRows = table.headerTableRows ?? [];
+        const extraRows = selection.headerTableExtraRows ?? [];
+        const allRows = [...templateRows, ...extraRows];
+        const allowAdd = !!table.headerTableAllowExtraRows && !isPrint && !readOnly;
+        return (
+          <div className="px-3 py-2 border-b border-slate-200 bg-white">
+            <table className={`w-full border-collapse ${isPrint ? 'text-[9px]' : 'text-xs'}`}>
+              <thead>
+                <tr>
+                  {cols.map(c => (
+                    <th key={c.key} className="border border-slate-300 px-2 py-1 bg-slate-50 font-semibold text-slate-700 text-left">
+                      {c.label}
+                    </th>
+                  ))}
+                  {allowAdd && <th className="w-8 border border-slate-300 bg-slate-50" />}
+                </tr>
+              </thead>
+              <tbody>
+                {allRows.map(r => {
+                  const isExtra = extraRows.some(er => er.rowId === r.rowId);
+                  return (
+                    <tr key={r.rowId}>
+                      {cols.map(c => {
+                        const filled = selection.headerTableFilledData?.[r.rowId]?.[c.key];
+                        const template = String(r.cells?.[c.key] ?? '');
+                        const value = filled ?? template;
+                        if (isPrint || readOnly) {
+                          return (
+                            <td key={c.key} className="border border-slate-300 px-2 py-1">
+                              {value || ' '}
+                            </td>
+                          );
+                        }
+                        return (
+                          <td key={c.key} className="border border-slate-300 px-1 py-0.5">
+                            <input
+                              type={c.type === 'number_input' ? 'number' : 'text'}
+                              step={c.type === 'number_input' ? 'any' : undefined}
+                              value={value}
+                              onChange={e => onChangeHeaderTableCell?.(selection.tableId, r.rowId, c.key, e.target.value)}
+                              className="w-full bg-transparent border-0 outline-none focus:bg-blue-50 px-1 py-0.5"
+                            />
+                          </td>
+                        );
+                      })}
+                      {allowAdd && (
+                        <td className="border border-slate-300 px-1 py-1 text-center">
+                          {isExtra && (
+                            <button
+                              onClick={() => onRemoveHeaderTableRow?.(selection.tableId, r.rowId)}
+                              className="text-red-600 text-xs font-bold"
+                            >×</button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {allowAdd && (
+              <button
+                onClick={() => onAddHeaderTableRow?.(selection.tableId)}
+                className="mt-1.5 text-xs text-blue-600 font-medium hover:text-blue-800"
+              >+ Agregar fila</button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Campos de encabezado (selectores pre-tabla) */}
       {/* Cuando hay groupingField, solo mostrar el groupingField aquí; los demás van por instancia */}

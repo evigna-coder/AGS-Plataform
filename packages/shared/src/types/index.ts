@@ -1916,6 +1916,25 @@ export interface TableCatalogEntry {
    */
   headerFields?: TableHeaderField[];
   /**
+   * Título descriptivo del bloque de encabezado, renderizado sobre headerFields y/o headerTable.
+   * Ej. "Usuarios autorizados para este test:" o "Instrumentos utilizados:".
+   */
+  headerLabel?: string | null;
+  /**
+   * Definición de columnas de la mini-tabla de encabezado que se renderiza sobre la tabla principal.
+   * Cuando hay headerTableColumns + headerTableRows, se rendea como tabla estructurada (Test 4 style).
+   * Solo soporta `text_input` y `number_input` (sin reglas, sin spans).
+   */
+  headerTableColumns?: TableCatalogColumn[];
+  /**
+   * Filas template de la mini-tabla de encabezado. Las celdas pre-cargadas se muestran como texto
+   * editable; las vacías son inputs en blanco. Si headerTableAllowExtraRows es true el técnico
+   * puede agregar filas adicionales en la ejecución.
+   */
+  headerTableRows?: TableCatalogRow[];
+  /** Si true, el técnico puede agregar filas extra a la mini-tabla de encabezado en la OT. */
+  headerTableAllowExtraRows?: boolean;
+  /**
    * Qué firmas mostrar en el bloque (solo tableType === 'signatures').
    * 'both' = ambas (default); 'client' = solo cliente; 'engineer' = solo ingeniero.
    */
@@ -2053,6 +2072,16 @@ export interface ProtocolSelection {
    * key = valor de la instancia, value = true/false.
    */
   instanceClientSpec?: Record<string, boolean>;
+  /**
+   * Valores completados en la mini-tabla de encabezado (headerTableColumns/headerTableRows).
+   * Estructura: { [rowId]: { [colKey]: value } } — espejo de filledData.
+   */
+  headerTableFilledData?: Record<string, Record<string, string>>;
+  /**
+   * Filas extra agregadas por el técnico a la mini-tabla de encabezado en la ejecución
+   * (solo cuando tableSnapshot.headerTableAllowExtraRows === true).
+   */
+  headerTableExtraRows?: TableCatalogRow[];
 }
 
 // --- RenderSpec (especificación determinística para regenerar el PDF) ---

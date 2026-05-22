@@ -43,6 +43,9 @@ interface ProtocolSectionProps {
   handleRemoveRow: (tableId: string, rowId: string) => void;
   handleDuplicateRow: (tableId: string, originalRowId: string) => void;
   handleHeaderDataChange: (tableId: string, fieldId: string, value: string, instanceValue?: string) => void;
+  handleHeaderTableCellChange: (tableId: string, rowId: string, colKey: string, value: string) => void;
+  handleAddHeaderTableRow: (tableId: string) => void;
+  handleRemoveHeaderTableRow: (tableId: string, rowId: string) => void;
   handleColumnVisibilityChange: (tableId: string, colKey: string, visible: boolean) => void;
   handleColumnHeaderDataChange: (tableId: string, colKey: string, value: string) => void;
   handleChecklistAnswer: (tableId: string, itemId: string, answer: ChecklistItemAnswer) => void;
@@ -96,7 +99,9 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
   protocolSelections, setProtocolSelections, suggestedTables, setSuggestedTables,
   handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
   handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
-  handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange, handleColumnVisibilityChange, handleColumnHeaderDataChange,
+  handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange,
+  handleHeaderTableCellChange, handleAddHeaderTableRow, handleRemoveHeaderTableRow,
+  handleColumnVisibilityChange, handleColumnHeaderDataChange,
   handleChecklistAnswer, handleToggleChecklistSection,
   signatureClient, signatureEngineer, aclaracionCliente, aclaracionEspecialista,
   fechaInicio, fechaFin,
@@ -256,6 +261,9 @@ export const ProtocolSection: React.FC<ProtocolSectionProps> = ({
                 onRemoveRow={handleRemoveRow}
                 onDuplicateRow={handleDuplicateRow}
                 onChangeHeaderData={handleHeaderDataChange}
+                onChangeHeaderTableCell={handleHeaderTableCellChange}
+                onAddHeaderTableRow={handleAddHeaderTableRow}
+                onRemoveHeaderTableRow={handleRemoveHeaderTableRow}
                 onChangeColumnVisibility={handleColumnVisibilityChange}
                 onChangeColumnHeader={handleColumnHeaderDataChange}
                 variables={{

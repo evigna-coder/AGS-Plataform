@@ -415,6 +415,48 @@ export function useAppLogic(
     );
   };
 
+  const handleHeaderTableCellChange = (tableId: string, rowId: string, colKey: string, value: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const prevAll = s.headerTableFilledData ?? {};
+        const prevRow = prevAll[rowId] ?? {};
+        return {
+          ...s,
+          headerTableFilledData: { ...prevAll, [rowId]: { ...prevRow, [colKey]: value } },
+        };
+      })
+    );
+  };
+
+  const handleAddHeaderTableRow = (tableId: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const rowId = `hextra_${Date.now()}`;
+        const extra = { rowId, cells: {} };
+        return {
+          ...s,
+          headerTableExtraRows: [...(s.headerTableExtraRows ?? []), extra],
+        };
+      })
+    );
+  };
+
+  const handleRemoveHeaderTableRow = (tableId: string, rowId: string) => {
+    setProtocolSelections(prev =>
+      prev.map(s => {
+        if (s.tableId !== tableId) return s;
+        const { [rowId]: _, ...restFilled } = s.headerTableFilledData ?? {};
+        return {
+          ...s,
+          headerTableExtraRows: (s.headerTableExtraRows ?? []).filter(r => r.rowId !== rowId),
+          headerTableFilledData: restFilled,
+        };
+      })
+    );
+  };
+
   const handleColumnHeaderDataChange = (tableId: string, colKey: string, value: string) => {
     setProtocolSelections(prev =>
       prev.map(s =>
@@ -1192,6 +1234,7 @@ export function useAppLogic(
     handleCatalogCellChange, handleCatalogObservaciones, handleCatalogResultado,
     handleCatalogToggleClientSpec, handleRemoveCatalogTable, handleDuplicateTable, handleDuplicateSection, handleRemoveSection,
     handleAddRow, handleRemoveRow, handleDuplicateRow, handleHeaderDataChange, handleColumnVisibilityChange, handleColumnHeaderDataChange,
+    handleHeaderTableCellChange, handleAddHeaderTableRow, handleRemoveHeaderTableRow,
     handleChecklistAnswer, handleToggleChecklistSection,
     // Refs
     clientPadRef, engineerPadRef, qrRef,
