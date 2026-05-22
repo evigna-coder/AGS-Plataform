@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 14-02-PLAN.md (BOM-03 consumirComponentes runTransaction + DI hook; 13/14 tests GREEN, factory-pattern DI extracted to patronesConsumirHelpers.ts to honor 250-LOC budget)
-last_updated: "2026-05-22T15:21:28.141Z"
+stopped_at: Completed 14-03-PLAN.md (BOM-08 autoCrearRequerimientosPatron + idempotency; suite 14/14 GREEN; services layer del Phase 14 COMPLETE)
+last_updated: "2026-05-22T15:30:05.994Z"
 last_activity: 2026-05-22
 progress:
   total_phases: 15
   completed_phases: 10
   total_plans: 72
-  completed_plans: 65
+  completed_plans: 66
 ---
 
 ---
@@ -246,7 +246,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (1/9 plans)
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 9 (14-00 ... 14-08)
 Status: Wave 0 RED baseline lockeada. test:patron-bom corre y falla loud por imports de @ags/shared/utils/patronBom (14-01) y patronesService.consumirComponentes/__setTestFirestore (14-02) — esa es la señal RED esperada. 14 tests + fixtures + tsx runner listos para que downstream plans los viren a GREEN.
 Last activity: 2026-05-22
@@ -315,6 +315,7 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P00 | 13min | 2 tasks | 4 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P01 | 17min | 2 tasks | 6 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P02 | 7min | 1 tasks | 2 files |
+| Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P03 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -447,6 +448,9 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-02: Compute-validate-mutate sequencing en test path — build updates[] para ALL patrones primero, validar cada uno, THEN mutar state.patrones. Sin esto la atomicity test BOM-03 dejaría partial mutations cuando segundo patron del payload falla validación.
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-02: Idempotency check (BOM-08 first half) pre-tx, no inside-tx — query where(otNumber, entidadTipo=patron) antes de entrar runTransaction (Firestore tx no soporta where queries). Si descubrimos concurrency, agregar sentinel patronesConsumidos_idempotency/{otNumber} dentro de la tx (patrón Phase 9 ot_cierre_idempotency).
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-02: MovimientoStock.lote = string natural (NOT loteId sintético) — RESEARCH pitfall 3 confirmado. Audit triple = patronId + lote (string código) + codigoComponente. No hay PatronLote.id.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-03: autoCrearRequerimientosPatron en archivo separado (178 LOC) — best-effort post-commit con try/catch, NUNCA rollbackea el consumo si falla. Idempotency key = (patronId, loteId, codigoComponente) + estado abierto (!= comprado/cancelado).
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-03: Skip silencioso si adminConfigFlujos.usuarioRequerimientosPatronId === null — admin no obligado a configurarlo desde día 0 (UI editor del campo landea en 14-06). Warn en prod, silent en test.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-03: ADMIN_CONFIG_DEFAULTS Pick<> widened a 'mailFacturacion' | 'usuarioRequerimientosPatronId' — default null. ConsumirComponentesResult extendido con requerimientosCreados: string[] para que 14-06 muestre count en toast.
 
 ### Pending Todos
 
@@ -460,6 +464,6 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-22T15:21:11.438Z
-Stopped at: Completed 14-02-PLAN.md (BOM-03 consumirComponentes runTransaction + DI hook; 13/14 tests GREEN, factory-pattern DI extracted to patronesConsumirHelpers.ts to honor 250-LOC budget)
+Last session: 2026-05-22T15:30:05.989Z
+Stopped at: Completed 14-03-PLAN.md (BOM-08 autoCrearRequerimientosPatron + idempotency; suite 14/14 GREEN; services layer del Phase 14 COMPLETE)
 Resume file: None
