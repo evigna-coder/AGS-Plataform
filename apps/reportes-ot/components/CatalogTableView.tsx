@@ -1647,17 +1647,21 @@ export const CatalogTableView: React.FC<Props> = ({
         const extraRows = selection.headerTableExtraRows ?? [];
         const allRows = [...templateRows, ...extraRows];
         const allowAdd = !!table.headerTableAllowExtraRows && !isPrint && !readOnly;
+        // Solo reservar la columna de "×" cuando hay filas extra a borrar
+        const showRemoveCol = allowAdd && extraRows.length > 0;
+        const alignClass = (a?: TableCatalogColumn['align']) =>
+          a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left';
         return (
           <div className="px-3 py-2 border-b border-slate-200 bg-white">
             <table className={`w-full border-collapse ${isPrint ? 'text-[9px]' : 'text-xs'}`}>
               <thead>
                 <tr>
                   {cols.map(c => (
-                    <th key={c.key} className="border border-slate-300 px-2 py-1 bg-slate-50 font-semibold text-slate-700 text-left">
+                    <th key={c.key} className={`border border-slate-300 px-2 py-1 bg-slate-50 font-semibold text-slate-700 ${alignClass(c.align)}`}>
                       {c.label}
                     </th>
                   ))}
-                  {allowAdd && <th className="w-8 border border-slate-300 bg-slate-50" />}
+                  {showRemoveCol && <th className="w-8 border border-slate-300 bg-slate-50" />}
                 </tr>
               </thead>
               <tbody>
@@ -1671,7 +1675,7 @@ export const CatalogTableView: React.FC<Props> = ({
                         const value = filled ?? template;
                         if (isPrint || readOnly) {
                           return (
-                            <td key={c.key} className="border border-slate-300 px-2 py-1">
+                            <td key={c.key} className={`border border-slate-300 px-2 py-1 ${alignClass(c.align)}`}>
                               {value || ' '}
                             </td>
                           );
@@ -1683,12 +1687,12 @@ export const CatalogTableView: React.FC<Props> = ({
                               step={c.type === 'number_input' ? 'any' : undefined}
                               value={value}
                               onChange={e => onChangeHeaderTableCell?.(selection.tableId, r.rowId, c.key, e.target.value)}
-                              className="w-full bg-transparent border-0 outline-none focus:bg-blue-50 px-1 py-0.5"
+                              className={`w-full bg-transparent border-0 outline-none focus:bg-blue-50 px-1 py-0.5 ${alignClass(c.align)}`}
                             />
                           </td>
                         );
                       })}
-                      {allowAdd && (
+                      {showRemoveCol && (
                         <td className="border border-slate-300 px-1 py-1 text-center">
                           {isExtra && (
                             <button

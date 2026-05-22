@@ -121,6 +121,16 @@ export const HeaderTableEditor = ({ columns, rows, allowExtraRows, onChange }: P
               <option value="text_input">Texto</option>
               <option value="number_input">Número</option>
             </select>
+            <select
+              value={c.align ?? 'left'}
+              onChange={e => updColumn(i, { align: e.target.value as 'left' | 'center' | 'right' })}
+              className="border border-slate-300 rounded px-1.5 py-1 text-xs bg-white"
+              title="Alineación de header y celdas"
+            >
+              <option value="left">Izq</option>
+              <option value="center">Centro</option>
+              <option value="right">Der</option>
+            </select>
             <button onClick={() => moveColumn(i, -1)} disabled={i === 0}
               className="text-slate-500 text-xs px-1 disabled:opacity-30">↑</button>
             <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1}
