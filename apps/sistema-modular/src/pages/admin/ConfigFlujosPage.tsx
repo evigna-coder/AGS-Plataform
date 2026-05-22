@@ -8,6 +8,10 @@
  *  - usuarioCoordinadorOTId (FLOW-02): notificación post-cargaOC.
  *  - usuarioResponsableComexId (FLOW-03, opcional): derivación Importaciones.
  *  - mailFacturacion (FLOW-04): destinatario del aviso al cierre admin.
+ *  - usuarioRequerimientosPatronId (BOM-08, opcional): responsable de
+ *    Requerimientos auto-generados cuando un componente de patrón cae
+ *    bajo stock mínimo (autoCrearRequerimientosPatron). Si está null,
+ *    el helper skipea silencioso sin crear el REQ.
  *
  * Validación al guardar: cada usuarioXxxId seleccionado debe tener status === 'activo'
  * y existir en /usuarios. Mail debe contener '@'.
@@ -97,6 +101,7 @@ export default function ConfigFlujosPage() {
         ['Coordinador OT', form.usuarioCoordinadorOTId],
         ['Responsable Comex', form.usuarioResponsableComexId],
         ['Responsable Materiales', form.usuarioMaterialesId],
+        ['Requerimientos de patrón', form.usuarioRequerimientosPatronId],
       ] as const) {
         const err = validateUserActive(label, userId);
         if (err) throw new Error(err);
@@ -122,6 +127,7 @@ export default function ConfigFlujosPage() {
           usuarioCoordinadorOTId: form.usuarioCoordinadorOTId || null,
           usuarioResponsableComexId: form.usuarioResponsableComexId || null,
           usuarioMaterialesId: form.usuarioMaterialesId || null,
+          usuarioRequerimientosPatronId: form.usuarioRequerimientosPatronId || null,
           responsablePorArea,
           mailFacturacion: form.mailFacturacion,
         },
@@ -197,6 +203,21 @@ export default function ConfigFlujosPage() {
             emptyMessage="No hay usuarios activos"
           />
           <p className="mt-1 text-[11px] text-slate-500">Ejecuta el cierre administrativo (descarga de artículos + facturación) tras el cierre técnico. El ticket se deriva automáticamente a este usuario cuando la OT pasa a CIERRE_TECNICO.</p>
+        </div>
+
+        <div>
+          <label className={fieldLabel}>Requerimientos de patrón (BOM-08)</label>
+          <SearchableSelect
+            value={form.usuarioRequerimientosPatronId || ''}
+            onChange={v => setForm({ ...form, usuarioRequerimientosPatronId: v })}
+            options={buildUserOptions(true, '(Sin responsable — los requerimientos quedan sin crear)')}
+            placeholder="Seleccionar usuario…"
+            emptyMessage="No hay usuarios activos"
+          />
+          <p className="mt-1 text-[11px] text-slate-500">
+            Recibe el Requerimiento auto-generado cuando un componente de un patrón cae bajo su stock mínimo
+            tras el cierre admin. Si se deja vacío, no se crea ningún Requerimiento (el admin lo carga a mano si hace falta).
+          </p>
         </div>
 
         <div className="border-t border-slate-200 pt-5">
