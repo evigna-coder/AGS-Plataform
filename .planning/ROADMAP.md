@@ -297,7 +297,7 @@ Plans:
   7. Reporte técnico INTOCABLE: el admin puede ajustar el consumo contable, pero patronesSeleccionados queda como lo firmó el técnico; las divergencias se anotan en MovimientoStock.motivo.
   8. Patrones existentes sin componentes[] siguen funcionando exactamente como antes (computeLoteStatus devuelve 'active' para legacy, ningún consumidor existente se rompe).
 
-**Plans:** 1/9 plans executed
+**Plans:** 2/9 plans executed
 
 Plans:
 - [ ] 14-00-test-infra-baseline-PLAN.md — Wave 0 RED baseline: scripts/test-patron-bom.ts + patronBom.test.ts (14 tests) + fixtures + package.json (BOM-01..08 cubrirá downstream)

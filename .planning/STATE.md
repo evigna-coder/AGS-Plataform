@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: "Completed 14-00-PLAN.md (RED baseline test infra: tsx runner + 14 tests + fixtures for Phase 14 Patron BOM)"
-last_updated: "2026-05-22T15:02:38.298Z"
+stopped_at: Completed 14-01-PLAN.md (BOM-01 types + BOM-02 helpers; 9/14 tests GREEN, lazy-firebase patronesService refactor unlocked test infra)
+last_updated: "2026-05-22T15:08:45.998Z"
 last_activity: 2026-05-22
 progress:
   total_phases: 15
   completed_phases: 10
   total_plans: 72
-  completed_plans: 63
+  completed_plans: 64
 ---
 
 ---
@@ -246,7 +246,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (1/9 plans)
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 9 (14-00 ... 14-08)
 Status: Wave 0 RED baseline lockeada. test:patron-bom corre y falla loud por imports de @ags/shared/utils/patronBom (14-01) y patronesService.consumirComponentes/__setTestFirestore (14-02) — esa es la señal RED esperada. 14 tests + fixtures + tsx runner listos para que downstream plans los viren a GREEN.
 Last activity: 2026-05-22
@@ -313,6 +313,7 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 | Phase 13-stock-equivalencias-compra-uso P07 | 11min | 5 tasks | 9 files |
 | Phase 13-stock-equivalencias-compra-uso P07 | 11min | 6 tasks | 9 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P00 | 13min | 2 tasks | 4 files |
+| Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P01 | 17min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -438,6 +439,9 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: MockPatronBomState con Map<id, doc> en lugar de array (lookup O(1) para fixtures con N patrones); apartamiento del shape MockEquivalenciasState (array) justificado por patrón de acceso id-based
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: Test colocation en src/__tests__/ (no src/services/__tests__/) porque el suite cubre helpers de @ags/shared (BOM-02 puros) además del service; separa de los tests-de-services
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-02 debe refactor patronesService para lazy firebase imports (patrón equivalenciasService) — los stubs actuales heredan eager firebase y rompen tsx con import.meta.env undefined
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: Deep import via package.json exports map + tsconfig wildcard path enables 'from @ags/shared/utils/patronBom' across Vite/tsc/tsx-Node — utils.ts restructured to utils/index.ts directory
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: patronesService.ts refactored to lazy-firebase pattern (Phase 13 equivalenciasService 1:1) — required so tsx test runner can load the module without import.meta.env crash
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: __setTestFirestore + consumirComponentes stubs that THROW NOT_IMPLEMENTED (Phase 8 cargarOC pattern) — keeps 9/14 BOM-02 helper tests honest while leaving 5/14 BOM-03+BOM-08 tests RED for 14-02/14-03 to turn GREEN
 
 ### Pending Todos
 
@@ -451,6 +455,6 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-22T15:02:38.293Z
-Stopped at: Completed 14-00-PLAN.md (RED baseline test infra: tsx runner + 14 tests + fixtures for Phase 14 Patron BOM)
+Last session: 2026-05-22T15:08:45.994Z
+Stopped at: Completed 14-01-PLAN.md (BOM-01 types + BOM-02 helpers; 9/14 tests GREEN, lazy-firebase patronesService refactor unlocked test infra)
 Resume file: None
