@@ -1,5 +1,5 @@
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, Timestamp, addDoc, runTransaction } from 'firebase/firestore';
-import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto } from '@ags/shared';
+import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
@@ -259,6 +259,24 @@ export const ordenesTrabajoService = {
       } as WorkOrder;
     }
     return null;
+  },
+
+  /**
+   * Phase 14 BOM-05 — reads the technician report's `patronesSeleccionados`
+   * array from `reportes/{otNumber}`. Used by the cierre admin step to
+   * auto-prefill the consumo de componentes table. The reporte técnico
+   * remains intocable — this is a read-only access.
+   *
+   * Service-only Firestore access (rule .claude/rules/firestore.md): hooks
+   * must not perform raw getDoc calls; they go through this method instead.
+   */
+  async getPatronesSeleccionados(otNumber: string): Promise<PatronSeleccionado[]> {
+    const snap = await getDoc(doc(db, 'reportes', otNumber));
+    if (!snap.exists()) return [];
+    const data = snap.data() as any;
+    return Array.isArray(data?.patronesSeleccionados)
+      ? (data.patronesSeleccionados as PatronSeleccionado[])
+      : [];
   },
 
   /** Real-time subscription to a single OT by otNumber. Returns unsubscribe function. */
