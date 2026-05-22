@@ -367,7 +367,12 @@ function registerIpcHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed() || !win.isFocused()) return;
     try {
-      win.webContents.sendInputEvent({ type: 'mouseMove', x: -1, y: -1, modifiers: [] });
+      // F24 keyDown+keyUp: tecla sin acción por defecto. Atraviesa el keyboard
+      // pipeline de Chromium (que es donde está stuck el router) sin disparar
+      // efectos en el DOM. Mouse events no funcionaron — el bug es específico
+      // del keyboard router, no del mouse pipeline.
+      win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'F24', modifiers: [] });
+      win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'F24', modifiers: [] });
     } catch (err) {
       console.warn('[flash-focus] falló:', err?.message);
     }
