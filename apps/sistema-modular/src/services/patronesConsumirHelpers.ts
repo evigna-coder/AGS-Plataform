@@ -40,6 +40,13 @@ export interface ConsumirComponentesParams {
 
 export interface ConsumirComponentesResult {
   movimientoIds: string[];
+  /**
+   * Phase 14 BOM-08 — Ids de RequerimientoCompra (origen='patron_minimo') creados
+   * por autoCrearRequerimientosPatron en el post-commit best-effort. `[]` si no
+   * hubo componentes bajo mínimo, si el responsable no estaba configurado, o si
+   * el helper falló (en cuyo caso se loggea error pero el consumo NO se rollbackea).
+   */
+  requerimientosCreados: string[];
 }
 
 /**
@@ -173,7 +180,19 @@ async function _consumirComponentesInTest(
     }
   }
 
-  return { movimientoIds: movIds };
+  // STEP D — POST-commit: auto-Requerimiento (BOM-08). Best-effort, no throw bloquea.
+  let requerimientosCreados: string[] = [];
+  try {
+    const { autoCrearRequerimientosPatron } = await import('./patronesAutoRequerimiento');
+    requerimientosCreados = await autoCrearRequerimientosPatron(
+      [...new Set(params.consumos.map(c => c.patronId))],
+      { __testState: state },
+    );
+  } catch (err) {
+    console.error('[consumirComponentes/test] autoCrearRequerimientosPatron falló (best-effort):', err);
+  }
+
+  return { movimientoIds: movIds, requerimientosCreados };
 }
 
 // ── Production path (real Firestore runTransaction) ──────────────────────────
@@ -282,5 +301,18 @@ async function _consumirComponentesInProd(
     }
   });
 
-  return { movimientoIds: movIds };
+  // STEP D — POST-commit: auto-Requerimiento (BOM-08). Best-effort, no throw bloquea.
+  // El consumo ya está commiteado; si esto falla, el admin puede crear el REQ manual.
+  let requerimientosCreados: string[] = [];
+  try {
+    const { autoCrearRequerimientosPatron } = await import('./patronesAutoRequerimiento');
+    requerimientosCreados = await autoCrearRequerimientosPatron(patronesUnicos);
+  } catch (err) {
+    console.error(
+      '[consumirComponentes/prod] autoCrearRequerimientosPatron falló (best-effort):',
+      err,
+    );
+  }
+
+  return { movimientoIds: movIds, requerimientosCreados };
 }
