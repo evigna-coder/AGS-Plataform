@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, onSnapshotsInSync, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
@@ -101,6 +101,26 @@ try {
   // en este entorno (Electron + memory cache + sin sesión previa).
   enableNetwork(db).catch(err => console.warn('[Firestore] enableNetwork falló:', err));
   storage = getStorage(app);
+
+  // Workaround Electron+long-polling: tras un write, Chromium queuea eventos
+  // de input del renderer hasta que se dispara un focus event externo (alt+tab)
+  // o ~60s. Síntoma: SearchableSelect deja de responder. Fix: disparar focus
+  // sintético cada vez que el SDK consolida snapshots. Debounced 200ms.
+  // Solo dentro de Electron. Ver memory/project_search_inputs_disabled_after_write.md
+  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    let wakeupTimer: ReturnType<typeof setTimeout> | null = null;
+    let wakeupCount = 0;
+    onSnapshotsInSync(db, () => {
+      if (wakeupTimer !== null) return;
+      wakeupTimer = setTimeout(() => {
+        wakeupTimer = null;
+        wakeupCount++;
+        (window as any).__inputWakeupCount = wakeupCount;
+        window.dispatchEvent(new Event('focus'));
+      }, 200);
+    });
+    console.log('%c⚡ Input wakeup activo (Electron)', 'color: orange; font-weight: bold');
+  }
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
   if (app! && !db!) {
