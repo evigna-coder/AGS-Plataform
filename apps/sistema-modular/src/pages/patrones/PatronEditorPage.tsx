@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePatrones } from '../../hooks/usePatrones';
 import { marcasService } from '../../services/firebaseService';
@@ -7,10 +7,13 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
+import { PatronComponentesEditor } from './PatronComponentesEditor';
+import { validatePatronComponentes } from './patronComponentesValidation';
 import {
   CATEGORIA_PATRON_LABELS,
   calcularEstadoCertificado,
   type CategoriaPatron,
+  type ComponentePatron,
   type Patron,
   type PatronLote,
   type Marca,
@@ -53,6 +56,24 @@ export const PatronEditorPage = () => {
   const [marca, setMarca] = useState('');
   const [categorias, setCategorias] = useState<CategoriaPatron[]>([]);
   const [lotes, setLotes] = useState<PatronLote[]>([]);
+  // Phase 14 BOM-04 — componentes declarativos (BOM) del patrón.
+  const [componentes, setComponentes] = useState<ComponentePatron[]>([]);
+
+  /**
+   * Codigos que no pueden renombrarse porque algún lote ya tiene consumos
+   * registrados sobre ellos. Derivado en real-time desde lotes[*].componentesConsumidos.
+   * El sub-componente desactiva el input + el service guard (Task 3 del plan) bloquea
+   * el rename a nivel persistencia como defense-in-depth.
+   */
+  const lockedCodigos = useMemo(() => {
+    const s = new Set<string>();
+    for (const lote of lotes ?? []) {
+      for (const cc of lote.componentesConsumidos ?? []) {
+        s.add(cc.codigoComponente);
+      }
+    }
+    return s;
+  }, [lotes]);
 
   // Marcas
   const [marcas, setMarcas] = useState<Marca[]>([]);
@@ -71,6 +92,7 @@ export const PatronEditorPage = () => {
         setMarca(p.marca);
         setCategorias(p.categorias);
         setLotes(p.lotes);
+        setComponentes(p.componentes ?? []);
         setLoading(false);
       });
     }
@@ -94,6 +116,9 @@ export const PatronEditorPage = () => {
     for (const [i, l] of lotes.entries()) {
       if (!l.lote.trim()) { alert(`El lote #${i + 1} necesita un código de lote`); return null; }
     }
+    // Phase 14 BOM-04 — guards sobre componentes (RESEARCH pitfalls 1+3)
+    const componentesError = validatePatronComponentes(componentes);
+    if (componentesError) { alert(componentesError); return null; }
     setSaving(true);
     try {
       const data: Omit<Patron, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -102,12 +127,15 @@ export const PatronEditorPage = () => {
         marca: marca.trim(),
         categorias,
         lotes,
+        componentes,
         activo: true,
       };
       const savedId = await savePatron(data, id);
       return savedId;
-    } catch {
-      alert('Error al guardar el patrón');
+    } catch (err) {
+      // Errores del service guard (rename con consumos previos) propagan acá.
+      const msg = err instanceof Error ? err.message : 'Error al guardar el patrón';
+      alert(msg);
       return null;
     } finally {
       setSaving(false);
@@ -137,6 +165,7 @@ export const PatronEditorPage = () => {
           marca: marca.trim(),
           categorias,
           lotes,
+          componentes,
           activo: true,
         },
         id,
@@ -327,6 +356,16 @@ export const PatronEditorPage = () => {
               })}
             </div>
           )}
+        </Card>
+
+        {/* Componentes (BOM) — Phase 14 BOM-04 */}
+        <Card>
+          <PatronComponentesEditor
+            componentes={componentes}
+            onChange={setComponentes}
+            lockedCodigos={lockedCodigos}
+            disabled={saving}
+          />
         </Card>
       </div>
     </div>
