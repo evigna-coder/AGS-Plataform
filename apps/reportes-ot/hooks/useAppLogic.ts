@@ -3,7 +3,7 @@ import { Part } from '../types';
 import { GeminiService } from '../services/geminiService';
 import { FirebaseService } from '../services/firebaseService';
 import { SignaturePadHandle } from '../components/SignaturePad';
-import { safeBtoaUnicode, uid, incrementSuffix, formatDateToDDMMYYYY } from '../services/utils';
+import { uid, incrementSuffix, formatDateToDDMMYYYY } from '../services/utils';
 import { calcHours, isValidTimeHHMM } from '../services/time';
 import { useReportForm } from './useReportForm';
 import { useOTManagement } from './useOTManagement';
@@ -820,14 +820,7 @@ export function useAppLogic(
 
   useEffect(() => {
     if (showQRModal && qrRef.current) {
-      const state = {
-        ot: otNumber,
-        rs: razonSocial,
-        ts: Date.now()
-      };
-      
-      const base64 = safeBtoaUnicode(JSON.stringify(state));
-      const url = `${window.location.origin}${window.location.pathname}?modo=firma&reportId=${otNumber}&data=${base64}`;
+      const url = `${window.location.origin}${window.location.pathname}?modo=firma&reportId=${encodeURIComponent(otNumber)}`;
       setQrUrl(url);
 
       qrRef.current.innerHTML = '';
@@ -840,7 +833,7 @@ export function useAppLogic(
         correctLevel: QRCode.CorrectLevel.H
       });
     }
-  }, [showQRModal, otNumber, razonSocial]);
+  }, [showQRModal, otNumber]);
 
   // Auto-compartir cuando se carga con parámetro share=true
   useEffect(() => {
