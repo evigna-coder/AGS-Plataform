@@ -167,7 +167,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
           <option>Calibración</option>
           <option>Calificación de instalación</option>
           <option>Calificación de operación</option>
-          <option>Calificación de software</option>
+          <option>Calificación de operación de software</option>
           <option>Capacitación</option>
           <option>Cortesía</option>
           <option>Desinstalación</option>

@@ -27,7 +27,7 @@ export const CATALOG_SERVICE_TYPES = new Set([
   'Calibración',
   'Calificación de instalación',
   'Calificación de operación',
-  'Calificación de software',
+  'Calificación de operación de software',
   'Limpieza de fuente de Iones',
   'Mantenimiento preventivo con consumibles',
   'Mantenimiento preventivo sin consumibles',

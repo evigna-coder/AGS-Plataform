@@ -21,7 +21,7 @@ const SERVICIO_TYPES = [
   'Calibración',
   'Calificación de instalación',
   'Calificación de operación',
-  'Calificación de software',
+  'Calificación de operación de software',
   'Limpieza de fuente de Iones',
   'Mantenimiento preventivo con consumibles',
   'Mantenimiento preventivo sin consumibles',
