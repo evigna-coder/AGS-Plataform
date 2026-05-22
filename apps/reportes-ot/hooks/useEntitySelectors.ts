@@ -222,22 +222,22 @@ export function useEntitySelectors(
     setAllContactos(conts);
     setAllSistemas(syss);
 
-    // Si no hay sectores, mostrar todo directamente (flujo sin filtro)
+    // Contactos no se filtran por sector (paridad con sistema-modular Tickets / Edit OT).
+    setContactos(conts);
+    const principal = conts.find(c => c.esPrincipal);
+    if (principal) {
+      setters.setContacto(principal.nombre);
+      setters.setEmailPrincipal(principal.email || '');
+    }
+
+    // Sistemas: si no hay sectores, mostrar todo y auto-seleccionar si hay uno solo.
+    // Si hay sectores, esperar selección de sector para filtrar sistemas.
     if (estabSectores.length === 0) {
-      setContactos(conts);
       setSistemas(syss);
-
-      const principal = conts.find(c => c.esPrincipal);
-      if (principal) {
-        setters.setContacto(principal.nombre);
-        setters.setEmailPrincipal(principal.email || '');
-      }
-
       if (syss.length === 1) {
         selectSistema(syss[0].id, syss);
       }
     }
-    // Si hay sectores, esperar selección de sector para filtrar
     markUserInteracted?.();
   }, [establecimientos, firebase, setters, markUserInteracted]);
 
@@ -245,13 +245,11 @@ export function useEntitySelectors(
     setSelectedSector(sector);
     setters.setSector(sector);
 
-    // Limpiar downstream
+    // Limpiar solo downstream del equipo. El contacto NO se limpia: los
+    // contactos no se filtran por sector (paridad con sistema-modular).
     setSistemaId(null);
     setModuloId(null);
     setModulos([]);
-    setContactoId(null);
-    setters.setContacto('');
-    setters.setEmailPrincipal('');
     setters.setSistema('');
     setters.setCodigoInternoCliente('');
     setters.setModuloModelo('');
@@ -259,28 +257,19 @@ export function useEntitySelectors(
     setters.setModuloDescripcion('');
     setters.setModuloSerie('');
 
-    // Filtrar contactos y sistemas por sector. Incluimos también los que no
-    // tienen sector definido (legacy data sin migrar) — sin esto, contactos y
-    // sistemas viejos quedan invisibles para cualquier sector elegido.
+    // Filtrar sistemas por sector. Incluimos también los que no tienen sector
+    // definido (legacy data sin migrar) — sin esto, sistemas viejos quedan
+    // invisibles para cualquier sector elegido.
     const isUnassigned = (val: any) => val == null || val === '';
-    const filteredContactos = allContactos.filter(c => c.sector === sector || isUnassigned(c.sector));
     const filteredSistemas = allSistemas.filter(s => s.sector === sector || isUnassigned(s.sector));
-    setContactos(filteredContactos);
     setSistemas(filteredSistemas);
-
-    // Auto-select contacto principal del sector
-    const principal = filteredContactos.find(c => c.esPrincipal);
-    if (principal) {
-      setters.setContacto(principal.nombre);
-      setters.setEmailPrincipal(principal.email || '');
-    }
 
     // Auto-select sistema si hay solo uno en el sector
     if (filteredSistemas.length === 1) {
       selectSistema(filteredSistemas[0].id, filteredSistemas);
     }
     markUserInteracted?.();
-  }, [allContactos, allSistemas, setters, markUserInteracted]);
+  }, [allSistemas, setters, markUserInteracted]);
 
   const selectContacto = useCallback((id: string) => {
     const c = contactos.find(ct => ct.id === id);
@@ -413,19 +402,18 @@ export function useEntitySelectors(
       )) ||
       list.find(s => s.nombre.toLowerCase().trim() === sistemaTarget);
 
-    // Si hay sectores, filtrar por sector del sistema; si no, mostrar todo
+    // Sistemas: filtrar por sector del sistema si hay sectores; si no, mostrar todo.
+    // Contactos: no se filtran por sector (paridad con sistema-modular).
     let visibleSistemas = syss;
-    let visibleContactos = conts;
     if (estabSectores.length > 0 && formData.sistema) {
       const sysForSector = findSistema(syss);
       if (sysForSector?.sector) {
         setSelectedSector(sysForSector.sector);
         setters.setSector(sysForSector.sector);
         visibleSistemas = syss.filter(s => s.sector === sysForSector.sector);
-        visibleContactos = conts.filter(c => c.sector === sysForSector.sector);
       }
     }
-    setContactos(visibleContactos);
+    setContactos(conts);
     setSistemas(visibleSistemas);
 
     // Intentar match del sistema
