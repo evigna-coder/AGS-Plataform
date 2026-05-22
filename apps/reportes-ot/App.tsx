@@ -341,6 +341,7 @@ const App: React.FC = () => {
     return (
       <WizardLayout
         steps={stepsFiltered}
+        pendingFocus={app.pendingFocus}
         extra={
           <>
             <PdfHiddenContainers

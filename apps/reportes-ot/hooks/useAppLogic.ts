@@ -590,6 +590,33 @@ export function useAppLogic(
 
   const isLockedByClient = readOnly && status === 'BORRADOR';
 
+  // Señal para el wizard mobile: cuando hay un campo faltante, le pedimos saltar
+  // al step que lo contiene antes de scrollear/focusear. El `nonce` garantiza que
+  // dos validaciones consecutivas sobre el mismo step disparen el efecto igual.
+  const [pendingFocus, setPendingFocus] = useState<{ step: string; nonce: number } | null>(null);
+  const pendingFocusNonce = useRef(0);
+
+  const focusRequiredField = (key: string, stepKey: string) => {
+    pendingFocusNonce.current += 1;
+    setPendingFocus({ step: stepKey, nonce: pendingFocusNonce.current });
+
+    // Esperar a que el step mounte (mobile wizard) antes de scrollear/focusear.
+    // Reintenta unas veces porque el commit de React puede tardar.
+    const tryFocus = (attempts: number) => {
+      const el = document.querySelector<HTMLElement>(`[data-required-field="${key}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const focusable = el.matches('input, textarea, select')
+          ? el
+          : el.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled]), select:not([disabled])');
+        focusable?.focus({ preventScroll: true });
+        return;
+      }
+      if (attempts > 0) setTimeout(() => tryFocus(attempts - 1), 120);
+    };
+    setTimeout(() => tryFocus(8), 60);
+  };
+
   // Validación antes de confirmar firma o finalizar
   const validateBeforeClientConfirm = () => {
     // Verificar firma del especialista (puede estar en el estado o en el pad)
@@ -602,32 +629,39 @@ export function useAppLogic(
       || /^c\.?\s*a\.?\s*b\.?\s*a\.?$/.test(localidadNorm)
       || /^capital\s+federal$/.test(localidadNorm);
 
-    const requiredFields = [
-      razonSocial,
-      contacto,
-      direccion,
-      localidad,
-      ...(isCABA ? [] : [provincia]),
-      sistema,
-      fechaInicio,
-      fechaFin,
-      horasTrabajadas,
-      reporteTecnico,
-      // accionesTomar removido - puede quedar vacío
-      aclaracionCliente,
-      aclaracionEspecialista,
-      engineerSignature // Validar la firma del especialista
+    type RequiredField = {
+      key: string;
+      label: string;
+      value: unknown;
+      stepKey: 'datos' | 'reporte' | 'firmas';
+    };
+
+    const requiredFields: RequiredField[] = [
+      { key: 'razonSocial', label: 'Razón social', value: razonSocial, stepKey: 'datos' },
+      { key: 'contacto', label: 'Contacto', value: contacto, stepKey: 'datos' },
+      { key: 'direccion', label: 'Dirección', value: direccion, stepKey: 'datos' },
+      { key: 'localidad', label: 'Localidad', value: localidad, stepKey: 'datos' },
+      ...(isCABA ? [] : [{ key: 'provincia', label: 'Provincia', value: provincia, stepKey: 'datos' as const }]),
+      { key: 'sistema', label: 'Sistema / equipo', value: sistema, stepKey: 'datos' },
+      { key: 'fechaInicio', label: 'Fecha de inicio', value: fechaInicio, stepKey: 'datos' },
+      { key: 'fechaFin', label: 'Fecha de fin', value: fechaFin, stepKey: 'datos' },
+      { key: 'horasTrabajadas', label: 'Horas trabajadas', value: horasTrabajadas, stepKey: 'datos' },
+      { key: 'reporteTecnico', label: 'Reporte técnico', value: reporteTecnico, stepKey: 'reporte' },
+      { key: 'aclaracionCliente', label: 'Aclaración del cliente (nombre y cargo)', value: aclaracionCliente, stepKey: 'firmas' },
+      { key: 'aclaracionEspecialista', label: 'Aclaración del especialista', value: aclaracionEspecialista, stepKey: 'firmas' },
+      { key: 'engineerSignature', label: 'Firma del especialista', value: engineerSignature, stepKey: 'firmas' },
     ];
 
-    const hasEmpty = requiredFields.some(
-      v => v === null || v === undefined || String(v).trim() === ''
+    const missing = requiredFields.find(
+      f => f.value === null || f.value === undefined || String(f.value).trim() === ''
     );
 
-    if (hasEmpty) {
+    if (missing) {
       modal.showAlert({
-        title: 'Validación Requerida',
-        message: 'No se puede confirmar la firma.\n\nTodos los campos del reporte y la firma del especialista son obligatorios.',
-        type: 'warning'
+        title: 'Falta completar un campo',
+        message: `Falta: ${missing.label}.\n\nAl cerrar este aviso te llevamos al campo.`,
+        type: 'warning',
+        onConfirm: () => focusRequiredField(missing.key, missing.stepKey),
       });
       return false;
     }
@@ -1191,6 +1225,8 @@ export function useAppLogic(
     addBudget, updateBudget, removeBudget,
     handleOptimizeReport, handleReview,
     handleGenerateRemoteSign,
+    // Validación con scroll al primer campo faltante
+    pendingFocus,
     downloadPDF, shareReportPDF,
     duplicateOt,
     // Constants

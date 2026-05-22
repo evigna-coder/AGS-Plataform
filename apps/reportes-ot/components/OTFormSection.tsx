@@ -80,7 +80,7 @@ function ContactoPrincipal({
   }, [setContacto, setEmailPrincipal]);
 
   return (
-    <div>
+    <div data-required-field="contacto">
       <div className="flex items-center justify-between mb-0.5">
         <label className="text-[9px] font-bold text-slate-500 uppercase">Contacto</label>
         {!readOnly && (
@@ -412,7 +412,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
               `}
             />
           </div>
-          <div>
+          <div data-required-field="razonSocial">
             <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">
               Razón Social
             </label>
@@ -509,6 +509,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
               type="text"
               value={contacto}
               placeholder="Persona de contacto"
+              data-required-field="contacto"
               onChange={(e) => { if (readOnly) return; setContacto(e.target.value); }}
               disabled={readOnly}
               className={`w-full border rounded-lg px-3 py-1.5 text-sm
@@ -530,6 +531,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             type="text"
             value={direccion}
             placeholder="Calle y número"
+            data-required-field="direccion"
             onChange={(e) => { if (readOnly) return; setDireccion(e.target.value); }}
             disabled={readOnly}
             className={`w-full border rounded-lg px-3 py-1.5 text-sm
@@ -539,6 +541,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             type="text"
             value={localidad}
             placeholder="Localidad"
+            data-required-field="localidad"
             onChange={(e) => { if (readOnly) return; setLocalidad(e.target.value); }}
             disabled={readOnly}
             className={`w-full border rounded-lg px-3 py-1.5 text-sm
@@ -548,6 +551,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             type="text"
             value={provincia}
             placeholder="Provincia"
+            data-required-field="provincia"
             onChange={(e) => { if (readOnly) return; setProvincia(e.target.value); }}
             disabled={readOnly}
             className={`w-full border rounded-lg px-3 py-1.5 text-sm
@@ -560,7 +564,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             ID Equipo
           </h3>
 
-          <div className="mb-3">
+          <div className="mb-3" data-required-field="sistema">
               {entitySelectors.manualMode.sistema || entitySelectors.manualMode.cliente ? (
                 <>
                   <input
@@ -654,7 +658,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-3">
-          <div>
+          <div data-required-field="fechaInicio">
             <label className="text-[9px] font-bold text-slate-400 uppercase">Inicio</label>
             <input
               type="text"
@@ -718,7 +722,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
             />
           </div>
 
-          <div>
+          <div data-required-field="fechaFin">
             <label className="text-[9px] font-bold text-slate-400 uppercase">Fin</label>
             <input
               type="text"
@@ -785,7 +789,7 @@ export const OTFormSection: React.FC<OTFormSectionProps> = ({
           <TimeSelect15 label="Hora inicio" value={horaInicio} onChange={setHoraInicio} disabled={readOnly} />
           <TimeSelect15 label="Hora fin" value={horaFin} onChange={setHoraFin} disabled={readOnly} />
 
-          <div>
+          <div data-required-field="horasTrabajadas">
             <label className="text-[9px] font-bold text-slate-400 uppercase">Hs Lab</label>
             <input
               type="text"

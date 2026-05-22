@@ -75,6 +75,7 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
             setAclaracionCliente(e.target.value);
           }}
           disabled={readOnly}
+          data-required-field="aclaracionCliente"
           placeholder="Nombre y Cargo del responsable"
           className={`w-full bg-white text-slate-900 border border-slate-300 rounded-md px-3 py-2 text-[11px] font-bold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
             ${
@@ -92,19 +93,21 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
           readOnly ? 'opacity-60 pointer-events-none' : ''
         }`}
       >
-        <SignaturePad
-          ref={engineerPadRef}
-          label="Firma del Especialista AGS"
-          initialValue={signatureEngineer}
-          onClear={() => {
-            if (readOnly) return;
-            setSignatureEngineer(null);
-          }}
-          onEnd={(dataUrl) => {
-            if (readOnly) return;
-            setSignatureEngineer(dataUrl);
-          }}
-        />
+        <div data-required-field="engineerSignature">
+          <SignaturePad
+            ref={engineerPadRef}
+            label="Firma del Especialista AGS"
+            initialValue={signatureEngineer}
+            onClear={() => {
+              if (readOnly) return;
+              setSignatureEngineer(null);
+            }}
+            onEnd={(dataUrl) => {
+              if (readOnly) return;
+              setSignatureEngineer(dataUrl);
+            }}
+          />
+        </div>
 
         <input
           type="text"
@@ -114,6 +117,7 @@ export const SignaturesSection: React.FC<SignaturesSectionProps> = ({
             setAclaracionEspecialista(e.target.value);
           }}
           disabled={readOnly}
+          data-required-field="aclaracionEspecialista"
           placeholder="Nombre del Técnico Especialista"
           className={`w-full bg-white text-slate-900 border border-slate-300 rounded-md px-3 py-2 text-[11px] font-bold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
             ${

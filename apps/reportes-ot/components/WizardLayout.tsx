@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface WizardStep {
   key: string;
@@ -11,10 +11,18 @@ interface Props {
   steps: WizardStep[];
   /** Extra content rendered outside the wizard (hidden containers, modals, etc.) */
   extra?: React.ReactNode;
+  /** Si cambia, el wizard salta al step con esa key. El `nonce` permite repetir el mismo step. */
+  pendingFocus?: { step: string; nonce: number } | null;
 }
 
-export const WizardLayout: React.FC<Props> = ({ steps, extra }) => {
+export const WizardLayout: React.FC<Props> = ({ steps, extra, pendingFocus }) => {
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!pendingFocus) return;
+    const idx = steps.findIndex(s => s.key === pendingFocus.step);
+    if (idx >= 0) setCurrent(idx);
+  }, [pendingFocus, steps]);
   const total = steps.length;
   const step = steps[current];
 

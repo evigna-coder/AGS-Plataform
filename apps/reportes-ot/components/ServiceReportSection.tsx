@@ -213,6 +213,7 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
           onChange={e => setReporteTecnico(e.target.value)}
           rows={6}
           disabled={readOnly}
+          data-required-field="reporteTecnico"
           placeholder="Describa detalladamente el servicio técnico realizado..."
           className={`w-full border rounded-xl px-4 py-3 text-sm outline-none
             ${
