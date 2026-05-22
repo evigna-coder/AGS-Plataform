@@ -367,12 +367,13 @@ function registerIpcHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed() || !win.isFocused()) return;
     try {
-      // F24 keyDown+keyUp: tecla sin acción por defecto. Atraviesa el keyboard
-      // pipeline de Chromium (que es donde está stuck el router) sin disparar
-      // efectos en el DOM. Mouse events no funcionaron — el bug es específico
-      // del keyboard router, no del mouse pipeline.
-      win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'F24', modifiers: [] });
-      win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'F24', modifiers: [] });
+      // blur+focus síncronos: Chromium procesa OnFocusChanged(false) y (true)
+      // sin tick intermedio. Windows queuea WM_KILLFOCUS y WM_SETFOCUS y los
+      // procesa antes de pintar — idealmente sin dim visible del título.
+      // sendInputEvent (mouse y keyboard) no destrabó: el bug es a nivel del
+      // browser process focus tracking, no del input pipeline.
+      win.blur();
+      win.focus();
     } catch (err) {
       console.warn('[flash-focus] falló:', err?.message);
     }
