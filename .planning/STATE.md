@@ -2,7 +2,23 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
+current_plan: 2
 status: executing
+stopped_at: "Completed 14-00-PLAN.md (RED baseline test infra: tsx runner + 14 tests + fixtures for Phase 14 Patron BOM)"
+last_updated: "2026-05-22T15:02:38.298Z"
+last_activity: 2026-05-22
+progress:
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 72
+  completed_plans: 63
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+status: Ready to execute
 stopped_at: Phase 14 context gathered
 last_updated: "2026-05-15T18:32:15.909Z"
 last_activity: "2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05)."
@@ -229,12 +245,13 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 04 of 12 (Presupuestos — Anexo de Consumibles) — COMPLETA (5/5 plans, 6/6 requirements)
-Plan: 5 of 5 complete (04-01 foundation types ✓ ; 04-02 service + admin CRUD ✓ ; 04-03 editor + flag wiring ✓ ; 04-04 AnexoConsumiblesPDF + buildAnexosFromPresupuesto ✓ ; 04-05 email integration + smoke E2E ✓)
-Status: Phase 4 cerrada end-to-end. El cliente recibe principal + N anexos de consumibles vía mail OAuth con token-first order preservado. Listo para verify-work y transición a próximas phases (5/7/8).
-Last activity: 2026-05-05 — Plan 04-05: feat(04-05) 6f1c458 (EnviarAnexosSection) + eecb2f6 (useEnviarPresupuesto extendido + useEnviarAnexos split a 90/217 LOC) + bdf8fcb (EnviarPresupuestoModal integration). Smoke E2E aprobado. Side-track commits f7aeb1f/3c8eb22/9f0124b durante smoke (fixes preexistentes, fuera de scope plan 04-05).
+Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (1/9 plans)
+Current Plan: 2
+Total Plans in Phase: 9 (14-00 ... 14-08)
+Status: Wave 0 RED baseline lockeada. test:patron-bom corre y falla loud por imports de @ags/shared/utils/patronBom (14-01) y patronesService.consumirComponentes/__setTestFirestore (14-02) — esa es la señal RED esperada. 14 tests + fixtures + tsx runner listos para que downstream plans los viren a GREEN.
+Last activity: 2026-05-22
 
-Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
+Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans + Phase 14 ongoing)
 
 ## Performance Metrics
 
@@ -295,6 +312,7 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 | Phase 13-stock-equivalencias-compra-uso P06 | 9min | 5 tasks | 5 files |
 | Phase 13-stock-equivalencias-compra-uso P07 | 11min | 5 tasks | 9 files |
 | Phase 13-stock-equivalencias-compra-uso P07 | 11min | 6 tasks | 9 files |
+| Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P00 | 13min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -416,6 +434,10 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 - [Phase 13-stock-equivalencias-compra-uso]: EquivalenciaBadge tooltip pure CSS/Tailwind (group/group-hover:visible) — no tooltip library; shows origen→destino×factor on hover
 - [Phase 13-stock-equivalencias-compra-uso]: seedEquivalenciaPair uses Firestore client SDK (not admin) — project decision I1 from Phase 8 Wave 0; no admin SDK configured
 - [Phase 13-stock-equivalencias-compra-uso]: shouldExpandRow exact-match-only (not substring) — prevents lista from expanding all linked rows simultaneously per CONTEXT spec
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: Fixtures usan as any para Patron.componentes / PatronLote.componentesConsumidos hasta que 14-01 landea los types extension — type-check pasa, value-imports fallan (RED esperado)
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: MockPatronBomState con Map<id, doc> en lugar de array (lookup O(1) para fixtures con N patrones); apartamiento del shape MockEquivalenciasState (array) justificado por patrón de acceso id-based
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: Test colocation en src/__tests__/ (no src/services/__tests__/) porque el suite cubre helpers de @ags/shared (BOM-02 puros) además del service; separa de los tests-de-services
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-02 debe refactor patronesService para lazy firebase imports (patrón equivalenciasService) — los stubs actuales heredan eager firebase y rompen tsx con import.meta.env undefined
 
 ### Pending Todos
 
@@ -429,6 +451,6 @@ Progress: [█████████░] 98% (v2.0 milestone — 54/55 plans)
 
 ## Session Continuity
 
-Last session: 2026-05-15T18:32:15.893Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-stock-patrones-con-bom-composici-n-y-consumo-desagregado/14-CONTEXT.md
+Last session: 2026-05-22T15:02:38.293Z
+Stopped at: Completed 14-00-PLAN.md (RED baseline test infra: tsx runner + 14 tests + fixtures for Phase 14 Patron BOM)
+Resume file: None
