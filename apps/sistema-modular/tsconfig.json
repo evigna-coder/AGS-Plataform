@@ -19,7 +19,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@shared/*": ["../../packages/shared/src/*"],
-      "@ags/shared": ["../../packages/shared/src/index.ts"]
+      "@ags/shared": ["../../packages/shared/src/index.ts"],
+      "@ags/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["src"],

@@ -1,7 +1,38 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { deleteObject, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { Patron, CategoriaPatron } from '@ags/shared';
-import { db, storage, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
+
+// Phase 14 BOM-03 — ./firebase es lazy-import (mirror Phase 13 equivalenciasService pattern)
+// para que el test runner tsx/Node pueda cargar este módulo sin disparar `import.meta.env`
+// (Vite-only) en firebase.ts. En producción Vite tree-shakea el dynamic import sin penalty.
+let _fb: {
+  db: any;
+  storage: any;
+  createBatch: any;
+  docRef: any;
+  batchAudit: any;
+  deepCleanForFirestore: any;
+  getCreateTrace: any;
+  getUpdateTrace: any;
+  onSnapshot: any;
+} | null = null;
+async function getFirebaseModules() {
+  if (!_fb) {
+    const m = await import('./firebase');
+    _fb = {
+      db: m.db,
+      storage: m.storage,
+      createBatch: m.createBatch,
+      docRef: m.docRef,
+      batchAudit: m.batchAudit,
+      deepCleanForFirestore: m.deepCleanForFirestore,
+      getCreateTrace: m.getCreateTrace,
+      getUpdateTrace: m.getUpdateTrace,
+      onSnapshot: m.onSnapshot,
+    };
+  }
+  return _fb;
+}
 
 // --- Patrones (colección /patrones) ---
 // Cada patrón es un estándar/material de referencia con múltiples lotes.
@@ -23,6 +54,7 @@ export const patronesService = {
     categoria?: CategoriaPatron;
     activoOnly?: boolean;
   }): Promise<Patron[]> {
+    const { db } = await getFirebaseModules();
     let q = query(collection(db, 'patrones'));
     if (filters?.activoOnly) {
       q = query(q, where('activo', '==', true));
@@ -37,12 +69,14 @@ export const patronesService = {
   },
 
   async getById(id: string): Promise<Patron | null> {
+    const { db } = await getFirebaseModules();
     const snap = await getDoc(doc(db, 'patrones', id));
     if (!snap.exists()) return null;
     return toPatron(snap.id, snap.data());
   },
 
   async create(data: Omit<Patron, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+    const { createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace } = await getFirebaseModules();
     const id = crypto.randomUUID();
     const payload = deepCleanForFirestore({
       ...data,
@@ -60,6 +94,7 @@ export const patronesService = {
   },
 
   async update(id: string, data: Partial<Omit<Patron, 'id' | 'createdAt'>>): Promise<void> {
+    const { createBatch, docRef, batchAudit, deepCleanForFirestore, getUpdateTrace } = await getFirebaseModules();
     const payload = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
@@ -80,6 +115,7 @@ export const patronesService = {
   },
 
   async delete(id: string): Promise<void> {
+    const { storage, createBatch, docRef, batchAudit } = await getFirebaseModules();
     // Borrar certificados de Storage de todos los lotes antes de eliminar el documento
     const patron = await this.getById(id);
     if (patron?.lotes) {
@@ -101,6 +137,7 @@ export const patronesService = {
    * Sube el certificado de un lote específico y actualiza el array lotes del patrón.
    */
   async uploadCertificadoLote(patronId: string, loteIdx: number, file: File): Promise<{ url: string; path: string }> {
+    const { storage } = await getFirebaseModules();
     const patron = await this.getById(patronId);
     if (!patron) throw new Error(`Patron ${patronId} no encontrado`);
     if (loteIdx < 0 || loteIdx >= patron.lotes.length) throw new Error(`Lote index ${loteIdx} fuera de rango`);
@@ -125,6 +162,7 @@ export const patronesService = {
    * Elimina el certificado de un lote y limpia las referencias.
    */
   async deleteCertificadoLote(patronId: string, loteIdx: number): Promise<void> {
+    const { storage } = await getFirebaseModules();
     const patron = await this.getById(patronId);
     if (!patron) return;
     const lote = patron.lotes[loteIdx];
@@ -142,22 +180,64 @@ export const patronesService = {
     await this.update(patronId, { lotes: nuevoLotes });
   },
 
+  /**
+   * subscribe es sync (devuelve unsubscribe inmediato). Cargamos firebase lazy
+   * adentro y devolvemos un wrapper que se conecta al onSnapshot real cuando llega.
+   */
   subscribe(
     filters: { categoria?: CategoriaPatron; activoOnly?: boolean } | undefined,
     callback: (items: Patron[]) => void,
     onError?: (error: Error) => void,
-  ) {
-    let q = query(collection(db, 'patrones'));
-    if (filters?.activoOnly) {
-      q = query(q, where('activo', '==', true));
-    }
-    return onSnapshot(q, snap => {
-      let items = snap.docs.map(d => toPatron(d.id, d.data()));
-      if (filters?.categoria) {
-        items = items.filter(p => p.categorias.includes(filters.categoria!));
+  ): () => void {
+    let realUnsubscribe: (() => void) | null = null;
+    let cancelled = false;
+    void (async () => {
+      const { db, onSnapshot } = await getFirebaseModules();
+      if (cancelled) return;
+      let q = query(collection(db, 'patrones'));
+      if (filters?.activoOnly) {
+        q = query(q, where('activo', '==', true));
       }
-      items.sort((a, b) => a.codigoArticulo.localeCompare(b.codigoArticulo));
-      callback(items);
-    }, onError);
+      realUnsubscribe = onSnapshot(q, (snap: any) => {
+        let items = snap.docs.map((d: any) => toPatron(d.id, d.data()));
+        if (filters?.categoria) {
+          items = items.filter((p: Patron) => p.categorias.includes(filters.categoria!));
+        }
+        items.sort((a: Patron, b: Patron) => a.codigoArticulo.localeCompare(b.codigoArticulo));
+        callback(items);
+      }, onError);
+    })();
+    return () => {
+      cancelled = true;
+      if (realUnsubscribe) realUnsubscribe();
+    };
   },
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 14 BOM-03 — stubs (real implementation lands en plan 14-02).
+// Estos exports existen para desbloquear `pnpm test:patron-bom` (los tests de
+// BOM-02 helpers se cargan en el mismo archivo que los de BOM-03 — sin estos
+// stubs el módulo no carga y ningún test corre). Pattern: `cargarOC` stub de
+// Phase 8 plan 08-01 (THROW loud, no fake data).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Phase 14 BOM-03 — DI hook (TEST-ONLY). Real impl en 14-02. */
+export function __setTestFirestore(_state: unknown): void {
+  // No-op stub: 14-02 reemplaza con el setter real del mock state.
+}
+
+/** Phase 14 BOM-03 — descuento atómico de componentes (NO-OP STUB). Real impl en 14-02. */
+export async function consumirComponentes(
+  _input: {
+    otNumber: string;
+    consumos: Array<{
+      patronId: string;
+      lote: string;
+      componentes: Array<{ codigoComponente: string; cantidad: number }>;
+    }>;
+    creadoPor: string;
+  },
+): Promise<{ movimientoIds: string[] }> {
+  throw new Error('NOT_IMPLEMENTED — patronesService.consumirComponentes lands en plan 14-02');
+}

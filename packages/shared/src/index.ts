@@ -12,3 +12,6 @@ export * from './hooks/useUrlFilters';
 
 // Exportar utilidades compartidas
 export * from './utils';
+// Phase 14 BOM-02 — helpers puros de Patron BOM. Re-export flat para `from '@ags/shared'`
+// (los consumidores que prefieran el deep import siguen usando `from '@ags/shared/utils/patronBom'`).
+export * from './utils/patronBom';
