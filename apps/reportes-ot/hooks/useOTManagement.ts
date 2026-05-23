@@ -232,8 +232,13 @@ export const useOTManagement = (
       throw new Error("Formato inválido. Use 5 dígitos, opcional .NN (ej: 25660 o 25660.02)");
     }
 
-    // Si ya es la OT actual, no hacer nada
-    if (v === otNumber) {
+    // Si ya es la OT actual Y ya hidratamos del backend, no recargar.
+    // Sin el chequeo de hasInitialized, un cold-load por URL (?reportId=XXX)
+    // bailaba acá porque useReportForm inicializa `otNumber` con el reportId
+    // del query string — entonces `v === otNumber` en el primer load y el form
+    // quedaba vacío. Portal-ingeniero → "Mis Pendientes" siempre entra por URL,
+    // así que sin esta guarda el flujo no funciona.
+    if (v === otNumber && hasInitialized.current) {
       return;
     }
 

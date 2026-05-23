@@ -62,7 +62,11 @@ export default function MisReportesPendientesPage() {
                 </thead>
                 <tbody>
                   {borradores.map((b) => (
-                    <tr key={b.otNumber} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <tr
+                      key={b.otNumber}
+                      onClick={() => abrirEnReportesOt(b.otNumber)}
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
+                    >
                       <td className="px-3 py-2 font-mono text-xs text-slate-800">{b.otNumber}</td>
                       <td className="px-3 py-2 text-slate-800">{b.razonSocial || '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{b.sistema || '—'}</td>
@@ -73,12 +77,7 @@ export default function MisReportesPendientesPage() {
                       )}
                       <td className="px-3 py-2 text-xs text-slate-500 tabular-nums">{fmtDate(b.creadoFecha)}</td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => abrirEnReportesOt(b.otNumber)}
-                          className="text-xs font-medium text-teal-700 hover:text-teal-900 hover:underline whitespace-nowrap"
-                        >
-                          Abrir →
-                        </button>
+                        <span className="text-xs font-medium text-teal-700 whitespace-nowrap">Abrir →</span>
                       </td>
                     </tr>
                   ))}
