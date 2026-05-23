@@ -901,14 +901,23 @@ export const reportesPendientesService = {
   },
 
   /**
-   * Todos los borradores (cualquier ingeniero). Vista admin para supervisar
-   * lo pendiente del equipo. Mismo `BORRADOR` filter, sin restringir creador.
+   * Todos los borradores creados desde el deploy de `creadoPor` (cualquier
+   * ingeniero). Vista admin para supervisar lo pendiente del equipo.
+   *
+   * El `orderBy('creadoPor.uid')` excluye automáticamente los docs sin el
+   * campo (Firestore omite docs que no tienen el campo ordenado). Sin esto,
+   * el admin ve también borradores legacy previos al deploy con todos sus
+   * campos en "—", contaminando la vista.
    */
   subscribeTodosBorradores(
     callback: (list: BorradorPendiente[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
-    const q = query(collection(db, 'reportes'), where('status', '==', 'BORRADOR'));
+    const q = query(
+      collection(db, 'reportes'),
+      where('status', '==', 'BORRADOR'),
+      orderBy('creadoPor.uid'),
+    );
     return onSnapshot(
       q,
       (snap) => {
