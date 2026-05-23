@@ -14,6 +14,7 @@ import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import HistorialPage from './pages/HistorialPage';
 import ReportesPage from './pages/ReportesPage';
+import MisReportesPendientesPage from './pages/MisReportesPendientesPage';
 import PerfilPage from './pages/PerfilPage';
 import ViaticosPage from './pages/ViaticosPage';
 import EquipoPublicPage from './pages/EquipoPublicPage';
@@ -128,6 +129,7 @@ function PrivateApp() {
           <Route path="leads" element={<LeadsPage />} />
           <Route path="leads/:leadId" element={<LeadDetailPage />} />
           <Route path="reportes" element={<ReportesPage />} />
+          <Route path="mis-pendientes" element={<MisReportesPendientesPage />} />
           <Route path="viaticos" element={<ViaticosPage />} />
           <Route path="qf-documentos" element={<QFDocumentosPage />} />
           {canRecepcion && (

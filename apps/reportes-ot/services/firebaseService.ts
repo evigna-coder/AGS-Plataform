@@ -230,7 +230,34 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     console.log('💾 Guardando reporte:', ot);
     console.log('📋 Datos a guardar:', JSON.stringify(data, null, 2));
     const docRef = doc(db, "reportes", ot);
-    await setDoc(docRef, deepCleanForFirestore(data), { merge: true });
+
+    // Primera escritura del reporte (no existe aún) → anotar creador.
+    // Lo consume portal-ingeniero (Mis Reportes Pendientes) para filtrar
+    // borradores por ingeniero. No se sobreescribe en saves posteriores.
+    let payload = data;
+    try {
+      const existing = await getDoc(docRef);
+      if (!existing.exists()) {
+        const { auth } = await import('./authService');
+        const user = auth.currentUser;
+        if (user) {
+          payload = {
+            ...data,
+            creadoPor: {
+              uid: user.uid,
+              email: user.email ?? null,
+              nombre: user.displayName ?? null,
+              fecha: Timestamp.now(),
+            },
+          };
+          console.info('[saveReporte] primer save — anotando creadoPor:', user.email);
+        }
+      }
+    } catch (preReadErr) {
+      console.warn('[saveReporte] no se pudo verificar existencia para creadoPor:', preReadErr);
+    }
+
+    await setDoc(docRef, deepCleanForFirestore(payload), { merge: true });
     console.log('✅ Reporte guardado exitosamente:', ot);
     // Phase 10 UAT fix: si el save cambia estadoAdmin, propagar al ticket
     // linkeado (normalmente CIERRE_TECNICO cuando el técnico finaliza).

@@ -846,6 +846,82 @@ export const tableCatalogService = {
 };
 
 // =============================================
+// --- Reportes pendientes (borradores del ingeniero) ---
+// =============================================
+
+/** Borrador de reporte creado desde reportes-ot que el ingeniero aún no finalizó. */
+export interface BorradorPendiente {
+  otNumber: string;
+  razonSocial: string | null;
+  sistema: string | null;
+  creadoFecha: string | null;
+  creadoPorNombre: string | null;
+  creadoPorEmail: string | null;
+}
+
+function parseBorrador(id: string, data: Record<string, unknown>): BorradorPendiente {
+  const creadoPor = (data.creadoPor as Record<string, unknown> | undefined) ?? {};
+  const fechaTs = creadoPor.fecha as { toDate?: () => Date } | undefined;
+  return {
+    otNumber: (data.otNumber as string) ?? id,
+    razonSocial: (data.razonSocial as string) ?? null,
+    sistema: (data.sistema as string) ?? null,
+    creadoFecha: fechaTs?.toDate?.()?.toISOString?.() ?? null,
+    creadoPorNombre: (creadoPor.nombre as string) ?? null,
+    creadoPorEmail: (creadoPor.email as string) ?? null,
+  };
+}
+
+export const reportesPendientesService = {
+  /**
+   * Borradores creados por un ingeniero específico. Filtra `reportes` por
+   * `status == 'BORRADOR'` AND `creadoPor.uid == uid`. El campo `creadoPor`
+   * lo anota reportes-ot en el primer save (ver memoria
+   * project_reportes_creadoPor). Borradores previos al deploy no aparecen.
+   */
+  subscribeMisBorradores(
+    uid: string,
+    callback: (list: BorradorPendiente[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(
+      collection(db, 'reportes'),
+      where('status', '==', 'BORRADOR'),
+      where('creadoPor.uid', '==', uid),
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => parseBorrador(d.id, d.data() as Record<string, unknown>));
+        list.sort((a, b) => (b.creadoFecha ?? '').localeCompare(a.creadoFecha ?? ''));
+        callback(list);
+      },
+      onError,
+    );
+  },
+
+  /**
+   * Todos los borradores (cualquier ingeniero). Vista admin para supervisar
+   * lo pendiente del equipo. Mismo `BORRADOR` filter, sin restringir creador.
+   */
+  subscribeTodosBorradores(
+    callback: (list: BorradorPendiente[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, 'reportes'), where('status', '==', 'BORRADOR'));
+    return onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => parseBorrador(d.id, d.data() as Record<string, unknown>));
+        list.sort((a, b) => (b.creadoFecha ?? '').localeCompare(a.creadoFecha ?? ''));
+        callback(list);
+      },
+      onError,
+    );
+  },
+};
+
+// =============================================
 // --- Reportes (protocolo completado por OT) ---
 // =============================================
 export const reportService = {

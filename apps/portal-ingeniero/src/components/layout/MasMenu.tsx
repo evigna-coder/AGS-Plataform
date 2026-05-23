@@ -10,6 +10,7 @@ interface MoreItem {
 
 const MORE_ITEMS: MoreItem[] = [
   { to: '/reportes', label: 'Reportes' },
+  { to: '/mis-pendientes', label: 'Mis Pendientes' },
   { to: '/viaticos', label: 'Viáticos' },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
