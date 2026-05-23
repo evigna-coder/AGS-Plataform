@@ -57,7 +57,6 @@ export default function MisReportesPendientesPage() {
                       <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Ingeniero</th>
                     )}
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Creado</th>
-                    <th className="px-3 py-2 w-px"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -76,9 +75,6 @@ export default function MisReportesPendientesPage() {
                         </td>
                       )}
                       <td className="px-3 py-2 text-xs text-slate-500 tabular-nums">{fmtDate(b.creadoFecha)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <span className="text-xs font-medium text-teal-700 whitespace-nowrap">Abrir →</span>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
