@@ -2803,8 +2803,22 @@ export interface MovimientoStock {
    * Phase 13 STKE-01 — refinación opcional del `tipo`.
    * Cuando un MovimientoStock tipo 'transferencia' es una conversión compra↔uso,
    * lleva `subtipo: 'conversion'`. Consumidores actuales que sólo leen `tipo` siguen funcionando sin cambio.
+   *
+   * Phase 15 — extendido a `'venta_loaner'` (sobre `tipo: 'egreso'`) cuando el movimiento es
+   * el espejo contable de una venta de Loaner. Union widening puro: consumidores que sólo leen
+   * `subtipo === 'conversion'` siguen funcionando (backwards-compat).
    */
-  subtipo?: 'conversion';
+  subtipo?: 'conversion' | 'venta_loaner';
+  /**
+   * Phase 15 — id del Loaner cuando subtipo='venta_loaner'.
+   * Permite query "movimientos de venta de tal loaner". Null/omitido en movimientos no-venta-loaner.
+   */
+  referenciaLoanerId?: string | null;
+  /**
+   * Phase 15 — código del Loaner (LNR-NNNN) denormalizado en el momento del write.
+   * Sigue patrón `articuloCodigo` ya denormalizado en MovimientoStock — evita join al renderizar listas históricas.
+   */
+  referenciaLoanerCodigo?: string | null;
   /**
    * Phase 13 — id del artículo DESTINO cuando subtipo='conversion'.
    * Null/omitido en transferencias normales. Resolvé `articuloDestinoCodigo` y
