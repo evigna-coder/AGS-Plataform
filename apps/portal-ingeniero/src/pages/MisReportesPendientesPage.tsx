@@ -1,8 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import { useMisReportesPendientes } from '../hooks/useMisReportesPendientes';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Spinner } from '../components/ui/Spinner';
 import { EmptyState } from '../components/ui/EmptyState';
-import { REPORTES_OT_URL } from '../utils/constants';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -13,12 +13,15 @@ function fmtDate(iso: string | null): string {
   }
 }
 
-function abrirEnReportesOt(otNumber: string) {
-  window.open(`${REPORTES_OT_URL}?reportId=${encodeURIComponent(otNumber)}`, '_blank');
-}
-
 export default function MisReportesPendientesPage() {
+  const navigate = useNavigate();
   const { borradores, loading, error, viendoTodos } = useMisReportesPendientes();
+
+  // Navega dentro del shell del portal — ReportesPage monta reportes-ot en un
+  // iframe pasando el reportId. Mantiene la bottom nav / sidebar visibles.
+  const abrirBorrador = (otNumber: string) => {
+    navigate(`/reportes?reportId=${encodeURIComponent(otNumber)}`);
+  };
 
   const title = viendoTodos ? 'Pendientes del Equipo' : 'Mis Pendientes';
   const subtitle = loading
@@ -63,7 +66,7 @@ export default function MisReportesPendientesPage() {
                   {borradores.map((b) => (
                     <tr
                       key={b.otNumber}
-                      onClick={() => abrirEnReportesOt(b.otNumber)}
+                      onClick={() => abrirBorrador(b.otNumber)}
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
                     >
                       <td className="px-3 py-2 font-mono text-xs text-slate-800">{b.otNumber}</td>
@@ -86,7 +89,7 @@ export default function MisReportesPendientesPage() {
               {borradores.map((b) => (
                 <button
                   key={b.otNumber}
-                  onClick={() => abrirEnReportesOt(b.otNumber)}
+                  onClick={() => abrirBorrador(b.otNumber)}
                   className="w-full text-left bg-white rounded-lg border border-slate-200 p-3 hover:border-teal-400 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
