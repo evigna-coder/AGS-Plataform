@@ -204,7 +204,8 @@ export const PatronesList = () => {
               title="Solo patrones con algún componente BOM por debajo del stock mínimo">
               <input type="checkbox" checked={filters.bloqueados}
                 onChange={e => setFilter('bloqueados', e.target.checked)}
-                className="rounded border-slate-300" />
+                className="rounded border-slate-300"
+                data-testid="filter-bloqueados" />
               Bloqueados
             </label>
             <Button variant="ghost" size="sm"

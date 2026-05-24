@@ -43,7 +43,13 @@ export function PatronRow({
     : 'text-slate-600';
 
   return (
-    <tr className={`hover:bg-slate-50 transition-colors ${!p.activo ? 'opacity-50' : ''}`}>
+    <tr
+      className={`hover:bg-slate-50 transition-colors ${!p.activo ? 'opacity-50' : ''}`}
+      data-testid="patron-row"
+      data-patron-id={p.id}
+      data-bom={hasBom ? 'true' : 'false'}
+      data-bom-status={bomStatus}
+    >
       <td className={`px-3 py-2 ${getAlignClass(0)}`}>
         <div className="flex flex-col gap-1 min-w-0">
           <span className="text-xs font-semibold text-teal-600 font-mono truncate" title={p.codigoArticulo}>
@@ -51,9 +57,9 @@ export function PatronRow({
           </span>
           {(hasBom || bomStatus !== 'active') && (
             <div className="flex flex-wrap gap-1">
-              {hasBom && <span className={`${PILL_BASE} ${PILL_BOM}`}>BOM</span>}
-              {bomStatus === 'bloqueado' && <span className={`${PILL_BASE} ${PILL_BLOQUEADO}`}>Bloqueado</span>}
-              {bomStatus === 'agotado' && <span className={`${PILL_BASE} ${PILL_AGOTADO}`}>Agotado</span>}
+              {hasBom && <span className={`${PILL_BASE} ${PILL_BOM}`} data-testid="badge-bom">BOM</span>}
+              {bomStatus === 'bloqueado' && <span className={`${PILL_BASE} ${PILL_BLOQUEADO}`} data-testid="badge-bloqueado">Bloqueado</span>}
+              {bomStatus === 'agotado' && <span className={`${PILL_BASE} ${PILL_AGOTADO}`} data-testid="badge-agotado">Agotado</span>}
             </div>
           )}
         </div>
