@@ -51,10 +51,13 @@ const openReport = (otNum: string) => {
   else window.open(url, '_blank');
 };
 
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return '—';
+const formatDate = (value: unknown) => {
+  if (!value) return '—';
   try {
-    const d = new Date(dateString);
+    // createdAt llega como Firestore Timestamp (Timestamp.now() al crear) o como
+    // ISO string (legacy / fechaInicio / fechaServicioAprox). Soportar ambos.
+    const ts = value as { toDate?: () => Date };
+    const d = typeof ts?.toDate === 'function' ? ts.toDate() : new Date(value as string);
     if (isNaN(d.getTime())) return '—';
     return d.toLocaleDateString('es-AR');
   } catch { return '—'; }
