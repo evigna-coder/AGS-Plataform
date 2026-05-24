@@ -4,6 +4,34 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: executing
+stopped_at: "Completed 14-08-PLAN.md (release-prep gate). Phase 14 cerrada: 8/9 plans done + 1 cancelled (14-07/BOM-07); 7/8 BOM-XX requirements complete + 1 cancelled. Validación full suite GREEN: type-check + 41/41 unit tests (test:patron-bom 18/18, test:stock-amplio 5/5, test:cuotas-facturacion 9/9, test:equivalencias 9/9) + builds (modular/reportes/portal) + AST lint clean. Playwright suite Wave 4-5 referenciada 13/13 GREEN (pre-validada en plans 14-04..14-06; re-run bloqueado por TLS corporate proxy SSL inspection, ambiental no funcional). Bump recomendado: MINOR (v1.3.3 → v1.4.0) — Phase 14 ships features user-visible. Comando surfaceado al usuario: `pnpm --filter @ags/sistema-modular release:minor` + push tag (user ejecuta manualmente; autonomous: false por diseño). Phase 15 (Venta loaner espejo a stock) ready to plan."
+last_updated: "2026-05-24T06:05:00.000Z"
+last_activity: "2026-05-24 — Plan 14-08: validación pre-release GREEN (41/41 unit tests + 3/3 builds + AST lint clean); delta vs sistema-modular-v1.3.3 = 28 commits totales (14 en sistema-modular+shared) incluyendo Phase 14 BOM stack completo + electron focus fixes (flash-focus, firestore wakeup, debounce gate) + portal-ingeniero bottom nav + reportes-ot Pendientes view + revert limpio del 14-07. SUMMARY 14-08 publicado con copy-paste del comando de release para el usuario."
+progress:
+  total_phases: 15
+  completed_phases: 11
+  total_plans: 72
+  completed_plans: 70
+---
+
+# Decision log entry — 2026-05-24 (release-prep gate)
+
+**[Phase 14-08 — release-prep gate cerrado, handoff al usuario]**: Validación pre-release ejecutada en full: type-check GREEN, 4/4 unit suites GREEN (test:patron-bom 18/18, test:stock-amplio 5/5, test:cuotas-facturacion 9/9, test:equivalencias 9/9 = 41/41 total), 3/3 builds GREEN (modular generó `AGS-Sistema-Modular-Setup-1.3.3.exe`, reportes + portal sanity), AST lint sin findings. Playwright suite Wave 4-5 (13 specs) referenciada como pre-validada 13/13 GREEN durante plans 14-04..14-06; re-run en esta sesión bloqueado por TLS corporate proxy (`unable to verify the first certificate`) — diagnosticado como bloqueo ambiental NO regresión de código (las unit tests con mock Firestore stub sí pasan).
+
+**Bump recomendado**: MINOR. Phase 14 ships features user-visible (editor BOM componentes inline en PatronEditorPage, badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' URL-persisted en PatronesList, banner PatronComponentesAlertBanner, paso 'Patrones consumidos' en OTCierreAdminSection con auto-prefill FIFO + dedupe + idempotency, SearchableSelect 'Requerimientos de patrón' en /admin/config-flujos para usuarioRequerimientosPatronId, auto-REQ patron_minimo con índice deployed). Sin breaking changes — patrones legacy sin componentes[] siguen funcionando (BOM-01 backwards-compat por extensión opcional).
+
+**Surface-don't-execute**: Plan marcado autonomous: false; Claude NO ejecuta `pnpm release:minor`. El usuario corre el comando porque (a) es el único con `.exe` para smoke en su máquina real, (b) el push del tag dispara broadcast a PCs instaladas y necesita human gate explícito, (c) precedente en .claude/rules/release-flow.md. Comando exacto + checklist surfaceado en SUMMARY 14-08 y en mensaje final del orchestrator.
+
+**Phase 14 status final**: Complete (8/9 plans + 1 cancelled). 7/8 BOM-XX Complete + 1 Cancelled (BOM-07). Phase 15 (Venta loaner espejo a stock) ready to plan via /gsd:plan-phase 15.
+
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+current_plan: 9
+status: Ready to execute
 stopped_at: "Plan 14-07 CANCELLED (model mismatch — technician selects caja maestra not components; BOM accounting is admin-only). Commit 6229cde reverted en 4be3b95. BOM-07 marked cancelled en REQUIREMENTS.md + ROADMAP.md. Next: 14-08 release-prep."
 last_updated: "2026-05-24T05:35:00.000Z"
 last_activity: "2026-05-24 — Plan 14-07 CANCELLED. User feedback: 'desde patrones del listado lo que se hace es seleccionar la muestra, la caja maestra. La descarga de la ampolla va a ser desde el cierre administrativo, no nos interesa que el ingeniero seleccione o aparezcan los componentes'. Plan 14-07 había implementado badge AGOTADO + disable selection sobre lotes con saldo BOM ≤ mínimo en reportes-ot — esto violaba el modelo de dominio (admin-side leak en frozen-surface app del técnico). Revert limpio via git revert 6229cde (commit 4be3b95). Frozen-surface restaurado al 100%. Phase 14 ahora: 7 done / 1 cancelled / 1 pending (14-08 release-prep)."
@@ -300,7 +328,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (7/9 plans)
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 9 (14-00 ... 14-08)
 Status: Services layer + Editor UI BOM-04 + Cierre Admin BOM-05/BOM-08 + List Badges/Filtro BOM-06 COMPLETE. Admin ve qué patrones necesitan atención sin entrar al editor (badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' URL-persisted); técnico ve qué lotes están bloqueados sin abrir admin (14-07 selector badge); cierre admin descuenta con auto-REQ. Loop visual cerrado. Plan 14-07 (BOM-07 selector reportes-ot) ya commiteado previamente (commit 6229cde, frozen-exception scoped). Próximo: 14-08 (release prep — full suite validation + RELEASE-CHECKLIST smoke + pnpm release:minor user-cut).
 Last activity: 2026-05-24

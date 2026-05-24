@@ -254,6 +254,9 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 | 10. Presupuestos Partes/Mixto/Ventas + Exports | 7/7 | Complete   | 2026-04-25 | - |
 | 11. Suite E2E Playwright | v2.0 | 0/4 | Not started | - |
 | 12. Esquema Facturación Porcentual + Anticipos | 8/8 | Complete   | 2026-04-26 | - |
+| 13. Stock — Equivalencias compra↔uso | v2.x | 8/8 | Complete | 2026-05-15 |
+| 14. Stock — Patrones con BOM | v2.x | 8/9 (+1 cancelled 14-07/BOM-07) | Complete | 2026-05-24 |
+| 15. Stock — Venta loaner espejo a stock | v2.x | 0/0 | Not planned | - |
 
 
 ### Phase 13: Stock — Equivalencias compra↔uso
@@ -297,7 +300,7 @@ Plans:
   7. Reporte técnico INTOCABLE: el admin puede ajustar el consumo contable, pero patronesSeleccionados queda como lo firmó el técnico; las divergencias se anotan en MovimientoStock.motivo.
   8. Patrones existentes sin componentes[] siguen funcionando exactamente como antes (computeLoteStatus devuelve 'active' para legacy, ningún consumidor existente se rompe).
 
-**Plans:** 7/9 plans executed
+**Plans:** 8/9 plans executed + 1 cancelled — **Phase 14 COMPLETE** (2026-05-24)
 
 Plans:
 - [x] 14-00-test-infra-baseline-PLAN.md — Wave 0 RED baseline: scripts/test-patron-bom.ts + patronBom.test.ts (14 tests) + fixtures + package.json (BOM-01..08 cubrirá downstream)
@@ -308,7 +311,7 @@ Plans:
 - [x] 14-05-patrones-list-badges-y-filtro-PLAN.md — PatronesList badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' via useUrlFilters; PatronComponentesAlertBanner inline en PatronEditorPage; pre-extracción de PatronRow.tsx + PatronComponentesAlertBanner.tsx (BOM-06)
 - [x] 14-06-cierre-admin-patrones-consumidos-PLAN.md — Paso 'Patrones consumidos' en OTCierreAdminSection + CierrePatronesConsumidosSection sub-componente + useCierrePatronesConsumidos hook + ConfigFlujosPage UI extension. NOT autonomous: 9-step UAT (BOM-05, BOM-08 UI)
 - [~] 14-07-reportes-ot-selector-badge-PLAN.md — **CANCELLED 2026-05-24** por mismatch de modelo. Commit `6229cde` revertido en `4be3b95`. Razón: el técnico selecciona caja maestra (no componentes); la contabilidad BOM es exclusiva del cierre admin en sistema-modular. Frozen-surface restaurado al 100%. BOM-07 cancelled en REQUIREMENTS.md.
-- [ ] 14-08-release-prep-PLAN.md — Validación full suite + RELEASE-CHECKLIST smoke + surface 'pnpm release:minor' command to user. NOT autonomous: user cuts the tag manually
+- [x] 14-08-release-prep-PLAN.md — Release-prep gate: full suite validada (type-check + 41/41 unit tests + 3/3 builds + AST lint clean); Playwright Wave 4-5 referenciada 13/13 GREEN pre-validada (re-run bloqueado por TLS proxy = ambiental); delta vs sistema-modular-v1.3.3 = 28 commits; bump recomendado MINOR (v1.3.3 → v1.4.0); comando `pnpm --filter @ags/sistema-modular release:minor` surfaceado al usuario (autonomous: false — Claude NO ejecuta el tag).
 
 ### Phase 15: Stock — Venta de loaner espejo a stock
 
