@@ -200,13 +200,22 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
 
     const cliente = clientes.find(c => c.id === form.clienteId);
     const establecimiento = establecimientosFiltrados.find(e => e.id === form.establecimientoId);
-    const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId);
+    // Buscar primero en filtered list; fallback a global porque sistemas legacy
+    // (con clienteId directo, sin establecimientoId) son excluidos por el cascade
+    // pero el sistemaId persistido en el form sigue siendo válido.
+    const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId)
+      ?? sistemas.find(s => s.id === form.sistemaId);
     const modulo = modulos.find(m => m.id === form.moduloId);
     const tipoServ = tiposServicio.find(t => t.id === form.tipoServicioId);
     const contacto = contactos.find(c => c.id === form.contactoId);
     const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId);
 
     if (!cliente || !tipoServ) { alert('Datos incompletos'); return; }
+    if (!form.sistemaId) { alert('Seleccione un equipo'); return; }
+    if (!sistema) {
+      alert('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
+      return;
+    }
 
     setSaving(true);
     try {
