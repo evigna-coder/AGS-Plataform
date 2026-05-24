@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { usePatrones } from '../../hooks/usePatrones';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -21,6 +20,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
+import { PatronRow } from './PatronRow';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
 
@@ -255,66 +255,20 @@ export const PatronesList = () => {
                   const venc = proximoVencimiento(p);
                   const cantidad = totalCantidad(p);
                   const tieneCantidad = p.lotes.some(l => typeof l.cantidad === 'number');
-                  const vencCls = estado === 'vencido' ? 'text-red-600 font-medium'
-                    : estado === 'por_vencer' ? 'text-amber-700 font-medium'
-                    : 'text-slate-600';
                   return (
-                    <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${!p.activo ? 'opacity-50' : ''}`}>
-                      <td className={`px-3 py-2 text-xs font-semibold text-teal-600 font-mono truncate ${getAlignClass(0)}`} title={p.codigoArticulo}>{p.codigoArticulo || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-700 truncate ${getAlignClass(1)}`} title={p.descripcion}>{p.descripcion || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`}>{p.marca || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
-                        <div className="flex gap-1 flex-wrap">
-                          {p.categorias.map(c => (
-                            <span key={c} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium">
-                              {CATEGORIA_PATRON_LABELS[c] || c}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className={`px-3 py-2 ${getAlignClass(4)}`}>
-                        {p.lotes.length === 0 ? (
-                          <span className="text-[10px] text-slate-300 italic">Sin lotes</span>
-                        ) : (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {p.lotes.slice(0, 3).map((l, i) => (
-                              <span key={i}
-                                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200"
-                                title={l.fechaVencimiento ? `Vence: ${formatFechaAR(l.fechaVencimiento)}` : undefined}>
-                                {l.lote || '(vacío)'}
-                              </span>
-                            ))}
-                            {p.lotes.length > 3 && (
-                              <span className="text-[10px] text-slate-400">+{p.lotes.length - 3}</span>
-                            )}
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>
-                              {badge.label}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className={`px-3 py-2 text-xs whitespace-nowrap ${vencCls} ${getAlignClass(5)}`}
-                        title={p.lotes.length > 1 ? 'Vencimiento más próximo entre lotes' : undefined}>
-                        {venc ? formatFechaAR(venc) : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className={`px-3 py-2 text-xs font-mono whitespace-nowrap ${colAligns?.[6] ? getAlignClass(6) : 'text-right'}`}>
-                        {tieneCantidad ? cantidad : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <Link to={`/patrones/${p.id}/editar`}
-                            className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100">
-                            Editar
-                          </Link>
-                          {p.activo && (
-                            <button onClick={() => handleDeactivate(p)}
-                              className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50">
-                              Desactivar
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    <PatronRow
+                      key={p.id}
+                      patron={p}
+                      estado={estado}
+                      estadoBadge={badge}
+                      proximoVencimiento={venc}
+                      cantidad={cantidad}
+                      tieneCantidad={tieneCantidad}
+                      formatFechaAR={formatFechaAR}
+                      getAlignClass={getAlignClass}
+                      colAligns={colAligns}
+                      onDeactivate={handleDeactivate}
+                    />
                   );
                 })}
               </tbody>
