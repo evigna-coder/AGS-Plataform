@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Sistema, ModuloSistema, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
@@ -6,6 +5,8 @@ import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { EquipoLinkPanel } from './EquipoLinkPanel';
 import { ArticuloPickerPanel } from './ArticuloPickerPanel';
+import { useTabs } from '../../contexts/TabsContext';
+import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 
 const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
   { value: '', label: 'Sin categoria' },
@@ -34,10 +35,18 @@ export const AddItemModal = ({
   newItem, setNewItem, categoriasPresupuesto, conceptosServicio, moneda,
   onAdd, onClose, sistemas, loadModulos, tipoPresupuesto, articulos,
 }: AddItemModalProps) => {
+  const { navigateInActiveTab } = useTabs();
+  const { minimize } = useFloatingPresupuesto();
   const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
   const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
   const categoria = categoriasPresupuesto.find(c => c.id === newItem.categoriaPresupuestoId);
   const sym = MONEDA_SIMBOLO[(moneda as keyof typeof MONEDA_SIMBOLO) || 'USD'] || '$';
+
+  const handleManageCategorias = () => {
+    minimize();              // pill el modal flotante para que se vea la pagina
+    onClose();               // cierra AddItem
+    navigateInActiveTab('/presupuestos/categorias');
+  };
 
   const handleSelectConcepto = (conceptoId: string) => {
     const concepto = conceptosServicio.find(c => c.id === conceptoId);
@@ -184,7 +193,7 @@ export const AddItemModal = ({
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Categoria (reglas tributarias)</label>
             <SearchableSelect value={newItem.categoriaPresupuestoId || ''} onChange={(v) => setNewItem({ ...newItem, categoriaPresupuestoId: v || undefined })}
               options={categoriaOptions(categoriasPresupuesto)} placeholder="Seleccionar categoria..." />
-            <Link to="/presupuestos/categorias" className="text-[11px] text-teal-600 hover:underline mt-0.5 inline-block">Gestionar categorias →</Link>
+            <button type="button" onClick={handleManageCategorias} className="text-[11px] text-teal-600 hover:underline mt-0.5 inline-block text-left">Gestionar categorias →</button>
             {newItem.categoriaPresupuestoId && taxPreview()}
           </div>
           {newItem.cantidad && newItem.precioUnitario && !newItem.categoriaPresupuestoId && (
