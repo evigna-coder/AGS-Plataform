@@ -2,16 +2,22 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 14-05-PLAN.md (BOM-06 badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' URL-persisted via useUrlFilters + PatronComponentesAlertBanner inline en PatronEditorPage; Playwright UAT 5/5 GREEN en spec 14.50; suite Wave 4-5 13/13 GREEN)
-last_updated: "2026-05-24T05:00:00.000Z"
-last_activity: "2026-05-24 — Plan 14-05: refactor(14-05) 261ba9a (extract PatronRow 122 LOC + badges BOM/BLOQUEADO/AGOTADO) + feat(14-05) 89b74ce (filtro 'Bloqueados' via useUrlFilters schema) + feat(14-05) 6365685 (PatronComponentesAlertBanner 73 LOC inline above Lotes + PatronesList NETO 330→303 LOC) + test(14-05) 9f1c90b (Playwright UAT spec 14.50). UAT 5/5 GREEN, suite Wave 4-5 13/13 GREEN. Plan cerrado."
+stopped_at: "Plan 14-07 CANCELLED (model mismatch — technician selects caja maestra not components; BOM accounting is admin-only). Commit 6229cde reverted en 4be3b95. BOM-07 marked cancelled en REQUIREMENTS.md + ROADMAP.md. Next: 14-08 release-prep."
+last_updated: "2026-05-24T05:35:00.000Z"
+last_activity: "2026-05-24 — Plan 14-07 CANCELLED. User feedback: 'desde patrones del listado lo que se hace es seleccionar la muestra, la caja maestra. La descarga de la ampolla va a ser desde el cierre administrativo, no nos interesa que el ingeniero seleccione o aparezcan los componentes'. Plan 14-07 había implementado badge AGOTADO + disable selection sobre lotes con saldo BOM ≤ mínimo en reportes-ot — esto violaba el modelo de dominio (admin-side leak en frozen-surface app del técnico). Revert limpio via git revert 6229cde (commit 4be3b95). Frozen-surface restaurado al 100%. Phase 14 ahora: 7 done / 1 cancelled / 1 pending (14-08 release-prep)."
 progress:
   total_phases: 15
   completed_phases: 10
   total_plans: 72
   completed_plans: 69
+---
+
+# Decision log entry — 2026-05-24
+
+**[Phase 14-07 — CANCELLED]**: El plan agregaba badge "AGOTADO"/"BLOQUEADO" + disable selection sobre lotes con saldo BOM ≤ mínimo en `InstrumentoSelectorPanel.tsx` (commit `6229cde`). Cancelado tras feedback del usuario: el técnico en reportes-ot solo selecciona la caja maestra del kit; los componentes individuales (ampollas) son contabilidad EXCLUSIVA del cierre administrativo en sistema-modular. Exponer estado BOM en reportes-ot era un admin-side leak en la app del técnico (frozen-surface). Revert en commit `4be3b95`. BOM-07 marked `Cancelled` en REQUIREMENTS.md y `[~]` en ROADMAP.md. **Lección de planning**: cuando un plan toca una frozen-surface, validar el modelo de dominio con el usuario ANTES de planear la excepción.
+
 ---
 
 ---

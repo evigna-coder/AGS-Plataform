@@ -307,7 +307,7 @@ Plans:
 - [x] 14-04-patron-componentes-editor-PLAN.md — Editor 'Componentes (BOM)' en PatronEditorPage con sub-componente extraído PatronComponentesEditor.tsx + guardas de rename y duplicados (BOM-04)
 - [x] 14-05-patrones-list-badges-y-filtro-PLAN.md — PatronesList badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' via useUrlFilters; PatronComponentesAlertBanner inline en PatronEditorPage; pre-extracción de PatronRow.tsx + PatronComponentesAlertBanner.tsx (BOM-06)
 - [x] 14-06-cierre-admin-patrones-consumidos-PLAN.md — Paso 'Patrones consumidos' en OTCierreAdminSection + CierrePatronesConsumidosSection sub-componente + useCierrePatronesConsumidos hook + ConfigFlujosPage UI extension. NOT autonomous: 9-step UAT (BOM-05, BOM-08 UI)
-- [ ] 14-07-reportes-ot-selector-badge-PLAN.md — InstrumentoSelectorPanel badge AGOTADO + disable lote bloqueado (frozen-exception scoped, CLAUDE_ALLOW_REPORTES_OT=1). NOT autonomous: visual UAT + PDF regression check (BOM-07)
+- [~] 14-07-reportes-ot-selector-badge-PLAN.md — **CANCELLED 2026-05-24** por mismatch de modelo. Commit `6229cde` revertido en `4be3b95`. Razón: el técnico selecciona caja maestra (no componentes); la contabilidad BOM es exclusiva del cierre admin en sistema-modular. Frozen-surface restaurado al 100%. BOM-07 cancelled en REQUIREMENTS.md.
 - [ ] 14-08-release-prep-PLAN.md — Validación full suite + RELEASE-CHECKLIST smoke + surface 'pnpm release:minor' command to user. NOT autonomous: user cuts the tag manually
 
 ### Phase 15: Stock — Venta de loaner espejo a stock
