@@ -32,9 +32,11 @@ export function CierrePatronesConsumidosSection({
 
   if (ctx.loading) {
     return (
-      <section className="border-t border-slate-200 pt-6 mt-6">
+      <section className="border-t border-slate-200 pt-6 mt-6" data-testid="cierre-bom-section">
         <h3 className="font-serif text-lg text-slate-900 mb-2">Patrones consumidos</h3>
-        <p className="text-sm text-slate-500 italic">Cargando patrones consumidos…</p>
+        <p className="text-sm text-slate-500 italic" data-testid="cierre-bom-loading">
+          Cargando patrones consumidos…
+        </p>
       </section>
     );
   }
@@ -43,9 +45,9 @@ export function CierrePatronesConsumidosSection({
   // ofrecer acciones (legacy patrones siguen sin BOM y no se descuentan).
   if (!ctx.readOnly && ctx.rows.length === 0) {
     return (
-      <section className="border-t border-slate-200 pt-6 mt-6">
+      <section className="border-t border-slate-200 pt-6 mt-6" data-testid="cierre-bom-section">
         <h3 className="font-serif text-lg text-slate-900 mb-2">Patrones consumidos</h3>
-        <p className="text-sm text-slate-500 italic">
+        <p className="text-sm text-slate-500 italic" data-testid="cierre-bom-empty">
           No hay patrones con BOM en esta OT. Sin descuento de componentes.
         </p>
       </section>
@@ -53,11 +55,14 @@ export function CierrePatronesConsumidosSection({
   }
 
   return (
-    <section className="border-t border-slate-200 pt-6 mt-6">
+    <section className="border-t border-slate-200 pt-6 mt-6" data-testid="cierre-bom-section">
       <h3 className="font-serif text-lg text-slate-900 mb-3">Patrones consumidos</h3>
 
       {ctx.readOnly && ctx.readOnlyInfo && (
-        <div className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <div
+          className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          data-testid="cierre-bom-readonly-banner"
+        >
           <strong>Ya descontado</strong>{' '}
           {ctx.readOnlyInfo.fecha !== '-' && (
             <>el {ctx.readOnlyInfo.fecha} </>
@@ -93,6 +98,8 @@ export function CierrePatronesConsumidosSection({
                   <tr
                     key={`${r.patronId}-${r.lote}-${r.codigoComponente}-${idx}`}
                     className="border-b border-slate-100 align-top"
+                    data-testid="cierre-bom-row"
+                    data-codigo={r.codigoComponente}
                   >
                     <td className="py-2 pr-3 text-sm">
                       {r.patronCodigo}
@@ -106,6 +113,7 @@ export function CierrePatronesConsumidosSection({
                         disabled={ctx.submitting}
                         inputSize="sm"
                         className="w-32"
+                        data-testid="cierre-bom-lote-input"
                       />
                     </td>
                     <td className="py-2 pr-3 text-sm">
@@ -113,7 +121,9 @@ export function CierrePatronesConsumidosSection({
                       <br />
                       <span className="text-[10px] text-slate-500">{r.descripcionComponente}</span>
                     </td>
-                    <td className="py-2 pr-3 text-sm text-slate-500">{r.cantidadSugerida}</td>
+                    <td className="py-2 pr-3 text-sm text-slate-500" data-testid="cierre-bom-sugerido">
+                      {r.cantidadSugerida}
+                    </td>
                     <td className="py-2 pr-3">
                       <Input
                         type="number"
@@ -122,6 +132,7 @@ export function CierrePatronesConsumidosSection({
                         disabled={ctx.submitting}
                         inputSize="sm"
                         className="w-20"
+                        data-testid="cierre-bom-real-input"
                       />
                     </td>
                     <td className="py-2 pr-3">
@@ -132,6 +143,7 @@ export function CierrePatronesConsumidosSection({
                           placeholder="¿por qué difiere?"
                           disabled={ctx.submitting}
                           inputSize="sm"
+                          data-testid="cierre-bom-motivo-input"
                         />
                       )}
                     </td>
@@ -142,6 +154,7 @@ export function CierrePatronesConsumidosSection({
                         disabled={ctx.submitting}
                         className="text-rose-600 hover:text-rose-800 disabled:opacity-30 text-lg leading-none"
                         aria-label="Quitar fila"
+                        data-testid="cierre-bom-remove-btn"
                       >
                         ×
                       </button>
@@ -168,6 +181,7 @@ export function CierrePatronesConsumidosSection({
                   /* error ya está en ctx.error */
                 }
               }}
+              data-testid="cierre-bom-confirm-btn"
             >
               {ctx.submitting ? 'Descontando…' : 'Confirmar descuento de patrones'}
             </Button>

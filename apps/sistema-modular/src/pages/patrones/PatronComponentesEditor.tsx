@@ -82,18 +82,26 @@ export function PatronComponentesEditor({
       </div>
 
       {componentes.length === 0 ? (
-        <div className="rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+        <div
+          className="rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600"
+          data-testid="bom-empty"
+        >
           Sin componentes declarados. Este patrón funciona como kit entero (sin
           desagregación). Agregá componentes para activar el BOM (caso típico:
           ampollas dentro de un kit).
           <div className="mt-3">
-            <Button variant="secondary" onClick={addRow} disabled={disabled}>
+            <Button
+              variant="secondary"
+              onClick={addRow}
+              disabled={disabled}
+              data-testid="bom-add-btn"
+            >
               + Agregar componente
             </Button>
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" data-testid="bom-table">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200">
@@ -109,7 +117,12 @@ export function PatronComponentesEditor({
               {componentes.map((c, idx) => {
                 const isLocked = !!c.codigoComponente && locked.has(c.codigoComponente);
                 return (
-                  <tr key={idx} className="border-b border-slate-100 align-top">
+                  <tr
+                    key={idx}
+                    className="border-b border-slate-100 align-top"
+                    data-testid="bom-row"
+                    data-codigo={c.codigoComponente}
+                  >
                     <td className="py-2 pr-3">
                       <Input
                         value={c.codigoComponente}
@@ -123,9 +136,13 @@ export function PatronComponentesEditor({
                             ? 'Este componente ya tiene consumos registrados; no se puede renombrar.'
                             : undefined
                         }
+                        data-testid="bom-codigo-input"
                       />
                       {isLocked && (
-                        <p className="mt-1 text-[10px] font-mono uppercase tracking-wide text-slate-500">
+                        <p
+                          className="mt-1 text-[10px] font-mono uppercase tracking-wide text-slate-500"
+                          data-testid="bom-locked-indicator"
+                        >
                           🔒 Con consumos
                         </p>
                       )}
@@ -180,6 +197,7 @@ export function PatronComponentesEditor({
                         className="text-rose-600 hover:text-rose-800 disabled:opacity-30 text-lg leading-none"
                         aria-label="Eliminar componente"
                         title="Eliminar componente"
+                        data-testid="bom-delete-btn"
                       >
                         ×
                       </button>
@@ -190,7 +208,12 @@ export function PatronComponentesEditor({
             </tbody>
           </table>
           <div className="mt-3">
-            <Button variant="secondary" onClick={addRow} disabled={disabled}>
+            <Button
+              variant="secondary"
+              onClick={addRow}
+              disabled={disabled}
+              data-testid="bom-add-btn"
+            >
               + Agregar componente
             </Button>
           </div>

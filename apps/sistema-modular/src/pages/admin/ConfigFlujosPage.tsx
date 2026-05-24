@@ -205,7 +205,7 @@ export default function ConfigFlujosPage() {
           <p className="mt-1 text-[11px] text-slate-500">Ejecuta el cierre administrativo (descarga de artículos + facturación) tras el cierre técnico. El ticket se deriva automáticamente a este usuario cuando la OT pasa a CIERRE_TECNICO.</p>
         </div>
 
-        <div>
+        <div data-testid="cfg-usuario-req-patron-section">
           <label className={fieldLabel}>Requerimientos de patrón (BOM-08)</label>
           <SearchableSelect
             value={form.usuarioRequerimientosPatronId || ''}
@@ -262,13 +262,16 @@ export default function ConfigFlujosPage() {
           </div>
         )}
         {successMsg && (
-          <div className="text-sm text-teal-800 bg-teal-50 border border-teal-200 rounded-lg p-3">
+          <div
+            className="text-sm text-teal-800 bg-teal-50 border border-teal-200 rounded-lg p-3"
+            data-testid="cfg-success-msg"
+          >
             {successMsg}
           </div>
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={submitting}>
+          <Button onClick={handleSave} disabled={submitting} data-testid="cfg-save-btn">
             {submitting ? 'Guardando…' : 'Guardar cambios'}
           </Button>
         </div>
