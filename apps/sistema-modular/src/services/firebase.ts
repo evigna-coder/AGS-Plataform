@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, onSnapshotsInSync, collection, addDoc, doc, writeBatch, Timestamp, getDocs, getDoc, updateDoc, setDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
-import type { Firestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, collection, addDoc as _addDoc, doc, writeBatch as _writeBatch, runTransaction as _runTransaction, Timestamp, getDocs, getDoc, updateDoc as _updateDoc, setDoc as _setDoc, deleteDoc as _deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import type { Firestore, Firestore as FirestoreType } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
 import { getCurrentUserTrace } from './currentUser';
@@ -102,38 +102,8 @@ try {
   enableNetwork(db).catch(err => console.warn('[Firestore] enableNetwork falló:', err));
   storage = getStorage(app);
 
-  // Workaround Electron+long-polling: tras un write a Firestore, Chromium deja
-  // stuck el keyboard router del browser process — el caret aparece al hacer
-  // click pero el teclado no llega al input. La única forma de destrabarlo es
-  // blur+focus OS-level de la BrowserWindow (lo que hace alt+tab). Único
-  // costo: un dim breve del título. Para que NO parpadee constantemente:
-  // (1) gate de actividad reciente — sólo si el user clickeó/tipeó en los
-  //     últimos 1500ms. Apertura de app y syncs idle no disparan flash.
-  // (2) trailing-edge debounce 500ms — ráfagas de syncs durante carga de
-  //     módulo coalescen a 1 sólo flash al final.
-  // Ver memory/project_search_inputs_disabled_after_write.md
   if (typeof window !== 'undefined' && (window as any).electronAPI?.flashFocus) {
-    const electronAPI = (window as any).electronAPI;
-    let lastUserActionTime = 0;
-    const markUserAction = () => { lastUserActionTime = Date.now(); };
-    window.addEventListener('mousedown', markUserAction, true);
-    window.addEventListener('keydown', markUserAction, true);
-
-    let flashTimer: ReturnType<typeof setTimeout> | null = null;
-    let flashCount = 0;
-    onSnapshotsInSync(db, () => {
-      // Skip si no hubo actividad del user en los últimos 1.5s (carga idle).
-      if (Date.now() - lastUserActionTime > 1500) return;
-      // Trailing-edge debounce: reset en cada sync, fire 500ms después del último.
-      if (flashTimer) clearTimeout(flashTimer);
-      flashTimer = setTimeout(() => {
-        flashTimer = null;
-        flashCount++;
-        (window as any).__inputWakeupCount = flashCount;
-        electronAPI.flashFocus();
-      }, 500);
-    });
-    console.log('%c⚡ Input wakeup activo (gated + trailing debounce)', 'color: orange; font-weight: bold');
+    console.log('%c⚡ Input wakeup activo (wrap SDK writes)', 'color: orange; font-weight: bold');
   }
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
@@ -144,14 +114,76 @@ try {
 
 export { db };
 
+// ========== WRAPPED SDK WRITES — Electron input wakeup ==========
+// Cada función expone la misma signature que la original de firebase/firestore,
+// pero dispara scheduleFlash() post-resolve. Eso destraba el keyboard router
+// de Chromium en Electron (bug long-polling). Debounce 200ms para coalescer
+// bursts (ej. batch.commit que dispara N listeners). No-op en browser.
+// Ver memory/project_search_inputs_disabled_after_write.md
+let _flashTimer: ReturnType<typeof setTimeout> | null = null;
+let _flashCount = 0;
+function scheduleFlash() {
+  if (typeof window === 'undefined') return;
+  const api = (window as any).electronAPI;
+  if (!api?.flashFocus) return;
+  if (_flashTimer !== null) return;
+  _flashTimer = setTimeout(() => {
+    _flashTimer = null;
+    _flashCount++;
+    (window as any).__inputWakeupCount = _flashCount;
+    api.flashFocus();
+  }, 200);
+}
+
+export const setDoc: typeof _setDoc = (async (...args: any[]) => {
+  const r = await (_setDoc as any)(...args);
+  scheduleFlash();
+  return r;
+}) as typeof _setDoc;
+
+export const updateDoc: typeof _updateDoc = (async (...args: any[]) => {
+  const r = await (_updateDoc as any)(...args);
+  scheduleFlash();
+  return r;
+}) as typeof _updateDoc;
+
+export const addDoc: typeof _addDoc = (async (...args: any[]) => {
+  const r = await (_addDoc as any)(...args);
+  scheduleFlash();
+  return r;
+}) as typeof _addDoc;
+
+export const deleteDoc: typeof _deleteDoc = (async (...args: any[]) => {
+  const r = await (_deleteDoc as any)(...args);
+  scheduleFlash();
+  return r;
+}) as typeof _deleteDoc;
+
+export function writeBatch(firestore: FirestoreType): ReturnType<typeof _writeBatch> {
+  const batch = _writeBatch(firestore);
+  const origCommit = batch.commit.bind(batch);
+  (batch as any).commit = async () => {
+    const r = await origCommit();
+    scheduleFlash();
+    return r;
+  };
+  return batch;
+}
+
+export const runTransaction: typeof _runTransaction = (async (...args: any[]) => {
+  const r = await (_runTransaction as any)(...args);
+  scheduleFlash();
+  return r;
+}) as typeof _runTransaction;
+
 // Expone Firebase a window en dev para scripts de migración (consola del browser).
-// No se incluye en builds de producción.
+// No se incluye en builds de producción. Usa las wrapped (también disparan flash).
 if (import.meta.env.DEV && typeof window !== 'undefined' && db!) {
   (window as any).__ags = {
     app: app!, db: db!, storage: storage!,
     firestore: {
       collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-      query, where, orderBy, writeBatch, Timestamp,
+      query, where, orderBy, writeBatch, Timestamp, runTransaction,
     },
   };
 }
@@ -174,7 +206,7 @@ export function logAudit(params: {
 }): void {
   const user = getCurrentUserTrace();
   if (!user) return;
-  addDoc(collection(db, 'audit_log'), {
+  _addDoc(collection(db, 'audit_log'), {
     action: params.action,
     collection: params.collection,
     documentId: params.documentId,
@@ -206,7 +238,7 @@ function buildAuditEntry(params: {
   };
 }
 
-/** Create a Firestore WriteBatch pre-configured with db */
+/** Create a Firestore WriteBatch pre-configured con db (commit dispara flash) */
 export function createBatch() {
   return writeBatch(db);
 }
@@ -223,7 +255,7 @@ export function docRef(collectionName: string, docId: string) {
 
 /** Add audit entry to an existing batch (single round-trip) */
 export function batchAudit(
-  batch: ReturnType<typeof writeBatch>,
+  batch: ReturnType<typeof _writeBatch>,
   params: { action: AuditAction; collection: string; documentId: string; after?: object | null }
 ) {
   const auditRef = doc(collection(db, 'audit_log'));
@@ -314,7 +346,7 @@ export function auditUpdate(params: {
   before: object;
   after: object;
   entityLabel?: string;
-  batch?: ReturnType<typeof writeBatch>;
+  batch?: ReturnType<typeof _writeBatch>;
 }): void {
   const diff = auditDiff(
     params.before as Record<string, unknown>,
@@ -336,7 +368,7 @@ export function auditUpdate(params: {
     const ref = doc(collection(db, 'audit_log'));
     params.batch.set(ref, entry);
   } else {
-    addDoc(collection(db, 'audit_log'), entry).catch(err =>
+    _addDoc(collection(db, 'audit_log'), entry).catch(err =>
       console.error('Audit update failed:', err)
     );
   }
@@ -356,7 +388,7 @@ export function logBusinessEvent(params: {
   documentId: string;
   details?: object | null;
   entityLabel?: string;
-  batch?: ReturnType<typeof writeBatch>;
+  batch?: ReturnType<typeof _writeBatch>;
 }): void {
   const user = getCurrentUserTrace();
   // details viene de los servicios y puede tener undefined en campos opcionales;
@@ -377,7 +409,7 @@ export function logBusinessEvent(params: {
     const ref = doc(collection(db, 'audit_log'));
     params.batch.set(ref, entry);
   } else {
-    addDoc(collection(db, 'audit_log'), entry).catch(err =>
+    _addDoc(collection(db, 'audit_log'), entry).catch(err =>
       console.error('Audit business_event failed:', err)
     );
   }

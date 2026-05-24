@@ -1,4 +1,5 @@
-import { collection, getDocs, doc, getDoc, query, where, Timestamp, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
+import { runTransaction } from './firebase';
 import type { Contrato, EstadoContrato } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, onSnapshot } from './firebase';
 

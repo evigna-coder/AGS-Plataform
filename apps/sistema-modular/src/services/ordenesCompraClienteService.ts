@@ -1,7 +1,7 @@
 import {
   collection, doc, getDoc, getDocs, query, where, Timestamp,
-  updateDoc, deleteDoc, runTransaction,
 } from 'firebase/firestore';
+import { updateDoc, deleteDoc, runTransaction } from './firebase';
 import type {
   OrdenCompraCliente, Presupuesto, Posta, TicketEstado, Ticket,
 } from '@ags/shared';

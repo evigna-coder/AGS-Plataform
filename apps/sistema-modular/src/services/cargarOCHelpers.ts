@@ -1,4 +1,5 @@
-import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { updateDoc } from './firebase';
 import type { PendingAction } from '@ags/shared';
 import { db, deepCleanForFirestore, getUpdateTrace } from './firebase';
 import { adminConfigService } from './adminConfigService';

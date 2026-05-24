@@ -1,4 +1,5 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, Timestamp, query, orderBy } from 'firebase/firestore';
+import { addDoc, updateDoc, deleteDoc } from './firebase';
 import type { Vehiculo, ServicioVehiculo, VisitaTaller, RegistroKm } from '@ags/shared';
 import { db, createBatch, newDocRef, docRef, batchAudit, logAudit, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 

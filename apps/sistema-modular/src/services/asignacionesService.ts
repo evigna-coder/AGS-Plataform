@@ -1,4 +1,5 @@
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { runTransaction } from './firebase';
 import type { Asignacion } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 

@@ -1,4 +1,5 @@
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, orderBy, Timestamp, arrayUnion, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, arrayUnion } from 'firebase/firestore';
+import { updateDoc, runTransaction } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Lead, TicketEstado, TicketArea, TicketPrioridad, MotivoLlamado, Posta, AdjuntoTicket, PresupuestoEstado, OTEstadoAdmin, Ticket, Cliente } from '@ags/shared';
 import {

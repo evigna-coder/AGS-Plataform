@@ -1,4 +1,5 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { setDoc } from './firebase';
 import type { AdminConfigFlujos } from '@ags/shared';
 import { db, deepCleanForFirestore, onSnapshot } from './firebase';
 

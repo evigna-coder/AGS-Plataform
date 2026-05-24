@@ -1,4 +1,5 @@
-import { doc, getDoc, setDoc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { setDoc } from './firebase';
 import { db, deepCleanForFirestore } from './firebase';
 
 /**

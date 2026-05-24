@@ -1,4 +1,5 @@
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
+import { addDoc, updateDoc, deleteDoc } from './firebase';
 import type { Establecimiento, ContactoEstablecimiento } from '@ags/shared';
 import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, batchAudit, docRef as firestoreDocRef, onSnapshot } from './firebase';
 import { getCached, setCache, invalidateCache } from './serviceCache';

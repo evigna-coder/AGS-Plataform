@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Articulo, Presupuesto, PresupuestoItem } from '@ags/shared';
-import { collection, doc, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, doc, Timestamp } from 'firebase/firestore';
+import { writeBatch } from '../../services/firebase';
 import { db, deepCleanForFirestore } from '../../services/firebase';
 import { articulosService } from '../../services/stockService';
 import { presupuestosService } from '../../services/presupuestosService';

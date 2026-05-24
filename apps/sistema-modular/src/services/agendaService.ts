@@ -1,4 +1,5 @@
-import { collection, addDoc, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { addDoc, setDoc, updateDoc, deleteDoc } from './firebase';
 import type { AgendaEntry, AgendaNota } from '@ags/shared';
 import { db, logAudit, deepCleanForFirestore, getCreateTrace, getUpdateTrace, onSnapshot } from './firebase';
 

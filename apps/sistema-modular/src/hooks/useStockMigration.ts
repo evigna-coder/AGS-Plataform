@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { collection, doc, getDocs, query, where, limit, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, limit, Timestamp } from 'firebase/firestore';
+import { writeBatch } from '../services/firebase';
 import { db } from '../services/firebase';
 import * as XLSX from 'xlsx';
 

@@ -1,4 +1,5 @@
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, Timestamp, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
+import { updateDoc, deleteDoc, addDoc } from './firebase';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
 import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
 import { establecimientosService } from './establecimientosService';
