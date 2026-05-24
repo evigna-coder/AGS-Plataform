@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
-stopped_at: "Completed 15-02-service-transaccional-PLAN.md (Wave 2 GREEN). registrarVenta transaccional landed via loanersVentaHelpers.ts (extracted, mirror patronesConsumirHelpers Phase 14). 5/5 unit tests GREEN. loanersService refactorizado a lazy firebase. Pitfalls 1-6 verificados. Type-check 28 errores (todos pre-existentes Phase 15-unrelated). Suite adyacente 41/41 GREEN. Next: 15-03 UI/UAT (LoanerVentaModal extension + SearchableSelect artículo vinculable + UAT manual)."
-last_updated: "2026-05-24T07:36:38.951Z"
+stopped_at: "Completed 15-03-modal-ui-y-uat-PLAN.md (UAT 8/8 PASS firmado por usuario). Phase 15 (Venta loaner espejo a stock) COMPLETA end-to-end: 4/4 plans + 4/4 requirements operacionales (VLN-01..04). Release surface al usuario: pnpm --filter @ags/sistema-modular release:minor (MINOR — ships feature user-visible). Out-of-scope: firebase deploy --only firestore corrió OK adyacente a la sesión. Next: /gsd:verify-work para cerrar la fase formalmente."
+last_updated: "2026-05-24T15:07:05.819Z"
 last_activity: 2026-05-24
 progress:
   total_phases: 15
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 76
-  completed_plans: 73
+  completed_plans: 74
 ---
 
 ---
@@ -420,6 +420,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 15 P00 | 6 min | 2 tasks | 4 files |
 | Phase 15 P01 | 5m | 2 tasks | 1 files |
 | Phase 15-stock-venta-de-loaner-espejo-a-stock P02 | 30min | 2 tasks | 5 files |
+| Phase 15 P03 | 22min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -574,6 +575,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 15]: VLN-02d (rollback atómico) ships como assert.fail placeholder hasta Wave 2 agregue hook _throwOnUnidadCreate al DI simulator — El test queda RED-by-design con mensaje explícito. Comment inline documenta qué assertions hace cuando Wave 2 habilite el hook. Alternativa (skip) habría escondido la dependencia; mejor que falle visiblemente.
 - [Phase 15]: Phase 15-01: union widening + 4 opcionales nullable en MovimientoStock+VentaLoaner. Backwards-compat 100%. JSDoc explica explicitamente que consumidores de subtipo==='conversion' siguen funcionando. Zero touch a Loaner/EstadoLoaner/CondicionUnidad/EstadoUnidad/UbicacionStock/TipoMovimiento/TipoOrigenDestino (locked en CONTEXT.md).
 - [Phase 15-stock-venta-de-loaner-espejo-a-stock]: Plan 15-02: registrarVenta transaccional GREEN end-to-end. 5/5 unit tests pass. loanersVentaHelpers.ts extraído (precedente patronesConsumirHelpers Phase 14). loanersService.ts refactorizado a lazy firebase import. __setTestFirestore namespaced excluido del barrel firebaseService. Pitfalls 1-6 verificados con grep. Type-check 28 errores (todos pre-existentes, 0 Phase-15-related). LoanerDetail.tsx mantiene cast WIP hasta Wave 3 reemplace el modal. Suite adyacente sin regresión (test:patron-bom 18/18, test:equivalencias 9/9, test:stock-amplio 5/5, test:cuotas-facturacion 9/9 = 41/41 + 5 nuevos).
+- [Phase 15]: Phase 15-03 cerrada: LoanerVentaModal extendido (233 LOC con SearchableSelect condicional + Costo/Precio separados + banner inline error) + LoanerArticuloPicker.tsx extraído (62 LOC, mantiene budget components.md) + LoanerDetail.handleVenta nueva signature + useLoaners.registrarVenta wrapper ELIMINADO (grep confirmó 0 call sites externos). UAT 8/8 PASS firmado por usuario. Phase 15 COMPLETA — invariante 'venta loaner deja espejo en stock' verificado end-to-end (modal → service tx → 3 docs Firestore). Out-of-scope contextual: firebase deploy --only firestore corrió OK contra agssop-e7353 entre checkpoint y aprobación (no introduce rules/indexes nuevos en Phase 15, traceability del cloud state).
 
 ### Pending Todos
 
@@ -587,6 +589,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-24T07:36:38.947Z
-Stopped at: Completed 15-02-service-transaccional-PLAN.md (Wave 2 GREEN). registrarVenta transaccional landed via loanersVentaHelpers.ts (extracted, mirror patronesConsumirHelpers Phase 14). 5/5 unit tests GREEN. loanersService refactorizado a lazy firebase. Pitfalls 1-6 verificados. Type-check 28 errores (todos pre-existentes Phase 15-unrelated). Suite adyacente 41/41 GREEN. Next: 15-03 UI/UAT (LoanerVentaModal extension + SearchableSelect artículo vinculable + UAT manual).
+Last session: 2026-05-24T15:07:05.814Z
+Stopped at: Completed 15-03-modal-ui-y-uat-PLAN.md (UAT 8/8 PASS firmado por usuario). Phase 15 (Venta loaner espejo a stock) COMPLETA end-to-end: 4/4 plans + 4/4 requirements operacionales (VLN-01..04). Release surface al usuario: pnpm --filter @ags/sistema-modular release:minor (MINOR — ships feature user-visible). Out-of-scope: firebase deploy --only firestore corrió OK adyacente a la sesión. Next: /gsd:verify-work para cerrar la fase formalmente.
 Resume file: None
