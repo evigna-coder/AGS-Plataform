@@ -102,27 +102,38 @@ try {
   enableNetwork(db).catch(err => console.warn('[Firestore] enableNetwork falló:', err));
   storage = getStorage(app);
 
-  // Workaround Electron+long-polling: tras un write, Chromium queuea eventos
-  // de input del renderer (los SearchableSelect dejan de responder) hasta un
-  // focus event OS-level o ~60s. Disparar `window.dispatchEvent(new Event('focus'))`
-  // NO alcanza (es JS sintético, no toca el estado interno de Chromium).
-  // Fix real: IPC al main process para hacer blurWebView+focusOnWebView, que
-  // sí refresca el foco del renderer sin flicker del título OS.
+  // Workaround Electron+long-polling: tras un write a Firestore, Chromium deja
+  // stuck el keyboard router del browser process — el caret aparece al hacer
+  // click pero el teclado no llega al input. La única forma de destrabarlo es
+  // blur+focus OS-level de la BrowserWindow (lo que hace alt+tab). Único
+  // costo: un dim breve del título. Para que NO parpadee constantemente:
+  // (1) gate de actividad reciente — sólo si el user clickeó/tipeó en los
+  //     últimos 1500ms. Apertura de app y syncs idle no disparan flash.
+  // (2) trailing-edge debounce 500ms — ráfagas de syncs durante carga de
+  //     módulo coalescen a 1 sólo flash al final.
   // Ver memory/project_search_inputs_disabled_after_write.md
   if (typeof window !== 'undefined' && (window as any).electronAPI?.flashFocus) {
     const electronAPI = (window as any).electronAPI;
-    let wakeupTimer: ReturnType<typeof setTimeout> | null = null;
-    let wakeupCount = 0;
+    let lastUserActionTime = 0;
+    const markUserAction = () => { lastUserActionTime = Date.now(); };
+    window.addEventListener('mousedown', markUserAction, true);
+    window.addEventListener('keydown', markUserAction, true);
+
+    let flashTimer: ReturnType<typeof setTimeout> | null = null;
+    let flashCount = 0;
     onSnapshotsInSync(db, () => {
-      if (wakeupTimer !== null) return;
-      wakeupTimer = setTimeout(() => {
-        wakeupTimer = null;
-        wakeupCount++;
-        (window as any).__inputWakeupCount = wakeupCount;
+      // Skip si no hubo actividad del user en los últimos 1.5s (carga idle).
+      if (Date.now() - lastUserActionTime > 1500) return;
+      // Trailing-edge debounce: reset en cada sync, fire 500ms después del último.
+      if (flashTimer) clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => {
+        flashTimer = null;
+        flashCount++;
+        (window as any).__inputWakeupCount = flashCount;
         electronAPI.flashFocus();
-      }, 200);
+      }, 500);
     });
-    console.log('%c⚡ Input wakeup activo (Electron IPC)', 'color: orange; font-weight: bold');
+    console.log('%c⚡ Input wakeup activo (gated + trailing debounce)', 'color: orange; font-weight: bold');
   }
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
