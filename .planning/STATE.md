@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
-stopped_at: "Completed 15-00-test-infra-baseline-PLAN.md (Wave 0 RED baseline). 5 tests RED + fixtures + tsx runner + package.json script. Comando pnpm --filter @ags/sistema-modular test:venta-loaner ejecutable, falla con SyntaxError 'does not provide an export named __setTestFirestore' (RED esperado hasta Wave 2 = plan 15-02). Próximo: 15-01-tipos-PLAN.md."
-last_updated: "2026-05-24T07:05:36.270Z"
+stopped_at: "Completed 15-01-tipos-PLAN.md (Wave 1 — types foundation). 5 type extensions en packages/shared/src/types/index.ts: MovimientoStock.subtipo widened a 'conversion'|'venta_loaner' + referenciaLoanerId/Codigo opcionales nullable; VentaLoaner.costoUnitario/monedaCosto opcionales nullable. Backwards-compat 100%. Type-check GREEN shared + sistema-modular + reportes-ot + portal-ingeniero (zero new errors). Test pnpm test:venta-loaner sigue RED por 'no exported member registrarVenta/__setTestFirestore' (esperado, Wave 2 lo resuelve). Proximo: 15-02-service-transaccional-PLAN.md."
+last_updated: "2026-05-24T07:15:50.138Z"
 last_activity: 2026-05-24
 progress:
   total_phases: 15
   completed_phases: 10
   total_plans: 76
-  completed_plans: 71
+  completed_plans: 72
 ---
 
 ---
@@ -418,6 +418,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P06 | ~3h (incl bug-fix + deploy índice + UAT 8/8) | 5 tasks | 5 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P05 | ~50min | 3 tasks + 1 checkpoint UAT | 4 files |
 | Phase 15 P00 | 6 min | 2 tasks | 4 files |
+| Phase 15 P01 | 5m | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -570,6 +571,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: data-testids específicos para UAT Playwright (patron-row, badge-bom, badge-bloqueado, badge-agotado, filter-bloqueados, patron-componentes-alert-banner). Convención: semantic testids, no class-based selectors. Spec 14.50 con 5 sub-specs (14.50/14.51/14.52/14.53/14.54) — 5/5 GREEN en primer intento.
 - [Phase 15]: Wave 0 baseline shipped con runner intermedio scripts/test-venta-loaner.ts (mirror estricto Phase 14) + factory fixtures + 5 RED tests bajo describe('registrarVenta...') — Consistencia visual del bloque test:* en package.json y un único patrón runner que el lector reconoce. Factory functions evitan JSON.parse cloning pitfalls. RED por SyntaxError es señal limpia de que Wave 2 (15-02) debe aportar exports nombrados (no método de objeto).
 - [Phase 15]: VLN-02d (rollback atómico) ships como assert.fail placeholder hasta Wave 2 agregue hook _throwOnUnidadCreate al DI simulator — El test queda RED-by-design con mensaje explícito. Comment inline documenta qué assertions hace cuando Wave 2 habilite el hook. Alternativa (skip) habría escondido la dependencia; mejor que falle visiblemente.
+- [Phase 15]: Phase 15-01: union widening + 4 opcionales nullable en MovimientoStock+VentaLoaner. Backwards-compat 100%. JSDoc explica explicitamente que consumidores de subtipo==='conversion' siguen funcionando. Zero touch a Loaner/EstadoLoaner/CondicionUnidad/EstadoUnidad/UbicacionStock/TipoMovimiento/TipoOrigenDestino (locked en CONTEXT.md).
 
 ### Pending Todos
 
@@ -583,6 +585,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-24T07:05:21.160Z
-Stopped at: Completed 15-00-test-infra-baseline-PLAN.md (Wave 0 RED baseline). 5 tests RED + fixtures + tsx runner + package.json script. Comando pnpm --filter @ags/sistema-modular test:venta-loaner ejecutable, falla con SyntaxError 'does not provide an export named __setTestFirestore' (RED esperado hasta Wave 2 = plan 15-02). Próximo: 15-01-tipos-PLAN.md.
+Last session: 2026-05-24T07:15:50.133Z
+Stopped at: Completed 15-01-tipos-PLAN.md (Wave 1 — types foundation). 5 type extensions en packages/shared/src/types/index.ts: MovimientoStock.subtipo widened a 'conversion'|'venta_loaner' + referenciaLoanerId/Codigo opcionales nullable; VentaLoaner.costoUnitario/monedaCosto opcionales nullable. Backwards-compat 100%. Type-check GREEN shared + sistema-modular + reportes-ot + portal-ingeniero (zero new errors). Test pnpm test:venta-loaner sigue RED por 'no exported member registrarVenta/__setTestFirestore' (esperado, Wave 2 lo resuelve). Proximo: 15-02-service-transaccional-PLAN.md.
 Resume file: None
