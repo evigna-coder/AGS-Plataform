@@ -2,6 +2,22 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
+current_plan: 8
+status: executing
+stopped_at: Completed 14-05-PLAN.md (BOM-06 badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' URL-persisted via useUrlFilters + PatronComponentesAlertBanner inline en PatronEditorPage; Playwright UAT 5/5 GREEN en spec 14.50; suite Wave 4-5 13/13 GREEN)
+last_updated: "2026-05-24T05:00:00.000Z"
+last_activity: "2026-05-24 — Plan 14-05: refactor(14-05) 261ba9a (extract PatronRow 122 LOC + badges BOM/BLOQUEADO/AGOTADO) + feat(14-05) 89b74ce (filtro 'Bloqueados' via useUrlFilters schema) + feat(14-05) 6365685 (PatronComponentesAlertBanner 73 LOC inline above Lotes + PatronesList NETO 330→303 LOC) + test(14-05) 9f1c90b (Playwright UAT spec 14.50). UAT 5/5 GREEN, suite Wave 4-5 13/13 GREEN. Plan cerrado."
+progress:
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 72
+  completed_plans: 69
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
 current_plan: 7
 status: executing
 stopped_at: Completed 14-06-PLAN.md (BOM-05 + BOM-08 UI cerrados end-to-end; Playwright UAT 8/8 GREEN post-deploy del índice requerimientos_compra(origen,createdAt))
@@ -277,13 +293,13 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (6/9 plans)
-Current Plan: 7
+Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (7/9 plans)
+Current Plan: 8
 Total Plans in Phase: 9 (14-00 ... 14-08)
-Status: Services layer + Editor UI BOM-04 + Cierre Admin BOM-05/BOM-08 COMPLETE. Admin descuenta componentes desde cierre OT vía sub-section CierrePatronesConsumidosSection (auto-prefill dedupe + FIFO + idempotency + read-only banner en re-cierre). Reporte técnico INTOCABLE confirmado. /admin/config-flujos extiende con responsable de Requerimientos de patrón. Playwright UAT 8/8 GREEN post-deploy del índice compuesto requerimientos_compra(origen,createdAt) que faltaba (autoCrearRequerimientosPatron silenciosamente roto en prod desde 14-03 — bug RESUELTO). Suite test:patron-bom sigue 18/18. Próximo: 14-05 (PatronesList badges) — todavía pendiente — luego 14-07 (reportes-ot badge) + 14-08 (release prep).
+Status: Services layer + Editor UI BOM-04 + Cierre Admin BOM-05/BOM-08 + List Badges/Filtro BOM-06 COMPLETE. Admin ve qué patrones necesitan atención sin entrar al editor (badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' URL-persisted); técnico ve qué lotes están bloqueados sin abrir admin (14-07 selector badge); cierre admin descuenta con auto-REQ. Loop visual cerrado. Plan 14-07 (BOM-07 selector reportes-ot) ya commiteado previamente (commit 6229cde, frozen-exception scoped). Próximo: 14-08 (release prep — full suite validation + RELEASE-CHECKLIST smoke + pnpm release:minor user-cut).
 Last activity: 2026-05-24
 
-Progress: [█████████░] 94% (v2.0 milestone — 62/63 plans + Phase 14 ongoing 6/9)
+Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans + Phase 14 ongoing 7/9)
 
 ## Performance Metrics
 
@@ -350,6 +366,7 @@ Progress: [█████████░] 94% (v2.0 milestone — 62/63 plans +
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P03 | 3min | 2 tasks | 3 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P04 | ~30min | 4 tasks + 1 checkpoint UAT | 5 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P06 | ~3h (incl bug-fix + deploy índice + UAT 8/8) | 5 tasks | 5 files |
+| Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P05 | ~50min | 3 tasks + 1 checkpoint UAT | 4 files |
 
 ## Accumulated Context
 
@@ -494,6 +511,12 @@ Progress: [█████████░] 94% (v2.0 milestone — 62/63 plans +
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06: CierrePatronesConsumidosSection (193 LOC) — 3 estados (loading / read-only banner verde / tabla editable); pre-extracción ANTES de tocar OTCierreAdminSection para mantenerlo en 258 LOC (soft budget 280 OK)
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06: ConfigFlujosPage SearchableSelect para usuarioRequerimientosPatronId con default null + validación user-activo en handleSave; admin no obligado a setear desde día 0 (autoCrearRequerimientosPatron skipea silencioso si null)
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06 PITFALL: requerimientos_compra(origen ASC, createdAt DESC) índice compuesto faltaba — sin él autoCrearRequerimientosPatron fallaba silenciosamente en prod (query Firestore 'FAILED_PRECONDITION' swallowed por try/catch best-effort wrapper). FIX: agregado en firestore.indexes.json + deployed via firebase deploy --only firestore:indexes. LECCIÓN: TODA query con where+orderBy necesita índice compuesto declarado upfront; los best-effort wrappers ocultan el error en prod. Documentar como hard rule transversal.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: PatronRow.tsx (122 LOC) extraído de PatronesList para meter 3 badges (BOM teal / BLOQUEADO rose / AGOTADO rose-darker) sin romper el budget — sub-componente con click-handlers preservados 1:1. PatronesList.tsx bajó de 330 → 303 LOC NETO tras la extracción + filtro 'Bloqueados' agregado (cleanup incidental de 2 imports muertos).
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: PatronComponentesAlertBanner.tsx (73 LOC) — pure presentational, return null cuando no hay entries (lote, componente) problematic. Padre renderiza UNCONDITIONALLY, el componente decide. Patrón reusable para warning banners en otras listas (cero overhead en patrones sanos).
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: PatronEditorPage.tsx 374 → 398 LOC (+24), dentro del soft budget 400 del plan. Banner agregado inline ANTES del Lotes card header (top-down flow: Header → Componentes (BOM) → Alert → Lotes → Footer).
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: Filtro 'Bloqueados' usa useUrlFilters schema-based con FILTER_SCHEMA = { bloqueados: { type: 'boolean', default: false } } — 1:1 con convención de memory/feedback_filter_persistence.md. Toggle = (computePatronStatus(p) === 'bloqueado' || === 'agotado'): 1 checkbox cubre ambos estados, AGOTADO es variante crítica de BLOQUEADO. URL ?bloqueados=true persiste refresh + share-link safe.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: Refactor + feature en el MISMO commit (Task 1 = `refactor` commit `261ba9a` extrae PatronRow Y agrega badges en una unidad de trabajo). Sin la extracción, agregar 3 badges habría empujado PatronesList a >360 LOC. Decisión: cuando el refactor es prerequisito mecánico del feature, commit unificado vence a scaffolding-commit-separado.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: data-testids específicos para UAT Playwright (patron-row, badge-bom, badge-bloqueado, badge-agotado, filter-bloqueados, patron-componentes-alert-banner). Convención: semantic testids, no class-based selectors. Spec 14.50 con 5 sub-specs (14.50/14.51/14.52/14.53/14.54) — 5/5 GREEN en primer intento.
 
 ### Pending Todos
 
@@ -507,6 +530,6 @@ Progress: [█████████░] 94% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-24T04:33:33.220Z
-Stopped at: Completed 14-06-PLAN.md (BOM-05 + BOM-08 UI cerrados end-to-end; Playwright UAT 8/8 GREEN post-deploy del índice requerimientos_compra(origen,createdAt))
+Last session: 2026-05-24T05:00:00.000Z
+Stopped at: Completed 14-05-PLAN.md (BOM-06 badges + filtro 'Bloqueados' URL-persisted + PatronComponentesAlertBanner; Playwright UAT 5/5 GREEN spec 14.50; suite Wave 4-5 13/13 GREEN). Phase 14 → 7/9 plans, próximo 14-08 release prep.
 Resume file: None
