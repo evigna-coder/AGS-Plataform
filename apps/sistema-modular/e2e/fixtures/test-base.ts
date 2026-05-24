@@ -17,10 +17,18 @@ let sharedPage: Page | null = null;
 async function getSharedPage(): Promise<Page> {
   if (!sharedContext) {
     const isHeaded = !!process.env.HEADED || process.argv.includes('--headed');
+    // Chromium standalone no tiene los certs del proxy corporate del .auth-profile
+    // del usuario — sin ignore-certificate-errors, Firestore HTTPS queda colgado en
+    // TLS handshake y la UI se queda en "Cargando..." indefinidamente.
     sharedContext = await chromium.launchPersistentContext(USER_DATA_DIR, {
       headless: !isHeaded,
       viewport: { width: 1440, height: 900 },
-      args: ['--disable-blink-features=AutomationControlled'],
+      ignoreHTTPSErrors: true,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--ignore-certificate-errors',
+        '--ignore-certificate-errors-spki-list',
+      ],
     });
     sharedPage = sharedContext.pages()[0] || await sharedContext.newPage();
   }
