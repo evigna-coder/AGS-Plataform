@@ -49,8 +49,10 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
   test('14.40.1 — agregar componente → guardar → reload → persiste', async ({ app }) => {
     // Seed: patron SIN componentes (queremos drive la UI para agregar)
     seeded = await seedPatronBom({ componentes: [] });
-    const editorUrl = `${BASE}/patrones/${seeded.patronId}`;
+    const editorUrl = `${BASE}/patrones/${seeded.patronId}/editar`;
     await app.goto(editorUrl);
+    // Esperar que el editor monte (el form, no el loading state)
+    await app.getByRole('button', { name: /guardar y cerrar/i }).waitFor({ timeout: 15_000 });
 
     // La sección BOM existe — empty state visible con el CTA "+ Agregar componente"
     await expect(app.locator('[data-testid="bom-empty"]')).toBeVisible({ timeout: 10_000 });
@@ -66,7 +68,7 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
     const numericInputs = row.locator('input[type="number"]');
     await numericInputs.nth(0).fill('3');
     await numericInputs.nth(1).fill('1');
-    await row.getByPlaceholder('ampolla').fill('ampolla');
+    // Unidad ya viene defaulteada a 'ampolla' por addRow() — no es necesario llenar
 
     // Guardar y cerrar — navega a /patrones tras éxito
     await app.getByRole('button', { name: /guardar y cerrar/i }).click();
@@ -90,7 +92,7 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
 
   test('14.41 — dos filas con mismo código → alert bloquea save', async ({ app }) => {
     seeded = await seedPatronBom({ componentes: [] });
-    await app.goto(`${BASE}/patrones/${seeded.patronId}`);
+    await app.goto(`${BASE}/patrones/${seeded.patronId}/editar`);
 
     await expect(app.locator('[data-testid="bom-empty"]')).toBeVisible({ timeout: 10_000 });
 
@@ -143,7 +145,7 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
         },
       ],
     });
-    await app.goto(`${BASE}/patrones/${seeded.patronId}`);
+    await app.goto(`${BASE}/patrones/${seeded.patronId}/editar`);
 
     const row = app.locator('[data-testid="bom-row"][data-codigo="amp-A"]').first();
     await expect(row).toBeVisible({ timeout: 10_000 });
