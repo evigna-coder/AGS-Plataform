@@ -3,7 +3,23 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
-status: executing
+status: verifying
+stopped_at: "Completed 15-00-test-infra-baseline-PLAN.md (Wave 0 RED baseline). 5 tests RED + fixtures + tsx runner + package.json script. Comando pnpm --filter @ags/sistema-modular test:venta-loaner ejecutable, falla con SyntaxError 'does not provide an export named __setTestFirestore' (RED esperado hasta Wave 2 = plan 15-02). Próximo: 15-01-tipos-PLAN.md."
+last_updated: "2026-05-24T07:05:36.270Z"
+last_activity: 2026-05-24
+progress:
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 76
+  completed_plans: 71
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+current_plan: 9
+status: Phase complete — ready for verification
 stopped_at: "Completed 14-08-PLAN.md (release-prep gate). Phase 14 cerrada: 8/9 plans done + 1 cancelled (14-07/BOM-07); 7/8 BOM-XX requirements complete + 1 cancelled. Validación full suite GREEN: type-check + 41/41 unit tests (test:patron-bom 18/18, test:stock-amplio 5/5, test:cuotas-facturacion 9/9, test:equivalencias 9/9) + builds (modular/reportes/portal) + AST lint clean. Playwright suite Wave 4-5 referenciada 13/13 GREEN (pre-validada en plans 14-04..14-06; re-run bloqueado por TLS corporate proxy SSL inspection, ambiental no funcional). Bump recomendado: MINOR (v1.3.3 → v1.4.0) — Phase 14 ships features user-visible. Comando surfaceado al usuario: `pnpm --filter @ags/sistema-modular release:minor` + push tag (user ejecuta manualmente; autonomous: false por diseño). Phase 15 (Venta loaner espejo a stock) ready to plan."
 last_updated: "2026-05-24T06:05:00.000Z"
 last_activity: "2026-05-24 — Plan 14-08: validación pre-release GREEN (41/41 unit tests + 3/3 builds + AST lint clean); delta vs sistema-modular-v1.3.3 = 28 commits totales (14 en sistema-modular+shared) incluyendo Phase 14 BOM stack completo + electron focus fixes (flash-focus, firestore wakeup, debounce gate) + portal-ingeniero bottom nav + reportes-ot Pendientes view + revert limpio del 14-07. SUMMARY 14-08 publicado con copy-paste del comando de release para el usuario."
@@ -401,6 +417,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P04 | ~30min | 4 tasks + 1 checkpoint UAT | 5 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P06 | ~3h (incl bug-fix + deploy índice + UAT 8/8) | 5 tasks | 5 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P05 | ~50min | 3 tasks + 1 checkpoint UAT | 4 files |
+| Phase 15 P00 | 6 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -551,6 +568,8 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: Filtro 'Bloqueados' usa useUrlFilters schema-based con FILTER_SCHEMA = { bloqueados: { type: 'boolean', default: false } } — 1:1 con convención de memory/feedback_filter_persistence.md. Toggle = (computePatronStatus(p) === 'bloqueado' || === 'agotado'): 1 checkbox cubre ambos estados, AGOTADO es variante crítica de BLOQUEADO. URL ?bloqueados=true persiste refresh + share-link safe.
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: Refactor + feature en el MISMO commit (Task 1 = `refactor` commit `261ba9a` extrae PatronRow Y agrega badges en una unidad de trabajo). Sin la extracción, agregar 3 badges habría empujado PatronesList a >360 LOC. Decisión: cuando el refactor es prerequisito mecánico del feature, commit unificado vence a scaffolding-commit-separado.
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-05: data-testids específicos para UAT Playwright (patron-row, badge-bom, badge-bloqueado, badge-agotado, filter-bloqueados, patron-componentes-alert-banner). Convención: semantic testids, no class-based selectors. Spec 14.50 con 5 sub-specs (14.50/14.51/14.52/14.53/14.54) — 5/5 GREEN en primer intento.
+- [Phase 15]: Wave 0 baseline shipped con runner intermedio scripts/test-venta-loaner.ts (mirror estricto Phase 14) + factory fixtures + 5 RED tests bajo describe('registrarVenta...') — Consistencia visual del bloque test:* en package.json y un único patrón runner que el lector reconoce. Factory functions evitan JSON.parse cloning pitfalls. RED por SyntaxError es señal limpia de que Wave 2 (15-02) debe aportar exports nombrados (no método de objeto).
+- [Phase 15]: VLN-02d (rollback atómico) ships como assert.fail placeholder hasta Wave 2 agregue hook _throwOnUnidadCreate al DI simulator — El test queda RED-by-design con mensaje explícito. Comment inline documenta qué assertions hace cuando Wave 2 habilite el hook. Alternativa (skip) habría escondido la dependencia; mejor que falle visiblemente.
 
 ### Pending Todos
 
@@ -564,6 +583,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-24T05:00:00.000Z
-Stopped at: Completed 14-05-PLAN.md (BOM-06 badges + filtro 'Bloqueados' URL-persisted + PatronComponentesAlertBanner; Playwright UAT 5/5 GREEN spec 14.50; suite Wave 4-5 13/13 GREEN). Phase 14 → 7/9 plans, próximo 14-08 release prep.
+Last session: 2026-05-24T07:05:21.160Z
+Stopped at: Completed 15-00-test-infra-baseline-PLAN.md (Wave 0 RED baseline). 5 tests RED + fixtures + tsx runner + package.json script. Comando pnpm --filter @ags/sistema-modular test:venta-loaner ejecutable, falla con SyntaxError 'does not provide an export named __setTestFirestore' (RED esperado hasta Wave 2 = plan 15-02). Próximo: 15-01-tipos-PLAN.md.
 Resume file: None
