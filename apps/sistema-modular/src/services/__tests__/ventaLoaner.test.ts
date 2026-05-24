@@ -176,19 +176,48 @@ describe('registrarVenta — Phase 15 venta loaner espejo a stock', () => {
 
   // ── VLN-02d ────────────────────────────────────────────────────────────────
   test('rollback atómico: si write falla mid-tx, ningún doc se crea ni modifica', async () => {
-    // RED placeholder — Wave 2 must add `_throwOnUnidadCreate` mock hook to the
-    // in-memory tx simulator so this test can drive a mid-tx throw.
-    //
-    // Expected behaviour once Wave 2 lands:
-    //   1. Build state with fixturePreVinculado + state._throwOnUnidadCreate = true
-    //   2. Call registrarVenta(...) → rejects with some error
-    //   3. Assert: loaner.estado === 'en_base' (unchanged), activo === true
-    //   4. Assert: unidades.length === 0, movimientosStock.length === 0
-    //
-    // The mock support requires Wave 2 to wrap unidades.create / movimientos.create
-    // in conditional throw paths gated by `state._throwOnUnidadCreate`. Until then
-    // we hard-fail to keep VLN-02d in the RED bucket.
-    assert.fail('RED: requires Wave 2 mock support for _throwOnUnidadCreate');
+    // Wave 2 (15-02 Task 2) landed `_throwOnUnidadCreate` hook on the in-memory
+    // tx simulator. The hook is checked AFTER all projected writes are built
+    // but BEFORE any state mutation — so when it fires, `state` is untouched
+    // (true rollback semantics for the in-memory path; matches runTransaction's
+    // all-or-nothing contract in production).
+    const state = buildFixturePreVinculado();
+    (state as any)._throwOnUnidadCreate = true;
+    __setTestFirestore(state);
+
+    await assert.rejects(
+      () =>
+        registrarVenta({
+          loanerId: 'lnr-1',
+          venta: {
+            fecha: '2026-05-24T10:00:00.000Z',
+            clienteId: 'cli-1',
+            clienteNombre: 'Cliente Test',
+            costoUnitario: 700,
+            monedaCosto: 'USD',
+          },
+        }),
+      /mock: unidad create failed/,
+      'must reject with the hook-thrown error',
+    );
+
+    // Loaner remained intact (no field changed).
+    const loaner = state.collections.loaners.find(l => l.id === 'lnr-1')!;
+    assert.equal(loaner.estado, 'en_base', 'loaner.estado debe permanecer en_base tras rollback');
+    assert.equal(loaner.activo, true, 'loaner.activo debe permanecer true tras rollback');
+    assert.ok(!loaner.venta, 'loaner.venta no debe asignarse tras rollback');
+
+    // Espejos: nada se creó (all-or-nothing).
+    assert.equal(
+      state.collections.unidades.length,
+      0,
+      'no UnidadStock debe haberse creado tras rollback',
+    );
+    assert.equal(
+      state.collections.movimientosStock.length,
+      0,
+      'no MovimientoStock debe haberse creado tras rollback',
+    );
   });
 
   // ── VLN-02e ────────────────────────────────────────────────────────────────
