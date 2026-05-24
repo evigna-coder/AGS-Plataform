@@ -7,6 +7,9 @@ import type {
   PatronSeleccionado,
   ColumnaSeleccionada,
 } from '../types/instrumentos';
+// Phase 14 BOM-07: bloquear selección de lotes agotado/bloqueado en el selector del técnico.
+// Helper puro compartido con sistema-modular (definido en 14-01 / `packages/shared/src/utils/patronBom.ts`).
+import { computeLoteStatus } from '@ags/shared';
 
 /** Calcula estado del certificado (espejo simplificado de @ags/shared) */
 function estadoCert(vencimiento: string | null | undefined): 'vigente' | 'por_vencer' | 'vencido' | 'sin_cert' {
@@ -216,13 +219,24 @@ function PatronesTab({
                     const isChecked = selectedKeys.has(key);
                     const estado = estadoCert(e.lote.fechaVencimiento);
                     const badge = ESTADO_BADGE[estado];
+                    // Phase 14 BOM-07: stock-level guard. Lotes con algún componente bajo stockMinimo
+                    // quedan bloqueados (no se pueden seleccionar). Patrones legacy sin BOM => 'active'.
+                    const stockStatus = computeLoteStatus(e.patron, e.lote);
+                    const isBloqueado = stockStatus === 'bloqueado' || stockStatus === 'agotado';
                     return (
-                      <label key={key} className={`flex items-start gap-3 p-2 rounded border cursor-pointer transition-colors ${
-                        isChecked ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-                      }`}>
+                      <label
+                        key={key}
+                        className={`flex items-start gap-3 p-2 rounded border transition-colors ${
+                          isBloqueado
+                            ? 'border-rose-200 bg-rose-50/40 opacity-60 cursor-not-allowed'
+                            : isChecked ? 'border-indigo-300 bg-indigo-50 cursor-pointer' : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'
+                        }`}
+                        title={isBloqueado ? 'Lote bloqueado: algún componente está bajo stock mínimo. Avisar a administración.' : undefined}
+                      >
                         <input type="checkbox" checked={isChecked}
                           onChange={() => onToggle(e.patron.id, e.loteIdx)}
-                          className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer" />
+                          disabled={isBloqueado}
+                          className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer disabled:cursor-not-allowed" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-mono text-slate-700">Lote: {e.lote.lote}</span>
@@ -230,6 +244,11 @@ function PatronesTab({
                               <span className="text-[10px] text-slate-500">Vence: {e.lote.fechaVencimiento}</span>
                             )}
                             <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${badge.cls}`}>{badge.label}</span>
+                            {isBloqueado && (
+                              <span className="text-[10px] rounded px-1.5 py-0.5 font-mono font-semibold uppercase tracking-wide bg-rose-100 text-rose-800 border border-rose-200">
+                                {stockStatus === 'agotado' ? 'AGOTADO' : 'BLOQUEADO'}
+                              </span>
+                            )}
                           </div>
                           {e.lote.certificadoEmisor && (
                             <p className="text-[10px] text-slate-400 mt-0.5">Emisor: {e.lote.certificadoEmisor}</p>
