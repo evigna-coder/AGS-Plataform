@@ -2,6 +2,38 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Circuito Comercial Completo
+current_plan: 7
+status: executing
+stopped_at: Completed 14-06-PLAN.md (BOM-05 + BOM-08 UI cerrados end-to-end; Playwright UAT 8/8 GREEN post-deploy del índice requerimientos_compra(origen,createdAt))
+last_updated: "2026-05-24T04:33:33.223Z"
+last_activity: 2026-05-24
+progress:
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 72
+  completed_plans: 68
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+current_plan: 6
+status: Ready to execute
+stopped_at: "Completed 14-04-PLAN.md (BOM-04 editor 'Componentes (BOM)' + sub-componente extraído PatronComponentesEditor + defense-in-depth rename guard double-layer; suite test:patron-bom 14 → 18 GREEN; UAT Playwright 3/3 GREEN)"
+last_updated: "2026-05-22T15:45:00.000Z"
+last_activity: "2026-05-22 — Plan 14-04: feat(14-04) 1caf14f (PatronComponentesEditor 225 LOC sub-component) + 27c0e3b (wire en PatronEditorPage 335→374 LOC + validation extracted) + 4d492a2 (TDD RED 4 service-guard tests) + de02db4 (GREEN: buildUpdatePatron factory + validateNoOrphanConsumos throw). UAT Playwright 3/3 GREEN (specs 14.40/14.41/14.42 via commits e2f2153/4b3a5dd/69f7a06/30cd0f8/92a8f4c). Plan cerrado."
+progress:
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 72
+  completed_plans: 67
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
 current_plan: 5
 status: executing
 stopped_at: Completed 14-03-PLAN.md (BOM-08 autoCrearRequerimientosPatron + idempotency; suite 14/14 GREEN; services layer del Phase 14 COMPLETE)
@@ -245,13 +277,13 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (1/9 plans)
-Current Plan: 5
+Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (5/9 plans)
+Current Plan: 7
 Total Plans in Phase: 9 (14-00 ... 14-08)
-Status: Wave 0 RED baseline lockeada. test:patron-bom corre y falla loud por imports de @ags/shared/utils/patronBom (14-01) y patronesService.consumirComponentes/__setTestFirestore (14-02) — esa es la señal RED esperada. 14 tests + fixtures + tsx runner listos para que downstream plans los viren a GREEN.
-Last activity: 2026-05-22
+Status: Services layer COMPLETE (14-00..14-03) + Editor UI BOM-04 COMPLETE (14-04). Admin puede declarar componentes (BOM) en cada patrón con guard de rename double-layer (UI lockedCodigos + service throw load-bearing). Suite test:patron-bom 18/18 GREEN. UAT Playwright 3/3 GREEN para specs 14.40 (BOM editor) + 14.41 (rename guard) + 14.42 (duplicate guard). Próximo: 14-05 (PatronesList badges BOM/BLOQUEADO + filtro 'Bloqueados').
+Last activity: 2026-05-24
 
-Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans + Phase 14 ongoing)
+Progress: [█████████░] 88% (v2.0 milestone — 62/63 plans + Phase 14 ongoing 5/9)
 
 ## Performance Metrics
 
@@ -316,6 +348,8 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P01 | 17min | 2 tasks | 6 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P02 | 7min | 1 tasks | 2 files |
 | Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P03 | 3min | 2 tasks | 3 files |
+| Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P04 | ~30min | 4 tasks + 1 checkpoint UAT | 5 files |
+| Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado P06 | ~3h (incl bug-fix + deploy índice + UAT 8/8) | 5 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -451,6 +485,15 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-03: autoCrearRequerimientosPatron en archivo separado (178 LOC) — best-effort post-commit con try/catch, NUNCA rollbackea el consumo si falla. Idempotency key = (patronId, loteId, codigoComponente) + estado abierto (!= comprado/cancelado).
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-03: Skip silencioso si adminConfigFlujos.usuarioRequerimientosPatronId === null — admin no obligado a configurarlo desde día 0 (UI editor del campo landea en 14-06). Warn en prod, silent en test.
 - [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-03: ADMIN_CONFIG_DEFAULTS Pick<> widened a 'mailFacturacion' | 'usuarioRequerimientosPatronId' — default null. ConsumirComponentesResult extendido con requerimientosCreados: string[] para que 14-06 muestre count en toast.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-04: PatronComponentesEditor extraído a 225 LOC (sub-componente nuevo, JSX-heavy table) — PatronEditorPage queda en 374 LOC dentro del soft-budget 380. Sub-componente landeado en Task 1 ANTES de wirearlo al padre en Task 2 para evitar el anti-pattern "implementar inline + refactorizar después".
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-04: patronComponentesValidation.ts (30 LOC) — pure function validator extraído. Detecta duplicados (case-sensitive, trim-aware) + filas con descripción sin código. Mantiene la validación fuera del componente, testeable sin React, reusable para 14-05 si quiere mostrar las mismas advertencias en la lista.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-04: patronesUpdateHelpers.ts (119 LOC) — buildUpdatePatron factory replica 1:1 el patrón factory de 14-02 (buildConsumirComponentes). Mantiene patronesService.ts en 248 LOC (bajo 250 hard limit) sin sacrificar DI test path. Factory recibe getTestState + getFirebaseModules como deps.
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-04: Defense-in-depth rename guard double-layer — UI lockedCodigos prop (PatronComponentesEditor disabled-input + lock helper text + alert en delete) es la friendly fence; service layer validateNoOrphanConsumos THROWS con mensaje listando todos los códigos huérfanos en un solo error es el load-bearing guard. Captura bypass via DevTools console + futuros refactors UI que olviden el prop. Guard runs ONLY when patch.componentes !== undefined (cero overhead en patches no-relacionados).
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06: ordenesTrabajoService.getPatronesSeleccionados (+18 LOC en otService 855 LOC) — read-only accessor para cumplir rules/firestore.md sin getDoc raw en hooks
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06: useCierrePatronesConsumidos (223 LOC) — orquesta prefill (dedupe + FIFO por vencimiento), idempotency pre-render via movimientosService.getAll, submit a consumirComponentes con motivo 'Divergencia admin: sugerido=X, real=Y — ...'
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06: CierrePatronesConsumidosSection (193 LOC) — 3 estados (loading / read-only banner verde / tabla editable); pre-extracción ANTES de tocar OTCierreAdminSection para mantenerlo en 258 LOC (soft budget 280 OK)
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06: ConfigFlujosPage SearchableSelect para usuarioRequerimientosPatronId con default null + validación user-activo en handleSave; admin no obligado a setear desde día 0 (autoCrearRequerimientosPatron skipea silencioso si null)
+- [Phase 14-stock-patrones-con-bom-composici-n-y-consumo-desagregado]: 14-06 PITFALL: requerimientos_compra(origen ASC, createdAt DESC) índice compuesto faltaba — sin él autoCrearRequerimientosPatron fallaba silenciosamente en prod (query Firestore 'FAILED_PRECONDITION' swallowed por try/catch best-effort wrapper). FIX: agregado en firestore.indexes.json + deployed via firebase deploy --only firestore:indexes. LECCIÓN: TODA query con where+orderBy necesita índice compuesto declarado upfront; los best-effort wrappers ocultan el error en prod. Documentar como hard rule transversal.
 
 ### Pending Todos
 
@@ -464,6 +507,6 @@ Progress: [█████████░] 87% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-22T15:30:05.989Z
-Stopped at: Completed 14-03-PLAN.md (BOM-08 autoCrearRequerimientosPatron + idempotency; suite 14/14 GREEN; services layer del Phase 14 COMPLETE)
+Last session: 2026-05-24T04:33:33.220Z
+Stopped at: Completed 14-06-PLAN.md (BOM-05 + BOM-08 UI cerrados end-to-end; Playwright UAT 8/8 GREEN post-deploy del índice requerimientos_compra(origen,createdAt))
 Resume file: None

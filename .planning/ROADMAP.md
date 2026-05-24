@@ -297,14 +297,14 @@ Plans:
   7. Reporte técnico INTOCABLE: el admin puede ajustar el consumo contable, pero patronesSeleccionados queda como lo firmó el técnico; las divergencias se anotan en MovimientoStock.motivo.
   8. Patrones existentes sin componentes[] siguen funcionando exactamente como antes (computeLoteStatus devuelve 'active' para legacy, ningún consumidor existente se rompe).
 
-**Plans:** 4/9 plans executed
+**Plans:** 5/9 plans executed
 
 Plans:
-- [ ] 14-00-test-infra-baseline-PLAN.md — Wave 0 RED baseline: scripts/test-patron-bom.ts + patronBom.test.ts (14 tests) + fixtures + package.json (BOM-01..08 cubrirá downstream)
-- [ ] 14-01-tipos-y-helpers-puros-PLAN.md — Tipos foundation @ags/shared (ComponentePatron, Patron.componentes, PatronLote.componentesConsumidos, MovimientoStock + Requerimiento + AdminConfigFlujos extensions) + utils/patronBom.ts (5 pure helpers) (BOM-01, BOM-02)
-- [ ] 14-02-consumir-componentes-service-PLAN.md — patronesService.consumirComponentes runTransaction atómico + __setTestFirestore DI hook + idempotency on re-cierre admin (BOM-03)
-- [ ] 14-03-auto-requerimiento-patron-PLAN.md — autoCrearRequerimientosPatron helper (best-effort post-commit, idempotente por triplet) + adminConfigService.usuarioRequerimientosPatronId (BOM-08 backend)
-- [ ] 14-04-patron-componentes-editor-PLAN.md — Editor 'Componentes (BOM)' en PatronEditorPage con sub-componente extraído PatronComponentesEditor.tsx + guardas de rename y duplicados. NOT autonomous: visual UAT (BOM-04)
+- [x] 14-00-test-infra-baseline-PLAN.md — Wave 0 RED baseline: scripts/test-patron-bom.ts + patronBom.test.ts (14 tests) + fixtures + package.json (BOM-01..08 cubrirá downstream)
+- [x] 14-01-tipos-y-helpers-puros-PLAN.md — Tipos foundation @ags/shared (ComponentePatron, Patron.componentes, PatronLote.componentesConsumidos, MovimientoStock + Requerimiento + AdminConfigFlujos extensions) + utils/patronBom.ts (5 pure helpers) (BOM-01, BOM-02)
+- [x] 14-02-consumir-componentes-service-PLAN.md — patronesService.consumirComponentes runTransaction atómico + __setTestFirestore DI hook + idempotency on re-cierre admin (BOM-03)
+- [x] 14-03-auto-requerimiento-patron-PLAN.md — autoCrearRequerimientosPatron helper (best-effort post-commit, idempotente por triplet) + adminConfigService.usuarioRequerimientosPatronId (BOM-08 backend)
+- [x] 14-04-patron-componentes-editor-PLAN.md — Editor 'Componentes (BOM)' en PatronEditorPage con sub-componente extraído PatronComponentesEditor.tsx + guardas de rename y duplicados (BOM-04)
 - [ ] 14-05-patrones-list-badges-y-filtro-PLAN.md — PatronesList badges BOM/BLOQUEADO + filtro 'Bloqueados' via useUrlFilters; alert banner en PatronEditorPage; pre-extracción de PatronRow + PatronComponentesAlertBanner. NOT autonomous: visual UAT (BOM-06)
 - [ ] 14-06-cierre-admin-patrones-consumidos-PLAN.md — Paso 'Patrones consumidos' en OTCierreAdminSection + CierrePatronesConsumidosSection sub-componente + useCierrePatronesConsumidos hook + ConfigFlujosPage UI extension. NOT autonomous: 9-step UAT (BOM-05, BOM-08 UI)
 - [ ] 14-07-reportes-ot-selector-badge-PLAN.md — InstrumentoSelectorPanel badge AGOTADO + disable lote bloqueado (frozen-exception scoped, CLAUDE_ALLOW_REPORTES_OT=1). NOT autonomous: visual UAT + PDF regression check (BOM-07)
