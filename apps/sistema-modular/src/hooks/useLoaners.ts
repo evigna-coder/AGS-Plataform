@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { loanersService } from '../services/firebaseService';
-import type { Loaner, PrestamoLoaner, ExtraccionLoaner, VentaLoaner } from '@ags/shared';
+import type { Loaner, PrestamoLoaner, ExtraccionLoaner } from '@ags/shared';
 
 interface LoanerFilters {
   estado?: string;
@@ -98,33 +98,15 @@ export function useLoaners() {
     }
   }, []);
 
-  /**
-   * Phase 15 (VLN-02) — signature widened: `costoUnitario` y `monedaCosto`
-   * son required en runtime (el service throw 'Costo requerido' si faltan).
-   * El tercer parámetro `articuloRecienVinculado` se usa cuando el modal de venta
-   * (Wave 3) vincula un artículo en el momento de vender — el service lo denormaliza
-   * en el loaner DENTRO de la misma transacción atómica.
-   */
-  const registrarVenta = useCallback(async (
-    id: string,
-    venta: VentaLoaner & { costoUnitario: number; monedaCosto: 'ARS' | 'USD' },
-    articuloRecienVinculado?: {
-      articuloId: string;
-      articuloCodigo: string;
-      articuloDescripcion: string;
-    } | null,
-  ) => {
-    try {
-      return await loanersService.registrarVenta(id, venta, articuloRecienVinculado);
-    } catch (err) {
-      console.error('Error registrando venta:', err);
-      throw err;
-    }
-  }, []);
+  // Phase 15 (Wave 3 / plan 15-03) — `registrarVenta` wrapper eliminado.
+  // Grep confirmó 0 call sites externos del hook que usaran este método;
+  // los consumidores (LoanerDetail.handleVenta) llaman directo a
+  // `loanersService.registrarVenta(...)`. Mantener el wrapper aquí solo
+  // agregaba indirección sin valor (no había logging extra, validación, etc.).
 
   return {
     loaners, loading, error,
     listLoaners, getLoaner, saveLoaner, deleteLoaner,
-    registrarPrestamo, registrarDevolucion, registrarExtraccion, registrarVenta,
+    registrarPrestamo, registrarDevolucion, registrarExtraccion,
   };
 }
