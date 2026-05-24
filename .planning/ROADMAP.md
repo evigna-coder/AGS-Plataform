@@ -256,7 +256,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12
 | 12. Esquema Facturación Porcentual + Anticipos | 8/8 | Complete   | 2026-04-26 | - |
 | 13. Stock — Equivalencias compra↔uso | v2.x | 8/8 | Complete | 2026-05-15 |
 | 14. Stock — Patrones con BOM | v2.x | 8/9 (+1 cancelled 14-07/BOM-07) | Complete | 2026-05-24 |
-| 15. Stock — Venta loaner espejo a stock | 4/4 | Complete   | 2026-05-24 | - |
+| 15. Stock — Venta loaner espejo a stock | 4/4 | Complete    | 2026-05-24 | - |
 
 
 ### Phase 13: Stock — Equivalencias compra↔uso
@@ -318,7 +318,7 @@ Plans:
 **Goal:** Reemplazar `loanersService.registrarVenta` por una versión transaccional que, en una sola `runTransaction` atómica con guard de idempotencia READ-FIRST, escribe a 3 colecciones (`loaners` update + `unidadesStock` create + `movimientosStock` create con `subtipo='venta_loaner'`). Extender `LoanerVentaModal` con SearchableSelect condicional para vincular Artículo cuando `loaner.articuloId` es null (bloqueante), inputs separados Costo + Moneda costo (distintos del Precio + Moneda venta — semántica revenue vs costo del activo), banner inline para errores transaccionales y validaciones bloqueantes. Toda venta deja espejo contable en Stock — invariante de la fase.
 **Requirements:** VLN-01, VLN-02 (sub-criterios VLN-02a..e), VLN-03, VLN-04 (IDs locales derivados de CONTEXT/RESEARCH/VALIDATION; REQUIREMENTS.md sección stock evolution v2.x los cubre operacionalmente)
 **Depends on:** Phase 14
-**Plans:** 4/4 plans executed — **Phase 15 COMPLETE** (2026-05-24)
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 15-00-test-infra-baseline-PLAN.md — Wave 0 RED baseline: ventaLoaner.test.ts (5 tests RED) + fixtures + scripts/test-venta-loaner.ts + package.json script (VLN-04 base)

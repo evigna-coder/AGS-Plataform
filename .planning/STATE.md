@@ -5,7 +5,7 @@ milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
 stopped_at: "Completed 15-03-modal-ui-y-uat-PLAN.md (UAT 8/8 PASS firmado por usuario). Phase 15 (Venta loaner espejo a stock) COMPLETA end-to-end: 4/4 plans + 4/4 requirements operacionales (VLN-01..04). Release surface al usuario: pnpm --filter @ags/sistema-modular release:minor (MINOR — ships feature user-visible). Out-of-scope: firebase deploy --only firestore corrió OK adyacente a la sesión. Next: /gsd:verify-work para cerrar la fase formalmente."
-last_updated: "2026-05-24T15:07:05.819Z"
+last_updated: "2026-05-24T15:13:04.830Z"
 last_activity: 2026-05-24
 progress:
   total_phases: 15
