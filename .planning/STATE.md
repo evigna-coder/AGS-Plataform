@@ -277,13 +277,13 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (5/9 plans)
+Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado) — IN PROGRESS (6/9 plans)
 Current Plan: 7
 Total Plans in Phase: 9 (14-00 ... 14-08)
-Status: Services layer COMPLETE (14-00..14-03) + Editor UI BOM-04 COMPLETE (14-04). Admin puede declarar componentes (BOM) en cada patrón con guard de rename double-layer (UI lockedCodigos + service throw load-bearing). Suite test:patron-bom 18/18 GREEN. UAT Playwright 3/3 GREEN para specs 14.40 (BOM editor) + 14.41 (rename guard) + 14.42 (duplicate guard). Próximo: 14-05 (PatronesList badges BOM/BLOQUEADO + filtro 'Bloqueados').
+Status: Services layer + Editor UI BOM-04 + Cierre Admin BOM-05/BOM-08 COMPLETE. Admin descuenta componentes desde cierre OT vía sub-section CierrePatronesConsumidosSection (auto-prefill dedupe + FIFO + idempotency + read-only banner en re-cierre). Reporte técnico INTOCABLE confirmado. /admin/config-flujos extiende con responsable de Requerimientos de patrón. Playwright UAT 8/8 GREEN post-deploy del índice compuesto requerimientos_compra(origen,createdAt) que faltaba (autoCrearRequerimientosPatron silenciosamente roto en prod desde 14-03 — bug RESUELTO). Suite test:patron-bom sigue 18/18. Próximo: 14-05 (PatronesList badges) — todavía pendiente — luego 14-07 (reportes-ot badge) + 14-08 (release prep).
 Last activity: 2026-05-24
 
-Progress: [█████████░] 88% (v2.0 milestone — 62/63 plans + Phase 14 ongoing 5/9)
+Progress: [█████████░] 94% (v2.0 milestone — 62/63 plans + Phase 14 ongoing 6/9)
 
 ## Performance Metrics
 
