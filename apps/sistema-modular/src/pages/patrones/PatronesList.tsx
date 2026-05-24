@@ -16,6 +16,7 @@ import {
   type CategoriaPatron,
   type Patron,
 } from '@ags/shared';
+import { computePatronStatus } from '@ags/shared/utils/patronBom';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -66,6 +67,8 @@ function totalCantidad(patron: Patron): number {
 const FILTER_SCHEMA = {
   categoria: { type: 'string' as const, default: '' },
   showInactive: { type: 'boolean' as const, default: false },
+  // BOM-06: solo patrones con algún lote bloqueado o agotado (saldo BOM ≤ mínimo).
+  bloqueados: { type: 'boolean' as const, default: false },
 };
 
 const ESTADO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -101,7 +104,15 @@ export const PatronesList = () => {
 
   useEffect(() => { reload(); }, [filters.categoria, filters.showInactive]);
 
-  const filtered = useMemo(() => sortByField(patrones, sortField, sortDir), [patrones, sortField, sortDir]);
+  const filtered = useMemo(() => {
+    const base = filters.bloqueados
+      ? patrones.filter(p => {
+          const s = computePatronStatus(p);
+          return s === 'bloqueado' || s === 'agotado';
+        })
+      : patrones;
+    return sortByField(base, sortField, sortDir);
+  }, [patrones, sortField, sortDir, filters.bloqueados]);
 
   const vencidos = patrones.filter(p => estadoGlobal(p) === 'vencido');
   const porVencer = patrones.filter(p => estadoGlobal(p) === 'por_vencer');
@@ -188,6 +199,13 @@ export const PatronesList = () => {
                 onChange={e => setFilter('showInactive', e.target.checked)}
                 className="rounded border-slate-300" />
               Inactivos
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer"
+              title="Solo patrones con algún componente BOM por debajo del stock mínimo">
+              <input type="checkbox" checked={filters.bloqueados}
+                onChange={e => setFilter('bloqueados', e.target.checked)}
+                className="rounded border-slate-300" />
+              Bloqueados
             </label>
             <Button variant="ghost" size="sm"
               onClick={resetFilters}>
