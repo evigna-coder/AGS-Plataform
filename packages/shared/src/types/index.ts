@@ -3229,6 +3229,15 @@ export interface VentaLoaner {
   presupuestoId?: string | null;
   presupuestoNumero?: string | null;
   notas?: string | null;
+  /**
+   * Phase 15 — costo del activo (lo que valió el equipo).
+   * Separado de `precio` que es revenue. Se carga manual en LoanerVentaModal y se denormaliza
+   * en UnidadStock.costoUnitario del espejo. Required en el modal de Phase 15 (validación UI),
+   * opcional en el tipo para no romper VentaLoaner pre-existentes.
+   */
+  costoUnitario?: number | null;
+  /** Phase 15 — moneda del costoUnitario. Required en el modal de Phase 15. */
+  monedaCosto?: 'ARS' | 'USD' | null;
 }
 
 export interface Loaner {
