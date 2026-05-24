@@ -849,7 +849,12 @@ export const tableCatalogService = {
 // --- Reportes pendientes (borradores del ingeniero) ---
 // =============================================
 
-/** Borrador de reporte creado desde reportes-ot que el ingeniero aún no finalizó. */
+/**
+ * Reporte pendiente desde el POV del ingeniero. Dos tipos:
+ *   - 'borrador': el ingeniero ya entró al reporte y lo dejó sin finalizar.
+ *   - 'sin_empezar': OT asignada al ingeniero (o a cualquier ing. en vista admin)
+ *     que aún no fue tocada en reportes-ot — sin `creadoPor` populated.
+ */
 export interface BorradorPendiente {
   otNumber: string;
   razonSocial: string | null;
@@ -857,57 +862,118 @@ export interface BorradorPendiente {
   creadoFecha: string | null;
   creadoPorNombre: string | null;
   creadoPorEmail: string | null;
+  tipo: 'borrador' | 'sin_empezar';
+  /** Nombre del ingeniero asignado — relevante en 'sin_empezar' para admin view */
+  ingenieroAsignadoNombre: string | null;
 }
 
-function parseBorrador(id: string, data: Record<string, unknown>): BorradorPendiente {
+function tsToIso(v: unknown): string | null {
+  const ts = v as { toDate?: () => Date } | undefined;
+  return ts?.toDate?.()?.toISOString?.() ?? null;
+}
+
+function parseBorradorEmpezado(id: string, data: Record<string, unknown>): BorradorPendiente {
   const creadoPor = (data.creadoPor as Record<string, unknown> | undefined) ?? {};
-  const fechaTs = creadoPor.fecha as { toDate?: () => Date } | undefined;
   return {
     otNumber: (data.otNumber as string) ?? id,
     razonSocial: (data.razonSocial as string) ?? null,
     sistema: (data.sistema as string) ?? null,
-    creadoFecha: fechaTs?.toDate?.()?.toISOString?.() ?? null,
+    creadoFecha: tsToIso(creadoPor.fecha),
     creadoPorNombre: (creadoPor.nombre as string) ?? null,
     creadoPorEmail: (creadoPor.email as string) ?? null,
+    tipo: 'borrador',
+    ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
   };
+}
+
+function parseSinEmpezar(id: string, data: Record<string, unknown>): BorradorPendiente {
+  return {
+    otNumber: (data.otNumber as string) ?? id,
+    razonSocial: (data.razonSocial as string) ?? null,
+    sistema: (data.sistema as string) ?? null,
+    // En 'sin_empezar' no hay creadoPor.fecha — usamos createdAt de la OT como referencia visual.
+    creadoFecha: tsToIso(data.createdAt),
+    creadoPorNombre: null,
+    creadoPorEmail: null,
+    tipo: 'sin_empezar',
+    ingenieroAsignadoNombre: (data.ingenieroAsignadoNombre as string) ?? null,
+  };
+}
+
+function mergeAndSort(empezados: BorradorPendiente[], sinEmpezar: BorradorPendiente[]): BorradorPendiente[] {
+  // 'borrador' tiene precedencia: si una OT está en ambas listas (raro pero posible
+  // si el ingeniero asignado abrió el reporte), quedarse con la versión empezada.
+  const empezadosNums = new Set(empezados.map(b => b.otNumber));
+  const merged = [
+    ...empezados,
+    ...sinEmpezar.filter(s => !empezadosNums.has(s.otNumber)),
+  ];
+  merged.sort((a, b) => (b.creadoFecha ?? '').localeCompare(a.creadoFecha ?? ''));
+  return merged;
 }
 
 export const reportesPendientesService = {
   /**
-   * Borradores creados por un ingeniero específico. Filtra `reportes` por
-   * `status == 'BORRADOR'` AND `creadoPor.uid == uid`. El campo `creadoPor`
-   * lo anota reportes-ot en el primer save (ver memoria
-   * project_reportes_creadoPor). Borradores previos al deploy no aparecen.
+   * Pendientes del ingeniero: mergea (1) borradores empezados por él en
+   * reportes-ot + (2) OTs asignadas a él en estado BORRADOR sin tocar todavía.
+   * El callback se invoca cada vez que llega snapshot de cualquiera de las
+   * dos queries; mantiene state interno para reemitir merge consistente.
    */
   subscribeMisBorradores(
     uid: string,
     callback: (list: BorradorPendiente[]) => void,
     onError?: (err: Error) => void,
   ): () => void {
-    const q = query(
+    let empezados: BorradorPendiente[] = [];
+    let sinEmpezar: BorradorPendiente[] = [];
+    const emit = () => callback(mergeAndSort(empezados, sinEmpezar));
+
+    // (1) Borradores empezados por este ingeniero — índice (status, creadoPor.uid).
+    const qEmpezados = query(
       collection(db, 'reportes'),
       where('status', '==', 'BORRADOR'),
       where('creadoPor.uid', '==', uid),
     );
-    return onSnapshot(
-      q,
+    const unsubE = onSnapshot(
+      qEmpezados,
       (snap) => {
-        const list = snap.docs.map((d) => parseBorrador(d.id, d.data() as Record<string, unknown>));
-        list.sort((a, b) => (b.creadoFecha ?? '').localeCompare(a.creadoFecha ?? ''));
-        callback(list);
+        empezados = snap.docs.map(d => parseBorradorEmpezado(d.id, d.data() as Record<string, unknown>));
+        emit();
       },
       onError,
     );
+
+    // (2) OTs BORRADOR asignadas a este ingeniero sin tocar — single-field index.
+    // Filtramos en memoria por status + child-only + ausencia de creadoPor para
+    // no requerir índice compuesto nuevo.
+    const qAsignadas = query(
+      collection(db, 'reportes'),
+      where('ingenieroAsignadoId', '==', uid),
+    );
+    const unsubA = onSnapshot(
+      qAsignadas,
+      (snap) => {
+        sinEmpezar = snap.docs
+          .filter(d => {
+            const data = d.data() as Record<string, unknown>;
+            const creadoPor = data.creadoPor as Record<string, unknown> | undefined;
+            return data.status === 'BORRADOR'
+              && d.id.includes('.')                          // solo children (work units)
+              && !creadoPor?.uid;                            // no tocado todavía
+          })
+          .map(d => parseSinEmpezar(d.id, d.data() as Record<string, unknown>));
+        emit();
+      },
+      onError,
+    );
+
+    return () => { unsubE(); unsubA(); };
   },
 
   /**
-   * Todos los borradores creados desde el deploy de `creadoPor` (cualquier
-   * ingeniero). Vista admin para supervisar lo pendiente del equipo.
-   *
-   * El `orderBy('creadoPor.uid')` excluye automáticamente los docs sin el
-   * campo (Firestore omite docs que no tienen el campo ordenado). Sin esto,
-   * el admin ve también borradores legacy previos al deploy con todos sus
-   * campos en "—", contaminando la vista.
+   * Vista admin: todos los borradores empezados + todas las OTs BORRADOR
+   * asignadas a algún ingeniero sin tocar. Una sola query por status, categoriza
+   * en memoria — evita 2x reads y mantiene visibilidad de OTs sin empezar.
    */
   subscribeTodosBorradores(
     callback: (list: BorradorPendiente[]) => void,
@@ -916,14 +982,24 @@ export const reportesPendientesService = {
     const q = query(
       collection(db, 'reportes'),
       where('status', '==', 'BORRADOR'),
-      orderBy('creadoPor.uid'),
     );
     return onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => parseBorrador(d.id, d.data() as Record<string, unknown>));
-        list.sort((a, b) => (b.creadoFecha ?? '').localeCompare(a.creadoFecha ?? ''));
-        callback(list);
+        const empezados: BorradorPendiente[] = [];
+        const sinEmpezar: BorradorPendiente[] = [];
+        for (const d of snap.docs) {
+          const data = d.data() as Record<string, unknown>;
+          if (!d.id.includes('.')) continue;                  // skip parents
+          const creadoPor = data.creadoPor as Record<string, unknown> | undefined;
+          if (creadoPor?.uid) {
+            empezados.push(parseBorradorEmpezado(d.id, data));
+          } else if (data.ingenieroAsignadoId) {
+            sinEmpezar.push(parseSinEmpezar(d.id, data));
+          }
+          // else: legacy sin creadoPor ni asignación — skip para no contaminar.
+        }
+        callback(mergeAndSort(empezados, sinEmpezar));
       },
       onError,
     );

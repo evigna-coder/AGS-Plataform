@@ -13,6 +13,21 @@ function fmtDate(iso: string | null): string {
   }
 }
 
+function TipoBadge({ tipo }: { tipo: 'borrador' | 'sin_empezar' }) {
+  if (tipo === 'borrador') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-amber-100 text-amber-800">
+        Borrador
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase tracking-wider bg-slate-100 text-slate-700">
+      Sin empezar
+    </span>
+  );
+}
+
 export default function MisReportesPendientesPage() {
   const navigate = useNavigate();
   const { borradores, loading, error, viendoTodos } = useMisReportesPendientes();
@@ -24,14 +39,16 @@ export default function MisReportesPendientesPage() {
   };
 
   const title = viendoTodos ? 'Pendientes del Equipo' : 'Mis Pendientes';
+  const sinEmpezarCount = borradores.filter(b => b.tipo === 'sin_empezar').length;
+  const empezadosCount = borradores.length - sinEmpezarCount;
   const subtitle = loading
     ? '...'
-    : `${borradores.length} ${borradores.length === 1 ? 'reporte sin finalizar' : 'reportes sin finalizar'}${
-        viendoTodos ? ' · vista admin' : ''
-      }`;
+    : borradores.length === 0
+      ? '0 pendientes'
+      : `${empezadosCount} en borrador · ${sinEmpezarCount} sin empezar${viendoTodos ? ' · vista admin' : ''}`;
   const emptyMsg = viendoTodos
     ? 'No hay reportes pendientes en el equipo'
-    : 'No tenés reportes pendientes de finalizar';
+    : 'No tenés reportes pendientes';
 
   return (
     <div className="h-full flex flex-col">
@@ -54,6 +71,7 @@ export default function MisReportesPendientesPage() {
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr className="text-left">
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">OT</th>
+                    <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Estado</th>
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Cliente</th>
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Sistema</th>
                     {viendoTodos && (
@@ -70,11 +88,16 @@ export default function MisReportesPendientesPage() {
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
                     >
                       <td className="px-3 py-2 font-mono text-xs text-slate-800">{b.otNumber}</td>
+                      <td className="px-3 py-2">
+                        <TipoBadge tipo={b.tipo} />
+                      </td>
                       <td className="px-3 py-2 text-slate-800">{b.razonSocial || '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{b.sistema || '—'}</td>
                       {viendoTodos && (
                         <td className="px-3 py-2 text-xs text-slate-600">
-                          {b.creadoPorNombre || b.creadoPorEmail || '—'}
+                          {b.tipo === 'borrador'
+                            ? (b.creadoPorNombre || b.creadoPorEmail || '—')
+                            : (b.ingenieroAsignadoNombre || '—')}
                         </td>
                       )}
                       <td className="px-3 py-2 text-xs text-slate-500 tabular-nums">{fmtDate(b.creadoFecha)}</td>
@@ -94,15 +117,20 @@ export default function MisReportesPendientesPage() {
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="font-mono text-xs font-semibold text-slate-900">{b.otNumber}</span>
-                    <span className="text-[10px] font-mono text-slate-400 tabular-nums">{fmtDate(b.creadoFecha)}</span>
+                    <TipoBadge tipo={b.tipo} />
                   </div>
                   <p className="text-sm text-slate-800 truncate">{b.razonSocial || '—'}</p>
                   <p className="text-xs text-slate-500 truncate">{b.sistema || '—'}</p>
-                  {viendoTodos && (
-                    <p className="text-[11px] text-slate-400 truncate mt-1">
-                      {b.creadoPorNombre || b.creadoPorEmail || '—'}
-                    </p>
-                  )}
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    {viendoTodos && (
+                      <p className="text-[11px] text-slate-400 truncate">
+                        {b.tipo === 'borrador'
+                          ? (b.creadoPorNombre || b.creadoPorEmail || '—')
+                          : (b.ingenieroAsignadoNombre || '—')}
+                      </p>
+                    )}
+                    <span className="text-[10px] font-mono text-slate-400 tabular-nums ml-auto">{fmtDate(b.creadoFecha)}</span>
+                  </div>
                 </button>
               ))}
             </div>
