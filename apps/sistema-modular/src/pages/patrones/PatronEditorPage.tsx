@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { PatronComponentesEditor } from './PatronComponentesEditor';
+import { PatronComponentesAlertBanner } from './PatronComponentesAlertBanner';
 import { validatePatronComponentes } from './patronComponentesValidation';
 import {
   CATEGORIA_PATRON_LABELS,
@@ -74,6 +75,27 @@ export const PatronEditorPage = () => {
     }
     return s;
   }, [lotes]);
+
+  /**
+   * Snapshot del patrón en estado actual (lotes + componentes locales) para el
+   * alert banner BOM-06. Reactive a la edición: si admin agrega/quita componentes
+   * o lotes, el banner se actualiza sin reload.
+   */
+  const patronSnapshot = useMemo(
+    (): Patron => ({
+      id: id ?? 'new',
+      codigoArticulo,
+      descripcion,
+      marca,
+      categorias,
+      lotes,
+      componentes,
+      activo: true,
+      createdAt: '',
+      updatedAt: '',
+    }),
+    [id, codigoArticulo, descripcion, marca, categorias, lotes, componentes],
+  );
 
   // Marcas
   const [marcas, setMarcas] = useState<Marca[]>([]);
@@ -247,6 +269,9 @@ export const PatronEditorPage = () => {
             </div>
           </div>
         </Card>
+
+        {/* BOM-06: alert inline si algún (lote, componente) cayó al mínimo. Self-hides. */}
+        <PatronComponentesAlertBanner patron={patronSnapshot} />
 
         {/* Lotes */}
         <Card>
