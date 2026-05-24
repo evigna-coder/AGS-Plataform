@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import type { CierreAdministrativo, Part, PatronSeleccionado } from '@ags/shared';
+import type { CierreAdministrativo, OTEstadoAdmin, Part, PatronSeleccionado } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CierreStockSelector } from './CierreStockSelector';
 import { CierrePDFPreview } from './CierrePDFPreview';
 import { CierreFacturacionWizard } from './CierreFacturacionWizard';
 import { CierrePatronesConsumidosSection } from './CierrePatronesConsumidosSection';
+import { useOTFinalizable } from '../../hooks/useOTFinalizable';
 
 const sec = 'text-xs font-semibold text-slate-500 tracking-wider uppercase mb-3';
 const lbl = 'text-[11px] font-medium text-slate-400 mb-0.5 block';
@@ -21,7 +22,7 @@ interface Props {
   tiempoViaje: string;
   articulos: Part[];
   readOnly: boolean;
-  estadoAdmin: string;
+  estadoAdmin: OTEstadoAdmin;
   razonSocial?: string;
   tipoServicio?: string;
   ingenieroNombre?: string | null;
@@ -43,6 +44,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
   const isClosed = estadoAdmin === 'FINALIZADO';
   const disabled = readOnly || isClosed;
   const [showPreview, setShowPreview] = useState(false);
+  const finalizable = useOTFinalizable(estadoAdmin, budgets);
 
   const hsLabOriginal = Number(horasTrabajadas) || 0;
   const hsViajeOriginal = Number(tiempoViaje) || 0;
@@ -209,10 +211,10 @@ export const OTCierreAdminSection: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Preview before confirming */}
+        {/* Preview confirmación finalización */}
         {showPreview && !isClosed && (
-          <div className="border border-cyan-300 rounded-lg p-3 bg-cyan-50/60 space-y-1.5">
-            <p className="text-[10px] font-semibold text-cyan-700 uppercase tracking-wider">Preview del aviso</p>
+          <div className="border border-amber-300 rounded-lg p-3 bg-amber-50/60 space-y-1.5">
+            <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">¿Finalizar OT?</p>
             <div className="text-xs text-slate-600 space-y-0.5">
               <p><span className="text-slate-400">Cliente:</span> {razonSocial || '—'}</p>
               <p><span className="text-slate-400">Servicio:</span> {tipoServicio || '—'}</p>
@@ -221,26 +223,37 @@ export const OTCierreAdminSection: React.FC<Props> = ({
               <p><span className="text-slate-400">Partes:</span> {articulos.length} items {cierreAdmin.stockDeducido ? '(stock deducido)' : '(stock NO deducido)'}</p>
               {cierreAdmin.notasCierre && <p><span className="text-slate-400">Notas:</span> {cierreAdmin.notasCierre}</p>}
             </div>
+            <p className="text-[10px] text-amber-700 italic">Esta acción es terminal — la OT no podrá editarse después de finalizar.</p>
             <div className="flex gap-2 pt-1">
-              <Button size="sm" variant="outline" onClick={() => setShowPreview(false)} className="flex-1">Volver</Button>
-              <Button size="sm" onClick={() => { setShowPreview(false); onConfirmarCierre(); }} className="flex-1">Confirmar y enviar</Button>
+              <Button size="sm" variant="outline" onClick={() => setShowPreview(false)} className="flex-1">Cancelar</Button>
+              <Button size="sm" onClick={() => { setShowPreview(false); onConfirmarCierre(); }} className="flex-1">Sí, finalizar OT</Button>
             </div>
           </div>
         )}
 
-        {/* Botón confirmar */}
+        {/* Botón Finalizar OT */}
         {!isClosed && !showPreview && (
           <div className="border-t border-cyan-200 pt-3">
-            <Button size="sm" onClick={() => {
-              if (!cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
-              if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
-              setShowPreview(true);
-            }} className="w-full">
-              Confirmar cierre y avisar a administracion
+            <Button
+              size="sm"
+              disabled={disabled || finalizable.loading || !finalizable.puedeFinalizarse}
+              title={finalizable.razon ?? undefined}
+              onClick={() => {
+                if (!cierreAdmin.horasConfirmadas) { alert('Debe confirmar las horas trabajadas'); return; }
+                if (!cierreAdmin.partesConfirmadas && articulos.length > 0) { alert('Debe confirmar los materiales/repuestos'); return; }
+                setShowPreview(true);
+              }}
+              className="w-full"
+            >
+              {finalizable.loading ? 'Verificando facturación...' : 'Finalizar OT'}
             </Button>
-            <p className="text-[10px] text-slate-400 text-center mt-1">
-              Se mostrara un preview antes de enviar
-            </p>
+            {finalizable.razon ? (
+              <p className="text-[10px] text-amber-600 text-center mt-1">{finalizable.razon}</p>
+            ) : (
+              <p className="text-[10px] text-slate-400 text-center mt-1">
+                Acción terminal — se pedirá confirmación
+              </p>
+            )}
           </div>
         )}
 
