@@ -98,9 +98,24 @@ export function useLoaners() {
     }
   }, []);
 
-  const registrarVenta = useCallback(async (id: string, venta: VentaLoaner) => {
+  /**
+   * Phase 15 (VLN-02) — signature widened: `costoUnitario` y `monedaCosto`
+   * son required en runtime (el service throw 'Costo requerido' si faltan).
+   * El tercer parámetro `articuloRecienVinculado` se usa cuando el modal de venta
+   * (Wave 3) vincula un artículo en el momento de vender — el service lo denormaliza
+   * en el loaner DENTRO de la misma transacción atómica.
+   */
+  const registrarVenta = useCallback(async (
+    id: string,
+    venta: VentaLoaner & { costoUnitario: number; monedaCosto: 'ARS' | 'USD' },
+    articuloRecienVinculado?: {
+      articuloId: string;
+      articuloCodigo: string;
+      articuloDescripcion: string;
+    } | null,
+  ) => {
     try {
-      await loanersService.registrarVenta(id, venta);
+      return await loanersService.registrarVenta(id, venta, articuloRecienVinculado);
     } catch (err) {
       console.error('Error registrando venta:', err);
       throw err;

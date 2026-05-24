@@ -82,12 +82,25 @@ export function LoanerDetail() {
   const handleVenta = async (data: {
     clienteId: string; clienteNombre: string;
     precio: number | null; moneda: 'ARS' | 'USD' | null; notas: string | null;
+    // Phase 15 (VLN-02) — costoUnitario/monedaCosto required en runtime.
+    // Wave 3 (15-03) reemplaza este modal por LoanerVentaModal con los nuevos campos.
+    // Hasta entonces, el modal viejo no permite vender (handleVenta lanza 'Costo requerido').
+    costoUnitario?: number | null;
+    monedaCosto?: 'ARS' | 'USD' | null;
   }) => {
     if (!loaner) return;
-    await loanersService.registrarVenta(loaner.id, {
-      fecha: new Date().toISOString(),
-      ...data,
-    });
+    // Cast: el modal viejo no propaga costoUnitario/monedaCosto. Wave 3 reemplaza este
+    // call site cuando aterriza el modal nuevo. El service throw 'Costo requerido' si faltan,
+    // así que el flujo se rompe en runtime de forma clara y NO escribe nada (atomic guard).
+    await loanersService.registrarVenta(
+      loaner.id,
+      {
+        fecha: new Date().toISOString(),
+        ...data,
+        costoUnitario: data.costoUnitario ?? (null as any),
+        monedaCosto: data.monedaCosto ?? (null as any),
+      },
+    );
     // subscription auto-refreshes
   };
 

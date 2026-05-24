@@ -16,7 +16,14 @@ export * from './columnasService';
 export * from './personalService';
 export * from './agendaService';
 export * from './fichasService';
-export * from './loanersService';
+// Phase 15 (VLN-02): explicit re-exports — loanersService also exports
+// `__setTestFirestore` (test-DI hook) which collides with the same name from
+// patronesService. The test hook MUST NOT leak through the barrel; callers
+// reach it via `import { __setTestFirestore } from './loanersService'` directly.
+// `registrarVenta` (named export) is also test-friendly; production callers use
+// `loanersService.registrarVenta(...)` via the object.
+export { loanersService } from './loanersService';
+export type { RegistrarVentaParams, RegistrarVentaResult } from './loanersService';
 export * from './importacionesService';
 export * from './asignacionesService';
 export * from './ingresoEmpresasService';
