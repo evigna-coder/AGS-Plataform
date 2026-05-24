@@ -79,6 +79,10 @@ service cloud.firestore {
     match /categorias_presupuesto/{categoriaId} {
       allow read, write: if true; // Temporal para desarrollo
     }
+    // Plantillas de texto para secciones de presupuesto (condiciones, alcance, etc.)
+    match /plantillas_texto_presupuesto/{plantillaId} {
+      allow read, write: if true; // Temporal para desarrollo
+    }
     match /condiciones_pago/{condicionId} {
       allow read, write: if true; // Temporal para desarrollo
     }
