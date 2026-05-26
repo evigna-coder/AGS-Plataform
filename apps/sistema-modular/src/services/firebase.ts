@@ -85,14 +85,19 @@ try {
   // Si en el futuro queremos persistencia, hay que estabilizar el puerto del
   // static server (fixed port o registrar protocol app://).
   try {
-    // experimentalForceLongPolling: AV/firewall pueden interceptar el
-    // WebChannel/WebSocket que Firestore usa por defecto. Long-polling cae a
-    // HTTP plano que pasa todo proxy/AV.
+    // experimentalAutoDetectLongPolling: el SDK arranca con WebChannel/WebSocket
+    // y si detecta que falla (AV/firewall lo intercepta) cae automáticamente a
+    // long-polling. En PCs limpias → WebSocket → sin bug del keyboard router de
+    // Chromium que aparecía con force=true. En PCs con AV agresivo → fallback
+    // automático a long-polling, el bug podría reaparecer y el wrap del SDK
+    // de abajo dispara flashFocus como mitigación. Cero parpadeo en el caso
+    // común (WebSocket OK), parpadeo sólo donde sea inevitable.
+    // Ver memory/project_search_inputs_disabled_after_write.md
     db = initializeFirestore(app, {
       localCache: memoryLocalCache(),
-      experimentalForceLongPolling: true,
+      experimentalAutoDetectLongPolling: true,
     });
-    console.log('%c✅ Firestore inicializado (memoria + long-polling)', 'color: green; font-weight: bold');
+    console.log('%c✅ Firestore inicializado (memoria + auto-detect long-polling)', 'color: green; font-weight: bold');
   } catch (innerErr) {
     console.warn('[Firestore] initializeFirestore falló, fallback a getFirestore:', innerErr);
     db = getFirestore(app);
