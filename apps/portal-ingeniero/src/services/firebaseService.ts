@@ -859,6 +859,9 @@ export interface BorradorPendiente {
   otNumber: string;
   razonSocial: string | null;
   sistema: string | null;
+  /** agsVisibleId del equipo — guardado como `codigoInternoCliente` en el doc. */
+  idEquipo: string | null;
+  tipoServicio: string | null;
   creadoFecha: string | null;
   creadoPorNombre: string | null;
   creadoPorEmail: string | null;
@@ -878,6 +881,8 @@ function parseBorradorEmpezado(id: string, data: Record<string, unknown>): Borra
     otNumber: (data.otNumber as string) ?? id,
     razonSocial: (data.razonSocial as string) ?? null,
     sistema: (data.sistema as string) ?? null,
+    idEquipo: (data.codigoInternoCliente as string) ?? null,
+    tipoServicio: (data.tipoServicio as string) ?? null,
     creadoFecha: tsToIso(creadoPor.fecha),
     creadoPorNombre: (creadoPor.nombre as string) ?? null,
     creadoPorEmail: (creadoPor.email as string) ?? null,
@@ -891,6 +896,8 @@ function parseSinEmpezar(id: string, data: Record<string, unknown>): BorradorPen
     otNumber: (data.otNumber as string) ?? id,
     razonSocial: (data.razonSocial as string) ?? null,
     sistema: (data.sistema as string) ?? null,
+    idEquipo: (data.codigoInternoCliente as string) ?? null,
+    tipoServicio: (data.tipoServicio as string) ?? null,
     // En 'sin_empezar' no hay creadoPor.fecha — usamos createdAt de la OT como referencia visual.
     creadoFecha: tsToIso(data.createdAt),
     creadoPorNombre: null,

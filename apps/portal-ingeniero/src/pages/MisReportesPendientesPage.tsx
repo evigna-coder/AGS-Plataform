@@ -74,6 +74,8 @@ export default function MisReportesPendientesPage() {
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Estado</th>
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Cliente</th>
                     <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Sistema</th>
+                    <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">ID equipo</th>
+                    <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Tipo servicio</th>
                     {viendoTodos && (
                       <th className="px-3 py-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500">Ingeniero</th>
                     )}
@@ -93,6 +95,8 @@ export default function MisReportesPendientesPage() {
                       </td>
                       <td className="px-3 py-2 text-slate-800">{b.razonSocial || '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{b.sistema || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-700">{b.idEquipo || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600">{b.tipoServicio || '—'}</td>
                       {viendoTodos && (
                         <td className="px-3 py-2 text-xs text-slate-600">
                           {b.tipo === 'borrador'
@@ -121,6 +125,13 @@ export default function MisReportesPendientesPage() {
                   </div>
                   <p className="text-sm text-slate-800 truncate">{b.razonSocial || '—'}</p>
                   <p className="text-xs text-slate-500 truncate">{b.sistema || '—'}</p>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                    {b.idEquipo && (
+                      <span className="font-mono text-slate-700 mr-2">ID {b.idEquipo}</span>
+                    )}
+                    {b.tipoServicio && <span>{b.tipoServicio}</span>}
+                    {!b.idEquipo && !b.tipoServicio && '—'}
+                  </p>
                   <div className="flex items-center justify-between gap-2 mt-1">
                     {viendoTodos && (
                       <p className="text-[11px] text-slate-400 truncate">
