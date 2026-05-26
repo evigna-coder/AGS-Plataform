@@ -231,13 +231,55 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
     console.log('📋 Datos a guardar:', JSON.stringify(data, null, 2));
     const docRef = doc(db, "reportes", ot);
 
+    // Lectura previa única: la usamos para (a) anotar `creadoPor` en el primer
+    // save, y (b) el guard de protección contra overwrite de OTs con PDF.
+    let existing: Awaited<ReturnType<typeof getDoc>> | null = null;
+    try {
+      existing = await getDoc(docRef);
+    } catch (preReadErr) {
+      console.warn('[saveReporte] no se pudo leer doc previo (continuando):', preReadErr);
+    }
+    const existingData: Record<string, any> | null =
+      existing && existing.exists() ? (existing.data() as Record<string, any>) : null;
+
+    // Guard: si la OT ya tiene un PDF generado y el payload entrante intenta
+    // dejarla en BORRADOR sin regenerar el PDF, bloquear. Este es el patrón
+    // exacto del incidente de 2026-05-26 con la OT 29489.01: un duplicateOT /
+    // createNewOT / autosave con state vacío sobreescribió un reporte ya
+    // finalizado. Los flujos legítimos que tocan una OT con PDF son:
+    //   - Regeneración de PDF (finalizedData.status === 'FINALIZADO', usePDFGeneration)
+    //   - Update de pdfUrl/pdfGeneratedAt post-upload (payload incluye pdfGeneratedAt)
+    //   - "Reabrir OT" desde sistema-modular (no pasa por este service)
+    // Cualquier otro write con status BORRADOR sin pdfGeneratedAt es sospechoso.
+    if (
+      existingData?.pdfGeneratedAt &&
+      data?.status === 'BORRADOR' &&
+      !data?.pdfGeneratedAt
+    ) {
+      const err: any = new Error(
+        `OT ${ot} ya tiene PDF generado el ${existingData.pdfGeneratedAt}. ` +
+        `El save actual la dejaría en BORRADOR sin regenerar el PDF — bloqueado para evitar ` +
+        `pisar el reporte. Si necesitás reabrirla, hacelo desde sistema-modular ("Reabrir OT").`
+      );
+      err.code = 'reportes-ot/pdf-protected';
+      console.error('⛔ [saveReporte] guard activado:', err.message, {
+        ot,
+        existing: {
+          pdfGeneratedAt: existingData.pdfGeneratedAt,
+          status: existingData.status,
+        },
+        payloadStatus: data?.status,
+        payloadKeys: Object.keys(data ?? {}),
+      });
+      throw err;
+    }
+
     // Primera escritura del reporte (no existe aún) → anotar creador.
     // Lo consume portal-ingeniero (Mis Reportes Pendientes) para filtrar
     // borradores por ingeniero. No se sobreescribe en saves posteriores.
     let payload = data;
-    try {
-      const existing = await getDoc(docRef);
-      if (!existing.exists()) {
+    if (!existingData) {
+      try {
         const { auth } = await import('./authService');
         const user = auth.currentUser;
         if (user) {
@@ -252,9 +294,9 @@ export const saveReporte = async (ot: string, data: any): Promise<void> => {
           };
           console.info('[saveReporte] primer save — anotando creadoPor:', user.email);
         }
+      } catch (authErr) {
+        console.warn('[saveReporte] no se pudo anotar creadoPor:', authErr);
       }
-    } catch (preReadErr) {
-      console.warn('[saveReporte] no se pudo verificar existencia para creadoPor:', preReadErr);
     }
 
     await setDoc(docRef, deepCleanForFirestore(payload), { merge: true });
