@@ -1138,13 +1138,15 @@ export const presupuestosService = {
       }
     }
 
-    // ── Paso 6: Phase 10 — si tipo === 'ventas', auto-crear ticket en_coordinacion
-    // para el coordinador OT. Reemplaza la auto-OT genérica (decisión 2026-04-22):
-    // un ppto ventas puede requerir 5-6 OTs (bench / entrega / instalación / QI / QO);
-    // crear 1 OT genérica confundía a la coordinadora. Ahora el ticket informa la
-    // aceptación y la coordinadora arma manualmente las OTs que correspondan
-    // (0, 1 o muchas). La cosecha Items→OT queda como refinamiento futuro.
-    if (pres.tipo === 'ventas') {
+    // ── Paso 6: auto-crear/transicionar ticket de coordinación al aceptar.
+    // Originalmente (Phase 10, 2026-04-22) solo aplicaba a tipo === 'ventas'.
+    // Decisión 2026-05-25: aplicar a TODOS los tipos. Caso real: el operario
+    // puede saltarse 'enviado' cuando recibe la OC en mano y va directo de
+    // borrador a aceptado; sin ticket en ese path se pierde la trazabilidad
+    // y la coordinadora no sabe que tiene que armar OT(s). El lookup
+    // (presupuestosIds array-contains) sigue siendo idempotente: si el
+    // ticket ya existe (creado al enviar), solo transiciona; no duplica.
+    {
       try {
         const clienteIdStr = (pres.clienteId ?? '').toString().trim();
         if (!clienteIdStr) {
@@ -1155,7 +1157,7 @@ export const presupuestosService = {
         if (!coordId) {
           await this._appendPendingAction(presupuestoId, {
             type: 'notificar_coordinador_ot',
-            reason: `Auto ventas — ppto ${pres.numero} aceptado; falta adminConfig.usuarioCoordinadorOTId. Configurar en /admin/config-flujos y reintentar desde /admin/acciones-pendientes.`,
+            reason: `Ppto ${pres.numero} aceptado; falta adminConfig.usuarioCoordinadorOTId. Configurar en /admin/config-flujos y reintentar desde /admin/acciones-pendientes.`,
           });
         } else {
           const coordinador = await usuariosService.getById(coordId);
@@ -1282,7 +1284,7 @@ export const presupuestosService = {
         console.error('[aceptarConRequerimientos] auto-ticket coordinación falló:', err);
         await this._appendPendingAction(presupuestoId, {
           type: 'notificar_coordinador_ot',
-          reason: `Auto ventas — ppto ${pres.numero} aceptado; ticket coordinación falló: ${err instanceof Error ? err.message : String(err)}. Reintentar desde /admin/acciones-pendientes.`,
+          reason: `Ppto ${pres.numero} aceptado; auto-creación de ticket coordinación falló: ${err instanceof Error ? err.message : String(err)}. Reintentar desde /admin/acciones-pendientes.`,
         }).catch(() => {});
       }
     }
