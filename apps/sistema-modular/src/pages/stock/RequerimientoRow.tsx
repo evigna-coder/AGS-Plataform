@@ -50,11 +50,11 @@ export const RequerimientoRow = ({
       <td className="px-3 py-2 text-center">
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </td>
-      <td className={`px-4 py-2 ${getAlignClass(1)}`}>
+      <td className={`px-3 py-2 ${getAlignClass(1)}`}>
         <span className="font-mono text-xs font-semibold text-teal-600">{r.numero}</span>
       </td>
-      <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(2)}`}>{r.articuloDescripcion}</td>
-      <td className={`px-3 py-2 text-xs whitespace-nowrap ${getAlignClass(3)}`} onClick={() => isPendiente && startEdit(r, 'cantidad')}>
+      <td className={`px-3 py-2 text-xs text-slate-900 truncate ${getAlignClass(2)}`} title={r.articuloDescripcion}>{r.articuloDescripcion}</td>
+      <td className={`px-2 py-2 text-xs whitespace-nowrap ${getAlignClass(3)}`} onClick={() => isPendiente && startEdit(r, 'cantidad')}>
         {isEditingCantidad ? (
           <input type="number" min={1} value={editValue} onChange={e => setEditValue(e.target.value)}
             onBlur={saveEdit} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
@@ -63,12 +63,12 @@ export const RequerimientoRow = ({
           <span className={isPendiente ? 'cursor-pointer hover:text-teal-700' : ''}>{r.cantidad} {r.unidadMedida}</span>
         )}
       </td>
-      <td className={`px-4 py-2 ${getAlignClass(4)}`}>
+      <td className={`px-2 py-2 ${getAlignClass(4)}`}>
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ORIGEN_COLORS[r.origen] ?? ''}`}>
           {ORIGEN_REQUERIMIENTO_LABELS[r.origen]}
         </span>
       </td>
-      <td className={`px-4 py-2 ${getAlignClass(5)}`}>
+      <td className={`px-2 py-2 ${getAlignClass(5)}`}>
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_REQUERIMIENTO_COLORS[r.estado]}`}>
           {ESTADO_REQUERIMIENTO_LABELS[r.estado]}
         </span>
@@ -91,7 +91,7 @@ export const RequerimientoRow = ({
           )
         )}
       </td>
-      <td className={`px-4 py-2 ${getAlignClass(6)}`} onClick={() => isPendiente && startEdit(r, 'urgencia')}>
+      <td className={`px-2 py-2 ${getAlignClass(6)}`} onClick={() => isPendiente && startEdit(r, 'urgencia')}>
         {isEditingUrgencia ? (
           <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus
             className="border-b border-teal-400 focus:outline-none bg-transparent text-xs">
@@ -105,7 +105,7 @@ export const RequerimientoRow = ({
           </span>
         ) : null}
       </td>
-      <td className={`px-3 py-2 text-xs text-slate-600 truncate max-w-[140px] ${getAlignClass(7)}`} onClick={() => isPendiente && startEdit(r, 'proveedorSugeridoId')}>
+      <td className={`px-2 py-2 text-xs text-slate-600 truncate ${getAlignClass(7)}`} title={r.proveedorSugeridoNombre ?? ''} onClick={() => isPendiente && startEdit(r, 'proveedorSugeridoId')}>
         {isEditingProveedor ? (
           <input type="text" value={editValue} onChange={e => setEditValue(e.target.value)}
             onBlur={saveEdit} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
@@ -116,9 +116,9 @@ export const RequerimientoRow = ({
           </span>
         )}
       </td>
-      <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(8)}`}>{r.solicitadoPor}</td>
-      <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(9)}`}>{formatDate(r.fechaSolicitud)}</td>
-      <td className="px-4 py-2">
+      <td className={`px-2 py-2 text-xs text-slate-900 truncate ${getAlignClass(8)}`} title={r.solicitadoPor}>{r.solicitadoPor}</td>
+      <td className={`px-2 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(9)}`}>{formatDate(r.fechaSolicitud)}</td>
+      <td className="px-2 py-2">
         <div className="flex items-center gap-2">
           {r.estado === 'pendiente' && (
             <button onClick={() => onAprobar(r.id)} className="text-xs text-green-600 hover:underline font-medium">Aprobar</button>
