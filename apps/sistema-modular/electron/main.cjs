@@ -361,24 +361,16 @@ function registerIpcHandlers() {
   // SearchableSelect dejan de responder al teclado hasta alt+tab).
   // Ver memory/project_search_inputs_disabled_after_write.md
   //
-  // Estrategia v1.4.4: setFocusable(false)/(true). Toggle del flag
-  // WS_EX_NOACTIVATE en la ventana — Windows reevalúa el foco y dispara
-  // WM_ACTIVATEAPP/WM_SETFOCUS sin el repaint del título que produce
-  // blur()+focus(). Si NO destraba el router → fallback a blur+focus.
+  // v1.4.5: vuelta a blur()+focus() tras intento fallido con setFocusable
+  // (v1.4.4 minimizaba la ventana en Windows). Parpadea pero usable.
   ipcMain.on('window:flash-focus', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed() || !win.isFocused()) return;
     try {
-      win.setFocusable(false);
-      win.setFocusable(true);
+      win.blur();
+      win.focus();
     } catch (err) {
-      console.warn('[flash-focus] setFocusable falló, fallback blur/focus:', err?.message);
-      try {
-        win.blur();
-        win.focus();
-      } catch (err2) {
-        console.warn('[flash-focus] fallback también falló:', err2?.message);
-      }
+      console.warn('[flash-focus] falló:', err?.message);
     }
   });
 
