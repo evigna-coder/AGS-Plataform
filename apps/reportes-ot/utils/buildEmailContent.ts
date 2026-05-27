@@ -19,6 +19,7 @@ export interface EmailContentParams {
   moduloModelo: string;
   moduloDescripcion?: string;    // Texto descriptivo del módulo (ej. "Cromatógrafo gaseoso / Headspace")
   moduloSerie: string;
+  codigoInternoCliente?: string; // ID visible AGS del equipo (ej. "AGS-1234")
   fechaInicio: string;          // ISO
   fechaFin: string;              // ISO
   tecnicoNombre: string;         // aclaracionEspecialista
@@ -53,7 +54,7 @@ function fmtFechaIntervencion(fechaInicio: string): string {
 }
 
 function buildResumenLines(params: EmailContentParams): string {
-  const { otNumber, sistema, moduloModelo, moduloDescripcion, tecnicoNombre, fechaInicio, fechaFin, tipoServicio } = params;
+  const { otNumber, sistema, moduloModelo, moduloDescripcion, tecnicoNombre, fechaInicio, fechaFin, tipoServicio, codigoInternoCliente } = params;
   const lines: string[] = [];
   lines.push(`<li>OT: #${escapeHtml(otNumber)}</li>`);
   const tipo = tipoServicio?.trim();
@@ -71,6 +72,8 @@ function buildResumenLines(params: EmailContentParams): string {
   if (equipoParts.length > 0) {
     lines.push(`<li>Equipo: ${escapeHtml(equipoParts.join(' — '))}</li>`);
   }
+  const idEquipo = codigoInternoCliente?.trim();
+  if (idEquipo) lines.push(`<li>ID Equipo: ${escapeHtml(idEquipo)}</li>`);
   if (tecnicoNombre) lines.push(`<li>Técnico: ${escapeHtml(tecnicoNombre)}</li>`);
   lines.push(`<li>Fecha: ${escapeHtml(fmtDateRange(fechaInicio, fechaFin))}</li>`);
   return lines.join('\n      ');

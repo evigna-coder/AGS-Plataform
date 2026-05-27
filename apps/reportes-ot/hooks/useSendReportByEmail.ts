@@ -129,6 +129,7 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
       moduloModelo: formState.moduloModelo,
       moduloDescripcion: formState.moduloDescripcion,
       moduloSerie: formState.moduloSerie,
+      codigoInternoCliente: formState.codigoInternoCliente,
       fechaInicio: formState.fechaInicio,
       fechaFin: formState.fechaFin,
       tecnicoNombre: formState.aclaracionEspecialista,
