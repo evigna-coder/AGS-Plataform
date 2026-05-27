@@ -111,7 +111,15 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     getSignature: () => {
       if (!hasDrawnRef.current) return null;
       const canvas = canvasRef.current;
-      if (canvas) return trimCanvas(canvas).toDataURL('image/png');
+      if (canvas) {
+        const trimmed = trimCanvas(canvas);
+        // trimCanvas devuelve el mismo canvas si no encontró pixeles dibujados.
+        // Pasa cuando el IntersectionObserver limpió el canvas para re-restaurar
+        // async (img.onload) y el usuario confirmó antes de que termine el restore:
+        // sin este fallback subiríamos un PNG transparente a Firestore.
+        if (trimmed !== canvas) return trimmed.toDataURL('image/png');
+        if (savedSignatureRef.current) return savedSignatureRef.current;
+      }
       return savedSignatureRef.current;
     },
     clear: () => {
