@@ -108,7 +108,7 @@ try {
   storage = getStorage(app);
 
   if (typeof window !== 'undefined' && (window as any).electronAPI?.flashFocus) {
-    console.log('%c⚡ Input wakeup activo (wrap SDK writes)', 'color: orange; font-weight: bold');
+    console.log('%c⚡ Electron input wakeup wrap activo (kill switch: FLASH_ENABLED en firebase.ts)', 'color: gray');
   }
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
@@ -125,9 +125,17 @@ export { db };
 // de Chromium en Electron (bug long-polling). Debounce 200ms para coalescer
 // bursts (ej. batch.commit que dispara N listeners). No-op en browser.
 // Ver memory/project_search_inputs_disabled_after_write.md
+// Flash desactivado a partir de auto-detect long-polling. Con WebSocket el bug
+// del keyboard router de Chromium no se manifiesta, así que el flash producía
+// parpadeo visible sin razón. El wrap se mantiene como kill switch: si vuelve
+// el síntoma (SearchableSelect que no responde post-save), poner FLASH_ENABLED
+// = true para reactivar sin tocar ningún call site.
+// Ver memory/project_search_inputs_disabled_after_write.md
+const FLASH_ENABLED = false;
 let _flashTimer: ReturnType<typeof setTimeout> | null = null;
 let _flashCount = 0;
 function scheduleFlash() {
+  if (!FLASH_ENABLED) return;
   if (typeof window === 'undefined') return;
   const api = (window as any).electronAPI;
   if (!api?.flashFocus) return;
