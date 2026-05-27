@@ -125,13 +125,14 @@ export { db };
 // de Chromium en Electron (bug long-polling). Debounce 200ms para coalescer
 // bursts (ej. batch.commit que dispara N listeners). No-op en browser.
 // Ver memory/project_search_inputs_disabled_after_write.md
-// Flash desactivado a partir de auto-detect long-polling. Con WebSocket el bug
-// del keyboard router de Chromium no se manifiesta, así que el flash producía
-// parpadeo visible sin razón. El wrap se mantiene como kill switch: si vuelve
-// el síntoma (SearchableSelect que no responde post-save), poner FLASH_ENABLED
-// = true para reactivar sin tocar ningún call site.
+// Flash reactivado en v1.4.3 — la hipótesis "auto-detect resuelve el bug" no
+// se cumplió empíricamente: en v1.4.2 con FLASH_ENABLED=false, el parpadeo
+// desapareció pero los SearchableSelect volvieron a trabarse post-save. El
+// bug del keyboard router de Chromium NO depende sólo del transport del SDK.
+// Volvemos al workaround conocido (parpadea, pero usable) mientras se busca
+// una alternativa que destrabe el router sin mover foco OS-level.
 // Ver memory/project_search_inputs_disabled_after_write.md
-const FLASH_ENABLED = false;
+const FLASH_ENABLED = true;
 let _flashTimer: ReturnType<typeof setTimeout> | null = null;
 let _flashCount = 0;
 function scheduleFlash() {
