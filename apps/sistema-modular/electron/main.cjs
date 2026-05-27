@@ -357,25 +357,28 @@ function registerIpcHandlers() {
     return { error: 'AutoUpdater no disponible' };
   });
 
-  // Window: synthetic mouseMove off-screen vía sendInputEvent para destrabar el
-  // keyboard input router de Chromium tras un write a Firestore. El long-polling
-  // deja el router stuck (DOM focus OK pero teclado no llega). sendInputEvent
-  // atraviesa el pipeline de input al nivel del browser process — donde está
-  // el bug — sin tocar el foco OS-level (sin flicker visible).
+  // Destraba el keyboard router de Chromium tras un write a Firestore (los
+  // SearchableSelect dejan de responder al teclado hasta alt+tab).
   // Ver memory/project_search_inputs_disabled_after_write.md
+  //
+  // Estrategia v1.4.4: setFocusable(false)/(true). Toggle del flag
+  // WS_EX_NOACTIVATE en la ventana — Windows reevalúa el foco y dispara
+  // WM_ACTIVATEAPP/WM_SETFOCUS sin el repaint del título que produce
+  // blur()+focus(). Si NO destraba el router → fallback a blur+focus.
   ipcMain.on('window:flash-focus', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed() || !win.isFocused()) return;
     try {
-      // blur+focus síncronos: Chromium procesa OnFocusChanged(false) y (true)
-      // sin tick intermedio. Windows queuea WM_KILLFOCUS y WM_SETFOCUS y los
-      // procesa antes de pintar — idealmente sin dim visible del título.
-      // sendInputEvent (mouse y keyboard) no destrabó: el bug es a nivel del
-      // browser process focus tracking, no del input pipeline.
-      win.blur();
-      win.focus();
+      win.setFocusable(false);
+      win.setFocusable(true);
     } catch (err) {
-      console.warn('[flash-focus] falló:', err?.message);
+      console.warn('[flash-focus] setFocusable falló, fallback blur/focus:', err?.message);
+      try {
+        win.blur();
+        win.focus();
+      } catch (err2) {
+        console.warn('[flash-focus] fallback también falló:', err2?.message);
+      }
     }
   });
 
