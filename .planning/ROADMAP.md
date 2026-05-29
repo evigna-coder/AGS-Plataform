@@ -331,7 +331,7 @@ Plans:
 **Goal:** Visibilidad operativa de entregas comprometidas: cada `PresupuestoItem` declara su `disponibilidad` (`stock` | `post_facturacion` | `a_importar` | `en_transito`) y `etaDiasEstimados`. Al aceptarse el presupuesto, los items nacen como filas en una planilla `/entregas` que resuelve la cadena `PresupuestoItem → Requerimiento → ItemOC → ItemImportacion` y muestra cliente, item, cantidad, valor unitario, presupuesto#, OT# (manual), OC#, Importación# + estado, ETA original, días restantes con semáforo (verde / amarillo / rojo / vencido). Sin auto-cosecha items→OT — coherente con decisión cutover 2026-05-24.
 **Requirements:** ENT-W0, ENT-01, ENT-02, ENT-03, ENT-04, ENT-05, ENT-06, UI-01, UI-02, UI-03, UI-04, UI-05
 **Depends on:** Phase 15
-**Plans:** 4/6 plans executed
+**Plans:** 5/6 plans executed
 
 Plans:
 - [ ] 16-01-PLAN.md — Wave 0: tipos en @ags/shared + fixtures + entregasResolver stubs + script test:entregas (ENT-W0)

@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
-stopped_at: "Completed 16-04-PLAN.md (editor de presupuestos: PresupuestoDisponibilidadFields + AddItemModal ATP auto-default + PresupuestoItemRow inline + BulkAplicarDisponibilidadButton; type-check GREEN; test:entregas 6/6 GREEN)"
-last_updated: "2026-05-29T18:17:06.626Z"
+stopped_at: Completed 16-05 PLAN.md
+last_updated: "2026-05-29T18:28:00.054Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 18
   completed_phases: 11
   total_plans: 82
-  completed_plans: 78
+  completed_plans: 79
 ---
 
 ---
@@ -441,6 +441,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 16-entregas-visor-de-cumplimiento P02 | 10 | 1 tasks | 1 files |
 | Phase 16-entregas-visor-de-cumplimiento P03 | 2m | 1 tasks | 1 files |
 | Phase 16-entregas-visor-de-cumplimiento P16-04 | 7 | 3 tasks | 5 files |
+| Phase 16-entregas-visor-de-cumplimiento P05 | 6 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -608,6 +609,8 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 16-04]: PresupuestoDisponibilidadFields extracted as shared atom (modal+row variants) — used in AddItemModal, PresupuestoItemRow, BulkAplicarDisponibilidadButton
 - [Phase 16-04]: ATP auto-default uses useRef guard (prevArticuloId) + disponibilidadTouched flag — prevents stale-closure re-fires and preserves operator overrides
 - [Phase 16-04]: BulkApply: null = skip existing value, non-null = override — idempotent design per plan spec
+- [Phase 16-entregas-visor-de-cumplimiento]: No serviceCache in useEntregas — coordination view needs fresh data
+- [Phase 16-entregas-visor-de-cumplimiento]: useResizableColumns omitted in EntregasList first version — 112 LOC leaves budget headroom for later
 
 ### Pending Todos
 
@@ -621,6 +624,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-29T18:17:06.621Z
-Stopped at: Completed 16-04-PLAN.md (editor de presupuestos: PresupuestoDisponibilidadFields + AddItemModal ATP auto-default + PresupuestoItemRow inline + BulkAplicarDisponibilidadButton; type-check GREEN; test:entregas 6/6 GREEN)
+Last session: 2026-05-29T18:28:00.049Z
+Stopped at: Completed 16-05 PLAN.md
 Resume file: None
