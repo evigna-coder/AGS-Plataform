@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
-stopped_at: "Completed 16-01-PLAN.md (Wave 0 baseline: @ags/shared types extended + entregasResolver stubs + test:entregas RED 6/6)"
-last_updated: "2026-05-29T17:57:26.335Z"
+stopped_at: "Completed 16-02-PLAN.md (aceptarConRequerimientos patch: fechaAceptacion + presupuestoItemId writes in runTransaction)"
+last_updated: "2026-05-29T18:01:35.947Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 18
   completed_phases: 11
   total_plans: 82
-  completed_plans: 75
+  completed_plans: 76
 ---
 
 ---
@@ -438,6 +438,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 15-stock-venta-de-loaner-espejo-a-stock P02 | 30min | 2 tasks | 5 files |
 | Phase 15 P03 | 22min | 3 tasks | 4 files |
 | Phase 16-entregas-visor-de-cumplimiento P16-01 | 30 | 4 tasks | 6 files |
+| Phase 16-entregas-visor-de-cumplimiento P02 | 10 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -599,6 +600,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 16-01]: All new shared type fields optional — backwards-compat with legacy presupuestos/reqs pre-Phase16
 - [Phase 16-01]: Disponibilidad as union type not enum — string literal ergonomics + tree-shaking
 - [Phase 16-01]: FIXTURE_NOW=2026-06-01 hardcoded for deterministic ETA test assertions
+- [Phase 16-02]: nowIso captured once outside runTransaction for consistent ISO timestamp across presupuesto and all req docs; presupuestoItemId uses ?? null (deepClean strips undefined not null)
 
 ### Pending Todos
 
@@ -612,6 +614,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:57:26.331Z
-Stopped at: Completed 16-01-PLAN.md (Wave 0 baseline: @ags/shared types extended + entregasResolver stubs + test:entregas RED 6/6)
+Last session: 2026-05-29T18:01:35.942Z
+Stopped at: Completed 16-02-PLAN.md (aceptarConRequerimientos patch: fechaAceptacion + presupuestoItemId writes in runTransaction)
 Resume file: None
