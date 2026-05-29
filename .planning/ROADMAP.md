@@ -329,12 +329,17 @@ Plans:
 ### Phase 16: Entregas — Visor de cumplimiento
 
 **Goal:** Visibilidad operativa de entregas comprometidas: cada `PresupuestoItem` declara su `disponibilidad` (`stock` | `post_facturacion` | `a_importar` | `en_transito`) y `etaDiasEstimados`. Al aceptarse el presupuesto, los items nacen como filas en una planilla `/entregas` que resuelve la cadena `PresupuestoItem → Requerimiento → ItemOC → ItemImportacion` y muestra cliente, item, cantidad, valor unitario, presupuesto#, OT# (manual), OC#, Importación# + estado, ETA original, días restantes con semáforo (verde / amarillo / rojo / vencido). Sin auto-cosecha items→OT — coherente con decisión cutover 2026-05-24.
-**Requirements**: TBD
+**Requirements:** ENT-W0, ENT-01, ENT-02, ENT-03, ENT-04, ENT-05, ENT-06, UI-01, UI-02, UI-03, UI-04, UI-05
 **Depends on:** Phase 15
-**Plans:** 0 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 16 to break down)
+- [ ] 16-01-PLAN.md — Wave 0: tipos en @ags/shared + fixtures + entregasResolver stubs + script test:entregas (ENT-W0)
+- [ ] 16-02-PLAN.md — Backend: aceptarConRequerimientos escribe fechaAceptacion + presupuestoItemId dentro del runTransaction (ENT-03 backend)
+- [ ] 16-03-PLAN.md — Pure functions impl: computeSemaforo + computeEtaFecha + buildEntregaRows → Wave 0 GREEN (ENT-01..05)
+- [ ] 16-04-PLAN.md — Editor de presupuestos: PresupuestoDisponibilidadFields + auto-default ATP + BulkAplicarDisponibilidadButton (ENT-06)
+- [ ] 16-05-PLAN.md — Vista /entregas: hook useEntregas + EntregasList + EntregasFilters + EntregaRow + sidebar + ruta (ENT-03 consumer)
+- [ ] 16-06-PLAN.md — UAT manual UI-01..05 + release-prep + comando release:minor surfaceado (NOT autonomous)
 
 ### Phase 17: OC — Paridad con presupuestos (PDF, email, status, auditoría)
 
