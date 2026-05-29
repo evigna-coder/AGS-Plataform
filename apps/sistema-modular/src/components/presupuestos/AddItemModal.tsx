@@ -1,10 +1,13 @@
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Sistema, ModuloSistema, Articulo } from '@ags/shared';
+import { useEffect, useRef, useState } from 'react';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, Sistema, ModuloSistema, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { EquipoLinkPanel } from './EquipoLinkPanel';
 import { ArticuloPickerPanel } from './ArticuloPickerPanel';
+import { PresupuestoDisponibilidadFields } from './PresupuestoDisponibilidadFields';
+import { computeStockAmplio } from '../../services/stockAmplioService';
 import { useTabs } from '../../contexts/TabsContext';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 
@@ -12,6 +15,34 @@ const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
   { value: '', label: 'Sin categoria' },
   ...cats.filter(c => c.activo).map(c => ({ value: c.id, label: c.nombre })),
 ];
+
+function TaxPreview({ categoria, subtotal, sym }: {
+  categoria: CategoriaPresupuesto;
+  subtotal: number;
+  sym: string;
+}) {
+  let iva = 0, ganancias = 0, iibb = 0;
+  if (categoria.incluyeIva && categoria.porcentajeIva) {
+    iva = categoria.ivaReduccion && categoria.porcentajeIvaReduccion
+      ? subtotal * (categoria.porcentajeIvaReduccion / 100)
+      : subtotal * (categoria.porcentajeIva / 100);
+  }
+  if (categoria.incluyeGanancias && categoria.porcentajeGanancias) ganancias = (subtotal + iva) * (categoria.porcentajeGanancias / 100);
+  if (categoria.incluyeIIBB && categoria.porcentajeIIBB) iibb = (subtotal + iva) * (categoria.porcentajeIIBB / 100);
+  const total = subtotal + iva + ganancias + iibb;
+  return (
+    <div className="mt-2 bg-teal-50 p-3 rounded-lg text-xs">
+      <p className="font-semibold text-slate-700 mb-1">Calculo con "{categoria.nombre}":</p>
+      <div className="space-y-0.5 text-slate-600">
+        <p>Subtotal: {sym} {subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+        {iva > 0 && <p>IVA ({categoria.ivaReduccion && categoria.porcentajeIvaReduccion ? categoria.porcentajeIvaReduccion : categoria.porcentajeIva}%): {sym} {iva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>}
+        {ganancias > 0 && <p>Ganancias ({categoria.porcentajeGanancias}%): {sym} {ganancias.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>}
+        {iibb > 0 && <p>IIBB ({categoria.porcentajeIIBB}%): {sym} {iibb.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>}
+        <p className="font-semibold text-teal-700 mt-1">Total: {sym} {total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+      </div>
+    </div>
+  );
+}
 
 interface AddItemModalProps {
   newItem: Partial<PresupuestoItem>;
@@ -37,6 +68,40 @@ export const AddItemModal = ({
 }: AddItemModalProps) => {
   const { navigateInActiveTab } = useTabs();
   const { minimize } = useFloatingPresupuesto();
+
+  // Phase 16 — disponibilidad auto-default by ATP
+  const [disponibilidadTouched, setDisponibilidadTouched] = useState(false);
+  const [atpHint, setAtpHint] = useState<{ atp: number } | null>(null);
+  const prevArticuloId = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const artId = newItem.stockArticuloId ?? null;
+    if (artId === prevArticuloId.current) return; // unchanged — skip
+    prevArticuloId.current = artId;
+    if (disponibilidadTouched) return; // operator already set manually
+    if (!artId) {
+      setAtpHint(null);
+      setNewItem({ ...newItem, disponibilidad: 'post_facturacion', etaDiasEstimados: null });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const stock = await computeStockAmplio(artId);
+        if (cancelled) return;
+        const atp = stock.atp ?? 0;
+        setAtpHint({ atp });
+        const disp = atp > 0 ? 'stock' : 'a_importar';
+        const eta = atp > 0 ? 0 : 30;
+        setNewItem({ ...newItem, stockArticuloId: artId, disponibilidad: disp, etaDiasEstimados: eta });
+      } catch {
+        if (!cancelled) { setAtpHint(null); setNewItem({ ...newItem, stockArticuloId: artId, disponibilidad: 'a_importar', etaDiasEstimados: 30 }); }
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newItem.stockArticuloId]);
+
   const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
   const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
   const categoria = categoriasPresupuesto.find(c => c.id === newItem.categoriaPresupuestoId);
@@ -51,37 +116,19 @@ export const AddItemModal = ({
   const handleSelectConcepto = (conceptoId: string) => {
     const concepto = conceptosServicio.find(c => c.id === conceptoId);
     if (!concepto) return;
-    const precio = concepto.valorBase * concepto.factorActualizacion;
-    // FLOW-03: conceptosServicio son items de catálogo (servicios/consumibles sin stock link).
-    // No tienen `stockArticuloId` → itemRequiereImportacion queda `false` por contrato
-    // (ver atpHelpers.itemRequiresImportacion: retorna false cuando articuloId es null/undefined).
-    setNewItem({
-      ...newItem,
-      descripcion: concepto.descripcion,
-      precioUnitario: precio,
+    // FLOW-03: servicios sin stockArticuloId → itemRequiereImportacion false
+    setNewItem({ ...newItem,
+      descripcion: concepto.descripcion, precioUnitario: concepto.valorBase * concepto.factorActualizacion,
       codigoProducto: concepto.codigo || newItem.codigoProducto || null,
       categoriaPresupuestoId: concepto.categoriaPresupuestoId || newItem.categoriaPresupuestoId,
-      conceptoServicioId: concepto.id,
-      itemRequiereImportacion: false,
+      conceptoServicioId: concepto.id, itemRequiereImportacion: false,
     });
   };
 
-  const handleSelectArticulo = (
-    art: Articulo | null,
-    meta: { itemRequiereImportacion: boolean },
-  ) => {
-    if (!art) {
-      setNewItem({
-        ...newItem,
-        stockArticuloId: null,
-        itemRequiereImportacion: false,
-      });
-      return;
-    }
-    setNewItem({
-      ...newItem,
-      stockArticuloId: art.id,
-      codigoProducto: art.codigo || newItem.codigoProducto || null,
+  const handleSelectArticulo = (art: Articulo | null, meta: { itemRequiereImportacion: boolean }) => {
+    if (!art) { setNewItem({ ...newItem, stockArticuloId: null, itemRequiereImportacion: false }); return; }
+    setNewItem({ ...newItem,
+      stockArticuloId: art.id, codigoProducto: art.codigo || newItem.codigoProducto || null,
       descripcion: newItem.descripcion || art.descripcion,
       precioUnitario: newItem.precioUnitario || art.precioReferencia || 0,
       itemRequiereImportacion: meta.itemRequiereImportacion,
@@ -94,31 +141,6 @@ export const AddItemModal = ({
      tipoPresupuesto === 'ventas') &&
     !!articulos && articulos.length > 0
   );
-
-  const taxPreview = () => {
-    if (!categoria) return null;
-    let iva = 0, ganancias = 0, iibb = 0;
-    if (categoria.incluyeIva && categoria.porcentajeIva) {
-      iva = categoria.ivaReduccion && categoria.porcentajeIvaReduccion
-        ? subtotal * (categoria.porcentajeIvaReduccion / 100)
-        : subtotal * (categoria.porcentajeIva / 100);
-    }
-    if (categoria.incluyeGanancias && categoria.porcentajeGanancias) ganancias = (subtotal + iva) * (categoria.porcentajeGanancias / 100);
-    if (categoria.incluyeIIBB && categoria.porcentajeIIBB) iibb = (subtotal + iva) * (categoria.porcentajeIIBB / 100);
-    const total = subtotal + iva + ganancias + iibb;
-    return (
-      <div className="mt-2 bg-teal-50 p-3 rounded-lg text-xs">
-        <p className="font-semibold text-slate-700 mb-1">Calculo con "{categoria.nombre}":</p>
-        <div className="space-y-0.5 text-slate-600">
-          <p>Subtotal: {sym} {subtotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-          {iva > 0 && <p>IVA ({categoria.ivaReduccion && categoria.porcentajeIvaReduccion ? categoria.porcentajeIvaReduccion : categoria.porcentajeIva}%): {sym} {iva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>}
-          {ganancias > 0 && <p>Ganancias ({categoria.porcentajeGanancias}%): {sym} {ganancias.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>}
-          {iibb > 0 && <p>IIBB ({categoria.porcentajeIIBB}%): {sym} {iibb.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>}
-          <p className="font-semibold text-teal-700 mt-1">Total: {sym} {total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-        </div>
-      </div>
-    );
-  };
 
   const conceptoOptions = conceptosServicio.filter(c => c.activo).map(c => ({
     value: c.id,
@@ -194,7 +216,9 @@ export const AddItemModal = ({
             <SearchableSelect value={newItem.categoriaPresupuestoId || ''} onChange={(v) => setNewItem({ ...newItem, categoriaPresupuestoId: v || undefined })}
               options={categoriaOptions(categoriasPresupuesto)} placeholder="Seleccionar categoria..." />
             <button type="button" onClick={handleManageCategorias} className="text-[11px] text-teal-600 hover:underline mt-0.5 inline-block text-left">Gestionar categorias →</button>
-            {newItem.categoriaPresupuestoId && taxPreview()}
+            {newItem.categoriaPresupuestoId && categoria && (
+              <TaxPreview categoria={categoria} subtotal={subtotal} sym={sym} />
+            )}
           </div>
           {newItem.cantidad && newItem.precioUnitario && !newItem.categoriaPresupuestoId && (
             <div className="bg-slate-50 p-3 rounded-lg">
@@ -202,6 +226,19 @@ export const AddItemModal = ({
               <p className="text-[11px] text-slate-400 mt-0.5">Seleccione una categoria para ver impuestos</p>
             </div>
           )}
+          {/* Phase 16 — campos de entrega (disponibilidad + ETA) */}
+          <div className="border-t border-slate-200 pt-3">
+            <PresupuestoDisponibilidadFields
+              disponibilidad={(newItem.disponibilidad as Disponibilidad | null | undefined) ?? null}
+              etaDiasEstimados={newItem.etaDiasEstimados ?? null}
+              onChange={(next) => {
+                setNewItem({ ...newItem, disponibilidad: next.disponibilidad, etaDiasEstimados: next.etaDiasEstimados });
+                setDisponibilidadTouched(true);
+              }}
+              variant="modal"
+              atpHint={atpHint}
+            />
+          </div>
         </div>
         <div className="flex gap-2 mt-4">
           <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>

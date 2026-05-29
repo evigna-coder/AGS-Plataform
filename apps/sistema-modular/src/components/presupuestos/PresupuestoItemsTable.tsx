@@ -99,6 +99,10 @@ export const PresupuestoItemsTable = ({
       esBonificacion: newItem.esBonificacion || false,
       grupo: getGrupo ? getGrupo(sistemaId) : null,
       subtotal,
+      // Phase 16 — entrega fields (from modal auto-default or manual override)
+      disponibilidad: newItem.disponibilidad ?? null,
+      etaDiasEstimados: newItem.etaDiasEstimados ?? null,
+      otNumeroVinculada: null,
     });
     setShowModal(false);
   };
