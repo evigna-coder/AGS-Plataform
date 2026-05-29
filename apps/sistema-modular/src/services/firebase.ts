@@ -108,7 +108,7 @@ try {
   storage = getStorage(app);
 
   if (typeof window !== 'undefined' && (window as any).electronAPI?.flashFocus) {
-    console.log('%c⚡ Electron input wakeup wrap activo (kill switch: FLASH_ENABLED en firebase.ts)', 'color: gray');
+    console.log('%c⚡ Electron keyboard router unstick activo', 'color: gray');
   }
 } catch (error) {
   console.error('❌ Error al inicializar Firebase:', error);
@@ -119,57 +119,48 @@ try {
 
 export { db };
 
-// ========== WRAPPED SDK WRITES — Electron input wakeup ==========
-// Cada función expone la misma signature que la original de firebase/firestore,
-// pero dispara scheduleFlash() post-resolve. Eso destraba el keyboard router
-// de Chromium en Electron (bug long-polling). Debounce 200ms para coalescer
-// bursts (ej. batch.commit que dispara N listeners). No-op en browser.
+// ========== WRAPPED SDK WRITES — Electron keyboard router unsticker ==========
+// Bug en Electron: después de un write a Firestore, el keyboard router de
+// Chromium queda stuck — los <input> no reciben keydown events hasta que el
+// foreground cambia (Alt+Tab o click en otra ventana de la misma app).
+// Solución: cada wrapped write dispara scheduleUnstick() post-resolve, que vía
+// IPC le pide al main process que enfoque una BrowserWindow child invisible
+// y vuelva (cambio de foco real entre ventanas internas, sin parpadeo visible
+// ni pérdida de clicks). Debounce 200ms para coalescer bursts.
 // Ver memory/project_search_inputs_disabled_after_write.md
-// Flash reactivado en v1.4.3 — la hipótesis "auto-detect resuelve el bug" no
-// se cumplió empíricamente: en v1.4.2 con FLASH_ENABLED=false, el parpadeo
-// desapareció pero los SearchableSelect volvieron a trabarse post-save. El
-// bug del keyboard router de Chromium NO depende sólo del transport del SDK.
-// Volvemos al workaround conocido (parpadea, pero usable) mientras se busca
-// una alternativa que destrabe el router sin mover foco OS-level.
-// Ver memory/project_search_inputs_disabled_after_write.md
-const FLASH_ENABLED = true;
-let _flashTimer: ReturnType<typeof setTimeout> | null = null;
-let _flashCount = 0;
-function scheduleFlash() {
-  if (!FLASH_ENABLED) return;
+let _unstickTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleUnstick() {
   if (typeof window === 'undefined') return;
   const api = (window as any).electronAPI;
   if (!api?.flashFocus) return;
-  if (_flashTimer !== null) return;
-  _flashTimer = setTimeout(() => {
-    _flashTimer = null;
-    _flashCount++;
-    (window as any).__inputWakeupCount = _flashCount;
+  if (_unstickTimer !== null) return;
+  _unstickTimer = setTimeout(() => {
+    _unstickTimer = null;
     api.flashFocus();
   }, 200);
 }
 
 export const setDoc: typeof _setDoc = (async (...args: any[]) => {
   const r = await (_setDoc as any)(...args);
-  scheduleFlash();
+  scheduleUnstick();
   return r;
 }) as typeof _setDoc;
 
 export const updateDoc: typeof _updateDoc = (async (...args: any[]) => {
   const r = await (_updateDoc as any)(...args);
-  scheduleFlash();
+  scheduleUnstick();
   return r;
 }) as typeof _updateDoc;
 
 export const addDoc: typeof _addDoc = (async (...args: any[]) => {
   const r = await (_addDoc as any)(...args);
-  scheduleFlash();
+  scheduleUnstick();
   return r;
 }) as typeof _addDoc;
 
 export const deleteDoc: typeof _deleteDoc = (async (...args: any[]) => {
   const r = await (_deleteDoc as any)(...args);
-  scheduleFlash();
+  scheduleUnstick();
   return r;
 }) as typeof _deleteDoc;
 
@@ -178,7 +169,7 @@ export function writeBatch(firestore: FirestoreType): ReturnType<typeof _writeBa
   const origCommit = batch.commit.bind(batch);
   (batch as any).commit = async () => {
     const r = await origCommit();
-    scheduleFlash();
+    scheduleUnstick();
     return r;
   };
   return batch;
@@ -186,7 +177,7 @@ export function writeBatch(firestore: FirestoreType): ReturnType<typeof _writeBa
 
 export const runTransaction: typeof _runTransaction = (async (...args: any[]) => {
   const r = await (_runTransaction as any)(...args);
-  scheduleFlash();
+  scheduleUnstick();
   return r;
 }) as typeof _runTransaction;
 

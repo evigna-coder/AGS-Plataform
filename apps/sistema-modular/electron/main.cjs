@@ -5,6 +5,89 @@ const crypto = require('crypto');
 const http = require('http');
 const os = require('os');
 
+// ========== CHROMIUM SWITCHES ==========
+// CalculateNativeWinOcclusion: feature de Chromium conocido por causar bugs
+// raros de input/foco en Electron. Lo desactivamos como medida preventiva.
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
+// ========== KEYBOARD ROUTER UNSTICKER ==========
+// Bug: en Electron sobre Windows, después de un Firestore write el keyboard
+// router de Chromium queda stuck — los <input> reciben focus visual y caret
+// pero NO reciben keydown events. Solo se destraba con un cambio REAL de
+// foco entre ventanas a nivel SO (Alt+Tab, o click en otra ventana de la
+// misma app — el user descubrió empíricamente que "click en DevTools" destraba).
+//
+// Solución: una BrowserWindow child invisible off-screen toma foco brevemente
+// y lo devuelve. Como es child del main window, Windows lo trata como cambio
+// de foco DENTRO de nuestra app (no entre apps) → sin parpadeo visible, sin
+// pérdida de clicks, sin perder foreground a otra app.
+//
+// Iteraciones FALLIDAS antes de llegar acá (NO repetir):
+//   - blur()+focus() OS-level: destraba PERO pierde foreground real → clicks
+//     se pierden si el user clickea en el instante intermedio
+//   - setFocusable(false/true): minimiza la ventana entera
+//   - SendMessage WM_KILLFOCUS+WM_SETFOCUS (top o child HWND) via koffi:
+//     Chromium chequea state real del foreground y rechaza messages sintéticos
+//   - PostMessage WM_SETFOCUS solo: igual
+//   - AttachThreadInput + SetFocus: target HWND vive en el mismo thread del
+//     main process → AttachThreadInput es no-op, SetFocus mismo thread no
+//     destraba
+//   - setEnabled(false/true) toggle: no destraba
+//   - disable CalculateNativeWinOcclusion (Chromium switch): no destraba
+//     (lo dejamos igual como preventivo)
+//   - Remover fetch handler vacío del Service Worker: no destraba
+//     (lo dejamos removido igual: era warning legitimo de Chromium)
+//   - sendInputEvent (mouse, keyboard sintético): no destraba
+//   - DOM blur/focus del <input>: no destraba (router está más profundo)
+//   - Remount del <input> con key change: no destraba (no es el DOM element,
+//     es el router global)
+//   - experimentalAutoDetectLongPolling: no aplica (bug independiente del
+//     transport del SDK)
+//   - Actualizar Electron 40 → 42: no resuelve (bug sigue en Chromium 148)
+//
+// Ver memory/project_search_inputs_disabled_after_write.md
+
+let _dummyChild = null;
+let _flashCount = 0;
+let _flashFailCount = 0;
+
+function ensureDummyChild(parentWin) {
+  if (_dummyChild && !_dummyChild.isDestroyed()) return _dummyChild;
+  _dummyChild = new BrowserWindow({
+    show: false,
+    width: 1,
+    height: 1,
+    x: -2000,
+    y: -2000,
+    parent: parentWin,
+    frame: false,
+    skipTaskbar: true,
+    focusable: true,
+    transparent: true,
+    type: 'toolbar',
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  _dummyChild.loadURL('about:blank').catch(() => {});
+  return _dummyChild;
+}
+
+function unstickKeyboardRouter(win) {
+  if (!win || win.isDestroyed()) return false;
+  try {
+    const dummy = ensureDummyChild(win);
+    dummy.showInactive();
+    dummy.focus();
+    win.focus();
+    dummy.hide();
+    _flashCount++;
+    return true;
+  } catch (err) {
+    _flashFailCount++;
+    console.warn('[unstick] dummy child focus failed:', err?.message);
+    return false;
+  }
+}
+
 // Configuración de la ventana
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const devPort = 3001;
@@ -357,22 +440,19 @@ function registerIpcHandlers() {
     return { error: 'AutoUpdater no disponible' };
   });
 
-  // Destraba el keyboard router de Chromium tras un write a Firestore (los
-  // SearchableSelect dejan de responder al teclado hasta alt+tab).
-  // Ver memory/project_search_inputs_disabled_after_write.md
-  //
-  // v1.4.5: vuelta a blur()+focus() tras intento fallido con setFocusable
-  // (v1.4.4 minimizaba la ventana en Windows). Parpadea pero usable.
+  // Destraba el keyboard router de Chromium tras un write a Firestore.
+  // Ver el bloque "KEYBOARD ROUTER UNSTICKER" al inicio del archivo.
   ipcMain.on('window:flash-focus', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed() || !win.isFocused()) return;
-    try {
-      win.blur();
-      win.focus();
-    } catch (err) {
-      console.warn('[flash-focus] falló:', err?.message);
-    }
+    unstickKeyboardRouter(win);
   });
+
+  // Diagnostic — counters expuestos al renderer (window.electronAPI.flashDiagnostics())
+  ipcMain.handle('window:flash-diagnostics', () => ({
+    flashCount: _flashCount,
+    flashFailCount: _flashFailCount,
+  }));
 
   // Shell: abrir archivo con app por defecto del sistema
   ipcMain.handle('shell:open-path', async (_event, filePath) => {

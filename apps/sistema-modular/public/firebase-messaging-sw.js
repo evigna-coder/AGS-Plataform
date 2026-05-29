@@ -42,10 +42,13 @@ messaging.onBackgroundMessage((payload) => {
   return self.registration.showNotification(title, options);
 });
 
-// Fetch handler — requerido por Chrome para que la PWA sea instalable.
-self.addEventListener('fetch', () => {
-  // No interceptar — dejar que el navegador maneje normalmente
-});
+// Fetch handler — REMOVIDO. Chromium se quejaba: "Fetch event handler is
+// recognized as no-op. No-op fetch handler may bring overhead during navigation."
+// Era un handler vacío agregado para que Chrome reconozca la PWA como
+// instalable, pero (a) en Electron la app es un .exe (no necesita PWA install),
+// y (b) interceptaba todas las requests del SDK Firebase agregando overhead.
+// Sospecha investigada: puede estar relacionado con el bug del keyboard router
+// stuck post-write en Electron.
 
 // Click en notificación → abrir/focar el portal en el ticket
 self.addEventListener('notificationclick', (event) => {

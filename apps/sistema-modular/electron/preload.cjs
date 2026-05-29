@@ -32,11 +32,12 @@ try {
     openModuleWindow: (route) => {
       ipcRenderer.send('open-module-window', route);
     },
-    // Flash de foco webview (blur+focus interno) — workaround para destrabar
-    // SearchableSelect tras write a Firestore. Ver memory.
+    // Destraba el keyboard router de Chromium tras un write a Firestore.
+    // Ver memory/project_search_inputs_disabled_after_write.md
     flashFocus: () => {
       ipcRenderer.send('window:flash-focus');
-    }
+    },
+    flashDiagnostics: () => ipcRenderer.invoke('window:flash-diagnostics'),
   });
 
   // API de Google Drive (auth via service account en main process)
