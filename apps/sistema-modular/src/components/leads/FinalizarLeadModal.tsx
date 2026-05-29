@@ -38,6 +38,17 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
   const [drafts, setDrafts] = useState<PendienteDraft[]>([]);
   const [equipos, setEquipos] = useState<Sistema[]>([]);
 
+  // El Modal por default enfoca el primer input/select/textarea — en este caso
+  // cae al textarea de Comentario (que es opcional). Sobreescribimos para
+  // enfocar el botón "Finalizar": Enter cierra el ticket sin tener que tabbear.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const btn = document.querySelector<HTMLButtonElement>('[data-autofocus-finalizar]');
+      btn?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   // Load equipos del cliente (si existe clienteId) para el selector de cada pendiente
   useEffect(() => {
     if (!lead.clienteId) return;
@@ -173,7 +184,7 @@ export const FinalizarLeadModal = ({ lead, onClose, onFinalized }: FinalizarLead
           <Button size="sm" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving}>
+          <Button size="sm" onClick={handleSubmit} disabled={saving} data-autofocus-finalizar="true">
             {saving
               ? 'Finalizando...'
               : estadoFinal === 'no_concretado'
