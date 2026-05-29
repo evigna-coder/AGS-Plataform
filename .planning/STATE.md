@@ -4,6 +4,22 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
+stopped_at: "Completed 16-01-PLAN.md (Wave 0 baseline: @ags/shared types extended + entregasResolver stubs + test:entregas RED 6/6)"
+last_updated: "2026-05-29T17:57:26.335Z"
+last_activity: 2026-05-29
+progress:
+  total_phases: 18
+  completed_phases: 11
+  total_plans: 82
+  completed_plans: 75
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: Circuito Comercial Completo
+current_plan: 9
+status: Phase complete — ready for verification
 stopped_at: "Completed 15-03-modal-ui-y-uat-PLAN.md (UAT 8/8 PASS firmado por usuario). Phase 15 (Venta loaner espejo a stock) COMPLETA end-to-end: 4/4 plans + 4/4 requirements operacionales (VLN-01..04). Release surface al usuario: pnpm --filter @ags/sistema-modular release:minor (MINOR — ships feature user-visible). Out-of-scope: firebase deploy --only firestore corrió OK adyacente a la sesión. Next: /gsd:verify-work para cerrar la fase formalmente."
 last_updated: "2026-05-24T15:13:04.830Z"
 last_activity: 2026-05-24
@@ -347,7 +363,7 @@ Phase: 14 of 15 (Stock — Patrones con BOM, composición y consumo desagregado)
 Current Plan: 9
 Total Plans in Phase: 9 (14-00 ... 14-08)
 Status: Services layer + Editor UI BOM-04 + Cierre Admin BOM-05/BOM-08 + List Badges/Filtro BOM-06 COMPLETE. Admin ve qué patrones necesitan atención sin entrar al editor (badges BOM/BLOQUEADO/AGOTADO + filtro 'Bloqueados' URL-persisted); técnico ve qué lotes están bloqueados sin abrir admin (14-07 selector badge); cierre admin descuenta con auto-REQ. Loop visual cerrado. Plan 14-07 (BOM-07 selector reportes-ot) ya commiteado previamente (commit 6229cde, frozen-exception scoped). Próximo: 14-08 (release prep — full suite validation + RELEASE-CHECKLIST smoke + pnpm release:minor user-cut).
-Last activity: 2026-05-24
+Last activity: 2026-05-29
 
 Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans + Phase 14 ongoing 7/9)
 
@@ -421,6 +437,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 15 P01 | 5m | 2 tasks | 1 files |
 | Phase 15-stock-venta-de-loaner-espejo-a-stock P02 | 30min | 2 tasks | 5 files |
 | Phase 15 P03 | 22min | 3 tasks | 4 files |
+| Phase 16-entregas-visor-de-cumplimiento P16-01 | 30 | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -579,6 +596,9 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 15]: Phase 15-01: union widening + 4 opcionales nullable en MovimientoStock+VentaLoaner. Backwards-compat 100%. JSDoc explica explicitamente que consumidores de subtipo==='conversion' siguen funcionando. Zero touch a Loaner/EstadoLoaner/CondicionUnidad/EstadoUnidad/UbicacionStock/TipoMovimiento/TipoOrigenDestino (locked en CONTEXT.md).
 - [Phase 15-stock-venta-de-loaner-espejo-a-stock]: Plan 15-02: registrarVenta transaccional GREEN end-to-end. 5/5 unit tests pass. loanersVentaHelpers.ts extraído (precedente patronesConsumirHelpers Phase 14). loanersService.ts refactorizado a lazy firebase import. __setTestFirestore namespaced excluido del barrel firebaseService. Pitfalls 1-6 verificados con grep. Type-check 28 errores (todos pre-existentes, 0 Phase-15-related). LoanerDetail.tsx mantiene cast WIP hasta Wave 3 reemplace el modal. Suite adyacente sin regresión (test:patron-bom 18/18, test:equivalencias 9/9, test:stock-amplio 5/5, test:cuotas-facturacion 9/9 = 41/41 + 5 nuevos).
 - [Phase 15]: Phase 15-03 cerrada: LoanerVentaModal extendido (233 LOC con SearchableSelect condicional + Costo/Precio separados + banner inline error) + LoanerArticuloPicker.tsx extraído (62 LOC, mantiene budget components.md) + LoanerDetail.handleVenta nueva signature + useLoaners.registrarVenta wrapper ELIMINADO (grep confirmó 0 call sites externos). UAT 8/8 PASS firmado por usuario. Phase 15 COMPLETA — invariante 'venta loaner deja espejo en stock' verificado end-to-end (modal → service tx → 3 docs Firestore). Out-of-scope contextual: firebase deploy --only firestore corrió OK contra agssop-e7353 entre checkpoint y aprobación (no introduce rules/indexes nuevos en Phase 15, traceability del cloud state).
+- [Phase 16-01]: All new shared type fields optional — backwards-compat with legacy presupuestos/reqs pre-Phase16
+- [Phase 16-01]: Disponibilidad as union type not enum — string literal ergonomics + tree-shaking
+- [Phase 16-01]: FIXTURE_NOW=2026-06-01 hardcoded for deterministic ETA test assertions
 
 ### Pending Todos
 
@@ -592,6 +612,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-24T15:07:05.814Z
-Stopped at: Completed 15-03-modal-ui-y-uat-PLAN.md (UAT 8/8 PASS firmado por usuario). Phase 15 (Venta loaner espejo a stock) COMPLETA end-to-end: 4/4 plans + 4/4 requirements operacionales (VLN-01..04). Release surface al usuario: pnpm --filter @ags/sistema-modular release:minor (MINOR — ships feature user-visible). Out-of-scope: firebase deploy --only firestore corrió OK adyacente a la sesión. Next: /gsd:verify-work para cerrar la fase formalmente.
+Last session: 2026-05-29T17:57:26.331Z
+Stopped at: Completed 16-01-PLAN.md (Wave 0 baseline: @ags/shared types extended + entregasResolver stubs + test:entregas RED 6/6)
 Resume file: None
