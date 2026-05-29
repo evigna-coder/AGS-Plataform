@@ -33,8 +33,9 @@ const COVER_EXTRA_ROW_ID = '_cover_';
 
 /**
  * Carátula del protocolo — estilo editorial AGS.
- * Logo arriba-izquierda, título grande serif, barra vertical con marca,
- * datos en grilla abajo, footer con QF/Rev/Fecha.
+ * Logo arriba-izquierda, título grande (Inter, unificado con el resto del
+ * protocolo), barra vertical con marca, datos en grilla abajo, footer con
+ * QF/Rev/Fecha.
  */
 export const CatalogCoverView: React.FC<Props> = ({
   selection,
@@ -140,8 +141,8 @@ export const CatalogCoverView: React.FC<Props> = ({
           <div className="flex items-start justify-between mb-4">
             {logoSrc && <img src={logoSrc} alt="AGS" style={{ width: 80 }} />}
           </div>
-          <p className="text-xl font-bold text-slate-900 mb-0.5" style={{ fontFamily: 'Newsreader, serif' }}>{mainTitle}</p>
-          {subTitle && <p className="text-sm text-slate-400 mb-3" style={{ fontFamily: 'Newsreader, serif' }}>{subTitle}</p>}
+          <p className="text-xl font-bold text-slate-900 mb-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>{mainTitle}</p>
+          {subTitle && <p className="text-sm text-slate-400 mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>{subTitle}</p>}
           {(brandLine || blankPreviewMode) && (
             <div className="flex items-start gap-2 mb-4">
               <div className="w-[3px] rounded bg-blue-900 self-stretch shrink-0" />
@@ -164,7 +165,7 @@ export const CatalogCoverView: React.FC<Props> = ({
           <div className="grid grid-cols-2 gap-3 max-w-sm text-left">
             {datos.map(d => (
               <div key={d.editable ? d.fieldId : d.label}>
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400" style={{ fontFamily: 'Newsreader, serif' }}>{d.label}</p>
+                <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400" style={{ fontFamily: 'Inter, sans-serif' }}>{d.label}</p>
                 {d.editable ? (
                   <input
                     type="text"
@@ -198,7 +199,7 @@ export const CatalogCoverView: React.FC<Props> = ({
       width: '100%',
       height: '100%',
       position: 'relative',
-      fontFamily: 'Newsreader, serif',
+      fontFamily: 'Inter, sans-serif',
       boxSizing: 'border-box',
       overflow: 'hidden',
     }}>
@@ -232,7 +233,7 @@ export const CatalogCoverView: React.FC<Props> = ({
         {/* Título grande — alineado izquierda */}
         <div style={{ marginTop: '12mm' }}>
           <p style={{
-            fontFamily: 'Newsreader, serif',
+            fontFamily: 'Inter, sans-serif',
             fontSize: 50,
             fontWeight: 700,
             color: '#1e293b',
@@ -241,7 +242,7 @@ export const CatalogCoverView: React.FC<Props> = ({
           }}>{mainTitle}</p>
           {subTitle && (
             <p style={{
-              fontFamily: 'Newsreader, serif',
+              fontFamily: 'Inter, sans-serif',
               fontSize: 24,
               fontWeight: 400,
               color: '#94a3b8',
@@ -301,7 +302,7 @@ export const CatalogCoverView: React.FC<Props> = ({
           {datos.map(d => (
             <div key={d.editable ? d.fieldId : d.label}>
               <p style={{
-                fontFamily: 'Newsreader, serif',
+                fontFamily: 'Inter, sans-serif',
                 fontSize: 9,
                 fontWeight: 600,
                 textTransform: 'uppercase',
@@ -310,7 +311,7 @@ export const CatalogCoverView: React.FC<Props> = ({
                 marginBottom: 3,
               }}>{d.label}</p>
               <p style={{
-                fontFamily: 'Newsreader, serif',
+                fontFamily: 'Inter, sans-serif',
                 fontSize: d.mono ? 13 : 15,
                 fontWeight: d.mono ? 500 : 400,
                 color: '#1e293b',
@@ -337,9 +338,9 @@ export const CatalogCoverView: React.FC<Props> = ({
               alignItems: 'center',
               paddingTop: 6,
             }}>
-              {coverQF && <p style={{ fontFamily: 'Newsreader, serif', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverQF}</p>}
-              {coverRevision && <p style={{ fontFamily: 'Newsreader, serif', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverRevision}</p>}
-              {coverFecha && <p style={{ fontFamily: 'Newsreader, serif', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverFecha}</p>}
+              {coverQF && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverQF}</p>}
+              {coverRevision && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverRevision}</p>}
+              {coverFecha && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{coverFecha}</p>}
             </div>
           </>
         )}
