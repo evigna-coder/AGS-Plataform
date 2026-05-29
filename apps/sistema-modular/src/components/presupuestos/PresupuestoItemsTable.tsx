@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema, ModuloSistema, Articulo } from '@ags/shared';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema, ModuloSistema, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { AddItemModal } from './AddItemModal';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
+import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
 import type { GrupoSistema } from '../../hooks/usePresupuestoSistemas';
 
 interface PresupuestoTotals {
@@ -124,7 +125,16 @@ export const PresupuestoItemsTable = ({
       <Card compact>
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase">Items</h3>
-          <Button onClick={openModal} size="sm">+ Agregar</Button>
+          <div className="flex items-center gap-2">
+            {/* Phase 16: bulk-set disponibilidad+eta; null = leave as-is */}
+            <BulkAplicarDisponibilidadButton itemsCount={items.length} onApplyAll={({ disponibilidad, etaDiasEstimados }) => {
+              items.forEach(it => {
+                if (disponibilidad !== null) onUpdateItem(it.id, 'disponibilidad', disponibilidad as Disponibilidad);
+                if (etaDiasEstimados !== null) onUpdateItem(it.id, 'etaDiasEstimados', etaDiasEstimados);
+              });
+            }} />
+            <Button onClick={openModal} size="sm">+ Agregar</Button>
+          </div>
         </div>
 
         {items.length === 0 ? (
