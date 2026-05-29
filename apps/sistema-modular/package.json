@@ -23,6 +23,7 @@
     "test:equivalencias": "tsx src/services/__tests__/equivalencias.test.ts",
     "test:patron-bom": "tsx scripts/test-patron-bom.ts",
     "test:venta-loaner": "tsx scripts/test-venta-loaner.ts",
+    "test:entregas": "tsx scripts/test-entregas.ts",
     "release:patch": "node scripts/release.cjs patch",
     "release:minor": "node scripts/release.cjs minor",
     "release:major": "node scripts/release.cjs major"
