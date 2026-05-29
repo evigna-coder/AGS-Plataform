@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Circuito Comercial Completo
 current_plan: 9
 status: verifying
-stopped_at: "Completed 16-02-PLAN.md (aceptarConRequerimientos patch: fechaAceptacion + presupuestoItemId writes in runTransaction)"
-last_updated: "2026-05-29T18:01:35.947Z"
+stopped_at: "Completed 16-03-PLAN.md (entregasResolver.ts: 3 stubs → GREEN implementations; test:entregas 6/6 GREEN)"
+last_updated: "2026-05-29T18:07:50.722Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 18
   completed_phases: 11
   total_plans: 82
-  completed_plans: 76
+  completed_plans: 77
 ---
 
 ---
@@ -439,6 +439,7 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 | Phase 15 P03 | 22min | 3 tasks | 4 files |
 | Phase 16-entregas-visor-de-cumplimiento P16-01 | 30 | 4 tasks | 6 files |
 | Phase 16-entregas-visor-de-cumplimiento P02 | 10 | 1 tasks | 1 files |
+| Phase 16-entregas-visor-de-cumplimiento P03 | 2m | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -601,6 +602,8 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - [Phase 16-01]: Disponibilidad as union type not enum — string literal ergonomics + tree-shaking
 - [Phase 16-01]: FIXTURE_NOW=2026-06-01 hardcoded for deterministic ETA test assertions
 - [Phase 16-02]: nowIso captured once outside runTransaction for consistent ISO timestamp across presupuesto and all req docs; presupuestoItemId uses ?? null (deepClean strips undefined not null)
+- [Phase 16-entregas-visor-de-cumplimiento]: computeSemaforo: entregado opts override fires first, beats diasRestantes entirely; diasRestantes boundary: 5→amarillo (not verde)
+- [Phase 16-entregas-visor-de-cumplimiento]: buildEntregaRows uses UTC start-of-day comparison for ETA diasRestantes to avoid timezone off-by-one (Pitfall 5)
 
 ### Pending Todos
 
@@ -614,6 +617,6 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 
 ## Session Continuity
 
-Last session: 2026-05-29T18:01:35.942Z
-Stopped at: Completed 16-02-PLAN.md (aceptarConRequerimientos patch: fechaAceptacion + presupuestoItemId writes in runTransaction)
+Last session: 2026-05-29T18:07:50.717Z
+Stopped at: Completed 16-03-PLAN.md (entregasResolver.ts: 3 stubs → GREEN implementations; test:entregas 6/6 GREEN)
 Resume file: None
