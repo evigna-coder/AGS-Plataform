@@ -92,11 +92,11 @@
       "artifactName": "AGS-Sistema-Modular-Setup-${version}.${ext}"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "AGS Sistema Modular"
+      "shortcutName": "AGS Sistema Modular",
+      "runAfterFinish": true
     },
     "publish": {
       "provider": "github",
