@@ -959,6 +959,9 @@ export const presupuestosService = {
 
     // ── Paso 4: runTransaction atómico ──
     const newReqIds: string[] = [];
+    // (Phase 16) Capturar fechaAceptacion ISO antes del tx para que quede consistente
+    // entre el update del presupuesto y los reqs que se crean en la misma tx.
+    const nowIso = new Date().toISOString();
 
     await runTransaction(db, async (tx) => {
       const presRef = doc(db, 'presupuestos', presupuestoId);
@@ -988,6 +991,7 @@ export const presupuestosService = {
           condicional: true,
           presupuestoId,
           presupuestoNumero: pp.numero,
+          presupuestoItemId: item.id ?? null,    // (Phase 16) join key para visor de entregas
           proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
           proveedorSugeridoNombre: null,
           ordenCompraId: null,
@@ -1008,6 +1012,7 @@ export const presupuestosService = {
       // Update del presupuesto a 'aceptado'
       tx.update(presRef, deepCleanForFirestore({
         estado: 'aceptado',
+        fechaAceptacion: nowIso,                  // (Phase 16) base para computar ETA por item
         updatedAt: Timestamp.now(),
         updatedBy: actor?.uid ?? null,
         updatedByName: actor?.name ?? null,
