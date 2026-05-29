@@ -31,6 +31,7 @@ import { TiposEquipoList } from '../../pages/tipos-equipo';
 import { ConsumiblesPorModuloList } from '../../pages/consumibles-por-modulo';
 import { QFDocumentosList } from '../../pages/qf-documentos';
 import { DashboardPage } from '../../pages/dashboard';
+import { EntregasList } from '../../pages/entregas';
 
 // ── Bridge: syncs MemoryRouter ↔ TabsContext ↔ browser URL ──
 function TabRouterBridge({ tabId, isActive }: { tabId: string; isActive: boolean }) {
@@ -159,6 +160,7 @@ function AppRoutes() {
       <Route path="/stock/ordenes-compra/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCDetail /></ProtectedRoute>} />
       <Route path="/stock/ordenes-compra/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCEditor /></ProtectedRoute>} />
       <Route path="/stock/importaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionesList /></ProtectedRoute>} />
+      <Route path="/entregas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><EntregasList /></ProtectedRoute>} />
       <Route path="/stock/importaciones/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionEditor /></ProtectedRoute>} />
       <Route path="/stock/importaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionDetail /></ProtectedRoute>} />
       <Route path="/stock/ingenieros" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><IngenierosPage /></ProtectedRoute>} />
