@@ -894,6 +894,23 @@ export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {
   finalizado: 'finalizado',
 };
 
+// --- Disponibilidad de Items (Phase 16 — Entregas) ---
+export type Disponibilidad = 'stock' | 'post_facturacion' | 'a_importar' | 'en_transito';
+
+export const DISPONIBILIDAD_LABELS: Record<Disponibilidad, string> = {
+  stock:            'Stock',
+  post_facturacion: 'Post-facturación',
+  a_importar:       'A importar',
+  en_transito:      'En tránsito',
+};
+
+export const DISPONIBILIDAD_COLORS: Record<Disponibilidad, string> = {
+  stock:            'bg-emerald-100 text-emerald-700',
+  post_facturacion: 'bg-slate-100 text-slate-700',
+  a_importar:       'bg-amber-100 text-amber-700',
+  en_transito:      'bg-blue-100 text-blue-700',
+};
+
 // --- Item de Presupuesto ---
 export interface PresupuestoItem {
   id: string;
@@ -945,6 +962,24 @@ export interface PresupuestoItem {
    * reemplazará con `computeStockAmplio()` (source of truth consolidada).
    */
   itemRequiereImportacion?: boolean;
+  /**
+   * (Phase 16) Origen de la entrega prometida. Default al agregar item:
+   * `'stock'` si ATP > 0, `'a_importar'` si ATP = 0. Para items de contrato
+   * (servicios sin stockArticuloId), default `'post_facturacion'`.
+   * Editable manualmente. Cambios quedan en auditUpdate del presupuesto.
+   */
+  disponibilidad?: Disponibilidad | null;
+  /**
+   * (Phase 16) Días estimados desde `Presupuesto.fechaAceptacion` para entregar este item.
+   * ETA = fechaAceptacion + etaDiasEstimados (computado en cliente, no persistido).
+   * null = "Sin ETA" (presupuestos legacy o items sin compromiso).
+   */
+  etaDiasEstimados?: number | null;
+  /**
+   * (Phase 16) Número de OT manual asociada a este item (texto libre, NO FK validada).
+   * Editable inline desde la vista /entregas. NO genera ni modifica una OT.
+   */
+  otNumeroVinculada?: string | null;
 }
 
 // --- Adjunto de Presupuesto ---
@@ -1359,6 +1394,13 @@ export interface Presupuesto {
   preEmbarque?: boolean;
   /** Phase 12: when true (default), `facturada` is terminal for trySyncFinalizacion. When false, requires `cobrada`. */
   finalizarConSoloFacturado?: boolean;
+  /**
+   * (Phase 16) Timestamp ISO en que el presupuesto pasó a `aceptado`.
+   * Escrito dentro del runTransaction de `aceptarConRequerimientos`.
+   * Distinto de `updatedAt` (que se pisa en cada update). Base para computar ETA.
+   * Legacy: presupuestos aceptados pre-Phase16 quedan en null → vista entregas muestra "Sin ETA".
+   */
+  fechaAceptacion?: string | null;
   // --- Audit ---
   createdAt: string;
   updatedAt: string;
@@ -3354,6 +3396,12 @@ export interface RequerimientoCompra {
   loteId?: string | null;
   /** Phase 14 BOM-08 — código del componente que cayó bajo stockMinimo. */
   codigoComponente?: string | null;
+  /**
+   * (Phase 16) FK opcional al `PresupuestoItem.id` que originó este requerimiento.
+   * Permite join O(1) en el resolver del visor de entregas.
+   * null cuando origen != 'presupuesto' o cuando se creó pre-Phase16.
+   */
+  presupuestoItemId?: string | null;
 }
 
 export type UrgenciaRequerimiento = 'baja' | 'media' | 'alta' | 'critica';
