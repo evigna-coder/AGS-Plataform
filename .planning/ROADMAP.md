@@ -325,3 +325,33 @@ Plans:
 - [x] 15-01-tipos-PLAN.md — Type extensions @ags/shared: MovimientoStock.subtipo union widening ('conversion' | 'venta_loaner') + referenciaLoanerId/Codigo + VentaLoaner.costoUnitario/monedaCosto (VLN-01)
 - [x] 15-02-service-transaccional-PLAN.md — Reemplazo de loanersService.registrarVenta por versión transaccional con runTransaction READ-FIRST guard + 3 writes atómicos + __setTestFirestore DI hook + audit post-commit; 5 tests Wave 0 RED→GREEN (VLN-02)
 - [x] 15-03-modal-ui-y-uat-PLAN.md — LoanerVentaModal extendido (SearchableSelect condicional + costo inputs 2x2 + banner error) + LoanerDetail.handleVenta wiring + useLoaners consolidado + UAT manual 8 pasos. NOT autonomous: UAT human-verify (VLN-03, VLN-04)
+
+### Phase 16: Entregas — Visor de cumplimiento
+
+**Goal:** Visibilidad operativa de entregas comprometidas: cada `PresupuestoItem` declara su `disponibilidad` (`stock` | `post_facturacion` | `a_importar` | `en_transito`) y `etaDiasEstimados`. Al aceptarse el presupuesto, los items nacen como filas en una planilla `/entregas` que resuelve la cadena `PresupuestoItem → Requerimiento → ItemOC → ItemImportacion` y muestra cliente, item, cantidad, valor unitario, presupuesto#, OT# (manual), OC#, Importación# + estado, ETA original, días restantes con semáforo (verde / amarillo / rojo / vencido). Sin auto-cosecha items→OT — coherente con decisión cutover 2026-05-24.
+**Requirements**: TBD
+**Depends on:** Phase 15
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 16 to break down)
+
+### Phase 17: OC — Paridad con presupuestos (PDF, email, status, auditoría)
+
+**Goal:** Que emitir una OC a proveedor tenga la misma calidad operativa que enviar un presupuesto. Armar `PDFOrdenCompra` (react-pdf, estilo Editorial Teal, reusando patrones de `generatePresupuestoPDF`), clonar `useEnviarPresupuesto` → `useEnviarOC` (OAuth token-first + `sendGmail` + status machine), cablear auto-transición `aprobada → enviada_proveedor` al enviar exitosamente, derivar auto-ticket al `usuarioResponsableComexId` ya configurado en `AdminConfigFlujos`, y sumar eventos de auditoría (`oc.enviada`, `oc.confirmada`, `oc.cancelada`) en línea con los existentes para presupuestos/OT. Reusa OAuth, sendGmail, RichTextEditor, y el state machine; sólo agrega el PDF de OC y la lógica de auto-derivación.
+**Requirements**: TBD
+**Depends on:** Phase 16
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 17 to break down)
+
+### Phase 18: Importaciones — Liquidación NCM + factor de importación
+
+**Goal:** Completar el costeo de comercio exterior: sumar a `PosicionArancelaria` las alícuotas (`derechosImportacion`, `tasaEstadistica`, `iva`, `ivaAdicional`, `iibb`, `ganancias`) y armar la liquidación por importación que tome CIF (FOB + flete + seguro ya en `gastos[]`) como base imponible, aplique alícuotas por NCM, calcule totales por concepto y persista el **factor de importación por item** (multiplicador sobre FOB que da el costo final puesto en almacén). Integrar con el prorrateo actual de `calcularProrrateo.ts` para que el costo unitario de cada `ItemImportacion` incluya tanto los gastos prorrateados (lo de hoy) como los tributos liquidados (lo nuevo). UI: editor de alícuotas en `PosicionesArancelariasPage`, sección "Liquidación" en `ImportacionDetail` con desglose por concepto + factor por item, export.
+**Requirements**: TBD
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 18 to break down)

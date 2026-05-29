@@ -430,6 +430,9 @@ Progress: [█████████░] 95% (v2.0 milestone — 62/63 plans +
 - 2026-05-15 — Phase 13 added: Stock — Equivalencias compra↔uso. Primera de 3 fases consecutivas. Diseño completo en `memory/project_stock_v2_decisions.md`. Driver: 2 semanas de runway con sistema viejo; user carga posiciones y minikits en paralelo a la implementación.
 - 2026-05-15 — Phase 14 added: Stock — Patrones con BOM (composición y consumo desagregado). Diseño en `memory/project_stock_v2_decisions.md`. Depende de Phase 13.
 - 2026-05-15 — Phase 15 added: Stock — Venta de loaner espejo a stock. Diseño en `memory/project_stock_v2_decisions.md`. Depende de Phase 14.
+- 2026-05-29 — Phase 16 added: Entregas — Visor de cumplimiento. Campo `disponibilidad` + `etaDiasEstimados` en `PresupuestoItem` + vista `/entregas` que resuelve la cadena ppto-item→req→OC→IMP. Sin auto-cosecha items→OT (coherente con decisión cutover 2026-05-24). Pedido del dueño para visibilidad operativa pre-cutover sistema viejo.
+- 2026-05-29 — Phase 17 added: OC — Paridad con presupuestos (PDF, email, status, auditoría). Cierra el envío al proveedor con la misma calidad operativa del envío de presupuestos: PDF de OC + clon de `useEnviarPresupuesto` → `useEnviarOC` + auto-transición `aprobada → enviada_proveedor` + auto-ticket a `usuarioResponsableComexId` + eventos de auditoría. Depende de Phase 16.
+- 2026-05-29 — Phase 18 added: Importaciones — Liquidación NCM + factor de importación. Sumar alícuotas a `PosicionArancelaria` (DI/TE/IVA/IVA adic./IIBB/Ganancias) + liquidación CIF→base→tributos + factor por item, integrado con el prorrateo existente de `calcularProrrateo.ts`. Depende de Phase 17. No bloqueador del cutover.
 
 ### Decisions
 
