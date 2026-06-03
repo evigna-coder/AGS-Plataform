@@ -1,20 +1,24 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
-// Colores corporativos AGS
+// Colores corporativos AGS — Azul (alineado al azul del logo)
 export const COLORS = {
-  primary: '#1a5276',       // Azul oscuro AGS
-  primaryLight: '#2980b9',  // Azul medio
+  primary: '#1C5D9C',       // Azul AGS (primario, color del logo)
+  primaryLight: '#2E78BD',  // Azul medio
+  primaryDark: '#154978',   // Azul oscuro (texto sobre tint)
+  primaryTint: '#E8EFF7',   // Azul-50 (fondos suaves, totales, validez)
   accent: '#e67e22',        // Naranja acento
-  headerBg: '#1a5276',      // Fondo header tabla
+  headerBg: '#1C5D9C',      // Fondo header tabla
   headerText: '#ffffff',     // Texto header tabla
   rowAlt: '#f8fafc',         // Fondo fila alternada
+  cardBg: '#F6F8FA',         // Fondo tarjetas suaves (cliente, condiciones) — estilo Odoo
   border: '#cbd5e1',        // Bordes
+  borderLight: '#E5E9F0',   // Borde suave (hairlines de tabla)
   borderDark: '#94a3b8',    // Bordes más oscuros
   text: '#1e293b',          // Texto principal
   textMuted: '#64748b',     // Texto secundario
   sectionBg: '#f1f5f9',     // Fondo secciones
-  sectionBorder: '#1a5276', // Borde izquierdo secciones
-  validezBg: '#eaf2f8',     // Fondo card "oferta válida por" (teal-50 equiv para primary azul)
+  sectionBorder: '#1C5D9C', // Borde izquierdo secciones
+  validezBg: '#E8EFF7',     // Fondo card "oferta válida por" (azul-50)
   white: '#ffffff',
   black: '#000000',
   red: '#dc2626',
@@ -59,7 +63,7 @@ export const baseStyles = StyleSheet.create({
     marginBottom: 2,
   },
   titleSection: {
-    width: '30%',
+    width: '27%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 8,
@@ -89,14 +93,14 @@ export const baseStyles = StyleSheet.create({
     textAlign: 'center',
   },
   metaSection: {
-    width: '35%',
+    width: '38%',
     alignItems: 'flex-end',
   },
   metaBox: {
     borderWidth: 1,
     borderColor: COLORS.primary,
     padding: 6,
-    minWidth: 160,
+    width: '100%',
   },
   metaRow: {
     flexDirection: 'row',
@@ -106,7 +110,7 @@ export const baseStyles = StyleSheet.create({
     fontSize: 7,
     fontWeight: 600,
     color: COLORS.primary,
-    width: 80,
+    width: 66,
   },
   metaValue: {
     fontSize: 7,

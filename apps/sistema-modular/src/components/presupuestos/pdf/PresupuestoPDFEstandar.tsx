@@ -66,97 +66,98 @@ const itemCols = {
   total: '18%',
 };
 
-function ItemRow({ item, index }: { item: PresupuestoItem; index: number }) {
+/** Anchos fijos de columnas numéricas (estilo Odoo); la descripción toma el resto con flex:1. */
+const odooCols = { cantidad: 56, precio: 86, total: 96 };
+
+function ItemRow({ item }: { item: PresupuestoItem }) {
   return (
-    <View style={[S.tableRow, index % 2 === 1 ? S.tableRowAlt : {}]} wrap={false}>
-      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.item }]}>
-        {String(index + 1).padStart(4, '0')}
-      </Text>
-      <Text style={[S.tableCell, { width: itemCols.producto }]}>{item.codigoProducto || '-'}</Text>
-      <Text style={[S.tableCell, S.tableCellCenter, { width: itemCols.cantidad }]}>{fmt(item.cantidad)}</Text>
-      <Text style={[S.tableCell, { width: itemCols.descripcion }]}>{item.descripcion}</Text>
-      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.precio }]}>{fmt(item.precioUnitario)}</Text>
-      <Text style={[S.tableCell, S.tableCellRight, { width: itemCols.total, fontWeight: 600 }]}>{fmt(item.subtotal)}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }} wrap={false}>
+      <View style={{ flex: 1, paddingRight: 8 }}>
+        <Text style={{ fontSize: 8.5, color: COLORS.text }}>{item.descripcion}</Text>
+        {item.codigoProducto ? (
+          <Text style={{ fontSize: 7, color: COLORS.textMuted, marginTop: 1 }}>{item.codigoProducto}</Text>
+        ) : null}
+      </View>
+      <Text style={{ width: odooCols.cantidad, fontSize: 8.5, color: COLORS.text, textAlign: 'center' }}>{fmt(item.cantidad)}</Text>
+      <Text style={{ width: odooCols.precio, fontSize: 8.5, color: COLORS.textMuted, textAlign: 'right' }}>{fmt(item.precioUnitario)}</Text>
+      <Text style={{ width: odooCols.total, fontSize: 8.5, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{fmt(item.subtotal)}</Text>
     </View>
   );
 }
 
-/**
- * Phase 10: clasifica items de un ppto mixto/partes para rendering en 2 secciones.
- * Reglas:
- *   - Con `stockArticuloId` (no-null)    → 'partes'
- *   - Con `conceptoServicioId` (no-null) → 'servicios'
- *   - Sin ninguno (carga manual texto)   → 'servicios' (default, los partes tienen stock siempre)
- */
-function splitItemsByTipo(items: PresupuestoItem[]): { servicios: PresupuestoItem[]; partes: PresupuestoItem[] } {
-  const servicios: PresupuestoItem[] = [];
-  const partes: PresupuestoItem[] = [];
-  for (const it of items) {
-    if (it.stockArticuloId) partes.push(it);
-    else servicios.push(it);
-  }
-  return { servicios, partes };
-}
-
-function sumSubtotal(items: PresupuestoItem[]): number {
-  return items.reduce((acc, it) => acc + (it.subtotal || 0), 0);
-}
+/* ---------------------------------------------------------------------------
+ * Separador Servicios/Partes (Phase 10) — DESACTIVADO por pedido.
+ * Renderizaba mixto/partes en 2 secciones con headers + subtotales. Hoy todos
+ * los items van en una tabla flat única. Para reactivar: descomentar este
+ * bloque + MixtoItemsBlock y volver a rutear mixto/partes hacia él.
+ *
+ * function splitItemsByTipo(items: PresupuestoItem[]): { servicios: PresupuestoItem[]; partes: PresupuestoItem[] } {
+ *   const servicios: PresupuestoItem[] = [];
+ *   const partes: PresupuestoItem[] = [];
+ *   for (const it of items) {
+ *     if (it.stockArticuloId) partes.push(it);
+ *     else servicios.push(it);
+ *   }
+ *   return { servicios, partes };
+ * }
+ *
+ * function sumSubtotal(items: PresupuestoItem[]): number {
+ *   return items.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+ * }
+ * ------------------------------------------------------------------------- */
 
 /**
  * Phase 10 — Tabla flat de items (sin agrupación por sistema).
  * Reusada por MixtoItemsBlock y por el renderer default (servicio/ventas).
  */
-function ItemsTable({ items, moneda: _moneda }: { items: PresupuestoItem[]; moneda: string }) {
+function ItemsTable({ items }: { items: PresupuestoItem[]; moneda?: string }) {
   return (
-    <View style={S.table}>
-      <View style={S.tableHeaderRow}>
-        <Text style={[S.tableHeaderCell, { width: itemCols.item }]}>Item</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.producto }]}>Producto</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.cantidad }]}>Cantidad</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.descripcion, textAlign: 'left' }]}>Descripción</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.precio }]}>Precio</Text>
-        <Text style={[S.tableHeaderCell, { width: itemCols.total }]}>TOTAL</Text>
+    <View style={{ marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', backgroundColor: COLORS.cardBg, paddingVertical: 6, paddingHorizontal: 4, borderBottomWidth: 1.5, borderBottomColor: COLORS.primary }}>
+        <Text style={{ flex: 1, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text }}>Descripción</Text>
+        <Text style={{ width: odooCols.cantidad, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' }}>Cant.</Text>
+        <Text style={{ width: odooCols.precio, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'right' }}>Precio</Text>
+        <Text style={{ width: odooCols.total, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'right' }}>Total</Text>
       </View>
-      {items.map((item, i) => <ItemRow key={item.id} item={item} index={i} />)}
+      {items.map((item) => <ItemRow key={item.id} item={item} />)}
     </View>
   );
 }
 
-/**
- * Phase 10 — Renderea items en 2 secciones con headers + subtotales.
- * Oculta la sección 'Servicios' si está vacía (caso partes puro).
- * Reusa ItemsTable extraído en Step 0.
+/* Phase 10 — MixtoItemsBlock: separador Servicios/Partes en 2 secciones.
+ * DESACTIVADO por pedido (ver nota arriba). Conservado para reactivar.
+ *
+ * function MixtoItemsBlock({ items, moneda }: { items: PresupuestoItem[]; moneda: string }) {
+ *   const { servicios, partes } = splitItemsByTipo(items);
+ *   const sym = (moneda || 'USD');
+ *   return (
+ *     <View>
+ *       {servicios.length > 0 && (
+ *         <View style={{ marginBottom: 10 }}>
+ *           <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
+ *             Servicios
+ *           </Text>
+ *           <ItemsTable items={servicios} moneda={moneda} />
+ *           <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
+ *             Subtotal servicios: {sym} {fmt(sumSubtotal(servicios))}
+ *           </Text>
+ *         </View>
+ *       )}
+ *       {partes.length > 0 && (
+ *         <View style={{ marginBottom: 10 }}>
+ *           <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
+ *             Partes
+ *           </Text>
+ *           <ItemsTable items={partes} moneda={moneda} />
+ *           <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
+ *             Subtotal partes: {sym} {fmt(sumSubtotal(partes))}
+ *           </Text>
+ *         </View>
+ *       )}
+ *     </View>
+ *   );
+ * }
  */
-function MixtoItemsBlock({ items, moneda }: { items: PresupuestoItem[]; moneda: string }) {
-  const { servicios, partes } = splitItemsByTipo(items);
-  const sym = (moneda || 'USD');
-  return (
-    <View>
-      {servicios.length > 0 && (
-        <View style={{ marginBottom: 10 }}>
-          <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
-            Servicios
-          </Text>
-          <ItemsTable items={servicios} moneda={moneda} />
-          <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
-            Subtotal servicios: {sym} {fmt(sumSubtotal(servicios))}
-          </Text>
-        </View>
-      )}
-      {partes.length > 0 && (
-        <View style={{ marginBottom: 10 }}>
-          <Text style={{ fontSize: 10, fontWeight: 'bold', color: COLORS.primary, marginBottom: 4 }}>
-            Partes
-          </Text>
-          <ItemsTable items={partes} moneda={moneda} />
-          <Text style={{ fontSize: 9, textAlign: 'right', marginTop: 2, fontWeight: 'bold' }}>
-            Subtotal partes: {sym} {fmt(sumSubtotal(partes))}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-}
 
 /**
  * Phase 10 — Bloque "Datos de entrega e instalación" para ppto tipo 'ventas'.
@@ -185,12 +186,20 @@ function VentasMetadataBlock({ metadata }: { metadata: VentasMetadata }) {
   );
 }
 
+/** Header estilo Odoo: empresa a la izquierda, título + metadata key/value a la derecha (sin recuadro). */
 function PDFHeader({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
+  const metaRows: [string, string][] = [
+    ['Fecha', formatDate(presupuesto.createdAt)],
+    ['Usuario', presupuesto.responsableNombre || '-'],
+    ['CUIT', '30-70861861-2'],
+    ['Ing. Brutos C.M.', '30-70861861-2 901'],
+    ['IVA', 'Responsable Inscripto'],
+  ];
   return (
-    <View style={S.headerRow}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
       {/* Logo + datos empresa */}
-      <View style={S.logoSection}>
+      <View style={{ width: '52%' }}>
         <Image src={data.logoSrc} style={S.logo} />
         <Text style={S.companyName}>AGS Analítica S.A.</Text>
         <Text style={S.companyInfo}>Arenales 605 – Piso 15</Text>
@@ -200,48 +209,20 @@ function PDFHeader({ data }: { data: PresupuestoPDFData }) {
         <Text style={S.companyInfo}>www.agsanalitica.com</Text>
       </View>
 
-      {/* Título central */}
-      <View style={S.titleSection}>
-        <View style={S.titleBox}>
-          <Text style={S.titleLabel}>PRESUPUESTO</Text>
-          <Text style={S.titleSubLabel}>Documento no válido{'\n'}como factura</Text>
+      {/* Título grande + metadata key/value a la derecha */}
+      <View style={{ width: '44%', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 23, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 0.3 }}>Presupuesto</Text>
+        <Text style={{ fontSize: 6.5, color: COLORS.textMuted, marginBottom: 7 }}>Documento no válido como factura</Text>
+        <Text style={{ fontSize: 13, fontWeight: 'bold', color: COLORS.text, marginBottom: 7 }}>{presupuesto.numero}</Text>
+        <View style={{ width: 180 }}>
+          {metaRows.map(([k, v]) => (
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 2.5 }}>
+              <Text style={{ fontSize: 7.5, color: COLORS.textMuted, marginRight: 8 }}>{k}</Text>
+              <Text style={{ fontSize: 7.5, fontWeight: 600, color: COLORS.text, textAlign: 'right' }}>{v}</Text>
+            </View>
+          ))}
         </View>
-      </View>
-
-      {/* Metadata derecha */}
-      <View style={S.metaSection}>
-        <View style={S.metaBox}>
-          <Text style={{
-            fontSize: 10,
-            fontWeight: 'bold',
-            color: COLORS.primary,
-            textAlign: 'center',
-            marginBottom: 6,
-          }}>
-            {presupuesto.numero}
-          </Text>
-          <View style={S.metaRow}>
-            <Text style={S.metaLabel}>Fecha:</Text>
-            <Text style={S.metaValue}>{formatDate(presupuesto.createdAt)}</Text>
-          </View>
-          <View style={S.metaRow}>
-            <Text style={S.metaLabel}>Usuario:</Text>
-            <Text style={S.metaValue}>{presupuesto.responsableNombre || '-'}</Text>
-          </View>
-          <View style={S.metaRow}>
-            <Text style={S.metaLabel}>CUIT:</Text>
-            <Text style={S.metaValue}>30-70861861-2</Text>
-          </View>
-          <View style={S.metaRow}>
-            <Text style={S.metaLabel}>Ing. Brutos C.M.:</Text>
-            <Text style={S.metaValue}>30-70861861-2 901</Text>
-          </View>
-          <View style={S.metaRow}>
-            <Text style={S.metaLabel}>IVA:</Text>
-            <Text style={S.metaValue}>Responsable Inscripto</Text>
-          </View>
-        </View>
-        <Image src={data.isoLogoSrc} style={S.isoLogo} />
+        <Image src={data.isoLogoSrc} style={{ width: 46, height: 'auto', marginTop: 8 }} />
       </View>
     </View>
   );
@@ -257,31 +238,34 @@ function PDFClienteInfo({ data }: { data: PresupuestoPDFData }) {
   const sector = contacto?.sector || '-';
   const email = contacto?.email || '-';
 
+  // Equipo/Sistema vinculado: los items quedan estampados con sistemaNombre +
+  // sistemaCodigoInterno al elegir el sistema en el header del presupuesto.
+  // Deduplicamos por sistema para mostrarlo una sola vez en el encabezado.
+  const sistemaMap = new Map<string, string>();
+  for (const it of data.presupuesto.items) {
+    if (!it.sistemaNombre) continue;
+    const key = it.sistemaId || it.sistemaNombre;
+    if (!sistemaMap.has(key)) {
+      sistemaMap.set(key, `${it.sistemaNombre}${it.sistemaCodigoInterno ? ` (${it.sistemaCodigoInterno})` : ''}`);
+    }
+  }
+  const equipoStr = [...sistemaMap.values()].join('   ·   ');
+
+  const dirLine = [dir, localidad !== '-' ? localidad : ''].filter(Boolean).join(' — ')
+    + (tel !== '-' ? `   ·   Tel: ${tel}` : '');
+  const contactoLine = `Contacto: ${contactoNombre}`
+    + (sector !== '-' ? ` — ${sector}` : '')
+    + (email !== '-' ? `   ·   ${email}` : '');
+
   return (
-    <View style={S.clienteSection}>
-      {/* Fila 1: Cliente + Teléfono */}
-      <View style={S.clienteRow}>
-        <Text style={S.clienteLabel}>Cliente:</Text>
-        <Text style={S.clienteValue}>{nombre}</Text>
-        <Text style={S.clienteLabelSmall}>Te:</Text>
-        <Text style={[S.clienteValue, { flex: 0.6 }]}>{tel}</Text>
-      </View>
-      {/* Fila 2: Dirección + Localidad */}
-      <View style={S.clienteRow}>
-        <Text style={S.clienteLabel}>Dirección:</Text>
-        <Text style={S.clienteValue}>{dir}</Text>
-        <Text style={S.clienteLabelSmall}>Localidad:</Text>
-        <Text style={[S.clienteValue, { flex: 0.6 }]}>{localidad}</Text>
-      </View>
-      {/* Fila 3: Contacto + Sector + Mail */}
-      <View style={[S.clienteRow, { borderBottomWidth: 0 }]}>
-        <Text style={S.clienteLabel}>Contacto:</Text>
-        <Text style={[S.clienteValue, { flex: 0.5 }]}>{contactoNombre}</Text>
-        <Text style={S.clienteLabelSmall}>Sector:</Text>
-        <Text style={[S.clienteValue, { flex: 0.4 }]}>{sector}</Text>
-        <Text style={[S.clienteLabelSmall, { width: 30 }]}>Mail:</Text>
-        <Text style={[S.clienteValue, { flex: 0.6 }]}>{email}</Text>
-      </View>
+    <View style={{ marginBottom: 14, padding: 12, backgroundColor: COLORS.cardBg, borderRadius: 6 }}>
+      <Text style={{ fontSize: 7, fontWeight: 'bold', color: COLORS.textMuted, letterSpacing: 0.5, marginBottom: 3 }}>CLIENTE</Text>
+      <Text style={{ fontSize: 12, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 }}>{nombre}</Text>
+      <Text style={{ fontSize: 8.5, color: COLORS.textMuted, marginBottom: 1.5 }}>{dirLine}</Text>
+      <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>{contactoLine}</Text>
+      {equipoStr ? (
+        <Text style={{ fontSize: 8.5, fontWeight: 600, color: COLORS.primary, marginTop: 3 }}>Equipo: {equipoStr}</Text>
+      ) : null}
     </View>
   );
 }
@@ -303,7 +287,6 @@ function PDFItemsTable({ data }: { data: PresupuestoPDFData }) {
 
       {hasGrupos ? (
         agruparPorSistemaSimple(items).map(grupo => {
-          let counter = 0;
           return (
             <View key={grupo.grupo}>
               <View style={{ flexDirection: 'row', backgroundColor: COLORS.sectionBg, paddingVertical: 3, paddingHorizontal: 6, borderBottomWidth: 0.5, borderBottomColor: COLORS.border }}>
@@ -311,15 +294,12 @@ function PDFItemsTable({ data }: { data: PresupuestoPDFData }) {
                   {grupo.grupo > 0 ? `${grupo.grupo}. ` : ''}{grupo.sistemaNombre.toUpperCase()}
                 </Text>
               </View>
-              {grupo.items.map((item) => {
-                counter++;
-                return <ItemRow key={item.id} item={item} index={counter - 1} />;
-              })}
+              {grupo.items.map((item) => <ItemRow key={item.id} item={item} />)}
             </View>
           );
         })
       ) : (
-        items.map((item, i) => <ItemRow key={item.id} item={item} index={i} />)
+        items.map((item) => <ItemRow key={item.id} item={item} />)
       )}
     </View>
   );
@@ -331,83 +311,51 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
 
   return (
     <View>
-      {/* Forma de pago */}
-      {condicionPago && (
-        <View style={S.formaPago}>
-          <Text style={S.formaPagoLabel}>Forma de Pago:</Text>
-          <Text style={S.formaPagoValue}>
-            {condicionPago.nombre}{condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}
-            {presupuesto.condicionesComerciales
-              ? ` - (VER CONDICIONES COMERCIALES PÁGINA 2)`
-              : ''}
-          </Text>
-        </View>
-      )}
-
-      {/* Validez — bloque de protección contractual prominente */}
-      <View style={S.validezBox}>
-        <Text style={S.validezText}>
-          OFERTA VÁLIDA POR {presupuesto.validezDias || 15} DÍAS desde la fecha de emisión
-        </Text>
-      </View>
-
-      {/* Disclaimer + Totales */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-        <View style={{ width: '55%', paddingRight: 10 }}>
-          <Text style={{ fontSize: 6.5, color: COLORS.textMuted, lineHeight: 1.4 }}>
-            (No incluye ningún otro trabajo de lo indicado arriba, como ser puesta a punto de
-            métodos analíticos, repuestos o consumibles no especificados, etc.)
-          </Text>
-        </View>
-
-        {/* Totals box */}
-        <View style={S.totalsBox}>
-          <View style={S.totalsRow}>
-            <Text style={S.totalsLabel}>Subtotal:</Text>
-            <Text style={S.totalsValue}>{fmt(subtotal)}</Text>
+      {/* Totales — bloque derecho estilo Odoo */}
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <View style={{ width: 280 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 }}>
+            <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>Subtotal</Text>
+            <Text style={{ fontSize: 8.5, color: COLORS.text }}>{fmt(subtotal)}</Text>
           </View>
-          {impuestos.iva105 > 0 && (
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>I.V.A: 10,5%</Text>
-              <Text style={S.totalsValue}>{fmt(impuestos.iva105)}</Text>
+          {([
+            impuestos.iva105 > 0 ? ['I.V.A 10,5%', impuestos.iva105] as const : null,
+            impuestos.iva21 > 0 ? ['I.V.A 21%', impuestos.iva21] as const : null,
+            impuestos.ganancias > 0 ? ['Ganancias', impuestos.ganancias] as const : null,
+            impuestos.iibb > 0 ? ['IIBB', impuestos.iibb] as const : null,
+          ].filter(Boolean) as readonly (readonly [string, number])[]).map(([label, value]) => (
+            <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2.5 }}>
+              <Text style={{ fontSize: 8.5, color: COLORS.textMuted }}>{label}</Text>
+              <Text style={{ fontSize: 8.5, color: COLORS.text }}>{fmt(value)}</Text>
             </View>
-          )}
-          {impuestos.iva21 > 0 && (
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>I.V.A: 21%</Text>
-              <Text style={S.totalsValue}>{fmt(impuestos.iva21)}</Text>
+          ))}
+          {(data.totalsByCurrency
+            ? Object.entries(data.totalsByCurrency)
+            : [[moneda, total] as [string, number]]
+          ).map(([m, t]) => (
+            <View key={m} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 6, paddingVertical: 7, paddingHorizontal: 12, marginTop: 5 }}>
+              <Text style={{ fontSize: 9.5, fontWeight: 'bold', color: COLORS.white }}>TOTAL {m}</Text>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: COLORS.white }}>{fmt(t)}</Text>
             </View>
-          )}
-          {impuestos.ganancias > 0 && (
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>Ganancias:</Text>
-              <Text style={S.totalsValue}>{fmt(impuestos.ganancias)}</Text>
-            </View>
-          )}
-          {impuestos.iibb > 0 && (
-            <View style={S.totalsRow}>
-              <Text style={S.totalsLabel}>IIBB:</Text>
-              <Text style={S.totalsValue}>{fmt(impuestos.iibb)}</Text>
-            </View>
-          )}
-          {data.totalsByCurrency ? (
-            Object.entries(data.totalsByCurrency).map(([m, t]) => (
-              <View key={m} style={S.totalsRowFinal}>
-                <Text style={S.totalsLabelFinal}>TOTAL {m}</Text>
-                <Text style={S.totalsValueFinal}>{fmt(t)}</Text>
-              </View>
-            ))
-          ) : (
-            <View style={S.totalsRowFinal}>
-              <Text style={S.totalsLabelFinal}>TOTAL {moneda}</Text>
-              <Text style={S.totalsValueFinal}>{fmt(total)}</Text>
-            </View>
-          )}
+          ))}
         </View>
       </View>
 
       {/* Monto en letras */}
-      <Text style={S.monedaLetras}>{montoEnLetras}</Text>
+      <Text style={[S.monedaLetras, { marginBottom: 8 }]}>{montoEnLetras}</Text>
+
+      {/* Tarjeta de condiciones: validez + forma de pago + disclaimer */}
+      <View style={{ padding: 11, backgroundColor: COLORS.cardBg, borderRadius: 6, marginBottom: 8 }}>
+        <Text style={{ fontSize: 8.5, fontWeight: 'bold', color: COLORS.primary, marginBottom: 3 }}>
+          Oferta válida por {presupuesto.validezDias || 15} días desde la fecha de emisión
+          {condicionPago ? `   ·   Forma de pago: ${condicionPago.nombre}${condicionPago.dias > 0 ? ` (${condicionPago.dias} días)` : ''}` : ''}
+          {presupuesto.condicionesComerciales ? `   ·   Ver condiciones comerciales en página 2` : ''}
+        </Text>
+        <Text style={{ fontSize: 7, color: COLORS.textMuted, lineHeight: 1.4 }}>
+          No incluye ningún otro trabajo de lo indicado arriba, como ser puesta a punto de métodos
+          analíticos, repuestos o consumibles no especificados, etc.
+        </Text>
+      </View>
 
       {/* Billing section: Phase 12 esquema (non-contrato) OR legacy cuotas[] (contrato / legacy) */}
       {(presupuesto.esquemaFacturacion?.length ?? 0) > 0 && presupuesto.tipo !== 'contrato' ? (
@@ -522,10 +470,12 @@ export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
           <VentasMetadataBlock metadata={data.presupuesto.ventasMetadata} />
         )}
 
-        {/* Phase 10: mixto/partes → 2 secciones; contrato → PDFItemsTable con grupos; resto → tabla flat */}
-        {(data.presupuesto.tipo === 'mixto' || data.presupuesto.tipo === 'partes') ? (
-          <MixtoItemsBlock items={data.presupuesto.items} moneda={data.presupuesto.moneda} />
-        ) : data.presupuesto.tipo === 'contrato' ? (
+        {/* contrato → PDFItemsTable con grupos; resto → tabla flat.
+            NOTA: el split mixto/partes en 2 secciones (MixtoItemsBlock) está
+            desactivado por pedido — todos los items van en una tabla única.
+            Para reactivarlo: descomentar MixtoItemsBlock más arriba y volver a
+            rutear mixto/partes hacia él. */}
+        {data.presupuesto.tipo === 'contrato' ? (
           <PDFItemsTable data={data} />
         ) : (
           <ItemsTable items={data.presupuesto.items} moneda={data.presupuesto.moneda} />
