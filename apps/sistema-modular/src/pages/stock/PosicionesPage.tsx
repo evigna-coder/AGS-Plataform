@@ -30,6 +30,9 @@ export const PosicionesPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm);
   const [zonaFilter, setZonaFilter] = useState('');
+  const [nombreFilter, setNombreFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState<TipoPosicionStock | ''>('');
+  const [sortByName, setSortByName] = useState(false);
 
   // Unique zones for filter
   const zonas = [...new Set(allPositions.map(p => p.zona).filter(Boolean))] as string[];
@@ -89,9 +92,10 @@ export const PosicionesPage = () => {
     catch { alert('Error al eliminar'); }
   };
 
-  const filteredTree = zonaFilter
-    ? tree.filter(n => filterByZona(n, zonaFilter))
-    : tree;
+  let workingTree = zonaFilter ? tree.filter(n => filterByZona(n, zonaFilter)) : tree;
+  if (nombreFilter.trim() || tipoFilter) workingTree = applyFilters(workingTree, nombreFilter.trim().toLowerCase(), tipoFilter);
+  if (sortByName) workingTree = sortByNameFn(workingTree);
+  const filteredTree = workingTree;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
@@ -130,8 +134,20 @@ export const PosicionesPage = () => {
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              value={nombreFilter}
+              onChange={e => setNombreFilter(e.target.value)}
+              placeholder="Buscar por nombre o código..."
+              className="border border-slate-200 rounded-lg px-3 py-1 text-xs bg-white text-slate-700 w-64"
+            />
+            <select value={tipoFilter} onChange={e => setTipoFilter(e.target.value as TipoPosicionStock | '')}
+              className="border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white text-slate-600">
+              <option value="">Todos los tipos</option>
+              {TIPO_OPTIONS.map(t => <option key={t} value={t}>{TIPO_LABELS[t]}</option>)}
+            </select>
             {zonas.length > 0 && (
               <select value={zonaFilter} onChange={e => setZonaFilter(e.target.value)}
                 className="border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white text-slate-600">
@@ -139,6 +155,13 @@ export const PosicionesPage = () => {
                 {zonas.map(z => <option key={z} value={z}>{z}</option>)}
               </select>
             )}
+            <button
+              onClick={() => setSortByName(v => !v)}
+              className={`border rounded-lg px-2 py-1 text-xs ${sortByName ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-slate-200 text-slate-600'}`}
+              title="Ordenar alfabéticamente por nombre"
+            >
+              {sortByName ? '✓ Orden A-Z' : 'Ordenar A-Z'}
+            </button>
           </div>
           <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600" />
@@ -296,4 +319,27 @@ const UnitRow = ({ unit }: { unit: UnidadStock }) => (
 function filterByZona(node: PosicionNode, zona: string): boolean {
   if (node.zona === zona) return true;
   return node.children.some(c => filterByZona(c, zona));
+}
+
+function nodeMatches(node: PosicionNode, nombreLower: string, tipo: TipoPosicionStock | ''): boolean {
+  const nombreOk = !nombreLower || node.nombre.toLowerCase().includes(nombreLower) || node.codigo.toLowerCase().includes(nombreLower);
+  const tipoOk = !tipo || node.tipo === tipo;
+  return nombreOk && tipoOk;
+}
+
+function applyFilters(nodes: PosicionNode[], nombreLower: string, tipo: TipoPosicionStock | ''): PosicionNode[] {
+  const result: PosicionNode[] = [];
+  for (const n of nodes) {
+    const filteredChildren = applyFilters(n.children, nombreLower, tipo);
+    if (nodeMatches(n, nombreLower, tipo) || filteredChildren.length > 0) {
+      result.push({ ...n, children: filteredChildren });
+    }
+  }
+  return result;
+}
+
+function sortByNameFn(nodes: PosicionNode[]): PosicionNode[] {
+  return [...nodes]
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
+    .map(n => ({ ...n, children: sortByNameFn(n.children) }));
 }
