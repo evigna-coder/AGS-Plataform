@@ -65,12 +65,16 @@ export function useSearchableSelect({
   const createOption = allOptions.length > 0 && allOptions[allOptions.length - 1].value.startsWith('__create__:')
     ? allOptions[allOptions.length - 1] : null;
 
-  // Limit rendered options to avoid DOM thrashing with large lists
+  // Cap rendered options to avoid DOM thrashing when the dropdown opens on the
+  // full unfiltered list. Once the user types a search term we render every
+  // match — the dropdown is scrollable, and capping a filtered result hides
+  // hits the user explicitly searched for (e.g. 300+ "HPLC" conceptos).
   const MAX_VISIBLE = 50;
+  const isFiltering = searchLower.length > 0;
   const totalCount = allOptions.length;
   const visibleOptions = useMemo(() =>
-    allOptions.length > MAX_VISIBLE ? allOptions.slice(0, MAX_VISIBLE) : allOptions,
-    [allOptions]
+    (!isFiltering && allOptions.length > MAX_VISIBLE) ? allOptions.slice(0, MAX_VISIBLE) : allOptions,
+    [allOptions, isFiltering]
   );
 
   // Reset search when dropdown closes — also clear the uncontrolled input
