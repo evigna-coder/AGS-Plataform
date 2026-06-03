@@ -517,6 +517,79 @@ const PASS_COLORS: Record<string, string> = {
   NA: 'text-slate-500',
 };
 
+/**
+ * Celda de columna 'select_input'. Si la columna define `manualOptionLabel`, el dropdown
+ * agrega esa opción extra: al elegirla se muestra un input de texto libre y lo que el
+ * ingeniero escribe es lo que se guarda (la etiqueta es solo el disparador, no se persiste).
+ * Al recargar, un valor guardado que no coincide con ninguna opción se interpreta como manual.
+ */
+const MANUAL_SENTINEL = '__manual__';
+function SelectInputCell({
+  col,
+  rowId,
+  rawValue,
+  readOnly,
+  onChange,
+}: {
+  col: TableCatalogColumn;
+  rowId: string;
+  rawValue: string;
+  readOnly: boolean;
+  onChange: (rowId: string, colKey: string, value: string) => void;
+}): React.ReactElement {
+  const options = col.options ?? [];
+  const manualLabel = col.manualOptionLabel ?? null;
+  const hasManual = !!manualLabel;
+  // Valor libre persistido = no vacío y no coincide con ninguna opción del dropdown.
+  const isFreeText = rawValue !== '' && !options.includes(rawValue);
+  const [manualMode, setManualMode] = React.useState(hasManual && isFreeText);
+
+  // Si el valor cambia externamente a una opción conocida (ej: reset), salir de modo manual.
+  React.useEffect(() => {
+    if (options.includes(rawValue)) setManualMode(false);
+  }, [rawValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectValue = manualMode ? MANUAL_SENTINEL : rawValue;
+  const selectClass = 'w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500';
+
+  return (
+    <div className="flex flex-col gap-1">
+      <select
+        value={selectValue}
+        disabled={readOnly}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === MANUAL_SENTINEL) {
+            setManualMode(true);
+            // Conserva el texto libre previo (si lo había); si no, queda vacío hasta que escriba.
+          } else {
+            setManualMode(false);
+            onChange(rowId, col.key, v);
+          }
+        }}
+        className={selectClass}
+      >
+        <option value="">Seleccionar...</option>
+        {options.map(opt => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+        {hasManual && <option value={MANUAL_SENTINEL}>{manualLabel}</option>}
+      </select>
+      {manualMode && (
+        <input
+          type="text"
+          value={rawValue}
+          disabled={readOnly}
+          autoFocus
+          placeholder="Escribir resultado…"
+          onChange={(e) => onChange(rowId, col.key, e.target.value)}
+          className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      )}
+    </div>
+  );
+}
+
 function renderDefaultCell(
   col: TableCatalogColumn,
   rowId: string,
@@ -563,17 +636,13 @@ function renderDefaultCell(
   if (col.type === 'select_input') {
     if (isPrint) return <span className="text-[10px]">{rawValue || '—'}</span>;
     return (
-      <select
-        value={rawValue}
-        disabled={readOnly}
-        onChange={(e) => onChange(rowId, col.key, e.target.value)}
-        className="w-full text-[10px] border border-slate-300 rounded px-1 py-0.5 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
-      >
-        <option value="">Seleccionar...</option>
-        {(col.options ?? []).map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
+      <SelectInputCell
+        col={col}
+        rowId={rowId}
+        rawValue={rawValue}
+        readOnly={readOnly}
+        onChange={onChange}
+      />
     );
   }
 

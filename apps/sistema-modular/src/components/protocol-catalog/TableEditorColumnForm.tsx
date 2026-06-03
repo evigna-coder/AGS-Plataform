@@ -87,6 +87,28 @@ export const TableEditorColumnForm = ({ col, onSave, onCancel }: Props) => {
             <input type="checkbox" checked={!!d.multiline} onChange={e => setD({ ...d, multiline: e.target.checked || undefined })} />
             Multilínea
           </label>
+          {d.type === 'select_input' && (
+            <div className="flex items-center gap-2" title="Agrega una opción extra al dropdown que, al elegirla, muestra un campo de texto libre. El ingeniero escribe lo que necesite y eso es lo que se guarda/imprime.">
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={d.manualOptionLabel != null}
+                  onChange={e => setD({ ...d, manualOptionLabel: e.target.checked ? (d.manualOptionLabel || 'Resultado manual') : null })}
+                />
+                Opción manual
+              </label>
+              {d.manualOptionLabel != null && (
+                <div className="w-44">
+                  <Input
+                    inputSize="sm"
+                    placeholder="Etiqueta de la opción"
+                    value={d.manualOptionLabel}
+                    onChange={e => setD({ ...d, manualOptionLabel: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase cursor-pointer" title="No autocompletar desde el equipo del reporte. Útil para columnas tipo 'Marca' en tablas de inventario (Solventes, materiales) donde el dato no es la marca del equipo en calibración.">
             <input type="checkbox" checked={!!d.disableAutoFill} onChange={e => setD({ ...d, disableAutoFill: e.target.checked || undefined })} />
             Sin auto-fill

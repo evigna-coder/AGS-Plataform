@@ -1599,6 +1599,13 @@ export interface TableCatalogColumn {
   fixedValue?: string | null;
   /** Opciones para columnas tipo 'select_input' (menú desplegable). */
   options?: string[];
+  /**
+   * Para columnas 'select_input': si se define, el dropdown agrega una opción extra
+   * con esta etiqueta (ej: "Resultado manual"). Al elegirla, el ingeniero ve un input
+   * de texto libre y lo que escribe es lo que se guarda/imprime (la etiqueta es solo el
+   * disparador, no se persiste). Vacío/undefined = sin opción manual.
+   */
+  manualOptionLabel?: string | null;
   /** Ancho de la columna en mm. Si no se define, se distribuye automáticamente. */
   width?: number | null;
   /** Alineación del texto en la columna. Por defecto 'center'. */
