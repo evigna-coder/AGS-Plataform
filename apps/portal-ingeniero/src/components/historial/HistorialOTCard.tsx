@@ -1,6 +1,7 @@
 import type { WorkOrderWithPdf } from '../../services/firebaseService';
 import { REPORTES_OT_URL } from '../../utils/constants';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
+import { EnvioEmailBadge } from './EnvioEmailBadge';
 
 function fmt(dateStr?: string) {
   if (!dateStr) return '—';
@@ -77,6 +78,9 @@ export default function HistorialOTCard({ ot }: { ot: WorkOrderWithPdf }) {
             Protocolo
           </button>
         )}
+        <span className="ml-auto shrink-0">
+          <EnvioEmailBadge envio={ot.enviadoPorEmail} />
+        </span>
       </div>
     </div>
   );

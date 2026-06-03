@@ -754,6 +754,8 @@ export const usePDFGeneration = (
     }
 
     setIsGenerating(true);
+
+    // ── Etapa A: guardar el reporte FINALIZADO en Firestore ──
     try {
       // DATOS FINALIZADOS
       const finalizedData = {
@@ -774,9 +776,9 @@ export const usePDFGeneration = (
       // OBLIGATORIO: Guardar en Firestore antes de generar PDF
       console.log("Guardando en Firestore", finalizedData);
       console.log("Guardando reporte en Firestore...");
-      
+
       await firebase.saveReport(otNumber, finalizedData);
-      
+
       console.log("Guardado OK");
       console.log("Reporte guardado correctamente");
 
@@ -804,7 +806,21 @@ export const usePDFGeneration = (
       setSignatureClient(clientSignature);
       setSignatureEngineer(engineerSignature);
       setStatus('FINALIZADO');
-      
+    } catch (e) {
+      setIsGenerating(false);
+      setGenerationStep('');
+      console.error("Error al guardar en Firestore:", e);
+      showAlert({
+        title: 'Error Crítico',
+        message: 'No se pudo guardar el reporte en la base de datos.',
+        type: 'error'
+      });
+      return;
+    }
+
+    // ── Etapa B: generar el/los PDF y subirlos a Storage ──
+    let result: GeneratedPDFs;
+    try {
       // Forzar ciclo off→on para que React re-monte con datos frescos
       // (evita servir un PDF cacheado si ya estaba en preview mode)
       setPdfBlob(null);
@@ -815,54 +831,52 @@ export const usePDFGeneration = (
       // Esperar a que React renderice el componente (Hoja 1 y anexo en DOM)
       await new Promise(resolve => setTimeout(resolve, 50));
 
+      window.scrollTo(0, 0);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      setGenerationStep('Generando PDF…');
+      result = await generatePDFs();
+      setPdfBlob(result.reportBlob);
+
+      // Subir PDF(s) a Firebase Storage
+      setGenerationStep('Subiendo a la nube…');
       try {
-        window.scrollTo(0, 0);
-        await new Promise(resolve => setTimeout(resolve, 200));
+        const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
+        const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
 
-        setGenerationStep('Generando PDF…');
-        const result = await generatePDFs();
-        setPdfBlob(result.reportBlob);
-
-        // Subir PDF(s) a Firebase Storage
-        setGenerationStep('Subiendo a la nube…');
-        try {
-          const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
-          const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
-
-          if (result.protocolBlob && result.protocolFilename) {
-            const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
-            storageData.protocolPdfUrl = protocolPdfUrl;
-            console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
-          }
-
-          await firebase.saveReport(otNumber, storageData);
-          console.log('✅ PDF(s) subido(s) a Storage');
-        } catch (uploadErr) {
-          console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
+        if (result.protocolBlob && result.protocolFilename) {
+          const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
+          storageData.protocolPdfUrl = protocolPdfUrl;
+          console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
         }
 
-        // Entregar: descarga (default) o email (via delivery callback)
-        await delivery(result, { setStep: setGenerationStep });
-      } catch (pdfError) {
-        console.error("Error al generar PDF:", pdfError);
-        showAlert({
-          title: 'Advertencia',
-          message: 'No se pudo generar PDF. El reporte fue guardado en Firebase.',
-          type: 'warning'
-        });
-      } finally {
-        setIsGenerating(false);
-        setGenerationStep('');
+        await firebase.saveReport(otNumber, storageData);
+        console.log('✅ PDF(s) subido(s) a Storage');
+      } catch (uploadErr) {
+        console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
       }
-    } catch (e) {
+    } catch (pdfError) {
       setIsGenerating(false);
       setGenerationStep('');
-      console.error("Error al guardar en Firestore:", e);
+      console.error("Error al generar PDF:", pdfError);
       showAlert({
-        title: 'Error Crítico',
-        message: 'No se pudo guardar el reporte en la base de datos.',
-        type: 'error'
+        title: 'Advertencia',
+        message: 'No se pudo generar PDF. El reporte fue guardado en Firebase.',
+        type: 'warning'
       });
+      return; // sin PDF no hay nada que entregar
+    }
+
+    // ── Etapa C: entrega (descarga por defecto, o email vía delivery) ──
+    // IMPORTANTE: la entrega va FUERA de los try/catch anteriores a propósito.
+    // Si el envío por mail falla, el error se PROPAGA al caller (sendByEmail)
+    // para que NO muestre un falso "enviado". El delivery callback es el dueño
+    // del mensaje de error y del registro del intento.
+    try {
+      await delivery(result, { setStep: setGenerationStep });
+    } finally {
+      setIsGenerating(false);
+      setGenerationStep('');
     }
   };
 

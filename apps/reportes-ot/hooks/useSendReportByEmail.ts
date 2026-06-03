@@ -58,7 +58,9 @@ function downloadBlob(blob: Blob, filename: string) {
  *  2. Ejecuta `handleFinalSubmit` (guarda + genera PDFs + sube a Storage) con
  *     un delivery callback que hace el envío en lugar de la descarga.
  *  3. Si los adjuntos exceden 24 MB, ofrece al técnico caer a descarga manual.
- *  4. Persiste `enviadoPorEmail` en el doc del reporte en éxito.
+ *  4. Persiste `enviadoPorEmail` (estado 'enviado' | 'error') en el doc del reporte
+ *     en CADA intento — éxito o fallo — para dejar traza verificable desde el sistema.
+ *  5. Solo muestra "Reporte enviado" si el mail realmente salió (bandera `delivered`).
  *
  * Ya que el reporte queda en FINALIZADO antes del envío (token-first guardado),
  * si el mail falla el reporte NO se revierte — el técnico puede reintentar
@@ -139,6 +141,35 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
       incluyeCertificadosIngenieros: (formState.certificadosIngenieroSeleccionados?.length ?? 0) > 0,
     }, variant);
 
+    // Bandera local: se prende SOLO cuando el mail realmente salió. Es la fuente
+    // de verdad para mostrar "enviado" — no asumimos éxito porque handleFinalSubmit
+    // haya retornado (podría haber fallado el PDF antes de llegar a la entrega).
+    let delivered = false;
+
+    // Registra el intento de envío en el doc del reporte (campo enviadoPorEmail),
+    // tanto en éxito como en fallo, para dejar traza verificable desde el sistema.
+    // No-bloqueante: si la escritura falla, no rompe el flujo (pero se loguea).
+    const persistEnvioRecord = async (
+      estado: 'enviado' | 'error',
+      extra: { adjuntoTamanoMB?: number; error?: string } = {},
+    ) => {
+      try {
+        await firebase.saveReport(otNumber, {
+          enviadoPorEmail: {
+            estado,
+            fecha: new Date().toISOString(),
+            destinatarios: to,
+            bcc: [BCC_INTERNO],
+            variante: variant,
+            adjuntoTamanoMB: extra.adjuntoTamanoMB ?? null,
+            error: extra.error ?? null,
+          },
+        });
+      } catch (metaErr) {
+        console.warn('[useSendReportByEmail] No se pudo guardar registro enviadoPorEmail:', metaErr);
+      }
+    };
+
     const emailDelivery: DeliveryFn = async (result: GeneratedPDFs, { setStep }) => {
       setStep('Preparando adjuntos…');
       setStatus('preparing');
@@ -163,6 +194,10 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
 
       if (totalSize > GMAIL_SIZE_LIMIT_BYTES) {
         setStatus('error');
+        await persistEnvioRecord('error', {
+          adjuntoTamanoMB: Number(sizeMB),
+          error: `Adjuntos ${sizeMB} MB superan el límite de Gmail (24 MB)`,
+        });
         const wantsDownload = await showConfirm({
           title: 'Adjuntos demasiado pesados',
           message:
@@ -200,35 +235,36 @@ export function useSendReportByEmail(deps: UseSendReportByEmailDeps) {
         const msg = err instanceof Error ? err.message : String(err);
         setError(`No se pudo enviar el mail: ${msg}`);
         setStatus('error');
+        // Dejar traza del intento fallido antes de propagar el error.
+        await persistEnvioRecord('error', { adjuntoTamanoMB: Number(sizeMB), error: msg });
         throw err;
       }
 
-      // Persistir metadata. No-bloqueante: si falla, el mail ya salió.
+      // El mail ya salió. Registramos el envío (no-bloqueante).
       setStep('Registrando envío…');
-      try {
-        await firebase.saveReport(otNumber, {
-          enviadoPorEmail: {
-            fecha: new Date().toISOString(),
-            destinatarios: to,
-            bcc: [BCC_INTERNO],
-            adjuntoTamanoMB: Number(sizeMB),
-            variante: variant,
-          },
-        });
-      } catch (metaErr) {
-        console.warn('[useSendReportByEmail] No se pudo guardar metadata enviadoPorEmail:', metaErr);
-      }
+      await persistEnvioRecord('enviado', { adjuntoTamanoMB: Number(sizeMB) });
 
       setStatus('sent');
+      delivered = true;
     };
 
     try {
       await handleFinalSubmit(emailDelivery);
-      showAlert({
-        title: 'Reporte enviado',
-        message: `Se envió el reporte de la OT ${otNumber} a:\n\n${to.join('\n')}`,
-        type: 'success',
-      });
+      if (delivered) {
+        showAlert({
+          title: 'Reporte enviado',
+          message: `Se envió el reporte de la OT ${otNumber} a:\n\n${to.join('\n')}`,
+          type: 'success',
+        });
+      } else if (!error) {
+        // El delivery no llegó a completarse (p.ej. no se pudo generar el PDF) y
+        // no hubo un error específico ya mostrado. NO mostramos "enviado".
+        showAlert({
+          title: 'No se envió',
+          message: 'El reporte se guardó, pero el mail no llegó a enviarse. Revisá la conexión e intentá de nuevo.',
+          type: 'warning',
+        });
+      }
     } catch (err) {
       // Errores ya fueron capturados y reportados dentro del delivery.
       // SIZE_LIMIT_EXCEEDED es flujo esperado (no mostrar alert extra).

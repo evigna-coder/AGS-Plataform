@@ -571,11 +571,25 @@ function toOT(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
 // --- OTs ---
 // =============================================
 
+/** Registro del último intento de envío del reporte al cliente por mail.
+ *  Lo escribe reportes-ot (useSendReportByEmail) en CADA intento, éxito o fallo. */
+export interface EnviadoPorEmail {
+  estado?: 'enviado' | 'error' | null;
+  fecha?: string | null;
+  destinatarios?: string[] | null;
+  bcc?: string[] | null;
+  variante?: string | null;
+  adjuntoTamanoMB?: number | null;
+  error?: string | null;
+}
+
 /** WorkOrder extendido con pdfUrl(s) de reportes finalizados.
- *  protocolPdfUrl existe cuando la OT tiene protocolo digital adjunto (split en 2 archivos). */
+ *  protocolPdfUrl existe cuando la OT tiene protocolo digital adjunto (split en 2 archivos).
+ *  enviadoPorEmail registra si el reporte se envió al cliente por mail (y si falló). */
 export type WorkOrderWithPdf = WorkOrder & {
   pdfUrl?: string | null;
   protocolPdfUrl?: string | null;
+  enviadoPorEmail?: EnviadoPorEmail | null;
 };
 
 function reporteToWorkOrder(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
@@ -625,9 +639,24 @@ export const otService = {
     // 2. Reportes de reportes-ot (sin filtro de ingeniero, ya que no lo tienen)
     const fromReportes = filters?.ingenieroId ? [] : await getReportesAsOTs(filters?.status);
 
-    // 3. Merge: ordenes_trabajo tiene prioridad si hay duplicados por otNumber
+    // 3. Merge: ordenes_trabajo tiene prioridad si hay duplicados por otNumber.
+    //    pdfUrl/protocolPdfUrl/enviadoPorEmail los escribe reportes-ot en la colección
+    //    `reportes`, no en `ordenes_trabajo`. Para que el historial vea el PDF y el
+    //    estado de envío al cliente, los traemos al objeto ganador cuando éste no los
+    //    tiene (sin pisar valores ya presentes).
+    const reportesByOt = new Map(fromReportes.map(r => [r.otNumber, r]));
+    const fromOTEnriched = fromOT.map(ot => {
+      const rep = reportesByOt.get(ot.otNumber);
+      if (!rep) return ot;
+      return {
+        ...ot,
+        pdfUrl: ot.pdfUrl ?? rep.pdfUrl ?? null,
+        protocolPdfUrl: ot.protocolPdfUrl ?? rep.protocolPdfUrl ?? null,
+        enviadoPorEmail: ot.enviadoPorEmail ?? rep.enviadoPorEmail ?? null,
+      };
+    });
     const seen = new Set(fromOT.map(ot => ot.otNumber));
-    const merged = [...fromOT, ...fromReportes.filter(r => !seen.has(r.otNumber))];
+    const merged = [...fromOTEnriched, ...fromReportes.filter(r => !seen.has(r.otNumber))];
 
     return merged.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   },

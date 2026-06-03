@@ -2,6 +2,7 @@ import type { WorkOrderWithPdf } from '../../services/firebaseService';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../ui/ColAlignIcon';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
+import { EnvioEmailBadge } from './EnvioEmailBadge';
 import { type SortDir } from '../ui/SortableHeader';
 
 const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) =>
@@ -95,6 +96,9 @@ export default function HistorialTable({ rows, sortField, sortDir, onSort, onOpe
                       Protocolo
                     </button>
                   )}
+                </div>
+                <div className="mt-0.5 flex justify-center">
+                  <EnvioEmailBadge envio={ot.enviadoPorEmail} />
                 </div>
               </td>
             </tr>
