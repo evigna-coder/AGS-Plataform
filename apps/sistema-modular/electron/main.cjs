@@ -5,6 +5,35 @@ const crypto = require('crypto');
 const http = require('http');
 const os = require('os');
 
+// ========== SENTRY (error monitoring) ==========
+// Fuente ÚNICA del DSN para toda la app. El renderer (src/main.tsx) hace
+// Sentry.init({}) sin DSN y lo HEREDA de este proceso via IPC — no duplicar acá.
+//
+// El DSN de Sentry NO es secreto (va embebido en todos los clientes por diseño),
+// así que vivir como literal en el repo es la práctica estándar. process.env
+// permite override en dev sin tocar código. Si está vacío, Sentry queda no-op.
+//
+// Esto es un cambio de runtime de sistema-modular → para que llegue a las PCs
+// instaladas hay que cortar release (pnpm --filter @ags/sistema-modular release:patch).
+const SENTRY_DSN = process.env.SENTRY_DSN || 'https://7b63d898d2d911ad0163c231b27b0c3c@o4511487852281856.ingest.us.sentry.io/4511487863619584';
+const isDevEnv = process.argv.includes('--dev') || !app.isPackaged;
+if (SENTRY_DSN) {
+  try {
+    require('@sentry/electron/main').init({
+      dsn: SENTRY_DSN,
+      environment: isDevEnv ? 'development' : 'production',
+      release: `sistema-modular@${app.getVersion()}`,
+      // Solo errores por ahora (sin performance tracing) mientras se evalúa.
+      tracesSampleRate: 0,
+    });
+    console.log('[Sentry] Inicializado en main process —', isDevEnv ? 'development' : 'production');
+  } catch (err) {
+    console.error('[Sentry] No se pudo inicializar:', err?.message || err);
+  }
+} else {
+  console.log('[Sentry] DSN no configurado — monitoreo deshabilitado');
+}
+
 // ========== CHROMIUM SWITCHES ==========
 // CalculateNativeWinOcclusion: feature de Chromium conocido por causar bugs
 // raros de input/foco en Electron. Lo desactivamos como medida preventiva.
@@ -587,7 +616,7 @@ function createWindow() {
     "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
     "img-src 'self' data: blob: http://localhost:* https:; " +
     "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
-    "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app;";
+    "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io;";
 
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url || '';
