@@ -2,46 +2,49 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Permitir acceso a archivos del sistema modular
+    // Todos los uploads/reads vía SDK requieren usuario autenticado.
+    // (Los enlaces getDownloadURL con token siguen funcionando para visores públicos:
+    //  el token embebido en la URL otorga acceso al archivo independientemente de estas reglas.)
+    // Los flujos anónimos confirmados (formulario público de equipo, firma remota) NO suben
+    // ni leen archivos vía SDK — la firma es base64 en Firestore, no un archivo en Storage.
+
     match /sistema-modular/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
-      // TODO: Implementar autenticación y cambiar a:
-      // allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
-    
+
     // Certificados e instrumentos (calibración y trazabilidad)
     match /certificados/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
     // Certificados de ingenieros
     match /certificados-ingeniero/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
     // Adjuntos de reportes OT (fotos y archivos)
     match /adjuntos/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
     // Adjuntos de leads (fotos y archivos)
     match /leads/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
-    // Fotos de fichas propiedad del cliente (recepción móvil desde portal-ingeniero)
+    // Fotos de fichas propiedad del cliente (recepción móvil desde portal-ingeniero, autenticado)
     match /fotosFichas/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
     // Adjuntos de presupuestos (órdenes de compra, autorizaciones, etc.)
     match /presupuestos/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
     // Reportes PDF generados
     match /reports/{allPaths=**} {
-      allow read, write: if true; // ⚠️ Solo para desarrollo
+      allow read, write: if request.auth != null;
     }
 
     // Bloquear acceso a otras rutas

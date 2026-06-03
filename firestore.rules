@@ -2,350 +2,165 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Colección de Leads
+
+    // Usuario autenticado (Google + dominio @agsanalitica.com validado en el cliente).
+    // Las tres apps (sistema-modular, portal-ingeniero, reportes-ot) autentican antes de
+    // tocar Firestore. Las Cloud Functions usan admin SDK y bypasean estas reglas.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // SUPERFICIES PÚBLICAS (sin login, por diseño). Acotadas al mínimo necesario.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // PÚBLICO: formulario de soporte de la página /equipo/:agsId (portal-ingeniero).
+    //   - read: getNextTicketNumero() escanea leads para calcular el próximo número.
+    //   - create: alta del ticket desde el formulario público.
+    // Pendiente Fase 3: mover la numeración a server-side para poder cerrar la lectura.
     match /leads/{leadId} {
-      // Validación básica de estructura
-      function isValidLead() {
-        let data = request.resource.data;
-        return data.razonSocial is string
-               && data.contacto is string
-               && data.email is string
-               && data.telefono is string
-               && data.estado is string
-               && data.estado in ['nuevo', 'contactado', 'presupuestado', 'convertido', 'perdido'];
-      }
-      
-      // Permitir lectura y escritura (modo desarrollo sin auth)
-      // TODO: Implementar autenticación y cambiar a:
-      // allow read, write: if request.auth != null && isValidLead();
-      allow read, write: if true; // ⚠️ Solo para desarrollo
-    }
-    
-    // Colección de Presupuestos (futuro)
-    match /quotes/{quoteId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Inventario/Stock (futuro)
-    match /inventory/{itemId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Agenda (futuro)
-    match /appointments/{appointmentId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    
-    // Colección de Facturas (futuro)
-    match /invoices/{invoiceId} {
-      allow read, write: if true; // Temporal para desarrollo
+      allow read, create: if true;
+      allow update, delete: if signedIn();
     }
 
-    // Colección de Clientes
-    match /clientes/{clienteId} {
-      allow read, write: if true; // Temporal para desarrollo
-      match /contactos/{contactoId} {
-        allow read, write: if true; // Temporal para desarrollo (legacy; contactos nuevos en establecimientos)
-      }
+    // PÚBLICO ACOTADO: firma remota (reportes-ot ?modo=firma).
+    //   - read: el preview de la OT antes de firmar (se acotará a campos seguros en Fase 2).
+    //   - write anónimo: SOLO los campos de firma sobre una OT existente. Crear u
+    //     overwrite de otros campos queda bloqueado para no autenticados.
+    // Coincide exactamente con el payload de updateSignature() en reportes-ot.
+    match /reportes/{document=**} {
+      allow read: if true;
+      allow write: if signedIn()
+        || request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['signatureClient', 'signedAt', 'signedFrom']);
     }
 
-    // Colección de Establecimientos (sedes/plantas por cliente)
-    match /establecimientos/{establecimientoId} {
-      allow read, write: if true; // Temporal para desarrollo
-      match /contactos/{contactoId} {
-        allow read, write: if true; // Temporal para desarrollo
-      }
-    }
-
-    // Colección de Sistemas (equipos)
+    // PÚBLICO: la página /equipo/:agsId lee el equipo por agsVisibleId sin login.
     match /sistemas/{sistemaId} {
-      allow read, write: if true; // Temporal para desarrollo
+      allow read: if true;
+      allow write: if signedIn();
       match /modulos/{moduloId} {
-        allow read, write: if true; // Temporal para desarrollo
+        allow read, write: if signedIn(); // no leído por el flujo público
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // COLECCIONES INTERNAS — solo usuarios autenticados.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // Colecciones legacy/futuro
+    match /quotes/{quoteId}            { allow read, write: if signedIn(); }
+    match /inventory/{itemId}          { allow read, write: if signedIn(); }
+    match /appointments/{appointmentId}{ allow read, write: if signedIn(); }
+    match /invoices/{invoiceId}        { allow read, write: if signedIn(); }
+
+    // Clientes (+ contactos legacy)
+    match /clientes/{clienteId} {
+      allow read, write: if signedIn();
+      match /contactos/{contactoId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    // Establecimientos (sedes/plantas por cliente)
+    match /establecimientos/{establecimientoId} {
+      allow read, write: if signedIn();
+      match /contactos/{contactoId} {
+        allow read, write: if signedIn();
       }
     }
 
     // Catálogos y otras colecciones del sistema modular
-    match /categorias_equipo/{categoriaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /categorias_modulo/{categoriaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /presupuestos/{presupuestoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /categorias_presupuesto/{categoriaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    // Plantillas de texto para secciones de presupuesto (condiciones, alcance, etc.)
-    match /plantillas_texto_presupuesto/{plantillaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /condiciones_pago/{condicionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /tipos_servicio/{tipoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /ordenes_compra/{ocId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-    match /reportes/{document=**} {
-      allow read, write: if true; // Temporal para desarrollo (OTs)
-    }
+    match /categorias_equipo/{categoriaId}        { allow read, write: if signedIn(); }
+    match /categorias_modulo/{categoriaId}        { allow read, write: if signedIn(); }
+    match /presupuestos/{presupuestoId}           { allow read, write: if signedIn(); }
+    match /categorias_presupuesto/{categoriaId}   { allow read, write: if signedIn(); }
+    match /plantillas_texto_presupuesto/{plantillaId} { allow read, write: if signedIn(); }
+    match /condiciones_pago/{condicionId}         { allow read, write: if signedIn(); }
+    match /tipos_servicio/{tipoId}                { allow read, write: if signedIn(); }
+    match /ordenes_compra/{ocId}                  { allow read, write: if signedIn(); }
 
     // Catálogo de Protocolos legacy (mantenido por compatibilidad)
-    match /protocolCatalog/{catalogId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    match /protocolCatalog/{catalogId}            { allow read, write: if signedIn(); }
 
-    // Biblioteca de Tablas individuales (admin sistema-modular; técnicos en reportes-ot solo leen publicadas)
-    match /tableCatalog/{tableId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    // Biblioteca de Tablas individuales (técnicos en reportes-ot leen autenticados)
+    match /tableCatalog/{tableId}                 { allow read, write: if signedIn(); }
+    match /tableProjects/{projectId}              { allow read, write: if signedIn(); }
 
-    // Proyectos de Tablas (agrupan tablas del catálogo)
-    match /tableProjects/{projectId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Usuarios AGS (roles: admin / tecnico / readonly)
+    // Usuarios AGS (roles)
     match /usuarios/{uid} {
-      allow read, write: if true; // Temporal para desarrollo
+      allow read, write: if signedIn();
       match /fcmTokens/{tokenId} {
-        allow read, write: if true; // Temporal para desarrollo
+        allow read, write: if signedIn();
       }
     }
 
     // Adjuntos (metadata; binario en Firebase Storage)
-    match /adjuntos/{adjuntoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    match /adjuntos/{adjuntoId}                   { allow read, write: if signedIn(); }
 
     // Instrumentos y Patrones (certificados de calibración)
-    match /instrumentos/{instrumentoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Patrones (colección nueva, estándares con lotes)
-    match /patrones/{patronId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    match /instrumentos/{instrumentoId}           { allow read, write: if signedIn(); }
+    match /patrones/{patronId}                    { allow read, write: if signedIn(); }
 
     // Columnas cromatográficas (GC, HPLC)
-    match /columnas/{columnaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    match /columnas/{columnaId}                   { allow read, write: if signedIn(); }
 
     // Marcas (catálogo compartido)
-    match /marcas/{marcaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    match /marcas/{marcaId}                       { allow read, write: if signedIn(); }
 
     // ── Stock Module ──
+    match /ingenieros/{ingenieroId}               { allow read, write: if signedIn(); }
+    match /proveedores/{proveedorId}              { allow read, write: if signedIn(); }
+    match /posicionesStock/{posicionId}           { allow read, write: if signedIn(); }
+    match /articulos/{articuloId}                 { allow read, write: if signedIn(); }
+    match /unidades/{unidadId}                    { allow read, write: if signedIn(); }
+    match /minikits/{minikitId}                   { allow read, write: if signedIn(); }
+    match /movimientosStock/{movimientoId}        { allow read, write: if signedIn(); }
+    match /remitos/{remitoId}                     { allow read, write: if signedIn(); }
+    match /conceptos_servicio/{conceptoId}        { allow read, write: if signedIn(); }
+    match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if signedIn(); }
+    match /consumibles_por_modulo/{moduloId}      { allow read, write: if signedIn(); }
+    match /fichasPropiedad/{fichaId}              { allow read, write: if signedIn(); }
+    match /loaners/{loanerId}                     { allow read, write: if signedIn(); }
+    match /posiciones_arancelarias/{posicionId}   { allow read, write: if signedIn(); }
+    match /requerimientos_compra/{requerimientoId}{ allow read, write: if signedIn(); }
+    match /importaciones/{importacionId}          { allow read, write: if signedIn(); }
+    match /asignaciones/{asignacionId}            { allow read, write: if signedIn(); }
 
-    // Ingenieros (catálogo de técnicos)
-    match /ingenieros/{ingenieroId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    // Agenda
+    match /agendaEntries/{entryId}                { allow read, write: if signedIn(); }
+    match /agendaNotas/{notaId}                   { allow read, write: if signedIn(); }
 
-    // Proveedores
-    match /proveedores/{proveedorId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Posiciones de stock (ubicaciones físicas)
-    match /posicionesStock/{posicionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Artículos (catálogo de parts)
-    match /articulos/{articuloId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Unidades (instancias físicas de artículos)
-    match /unidades/{unidadId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Minikits
-    match /minikits/{minikitId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Movimientos de stock (log de auditoría)
-    match /movimientosStock/{movimientoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Remitos (despachos digitales)
-    match /remitos/{remitoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Conceptos de servicio (catálogo de precios para presupuestos)
-    match /conceptos_servicio/{conceptoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Tipos de equipo — plantillas para presupuestos de contrato
-    match /tiposEquipoPlantillas/{tipoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Consumibles por módulo — catálogo declarativo (Phase 04)
-    match /consumibles_por_modulo/{moduloId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Fichas propiedad del cliente
-    match /fichasPropiedad/{fichaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Loaners (equipos de préstamo)
-    match /loaners/{loanerId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Posiciones Arancelarias (catálogo de tratamientos)
-    match /posiciones_arancelarias/{posicionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Requerimientos de Compra
-    match /requerimientos_compra/{requerimientoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Importaciones (comercio exterior)
-    match /importaciones/{importacionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Agenda Entries (asignaciones de servicio)
-    match /agendaEntries/{entryId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Agenda Notas (notas por dia por ingeniero)
-    match /agendaNotas/{notaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Pendientes (recordatorios por cliente/equipo, surface en presupuestos/OTs)
-    match /pendientes/{pendienteId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Postas (derivaciones workflow entre usuarios)
-    match /postas/{postaId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Viáticos (gastos de ingenieros — períodos mensuales)
-    match /viaticos/{viaticoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Órdenes de Trabajo
-    match /ordenes_trabajo/{otId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Contratos de servicio
-    match /contratos/{contratoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Solicitudes de facturación
-    match /solicitudesFacturacion/{solicitudId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    // Workflow / OTs / facturación
+    match /pendientes/{pendienteId}               { allow read, write: if signedIn(); }
+    match /postas/{postaId}                        { allow read, write: if signedIn(); }
+    match /viaticos/{viaticoId}                    { allow read, write: if signedIn(); }
+    match /ordenes_trabajo/{otId}                  { allow read, write: if signedIn(); }
+    match /contratos/{contratoId}                  { allow read, write: if signedIn(); }
+    match /solicitudesFacturacion/{solicitudId}    { allow read, write: if signedIn(); }
+    match /ordenesCompraCliente/{ocId}             { allow read, write: if signedIn(); }
 
     // Counters atómicos (OT number, contrato number, etc.)
-    match /_counters/{counterId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    match /_counters/{counterId}                   { allow read, write: if signedIn(); }
 
-    // Feriados (calendario)
-    match /feriados/{feriadoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
+    // Misceláneos
+    match /feriados/{feriadoId}                    { allow read, write: if signedIn(); }
+    match /mailQueue/{mailId}                      { allow read, write: if signedIn(); }
+    match /emailTemplates/{templateId}             { allow read, write: if signedIn(); }
+    match /ingresosEmpresas/{ingresoId}            { allow read, write: if signedIn(); }
+    match /dispositivos/{dispositivoId}            { allow read, write: if signedIn(); }
+    match /vehiculos/{vehiculoId}                  { allow read, write: if signedIn(); }
+    match /calificaciones_proveedor/{calificacionId} { allow read, write: if signedIn(); }
+    match /catalogoSectores/{sectorId}             { allow read, write: if signedIn(); }
+    match /certificadosIngeniero/{certId}          { allow read, write: if signedIn(); }
+    match /adminConfig/{configId}                  { allow read, write: if signedIn(); }
+    match /featureFlags/{flagId}                   { allow read, write: if signedIn(); }
+    match /qfDocumentos/{qfId}                     { allow read, write: if signedIn(); }
 
-    // Mail queue (envío de emails via Cloud Functions)
-    match /mailQueue/{mailId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Email templates
-    match /emailTemplates/{templateId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Asignaciones de stock
-    match /asignaciones/{asignacionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Ingreso a empresas
-    match /ingresosEmpresas/{ingresoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Dispositivos
-    match /dispositivos/{dispositivoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Vehículos
-    match /vehiculos/{vehiculoId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Calificaciones de proveedores
-    match /calificaciones_proveedor/{calificacionId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Catálogo de sectores (contactos de establecimientos)
-    match /catalogoSectores/{sectorId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Certificados de ingenieros (habilitaciones y capacitaciones)
-    match /certificadosIngeniero/{certId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Audit Log (trazabilidad de acciones)
+    // Audit Log — inmutable: se crea pero nunca se modifica ni borra.
     match /audit_log/{logId} {
-      allow create: if true;           // Cualquier usuario autenticado puede escribir
-      allow read: if true;             // Temporal para desarrollo
-      allow update, delete: if false;  // Inmutable — nunca se modifica ni borra
-    }
-
-    // Configuración global de flujos automáticos (FLOW-07)
-    match /adminConfig/{configId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Feature flags
-    match /featureFlags/{flagId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Órdenes de compra del cliente (OC que llegan para una OT)
-    match /ordenesCompraCliente/{ocId} {
-      allow read, write: if true; // Temporal para desarrollo
-    }
-
-    // Documentos QF (numeración controlada + historial de versiones)
-    match /qfDocumentos/{qfId} {
-      allow read, write: if true; // Temporal para desarrollo
+      allow read, create: if signedIn();
+      allow update, delete: if false;
     }
 
     // Bloquear acceso a cualquier otra colección
