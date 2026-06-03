@@ -58,3 +58,8 @@ Thumbs.db
 
 # Playwright CLI (artefactos de testing manual)
 .playwright-cli/
+
+# Docs/PDFs sueltos en la raíz (no son código del proyecto)
+/*.pdf
+# CA bundle exportado para firebase deploy detrás de Avast (ver memoria)
+/corp-ca-bundle.pem

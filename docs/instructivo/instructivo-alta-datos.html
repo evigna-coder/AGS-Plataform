@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<title>Instructivo de Alta de Datos — AGS</title>
+<style>
+  :root{
+    --teal:#0D6E6E;
+    --teal-dark:#0a5757;
+    --teal-light:#e6f2f2;
+    --slate-900:#0f172a;
+    --slate-700:#334155;
+    --slate-500:#64748b;
+    --slate-400:#94a3b8;
+    --slate-200:#e2e8f0;
+    --slate-100:#f1f5f9;
+    --slate-50:#f8fafc;
+    --amber-bg:#fffbeb;
+    --amber-bd:#fcd34d;
+    --amber-tx:#92400e;
+    --red-bg:#fef2f2;
+    --red-bd:#fca5a5;
+    --red-tx:#991b1b;
+    --green-bg:#f0fdf4;
+    --green-bd:#86efac;
+    --green-tx:#166534;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color:var(--slate-700);
+    font-size:11.5pt;
+    line-height:1.55;
+  }
+  h1,h2,h3,h4{ font-family:Georgia, "Times New Roman", serif; color:var(--slate-900); line-height:1.2; }
+
+  /* ---------- Layout helpers ---------- */
+  .page{ padding:0 14mm; }
+  .page-break{ page-break-before:always; }
+  @page{
+    size:A4;
+    margin:18mm 0 16mm 0;
+  }
+
+  /* ---------- Cover ---------- */
+  .cover{
+    height:255mm;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:0 22mm;
+    background:linear-gradient(160deg,var(--teal) 0%, var(--teal-dark) 100%);
+    color:#fff;
+    page-break-after:always;
+  }
+  .cover .brand{
+    font-family:Georgia, serif;
+    font-size:15pt;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    opacity:.85;
+    margin-bottom:38mm;
+  }
+  .cover h1{
+    color:#fff;
+    font-size:40pt;
+    margin:0 0 10px 0;
+    line-height:1.08;
+  }
+  .cover .sub{
+    font-size:15pt;
+    opacity:.92;
+    max-width:130mm;
+    font-family:"Segoe UI",sans-serif;
+  }
+  .cover .meta{
+    margin-top:40mm;
+    font-size:10.5pt;
+    opacity:.8;
+    font-family:"Segoe UI",sans-serif;
+    border-top:1px solid rgba(255,255,255,.3);
+    padding-top:10px;
+    max-width:120mm;
+  }
+  .cover .tag{
+    display:inline-block;
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:30px;
+    padding:5px 16px;
+    font-size:9.5pt;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    font-family:"Segoe UI",sans-serif;
+    margin-bottom:24px;
+  }
+
+  /* ---------- Headings ---------- */
+  h1.section{
+    font-size:23pt;
+    color:var(--teal);
+    margin:0 0 4px 0;
+    padding-bottom:0;
+  }
+  .section-kicker{
+    font-family:"Segoe UI",sans-serif;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-size:9pt;
+    color:var(--teal);
+    font-weight:600;
+    margin-bottom:2px;
+  }
+  .section-rule{
+    height:3px;
+    width:60px;
+    background:var(--teal);
+    border-radius:2px;
+    margin:8px 0 18px 0;
+  }
+  h2{ font-size:15pt; color:var(--slate-900); margin:22px 0 6px 0; }
+  h3{ font-size:12.5pt; color:var(--teal-dark); margin:18px 0 4px 0; }
+
+  p{ margin:7px 0; }
+  ul,ol{ margin:7px 0; padding-left:20px; }
+  li{ margin:4px 0; }
+  strong{ color:var(--slate-900); }
+
+  /* ---------- UI element cues ---------- */
+  .ui{
+    font-family:"Segoe UI",sans-serif;
+    background:var(--slate-100);
+    border:1px solid var(--slate-200);
+    border-radius:5px;
+    padding:1px 7px;
+    font-size:9.5pt;
+    font-weight:600;
+    color:var(--slate-700);
+    white-space:nowrap;
+  }
+  .btn{
+    font-family:"Segoe UI",sans-serif;
+    background:var(--teal);
+    color:#fff;
+    border-radius:5px;
+    padding:2px 9px;
+    font-size:9.5pt;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .path{
+    font-family:"Segoe UI",sans-serif;
+    color:var(--teal-dark);
+    font-weight:600;
+  }
+  .path .sep{ color:var(--slate-400); font-weight:400; padding:0 3px; }
+  .req{ color:#b91c1c; font-weight:700; }
+
+  /* ---------- Callouts ---------- */
+  .callout{
+    border-radius:8px;
+    padding:12px 16px 12px 16px;
+    margin:14px 0;
+    font-size:10.8pt;
+    page-break-inside:avoid;
+  }
+  .callout .c-title{
+    font-family:"Segoe UI",sans-serif;
+    font-weight:700;
+    font-size:10pt;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    margin-bottom:3px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .callout.key{ background:var(--amber-bg); border:1px solid var(--amber-bd); }
+  .callout.key .c-title{ color:var(--amber-tx); }
+  .callout.warn{ background:var(--red-bg); border:1px solid var(--red-bd); }
+  .callout.warn .c-title{ color:var(--red-tx); }
+  .callout.tip{ background:var(--green-bg); border:1px solid var(--green-bd); }
+  .callout.tip .c-title{ color:var(--green-tx); }
+  .callout.info{ background:var(--teal-light); border:1px solid #b6dcdc; }
+  .callout.info .c-title{ color:var(--teal-dark); }
+
+  /* ---------- Steps ---------- */
+  ol.steps{ counter-reset:step; list-style:none; padding-left:0; margin:12px 0; }
+  ol.steps > li{
+    position:relative;
+    padding:2px 0 12px 38px;
+    margin:0;
+    border-left:2px solid var(--slate-200);
+    margin-left:13px;
+  }
+  ol.steps > li:last-child{ border-left:2px solid transparent; }
+  ol.steps > li::before{
+    counter-increment:step;
+    content:counter(step);
+    position:absolute;
+    left:-14px; top:-2px;
+    width:26px;height:26px;
+    background:var(--teal);
+    color:#fff;
+    border-radius:50%;
+    font-family:"Segoe UI",sans-serif;
+    font-weight:700;
+    font-size:11pt;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* ---------- Tables ---------- */
+  table{ border-collapse:collapse; width:100%; margin:12px 0; font-size:10pt; page-break-inside:avoid; }
+  th{
+    background:var(--teal);
+    color:#fff;
+    text-align:left;
+    padding:8px 10px;
+    font-family:"Segoe UI",sans-serif;
+    font-size:9.5pt;
+    font-weight:600;
+  }
+  td{ padding:7px 10px; border-bottom:1px solid var(--slate-200); vertical-align:top; }
+  tr:nth-child(even) td{ background:var(--slate-50); }
+  .tbl-req{ color:#b91c1c; font-weight:700; text-align:center; }
+  .tbl-opt{ color:var(--slate-400); text-align:center; }
+
+  /* ---------- Hierarchy diagram ---------- */
+  .tree{ margin:14px 0 6px 0; font-family:"Segoe UI",sans-serif; }
+  .tree .node{
+    border-radius:8px;
+    padding:9px 14px;
+    margin:0 0 0 var(--ind,0);
+    border:1.5px solid var(--teal);
+    background:#fff;
+    display:inline-block;
+    min-width:62mm;
+  }
+  .tree .lvl{ position:relative; padding:5px 0 5px 0; }
+  .tree .nm{ font-weight:700; color:var(--slate-900); font-size:11pt; }
+  .tree .ds{ color:var(--slate-500); font-size:9.5pt; }
+  .tree .connector{ color:var(--teal); font-weight:700; margin:0 6px 0 calc(var(--ind,0) + 20px); }
+
+  .badge-req{
+    display:inline-block;background:#fee2e2;color:#b91c1c;border-radius:4px;
+    font-family:"Segoe UI",sans-serif;font-size:8pt;font-weight:700;padding:1px 6px;margin-left:6px;
+    text-transform:uppercase;letter-spacing:.5px;
+  }
+  .toc{ font-family:"Segoe UI",sans-serif; }
+  .toc div{ display:flex; align-items:baseline; padding:7px 0; border-bottom:1px dashed var(--slate-200); }
+  .toc .n{ color:var(--teal); font-weight:700; width:30px; }
+  .toc .t{ flex:1; color:var(--slate-700); font-weight:600; }
+  /* ---------- Figures (screenshots) ---------- */
+  figure{ margin:16px 0; text-align:center; page-break-inside:avoid; }
+  figure img{
+    max-width:82%;
+    max-height:158mm;
+    border:1px solid var(--slate-200);
+    border-radius:8px;
+    box-shadow:0 4px 14px rgba(15,23,42,.10);
+  }
+  figure.wide img{ max-width:96%; max-height:120mm; }
+  figcaption{
+    font-family:"Segoe UI",sans-serif;
+    font-size:9pt;
+    color:var(--slate-500);
+    margin-top:7px;
+    font-style:italic;
+  }
+  figcaption b{ font-style:normal; color:var(--teal-dark); }
+  .lead{ font-size:12.5pt; color:var(--slate-500); margin-top:2px; }
+  .small{ font-size:9.5pt; color:var(--slate-500); }
+  .footer-note{ margin-top:30px; padding-top:10px; border-top:1px solid var(--slate-200); font-size:9pt; color:var(--slate-400); font-family:"Segoe UI",sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <div class="brand">AGS Analítica</div>
+  <div class="tag">Guía para usuarios</div>
+  <h1>Instructivo de carga de datos</h1>
+  <div class="sub">Cómo dar de alta categorías, clientes, establecimientos y equipos en el sistema, paso a paso.</div>
+  <div class="meta">
+    Versión 1.0 &nbsp;·&nbsp; Junio 2026<br>
+    Alcance: módulos de Clientes, Establecimientos, Equipos y Categorías.
+  </div>
+</div>
+
+<!-- ============ ÍNDICE ============ -->
+<div class="page">
+  <div class="section-kicker">Contenido</div>
+  <h1 class="section">Índice</h1>
+  <div class="section-rule"></div>
+  <div class="toc">
+    <div><span class="n">1</span><span class="t">Antes de empezar: cómo está organizado el sistema</span></div>
+    <div><span class="n">2</span><span class="t">El orden correcto de carga (muy importante)</span></div>
+    <div><span class="n">3</span><span class="t">Cómo moverse: menú, pestañas y buscadores</span></div>
+    <div><span class="n">4</span><span class="t">Paso 1 — Categorías (de Sistemas y de Módulos)</span></div>
+    <div><span class="n">5</span><span class="t">Paso 2 — Dar de alta un Cliente</span></div>
+    <div><span class="n">6</span><span class="t">Paso 3 — Dar de alta un Establecimiento</span></div>
+    <div><span class="n" style="opacity:.55">6·</span><span class="t">Cargar los Contactos del establecimiento</span></div>
+    <div><span class="n">7</span><span class="t">Paso 4 — Dar de alta un Equipo (Sistema) y sus Módulos</span></div>
+    <div><span class="n">8</span><span class="t">Resumen de campos obligatorios</span></div>
+    <div><span class="n">9</span><span class="t">Preguntas frecuentes y errores comunes</span></div>
+  </div>
+</div>
+
+<!-- ============ 1. CONCEPTOS ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 1</div>
+  <h1 class="section">Antes de empezar</h1>
+  <div class="section-rule"></div>
+
+  <p>El sistema guarda la información de manera <strong>jerárquica</strong>: cada cosa "cuelga" de otra. Entender esta estructura es la clave para cargar los datos sin errores. De arriba hacia abajo:</p>
+
+  <div class="tree">
+    <div class="lvl"><span class="node"><span class="nm">🏢 Cliente</span><br><span class="ds">La empresa. Ej: "Laboratorios XYZ S.A."</span></span></div>
+    <div class="connector">└─ contiene ─▶</div>
+    <div class="lvl" style="--ind:14mm"><span class="node"><span class="nm">📍 Establecimiento</span><br><span class="ds">Una planta / sede física del cliente. Ej: "Planta CABA"</span></span></div>
+    <div class="connector" style="--ind:14mm">└─ contiene ─▶</div>
+    <div class="lvl" style="--ind:28mm"><span class="node"><span class="nm">⚙️ Equipo / Sistema</span><br><span class="ds">El instrumento. Ej: "HPLC 1260"</span></span></div>
+    <div class="connector" style="--ind:28mm">└─ contiene ─▶</div>
+    <div class="lvl" style="--ind:42mm"><span class="node"><span class="nm">🔩 Módulo</span><br><span class="ds">Una parte del equipo. Ej: "Bomba cuaternaria", "Detector DAD"</span></span></div>
+  </div>
+
+  <p><strong>En palabras simples:</strong> un <strong>Cliente</strong> tiene uno o varios <strong>Establecimientos</strong>; en cada Establecimiento hay uno o varios <strong>Equipos</strong> (instrumentos); y cada Equipo puede tener varios <strong>Módulos</strong> (sus componentes).</p>
+
+  <div class="callout info">
+    <div class="c-title">👤 ¿Y los contactos?</div>
+    Las <strong>personas de contacto</strong> (quién atiende, su teléfono y mail) se cargan <strong>en el Establecimiento</strong>, no en el cliente. Tiene sentido: cada planta tiene su propia gente. Por eso los contactos se ven más adelante, junto con el establecimiento (Capítulo 6).
+  </div>
+
+  <h2>¿Y las Categorías?</h2>
+  <p>Las <strong>Categorías</strong> son un <strong>catálogo maestro</strong>: una lista de "tipos" de equipos y de módulos que el sistema ya conoce. Son como un menú de opciones predefinidas. Hay dos catálogos:</p>
+  <ul>
+    <li><strong>Categorías de Sistemas</strong> — los tipos de equipo y sus modelos. Ej: la categoría <em>"Cromatógrafos HPLC"</em> con los modelos <em>HPLC 1260, HPLC 1100, HPLC Iónico</em>.</li>
+    <li><strong>Categorías de Módulos</strong> — los tipos de componente y sus modelos con código. Ej: la categoría <em>"Bombas"</em> con el modelo <em>G1311A — Bomba Cuaternaria</em>.</li>
+  </ul>
+
+  <div class="callout key">
+    <div class="c-title">⭐ La regla más importante</div>
+    Para poder elegir un <strong>equipo</strong> o un <strong>módulo</strong> al cargarlo, ese tipo <strong>tiene que existir primero en Categorías</strong>. Cuando creás un equipo, el sistema te pide elegir una <strong>Categoría</strong> (obligatorio) y luego un <strong>modelo</strong> de esa categoría. Si la categoría o el modelo no existen todavía, hay que crearlos antes — o usar la opción <span class="ui">Otro (ingresar manualmente)</span> para cargarlo a mano esa vez.
+  </div>
+
+  <p class="small">Por eso este instructivo arranca por las Categorías y recién después carga clientes y equipos.</p>
+</div>
+
+<!-- ============ 2. ORDEN ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 2</div>
+  <h1 class="section">El orden correcto de carga</h1>
+  <div class="section-rule"></div>
+
+  <p>Como cada dato depende del anterior, conviene cargarlos <strong>en este orden</strong>. Si lo respetás, nunca te vas a quedar "trabado" porque falta algo de un paso previo.</p>
+
+  <ol class="steps">
+    <li>
+      <h3 style="margin-top:0">Categorías</h3>
+      Primero el catálogo: las <strong>Categorías de Sistemas</strong> (tipos de equipo + modelos) y las <strong>Categorías de Módulos</strong> (tipos de componente + modelos).
+      <div class="small">Esto se hace una sola vez y después se reutiliza para todos los clientes.</div>
+    </li>
+    <li>
+      <h3 style="margin-top:0">Cliente</h3>
+      Damos de alta la empresa.
+    </li>
+    <li>
+      <h3 style="margin-top:0">Establecimiento</h3>
+      Dentro del cliente, cargamos su planta o sede.
+    </li>
+    <li>
+      <h3 style="margin-top:0">Equipo (Sistema) y Módulos</h3>
+      Por último, el instrumento dentro del establecimiento, eligiendo su categoría y modelo; y opcionalmente sus módulos.
+    </li>
+  </ol>
+
+  <div class="callout info">
+    <div class="c-title">ℹ️ Buena noticia</div>
+    Las <strong>Categorías se cargan una sola vez</strong>. La primera vez es la más trabajosa; después, dar de alta clientes y equipos es muy rápido porque las opciones ya están listas para elegir.
+  </div>
+
+  <div class="callout tip">
+    <div class="c-title">✓ Atajo recomendado</div>
+    La forma más cómoda de cargar es <strong>desde la ficha del Cliente</strong>: una vez creado el cliente, abrís su ficha y desde ahí mismo agregás sus establecimientos y equipos con el botón <span class="btn">+ Agregar</span>. El cliente ya queda pre-seleccionado, así que no podés equivocarte de empresa.
+  </div>
+</div>
+
+<!-- ============ 3. NAVEGACIÓN ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 3</div>
+  <h1 class="section">Cómo moverse en el sistema</h1>
+  <div class="section-rule"></div>
+
+  <h2>El menú lateral</h2>
+  <p>A la izquierda está el menú principal, agrupado por áreas. Para esta guía vas a usar sobre todo dos grupos:</p>
+  <ul>
+    <li><span class="path">Comercial <span class="sep">›</span> Clientes</span> — para dar de alta y buscar clientes (y desde ahí, sus establecimientos y equipos).</li>
+    <li><span class="path">Operaciones <span class="sep">›</span> Equipos</span> — el listado de todos los equipos, y el acceso a <span class="ui">Categorías</span>.</li>
+  </ul>
+  <p class="small">Hacé clic en el nombre del grupo (por ejemplo <strong>Comercial</strong>) para que se despliegue y ver las opciones de adentro.</p>
+
+  <h2>Pestañas (varias cosas abiertas a la vez)</h2>
+  <p>El sistema funciona con <strong>pestañas</strong>, parecido a un navegador: podés tener abierto un cliente y el listado de equipos al mismo tiempo, y cambiar de uno a otro sin perder lo que estabas viendo.</p>
+
+  <h2>Buscadores y listas</h2>
+  <p>En los formularios, muchos campos son <strong>buscadores desplegables</strong>: hacés clic, escribís parte del nombre y el sistema filtra las opciones. Así elegís el cliente, el establecimiento o la categoría sin tener que recorrer toda la lista.</p>
+
+  <div class="callout key">
+    <div class="c-title">⭐ Los campos con asterisco son obligatorios</div>
+    En todos los formularios, los campos marcados con <span class="req">*</span> son <strong>obligatorios</strong>: el sistema no te deja guardar hasta completarlos. El resto son opcionales y los podés cargar ahora o después.
+  </div>
+</div>
+
+<!-- ============ 4. CATEGORÍAS ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 4 · Paso 1</div>
+  <h1 class="section">Categorías</h1>
+  <div class="section-rule"></div>
+
+  <p>Es el catálogo maestro que alimenta el alta de equipos y módulos. Se carga una vez y se reutiliza siempre.</p>
+
+  <h3>Cómo llegar</h3>
+  <p>Entrá a <span class="path">Operaciones <span class="sep">›</span> Equipos</span> y, arriba a la derecha del listado, hacé clic en el botón <span class="ui">Categorías</span>. Vas a ver una pantalla con dos pestañas: <strong>Categorías de Sistemas</strong> y <strong>Categorías de Módulos</strong>.</p>
+
+  <h2>4.1 — Categorías de Sistemas (tipos de equipo)</h2>
+  <p>Agrupan los equipos por familia y guardan la lista de modelos disponibles.</p>
+  <ol class="steps">
+    <li>En la pestaña <span class="ui">Categorías de Sistemas</span>, hacé clic en <span class="btn">+ Nueva Categoría</span>.</li>
+    <li>Completá <strong>Nombre <span class="req">*</span></strong> — el nombre de la familia. Ej: <em>Cromatógrafos HPLC</em>, <em>Osmómetros</em>, <em>Espectrofotómetros UV</em>.</li>
+    <li>
+      En <strong>Modelos (1 por línea)</strong>, escribí un modelo por renglón. Ej:
+      <div class="callout info" style="margin:8px 0;">
+        <div class="c-title">📝 Ejemplo</div>
+        HPLC 1260<br>HPLC 1100<br>HPLC Iónico
+      </div>
+      Estos modelos van a aparecer como opciones de <strong>"Nombre"</strong> cuando cargues un equipo de esta categoría.
+    </li>
+    <li>Hacé clic en <span class="btn">Guardar</span>. La categoría queda en la lista y la podés <span class="ui">Editar</span> o <span class="ui">Eliminar</span> cuando quieras.</li>
+  </ol>
+
+  <figure>
+    <img src="img/categoria-sistema-modal.png" alt="Modal Nueva Categoría de Sistema">
+    <figcaption><b>Nueva Categoría de Sistema.</b> El nombre de la familia y, debajo, un modelo por línea.</figcaption>
+  </figure>
+
+  <h2>4.2 — Categorías de Módulos (tipos de componente)</h2>
+  <p>Agrupan los componentes (bombas, detectores, inyectores, etc.). Cada modelo lleva un <strong>código</strong>.</p>
+  <ol class="steps">
+    <li>Pasá a la pestaña <span class="ui">Categorías de Módulos</span> y hacé clic en <span class="btn">+ Nueva Categoría</span>.</li>
+    <li>Completá <strong>Nombre <span class="req">*</span></strong> — el tipo de componente. Ej: <em>Bombas</em>, <em>Detectores</em>, <em>Inyectores</em>.</li>
+    <li>
+      Agregá al menos un <strong>modelo</strong> <span class="req">*</span> (es obligatorio tener uno como mínimo). Para cada uno:
+      <ul>
+        <li><strong>Código <span class="req">*</span></strong> — Ej: <em>G1311A</em></li>
+        <li><strong>Descripción</strong> — Ej: <em>Bomba Cuaternaria</em></li>
+        <li><strong>Marca</strong> — Ej: <em>Agilent</em></li>
+      </ul>
+      Hacé clic en <span class="btn">+ Agregar Modelo</span> (o Enter) para sumarlo a la lista. Repetí por cada modelo.
+    </li>
+    <li>Cuando tengas todos los modelos, hacé clic en <span class="btn">Guardar</span>.</li>
+  </ol>
+
+  <figure class="wide">
+    <img src="img/categoria-modulo-modal.png" alt="Modal Nueva Categoría de Módulo">
+    <figcaption><b>Nueva Categoría de Módulo.</b> Cada modelo lleva Código, Descripción y Marca; se suman con <b>+ Agregar Modelo</b>.</figcaption>
+  </figure>
+
+  <div class="callout key">
+    <div class="c-title">⭐ Recordá</div>
+    Esta es la base de todo. Si más adelante, al cargar un equipo, no encontrás su tipo o su modelo en las listas, lo más probable es que falte crearlo acá primero.
+  </div>
+</div>
+
+<!-- ============ 5. CLIENTE ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 5 · Paso 2</div>
+  <h1 class="section">Dar de alta un Cliente</h1>
+  <div class="section-rule"></div>
+
+  <p>El cliente es la empresa a la que le prestamos servicio. Es el primer dato "real" que vas a cargar.</p>
+
+  <h3>Cómo llegar</h3>
+  <p>Entrá a <span class="path">Comercial <span class="sep">›</span> Clientes</span> y hacé clic en el botón <span class="btn">+ Nuevo Cliente</span>. Se abre una ventana (modal) con el formulario.</p>
+
+  <h3>Datos Básicos</h3>
+  <ol class="steps">
+    <li>
+      <strong>CUIT</strong> (opcional pero recomendado) — escribilo con el formato <em>XX-XXXXXXXX-X</em>. Si hacés clic en <span class="ui">Validar AFIP</span>, el sistema verifica el CUIT y, si lo encuentra, te <strong>autocompleta solo</strong> la razón social y el domicilio fiscal.
+    </li>
+    <li><strong>Razón Social <span class="req">*</span></strong> — el nombre legal de la empresa. <em>Obligatorio.</em></li>
+    <li><strong>Rubro <span class="req">*</span></strong> — la actividad. Ej: <em>Farmacéutica</em>, <em>Alimentos</em>. <em>Obligatorio.</em></li>
+    <li><strong>País</strong> — viene precargado como <em>Argentina</em>.</li>
+  </ol>
+
+  <h3>Domicilio fiscal (opcional)</h3>
+  <p>Dirección, Localidad, Provincia y Código postal. Si usaste <span class="ui">Validar AFIP</span>, puede venir completado. La <strong>Dirección</strong> tiene autocompletado: empezá a escribir y elegí de la lista para que complete localidad y provincia.</p>
+
+  <h3>Fiscal / IVA (opcional)</h3>
+  <ul>
+    <li><strong>Condición IVA</strong> — Monotributo, Responsable Inscripto, Exento, Consumidor Final u Otro.</li>
+    <li><strong>Ingresos Brutos</strong> y <strong>Convenio Multilateral</strong>.</li>
+    <li><strong>Requiere Trazabilidad</strong> — tildalo si los informes de este cliente deben incluir documentación de trazabilidad.</li>
+  </ul>
+
+  <h3>Notas (opcional)</h3>
+  <p>Texto libre para observaciones internas sobre el cliente.</p>
+
+  <ol class="steps" start="5">
+    <li>Cuando termines, hacé clic en <span class="btn">Crear Cliente</span>. El sistema te lleva directo a la <strong>ficha del cliente</strong>, donde vas a cargar sus establecimientos y equipos.</li>
+  </ol>
+
+  <figure>
+    <img src="img/cliente.png" alt="Modal Nuevo Cliente">
+    <figcaption><b>Modal Nuevo Cliente.</b> Solo <b>Razón Social</b> y <b>Rubro</b> son obligatorios; el botón <b>Validar AFIP</b> autocompleta datos.</figcaption>
+  </figure>
+
+  <div class="callout tip">
+    <div class="c-title">✓ Solo dos campos obligatorios</div>
+    Para crear un cliente alcanza con <strong>Razón Social</strong> y <strong>Rubro</strong>. Todo lo demás lo podés completar ahora o editarlo más tarde desde la ficha del cliente.
+  </div>
+</div>
+
+<!-- ============ 6. ESTABLECIMIENTO ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 6 · Paso 3</div>
+  <h1 class="section">Dar de alta un Establecimiento</h1>
+  <div class="section-rule"></div>
+
+  <p>El establecimiento es la <strong>planta o sede física</strong> del cliente donde están los equipos. Un cliente puede tener varios.</p>
+
+  <div class="callout warn">
+    <div class="c-title">⚠ Requisito previo</div>
+    El <strong>Cliente tiene que existir antes</strong>. El establecimiento siempre "cuelga" de un cliente.
+  </div>
+
+  <h3>Cómo llegar (forma recomendada)</h3>
+  <ol class="steps">
+    <li>Abrí la <strong>ficha del cliente</strong> (desde <span class="path">Comercial <span class="sep">›</span> Clientes</span>, hacé clic en el cliente).</li>
+    <li>Buscá la sección <strong>Establecimientos</strong> y hacé clic en <span class="btn">+ Agregar</span>. Se abre el formulario con el <strong>cliente ya pre-seleccionado</strong>.</li>
+  </ol>
+
+  <h3>Completá el formulario</h3>
+  <ol class="steps">
+    <li><strong>Cliente <span class="req">*</span></strong> — ya viene cargado si entraste desde la ficha. (Si abrís el formulario suelto, elegilo del buscador.)</li>
+    <li><strong>Nombre <span class="req">*</span></strong> — cómo identificás la sede. Ej: <em>Planta CABA</em>, <em>Sede Tortuguitas</em>. <em>Obligatorio.</em></li>
+    <li><strong>Dirección <span class="req">*</span></strong> — con autocompletado: escribí y elegí de la lista. Al elegir, completa solos la localidad, provincia y código postal. <em>Obligatorio.</em></li>
+    <li><strong>Localidad <span class="req">*</span></strong> y <strong>Provincia <span class="req">*</span></strong> — <em>obligatorios</em> (suelen quedar completos por el autocompletado).</li>
+    <li><strong>País</strong> y <strong>Código postal</strong> — opcionales.</li>
+  </ol>
+
+  <h3>Configuración (opcional)</h3>
+  <ul>
+    <li><strong>Tipo</strong> — Planta, Sucursal, Oficina, Laboratorio u Otro.</li>
+    <li><strong>Condición de pago</strong> y <strong>Tipo de servicio</strong> (Contrato / Per incident).</li>
+    <li><strong>Info pagos</strong>, y los tildes <strong>Paga en tiempo</strong> / <strong>Suele demorarse</strong>.</li>
+  </ul>
+
+  <ol class="steps" start="6">
+    <li>Hacé clic en <span class="btn">Crear establecimiento</span>.</li>
+  </ol>
+
+  <figure>
+    <img src="img/establecimiento.png" alt="Modal Nuevo Establecimiento">
+    <figcaption><b>Modal Nuevo Establecimiento.</b> Obligatorios: Cliente, Nombre, Dirección, Localidad y Provincia.</figcaption>
+  </figure>
+
+  <div class="callout tip">
+    <div class="c-title">✓ Obligatorios</div>
+    <strong>Cliente, Nombre, Dirección, Localidad y Provincia.</strong> El resto es opcional.
+  </div>
+</div>
+
+<!-- ============ 6b. CONTACTOS ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 6 (continuación)</div>
+  <h1 class="section">Contactos del establecimiento</h1>
+  <div class="section-rule"></div>
+
+  <p>Los contactos son las <strong>personas con las que coordinamos</strong> en cada planta (responsable de laboratorio, compras, mantenimiento, etc.). Se cargan <strong>dentro de cada establecimiento</strong> — así cada sede tiene su propia lista.</p>
+
+  <div class="callout warn">
+    <div class="c-title">⚠ Dónde se cargan</div>
+    Los contactos <strong>no</strong> están en el formulario del cliente. Se agregan desde la <strong>ficha del establecimiento</strong>, en la sección <strong>Contactos</strong>.
+  </div>
+
+  <h3>Cómo llegar</h3>
+  <ol class="steps">
+    <li>Abrí la <strong>ficha del establecimiento</strong> (desde la ficha del cliente, hacé clic en el establecimiento; o desde <span class="path">su listado</span> y clic en el nombre).</li>
+    <li>Buscá la sección <strong>Contactos</strong> y hacé clic en <span class="btn">+ Agregar</span>. Se abre la ventana <span class="ui">Nuevo contacto</span>.</li>
+  </ol>
+
+  <h3>Completá el contacto</h3>
+  <ol class="steps">
+    <li><strong>Nombre <span class="req">*</span></strong> — nombre y apellido de la persona. <em>Obligatorio.</em></li>
+    <li><strong>Cargo</strong> (opcional) — el puesto. Ej: <em>Jefe de Laboratorio</em>, <em>Compras</em>.</li>
+    <li><strong>Sector</strong> (opcional) — el sector al que pertenece. Podés elegir uno existente o crear uno nuevo escribiéndolo y tocando <span class="ui">Crear sector</span>. <span class="small">(El sector ayuda a que el técnico vea el contacto correcto al hacer el informe.)</span></li>
+    <li><strong>Teléfono <span class="req">*</span></strong> e <strong>Int.</strong> — el teléfono y, al lado, el interno si tiene.</li>
+    <li><strong>Email <span class="req">*</span></strong> — el correo de la persona. <em>Obligatorio.</em></li>
+    <li><strong>Contacto principal</strong> — tildalo si es el contacto de referencia de esa planta. Solo uno por establecimiento puede ser principal.</li>
+    <li>Hacé clic en <span class="btn">Agregar</span>. El contacto queda listado y lo podés <span class="ui">Editar</span> o <span class="ui">Eliminar</span> cuando quieras.</li>
+  </ol>
+
+  <figure>
+    <img src="img/contacto-modal.png" alt="Modal Nuevo contacto">
+    <figcaption><b>Modal Nuevo contacto.</b> Obligatorios: Nombre y Email. El Sector permite elegir uno existente o crear uno nuevo.</figcaption>
+  </figure>
+
+  <div class="callout tip">
+    <div class="c-title">✓ Cargá varios</div>
+    Podés agregar todos los contactos que necesites por establecimiento. Marcá como <strong>principal</strong> al de referencia para tenerlo siempre a mano.
+  </div>
+</div>
+
+<!-- ============ 7. EQUIPO ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 7 · Paso 4</div>
+  <h1 class="section">Dar de alta un Equipo (Sistema)</h1>
+  <div class="section-rule"></div>
+
+  <p>El equipo —o "sistema"— es el <strong>instrumento físico</strong> instalado en un establecimiento del cliente. Es el alta más completa, porque conecta todo lo anterior.</p>
+
+  <div class="callout warn">
+    <div class="c-title">⚠ Requisitos previos</div>
+    Para cargar un equipo necesitás que ya existan: <strong>(1)</strong> el Cliente, <strong>(2)</strong> su Establecimiento, y <strong>(3)</strong> la Categoría del equipo (con el modelo en su lista). Si falta la categoría o el modelo, podés crearla antes (Capítulo 4) o usar <span class="ui">Otro (ingresar manualmente)</span>.
+  </div>
+
+  <h3>Cómo llegar (forma recomendada)</h3>
+  <p>Desde la <strong>ficha del cliente</strong>, en la sección <strong>Equipos</strong>, hacé clic en <span class="btn">+ Agregar</span>. (También podés ir a <span class="path">Operaciones <span class="sep">›</span> Equipos</span> y usar <span class="btn">+ Nuevo Sistema</span>.)</p>
+
+  <h3>Completá el formulario, en orden</h3>
+  <ol class="steps">
+    <li><strong>Cliente <span class="req">*</span></strong> — elegí la empresa (ya viene cargado si entraste desde su ficha).</li>
+    <li><strong>Establecimiento <span class="req">*</span></strong> — al elegir el cliente, este buscador muestra solo <em>sus</em> sedes. Elegí dónde está el equipo.</li>
+    <li><strong>Sector</strong> (opcional) — el sector dentro de la planta, si aplica. Podés elegir uno existente o crear uno nuevo escribiéndolo.</li>
+    <li>
+      <strong>Categoría <span class="req">*</span></strong> — elegí la familia del equipo del catálogo (las que creaste en el Capítulo 4).
+      <div class="callout key" style="margin:8px 0;">
+        <div class="c-title">⭐ Acá se aplica la regla</div>
+        La <strong>Categoría es obligatoria</strong> y define qué modelos vas a poder elegir en el paso siguiente.
+      </div>
+    </li>
+    <li>
+      <strong>Modelo / Nombre <span class="req">*</span></strong> — depende de la categoría elegida:
+      <ul>
+        <li>Si la categoría <strong>tiene modelos cargados</strong>, aparece un desplegable con esos modelos. Elegí el que corresponde.</li>
+        <li>Si el modelo no está en la lista, elegí <span class="ui">Otro (ingresar manualmente)</span> y escribilo a mano en el campo que aparece.</li>
+        <li>Si la categoría <strong>no tiene modelos</strong>, vas a ver un campo de texto libre para escribir el nombre.</li>
+      </ul>
+    </li>
+    <li><strong>Código interno cliente</strong> (opcional) — el código que usa el cliente para el equipo. Si lo dejás vacío, el sistema le asigna uno provisorio automáticamente.</li>
+    <li><strong>Software</strong> (opcional) — el software del equipo. Ej: <em>OpenLab CDS</em>, <em>ChemStation</em>.</li>
+    <li>Hacé clic en <span class="btn">Crear sistema</span>. Te lleva a la ficha del equipo, donde podés <strong>agregar sus módulos</strong>.</li>
+  </ol>
+
+  <figure>
+    <img src="img/equipo-completo.png" alt="Modal Nuevo Equipo con datos seleccionados">
+    <figcaption><b>Modal Nuevo Equipo.</b> Al elegir el cliente aparece el <b>Establecimiento</b>; al elegir la categoría aparece <b>Modelo / Nombre</b>. Así la categoría define los modelos disponibles.</figcaption>
+  </figure>
+
+  <div class="callout info">
+    <div class="c-title">ℹ️ Equipos de gases (GC)</div>
+    Si el equipo es un <strong>cromatógrafo gaseoso</strong> (el nombre o la categoría contienen "gaseoso"/"GC"), aparece automáticamente una grilla extra para configurar los <strong>puertos de inyección</strong> (Front / Back / Aux) y los <strong>detectores</strong> (FID, NPD, ECD, TCD, MSD, etc.). Completala según el equipo; todos esos campos son opcionales.
+  </div>
+</div>
+
+<!-- ============ 7b. MÓDULOS ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 7 (continuación)</div>
+  <h1 class="section">Agregar Módulos al equipo</h1>
+  <div class="section-rule"></div>
+
+  <p>Los módulos son los componentes del equipo (bomba, detector, inyector, etc.). Se agregan <strong>desde la ficha del equipo</strong>, una vez creado.</p>
+
+  <ol class="steps">
+    <li>En la ficha del equipo, buscá la sección <strong>Módulos</strong> y hacé clic en <span class="btn">+ Agregar Módulo</span>.</li>
+    <li>
+      <strong>Categoría de Módulo</strong> — elegí el tipo de componente del catálogo (las de la pestaña <em>Categorías de Módulos</em>). Al elegirla, aparece un segundo desplegable de <strong>Modelo</strong>.
+    </li>
+    <li>
+      <strong>Modelo <span class="req">*</span></strong> — elegí el modelo. Su <strong>código</strong> y <strong>descripción</strong> se completan solos.
+      <div class="small">Si el componente no está en el catálogo, podés cargarlo a mano: dejá la categoría sin elegir y escribí el <strong>Nombre</strong> del módulo.</div>
+    </li>
+    <li>Opcional: <strong>Número de serie</strong>, <strong>Versión de firmware</strong> y <strong>Observaciones</strong>.</li>
+    <li>Hacé clic en <span class="btn">Agregar</span>. Repetí por cada componente del equipo.</li>
+  </ol>
+
+  <div class="callout key">
+    <div class="c-title">⭐ Misma regla que con los equipos</div>
+    Para elegir un módulo del catálogo, su tipo y modelo <strong>tienen que existir en Categorías de Módulos</strong>. Si no están, creálos primero (Capítulo 4.2) o cargá el módulo manualmente con la opción de nombre libre.
+  </div>
+
+  <div class="callout tip">
+    <div class="c-title">✓ Un equipo puede no tener módulos</div>
+    No es obligatorio cargar módulos. Si el equipo no tiene componentes para detallar, podés dejar la sección vacía y agregarlos más adelante.
+  </div>
+</div>
+
+<!-- ============ 8. RESUMEN ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 8</div>
+  <h1 class="section">Resumen de campos obligatorios</h1>
+  <div class="section-rule"></div>
+
+  <p>Lo mínimo indispensable para guardar cada cosa. Todo lo que no esté acá es opcional.</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:26%">Qué cargás</th><th style="width:30%">Dónde</th><th>Campos obligatorios</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Categoría de Sistema</strong></td>
+        <td>Equipos → Categorías → pestaña Sistemas</td>
+        <td>Nombre</td>
+      </tr>
+      <tr>
+        <td><strong>Categoría de Módulo</strong></td>
+        <td>Equipos → Categorías → pestaña Módulos</td>
+        <td>Nombre + al menos un Modelo (con Código)</td>
+      </tr>
+      <tr>
+        <td><strong>Cliente</strong></td>
+        <td>Comercial → Clientes → + Nuevo Cliente</td>
+        <td>Razón Social, Rubro</td>
+      </tr>
+      <tr>
+        <td><strong>Establecimiento</strong></td>
+        <td>Ficha del cliente → Establecimientos → + Agregar</td>
+        <td>Cliente, Nombre, Dirección, Localidad, Provincia</td>
+      </tr>
+      <tr>
+        <td><strong>Contacto</strong></td>
+        <td>Ficha del establecimiento → Contactos → + Agregar</td>
+        <td>Nombre, Email</td>
+      </tr>
+      <tr>
+        <td><strong>Equipo / Sistema</strong></td>
+        <td>Ficha del cliente → Equipos → + Agregar</td>
+        <td>Cliente, Establecimiento, Categoría, Modelo/Nombre</td>
+      </tr>
+      <tr>
+        <td><strong>Módulo</strong></td>
+        <td>Ficha del equipo → Módulos → + Agregar Módulo</td>
+        <td>Modelo (del catálogo) <em>o</em> Nombre (manual)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>La dependencia, de un vistazo</h2>
+  <p>Cada flecha significa "necesita que exista antes":</p>
+  <p style="font-family:'Segoe UI',sans-serif; font-size:11pt; text-align:center; background:var(--slate-50); border:1px solid var(--slate-200); border-radius:8px; padding:16px;">
+    <span class="badge-req" style="background:var(--teal-light);color:var(--teal-dark)">CATEGORÍAS</span>
+    &nbsp;➜&nbsp;
+    <span class="badge-req" style="background:var(--teal-light);color:var(--teal-dark)">CLIENTE</span>
+    &nbsp;➜&nbsp;
+    <span class="badge-req" style="background:var(--teal-light);color:var(--teal-dark)">ESTABLECIMIENTO</span>
+    &nbsp;➜&nbsp;
+    <span class="badge-req" style="background:var(--teal-light);color:var(--teal-dark)">EQUIPO</span>
+    &nbsp;➜&nbsp;
+    <span class="badge-req" style="background:var(--teal-light);color:var(--teal-dark)">MÓDULO</span>
+  </p>
+</div>
+
+<!-- ============ 9. FAQ ============ -->
+<div class="page page-break">
+  <div class="section-kicker">Capítulo 9</div>
+  <h1 class="section">Preguntas frecuentes</h1>
+  <div class="section-rule"></div>
+
+  <h3>No encuentro la categoría / el modelo de mi equipo al cargarlo</h3>
+  <p>Es porque todavía no está en el catálogo. Tenés dos opciones: <strong>(a)</strong> ir a <span class="path">Equipos <span class="sep">›</span> Categorías</span> y crearlo (lo ideal si lo vas a usar seguido), o <strong>(b)</strong> elegir <span class="ui">Otro (ingresar manualmente)</span> y escribirlo a mano solo para ese equipo.</p>
+
+  <h3>El buscador de Establecimiento aparece vacío</h3>
+  <p>Primero tenés que elegir el <strong>Cliente</strong>. El listado de establecimientos se filtra para mostrar únicamente los de ese cliente. Si el cliente no tiene ninguno cargado, creá el establecimiento primero (Capítulo 6).</p>
+
+  <h3>¿Dónde cargo los contactos de la empresa?</h3>
+  <p>En la <strong>ficha del establecimiento</strong>, sección <strong>Contactos</strong> (no en el formulario del cliente). Cada planta tiene su propia lista de contactos. Mínimo se pide <strong>Nombre</strong> y <strong>Email</strong>. Ver Capítulo 6 (continuación).</p>
+
+  <h3>¿Tengo que cargar el CUIT del cliente sí o sí?</h3>
+  <p>No es obligatorio para crear el cliente, pero es muy recomendable. Si lo cargás y usás <span class="ui">Validar AFIP</span>, el sistema autocompleta varios datos por vos. Lo podés agregar después desde la ficha.</p>
+
+  <h3>¿Puedo cargar un equipo sin módulos?</h3>
+  <p>Sí. Los módulos son opcionales. Podés crear el equipo y agregarle los componentes más tarde desde su ficha.</p>
+
+  <h3>Dejé el "Código interno cliente" vacío, ¿está mal?</h3>
+  <p>No. Si lo dejás en blanco, el sistema le asigna un código provisorio automático. Después podés editarlo y poner el código real del cliente.</p>
+
+  <h3>¿Por qué no me deja guardar?</h3>
+  <p>Seguramente falta un campo obligatorio (marcado con <span class="req">*</span>). Revisá que estén completos los que figuran en el resumen del Capítulo 8. El sistema avisa cuál falta.</p>
+
+  <h3>¿Dónde quedan guardados los datos?</h3>
+  <p>Todo se guarda en la nube de forma automática al hacer clic en el botón de guardar/crear. No hace falta "exportar" ni guardar manualmente: apenas confirmás, el dato ya está disponible para todos.</p>
+
+  <div class="footer-note">
+    AGS Analítica — Instructivo de carga de datos · v1.0 · Junio 2026.<br>
+    Esta guía cubre el alta de Categorías, Clientes, Establecimientos y Equipos. Ante cualquier duda, consultá con el equipo de administración del sistema.
+  </div>
+</div>
+
+</body>
+</html>
