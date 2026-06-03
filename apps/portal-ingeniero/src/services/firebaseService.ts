@@ -698,7 +698,7 @@ export const otService = {
       'reporteTecnico', 'accionesTomar', 'horasTrabajadas', 'tiempoViaje',
       'fechaInicio', 'fechaFin', 'signatureEngineer', 'signatureClient',
       'aclaracionEspecialista', 'aclaracionCliente', 'pdfUrl', 'protocolPdfUrl',
-      'problemaFallaInicial', 'materialesParaServicio', 'articulos',
+      'problemaFallaInicial', 'materialesParaServicio', 'articulos', 'enviadoPorEmail',
     ];
 
     const emit = () => {
@@ -798,9 +798,24 @@ export const otService = {
 
     const emit = () => {
       if (!otLoaded || !repLoaded) return;
-      // ordenes_trabajo gana en duplicados por otNumber
+      // ordenes_trabajo gana en duplicados por otNumber, PERO pdfUrl/protocolPdfUrl/
+      // enviadoPorEmail viven en `reportes` (los escribe reportes-ot), no en
+      // ordenes_trabajo. Sin este enrichment, una OT presente en ambas colecciones
+      // muestra "Sin envío" y manda "Reporte" a la app en vez del PDF, aunque el
+      // mail al cliente haya salido. Mismo merge que getAll() (ver arriba).
+      const reportesByOt = new Map(fromReportes.map(r => [r.otNumber, r]));
+      const fromOTEnriched = fromOT.map(ot => {
+        const rep = reportesByOt.get(ot.otNumber);
+        if (!rep) return ot;
+        return {
+          ...ot,
+          pdfUrl: ot.pdfUrl ?? rep.pdfUrl ?? null,
+          protocolPdfUrl: ot.protocolPdfUrl ?? rep.protocolPdfUrl ?? null,
+          enviadoPorEmail: ot.enviadoPorEmail ?? rep.enviadoPorEmail ?? null,
+        };
+      });
       const seen = new Set(fromOT.map(o => o.otNumber));
-      const merged = [...fromOT, ...fromReportes.filter(r => !seen.has(r.otNumber))];
+      const merged = [...fromOTEnriched, ...fromReportes.filter(r => !seen.has(r.otNumber))];
       merged.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
       callback(merged);
     };
