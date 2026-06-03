@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { Part, type ProtocolData } from '../types';
 import type { ProtocolSelection } from '../types/tableCatalog';
 import type { InstrumentoPatronOption, CertificadoIngeniero, PatronSeleccionado, ColumnaSeleccionada } from '../types/instrumentos';
@@ -9,6 +9,11 @@ export interface ReportFormState {
   otInput: string;
   status: 'BORRADOR' | 'FINALIZADO';
   clientConfirmed: boolean;
+  // Contador que se incrementa en cada transición de reporte (load / new / create /
+  // duplicate — todas pasan por setOtNumber). Se usa como `key` de los SignaturePad
+  // para forzar su remontaje y evitar que la firma del reporte anterior persista en
+  // los refs internos del canvas (savedSignatureRef / IntersectionObserver).
+  signaturePadGeneration: number;
 
   // Servicio
   budgets: string[];
@@ -198,7 +203,13 @@ export interface UseReportFormReturn {
 
 export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn => {
   // Estados del formulario
-  const [otNumber, setOtNumber] = useState(initialOtNumber);
+  const [otNumber, _setOtNumber] = useState(initialOtNumber);
+  // Ver ReportFormState.signaturePadGeneration. Bump en cada (re)asignación de OT.
+  const [signaturePadGeneration, setSignaturePadGeneration] = useState(0);
+  const setOtNumber = useCallback((value: string) => {
+    _setOtNumber(value);
+    setSignaturePadGeneration((g) => g + 1);
+  }, []);
   const [budgets, setBudgets] = useState<string[]>(['']);
   const [tipoServicio, setTipoServicio] = useState('Visita de diagnóstico / reparación');
   const [esFacturable, setEsFacturable] = useState(false);
@@ -287,6 +298,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
 
   const formState: ReportFormState = {
     otNumber,
+    signaturePadGeneration,
     otInput,
     status,
     clientConfirmed,

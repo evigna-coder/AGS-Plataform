@@ -248,6 +248,7 @@ const App: React.FC = () => {
         icon: stepIcon('M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'),
         content: (
           <SignaturesSection
+            key={app.formState.signaturePadGeneration}
             readOnly={app.readOnly}
             signatureClient={app.signatureClient} setSignatureClient={app.setSignatureClient}
             signatureEngineer={app.signatureEngineer} setSignatureEngineer={app.setSignatureEngineer}
@@ -472,6 +473,7 @@ const App: React.FC = () => {
           />
 
           <SignaturesSection
+            key={app.formState.signaturePadGeneration}
             readOnly={app.readOnly}
             signatureClient={app.signatureClient} setSignatureClient={app.setSignatureClient}
             signatureEngineer={app.signatureEngineer} setSignatureEngineer={app.setSignatureEngineer}
