@@ -131,6 +131,7 @@ export const AddItemModal = ({
       stockArticuloId: art.id, codigoProducto: art.codigo || newItem.codigoProducto || null,
       descripcion: newItem.descripcion || art.descripcion,
       precioUnitario: newItem.precioUnitario || art.precioReferencia || 0,
+      categoriaPresupuestoId: newItem.categoriaPresupuestoId || categoriasPresupuesto.find(c => c.activo && c.nombre.trim().toLowerCase() === 'iva 21%')?.id || undefined,
       itemRequiereImportacion: meta.itemRequiereImportacion,
     });
   };
