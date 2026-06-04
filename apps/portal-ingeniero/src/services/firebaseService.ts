@@ -650,6 +650,10 @@ export const otService = {
       if (!rep) return ot;
       return {
         ...ot,
+        // fechaInicio/fechaFin: prevalece la del reporte (fecha de realización que
+        // cargó el técnico) sobre la planificada en ordenes_trabajo.
+        fechaInicio: rep.fechaInicio || ot.fechaInicio,
+        fechaFin: rep.fechaFin || ot.fechaFin,
         pdfUrl: ot.pdfUrl ?? rep.pdfUrl ?? null,
         protocolPdfUrl: ot.protocolPdfUrl ?? rep.protocolPdfUrl ?? null,
         enviadoPorEmail: ot.enviadoPorEmail ?? rep.enviadoPorEmail ?? null,
@@ -809,6 +813,11 @@ export const otService = {
         if (!rep) return ot;
         return {
           ...ot,
+          // fechaInicio/fechaFin: prevalece la del reporte (fecha de realización que
+          // cargó el técnico) sobre la planificada en ordenes_trabajo. Si el reporte
+          // no la tiene, cae a la de la OT.
+          fechaInicio: rep.fechaInicio || ot.fechaInicio,
+          fechaFin: rep.fechaFin || ot.fechaFin,
           pdfUrl: ot.pdfUrl ?? rep.pdfUrl ?? null,
           protocolPdfUrl: ot.protocolPdfUrl ?? rep.protocolPdfUrl ?? null,
           enviadoPorEmail: ot.enviadoPorEmail ?? rep.enviadoPorEmail ?? null,
