@@ -2,12 +2,9 @@ import type { WorkOrderWithPdf } from '../../services/firebaseService';
 import { REPORTES_OT_URL } from '../../utils/constants';
 import { OTStatusBadge } from '../ordenes-trabajo/OTStatusBadge';
 import { EnvioEmailBadge } from './EnvioEmailBadge';
+import { formatDateShort } from '../../utils/formatDate';
 
-function fmt(dateStr?: string) {
-  if (!dateStr) return '—';
-  try { return new Date(dateStr).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
-  catch { return dateStr; }
-}
+const fmt = formatDateShort;
 
 const openPDF = (ot: WorkOrderWithPdf) => {
   if (ot.pdfUrl) window.open(ot.pdfUrl, '_blank');

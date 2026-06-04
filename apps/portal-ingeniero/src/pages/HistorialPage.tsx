@@ -6,6 +6,7 @@ import HistorialOTCard from '../components/historial/HistorialOTCard';
 import HistorialTable from '../components/historial/HistorialTable';
 import { otService, clientesService, tiposServicioService, type WorkOrderWithPdf } from '../services/firebaseService';
 import { REPORTES_OT_URL } from '../utils/constants';
+import { formatDateShort } from '../utils/formatDate';
 import { sortByField, toggleSort, type SortDir } from '../components/ui/SortableHeader';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 
@@ -27,11 +28,7 @@ const LOOKBACK_OPTIONS: { value: string; label: string }[] = [
   { value: '0', label: 'Todas' },
 ];
 
-function fmt(dateStr?: string) {
-  if (!dateStr) return '—';
-  try { return new Date(dateStr).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
-  catch { return dateStr; }
-}
+const fmt = formatDateShort;
 
 const openPDF = (ot: WorkOrderWithPdf) => {
   if (ot.pdfUrl) window.open(ot.pdfUrl, '_blank');
