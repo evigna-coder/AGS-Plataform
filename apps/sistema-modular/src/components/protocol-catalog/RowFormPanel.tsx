@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { RowVisibilityConditions, type VisibilityCondition } from './RowVisibilityConditions';
 import type { TableCatalogColumn, TableCatalogRow, TableHeaderField } from '@ags/shared';
 
 type RowMode = 'data' | 'title' | 'selector' | 'checkbox';
@@ -59,13 +60,22 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
 
   const unitColumns = columns.filter(c => c.type === 'number_input' || c.type === 'text_input');
 
-  // Visibilidad condicional por header field
-  const [visFieldId, setVisFieldId] = useState(row.visibleWhenSelector?.headerFieldId ?? '');
-  const [visSelValues, setVisSelValues] = useState<string[]>(row.visibleWhenSelector?.values ?? []);
-  const [visOperator, setVisOperator] = useState<'in' | 'not_in'>(row.visibleWhenSelector?.operator ?? 'in');
-
-  const toggleVisValue = (val: string) =>
-    setVisSelValues(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  // Visibilidad condicional por header field. La 1ª condición vive en visibleWhenSelector;
+  // las adicionales (combinadas con AND) en visibleWhenAll.
+  const [visConditions, setVisConditions] = useState<VisibilityCondition[]>(() => {
+    const list: VisibilityCondition[] = [];
+    if (row.visibleWhenSelector?.headerFieldId) {
+      list.push({
+        headerFieldId: row.visibleWhenSelector.headerFieldId,
+        values: row.visibleWhenSelector.values ?? [],
+        operator: row.visibleWhenSelector.operator ?? 'in',
+      });
+    }
+    for (const c of row.visibleWhenAll ?? []) {
+      if (c?.headerFieldId) list.push({ headerFieldId: c.headerFieldId, values: c.values ?? [], operator: c.operator ?? 'in' });
+    }
+    return list;
+  });
 
   const handleChange = (key: string, value: string | boolean | null) => {
     setCells(prev => ({ ...prev, [key]: value === '' ? null : value }));
@@ -93,10 +103,13 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         if (val > 1) cleanSpans[key] = val;
       }
       const hasSpans = Object.keys(cleanSpans).length > 0;
-      // Visibilidad condicional
-      const visWhen = visFieldId && visSelValues.length > 0
-        ? { headerFieldId: visFieldId, values: visSelValues, ...(visOperator === 'not_in' ? { operator: 'not_in' as const } : {}) }
-        : null;
+      // Visibilidad condicional: solo condiciones completas (campo elegido + al menos un valor).
+      // La 1ª va en visibleWhenSelector (retrocompat); el resto, combinadas con AND, en visibleWhenAll.
+      const validConditions = visConditions.filter(c => c.headerFieldId && c.values.length > 0);
+      const serializeCond = (c: VisibilityCondition) =>
+        ({ headerFieldId: c.headerFieldId, values: c.values, ...(c.operator === 'not_in' ? { operator: 'not_in' as const } : {}) });
+      const visWhen = validConditions.length > 0 ? serializeCond(validConditions[0]) : null;
+      const visAll = validConditions.length > 1 ? validConditions.slice(1).map(serializeCond) : null;
       const cleanCellUnits = Object.fromEntries(Object.entries(cellUnits).filter(([, v]) => v !== ''));
       onSave({
         ...row, cells, isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
@@ -104,6 +117,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         rowSpan: undefined, spanColumns: undefined,
         columnSpans: hasSpans ? cleanSpans : undefined,
         visibleWhenSelector: visWhen,
+        visibleWhenAll: visAll,
         variable: variable || null,
         cellUnits: Object.keys(cleanCellUnits).length > 0 ? cleanCellUnits : null,
         duplicableEnProtocolo: duplicableEnProtocolo || undefined,
@@ -393,66 +407,12 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
             ))}
           </div>
 
-          {/* Visibilidad condicional por header field */}
-          <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 space-y-2">
-            <p className="text-[10px] font-bold text-teal-700 uppercase">Visible solo si...</p>
-            {headerFields.length === 0 ? (
-              <p className="text-[10px] text-teal-600 italic">Primero agregá un <strong>campo de encabezado</strong> a la tabla (pestaña "Encabezado") para habilitar visibilidad condicional.</p>
-            ) : (
-              <>
-                <p className="text-[10px] text-teal-600">
-                  {visOperator === 'in'
-                    ? 'Esta fila solo se muestra cuando el campo de encabezado elegido tiene alguno de los valores indicados.'
-                    : 'Esta fila se muestra siempre, EXCEPTO cuando el campo de encabezado tiene alguno de los valores indicados.'}
-                </p>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Campo de encabezado</label>
-                    <select
-                      value={visFieldId}
-                      onChange={e => { setVisFieldId(e.target.value); setVisSelValues([]); }}
-                      className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                    >
-                      <option value="">Sin condición (siempre visible)</option>
-                      {headerFields.map(hf => (
-                        <option key={hf.fieldId} value={hf.fieldId}>{hf.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {visFieldId && (
-                    <>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Operador</label>
-                        <div className="flex gap-2">
-                          <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${visOperator === 'in' ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
-                            <input type="radio" name="visOperator" checked={visOperator === 'in'} onChange={() => setVisOperator('in')} className="sr-only" />
-                            Es uno de
-                          </label>
-                          <label className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${visOperator === 'not_in' ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
-                            <input type="radio" name="visOperator" checked={visOperator === 'not_in'} onChange={() => setVisOperator('not_in')} className="sr-only" />
-                            Es distinto de
-                          </label>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          {visOperator === 'in' ? 'Visible cuando el valor es...' : 'Ocultar cuando el valor es...'}
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {(headerFields.find(h => h.fieldId === visFieldId)?.options ?? []).map(opt => (
-                            <label key={opt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium cursor-pointer transition-colors ${visSelValues.includes(opt) ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-teal-400'}`}>
-                              <input type="checkbox" checked={visSelValues.includes(opt)} onChange={() => toggleVisValue(opt)} className="sr-only" />
-                              {opt}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+          {/* Visibilidad condicional por header field (soporta múltiples condiciones AND) */}
+          <RowVisibilityConditions
+            headerFields={headerFields}
+            conditions={visConditions}
+            onChange={setVisConditions}
+          />
 
           {/* Unidades por columna (override de col.unit para esta fila) */}
           {unitColumns.length > 0 && (

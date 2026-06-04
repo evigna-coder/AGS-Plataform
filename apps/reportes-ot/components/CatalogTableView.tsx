@@ -878,12 +878,22 @@ export const CatalogTableView: React.FC<Props> = ({
    *  - 'not_in': si el selector está vacío, visible (no hay nada que excluir).
    *    Con valor, visible si ninguno está en la lista de exclusión.
    */
-  const shouldShowRow = (row: { visibleWhenSelector?: { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' } | null; defaultVisible?: boolean }): boolean => {
-    if (!row.visibleWhenSelector) return true;
-    const op = row.visibleWhenSelector.operator ?? 'in';
-    const selected = getSelectedHeaderValues(row.visibleWhenSelector.headerFieldId);
-    if (selected.length === 0) return op === 'not_in' ? true : !!row.defaultVisible;
-    return doesRowSelectorMatch(row.visibleWhenSelector);
+  type RowSelector = { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' };
+  /** Evalúa una sola condición considerando selector vacío + defaultVisible. */
+  const conditionPasses = (cond: RowSelector, defaultVisible?: boolean): boolean => {
+    const op = cond.operator ?? 'in';
+    const selected = getSelectedHeaderValues(cond.headerFieldId);
+    if (selected.length === 0) return op === 'not_in' ? true : !!defaultVisible;
+    return doesRowSelectorMatch(cond);
+  };
+  const shouldShowRow = (row: { visibleWhenSelector?: RowSelector | null; visibleWhenAll?: RowSelector[] | null; defaultVisible?: boolean }): boolean => {
+    // Todas las condiciones (la primaria + las adicionales) se combinan con AND.
+    const conditions: RowSelector[] = [
+      ...(row.visibleWhenSelector ? [row.visibleWhenSelector] : []),
+      ...(row.visibleWhenAll ?? []),
+    ];
+    if (conditions.length === 0) return true;
+    return conditions.every(c => conditionPasses(c, row.defaultVisible));
   };
   /**
    * Auto-popular header fields cuyo valor está vacío cuando hay una fila `defaultVisible`
@@ -898,15 +908,24 @@ export const CatalogTableView: React.FC<Props> = ({
     for (const hf of (table.headerFields ?? [])) {
       const current = headerData[hf.fieldId] ?? '';
       if (current) continue;
-      const candidate = table.templateRows.find(r =>
-        r.defaultVisible &&
-        r.visibleWhenSelector &&
-        r.visibleWhenSelector.headerFieldId === hf.fieldId &&
-        (r.visibleWhenSelector.operator ?? 'in') === 'in' &&
-        r.visibleWhenSelector.values.length > 0
-      );
-      if (!candidate?.visibleWhenSelector) continue;
-      const value = candidate.visibleWhenSelector.values[0];
+      // Buscá una fila defaultVisible que requiera este field con op 'in' en cualquiera de sus
+      // condiciones (primaria o adicionales), y pre-cargá el primer valor que la habilita.
+      let match: { values: string[] } | undefined;
+      for (const r of table.templateRows) {
+        if (!r.defaultVisible) continue;
+        const conds = [
+          ...(r.visibleWhenSelector ? [r.visibleWhenSelector] : []),
+          ...(r.visibleWhenAll ?? []),
+        ];
+        match = conds.find(c =>
+          c.headerFieldId === hf.fieldId &&
+          (c.operator ?? 'in') === 'in' &&
+          c.values.length > 0
+        );
+        if (match) break;
+      }
+      if (!match) continue;
+      const value = match.values[0];
       const encoded = hf.multiSelect ? JSON.stringify([value]) : value;
       onChangeHeaderData(selection.tableId, hf.fieldId, encoded);
     }

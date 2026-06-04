@@ -1686,6 +1686,16 @@ export interface TableCatalogRow {
    */
   visibleWhenSelector?: { headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' } | null;
   /**
+   * Condiciones de visibilidad adicionales, combinadas con AND entre sí y con `visibleWhenSelector`.
+   * La fila se muestra sólo si se cumplen TODAS las condiciones (la de `visibleWhenSelector` —si existe—
+   * más cada entrada de este array). Dentro de cada condición los `values` siguen siendo OR, y el
+   * operador `in`/`not_in` se evalúa por condición igual que en `visibleWhenSelector`.
+   * Retrocompatible: si está vacío/ausente, la visibilidad depende sólo de `visibleWhenSelector`.
+   * Ej: visibleWhenSelector = {Modelo in [8453]} + visibleWhenAll = [{Concentración in [60]}]
+   *     → la fila aparece sólo cuando Modelo=8453 Y Concentración=60.
+   */
+  visibleWhenAll?: Array<{ headerFieldId: string; values: string[]; operator?: 'in' | 'not_in' }> | null;
+  /**
    * Cuando true, la fila se muestra por defecto aunque su visibleWhenSelector no matchee.
    * Útil para filas que deben aparecer siempre sin importar qué opción del selector se eligió.
    */
