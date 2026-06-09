@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { InstrumentoPatron, EstadoCertificado } from '@ags/shared';
 import { CATEGORIA_INSTRUMENTO_LABELS, CATEGORIA_PATRON_LABELS, calcularEstadoCertificado } from '@ags/shared';
+import { diasDesde } from '../../utils/formatFecha';
 
 const ALL_CAT_LABELS: Record<string, string> = { ...CATEGORIA_INSTRUMENTO_LABELS, ...CATEGORIA_PATRON_LABELS };
 
@@ -34,14 +35,14 @@ const styles = StyleSheet.create({
   th: { padding: 4, fontSize: 7.5, fontWeight: 700, color: '#334155', textTransform: 'uppercase' },
   row: { flexDirection: 'row', borderBottom: '0.5pt solid #E2E8F0' },
   td: { padding: 4, fontSize: 8, color: '#1E293B' },
-  c1: { width: '11%' },
-  c2: { width: '8%' },
-  c3: { width: '21%' },
-  c4: { width: '11%' },
-  c5: { width: '17%' },
-  c6: { width: '11%' },
-  c7: { width: '11%' },
-  c8: { width: '10%' },
+  c1: { width: '13%' },
+  c2: { width: '23%' },
+  c3: { width: '11%' },
+  c4: { width: '18%' },
+  c5: { width: '11%' },
+  c6: { width: '13%' },
+  c7: { width: '6%' },
+  c8: { width: '9%' },
   badge: { fontSize: 7.5, fontWeight: 700 },
   footer: { marginTop: 12, fontSize: 7.5, color: '#94A3B8', textAlign: 'right' },
 });
@@ -77,28 +78,32 @@ export function InstrumentosListPDF({ items, generadoPor, filtros }: Props) {
         <View style={styles.table}>
           <View style={styles.thead} fixed>
             <Text style={[styles.th, styles.c1]}>Identificación</Text>
-            <Text style={[styles.th, styles.c2]}>Tipo</Text>
-            <Text style={[styles.th, styles.c3]}>Marca / Modelo</Text>
-            <Text style={[styles.th, styles.c4]}>Serie</Text>
-            <Text style={[styles.th, styles.c5]}>Categorías</Text>
-            <Text style={[styles.th, styles.c6]}>Vencimiento</Text>
-            <Text style={[styles.th, styles.c7]}>Proveedor calib.</Text>
+            <Text style={[styles.th, styles.c2]}>Marca / Modelo</Text>
+            <Text style={[styles.th, styles.c3]}>Serie</Text>
+            <Text style={[styles.th, styles.c4]}>Categorías</Text>
+            <Text style={[styles.th, styles.c5]}>Vencimiento</Text>
+            <Text style={[styles.th, styles.c6]}>Proveedor calib.</Text>
+            <Text style={[styles.th, styles.c7]}>Días fuera</Text>
             <Text style={[styles.th, styles.c8]}>Estado</Text>
           </View>
           {items.map(i => {
             const estado = effectiveEstado(i);
             const cats = i.categorias.map(c => ALL_CAT_LABELS[c] || c).join(', ');
             const marcaModelo = [i.marca, i.modelo].filter(Boolean).join(' / ') || '—';
-            const proveedor = i.estadoCalibracion === 'en_calibracion' ? (i.calibracionProveedorNombre ?? '—') : '—';
+            const enCalibracion = i.estadoCalibracion === 'en_calibracion';
+            const proveedor = enCalibracion ? (i.calibracionProveedorNombre ?? '—') : '—';
+            const diasFuera = enCalibracion ? diasDesde(i.calibracionFechaEnvio) : null;
             return (
               <View key={i.id} style={styles.row} wrap={false}>
                 <Text style={[styles.td, styles.c1, { color: '#0D6E6E', fontWeight: 700 }]}>{i.nombre}</Text>
-                <Text style={[styles.td, styles.c2]}>{i.tipo}</Text>
-                <Text style={[styles.td, styles.c3]}>{marcaModelo}</Text>
-                <Text style={[styles.td, styles.c4]}>{i.serie || '—'}</Text>
-                <Text style={[styles.td, styles.c5]}>{cats || '—'}</Text>
-                <Text style={[styles.td, styles.c6]}>{fmtFechaAR(i.certificadoVencimiento)}</Text>
-                <Text style={[styles.td, styles.c7]}>{proveedor}</Text>
+                <Text style={[styles.td, styles.c2]}>{marcaModelo}</Text>
+                <Text style={[styles.td, styles.c3]}>{i.serie || '—'}</Text>
+                <Text style={[styles.td, styles.c4]}>{cats || '—'}</Text>
+                <Text style={[styles.td, styles.c5]}>{fmtFechaAR(i.certificadoVencimiento)}</Text>
+                <Text style={[styles.td, styles.c6]}>{proveedor}</Text>
+                <Text style={diasFuera !== null ? [styles.td, styles.c7, { color: '#1D4ED8', fontWeight: 700 }] : [styles.td, styles.c7]}>
+                  {diasFuera !== null ? `${diasFuera} d` : '—'}
+                </Text>
                 <Text style={[styles.td, styles.c8, styles.badge, { color: ESTADO_COLOR[estado] }]}>{ESTADO_LABEL[estado]}</Text>
               </View>
             );

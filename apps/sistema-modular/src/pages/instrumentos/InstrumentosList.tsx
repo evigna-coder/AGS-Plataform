@@ -11,7 +11,7 @@ import { DerivarCalibracionModal } from '../../components/instrumentos/DerivarCa
 import { RetornarCalibracionModal } from '../../components/instrumentos/RetornarCalibracionModal';
 import { InstrumentosListPDF } from '../../components/instrumentos/InstrumentosListPDF';
 import { downloadPdf, todayForFilename } from '../../utils/remitoPdfActions';
-import { formatFechaAR } from '../../utils/formatFecha';
+import { formatFechaAR, diasDesde, labelDiasFuera } from '../../utils/formatFecha';
 import { getCurrentUser } from '../../services/currentUser';
 import {
   CATEGORIA_INSTRUMENTO_LABELS,
@@ -73,7 +73,7 @@ function getEstadoEfectivo(i: InstrumentoPatron): EstadoEfectivo {
 export const InstrumentosList = () => {
 
   const confirm = useConfirm();
-  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('instrumentos-list');
+  const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('instrumentos-list-v2');
   const { instrumentos, loading, error, listInstrumentos, deactivateInstrumento } = useInstrumentos();
   const [showCreate, setShowCreate] = useState(false);
   const [derivarTarget, setDerivarTarget] = useState<InstrumentoPatron | null>(null);
@@ -237,14 +237,13 @@ export const InstrumentosList = () => {
                 <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (
                 <colgroup>
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: '10%' }} />
-                  <col style={{ width: 80 }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: 90 }} />
-                  <col style={{ width: 95 }} />
+                  <col style={{ width: 110 }} />
                   <col style={{ width: 140 }} />
                 </colgroup>
               )}
@@ -254,23 +253,19 @@ export const InstrumentosList = () => {
                     <ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />
                     <div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <SortableHeader label="Tipo" field="tipo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)} relative`}>
+                  <SortableHeader label="Marca / Modelo" field="marca" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(1)} relative`}>
                     <ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />
                     <div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <SortableHeader label="Marca / Modelo" field="marca" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(2)} relative`}>
-                    <ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />
-                    <div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
+                  <th className={`${thClass} ${getAlignClass(2)} relative`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />Serie<div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(3)} relative`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Categorías<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(4)} relative`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Certificado<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Vencim." field="certificadoVencimiento" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(5)} relative`}>
+                    <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
+                    <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <th className={`${thClass} ${getAlignClass(3)} relative`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />Serie<div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} ${getAlignClass(4)} relative`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />Categorías<div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} ${getAlignClass(5)} relative`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />Certificado<div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <SortableHeader label="Vencim." field="certificadoVencimiento" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={`${thClass} ${getAlignClass(6)} relative`}>
-                    <ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />
-                    <div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
-                  </SortableHeader>
-                  <th className={`${thClass} ${getAlignClass(7)} relative`}><ColAlignIcon align={colAligns?.[7] || 'left'} onClick={() => cycleAlign(7)} />Estado<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(8, e)} onDoubleClick={() => onAutoFit(8)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} ${getAlignClass(6)} relative`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />Estado<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} text-center relative`}>Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -278,16 +273,16 @@ export const InstrumentosList = () => {
                   const estado = getEstadoEfectivo(inst);
                   const badge = ESTADO_BADGE[estado];
                   const enCalibracion = inst.estadoCalibracion === 'en_calibracion';
+                  const diasFuera = enCalibracion ? diasDesde(inst.calibracionFechaEnvio) : null;
                   const necesitaCalibrar = !enCalibracion && (estado === 'vencido' || estado === 'por_vencer' || estado === 'sin_certificado');
                   return (
                     <tr key={inst.id} className={`hover:bg-slate-50 transition-colors ${!inst.activo ? 'opacity-50' : ''}`}>
                       <td className={`px-3 py-2 text-xs font-semibold text-teal-600 truncate ${getAlignClass(0)}`} title={inst.nombre}>{inst.nombre}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 capitalize whitespace-nowrap ${getAlignClass(1)}`}>{inst.tipo}</td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`} title={[inst.marca, inst.modelo].filter(Boolean).join(' / ')}>
+                      <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(1)}`} title={[inst.marca, inst.modelo].filter(Boolean).join(' / ')}>
                         {[inst.marca, inst.modelo].filter(Boolean).join(' / ') || <span className="text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap ${getAlignClass(3)}`}>{inst.serie || <span className="text-slate-300">—</span>}</td>
-                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(4)}`}>
+                      <td className={`px-3 py-2 text-xs text-slate-600 font-mono whitespace-nowrap ${getAlignClass(2)}`}>{inst.serie || <span className="text-slate-300">—</span>}</td>
+                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
                         <div className="flex gap-1 flex-wrap">
                           {inst.categorias.map(c => (
                             <span key={c} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium">
@@ -296,7 +291,7 @@ export const InstrumentosList = () => {
                           ))}
                         </div>
                       </td>
-                      <td className={`px-3 py-2 text-xs whitespace-nowrap ${getAlignClass(5)}`}>
+                      <td className={`px-3 py-2 text-xs whitespace-nowrap ${getAlignClass(4)}`}>
                         {inst.certificadoUrl ? (
                           <a href={inst.certificadoUrl} target="_blank" rel="noopener noreferrer"
                             className="text-teal-600 hover:underline font-medium" onClick={e => e.stopPropagation()}>
@@ -304,15 +299,23 @@ export const InstrumentosList = () => {
                           </a>
                         ) : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(6)}`}>
+                      <td className={`px-3 py-2 text-xs text-slate-600 whitespace-nowrap ${getAlignClass(5)}`}>
                         {inst.certificadoVencimiento
                           ? formatFechaAR(inst.certificadoVencimiento)
                           : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(7)}`}>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>
-                          {badge.label}
-                        </span>
+                      <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(6)}`}>
+                        <div className="flex flex-col gap-0.5 items-start">
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                          {enCalibracion && diasFuera !== null && (
+                            <span className="text-[10px] font-medium text-blue-600"
+                              title={inst.calibracionFechaEnvio ? `Enviado a calibrar el ${formatFechaAR(inst.calibracionFechaEnvio)}` : undefined}>
+                              {labelDiasFuera(diasFuera)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-end gap-0.5">
