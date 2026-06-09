@@ -3747,6 +3747,7 @@ export type ModuloId =
   | 'fichas'
   | 'loaners'
   | 'instrumentos'
+  | 'patrones'
   | 'table-catalog'
   | 'ingreso-empresas'
   | 'dispositivos'
@@ -3763,23 +3764,23 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'usuarios', 'admin'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda'],
   },
   admin_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
+    modulos: ['clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
   },
   admin_ing_soporte: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'contratos'],
   },
   ventas: {
     apps: ['sistema-modular'],
-    modulos: ['clientes', 'establecimientos', 'leads', 'presupuestos'],
+    modulos: ['clientes', 'establecimientos', 'leads', 'presupuestos', 'patrones'],
   },
   admin_contable: {
     apps: ['sistema-modular'],
@@ -3806,6 +3807,7 @@ export const RUTA_MODULO: Record<string, ModuloId> = {
   '/fichas': 'fichas',
   '/loaners': 'loaners',
   '/instrumentos': 'instrumentos',
+  '/patrones': 'patrones',
   '/table-catalog': 'table-catalog',
   '/ingreso-empresas': 'ingreso-empresas',
   '/dispositivos': 'dispositivos',
@@ -3832,6 +3834,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'fichas': 'Fichas Técnicas',
   'loaners': 'Loaners',
   'instrumentos': 'Instrumentos',
+  'patrones': 'Patrones',
   'table-catalog': 'Biblioteca de Tablas',
   'ingreso-empresas': 'Ingreso a Empresas',
   'dispositivos': 'Dispositivos',

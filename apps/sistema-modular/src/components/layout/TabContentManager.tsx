@@ -124,8 +124,8 @@ function AppRoutes() {
       <Route path="/instrumentos/nuevo" element={<Navigate to="/instrumentos" replace />} />
       <Route path="/instrumentos/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><InstrumentoEditorPage /></ProtectedRoute>} />
       {/* Patrones */}
-      <Route path="/patrones" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronesList /></ProtectedRoute>} />
-      <Route path="/patrones/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><PatronEditorPage /></ProtectedRoute>} />
+      <Route path="/patrones" element={<ProtectedRoute modulo="patrones"><PatronesList /></ProtectedRoute>} />
+      <Route path="/patrones/:id/editar" element={<ProtectedRoute modulo="patrones"><PatronEditorPage /></ProtectedRoute>} />
       {/* Columnas */}
       <Route path="/columnas" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnasList /></ProtectedRoute>} />
       <Route path="/columnas/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'ingeniero_soporte', 'admin_soporte']}><ColumnaEditorPage /></ProtectedRoute>} />

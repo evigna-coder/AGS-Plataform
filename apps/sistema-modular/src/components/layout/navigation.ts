@@ -73,7 +73,7 @@ export const navigation: NavItem[] = [
         name: 'Activos', path: '#stock-activos', icon: '🔬',
         children: [
           { name: 'Instrumentos', path: '/instrumentos', icon: '🔬', modulo: 'instrumentos' },
-          { name: 'Patrones', path: '/patrones', icon: '⚗️', modulo: 'instrumentos' },
+          { name: 'Patrones', path: '/patrones', icon: '⚗️', modulo: 'patrones' },
           { name: 'Columnas', path: '/columnas', icon: '📊', modulo: 'instrumentos' },
           { name: 'Dispositivos', path: '/dispositivos', icon: '📱', modulo: 'dispositivos' },
           { name: 'Vehículos', path: '/vehiculos', icon: '🚗', modulo: 'vehiculos' },
