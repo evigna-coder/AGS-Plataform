@@ -144,7 +144,7 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
       const customCreatedAt = overrideFechaCreacion && fechaCreacionCustom
         ? new Date(fechaCreacionCustom + 'T12:00:00').toISOString()
         : undefined;
-      await leadsService.create({
+      const leadId = await leadsService.create({
         razonSocial: razonSocial.trim(),
         contacto: contacto.trim(),
         email: email.trim(),
@@ -173,11 +173,15 @@ export default function CrearLeadModal({ open, onClose, onCreated }: Props) {
         source: 'portal',
         ...(customCreatedAt ? { createdAt: customCreatedAt } : {}),
       } as Omit<Ticket, 'id' | 'updatedAt'> & { createdAt?: string });
-      // Upload adjuntos if any
+      // Subir adjuntos (si hay). El ticket ya está creado: si la subida falla,
+      // avisamos pero no perdemos el ticket — se puede reintentar desde el detalle.
       if (pendingFiles.length > 0) {
-        // Get the created lead ID from the list (last created)
-        // For now adjuntos are uploaded separately after creation
-        // TODO: leadsService.uploadAdjuntos once ID is returned
+        try {
+          await leadsService.uploadAdjuntos(leadId, pendingFiles, 0);
+        } catch (err) {
+          console.error('Error subiendo adjuntos del ticket nuevo:', err);
+          alert('El ticket se creó, pero no se pudieron subir los archivos adjuntos. Reintentá desde el detalle del ticket.');
+        }
       }
       onCreated();
       onClose();
