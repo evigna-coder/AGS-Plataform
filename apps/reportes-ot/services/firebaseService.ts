@@ -568,24 +568,43 @@ export class FirebaseService {
   // documentos donde el campo no existe (la query estricta `==true` los excluiría).
   async getSistemasByEstablecimiento(estabId: string, clienteId?: string): Promise<SistemaOption[]> {
     try {
-      const queries: Promise<any>[] = [
+      const [byEstab, legacySnaps] = await Promise.all([
         getDocs(query(collection(db, 'sistemas'), where('establecimientoId', '==', estabId))),
-      ];
-      if (clienteId) {
-        queries.push(getDocs(query(collection(db, 'sistemas'), where('clienteCuit', '==', clienteId))).catch(() => null));
-        queries.push(getDocs(query(collection(db, 'sistemas'), where('clienteId', '==', clienteId))).catch(() => null));
-      }
-      const snaps = await Promise.all(queries);
+        clienteId
+          ? Promise.all([
+              getDocs(query(collection(db, 'sistemas'), where('clienteCuit', '==', clienteId))).catch(() => null),
+              getDocs(query(collection(db, 'sistemas'), where('clienteId', '==', clienteId))).catch(() => null),
+            ])
+          : Promise.resolve([]),
+      ]);
+
       const map = new Map<string, SistemaOption>();
-      for (const snap of snaps) {
+      const add = (d: any) => {
+        if (map.has(d.id)) return;
+        const data = d.data();
+        if (data.activo === false) return;
+        map.set(d.id, { id: d.id, ...data } as SistemaOption);
+      };
+
+      // Equipos asignados directamente a este establecimiento: siempre válidos.
+      byEstab.docs.forEach(add);
+
+      // Equipos legacy vinculados por clienteCuit/clienteId directo. Solo se
+      // rescatan los HUÉRFANOS (sin establecimientoId), que son datos de
+      // migración que nunca se asignaron a un establecimiento. Un equipo que ya
+      // tiene establecimientoId pertenece a SU establecimiento y no debe
+      // aparecer en otro del mismo cliente — sin este guard, un cliente con
+      // varios establecimientos (ej. YPF: Refino vs Química) muestra en uno los
+      // equipos del otro porque ambos comparten clienteCuit/clienteId.
+      for (const snap of legacySnaps) {
         if (!snap) continue;
         snap.docs.forEach((d: any) => {
-          if (map.has(d.id)) return;
-          const data = d.data();
-          if (data.activo === false) return;
-          map.set(d.id, { id: d.id, ...data } as SistemaOption);
+          const estab = d.data().establecimientoId;
+          if (estab && estab !== estabId) return;
+          add(d);
         });
       }
+
       return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
     } catch (e) { console.error('Error cargando sistemas:', e); return []; }
   }
