@@ -8,12 +8,13 @@ interface MoreItem {
   adminOnly?: boolean;
   recepcionOnly?: boolean;
   pagosOnly?: boolean;
+  engineerOnly?: boolean;
 }
 
 const MORE_ITEMS: MoreItem[] = [
-  { to: '/ordenes-trabajo', label: 'Mis OTs' },
-  { to: '/historial', label: 'Historial' },
-  { to: '/viaticos', label: 'Viáticos' },
+  { to: '/ordenes-trabajo', label: 'Mis OTs', engineerOnly: true },
+  { to: '/historial', label: 'Historial', engineerOnly: true },
+  { to: '/viaticos', label: 'Viáticos', engineerOnly: true },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
@@ -31,10 +32,12 @@ export default function MasMenu({ open, onClose }: MasMenuProps) {
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
   const canRecepcion = hasRole('admin', 'admin_soporte');
   const canPagos = usuario ? canAccessModulo(usuario, 'pagos') : false;
+  const isEngineer = usuario ? canAccessModulo(usuario, 'ordenes-trabajo') : false;
   const items = MORE_ITEMS.filter(i => {
     if (i.adminOnly && !canSeeQF) return false;
     if (i.recepcionOnly && !canRecepcion) return false;
     if (i.pagosOnly && !canPagos) return false;
+    if (i.engineerOnly && !isEngineer) return false;
     return true;
   });
 

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
-import { canAccessModulo } from '@ags/shared';
+import { canAccessModulo, type ModuloId } from '@ags/shared';
 
 interface NavItem {
   to: string;
@@ -11,16 +11,20 @@ interface NavItem {
   recepcionOnly?: boolean;
   /** Visible solo con permiso de módulo 'pagos' (perfil tesorería). */
   pagosOnly?: boolean;
+  /** Visible solo para perfiles de ingeniería (tienen el módulo de OTs). */
+  engineerOnly?: boolean;
+  /** Gate por módulo específico. */
+  modulo?: ModuloId;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/ordenes-trabajo', label: 'Mis OTs' },
-  { to: '/historial', label: 'Historial' },
-  { to: '/agenda', label: 'Agenda' },
-  { to: '/leads', label: 'Tickets' },
-  { to: '/reportes', label: 'Reportes' },
-  { to: '/mis-pendientes', label: 'Mis Pendientes' },
-  { to: '/viaticos', label: 'Viáticos' },
+  { to: '/ordenes-trabajo', label: 'Mis OTs', engineerOnly: true },
+  { to: '/historial', label: 'Historial', engineerOnly: true },
+  { to: '/agenda', label: 'Agenda', modulo: 'agenda' },
+  { to: '/leads', label: 'Tickets', modulo: 'leads' },
+  { to: '/reportes', label: 'Reportes', engineerOnly: true },
+  { to: '/mis-pendientes', label: 'Mis Pendientes', engineerOnly: true },
+  { to: '/viaticos', label: 'Viáticos', engineerOnly: true },
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
@@ -37,10 +41,13 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
   const canRecepcion = hasRole('admin', 'admin_soporte');
   const canPagos = usuario ? canAccessModulo(usuario, 'pagos') : false;
+  const isEngineer = usuario ? canAccessModulo(usuario, 'ordenes-trabajo') : false;
   const navItems = NAV_ITEMS.filter(item => {
     if (item.adminOnly && !canSeeQF) return false;
     if (item.recepcionOnly && !canRecepcion) return false;
     if (item.pagosOnly && !canPagos) return false;
+    if (item.engineerOnly && !isEngineer) return false;
+    if (item.modulo && usuario && !canAccessModulo(usuario, item.modulo)) return false;
     return true;
   });
 
