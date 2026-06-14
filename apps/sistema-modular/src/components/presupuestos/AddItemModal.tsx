@@ -8,6 +8,7 @@ import { EquipoLinkPanel } from './EquipoLinkPanel';
 import { ArticuloPickerPanel } from './ArticuloPickerPanel';
 import { PresupuestoDisponibilidadFields } from './PresupuestoDisponibilidadFields';
 import { computeStockAmplio } from '../../services/stockAmplioService';
+import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { useTabs } from '../../contexts/TabsContext';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
 
@@ -120,7 +121,7 @@ export const AddItemModal = ({
     setNewItem({ ...newItem,
       descripcion: concepto.descripcion, precioUnitario: concepto.valorBase * concepto.factorActualizacion,
       codigoProducto: concepto.codigo || newItem.codigoProducto || null,
-      categoriaPresupuestoId: concepto.categoriaPresupuestoId || newItem.categoriaPresupuestoId,
+      categoriaPresupuestoId: concepto.categoriaPresupuestoId || newItem.categoriaPresupuestoId || findCategoriaIvaDefaultId(categoriasPresupuesto),
       conceptoServicioId: concepto.id, itemRequiereImportacion: false,
     });
   };
@@ -131,7 +132,7 @@ export const AddItemModal = ({
       stockArticuloId: art.id, codigoProducto: art.codigo || newItem.codigoProducto || null,
       descripcion: newItem.descripcion || art.descripcion,
       precioUnitario: newItem.precioUnitario || art.precioReferencia || 0,
-      categoriaPresupuestoId: newItem.categoriaPresupuestoId || categoriasPresupuesto.find(c => c.activo && c.nombre.trim().toLowerCase() === 'iva 21%')?.id || undefined,
+      categoriaPresupuestoId: newItem.categoriaPresupuestoId || findCategoriaIvaDefaultId(categoriasPresupuesto),
       itemRequiereImportacion: meta.itemRequiereImportacion,
     });
   };
@@ -211,6 +212,11 @@ export const AddItemModal = ({
               <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={(e) => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
                 className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs" placeholder="0" />
             </div>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Factor de venta <span className="text-slate-300">(referencia interna, no se muestra en el PDF)</span></label>
+            <input type="number" min="0" step="0.01" value={newItem.factor ?? ''} onChange={(e) => setNewItem({ ...newItem, factor: e.target.value === '' ? null : Number(e.target.value) })}
+              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs" placeholder="Ej: 1.45 (multiplicador sobre FOB)" />
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Categoria (reglas tributarias)</label>

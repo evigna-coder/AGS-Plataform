@@ -10,6 +10,7 @@ export * from './otService';
 export * from './leadsService';
 export * from './presupuestosService';
 export * from './stockService';
+export * from './agentesCargaService';
 export * from './catalogService';
 export * from './patronesService';
 export * from './columnasService';

@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { useImportaciones } from '../../hooks/useImportaciones';
+import { ImportacionModal } from '../../components/stock/ImportacionModal';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
@@ -29,9 +29,12 @@ const isEtaVencida = (imp: Importacion): boolean => {
 const thClass = 'text-center text-[11px] font-medium text-slate-400 tracking-wider py-2 px-4';
 
 export const ImportacionesList = () => {
-  const navigate = useNavigate();
   const { importaciones, loading, loadImportaciones } = useImportaciones();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalImpId, setModalImpId] = useState<string | null>(null);
+  const openImp = (id: string | null) => { setModalImpId(id); setModalOpen(true); };
+  const reloadList = () => loadImportaciones(filters.estado ? { estado: filters.estado } : undefined);
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('importaciones-list');
 
   const handleSort = (f: string) => {
@@ -61,7 +64,7 @@ export const ImportacionesList = () => {
         subtitle="Operaciones de comercio exterior"
         count={sorted.length}
         actions={
-          <Button size="sm" onClick={() => navigate('/stock/importaciones/nuevo')}>
+          <Button size="sm" onClick={() => openImp(null)}>
             + Nueva importacion
           </Button>
         }
@@ -111,7 +114,7 @@ export const ImportacionesList = () => {
                   <th className={`${thClass} relative ${getAlignClass(1)}`}>OC<ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thClass} relative ${getAlignClass(2)}`}>Proveedor<ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <th className={`${thClass} relative ${getAlignClass(3)}`}>Estado<ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
-                  <th className={`${thClass} relative ${getAlignClass(4)}`}>Puerto destino<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(4)}`}>Agente de carga<ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                   <SortableHeader
                     label="ETA"
                     field="fechaEstimadaArribo"
@@ -123,17 +126,15 @@ export const ImportacionesList = () => {
                     <ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />
                     <div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />
                   </SortableHeader>
-                  <th className={thClass + ' relative'}>Acciones<div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <th className={`${thClass} relative ${getAlignClass(6)}`}>N° guia<ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
                 </tr>
               </thead>
               <tbody>
                 {sorted.map(imp => (
-                  <tr key={imp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                    <td className={`text-xs py-2 px-4 ${getAlignClass(0)}`}>
-                      <Link to={`/stock/importaciones/${imp.id}`} className="text-teal-600 font-medium hover:underline">
-                        {imp.numero}
-                      </Link>
-                    </td>
+                  <tr key={imp.id}
+                    onClick={() => openImp(imp.id)}
+                    className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer">
+                    <td className={`text-xs py-2 px-4 text-teal-600 font-medium ${getAlignClass(0)}`}>{imp.numero}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(1)}`}>{imp.ordenCompraNumero}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 truncate max-w-[160px] ${getAlignClass(2)}`}>{imp.proveedorNombre}</td>
                     <td className={`text-xs py-2 px-4 ${getAlignClass(3)}`}>
@@ -146,17 +147,9 @@ export const ImportacionesList = () => {
                         </span>
                       )}
                     </td>
-                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(4)}`}>{imp.puertoDestino || '-'}</td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 truncate max-w-[160px] ${getAlignClass(4)}`}>{imp.agenteCarga || '-'}</td>
                     <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap ${getAlignClass(5)}`}>{formatDate(imp.fechaEstimadaArribo)}</td>
-                    <td className="text-xs py-2 px-4 text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/stock/importaciones/${imp.id}`)}
-                      >
-                        Ver
-                      </Button>
-                    </td>
+                    <td className={`text-xs py-2 px-4 text-slate-700 whitespace-nowrap font-mono ${getAlignClass(6)}`}>{imp.numeroGuia || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -164,6 +157,13 @@ export const ImportacionesList = () => {
           )}
         </div>
       </div>
+
+      <ImportacionModal
+        open={modalOpen}
+        impId={modalImpId}
+        onClose={() => { setModalOpen(false); setModalImpId(null); }}
+        onSaved={reloadList}
+      />
     </div>
   );
 };

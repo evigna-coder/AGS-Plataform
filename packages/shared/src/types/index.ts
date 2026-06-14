@@ -66,11 +66,22 @@ export function isOTTransicionValida(desde: OTEstadoAdmin | undefined, hacia: OT
   return OT_TRANSICIONES_VALIDAS[desde]?.includes(hacia) ?? false;
 }
 
+export type TipoOT = 'servicio' | 'entrega';
+
+export const TIPO_OT_LABELS: Record<TipoOT, string> = {
+  servicio: 'Servicio técnico',
+  entrega: 'Entrega de partes',
+};
+
 export interface WorkOrder {
   otNumber: string; // Formato: 5 dígitos + opcional .NN (ej: 25660.02)
   status: 'BORRADOR' | 'FINALIZADO'; // status técnico (reportes-ot lo usa)
   budgets: string[];
   tipoServicio: string;
+  // 'servicio' (default): trabajo técnico sobre un equipo; el equipo es obligatorio.
+  // 'entrega': entrega de partes/insumos sin servicio sobre un equipo; el equipo es
+  // opcional (a veces va contra un equipo, a veces no). Ausente = 'servicio' (legacy).
+  tipoOT?: TipoOT;
   esFacturable: boolean;
   tieneContrato: boolean;
   esGarantia: boolean;
@@ -459,13 +470,15 @@ export const MOTIVO_LLAMADO_COLORS: Record<MotivoLlamado, string> = {
 };
 
 // --- Áreas destino (Tickets) ---
-export type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas' | 'sistema';
+export type TicketArea = 'admin_soporte' | 'ing_soporte' | 'administracion' | 'ventas' | 'compras' | 'materiales' | 'sistema';
 
 export const TICKET_AREA_LABELS: Record<TicketArea, string> = {
   admin_soporte: 'Administración de soporte',
   ing_soporte: 'Ing. de soporte',
   administracion: 'Administración',
   ventas: 'Ventas',
+  compras: 'Compras',
+  materiales: 'Materiales',
   sistema: 'Sistema (pendiente)',
 };
 
@@ -474,6 +487,8 @@ export const TICKET_AREA_COLORS: Record<TicketArea, string> = {
   ing_soporte: 'bg-teal-100 text-teal-700',
   administracion: 'bg-violet-100 text-violet-700',
   ventas: 'bg-green-100 text-green-700',
+  compras: 'bg-amber-100 text-amber-700',
+  materiales: 'bg-cyan-100 text-cyan-700',
   sistema: 'bg-purple-100 text-purple-700',
 };
 
@@ -512,8 +527,8 @@ export const ROLE_TICKET_AREAS: Record<UserRole, TicketArea[]> = {
   admin_ing_soporte: ['ing_soporte'],
   ingeniero_soporte: ['ing_soporte'],
   ventas: ['ventas'],
-  admin_contable: ['administracion'],
-  administracion: ['administracion'],
+  admin_contable: ['administracion', 'compras', 'materiales'],
+  administracion: ['administracion', 'compras', 'materiales'],
 };
 
 /** Obtiene todas las áreas de ticket que un usuario puede ver (desde rol principal + roles adicionales) */
@@ -922,6 +937,13 @@ export interface PresupuestoItem {
   descuento?: number; // Porcentaje de descuento (0-100)
   categoriaPresupuestoId?: string; // Referencia a categoría para aplicar reglas tributarias
   subtotal: number;
+  /**
+   * Factor de venta (multiplicador) aplicado al valor FOB para llegar al precio de venta.
+   * Ej: 1.45 = FOB + 45% de gastos de importación. SOLO referencia interna: NO afecta
+   * `precioUnitario` ni `subtotal`, y NO se renderiza en el PDF. Se usa para mostrar el
+   * historial de factores por cliente al preparar nuevos presupuestos.
+   */
+  factor?: number | null;
   /** FK opcional a artículos de stock (integración futura) */
   stockArticuloId?: string | null;
   /** FK opcional al catálogo de conceptos de servicio */
@@ -980,6 +1002,17 @@ export interface PresupuestoItem {
    * Editable inline desde la vista /entregas. NO genera ni modifica una OT.
    */
   otNumeroVinculada?: string | null;
+  /**
+   * Fecha concreta comprometida de entrega (ISO 'YYYY-MM-DD'). Editable inline en /entregas.
+   * Si está, TIENE PRIORIDAD sobre el cálculo `fechaAceptacion + etaDiasEstimados` para la ETA
+   * y el semáforo. null = se usa el cálculo (o "Sin ETA").
+   */
+  fechaComprometida?: string | null;
+  /**
+   * Marca manual de entregado desde /entregas (independiente de la importación).
+   * true → el semáforo muestra 'entregado'. null/false = sigue el cálculo por ETA / importación.
+   */
+  entregadoManual?: boolean | null;
 }
 
 // --- Adjunto de Presupuesto ---
@@ -1066,32 +1099,33 @@ export interface AdminConfigFlujos {
 }
 
 // --- Orden de Compra (OC) ---
-export type EstadoOC = 'borrador' | 'pendiente_aprobacion' | 'aprobada' | 'enviada_proveedor'
-  | 'confirmada' | 'en_transito' | 'recibida_parcial' | 'recibida' | 'cancelada';
+// Flujo simplificado: borrador → enviada (= confirmada) → embarcada (al crear importación) → recibida.
+export type EstadoOC = 'borrador' | 'enviada_proveedor' | 'embarcada' | 'recibida' | 'cancelada';
 export type TipoOC = 'nacional' | 'importacion';
 
 export const ESTADO_OC_LABELS: Record<EstadoOC, string> = {
   borrador: 'Borrador',
-  pendiente_aprobacion: 'Pend. aprobación',
-  aprobada: 'Aprobada',
   enviada_proveedor: 'Enviada',
-  confirmada: 'Confirmada',
-  en_transito: 'En tránsito',
-  recibida_parcial: 'Recibida parcial',
+  embarcada: 'Embarcada',
   recibida: 'Recibida',
   cancelada: 'Cancelada',
 };
 
 export const ESTADO_OC_COLORS: Record<EstadoOC, string> = {
   borrador: 'bg-slate-100 text-slate-600',
-  pendiente_aprobacion: 'bg-yellow-100 text-yellow-700',
-  aprobada: 'bg-blue-100 text-blue-700',
   enviada_proveedor: 'bg-teal-100 text-teal-700',
-  confirmada: 'bg-cyan-100 text-cyan-700',
-  en_transito: 'bg-amber-100 text-amber-700',
-  recibida_parcial: 'bg-purple-100 text-purple-700',
+  embarcada: 'bg-amber-100 text-amber-700',
   recibida: 'bg-green-100 text-green-700',
   cancelada: 'bg-red-100 text-red-700',
+};
+
+/** Mapeo de estados legacy (enum viejo de 9 estados) → flujo nuevo, para no romper OCs ya cargadas. */
+export const ESTADO_OC_LEGACY: Record<string, EstadoOC> = {
+  pendiente_aprobacion: 'borrador',
+  aprobada: 'borrador',
+  confirmada: 'enviada_proveedor',
+  en_transito: 'embarcada',
+  recibida_parcial: 'recibida',
 };
 
 export interface ItemOC {
@@ -1104,6 +1138,9 @@ export interface ItemOC {
   unidadMedida: string;
   precioUnitario?: number | null;
   moneda?: 'ARS' | 'USD' | 'EUR' | null;
+  // % de IVA del item (solo OC nacional; 21 por defecto, editable a 10.5 o 0).
+  // En OC de importación va null/0 (sin IVA — el IVA de importación se liquida en aduana).
+  porcentajeIva?: number | null;
   requerimientoId?: string | null;
   notas?: string | null;
 }
@@ -1131,8 +1168,12 @@ export interface OrdenCompra {
   // Condiciones
   condicionesPago?: string | null;
   fechaEntregaEstimada?: string | null;
+  // Incoterm — se carga en la OC y se levanta al crear la importación.
+  incoterm?: string | null;
   // Vinculaciones legacy (mantener compatibilidad)
   presupuestoIds?: string[];
+  // Envío al proveedor (timestamp del evento, ISO)
+  fechaEnvio?: string | null;
   // Recepcion
   fechaRecepcion?: string | null;
   // Importacion (link, no embed)
@@ -2474,6 +2515,9 @@ export interface Proveedor {
   id: string;
   nombre: string;
   tipo: TipoProveedor;
+  // Prefijo de 3 letras para la numeración de OC de este proveedor (ej. 'JAS').
+  // El número de OC resulta PREFIJO + 3 dígitos correlativos por proveedor (JAS027).
+  codigoOC?: string | null;
   contacto?: string | null;
   email?: string | null;
   telefono?: string | null;
@@ -2606,6 +2650,16 @@ export interface Articulo {
   stockMinimo: number;
   posicionArancelaria?: string | null;
   tratamientoArancelario?: TratamientoArancelario | null;
+  /**
+   * Trazabilidad: indica que cada unidad física de este artículo se identifica con un nº de serie único.
+   * El modal de carga exige una fila (con su serie) por unidad. Default false.
+   */
+  requiereNumeroSerie?: boolean;
+  /**
+   * Trazabilidad: indica que las unidades se reciben/cargan agrupadas por nº de lote.
+   * El modal de carga pide lote + cantidad por fila. Independiente de `requiereNumeroSerie`. Default false.
+   */
+  requiereNumeroLote?: boolean;
   /** Precio de lista/referencia */
   precioReferencia?: number | null;
   monedaPrecio?: 'ARS' | 'USD' | null;
@@ -2672,6 +2726,7 @@ export type EstadoUnidad =
   | 'en_transito'
   | 'consumido'
   | 'vendido'
+  | 'entregado'   // Salió del inventario hacia el cliente al cerrar la OT (deducción definitiva). Fuera de ATP.
   | 'baja';
 
 export type TipoUbicacionStock = 'posicion' | 'minikit' | 'ingeniero' | 'cliente' | 'proveedor' | 'transito';
@@ -2691,12 +2746,22 @@ export interface UnidadStock {
   articuloDescripcion: string;
   nroSerie?: string | null;
   nroLote?: string | null;
+  /**
+   * Cantidad de unidades físicas que representa este documento.
+   * Para artículos con nº de serie es siempre 1 (un doc = una unidad serializada).
+   * Para lotes / sin trazabilidad un solo doc puede representar N unidades iguales.
+   * Ausente = 1 (compatibilidad con docs previos al campo).
+   */
+  cantidad?: number;
   condicion: CondicionUnidad;
   estado: EstadoUnidad;
   ubicacion: UbicacionStock;
   costoUnitario?: number | null;
   monedaCosto?: 'ARS' | 'USD' | null;
   observaciones?: string | null;
+  /** Trazabilidad de ingreso (alta manual / importación). Texto libre. */
+  ordenCompraNumero?: string | null;
+  despachoImportacionNumero?: string | null;
   // --- Campos de reserva (añadidos Phase 01-stock-requerimientos-oc) ---
   reservadoParaPresupuestoId?: string | null;
   reservadoParaPresupuestoNumero?: string | null;
@@ -2855,6 +2920,9 @@ export interface MovimientoStock {
   remitoId?: string | null;
   /** FK → reportes (para consumos en OT) */
   otNumber?: string | null;
+  /** Trazabilidad de ingreso (alta manual / importación). Texto libre. */
+  ordenCompraNumero?: string | null;
+  despachoImportacionNumero?: string | null;
   motivo?: string | null;
   creadoPor: string;
   createdAt: string;
@@ -3304,12 +3372,19 @@ export interface Loaner {
   /** Código correlativo (LNR-0001) */
   codigo: string;
   descripcion: string;
-  /** FK → articulos (si está en stock) */
+  /** FK → articulos. Se vincula al vender (LoanerVentaModal), no al crear. */
   articuloId?: string | null;
   articuloCodigo?: string | null;
   articuloDescripcion?: string | null;
   serie?: string | null;
   categoriaEquipo?: string | null;
+  /** FK → categorias_modulo (catálogo CategoriaModulo). Clasificación principal del loaner. */
+  categoriaModuloId?: string | null;
+  categoriaModuloNombre?: string | null;
+  /** Modelo específico (ModeloModulo) dentro de la categoría de módulo. */
+  moduloCodigo?: string | null;
+  moduloDescripcion?: string | null;
+  moduloMarca?: string | null;
   condicion: string;
   estado: EstadoLoaner;
   prestamos: PrestamoLoaner[];
@@ -3461,13 +3536,31 @@ export interface DocumentoImportacion {
 
 export interface GastoImportacion {
   id: string;
-  concepto: string; // 'flete_internacional' | 'seguro' | 'despachante' | 'flete_interno' | 'vep' | 'otro'
+  concepto: string; // ver CONCEPTOS_GASTO_IMPORTACION (key) o texto libre
   descripcion?: string | null;
   monto: number;
   moneda: 'ARS' | 'USD' | 'EUR';
   fecha?: string | null;
   comprobante?: string | null;
 }
+
+/**
+ * Conceptos de gasto que se precargan al crear una importación (filas listas
+ * para completar el monto). `flete` y `seguro` además entran en la base CIF del
+ * costeo de gravámenes (prorrateados por valor del ítem).
+ */
+export const CONCEPTOS_GASTO_IMPORTACION = [
+  { key: 'gastos_bancarios', label: 'Gastos bancarios' },
+  { key: 'agente_carga', label: 'Agente de carga' },
+  { key: 'flete', label: 'Flete' },
+  { key: 'seguro', label: 'Seguro' },
+  { key: 'despachante', label: 'Despachante' },
+] as const;
+
+export type ConceptoGastoImportacionKey = typeof CONCEPTOS_GASTO_IMPORTACION[number]['key'];
+
+/** Conceptos que integran la base CIF (se prorratean sobre el FOB de cada ítem). */
+export const CONCEPTOS_GASTO_EN_CIF: ConceptoGastoImportacionKey[] = ['flete', 'seguro'];
 
 export interface ItemImportacion {
   id: string;                                    // uuid local, not FK to another collection
@@ -3512,11 +3605,24 @@ export interface Importacion {
   vepMonto?: number | null;
   vepMoneda?: 'ARS' | 'USD' | null;
   vepFechaPago?: string | null;
+  // Giro al exterior (pago al proveedor) — manual; suele ser ~30 días post VEP,
+  // a veces al momento del VEP. Para la vista de flujo de fondos.
+  giroMonto?: number | null;
+  giroMoneda?: 'ARS' | 'USD' | 'EUR' | null;
+  giroFechaEstimada?: string | null;
   // Costeo
   gastos: GastoImportacion[];
+  /** Tipo de cambio ARS por unidad de la moneda de la OC (del día del despacho). */
+  tipoCambio?: number | null;
+  /** Flete declarado en la guía (moneda de la OC) — integra el valor en aduana (CIF). */
+  fleteDeclarado?: number | null;
+  /** Seguro declarado (moneda de la OC) — integra el valor en aduana. Suele ser % del CPT. */
+  seguroDeclarado?: number | null;
   costoTotalARS?: number | null;
   // Documentos
   documentos: DocumentoImportacion[];
+  // Logística
+  agenteCarga?: string | null;         // forwarder / agente de carga
   // Recepción
   numeroGuia?: string | null;          // número de guía aérea/marítima
   items?: ItemImportacion[] | null;    // ítems de este embarque (subconjunto de la OC)
@@ -3757,6 +3863,7 @@ export type ModuloId =
   | 'facturacion'
   | 'contratos'
   | 'calificacion-proveedores'
+  | 'pagos'
   | 'usuarios'
   | 'admin';
 
@@ -3764,7 +3871,7 @@ export type ModuloId =
 export const ROLE_DEFAULTS: Record<UserRole, { apps: AppId[]; modulos: ModuloId[] }> = {
   admin: {
     apps: ['sistema-modular', 'portal-ingeniero', 'reportes-ot'],
-    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'usuarios', 'admin'],
+    modulos: ['dashboard', 'clientes', 'establecimientos', 'equipos', 'ordenes-trabajo', 'leads', 'presupuestos', 'stock', 'fichas', 'loaners', 'instrumentos', 'patrones', 'table-catalog', 'ingreso-empresas', 'dispositivos', 'vehiculos', 'agenda', 'pendientes', 'facturacion', 'contratos', 'calificacion-proveedores', 'pagos', 'usuarios', 'admin'],
   },
   ingeniero_soporte: {
     apps: ['portal-ingeniero', 'reportes-ot'],
@@ -3844,6 +3951,7 @@ export const MODULO_LABELS: Record<ModuloId, string> = {
   'facturacion': 'Facturación',
   'contratos': 'Contratos',
   'calificacion-proveedores': 'Calif. Proveedores',
+  'pagos': 'Pagos VEP',
   'usuarios': 'Usuarios',
   'admin': 'Administración',
 };

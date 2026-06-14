@@ -4,6 +4,8 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { AddItemModal } from './AddItemModal';
+import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
+import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
 import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
 import type { GrupoSistema } from '../../hooks/usePresupuestoSistemas';
@@ -62,9 +64,10 @@ export const PresupuestoItemsTable = ({
   tipoPresupuesto, sistemas, loadModulos, itemsByGrupo, getGrupo, articulos,
 }: PresupuestoItemsTableProps) => {
   const [showModal, setShowModal] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({
     descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, descuento: 0,
-    categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
+    categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), codigoProducto: null, conceptoServicioId: null,
   });
   const sym = MONEDA_SIMBOLO[moneda] || '$';
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
@@ -86,6 +89,7 @@ export const PresupuestoItemsTable = ({
       precioUnitario: newItem.precioUnitario || 0,
       descuento: newItem.descuento || 0,
       categoriaPresupuestoId: newItem.categoriaPresupuestoId,
+      factor: newItem.factor ?? null,
       codigoProducto: newItem.codigoProducto || null,
       conceptoServicioId: newItem.conceptoServicioId || null,
       sistemaId,
@@ -108,9 +112,45 @@ export const PresupuestoItemsTable = ({
     setShowModal(false);
   };
 
+  // Carga rápida desde el wizard (servicio/partes/ventas/mixto): completa el item con defaults.
+  const addFromWizard = (p: Partial<PresupuestoItem>) => {
+    const cantidad = p.cantidad || 1;
+    const precioUnitario = p.precioUnitario || 0;
+    const descuento = p.descuento || 0;
+    const base = cantidad * precioUnitario;
+    onAddItem({
+      id: `item-${Date.now()}`,
+      descripcion: p.descripcion || '',
+      cantidad,
+      unidad: p.unidad || 'unidad',
+      precioUnitario,
+      descuento,
+      categoriaPresupuestoId: p.categoriaPresupuestoId,
+      factor: p.factor ?? null,
+      codigoProducto: p.codigoProducto ?? null,
+      conceptoServicioId: p.conceptoServicioId ?? null,
+      stockArticuloId: p.stockArticuloId ?? null,
+      sistemaId: null, sistemaNombre: null, sistemaCodigoInterno: null,
+      moduloId: null, moduloNombre: null, moduloSerie: null, moduloMarca: null,
+      servicioCode: null, subItem: null, esBonificacion: false,
+      grupo: getGrupo ? getGrupo(null) : null,
+      subtotal: descuento ? base * (1 - descuento / 100) : base,
+      disponibilidad: p.disponibilidad ?? null,
+      etaDiasEstimados: p.etaDiasEstimados ?? null,
+      otNumeroVinculada: null,
+      itemRequiereImportacion: p.itemRequiereImportacion ?? false,
+    });
+  };
+
+  // Contrato usa el modal completo (vincula equipos); el resto usa el wizard de carga rápida.
+  const openAdd = () => {
+    if (tipoPresupuesto === 'contrato') openModal();
+    else setShowWizard(true);
+  };
+
   const openModal = () => {
     setNewItem({ descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, descuento: 0,
-      categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null });
+      categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), codigoProducto: null, conceptoServicioId: null });
     setShowModal(true);
   };
 
@@ -133,14 +173,14 @@ export const PresupuestoItemsTable = ({
                 if (etaDiasEstimados !== null) onUpdateItem(it.id, 'etaDiasEstimados', etaDiasEstimados);
               });
             }} />
-            <Button onClick={openModal} size="sm">+ Agregar</Button>
+            <Button onClick={openAdd} size="sm">+ Agregar</Button>
           </div>
         </div>
 
         {items.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-xs text-slate-400">Sin items</p>
-            <Button className="mt-3" onClick={openModal} size="sm">Agregar primer item</Button>
+            <Button className="mt-3" onClick={openAdd} size="sm">Agregar primer item</Button>
           </div>
         ) : (
           <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -184,6 +224,16 @@ export const PresupuestoItemsTable = ({
           sistemas={tipoPresupuesto === 'contrato' ? sistemas : undefined}
           loadModulos={tipoPresupuesto === 'contrato' ? loadModulos : undefined}
           articulos={articulos} />
+      )}
+
+      {showWizard && (
+        <PresupuestoAddItemWizard
+          conceptosServicio={conceptosServicio}
+          categoriasPresupuesto={categoriasPresupuesto}
+          moneda={moneda}
+          onAdd={addFromWizard}
+          onClose={() => setShowWizard(false)}
+        />
       )}
     </div>
   );

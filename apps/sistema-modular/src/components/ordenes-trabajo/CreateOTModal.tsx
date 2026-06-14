@@ -5,7 +5,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
 import { useCreateOTForm, type OTPrefill } from '../../hooks/useCreateOTForm';
-import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS } from '@ags/shared';
+import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS, type TipoOT } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -40,6 +40,24 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
             <button onClick={() => window.location.reload()} className="ml-2 underline">Recargar</button>
           </div>
         )}
+
+        {/* Tipo de OT: servicio (equipo obligatorio) vs entrega (equipo opcional) */}
+        <div>
+          <label className={lbl}>Tipo de orden</label>
+          <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
+            {(['servicio', 'entrega'] as TipoOT[]).map(t => (
+              <button key={t} type="button" onClick={() => h.set('tipoOT', t)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  h.form.tipoOT === t ? 'bg-teal-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}>
+                {t === 'servicio' ? 'Servicio técnico' : 'Entrega de partes'}
+              </button>
+            ))}
+          </div>
+          {h.form.tipoOT === 'entrega' && (
+            <p className="mt-1 text-[10px] text-slate-500">El equipo es opcional para entregas de partes.</p>
+          )}
+        </div>
 
         {/* Tipo de Servicio */}
         <div>

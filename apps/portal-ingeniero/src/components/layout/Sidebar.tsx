@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../contexts/AuthContext';
+import { canAccessModulo } from '@ags/shared';
 
 interface NavItem {
   to: string;
@@ -8,6 +9,8 @@ interface NavItem {
   adminOnly?: boolean;
   /** Visible solo para admin/admin_soporte (responsable de materiales). */
   recepcionOnly?: boolean;
+  /** Visible solo con permiso de módulo 'pagos' (perfil tesorería). */
+  pagosOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -21,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
+  { to: '/pagos-vep', label: 'Pagos VEP', pagosOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];
 
@@ -32,9 +36,11 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
   const { usuario, hasRole } = useAuth();
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
   const canRecepcion = hasRole('admin', 'admin_soporte');
+  const canPagos = usuario ? canAccessModulo(usuario, 'pagos') : false;
   const navItems = NAV_ITEMS.filter(item => {
     if (item.adminOnly && !canSeeQF) return false;
     if (item.recepcionOnly && !canRecepcion) return false;
+    if (item.pagosOnly && !canPagos) return false;
     return true;
   });
 

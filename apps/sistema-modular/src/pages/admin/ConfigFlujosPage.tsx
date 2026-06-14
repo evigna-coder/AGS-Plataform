@@ -37,6 +37,8 @@ const AREAS_CON_RESPONSABLE: Exclude<TicketArea, 'sistema'>[] = [
   'ing_soporte',
   'administracion',
   'ventas',
+  'compras',
+  'materiales',
 ];
 
 export default function ConfigFlujosPage() {

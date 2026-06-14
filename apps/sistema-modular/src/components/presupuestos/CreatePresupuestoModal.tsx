@@ -69,7 +69,7 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         <p className="text-[9px] font-mono font-semibold text-teal-700/70 uppercase tracking-widest">Items del presupuesto</p>
 
         <CreatePresupuestoItems
-          items={h.items} onAdd={h.addItem} onRemove={h.removeItem}
+          items={h.items} onAdd={h.addItem} onRemove={h.removeItem} onUpdate={h.updateItem}
           categoriasPresupuesto={h.categorias} conceptosServicio={h.conceptos} moneda={h.form.moneda} />
 
         {/* Cuotas / Esquema de facturación */}

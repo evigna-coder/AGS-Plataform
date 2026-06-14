@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { loanersService, articulosService } from '../../services/firebaseService';
+import { loanersService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
-import type { Loaner, Articulo, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
+import { LoanerCategoriaModuloPicker, type ModuloSelection } from '../../components/loaners/LoanerCategoriaModuloPicker';
+import type { Loaner, EstadoLoaner, CategoriaEquipoStock } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 
 const CATEGORIAS: CategoriaEquipoStock[] = ['HPLC', 'GC', 'MSD', 'UV', 'OSMOMETRO', 'GENERAL'];
+
+const EMPTY_MODULO: ModuloSelection = {
+  categoriaModuloId: null, categoriaModuloNombre: null,
+  moduloCodigo: null, moduloDescripcion: null, moduloMarca: null,
+};
 
 export function LoanerEditor() {
   const { id } = useParams();
@@ -16,41 +22,39 @@ export function LoanerEditor() {
   const isEdit = Boolean(id);
   const [saving, setSaving] = useState(false);
 
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [descripcion, setDescripcion] = useState('');
-  const [articuloId, setArticuloId] = useState('');
+  const [modulo, setModulo] = useState<ModuloSelection>(EMPTY_MODULO);
+  // Artículo vinculado al vender (se preserva en edición, no se edita acá).
+  const [articulo, setArticulo] = useState<{ id: string | null; codigo: string | null; descripcion: string | null }>({ id: null, codigo: null, descripcion: null });
   const [serie, setSerie] = useState('');
   const [categoriaEquipo, setCategoriaEquipo] = useState('');
   const [condicion, setCondicion] = useState('Bueno');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    articulosService.getAll({ activoOnly: true }).then(setArticulos);
-  }, []);
-
-  useEffect(() => {
     if (!id) return;
     loanersService.getById(id).then(l => {
       if (!l) return navigate('/loaners');
       setDescripcion(l.descripcion);
-      setArticuloId(l.articuloId || '');
+      setArticulo({ id: l.articuloId ?? null, codigo: l.articuloCodigo ?? null, descripcion: l.articuloDescripcion ?? null });
+      setModulo({
+        categoriaModuloId: l.categoriaModuloId ?? null,
+        categoriaModuloNombre: l.categoriaModuloNombre ?? null,
+        moduloCodigo: l.moduloCodigo ?? null,
+        moduloDescripcion: l.moduloDescripcion ?? null,
+        moduloMarca: l.moduloMarca ?? null,
+      });
       setSerie(l.serie || '');
       setCategoriaEquipo(l.categoriaEquipo || '');
       setCondicion(l.condicion);
     });
   }, [id, navigate]);
 
-  // Auto-fill from articulo
-  useEffect(() => {
-    if (!articuloId) return;
-    const art = articulos.find(a => a.id === articuloId);
-    if (art) {
-      if (!descripcion) setDescripcion(art.descripcion);
-      if (!categoriaEquipo) setCategoriaEquipo(art.categoriaEquipo);
-    }
-  }, [articuloId, articulos, descripcion, categoriaEquipo]);
-
-  const selectedArticulo = articulos.find(a => a.id === articuloId);
+  // Al elegir un modelo, auto-llenar la descripción si está vacía (no destructivo).
+  const handleModuloChange = (sel: ModuloSelection) => {
+    setModulo(sel);
+    if (sel.moduloDescripcion && !descripcion) setDescripcion(sel.moduloDescripcion);
+  };
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -66,11 +70,16 @@ export function LoanerEditor() {
     try {
       const data: Omit<Loaner, 'id' | 'codigo' | 'createdAt' | 'updatedAt'> = {
         descripcion: descripcion.trim(),
-        articuloId: articuloId || null,
-        articuloCodigo: selectedArticulo?.codigo || null,
-        articuloDescripcion: selectedArticulo?.descripcion || null,
+        articuloId: articulo.id,
+        articuloCodigo: articulo.codigo,
+        articuloDescripcion: articulo.descripcion,
         serie: serie.trim() || null,
         categoriaEquipo: categoriaEquipo || null,
+        categoriaModuloId: modulo.categoriaModuloId,
+        categoriaModuloNombre: modulo.categoriaModuloNombre,
+        moduloCodigo: modulo.moduloCodigo,
+        moduloDescripcion: modulo.moduloDescripcion,
+        moduloMarca: modulo.moduloMarca,
         condicion: condicion.trim(),
         estado: 'en_base' as EstadoLoaner,
         prestamos: [],
@@ -118,13 +127,11 @@ export function LoanerEditor() {
               <div className="md:col-span-2">
                 <Input label="Descripcion *" value={descripcion} onChange={e => setDescripcion(e.target.value)} error={errors.descripcion} placeholder="Ej: Bomba cuaternaria 1260 Infinity II" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Vincular a articulo de stock</label>
-                <select className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" value={articuloId} onChange={e => setArticuloId(e.target.value)}>
-                  <option value="">Sin vincular</option>
-                  {articulos.map(a => <option key={a.id} value={a.id}>{a.codigo} — {a.descripcion}</option>)}
-                </select>
-              </div>
+              <LoanerCategoriaModuloPicker
+                categoriaModuloId={modulo.categoriaModuloId || ''}
+                moduloCodigo={modulo.moduloCodigo || ''}
+                onChange={handleModuloChange}
+              />
               <Input label="Numero de serie" value={serie} onChange={e => setSerie(e.target.value)} placeholder="S/N" />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Categoria de equipo</label>

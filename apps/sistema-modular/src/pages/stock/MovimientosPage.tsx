@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateMovimientoModal } from '../../components/stock/CreateMovimientoModal';
+import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import type { MovimientoStock, TipoMovimiento } from '@ags/shared';
 
 const TIPO_LABELS: Record<TipoMovimiento, string> = {
@@ -51,6 +52,7 @@ export const MovimientosPage = () => {
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
   useEffect(() => { if (filters.search !== localSearch && filters.search === '') setLocalSearch(''); }, [filters.search]);
   const [showCreate, setShowCreate] = useState(false);
+  const [showIngreso, setShowIngreso] = useState(false);
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -86,7 +88,10 @@ export const MovimientosPage = () => {
         subtitle="Historial de movimientos de inventario"
         count={filtered.length}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>+ Registrar movimiento</Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowCreate(true)}>+ Registrar movimiento</Button>
+            <Button size="sm" onClick={() => setShowIngreso(true)}>+ Ingresar stock</Button>
+          </div>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
@@ -173,7 +178,13 @@ export const MovimientosPage = () => {
         )}
       </div>
 
-      <CreateMovimientoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={load} />
+      <CreateMovimientoModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={load}
+        onRequestIngreso={() => { setShowCreate(false); setShowIngreso(true); }}
+      />
+      <StockIntakeModal open={showIngreso} onClose={() => setShowIngreso(false)} onCreated={() => setShowIngreso(false)} />
     </div>
   );
 };

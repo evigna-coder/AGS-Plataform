@@ -8,6 +8,34 @@ import { Modal } from '../../components/ui/Modal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+// Lista estándar: réplica de la del reporte de servicio (reportes-ot →
+// ServiceReportSection) + proveedores externos y entrega de insumos. El botón
+// "Cargar tipos estándar" crea solo los que falten (match por nombre normalizado).
+const TIPOS_SERVICIO_ESTANDAR = [
+  'Calibración',
+  'Calificación de instalación',
+  'Calificación de operación',
+  'Calificación de operación de software',
+  'Capacitación',
+  'Cortesía',
+  'Desinstalación',
+  'Instalación',
+  'Limpieza de fuente de Iones',
+  'Mantenimiento preventivo con consumibles',
+  'Mantenimiento preventivo sin consumibles',
+  'Mantenimiento preventivo sin consumibles, incluye limpieza de módulos',
+  'Otros',
+  'Recalificación post reparación',
+  'Reparación en bench',
+  'Trabajo en bench',
+  'Visita de diagnóstico / reparación',
+  'Aznarez',
+  'ELS',
+  'Entrega de insumos',
+];
+
+const normalizar = (s: string) => s.trim().toLowerCase();
+
 export const TiposServicio = () => {
   const goBack = useNavigateBack();
   const confirm = useConfirm();
@@ -16,6 +44,7 @@ export const TiposServicio = () => {
   const [editing, setEditing] = useState<TipoServicio | null>(null);
   const [formData, setFormData] = useState({ nombre: '' });
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -63,6 +92,28 @@ export const TiposServicio = () => {
     }
   };
 
+  const handleSeedDefaults = async () => {
+    const existentes = new Set(tipos.map(t => normalizar(t.nombre)));
+    const faltantes = TIPOS_SERVICIO_ESTANDAR.filter(n => !existentes.has(normalizar(n)));
+    if (faltantes.length === 0) {
+      alert('Ya están cargados todos los tipos estándar.');
+      return;
+    }
+    if (!await confirm(`Se crearán ${faltantes.length} tipo(s) de servicio faltante(s):\n\n${faltantes.join('\n')}`)) return;
+    try {
+      setSeeding(true);
+      for (const nombre of faltantes) {
+        await tiposServicioService.create({ nombre, activo: true, requiresProtocol: false });
+      }
+      await loadData();
+    } catch (error) {
+      console.error('Error cargando tipos estándar:', error);
+      alert('Error al cargar los tipos estándar');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const handleEdit = (tipo: TipoServicio) => {
     setEditing(tipo);
     setFormData({ nombre: tipo.nombre });
@@ -98,6 +149,9 @@ export const TiposServicio = () => {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => goBack()}>
             Volver a OTs
+          </Button>
+          <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
+            {seeding ? 'Cargando...' : 'Cargar tipos estándar'}
           </Button>
           <Button onClick={() => { setEditing(null); setFormData({ nombre: '' }); setShowModal(true); }}>
             + Nuevo Tipo

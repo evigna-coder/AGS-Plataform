@@ -21,7 +21,7 @@ const Field: React.FC<{ label: string; value?: string | null }> = ({ label, valu
 );
 
 interface FormState {
-  nombre: string; tipo: 'nacional' | 'internacional';
+  nombre: string; tipo: 'nacional' | 'internacional'; codigoOC: string;
   contacto: string; email: string; telefono: string; direccion: string;
   pais: string; cuit: string; condicionesPago: string; moneda: string;
   banco: string; cuentaBancaria: string; swift: string; iban: string;
@@ -30,7 +30,7 @@ interface FormState {
 }
 
 const toForm = (p: Proveedor): FormState => ({
-  nombre: p.nombre, tipo: p.tipo || 'nacional',
+  nombre: p.nombre, tipo: p.tipo || 'nacional', codigoOC: p.codigoOC || '',
   contacto: p.contacto || '', email: p.email || '', telefono: p.telefono || '',
   direccion: p.direccion || '', pais: p.pais || '', cuit: p.cuit || '',
   condicionesPago: p.condicionesPago || '', moneda: p.moneda || '',
@@ -72,6 +72,7 @@ export const ProveedorDetail = () => {
     try {
       const dataToSave = {
         nombre: form.nombre.trim(), tipo: form.tipo,
+        codigoOC: form.codigoOC.trim().toUpperCase() || null,
         contacto: form.contacto.trim() || null, email: form.email.trim() || null,
         telefono: form.telefono.trim() || null, direccion: form.direccion.trim() || null,
         pais: form.pais.trim() || null, cuit: form.cuit.trim() || null,
@@ -159,6 +160,8 @@ export const ProveedorDetail = () => {
                   <Input inputSize="sm" label="Telefono" value={form.telefono} onChange={e => set('telefono', e.target.value)} />
                   <Input inputSize="sm" label="Pais" value={form.pais} onChange={e => set('pais', e.target.value)} />
                   <Input inputSize="sm" label="CUIT" value={form.cuit} onChange={e => set('cuit', e.target.value)} />
+                  <Input inputSize="sm" label="Codigo OC (3 letras)" value={form.codigoOC}
+                    onChange={e => set('codigoOC', e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 3))} placeholder="JAS" />
                   <Input inputSize="sm" label="Notas" value={form.notas} onChange={e => set('notas', e.target.value)} />
                 </div>
               ) : (
@@ -168,6 +171,7 @@ export const ProveedorDetail = () => {
                   <Field label="Telefono" value={proveedor.telefono} />
                   <Field label="Pais" value={proveedor.pais} />
                   <Field label="CUIT" value={proveedor.cuit} />
+                  <Field label="Codigo OC" value={proveedor.codigoOC} />
                   {proveedor.notas && <Field label="Notas" value={proveedor.notas} />}
                 </div>
               )}

@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { TrazabilidadFields } from './TrazabilidadFields';
 import { articulosService, marcasService, proveedoresService } from '../../services/firebaseService';
 import type { Marca, Proveedor, CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
@@ -40,6 +41,7 @@ const emptyForm = {
   marcaId: '', tipo: 'repuesto' as TipoArticulo, unidadMedida: 'unidad',
   stockMinimo: 0, precioReferencia: null as number | null, monedaPrecio: 'USD' as 'ARS' | 'USD',
   proveedorIds: [] as string[], posicionArancelaria: '', tratamiento: {} as TratamientoArancelario,
+  requiereNumeroSerie: false, requiereNumeroLote: false,
   notas: '',
 };
 
@@ -98,6 +100,8 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
         proveedorIds: form.proveedorIds,
         posicionArancelaria: form.posicionArancelaria.trim() || null,
         tratamientoArancelario: form.posicionArancelaria.trim() ? form.tratamiento : null,
+        requiereNumeroSerie: form.requiereNumeroSerie,
+        requiereNumeroLote: form.requiereNumeroLote,
         notas: form.notas.trim() || null, activo: true,
       };
       const newId = await articulosService.create(data);
@@ -154,6 +158,13 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
             </div>
             <Input inputSize="sm" label="Stock minimo" type="number" value={String(form.stockMinimo)}
               onChange={e => set('stockMinimo', Number(e.target.value) || 0)} />
+          </div>
+          <div className="mt-3">
+            <TrazabilidadFields
+              requiereNumeroSerie={form.requiereNumeroSerie}
+              requiereNumeroLote={form.requiereNumeroLote}
+              onChange={patch => setForm(prev => ({ ...prev, ...patch }))}
+            />
           </div>
         </div>
 

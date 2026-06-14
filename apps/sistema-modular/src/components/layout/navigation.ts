@@ -48,7 +48,6 @@ export const navigation: NavItem[] = [
       {
         name: 'Operación', path: '#stock-operacion', icon: '🔁',
         children: [
-          { name: 'Articulos', path: '/stock/articulos' },
           { name: 'Unidades', path: '/stock/unidades' },
           { name: 'Minikits', path: '/stock/minikits' },
           { name: 'Faltantes en minikits', path: '/stock/minikits/faltantes' },
@@ -84,6 +83,7 @@ export const navigation: NavItem[] = [
       {
         name: 'Catálogos', path: '#stock-catalogos', icon: '📇',
         children: [
+          { name: 'Articulos', path: '/stock/articulos' },
           { name: 'Proveedores', path: '/stock/proveedores' },
           { name: 'Calif. Proveedores', path: '/calificacion-proveedores', icon: '⭐', modulo: 'calificacion-proveedores' },
           { name: 'Posiciones', path: '/stock/posiciones' },

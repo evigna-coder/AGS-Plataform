@@ -3,11 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { articulosService, unidadesService, marcasService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { AddUnitForm } from './AddUnitForm';
 import { EquivalenciaDualDisplay } from '../../components/stock/EquivalenciaDualDisplay';
 import { DesagregarStockModal } from '../../components/stock/DesagregarStockModal';
+import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
 import type { Articulo, UnidadStock, Marca, CondicionUnidad } from '@ags/shared';
-import type { UnitFormData } from './AddUnitForm';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -47,8 +46,7 @@ export const ArticuloDetail = () => {
   const [marca, setMarca] = useState<Marca | null>(null);
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [cargarStock, setCargarStock] = useState(false);
   const [desagregarTarget, setDesagregarTarget] = useState<Articulo | null>(null);
   const [dualRefreshKey, setDualRefreshKey] = useState(0);
 
@@ -77,26 +75,6 @@ export const ArticuloDetail = () => {
     });
     return () => unsub();
   }, [id, loadUnidades]);
-
-  const handleCreate = async (form: UnitFormData, refOptions: { id: string; label: string }[]) => {
-    if (!articulo || !id) return;
-    setSaving(true);
-    try {
-      const selRef = refOptions.find(r => r.id === form.ubicacionRefId);
-      await unidadesService.create({
-        articuloId: id, articuloCodigo: articulo.codigo, articuloDescripcion: articulo.descripcion,
-        nroSerie: form.nroSerie || null, nroLote: form.nroLote || null,
-        condicion: form.condicion, estado: form.estado,
-        ubicacion: { tipo: form.ubicacionTipo, referenciaId: form.ubicacionRefId, referenciaNombre: selRef?.label ?? form.ubicacionRefNombre },
-        costoUnitario: form.costoUnitario ? Number(form.costoUnitario) : null,
-        monedaCosto: form.costoUnitario ? form.monedaCosto : null,
-        observaciones: form.observaciones || null, activo: true,
-      });
-      setShowForm(false);
-      await loadUnidades();
-    } catch (e) { console.error('Error creating unit:', e); alert('Error al crear unidad'); }
-    finally { setSaving(false); }
-  };
 
   if (loading) return <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando articulo...</p></div>;
   if (!articulo) return <div className="text-center py-12"><p className="text-slate-400">Articulo no encontrado</p><Link to="/stock" className="text-teal-600 hover:underline mt-2 inline-block">Volver</Link></div>;
@@ -160,15 +138,15 @@ export const ArticuloDetail = () => {
           </div>
 
           <div className="flex-1 min-w-0 space-y-4">
-            <Card compact title={`Unidades en stock (${unidades.length})`} actions={!showForm && <Button size="sm" onClick={() => setShowForm(true)}>+ Nueva unidad</Button>}>
-              {showForm && <div className="mb-3"><AddUnitForm onSubmit={handleCreate} onCancel={() => setShowForm(false)} saving={saving} /></div>}
-              {unidades.length === 0 && !showForm ? (
+            <Card compact title={`Unidades en stock (${unidades.length})`} actions={<Button size="sm" onClick={() => setCargarStock(true)}>+ Cargar stock</Button>}>
+              {unidades.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-4">No hay unidades registradas para este articulo.</p>
               ) : (
                 <div className="space-y-1.5">
                   {unidades.map(u => (
                     <div key={u.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {(u.cantidad ?? 1) > 1 && <span className="text-xs font-semibold text-teal-700">×{u.cantidad}</span>}
                         {u.nroSerie && <span className="text-xs font-mono text-slate-800">S/N: {u.nroSerie}</span>}
                         {u.nroLote && <span className="text-xs font-mono text-slate-600">Lote: {u.nroLote}</span>}
                         <Badge label={CONDICION_LABELS[u.condicion]} color={CONDICION_COLORS[u.condicion]} />
@@ -191,6 +169,12 @@ export const ArticuloDetail = () => {
           setDesagregarTarget(null);
           setDualRefreshKey(k => k + 1);
         }}
+      />
+      <BulkAddStockModal
+        open={cargarStock}
+        onClose={() => setCargarStock(false)}
+        onCreated={() => { setCargarStock(false); loadUnidades(); }}
+        presetArticulo={articulo}
       />
     </div>
   );

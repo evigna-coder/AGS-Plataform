@@ -51,7 +51,7 @@ export const OCDetail = () => {
   }
 
   const canEdit = oc.estado === 'borrador';
-  const canReceive = oc.estado === 'confirmada' || oc.estado === 'en_transito';
+  const canReceive = oc.estado === 'enviada_proveedor' || oc.estado === 'embarcada';
 
   return (
     <div className="h-full flex flex-col bg-slate-50">

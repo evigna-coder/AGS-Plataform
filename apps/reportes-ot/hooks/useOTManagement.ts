@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { TipoOT } from '@ags/shared';
 import { auth } from '../services/authService';
 import { FirebaseService } from '../services/firebaseService';
 import { Part, ProtocolData } from '../types';
@@ -91,6 +92,8 @@ export interface DuplicateOptions {
 }
 
 export interface UseOTManagementReturn {
+  // Tipo de OT cargada (servicio: equipo obligatorio; entrega: equipo opcional)
+  tipoOT: TipoOT;
   // Funciones
   loadOT: (otValue: string) => Promise<void>;
   createNewOT: (otValue: string) => void;
@@ -114,6 +117,9 @@ export const useOTManagement = (
 ): UseOTManagementReturn => {
   const [showNewOtModal, setShowNewOtModal] = useState(false);
   const [pendingOt, setPendingOt] = useState<string>('');
+  // Tipo de OT: no forma parte del form editable; se carga desde la OT y se
+  // preserva en Firestore vía merge:true. 'servicio' por defecto (legacy).
+  const [tipoOT, setTipoOT] = useState<TipoOT>('servicio');
 
   const {
     formState,
@@ -264,6 +270,7 @@ export const useOTManagement = (
         setDireccion(data.direccion || '');
         setLocalidad(data.localidad || '');
         setProvincia(data.provincia || '');
+        setTipoOT(data.tipoOT === 'entrega' ? 'entrega' : 'servicio');
         setSistema(data.sistema || '');
         setModuloModelo(data.moduloModelo || '');
         setModuloMarca(data.moduloMarca || '');
@@ -419,6 +426,7 @@ export const useOTManagement = (
     setDireccion('');
     setLocalidad('');
     setProvincia('');
+    setTipoOT('servicio');
     setSistema('');
     setModuloModelo('');
     setModuloMarca('');
@@ -638,6 +646,7 @@ export const useOTManagement = (
   };
 
   return {
+    tipoOT,
     loadOT,
     createNewOT,
     newReport,

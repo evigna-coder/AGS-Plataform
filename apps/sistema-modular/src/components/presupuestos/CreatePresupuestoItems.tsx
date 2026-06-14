@@ -5,6 +5,8 @@ import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { articulosService } from '../../services/firebaseService';
+import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
+import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
 
 // ─── Autocomplete de código de artículo (mismo patrón que reportes-ot) ──────
 
@@ -109,6 +111,7 @@ interface Props {
   items: PresupuestoItem[];
   onAdd: (item: PresupuestoItem) => void;
   onRemove: (id: string) => void;
+  onUpdate: (id: string, field: keyof PresupuestoItem, value: any) => void;
   categoriasPresupuesto: CategoriaPresupuesto[];
   conceptosServicio: ConceptoServicio[];
   moneda: MonedaPresupuesto;
@@ -123,12 +126,23 @@ const MONEDA_OPTIONS: { value: 'USD' | 'ARS' | 'EUR'; label: string }[] = [
 const EMPTY_ITEM: Partial<PresupuestoItem> = {
   descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0,
   categoriaPresupuestoId: undefined, codigoProducto: null, conceptoServicioId: null,
-  servicioCode: null, moneda: null, stockArticuloId: null,
+  servicioCode: null, moneda: null, stockArticuloId: null, factor: null,
 };
 
-export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
-  const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({ ...EMPTY_ITEM, moneda: moneda === 'MIXTA' ? 'USD' : null });
+export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categoriasPresupuesto, conceptosServicio, moneda }: Props) => {
+  const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({ ...EMPTY_ITEM, categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), moneda: moneda === 'MIXTA' ? 'USD' : null });
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloCatalog[]>([]);
+  const [showWizard, setShowWizard] = useState(false);
+  // Las categorías cargan async: el default del useState inicial corre con [] y queda sin
+  // categoría. Aplicamos el default IVA 21% una vez que el catálogo está disponible (sin
+  // pisar una elección posterior del usuario).
+  const defaultCatApplied = useRef(false);
+  useEffect(() => {
+    if (defaultCatApplied.current || categoriasPresupuesto.length === 0) return;
+    defaultCatApplied.current = true;
+    const def = findCategoriaIvaDefaultId(categoriasPresupuesto);
+    if (def) setNewItem(prev => (prev.categoriaPresupuestoId ? prev : { ...prev, categoriaPresupuestoId: def }));
+  }, [categoriasPresupuesto]);
   const isMixta = moneda === 'MIXTA';
   const symFor = (m: string) => MONEDA_SIMBOLO[m] || '$';
   const sym = isMixta ? '' : (MONEDA_SIMBOLO[moneda] || '$');
@@ -162,14 +176,17 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       alert('Complete descripcion, cantidad y precio unitario');
       return;
     }
-    const subtotal = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
+    const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
+    const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
     onAdd({
       id: `item-${Date.now()}`,
       descripcion: newItem.descripcion,
       cantidad: newItem.cantidad || 1,
       unidad: newItem.unidad || 'unidad',
       precioUnitario: newItem.precioUnitario || 0,
+      descuento: newItem.descuento || 0,
       categoriaPresupuestoId: newItem.categoriaPresupuestoId,
+      factor: newItem.factor ?? null,
       codigoProducto: newItem.codigoProducto || null,
       conceptoServicioId: newItem.conceptoServicioId || null,
       servicioCode: newItem.servicioCode || null,
@@ -177,7 +194,30 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       subtotal,
       ...(isMixta ? { moneda: newItem.moneda || 'USD' } : {}),
     });
-    setNewItem({ ...EMPTY_ITEM, moneda: isMixta ? (newItem.moneda || 'USD') : null });
+    setNewItem({ ...EMPTY_ITEM, categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), moneda: isMixta ? (newItem.moneda || 'USD') : null });
+  };
+
+  const addFromWizard = (p: Partial<PresupuestoItem>) => {
+    const cantidad = p.cantidad || 1;
+    const precioUnitario = p.precioUnitario || 0;
+    const descuento = p.descuento || 0;
+    const base = cantidad * precioUnitario;
+    onAdd({
+      id: `item-${Date.now()}`,
+      descripcion: p.descripcion || '',
+      cantidad,
+      unidad: p.unidad || 'unidad',
+      precioUnitario,
+      descuento,
+      categoriaPresupuestoId: p.categoriaPresupuestoId,
+      factor: p.factor ?? null,
+      codigoProducto: p.codigoProducto ?? null,
+      conceptoServicioId: p.conceptoServicioId ?? null,
+      servicioCode: null,
+      stockArticuloId: p.stockArticuloId ?? null,
+      subtotal: descuento ? base * (1 - descuento / 100) : base,
+      ...(isMixta ? { moneda: 'USD' } : {}),
+    });
   };
 
   const handleSelectArticulo = (art: ArticuloCatalog) => {
@@ -245,6 +285,20 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
 
   return (
     <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wide">Agregar items</span>
+        <Button size="sm" variant="outline" onClick={() => setShowWizard(true)}>⚡ Carga rapida</Button>
+      </div>
+      {showWizard && (
+        <PresupuestoAddItemWizard
+          conceptosServicio={conceptosServicio}
+          categoriasPresupuesto={categoriasPresupuesto}
+          moneda={moneda}
+          onAdd={addFromWizard}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
+
       {/* Row 1: Catálogo selector */}
       {conceptoOptions.length > 0 && (
         <div>
@@ -272,7 +326,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
       </div>
 
       {/* Row 3: Cant, Unidad, Precio, Dto, [Moneda], Categoría, Agregar */}
-      <div className={`grid ${isMixta ? 'grid-cols-[60px_75px_90px_50px_70px_1fr_auto]' : 'grid-cols-[60px_75px_90px_50px_1fr_auto]'} gap-2.5 items-end`}>
+      <div className={`grid ${isMixta ? 'grid-cols-[60px_75px_90px_50px_70px_70px_1fr_auto]' : 'grid-cols-[60px_75px_90px_50px_70px_1fr_auto]'} gap-2.5 items-end`}>
         <div>
           <label className={lbl}>Cant. *</label>
           <input type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={e => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })}
@@ -292,6 +346,11 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
           <label className={lbl}>Dto %</label>
           <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={e => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" placeholder="0" />
+        </div>
+        <div>
+          <label className={lbl} title="Multiplicador sobre FOB — referencia interna, no se muestra en el PDF">Factor</label>
+          <input type="number" min="0" step="0.01" value={newItem.factor ?? ''} onChange={e => setNewItem({ ...newItem, factor: e.target.value === '' ? null : Number(e.target.value) })}
+            className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" placeholder="1.45" />
         </div>
         {isMixta && (
           <div>
@@ -320,9 +379,11 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
               <tr className="bg-[#F0F0F0]">
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center w-24">Codigo</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-3 text-center">Descripcion</th>
-                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-12">Cant.</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-14">Cant.</th>
                 {isMixta && <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-14">Mon.</th>}
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-20">P.Unit.</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-14">Dto %</th>
+                <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-14" title="Factor de venta — referencia interna, no se muestra en el PDF">Factor</th>
                 <th className="text-[8px] font-mono font-semibold text-slate-500 uppercase tracking-wider py-2 px-2 text-center w-20">Subtotal</th>
                 <th className="w-8"></th>
               </tr>
@@ -330,12 +391,34 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
             <tbody className="divide-y divide-slate-100">
               {items.map(item => (
                 <tr key={item.id}>
-                  <td className="px-2 py-1.5 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
-                  <td className="px-3 py-1.5 text-xs text-slate-700 truncate max-w-[300px]">{item.descripcion}</td>
-                  <td className="px-2 py-1.5 text-xs text-center">{item.cantidad} {item.unidad !== 'unidad' ? item.unidad : ''}</td>
-                  {isMixta && <td className="px-2 py-1.5 text-[10px] text-center font-mono text-slate-500">{item.moneda || 'USD'}</td>}
-                  <td className="px-2 py-1.5 text-xs text-center font-mono">{fmtMoney(item.precioUnitario, isMixta ? item.moneda : null)}</td>
-                  <td className="px-2 py-1.5 text-xs text-center font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal, isMixta ? item.moneda : null)}</td>
+                  <td className="px-2 py-1 text-xs text-slate-500 font-mono">{item.servicioCode || item.codigoProducto || '—'}</td>
+                  <td className="px-2 py-1">
+                    <input value={item.descripcion}
+                      onChange={e => onUpdate(item.id, 'descripcion', e.target.value)}
+                      className="w-full outline-none bg-transparent text-xs text-slate-700" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <input type="number" min="0" step="0.01" value={item.cantidad}
+                      onChange={e => onUpdate(item.id, 'cantidad', Number(e.target.value) || 0)}
+                      className="w-full outline-none bg-transparent text-xs text-center" />
+                  </td>
+                  {isMixta && <td className="px-2 py-1 text-[10px] text-center font-mono text-slate-500">{item.moneda || 'USD'}</td>}
+                  <td className="px-1 py-1">
+                    <input type="number" min="0" step="0.01" value={item.precioUnitario}
+                      onChange={e => onUpdate(item.id, 'precioUnitario', Number(e.target.value) || 0)}
+                      className="w-full outline-none bg-transparent text-xs text-right font-mono" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <input type="number" min="0" max="100" step="0.5" value={item.descuento || 0}
+                      onChange={e => onUpdate(item.id, 'descuento', Number(e.target.value) || 0)}
+                      className="w-full outline-none bg-transparent text-xs text-center" />
+                  </td>
+                  <td className="px-1 py-1">
+                    <input type="number" min="0" step="0.01" value={item.factor ?? ''} placeholder="—"
+                      onChange={e => onUpdate(item.id, 'factor', e.target.value === '' ? null : Number(e.target.value))}
+                      className="w-full outline-none bg-transparent text-xs text-center text-slate-500" />
+                  </td>
+                  <td className="px-2 py-1 text-xs text-center font-mono font-semibold text-teal-700">{fmtMoney(item.subtotal, isMixta ? item.moneda : null)}</td>
                   <td className="text-center">
                     <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-600 font-medium">&times;</button>
                   </td>
@@ -346,14 +429,14 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, categoriasPresu
               {isMixta && totalsByCurrency ? (
                 Object.entries(totalsByCurrency).map(([m, total]) => (
                   <tr key={m}>
-                    <td colSpan={isMixta ? 5 : 4} className="px-3 py-1 text-right text-[9px] font-mono font-semibold text-slate-500 uppercase">Total {m}</td>
+                    <td colSpan={7} className="px-3 py-1 text-right text-[9px] font-mono font-semibold text-slate-500 uppercase">Total {m}</td>
                     <td className="px-2 py-1 text-center text-xs font-mono font-semibold text-teal-700">{fmtMoney(total, m)}</td>
                     <td></td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-3 py-1.5 text-center text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
+                  <td colSpan={6} className="px-3 py-1.5 text-center text-[9px] font-mono font-semibold text-slate-500 uppercase">Total</td>
                   <td className="px-2 py-1.5 text-center text-xs font-mono font-semibold text-teal-700">{fmtMoney(totalItems)}</td>
                   <td></td>
                 </tr>

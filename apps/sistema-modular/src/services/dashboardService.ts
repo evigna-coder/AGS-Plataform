@@ -157,7 +157,7 @@ function aggregateOperacion(ots: WorkOrder[]): OperacionKPIs {
 
 function aggregateTickets(tickets: Ticket[]): TicketsKPIs {
   const porArea: Record<TicketArea | 'sin_area', number> = {
-    admin_soporte: 0, ing_soporte: 0, administracion: 0, ventas: 0, sistema: 0, sin_area: 0,
+    admin_soporte: 0, ing_soporte: 0, administracion: 0, ventas: 0, compras: 0, materiales: 0, sistema: 0, sin_area: 0,
   };
   const porPrioridad: Record<TicketPrioridad | 'sin_prioridad', number> = {
     urgente: 0, alta: 0, normal: 0, baja: 0, muy_baja: 0, sin_prioridad: 0,

@@ -14,6 +14,8 @@ interface Props {
   /** Override del título cuando se abre desde un contexto específico (ej: "Reponer artículo al minikit"). */
   title?: string;
   subtitle?: string;
+  /** Si se provee, elegir "Ingreso" en el selector redirige al modal de Cargar stock (que crea las unidades). */
+  onRequestIngreso?: () => void;
 }
 
 const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
@@ -24,7 +26,7 @@ const TIPO_ICON: Record<TipoOrigenDestino, string> = {
   consumo_ot: '🔧', baja: '🗑️', ajuste: '⚖️',
 };
 
-export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreated, init = {}, title, subtitle }) => {
+export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreated, init = {}, title, subtitle, onRequestIngreso }) => {
   const { usuario, firebaseUser } = useAuth();
   const creadoPor = usuario?.displayName ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
   const h = useCreateMovimientoForm(open, onClose, onCreated, init, creadoPor);
@@ -108,7 +110,12 @@ export const CreateMovimientoModal: React.FC<Props> = ({ open, onClose, onCreate
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>Tipo de movimiento *</label>
-            <select value={h.form.tipo} onChange={e => h.set('tipo', e.target.value as typeof h.form.tipo)}
+            <select value={h.form.tipo}
+              onChange={e => {
+                const v = e.target.value as typeof h.form.tipo;
+                if (v === 'ingreso' && onRequestIngreso) { onRequestIngreso(); return; }
+                h.set('tipo', v);
+              }}
               disabled={tipoLockeado}
               className={selectCls}>
               {TIPO_MOV_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}

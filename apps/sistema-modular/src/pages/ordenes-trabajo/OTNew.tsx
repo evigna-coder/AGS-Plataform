@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ordenesTrabajoService, clientesService, sistemasService, contactosService, tiposServicioService, leadsService, modulosService, presupuestosService } from '../../services/firebaseService';
-import type { Cliente, Sistema, ContactoCliente, TipoServicio } from '@ags/shared';
+import type { Cliente, Sistema, ContactoCliente, TipoServicio, TipoOT, PresupuestoItem } from '@ags/shared';
+import { deepCleanForFirestore } from '../../services/firebase';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -29,6 +30,7 @@ export const OTNew = () => {
   
   const [formData, setFormData] = useState({
     otNumber: '',
+    tipoOT: 'servicio' as TipoOT,
     clienteId: clienteIdFromUrl || '',
     sistemaId: sistemaIdFromUrl || '',
     contactoId: '',
@@ -163,21 +165,26 @@ export const OTNew = () => {
       alert('Debe seleccionar un cliente');
       return;
     }
-    
-    if (!formData.sistemaId) {
+
+    // En OT de entrega el equipo es opcional; en servicio sigue siendo obligatorio.
+    if (formData.tipoOT !== 'entrega' && !formData.sistemaId) {
       alert('Debe seleccionar un sistema');
       return;
     }
 
     try {
       setLoading(true);
-      
+
       const cliente = clientes.find(c => c.id === formData.clienteId);
-      const sistema = sistemas.find(s => s.id === formData.sistemaId);
+      const sistema = formData.sistemaId ? sistemas.find(s => s.id === formData.sistemaId) : undefined;
       const contacto = contactos.find(c => c.id === formData.contactoId);
-      
-      if (!cliente || !sistema) {
-        alert('Error: Cliente o sistema no encontrado');
+
+      if (!cliente) {
+        alert('Error: Cliente no encontrado');
+        return;
+      }
+      if (formData.tipoOT !== 'entrega' && !sistema) {
+        alert('Error: Sistema no encontrado');
         return;
       }
       
@@ -210,6 +217,7 @@ export const OTNew = () => {
       // Crear OT básica - los datos completos se editarán en reportes-ot
       const otData = {
         otNumber: formData.otNumber,
+        tipoOT: formData.tipoOT,
         status: 'BORRADOR' as const,
         budgets: presupuestoNumero ? [presupuestoNumero] : [],
         leadId: leadIdFromUrl ?? null,
@@ -223,12 +231,12 @@ export const OTNew = () => {
         direccion: cliente.direccion || '',
         localidad: cliente.localidad || '',
         provincia: cliente.provincia || '',
-        sistema: sistema.nombre,
+        sistema: sistema?.nombre ?? '',
         moduloModelo,
         moduloDescripcion,
         moduloSerie,
         ...(moduloId ? { moduloId } : {}),
-        codigoInternoCliente: sistema.codigoInternoCliente,
+        codigoInternoCliente: sistema?.codigoInternoCliente ?? '',
         fechaInicio: new Date().toISOString().split('T')[0],
         fechaFin: new Date().toISOString().split('T')[0],
         horasTrabajadas: '',
@@ -243,9 +251,9 @@ export const OTNew = () => {
         aclaracionCliente: contacto?.nombre || '',
         updatedAt: new Date().toISOString(),
         clienteId: cliente.id,
-        sistemaId: sistema.id,
+        ...(sistema ? { sistemaId: sistema.id } : {}),
       };
-      
+
       await ordenesTrabajoService.create(otData);
 
       // Vincular OT al lead de origen y actualizar estado
@@ -262,10 +270,15 @@ export const OTNew = () => {
           const presActual = await presupuestosService.getById(presupuestoIdFromUrl);
           const prev = presActual?.otsVinculadasNumbers ?? [];
           const nextList = prev.includes(formData.otNumber) ? prev : [...prev, formData.otNumber];
-          await presupuestosService.update(presupuestoIdFromUrl, {
+          // Auto-vincular a esta OT los items sin OT asignada (aparecen en /entregas).
+          const itemsVinculados = (presActual?.items ?? []).map((it: PresupuestoItem) =>
+            it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: formData.otNumber },
+          );
+          await presupuestosService.update(presupuestoIdFromUrl, deepCleanForFirestore({
             otVinculadaNumber: formData.otNumber,
             otsVinculadasNumbers: nextList,
-          } as any);
+            items: itemsVinculados,
+          }) as any);
         } catch (err) {
           console.error('Error vinculando presupuesto:', err);
         }
@@ -312,6 +325,22 @@ export const OTNew = () => {
         <Card>
           <h3 className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-4">Datos Básicos</h3>
           <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de orden</label>
+              <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
+                {(['servicio', 'entrega'] as TipoOT[]).map(t => (
+                  <button key={t} type="button" onClick={() => setFormData(prev => ({ ...prev, tipoOT: t }))}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      formData.tipoOT === t ? 'bg-teal-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}>
+                    {t === 'servicio' ? 'Servicio técnico' : 'Entrega de partes'}
+                  </button>
+                ))}
+              </div>
+              {formData.tipoOT === 'entrega' && (
+                <p className="mt-1 text-xs text-slate-500">El equipo es opcional para entregas de partes.</p>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -377,13 +406,18 @@ export const OTNew = () => {
             {formData.clienteId && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Sistema / Equipo *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Sistema / Equipo {formData.tipoOT === 'entrega' ? <span className="text-slate-400">(opcional)</span> : '*'}
+                  </label>
                   <SearchableSelect
                     value={formData.sistemaId}
                     onChange={(value) => setFormData(prev => ({ ...prev, sistemaId: value }))}
-                    options={sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` }))}
+                    options={[
+                      ...(formData.tipoOT === 'entrega' ? [{ value: '', label: 'Sin equipo' }] : []),
+                      ...sistemasFiltrados.map(s => ({ value: s.id, label: `${s.nombre} (${s.codigoInternoCliente})` })),
+                    ]}
                     placeholder="Seleccionar sistema..."
-                    required
+                    required={formData.tipoOT !== 'entrega'}
                   />
                 </div>
                 

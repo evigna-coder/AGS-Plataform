@@ -11,7 +11,7 @@ interface Props {
 }
 
 const emptyForm = {
-  nombre: '', tipo: 'nacional' as 'nacional' | 'internacional',
+  nombre: '', tipo: 'nacional' as 'nacional' | 'internacional', codigoOC: '',
   contacto: '', email: '', telefono: '', pais: '', cuit: '',
   direccion: '', notas: '',
   banco: '', cuentaBancaria: '', swift: '', iban: '',
@@ -33,6 +33,7 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
       await proveedoresService.create({
         nombre: form.nombre.trim(),
         tipo: form.tipo,
+        codigoOC: form.codigoOC.trim().toUpperCase() || null,
         contacto: form.contacto.trim() || null,
         email: form.email.trim() || null,
         telefono: form.telefono.trim() || null,
@@ -83,6 +84,9 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
               </select>
             </div>
             <Input inputSize="sm" label="CUIT" value={form.cuit} onChange={e => set('cuit', e.target.value)} placeholder="20-12345678-9" />
+            <Input inputSize="sm" label="Codigo OC (3 letras)" value={form.codigoOC}
+              onChange={e => set('codigoOC', e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 3))}
+              placeholder="JAS" />
           </div>
         </div>
 

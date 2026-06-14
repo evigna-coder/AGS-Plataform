@@ -19,7 +19,7 @@ const FILTER_SCHEMA = {
 const thClass = 'text-left text-[11px] font-medium text-slate-400 tracking-wider py-2 px-3';
 
 export const EntregasList: React.FC = () => {
-  const { rows, loading, updateOtNumero } = useEntregas();
+  const { rows, loading, updateItem } = useEntregas();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
 
   const clienteOptions = useMemo(() => {
@@ -91,6 +91,7 @@ export const EntregasList: React.FC = () => {
                   <SortableHeader label="Importación"  field="importacionNumero"  currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="Disp."        field="disponibilidad"     currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                   <SortableHeader label="ETA"          field="etaFecha"           currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
+                  <th className={`${thClass} text-center`}>Entregado</th>
                   <SortableHeader label="Días"         field="diasRestantes"      currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={thClass} />
                 </tr>
               </thead>
@@ -99,7 +100,7 @@ export const EntregasList: React.FC = () => {
                   <EntregaRowComponent
                     key={`${row.presupuestoId}::${row.itemId}`}
                     row={row}
-                    onUpdateOtNumero={(otNumero) => updateOtNumero(row.presupuestoId, row.itemId, otNumero)}
+                    onUpdate={(patch) => updateItem(row.presupuestoId, row.itemId, patch)}
                   />
                 ))}
               </tbody>

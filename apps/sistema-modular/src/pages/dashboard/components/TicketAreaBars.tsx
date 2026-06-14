@@ -6,7 +6,7 @@ interface TicketAreaBarsProps {
 }
 
 const AREA_ORDER: (TicketArea | 'sin_area')[] = [
-  'admin_soporte', 'ing_soporte', 'administracion', 'ventas', 'sistema', 'sin_area',
+  'admin_soporte', 'ing_soporte', 'administracion', 'ventas', 'compras', 'materiales', 'sistema', 'sin_area',
 ];
 
 const AREA_COLORS: Record<TicketArea | 'sin_area', string> = {
@@ -14,6 +14,8 @@ const AREA_COLORS: Record<TicketArea | 'sin_area', string> = {
   ing_soporte: '#0D6E6E',
   administracion: '#8B5CF6',
   ventas: '#10B981',
+  compras: '#F59E0B',
+  materiales: '#06B6D4',
   sistema: '#A855F7',
   sin_area: '#94A3B8',
 };

@@ -130,9 +130,16 @@ export async function computeStockAmplio(articuloId: string): Promise<StockAmpli
     ? __testState.unidades.filter(u => u.articuloId === articuloId && u.activo !== false)
     : await fetchUnidades(articuloId);
 
-  const disponible = unidades.filter(u => u.estado === 'disponible').length;
-  const reservado = unidades.filter(u => u.estado === 'reservado').length;
-  const unidadesEnTransito = unidades.filter(u => u.estado === 'en_transito').length;
+  // Sum `cantidad` (default 1) rather than counting docs: a single lote doc can
+  // represent N physical units. Serialized articles always store cantidad=1, so
+  // the sum collapses to a count for them.
+  const sumCantidad = (estado: string) =>
+    (unidades as any[])
+      .filter((u: any) => u.estado === estado)
+      .reduce((acc: number, u: any) => acc + (u.cantidad ?? 1), 0);
+  const disponible = sumCantidad('disponible');
+  const reservado = sumCantidad('reservado');
+  const unidadesEnTransito = sumCantidad('en_transito');
 
   // 2. OCs abiertas — pending items NOT yet received (not yet in DB as units)
   // These are SEPARATE from unidades.en_transito — DO NOT deduplicate.

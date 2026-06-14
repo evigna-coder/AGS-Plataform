@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import type { UsuarioAGS, UserRole } from '@ags/shared';
+import { canAccessApp } from '@ags/shared';
 import { onAuthStateChanged, isAllowedDomain, signOut } from '../services/authService';
 import { usuariosService } from '../services/firebaseService';
 import { setCurrentUser } from '../services/currentUser';
@@ -87,9 +88,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsub?.();
   }, []);
 
+  // Acceso al portal: por rol de ingeniería (PORTAL_ROLES) o por override de app
+  // por usuario (permisos.apps incluye 'portal-ingeniero') — habilita perfiles
+  // acotados como tesorería/pagos sin volverlos ingenieros.
   const hasPortalRole = usuario?.role ? PORTAL_ROLES.includes(usuario.role) : false;
-  const isAuthenticated = !!usuario && usuario.status === 'activo' && hasPortalRole;
-  const isPending = !!usuario && (usuario.status === 'pendiente' || (usuario.status === 'activo' && !hasPortalRole));
+  const hasPortalAccess = !!usuario && (hasPortalRole || canAccessApp(usuario, 'portal-ingeniero'));
+  const isAuthenticated = !!usuario && usuario.status === 'activo' && hasPortalAccess;
+  const isPending = !!usuario && (usuario.status === 'pendiente' || (usuario.status === 'activo' && !hasPortalAccess));
   const isDisabled = !!usuario && usuario.status === 'deshabilitado';
 
   const hasRole = (...roles: UserRole[]): boolean => {

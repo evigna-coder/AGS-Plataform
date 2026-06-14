@@ -575,6 +575,7 @@ export const PresupuestosList = () => {
           onCreated={() => setOtTarget(null)}
           prefill={{
             clienteId: otTarget.clienteId,
+            establecimientoId: otTarget.establecimientoId || undefined,
             sistemaId: otTarget.sistemaId || undefined,
             contactoId: otTarget.contactoId || undefined,
             presupuestoId: otTarget.id,

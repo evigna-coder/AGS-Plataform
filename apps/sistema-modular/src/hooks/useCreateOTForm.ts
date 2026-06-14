@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ordenesTrabajoService, clientesService, establecimientosService, sistemasService,
   tiposServicioService, contactosService, modulosService, presupuestosService,
-  contratosService,
+  contratosService, leadsService,
 } from '../services/firebaseService';
 import { ingenierosService } from '../services/personalService';
 import { pendientesService } from '../services/pendientesService';
-import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, Contrato } from '@ags/shared';
+import { deepCleanForFirestore } from '../services/firebase';
+import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, PresupuestoItem, Contrato, TipoOT } from '@ags/shared';
 
 export interface CreateOTFormState {
+  tipoOT: TipoOT;
   clienteId: string;
   establecimientoId: string;
   sistemaId: string;
@@ -28,6 +30,7 @@ export interface CreateOTFormState {
 }
 
 const INITIAL_FORM: CreateOTFormState = {
+  tipoOT: 'servicio',
   clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '',
   tipoServicioId: '', contactoId: '', ingenieroId: '',
   presupuestoId: '', presupuestoNumero: '', ordenCompra: '', fechaServicioAprox: '',
@@ -37,6 +40,7 @@ const INITIAL_FORM: CreateOTFormState = {
 
 export interface OTPrefill {
   clienteId?: string;
+  establecimientoId?: string;
   sistemaId?: string;
   moduloId?: string;
   contactoId?: string;
@@ -96,6 +100,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     setPrefilled(true);
     const updates: Partial<CreateOTFormState> = {};
     if (prefill.clienteId) updates.clienteId = prefill.clienteId;
+    if (prefill.establecimientoId) updates.establecimientoId = prefill.establecimientoId;
     if (prefill.sistemaId) updates.sistemaId = prefill.sistemaId;
     if (prefill.moduloId) updates.moduloId = prefill.moduloId;
     if (prefill.contactoId) updates.contactoId = prefill.contactoId;
@@ -211,10 +216,13 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId);
 
     if (!cliente || !tipoServ) { alert('Datos incompletos'); return; }
-    if (!form.sistemaId) { alert('Seleccione un equipo'); return; }
-    if (!sistema) {
-      alert('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
-      return;
+    // En OT de entrega el equipo es opcional. En OT de servicio sigue siendo obligatorio.
+    if (form.tipoOT !== 'entrega') {
+      if (!form.sistemaId) { alert('Seleccione un equipo'); return; }
+      if (!sistema) {
+        alert('El equipo seleccionado no se encontró en el catálogo. Recargá la página y volvé a seleccionarlo.');
+        return;
+      }
     }
 
     setSaving(true);
@@ -222,6 +230,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       const otNum = await ordenesTrabajoService.getNextOtNumber();
       const otData = {
         otNumber: otNum,
+        tipoOT: form.tipoOT,
         status: 'BORRADOR' as const,
         estadoAdmin: (ingeniero ? 'ASIGNADA' : 'CREADA') as 'ASIGNADA' | 'CREADA',
         estadoAdminFecha: new Date().toISOString(),
@@ -293,11 +302,31 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
           const presActual = await presupuestosService.getById(form.presupuestoId);
           const prev = presActual?.otsVinculadasNumbers ?? [];
           const nextList = prev.includes(otNum) ? prev : [...prev, otNum];
-          await presupuestosService.update(form.presupuestoId, {
+          // Auto-vincular a esta OT los items que aún no tengan OT asignada, para
+          // que aparezcan en /entregas. No se pisa un otNumeroVinculada ya seteado
+          // (manual o por una OT previa) — un presupuesto puede partirse en N OTs.
+          const itemsVinculados = (presActual?.items ?? []).map((it: PresupuestoItem) =>
+            it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: otNum },
+          );
+          await presupuestosService.update(form.presupuestoId, deepCleanForFirestore({
             otVinculadaNumber: otNum,
             otsVinculadasNumbers: nextList,
             estado: 'en_ejecucion',
-          } as any);
+            items: itemsVinculados,
+          }) as any);
+
+          // Flujo de tickets: si la OT cubre ítems que NO están en stock (a importar),
+          // el ticket pasa de coordinación a "Compras" para disparar la compra de la parte.
+          const tieneItemsAImportar = (presActual?.items ?? []).some((it: PresupuestoItem) =>
+            it.disponibilidad === 'a_importar' || (it as { itemRequiereImportacion?: boolean }).itemRequiereImportacion,
+          );
+          const ticketId = form.leadId
+            || (presActual?.origenTipo === 'lead' ? presActual?.origenId : null);
+          if (tieneItemsAImportar && ticketId) {
+            await leadsService.moverAArea(ticketId, 'compras').catch(err =>
+              console.error('Error moviendo ticket a Compras:', err),
+            );
+          }
         } catch (err) {
           console.error('Error vinculando presupuesto:', err);
         }

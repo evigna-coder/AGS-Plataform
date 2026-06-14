@@ -33,6 +33,8 @@ const AREA_LABELS: Record<TicketArea, string> = {
   ing_soporte: 'Ing. de soporte',
   administracion: 'Administración',
   ventas: 'Ventas',
+  compras: 'Compras',
+  materiales: 'Materiales',
   sistema: 'Sistema',
 };
 

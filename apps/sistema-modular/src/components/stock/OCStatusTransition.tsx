@@ -6,13 +6,9 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
 const VALID_TRANSITIONS: Record<EstadoOC, EstadoOC[]> = {
-  borrador: ['pendiente_aprobacion', 'cancelada'],
-  pendiente_aprobacion: ['aprobada', 'cancelada'],
-  aprobada: ['enviada_proveedor', 'cancelada'],
-  enviada_proveedor: ['confirmada', 'cancelada'],
-  confirmada: ['en_transito', 'cancelada'],
-  en_transito: ['recibida', 'recibida_parcial', 'cancelada'],
-  recibida_parcial: ['recibida', 'cancelada'],
+  borrador: ['enviada_proveedor', 'cancelada'],
+  enviada_proveedor: ['embarcada', 'recibida', 'cancelada'],
+  embarcada: ['recibida', 'cancelada'],
   recibida: [],
   cancelada: [],
 };

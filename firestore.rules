@@ -125,6 +125,7 @@ service cloud.firestore {
     match /posiciones_arancelarias/{posicionId}   { allow read, write: if signedIn(); }
     match /requerimientos_compra/{requerimientoId}{ allow read, write: if signedIn(); }
     match /importaciones/{importacionId}          { allow read, write: if signedIn(); }
+    match /agentesCarga/{agenteId}                { allow read, write: if signedIn(); }
     match /asignaciones/{asignacionId}            { allow read, write: if signedIn(); }
 
     // Agenda

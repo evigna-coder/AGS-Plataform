@@ -5,6 +5,7 @@ import { sortByField, toggleSort, type SortDir } from '../../components/ui/Sorta
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRequerimientoModal } from '../../components/stock/CreateRequerimientoModal';
+import { OrdenCompraModal } from '../../components/stock/OrdenCompraModal';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useRequerimientoInlineEdit } from '../../hooks/useRequerimientoInlineEdit';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -29,6 +30,8 @@ export const RequerimientosList = () => {
   const confirm = useConfirm();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [showCreate, setShowCreate] = useState(false);
+  const [ocModalId, setOcModalId] = useState<string | null>(null);
+  const [ocModalOpen, setOcModalOpen] = useState(false);
   const [sortField, setSortField] = useState('fechaSolicitud');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -87,7 +90,11 @@ export const RequerimientosList = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!await confirm('¿Eliminar este requerimiento pendiente?')) return;
+    const r = requerimientos.find(x => x.id === id);
+    const aviso = r?.ordenCompraNumero
+      ? `\n\nAtención: está vinculado a la OC ${r.ordenCompraNumero}. Esa OC quedará con un item sin requerimiento; lo ideal es eliminar primero la OC.`
+      : '';
+    if (!await confirm(`¿Eliminar este requerimiento?${aviso}`)) return;
     try {
       await requerimientosService.delete(id);
       setRequerimientos(prev => prev.filter(r => r.id !== id));
@@ -96,10 +103,16 @@ export const RequerimientosList = () => {
 
   const handleGenerarOC = async () => {
     const sel = sorted.filter(r => selectedIds.has(r.id));
-    const count = await generarOCs(sel);
-    if (count > 0) {
+    const ocIds = await generarOCs(sel);
+    if (ocIds.length > 0) {
       setSelectedIds(new Set());
-      alert(`${count} OC(s) generada(s) en estado borrador. Complete los precios en Órdenes de Compra.`);
+      // Abrir directo la OC generada para completar precios/proveedor.
+      // Si se generó más de una (varios proveedores), se abre la primera.
+      if (ocIds.length > 1) {
+        alert(`Se generaron ${ocIds.length} OCs (una por proveedor). Se abre la primera; el resto está en Órdenes de Compra.`);
+      }
+      setOcModalId(ocIds[0]);
+      setOcModalOpen(true);
     }
   };
 
@@ -240,6 +253,13 @@ export const RequerimientosList = () => {
       </div>
 
       <CreateRequerimientoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+
+      <OrdenCompraModal
+        open={ocModalOpen}
+        ocId={ocModalId}
+        onClose={() => { setOcModalOpen(false); setOcModalId(null); }}
+        onSaved={loadData}
+      />
     </div>
   );
 };

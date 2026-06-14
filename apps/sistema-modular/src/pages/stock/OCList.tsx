@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { useOrdenesCompra } from '../../hooks/useOrdenesCompra';
+import { OrdenCompraModal } from '../../components/stock/OrdenCompraModal';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
@@ -32,6 +32,8 @@ export const OCList = () => {
   const showCanceladas = filters.showCanceladas;
   const [sortField, setSortField] = useState('fechaEntregaEstimada');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  // undefined = modal cerrado · null = OC nueva · string = ver/editar esa OC
+  const [modalOcId, setModalOcId] = useState<string | null | undefined>(undefined);
 
   const handleSort = (f: string) => {
     const s = toggleSort(f, sortField, sortDir);
@@ -69,9 +71,7 @@ export const OCList = () => {
         subtitle="Gestionar ordenes de compra"
         count={filtered.length}
         actions={
-          <Link to="/stock/ordenes-compra/nuevo">
-            <Button size="sm">+ Nueva OC</Button>
-          </Link>
+          <Button size="sm" onClick={() => setModalOcId(null)}>+ Nueva OC</Button>
         }
       >
         <div className="flex items-center gap-3 flex-wrap">
@@ -107,7 +107,7 @@ export const OCList = () => {
           <Card>
             <div className="text-center py-12">
               <p className="text-slate-400">No hay ordenes de compra para mostrar</p>
-              <Link to="/stock/ordenes-compra/nuevo"><Button className="mt-4" size="sm">Crear primera OC</Button></Link>
+              <Button className="mt-4" size="sm" onClick={() => setModalOcId(null)}>Crear primera OC</Button>
             </div>
           </Card>
         ) : (
@@ -179,9 +179,9 @@ export const OCList = () => {
                 {filtered.map(o => {
                   const sym = MONEDA_SYM[o.moneda] || '$';
                   return (
-                    <tr key={o.id} className="hover:bg-slate-50">
+                    <tr key={o.id} onClick={() => setModalOcId(o.id)} className="hover:bg-slate-50 cursor-pointer">
                       <td className={`px-4 py-2 ${getAlignClass(0)}`}>
-                        <Link to={`/stock/ordenes-compra/${o.id}`} className="font-mono font-semibold text-teal-600 hover:underline text-xs">{o.numero}</Link>
+                        <span className="font-mono font-semibold text-teal-600 text-xs">{o.numero}</span>
                       </td>
                       <td className={`px-4 py-2 ${getAlignClass(1)}`}>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLORS[o.tipo]}`}>{TIPO_LABELS[o.tipo]}</span>
@@ -199,9 +199,8 @@ export const OCList = () => {
                         {o.fechaEntregaEstimada ? new Date(o.fechaEntregaEstimada).toLocaleDateString('es-AR') : '-'}
                       </td>
                       <td className="px-4 py-2 text-center space-x-1">
-                        <Link to={`/stock/ordenes-compra/${o.id}`}><Button variant="ghost" size="sm">Ver</Button></Link>
                         {o.estado === 'borrador' && (
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(o.id)}>Eliminar</Button>
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(o.id); }}>Eliminar</Button>
                         )}
                       </td>
                     </tr>
@@ -212,6 +211,13 @@ export const OCList = () => {
           </div>
         )}
       </div>
+
+      <OrdenCompraModal
+        open={modalOcId !== undefined}
+        ocId={modalOcId ?? null}
+        onClose={() => { setModalOcId(undefined); loadOrdenes(); }}
+        onSaved={loadOrdenes}
+      />
     </div>
   );
 };

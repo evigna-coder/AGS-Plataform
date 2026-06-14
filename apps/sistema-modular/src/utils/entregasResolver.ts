@@ -51,8 +51,11 @@ export interface EntregaRow {
   diasRestantes: number | null;
   semaforo: Semaforo;
   otNumeroVinculada: string | null;
+  fechaComprometida: string | null;
+  entregadoManual: boolean | null;
   requerimientoId: string | null;
   requerimientoNumero: string | null;
+  ocId: string | null;
   ocNumero: string | null;
   importacionId: string | null;
   importacionNumero: string | null;
@@ -164,12 +167,14 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
       const oc = req ? ocByReqId.get(req.id) ?? null : null;
       const imp = req ? impByReqId.get(req.id) ?? null : null;
 
-      const etaFecha = computeEtaFecha(
+      // La fecha comprometida manual tiene prioridad sobre el cálculo fechaAceptacion + días.
+      const etaFecha = item.fechaComprometida ?? computeEtaFecha(
         ppto.fechaAceptacion ?? null,
         item.etaDiasEstimados ?? null,
       );
       const diasRestantes = etaFecha ? diasEntre(etaFecha, now) : null;
-      const semaforo = computeSemaforo(diasRestantes, { entregado: imp?.entregado === true });
+      const entregado = item.entregadoManual === true || imp?.entregado === true;
+      const semaforo = computeSemaforo(diasRestantes, { entregado });
 
       rows.push({
         presupuestoId: ppto.id,
@@ -188,8 +193,11 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         diasRestantes,
         semaforo,
         otNumeroVinculada: item.otNumeroVinculada ?? null,
+        fechaComprometida: item.fechaComprometida ?? null,
+        entregadoManual: item.entregadoManual ?? null,
         requerimientoId: req?.id ?? null,
         requerimientoNumero: req?.numero ?? null,
+        ocId: oc?.ocId ?? null,
         ocNumero: oc?.ocNumero ?? null,
         importacionId: imp?.impId ?? null,
         importacionNumero: imp?.impNumero ?? null,

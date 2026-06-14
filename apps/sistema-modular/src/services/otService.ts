@@ -7,6 +7,7 @@ import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
 import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
+import { reservasService } from './stockService';
 
 /**
  * FLOW-04: build a minimal plaintext body for the cierre_admin_ot mailQueue doc.
@@ -830,6 +831,41 @@ export const ordenesTrabajoService = {
         await presupuestosService.trySyncFinalizacion(presupuestoId);
       } catch (err) {
         console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
+      }
+    }
+
+    // ── Deducción de stock: entregar unidades reservadas de los presupuestos vinculados ──
+    // Las unidades reservadas (estado 'reservado') pasan a 'entregado' → salen del ATP.
+    // Best-effort: si falla, el cierre admin no se revierte (el stock se puede ajustar a mano).
+    if (presupuestoIds.length > 0) {
+      let stockEntregado = 0;
+      for (const presupuestoId of presupuestoIds) {
+        try {
+          const { entregadas } = await reservasService.entregarPorPresupuesto({
+            presupuestoId,
+            otNumber,
+            solicitadoPorNombre: actor?.name || 'Sistema',
+          });
+          stockEntregado += entregadas;
+        } catch (err) {
+          console.warn(`[cerrarAdmin.stock] ppto ${presupuestoId}:`, err);
+        }
+      }
+      // Marcar stockDeducido en el cierre admin de la OT (merge con lo existente).
+      try {
+        const cierreAdminActual: CierreAdministrativo = {
+          horasConfirmadas: false,
+          partesConfirmadas: false,
+          avisoAdminEnviado: false,
+          ...(ot.cierreAdmin ?? {}),
+          stockDeducido: true,
+        };
+        await this.update(otNumber, { cierreAdmin: cierreAdminActual });
+      } catch (err) {
+        console.warn(`[cerrarAdmin.stockDeducido] no se pudo marcar OT ${otNumber}:`, err);
+      }
+      if (stockEntregado > 0) {
+        console.log(`[cerrarAdmin] ${stockEntregado} unidad(es) entregada(s) por cierre de OT ${otNumber}`);
       }
     }
 

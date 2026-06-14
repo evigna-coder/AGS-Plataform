@@ -11,6 +11,7 @@ import { PresupuestoMetadataStrip } from './PresupuestoMetadataStrip';
 import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
 import { PresupuestoRequerimientosSection } from './PresupuestoRequerimientosSection';
 import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
+import { FactorHistoryButton } from './FactorHistoryButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
 import { VentasMetadataSection } from './VentasMetadataSection';
 import { CreateRevisionModal } from './CreateRevisionModal';
@@ -227,6 +228,16 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           onDelete={actions.handleDelete}
           onCrearOT={() => setShowCrearOT(true)}
         />
+
+        {form.clienteId && (
+          <div className="flex justify-end -mt-1 mb-1">
+            <FactorHistoryButton
+              clienteId={form.clienteId}
+              clienteNombre={cliente?.razonSocial}
+              variant="pill"
+            />
+          </div>
+        )}
 
         <PresupuestoMetadataStrip
           form={form}
@@ -546,6 +557,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           onCreated={() => { setShowCrearOT(false); onUpdated?.(); }}
           prefill={{
             clienteId: form.clienteId,
+            establecimientoId: form.establecimientoId || establecimiento?.id || undefined,
             sistemaId: form.sistemaId || undefined,
             contactoId: form.contactoId || undefined,
             presupuestoId,

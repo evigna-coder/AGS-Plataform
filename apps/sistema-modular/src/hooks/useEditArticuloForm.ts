@@ -7,12 +7,14 @@ export interface ArticuloFormState {
   marcaId: string; tipo: TipoArticulo; unidadMedida: string; stockMinimo: number;
   precioReferencia: number | null; monedaPrecio: 'ARS' | 'USD'; proveedorIds: string[];
   posicionArancelaria: string; tratamiento: TratamientoArancelario; notas: string; origen: string;
+  requiereNumeroSerie: boolean; requiereNumeroLote: boolean;
 }
 
 export const EMPTY_ARTICULO_FORM: ArticuloFormState = {
   codigo: '', descripcion: '', categoriaEquipo: 'GENERAL', marcaId: '', tipo: 'repuesto',
   unidadMedida: 'unidad', stockMinimo: 0, precioReferencia: null, monedaPrecio: 'USD',
   proveedorIds: [], posicionArancelaria: '', tratamiento: {}, notas: '', origen: '',
+  requiereNumeroSerie: false, requiereNumeroLote: false,
 };
 
 export const formatPA = (raw: string): string => {
@@ -53,6 +55,8 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         posicionArancelaria: art.posicionArancelaria ?? '',
         tratamiento: art.tratamientoArancelario ?? {}, notas: art.notas ?? '',
         origen: (art as any).origen ?? '',
+        requiereNumeroSerie: art.requiereNumeroSerie ?? false,
+        requiereNumeroLote: art.requiereNumeroLote ?? false,
       });
       if (art.posicionArancelaria) setComexOpen(true);
       setLoading(false);
@@ -98,6 +102,8 @@ export function useEditArticuloForm(open: boolean, articuloId: string | null, on
         proveedorIds: form.proveedorIds,
         posicionArancelaria: form.posicionArancelaria.trim() || null,
         tratamientoArancelario: form.posicionArancelaria.trim() ? form.tratamiento : null,
+        requiereNumeroSerie: form.requiereNumeroSerie,
+        requiereNumeroLote: form.requiereNumeroLote,
         notas: form.notas.trim() || null, activo: true,
         origen: form.origen.trim() || null,
       });

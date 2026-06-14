@@ -86,6 +86,7 @@ export const OCInfoSidebar: React.FC<Props> = ({ oc, onUpdate }) => {
       <Card title="Fechas" compact>
         <div className="space-y-3">
           <LabelValue label="Entrega estimada" value={fmtDate(oc.fechaEntregaEstimada)} />
+          {oc.fechaEnvio && <LabelValue label="Enviada al proveedor" value={fmtDate(oc.fechaEnvio)} />}
           <LabelValue label="Recepcion" value={fmtDate(oc.fechaRecepcion)} />
           <LabelValue label="Creado" value={fmtDate(oc.createdAt)} />
           <LabelValue label="Actualizado" value={fmtDate(oc.updatedAt)} />

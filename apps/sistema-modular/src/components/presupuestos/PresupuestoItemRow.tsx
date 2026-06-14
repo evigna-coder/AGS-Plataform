@@ -21,9 +21,9 @@ const categoriaOptions = (cats: CategoriaPresupuesto[]) => [
 export const PresupuestoItemRow = ({
   item, categoriasPresupuesto, fmtMoney, taxes, onUpdateItem, onRemoveItem,
 }: PresupuestoItemRowProps) => {
-  // Start expanded if the item already has availability data set (Phase 16)
+  // Start expanded if the item already has availability data or a factor set (Phase 16)
   const [showDisp, setShowDisp] = useState(
-    item.disponibilidad != null || item.etaDiasEstimados != null,
+    item.disponibilidad != null || item.etaDiasEstimados != null || item.factor != null,
   );
 
   const dispLabel = item.disponibilidad ? DISPONIBILIDAD_LABELS[item.disponibilidad] : null;
@@ -84,9 +84,9 @@ export const PresupuestoItemRow = ({
       {showDisp && (
         <tr className="bg-slate-50/60">
           <td colSpan={9} className="px-3 py-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-[10px] uppercase tracking-wide font-mono text-slate-500 shrink-0">Entrega:</span>
-              <div className="flex-1 max-w-md">
+              <div className="flex-1 min-w-[220px] max-w-md">
                 <PresupuestoDisponibilidadFields
                   disponibilidad={item.disponibilidad ?? null}
                   etaDiasEstimados={item.etaDiasEstimados ?? null}
@@ -97,6 +97,12 @@ export const PresupuestoItemRow = ({
                   variant="row"
                 />
               </div>
+              <label className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] uppercase tracking-wide font-mono text-slate-500" title="Multiplicador sobre FOB — referencia interna, no se muestra en el PDF">Factor:</span>
+                <input type="number" min="0" step="0.01" value={item.factor ?? ''} placeholder="1.45"
+                  onChange={e => onUpdateItem(item.id, 'factor', e.target.value === '' ? null : Number(e.target.value))}
+                  className="w-20 border border-slate-200 rounded-md px-2 py-1 text-xs bg-white text-right" />
+              </label>
               <button type="button" onClick={() => setShowDisp(false)}
                 className="text-[10px] text-slate-400 hover:text-slate-600 shrink-0">
                 Ocultar

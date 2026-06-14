@@ -385,6 +385,17 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
 
   const addItem = (item: PresupuestoItem) => setItems(prev => [...prev, item]);
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
+  const updateItem = (id: string, field: keyof PresupuestoItem, value: any) =>
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      const next = { ...i, [field]: value } as PresupuestoItem;
+      // Recalcular subtotal si cambió cantidad / precio / descuento.
+      if (field === 'cantidad' || field === 'precioUnitario' || field === 'descuento') {
+        const base = (next.cantidad || 0) * (next.precioUnitario || 0);
+        next.subtotal = next.descuento ? base * (1 - next.descuento / 100) : base;
+      }
+      return next;
+    }));
 
   const reloadLeads = async (leadId?: string) => {
     const leads = await leadsService.getAll();
@@ -397,7 +408,7 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
     saving, form, setForm, items, cuotas, setCuotas,
     // Phase 12: esquema facturación porcentual for non-contrato types
     esquemaFacturacion, setEsquemaFacturacion,
-    handleClose, handleSave, addItem, removeItem,
+    handleClose, handleSave, addItem, removeItem, updateItem,
     clientes, establecimientos, sistemasFiltrados, contactos,
     categorias, condiciones, conceptos, leadOptions, otOptions,
     showCrearLead, setShowCrearLead, reloadLeads,

@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useEditArticuloForm, formatPA } from '../../hooks/useEditArticuloForm';
 import { EquivalenciaSection } from './EquivalenciaSection';
+import { TrazabilidadFields } from './TrazabilidadFields';
 import type { CategoriaEquipoStock, TipoArticulo, TratamientoArancelario } from '@ags/shared';
 
 interface Props {
@@ -107,6 +108,15 @@ export const EditArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
             <input value={h.form.origen} onChange={e => h.set('origen', e.target.value)} className={inputCls} placeholder="Nacional, Importado..." />
           </div>
         </div>
+
+        <TrazabilidadFields
+          requiereNumeroSerie={h.form.requiereNumeroSerie}
+          requiereNumeroLote={h.form.requiereNumeroLote}
+          onChange={patch => {
+            if (patch.requiereNumeroSerie !== undefined) h.set('requiereNumeroSerie', patch.requiereNumeroSerie);
+            if (patch.requiereNumeroLote !== undefined) h.set('requiereNumeroLote', patch.requiereNumeroLote);
+          }}
+        />
 
         {/* Proveedores */}
         {h.proveedores.length > 0 && (

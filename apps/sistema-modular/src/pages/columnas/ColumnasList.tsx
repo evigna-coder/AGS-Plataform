@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { useColumnas } from '../../hooks/useColumnas';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
@@ -10,6 +9,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { CreateColumnaModal } from '../../components/columnas/CreateColumnaModal';
+import { ColumnaRow } from './ColumnaRow';
 import {
   CATEGORIA_PATRON_LABELS,
   type CategoriaPatron,
@@ -142,52 +142,12 @@ export const ColumnasList = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(c => (
-                  <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${!c.activo ? 'opacity-50' : ''}`}>
-                    <td className={`px-3 py-2 text-xs font-semibold text-teal-600 font-mono truncate ${getAlignClass(0)}`} title={c.codigoArticulo}>{c.codigoArticulo}</td>
-                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(1)}`} title={c.descripcion}>{c.descripcion || <span className="text-slate-300">—</span>}</td>
-                    <td className={`px-3 py-2 text-xs text-slate-600 truncate ${getAlignClass(2)}`}>{c.marca || <span className="text-slate-300">—</span>}</td>
-                    <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
-                      <div className="flex gap-1 flex-wrap">
-                        {c.categorias.map(cat => (
-                          <span key={cat} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium">
-                            {CATEGORIA_PATRON_LABELS[cat] || cat}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className={`px-3 py-2 ${getAlignClass(4)}`}>
-                      {c.series.length === 0 ? (
-                        <span className="text-[10px] text-slate-300 italic">Sin series</span>
-                      ) : (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {c.series.slice(0, 3).map((s, i) => (
-                            <span key={i}
-                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200"
-                              title={s.serie}>
-                              {s.serie || '(vacío)'}
-                            </span>
-                          ))}
-                          {c.series.length > 3 && (
-                            <span className="text-[10px] text-slate-400">+{c.series.length - 3}</span>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <Link to={`/columnas/${c.id}/editar`}
-                          className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1 py-0.5 rounded hover:bg-slate-100">
-                          Editar
-                        </Link>
-                        {c.activo && (
-                          <button onClick={() => handleDeactivate(c)}
-                            className="text-[10px] font-medium text-red-500 hover:text-red-700 px-1 py-0.5 rounded hover:bg-red-50">
-                            Desactivar
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                  <ColumnaRow
+                    key={c.id}
+                    columna={c}
+                    getAlignClass={getAlignClass}
+                    onDeactivate={handleDeactivate}
+                  />
                 ))}
               </tbody>
             </table>

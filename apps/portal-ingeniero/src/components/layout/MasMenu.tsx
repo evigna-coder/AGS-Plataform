@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { canAccessModulo } from '@ags/shared';
 
 interface MoreItem {
   to: string;
   label: string;
   adminOnly?: boolean;
   recepcionOnly?: boolean;
+  pagosOnly?: boolean;
 }
 
 const MORE_ITEMS: MoreItem[] = [
@@ -15,6 +17,7 @@ const MORE_ITEMS: MoreItem[] = [
   { to: '/recepcion', label: 'Recepción', recepcionOnly: true },
   { to: '/recepcion/fotos', label: 'Sumar fotos', recepcionOnly: true },
   { to: '/qf-documentos', label: 'Documentos QF', adminOnly: true },
+  { to: '/pagos-vep', label: 'Pagos VEP', pagosOnly: true },
   { to: '/perfil', label: 'Perfil' },
 ];
 
@@ -24,12 +27,14 @@ interface MasMenuProps {
 }
 
 export default function MasMenu({ open, onClose }: MasMenuProps) {
-  const { hasRole } = useAuth();
+  const { hasRole, usuario } = useAuth();
   const canSeeQF = hasRole('admin', 'admin_ing_soporte');
   const canRecepcion = hasRole('admin', 'admin_soporte');
+  const canPagos = usuario ? canAccessModulo(usuario, 'pagos') : false;
   const items = MORE_ITEMS.filter(i => {
     if (i.adminOnly && !canSeeQF) return false;
     if (i.recepcionOnly && !canRecepcion) return false;
+    if (i.pagosOnly && !canPagos) return false;
     return true;
   });
 

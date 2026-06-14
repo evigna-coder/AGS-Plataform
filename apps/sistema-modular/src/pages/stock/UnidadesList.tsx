@@ -6,61 +6,18 @@ import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { AjusteStockModal } from '../../components/stock/AjusteStockModal';
+import { BulkAddStockModal } from '../../components/stock/BulkAddStockModal';
+import { UnidadesAggregatedTable, type AggRow } from '../../components/stock/UnidadesAggregatedTable';
 import type { UnidadStock, CondicionUnidad, EstadoUnidad } from '@ags/shared';
 
 const CONDICION_LABELS: Record<CondicionUnidad, string> = { nuevo: 'Nuevo', bien_de_uso: 'Bien de uso', reacondicionado: 'Reacondicionado', vendible: 'Vendible', scrap: 'Scrap' };
 const CONDICION_COLORS: Record<CondicionUnidad, string> = { nuevo: 'bg-green-100 text-green-700', bien_de_uso: 'bg-blue-100 text-blue-700', reacondicionado: 'bg-amber-100 text-amber-700', vendible: 'bg-teal-100 text-teal-700', scrap: 'bg-red-100 text-red-700' };
-const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', reservado: 'Reservado', asignado: 'Asignado', en_transito: 'En transito', consumido: 'Consumido', vendido: 'Vendido', baja: 'Baja' };
-const ESTADO_COLORS: Record<EstadoUnidad, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', baja: 'bg-red-100 text-red-700' };
-const UBICACION_LABELS: Record<string, string> = { posicion: 'Posicion', minikit: 'Minikit', ingeniero: 'Ingeniero', cliente: 'Cliente', proveedor: 'Proveedor', transito: 'En transito' };
-
-// ---- Aggregated table subcomponent ----
-interface AggRow { articuloId: string; codigo: string; descripcion: string; disponible: number; reservado: number; asignado: number; total: number; }
-
-const UnidadesAggregatedTable = ({ rows }: { rows: AggRow[] }) => {
-  const thClass = 'px-3 py-2 text-[11px] font-medium text-slate-400 tracking-wider text-center';
-  const [sortField, setSortField] = useState<string>('codigo');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const handleSort = (f: string) => {
-    const s = toggleSort(f, sortField, sortDir);
-    setSortField(s.field); setSortDir(s.dir);
-  };
-  const sorted = useMemo(() => sortByField(rows, sortField, sortDir), [rows, sortField, sortDir]);
-  if (rows.length === 0) return (
-    <Card><div className="text-center py-12"><p className="text-slate-400">No hay unidades cargadas</p></div></Card>
-  );
-  return (
-    <div className="bg-white overflow-x-auto">
-      <table className="w-full">
-        <thead className="sticky top-0 z-10">
-          <tr className="bg-slate-50 border-b border-slate-200">
-            <SortableHeader label="Código" field="codigo" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-            <SortableHeader label="Descripción" field="descripcion" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass} />
-            <SortableHeader label="Disponible" field="disponible" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
-            <SortableHeader label="Reservado" field="reservado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
-            <SortableHeader label="Asignado" field="asignado" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
-            <SortableHeader label="Total" field="total" currentField={sortField} currentDir={sortDir} onSort={handleSort} className={thClass + ' text-right'} />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {sorted.map(row => (
-            <tr key={row.articuloId} className="hover:bg-slate-50 transition-colors">
-              <td className="px-3 py-2 text-[10px] font-mono text-slate-500 whitespace-nowrap">{row.codigo}</td>
-              <td className="px-3 py-2 text-xs text-slate-700 truncate max-w-[220px]">{row.descripcion}</td>
-              <td className="px-3 py-2 text-sm font-semibold text-teal-700 text-right">{row.disponible}</td>
-              <td className="px-3 py-2 text-sm font-semibold text-amber-600 text-right">{row.reservado}</td>
-              <td className="px-3 py-2 text-sm font-medium text-slate-500 text-right">{row.asignado}</td>
-              <td className="px-3 py-2 text-sm font-bold text-slate-800 text-right">{row.total}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
+const ESTADO_LABELS: Record<EstadoUnidad, string> = { disponible: 'Disponible', reservado: 'Reservado', asignado: 'Asignado', en_transito: 'En transito', consumido: 'Consumido', vendido: 'Vendido', entregado: 'Entregado', baja: 'Baja' };
+const ESTADO_COLORS: Record<EstadoUnidad, string> = { disponible: 'bg-green-100 text-green-700', reservado: 'bg-amber-100 text-amber-700', asignado: 'bg-blue-100 text-blue-700', en_transito: 'bg-purple-100 text-purple-700', consumido: 'bg-slate-100 text-slate-500', vendido: 'bg-slate-100 text-slate-500', entregado: 'bg-teal-100 text-teal-700', baja: 'bg-red-100 text-red-700' };
 
 export const UnidadesList = () => {
   const FILTER_SCHEMA = useMemo(() => ({
@@ -76,12 +33,12 @@ export const UnidadesList = () => {
     const s = toggleSort(f, filters.sortField, filters.sortDir as SortDir);
     setFilter('sortField', s.field); setFilter('sortDir', s.dir);
   };
-  const [groupByArticulo, setGroupByArticulo] = useState(false);
+  const [vistaDetalle, setVistaDetalle] = useState(false);
+  const [cargarStock, setCargarStock] = useState(false);
 
   const [unidades, setUnidades] = useState<UnidadStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [ajustandoUnidad, setAjustandoUnidad] = useState<UnidadStock | null>(null);
-  // Local search state for responsive typing — syncs to URL debounced
   const [localSearch, setLocalSearch] = useState(filters.search);
   const debouncedSearch = useDebounce(localSearch, 300);
   useEffect(() => { setFilter('search', debouncedSearch); }, [debouncedSearch]);
@@ -109,155 +66,120 @@ export const UnidadesList = () => {
       const term = debouncedSearch.toLowerCase();
       list = list.filter(u =>
         u.articuloCodigo.toLowerCase().includes(term) ||
-        u.articuloDescripcion.toLowerCase().includes(term)
+        u.articuloDescripcion.toLowerCase().includes(term) ||
+        (u.nroSerie ?? '').toLowerCase().includes(term) ||
+        (u.nroLote ?? '').toLowerCase().includes(term)
       );
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
   }, [unidades, debouncedSearch, filters.sortField, filters.sortDir]);
 
   const aggregated = useMemo((): AggRow[] => {
-    const byArticulo = new Map<string, { articuloId: string; codigo: string; descripcion: string; disponible: number; reservado: number; asignado: number }>();
-    unidades.forEach(u => {
-      const prev = byArticulo.get(u.articuloId) ?? { articuloId: u.articuloId, codigo: u.articuloCodigo, descripcion: u.articuloDescripcion, disponible: 0, reservado: 0, asignado: 0 };
-      if (u.estado === 'disponible') prev.disponible++;
-      else if (u.estado === 'reservado') prev.reservado++;
-      else if (u.estado === 'asignado') prev.asignado++;
+    const byArticulo = new Map<string, AggRow>();
+    filtered.forEach(u => {
+      const prev = byArticulo.get(u.articuloId) ?? {
+        articuloId: u.articuloId, codigo: u.articuloCodigo, descripcion: u.articuloDescripcion,
+        hasSerie: false, hasLote: false, disponible: 0, reservado: 0, asignado: 0, total: 0, units: [],
+      };
+      const qty = u.cantidad ?? 1;
+      if (u.estado === 'disponible') prev.disponible += qty;
+      else if (u.estado === 'reservado') prev.reservado += qty;
+      else if (u.estado === 'asignado') prev.asignado += qty;
+      if (u.nroSerie) prev.hasSerie = true;
+      if (u.nroLote) prev.hasLote = true;
+      prev.units.push(u);
       byArticulo.set(u.articuloId, prev);
     });
     return [...byArticulo.values()].map(row => ({ ...row, total: row.disponible + row.reservado + row.asignado }));
-  }, [unidades]);
+  }, [filtered]);
 
   const isInitialLoad = loading && unidades.length === 0;
+  const thBase = 'relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider';
+  const resizer = (i: number) => <div onMouseDown={e => onResizeStart(i, e)} onDoubleClick={() => onAutoFit(i)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" />;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
         title="Unidades de stock"
-        subtitle="Inventario de unidades individuales"
-        count={isInitialLoad ? undefined : (groupByArticulo ? aggregated.length : filtered.length)}
+        subtitle="Stock real por artículo — click para ver el desglose"
+        count={isInitialLoad ? undefined : (vistaDetalle ? filtered.length : aggregated.length)}
       >
         <div className="flex items-center gap-3 flex-wrap">
-          <input
-            type="text"
-            placeholder="Buscar por codigo o descripcion..."
-            value={localSearch}
-            onChange={e => setLocalSearch(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-56 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-          <select
-            value={filters.estado}
-            onChange={e => setFilter('estado', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
+          <input type="text" placeholder="Buscar por codigo, descripcion, serie o lote..."
+            value={localSearch} onChange={e => setLocalSearch(e.target.value)}
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs w-64 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todos los estados</option>
-            {(Object.keys(ESTADO_LABELS) as EstadoUnidad[]).map(k => (
-              <option key={k} value={k}>{ESTADO_LABELS[k]}</option>
-            ))}
+            {(Object.keys(ESTADO_LABELS) as EstadoUnidad[]).map(k => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
           </select>
-          <select
-            value={filters.condicion}
-            onChange={e => setFilter('condicion', e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
+          <select value={filters.condicion} onChange={e => setFilter('condicion', e.target.value)}
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
             <option value="">Todas las condiciones</option>
-            {(Object.keys(CONDICION_LABELS) as CondicionUnidad[]).map(k => (
-              <option key={k} value={k}>{CONDICION_LABELS[k]}</option>
-            ))}
+            {(Object.keys(CONDICION_LABELS) as CondicionUnidad[]).map(k => <option key={k} value={k}>{CONDICION_LABELS[k]}</option>)}
           </select>
           <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-500">
-            <input
-              type="checkbox"
-              checked={filters.showInactive}
-              onChange={e => setFilter('showInactive', e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-slate-300"
-            />
-            Mostrar inactivos
+            <input type="checkbox" checked={filters.showInactive} onChange={e => setFilter('showInactive', e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300" />
+            Inactivos
           </label>
-          <button
-            onClick={() => setGroupByArticulo(v => !v)}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
-              groupByArticulo ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-            }`}
-          >
-            Vista por artículo
+          <button onClick={() => setVistaDetalle(v => !v)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${vistaDetalle ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+            Vista detalle
           </button>
+          <Button size="sm" onClick={() => setCargarStock(true)}>+ Cargar stock</Button>
         </div>
       </PageHeader>
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
         {isInitialLoad ? (
           <div className="flex items-center justify-center py-12"><p className="text-slate-400">Cargando unidades...</p></div>
-        ) : groupByArticulo ? (
-          <UnidadesAggregatedTable rows={aggregated} />
+        ) : !vistaDetalle ? (
+          <UnidadesAggregatedTable rows={aggregated} onAjustar={setAjustandoUnidad} />
         ) : filtered.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-slate-400">No se encontraron unidades</p>
-            </div>
-          </Card>
+          <Card><div className="text-center py-12"><p className="text-slate-400">No se encontraron unidades</p></div></Card>
         ) : (
           <div className="bg-white overflow-x-auto">
             <table ref={tableRef} className="w-full table-fixed">
               {colWidths ? (
-                <colgroup>
-                  {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
-                </colgroup>
+                <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
               ) : (
                 <colgroup>
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '22%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '11%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '13%' }} /><col style={{ width: '20%' }} /><col style={{ width: '8%' }} />
+                  <col style={{ width: '12%' }} /><col style={{ width: '10%' }} /><col style={{ width: '11%' }} />
+                  <col style={{ width: '10%' }} /><col style={{ width: '8%' }} />
                 </colgroup>
               )}
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <SortableHeader label="Codigo articulo" field="articuloCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} /><div onMouseDown={e => onResizeStart(0, e)} onDoubleClick={() => onAutoFit(0)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Descripcion" field="articuloDescripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} /><div onMouseDown={e => onResizeStart(1, e)} onDoubleClick={() => onAutoFit(1)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Nro serie" field="nroSerie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} /><div onMouseDown={e => onResizeStart(2, e)} onDoubleClick={() => onAutoFit(2)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Nro lote" field="nroLote" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} /><div onMouseDown={e => onResizeStart(3, e)} onDoubleClick={() => onAutoFit(3)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Condicion" field="condicion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} /><div onMouseDown={e => onResizeStart(4, e)} onDoubleClick={() => onAutoFit(4)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} /><div onMouseDown={e => onResizeStart(5, e)} onDoubleClick={() => onAutoFit(5)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <SortableHeader label="Ubicacion" field="ubicacion.tipo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider ${getAlignClass(6)}`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} /><div onMouseDown={e => onResizeStart(6, e)} onDoubleClick={() => onAutoFit(6)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></SortableHeader>
-                  <th className="relative px-4 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider">Acciones<div onMouseDown={e => onResizeStart(7, e)} onDoubleClick={() => onAutoFit(7)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-teal-400/40" /></th>
+                  <SortableHeader label="Codigo articulo" field="articuloCodigo" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(0)}`}><ColAlignIcon align={colAligns?.[0] || 'left'} onClick={() => cycleAlign(0)} />{resizer(0)}</SortableHeader>
+                  <SortableHeader label="Descripcion" field="articuloDescripcion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(1)}`}><ColAlignIcon align={colAligns?.[1] || 'left'} onClick={() => cycleAlign(1)} />{resizer(1)}</SortableHeader>
+                  <SortableHeader label="Cant." field="cantidad" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(2)}`}><ColAlignIcon align={colAligns?.[2] || 'left'} onClick={() => cycleAlign(2)} />{resizer(2)}</SortableHeader>
+                  <SortableHeader label="Nro serie" field="nroSerie" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(3)}`}><ColAlignIcon align={colAligns?.[3] || 'left'} onClick={() => cycleAlign(3)} />{resizer(3)}</SortableHeader>
+                  <SortableHeader label="Nro lote" field="nroLote" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(4)}`}><ColAlignIcon align={colAligns?.[4] || 'left'} onClick={() => cycleAlign(4)} />{resizer(4)}</SortableHeader>
+                  <SortableHeader label="Condicion" field="condicion" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(5)}`}><ColAlignIcon align={colAligns?.[5] || 'left'} onClick={() => cycleAlign(5)} />{resizer(5)}</SortableHeader>
+                  <SortableHeader label="Estado" field="estado" currentField={filters.sortField} currentDir={filters.sortDir as SortDir} onSort={handleSort} className={`${thBase} ${getAlignClass(6)}`}><ColAlignIcon align={colAligns?.[6] || 'left'} onClick={() => cycleAlign(6)} />{resizer(6)}</SortableHeader>
+                  <th className={thBase}>Acciones{resizer(7)}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(u => (
                   <tr key={u.id} className={`hover:bg-slate-50 ${!u.activo ? 'opacity-50' : ''}`}>
                     <td className={`px-4 py-2 ${getAlignClass(0)}`}>
-                      <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">
-                        {u.articuloCodigo}
-                      </Link>
+                      <Link to={`/stock/articulos/${u.articuloId}`} className="font-mono text-xs font-semibold text-teal-600 hover:underline">{u.articuloCodigo}</Link>
                     </td>
                     <td className={`px-4 py-2 text-xs text-slate-900 ${getAlignClass(1)}`}>{u.articuloDescripcion}</td>
-                    <td className={`px-4 py-2 text-xs text-slate-600 font-mono ${getAlignClass(2)}`}>{u.nroSerie ?? '-'}</td>
-                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(3)}`}>{u.nroLote ?? '-'}</td>
-                    <td className={`px-4 py-2 ${getAlignClass(4)}`}>
-                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CONDICION_COLORS[u.condicion]}`}>
-                        {CONDICION_LABELS[u.condicion]}
-                      </span>
-                    </td>
+                    <td className={`px-4 py-2 text-xs font-semibold text-slate-700 ${getAlignClass(2)}`}>{u.cantidad ?? 1}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-600 font-mono ${getAlignClass(3)}`}>{u.nroSerie ?? '-'}</td>
+                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(4)}`}>{u.nroLote ?? '-'}</td>
                     <td className={`px-4 py-2 ${getAlignClass(5)}`}>
-                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>
-                        {ESTADO_LABELS[u.estado]}
-                      </span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${CONDICION_COLORS[u.condicion]}`}>{CONDICION_LABELS[u.condicion]}</span>
                     </td>
-                    <td className={`px-4 py-2 text-xs text-slate-600 ${getAlignClass(6)}`}>
-                      {UBICACION_LABELS[u.ubicacion.tipo] ?? u.ubicacion.tipo}
-                      {u.ubicacion.referenciaNombre && (
-                        <span className="text-slate-400"> — {u.ubicacion.referenciaNombre}</span>
-                      )}
+                    <td className={`px-4 py-2 ${getAlignClass(6)}`}>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>{ESTADO_LABELS[u.estado]}</span>
                     </td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={e => { e.stopPropagation(); setAjustandoUnidad(u); }}
-                        className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">
-                        Ajustar
-                      </button>
+                        className="text-[10px] font-medium text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Ajustar</button>
                     </td>
                   </tr>
                 ))}
@@ -267,12 +189,9 @@ export const UnidadesList = () => {
         )}
       </div>
       {ajustandoUnidad && (
-        <AjusteStockModal
-          unidad={ajustandoUnidad}
-          onClose={() => setAjustandoUnidad(null)}
-          onSuccess={() => setAjustandoUnidad(null)}
-        />
+        <AjusteStockModal unidad={ajustandoUnidad} onClose={() => setAjustandoUnidad(null)} onSuccess={() => setAjustandoUnidad(null)} />
       )}
+      <BulkAddStockModal open={cargarStock} onClose={() => setCargarStock(false)} onCreated={() => setCargarStock(false)} />
     </div>
   );
 };

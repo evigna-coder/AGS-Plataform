@@ -98,6 +98,15 @@ export const ImportacionEditor = () => {
         items: embarqueItems.length > 0 ? embarqueItems : null,
       });
       const id = await createImportacion(payload as any);
+      // Crear la importación pasa la OC vinculada a 'embarcada' (salvo que ya esté recibida/cancelada).
+      try {
+        const oc = await ordenesCompraService.getById(form.ordenCompraId);
+        if (oc && oc.estado !== 'recibida' && oc.estado !== 'cancelada') {
+          await ordenesCompraService.update(form.ordenCompraId, { estado: 'embarcada' });
+        }
+      } catch (err) {
+        console.error('[ImportacionEditor] no se pudo marcar la OC como embarcada:', err);
+      }
       navigate(`/stock/importaciones/${id}`);
     } catch (err) {
       alert('Error al crear la importacion');

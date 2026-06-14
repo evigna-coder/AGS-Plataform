@@ -67,9 +67,9 @@ const itemCols = {
 };
 
 /** Anchos fijos de columnas numéricas (estilo Odoo); la descripción toma el resto con flex:1. */
-const odooCols = { cantidad: 56, precio: 86, total: 96 };
+const odooCols = { cantidad: 56, precio: 86, descuento: 44, total: 96 };
 
-function ItemRow({ item }: { item: PresupuestoItem }) {
+function ItemRow({ item, showDescuento }: { item: PresupuestoItem; showDescuento?: boolean }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight }} wrap={false}>
       <View style={{ flex: 1, paddingRight: 8 }}>
@@ -80,6 +80,9 @@ function ItemRow({ item }: { item: PresupuestoItem }) {
       </View>
       <Text style={{ width: odooCols.cantidad, fontSize: 8.5, color: COLORS.text, textAlign: 'center' }}>{fmt(item.cantidad)}</Text>
       <Text style={{ width: odooCols.precio, fontSize: 8.5, color: COLORS.textMuted, textAlign: 'right' }}>{fmt(item.precioUnitario)}</Text>
+      {showDescuento ? (
+        <Text style={{ width: odooCols.descuento, fontSize: 8.5, color: COLORS.textMuted, textAlign: 'center' }}>{item.descuento ? `${fmt(item.descuento)}%` : '—'}</Text>
+      ) : null}
       <Text style={{ width: odooCols.total, fontSize: 8.5, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{fmt(item.subtotal)}</Text>
     </View>
   );
@@ -111,15 +114,17 @@ function ItemRow({ item }: { item: PresupuestoItem }) {
  * Reusada por MixtoItemsBlock y por el renderer default (servicio/ventas).
  */
 function ItemsTable({ items }: { items: PresupuestoItem[]; moneda?: string }) {
+  const showDescuento = items.some(i => i.descuento && i.descuento > 0);
   return (
     <View style={{ marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', backgroundColor: COLORS.cardBg, paddingVertical: 6, paddingHorizontal: 4, borderBottomWidth: 1.5, borderBottomColor: COLORS.primary }}>
         <Text style={{ flex: 1, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text }}>Descripción</Text>
         <Text style={{ width: odooCols.cantidad, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' }}>Cant.</Text>
         <Text style={{ width: odooCols.precio, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'right' }}>Precio</Text>
+        {showDescuento ? <Text style={{ width: odooCols.descuento, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' }}>Dto</Text> : null}
         <Text style={{ width: odooCols.total, fontSize: 7.5, fontWeight: 'bold', color: COLORS.text, textAlign: 'right' }}>Total</Text>
       </View>
-      {items.map((item) => <ItemRow key={item.id} item={item} />)}
+      {items.map((item) => <ItemRow key={item.id} item={item} showDescuento={showDescuento} />)}
     </View>
   );
 }

@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EstadoImportacion, Disponibilidad } from '@ags/shared';
-import { ESTADO_IMPORTACION_COLORS, ESTADO_IMPORTACION_LABELS, DISPONIBILIDAD_COLORS, DISPONIBILIDAD_LABELS } from '@ags/shared';
+import { ESTADO_IMPORTACION_COLORS, ESTADO_IMPORTACION_LABELS, DISPONIBILIDAD_LABELS } from '@ags/shared';
 import type { EntregaRow as Row } from '../../utils/entregasResolver';
 import { SEMAFORO_COLORS, SEMAFORO_LABELS } from '../../utils/entregasResolver';
+import type { EntregaItemPatch } from '../../hooks/useEntregas';
+import { ordenesCompraService } from '../../services/firebaseService';
+import { proveedoresService } from '../../services/personalService';
+import { previewOrdenCompraPDF } from '../../components/stock/pdf/generateOrdenCompraPDF';
 
 interface Props {
   row: Row;
-  onUpdateOtNumero: (otNumero: string | null) => Promise<void>;
+  onUpdate: (patch: EntregaItemPatch) => Promise<void>;
 }
+
+const DISPONIBILIDAD_OPCIONES = Object.entries(DISPONIBILIDAD_LABELS) as [Disponibilidad, string][];
 
 const formatDate = (iso: string | null): string => {
   if (!iso) return '—';
@@ -26,22 +32,50 @@ const formatMoney = (n: number, m: 'USD' | 'ARS' | 'EUR' | null): string => {
   return `${prefix} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdateOtNumero }) => {
+export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate }) => {
   const [otDraft, setOtDraft] = useState(row.otNumeroVinculada ?? '');
+  const [fechaDraft, setFechaDraft] = useState((row.fechaComprometida ?? '').slice(0, 10));
   const [saving, setSaving] = useState(false);
 
-  const commitOt = async () => {
-    const trimmed = otDraft.trim();
-    const next = trimmed === '' ? null : trimmed;
-    if (next === (row.otNumeroVinculada ?? null)) return; // no change
+  const runUpdate = async (patch: EntregaItemPatch, revert?: () => void) => {
     setSaving(true);
     try {
-      await onUpdateOtNumero(next);
+      await onUpdate(patch);
     } catch (err) {
-      console.error('[EntregaRow] OT save failed', err);
-      setOtDraft(row.otNumeroVinculada ?? ''); // revert on error
+      console.error('[EntregaRow] update failed', err);
+      revert?.();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const commitOt = () => {
+    const next = otDraft.trim() === '' ? null : otDraft.trim();
+    if (next === (row.otNumeroVinculada ?? null)) return;
+    void runUpdate({ otNumeroVinculada: next }, () => setOtDraft(row.otNumeroVinculada ?? ''));
+  };
+
+  const commitFecha = () => {
+    const current = (row.fechaComprometida ?? '').slice(0, 10);
+    const next = fechaDraft === '' ? null : fechaDraft;
+    if ((next ?? '') === current) return;
+    void runUpdate({ fechaComprometida: next }, () => setFechaDraft(current));
+  };
+
+  const [loadingPdf, setLoadingPdf] = useState(false);
+  const abrirPdfOC = async () => {
+    if (!row.ocId) return;
+    setLoadingPdf(true);
+    try {
+      const oc = await ordenesCompraService.getById(row.ocId);
+      if (!oc) { alert('No se encontró la orden de compra.'); return; }
+      const prov = await proveedoresService.getById(oc.proveedorId).catch(() => null);
+      await previewOrdenCompraPDF(oc, prov);
+    } catch (err) {
+      console.error('[EntregaRow] error abriendo PDF de OC', err);
+      alert('No se pudo abrir el PDF de la orden de compra.');
+    } finally {
+      setLoadingPdf(false);
     }
   };
 
@@ -77,8 +111,25 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdateOtNumero }) 
           data-testid={`ot-input-${row.itemId}`}
         />
       </td>
-      <td className="px-3 py-2 text-xs text-slate-600 font-mono">
-        {row.ocNumero ?? '—'}
+      <td className="px-3 py-2 text-xs font-mono">
+        {row.ocNumero ? (
+          row.ocId ? (
+            <button
+              type="button"
+              onClick={abrirPdfOC}
+              disabled={loadingPdf}
+              title="Abrir PDF de la orden de compra"
+              className="text-teal-700 hover:underline disabled:opacity-50 inline-flex items-center gap-1"
+            >
+              {row.ocNumero}
+              <span className="text-[9px]">{loadingPdf ? '…' : '↗'}</span>
+            </button>
+          ) : (
+            <span className="text-slate-600">{row.ocNumero}</span>
+          )
+        ) : (
+          <span className="text-slate-300">—</span>
+        )}
       </td>
       <td className="px-3 py-2 text-xs">
         {row.importacionNumero ? (
@@ -95,18 +146,40 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdateOtNumero }) 
         )}
       </td>
       <td className="px-3 py-2 text-xs">
-        {row.disponibilidad ? (
-          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${DISPONIBILIDAD_COLORS[row.disponibilidad as Disponibilidad] ?? 'bg-slate-100 text-slate-500'}`}>
-            {DISPONIBILIDAD_LABELS[row.disponibilidad as Disponibilidad] ?? row.disponibilidad}
-          </span>
-        ) : (
-          <span className="text-slate-300 text-[10px]">—</span>
+        <select
+          value={row.disponibilidad ?? ''}
+          onChange={(e) => void runUpdate({ disponibilidad: (e.target.value || null) as Disponibilidad | null })}
+          disabled={saving}
+          className="text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50 bg-white"
+        >
+          <option value="">—</option>
+          {DISPONIBILIDAD_OPCIONES.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-3 py-2 text-[10px] whitespace-nowrap">
+        <input
+          type="date"
+          value={fechaDraft}
+          onChange={(e) => setFechaDraft(e.target.value)}
+          onBlur={commitFecha}
+          disabled={saving}
+          className="text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+        />
+        {!row.fechaComprometida && row.etaFecha && (
+          <div className="text-[9px] text-slate-400 mt-0.5">calc: {formatDate(row.etaFecha)}</div>
         )}
       </td>
-      <td className="px-3 py-2 text-[10px] text-slate-500 whitespace-nowrap font-mono">
-        {row.etaFecha ? formatDate(row.etaFecha) : (
-          <span className="bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full text-[9px]">Sin ETA</span>
-        )}
+      <td className="px-3 py-2 text-center">
+        <input
+          type="checkbox"
+          checked={row.entregadoManual === true}
+          onChange={(e) => void runUpdate({ entregadoManual: e.target.checked })}
+          disabled={saving}
+          className="h-3.5 w-3.5 accent-teal-600 cursor-pointer disabled:opacity-50"
+          title="Marcar como entregado"
+        />
       </td>
       <td className="px-3 py-2 text-xs whitespace-nowrap">
         {row.semaforo === 'sin_eta' ? (

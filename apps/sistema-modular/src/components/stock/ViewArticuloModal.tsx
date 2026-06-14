@@ -137,6 +137,15 @@ export const ViewArticuloModal: React.FC<Props> = ({ open, articuloId, onClose, 
               <p className="text-xs text-slate-600">{(articulo as any).origen}</p>
             </div>
           )}
+          {(articulo.requiereNumeroSerie || articulo.requiereNumeroLote) && (
+            <div className="col-span-2">
+              <p className={lbl}>Trazabilidad</p>
+              <div className="flex gap-1.5 mt-0.5">
+                {articulo.requiereNumeroSerie && <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-700">Nº de serie</span>}
+                {articulo.requiereNumeroLote && <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700">Nº de lote</span>}
+              </div>
+            </div>
+          )}
         </div>
 
         {articulo.notas && (

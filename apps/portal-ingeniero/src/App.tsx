@@ -21,6 +21,8 @@ import EquipoPublicPage from './pages/EquipoPublicPage';
 import QFDocumentosPage from './pages/QFDocumentosPage';
 import RecepcionPage from './pages/RecepcionPage';
 import FichaFotosPage from './pages/FichaFotosPage';
+import PagosVEPPage from './pages/PagosVEPPage';
+import { canAccessModulo } from '@ags/shared';
 import { UploadQueueIndicator } from './components/recepcion/UploadQueueIndicator';
 import { uploadQueueManager } from './services/uploadQueueManager';
 
@@ -70,8 +72,13 @@ function UploadQueueLifecycle() {
 
 // Rutas privadas (requieren auth)
 function PrivateApp() {
-  const { loading, isAuthenticated, isPending, isDisabled, authError, hasRole } = useAuth();
+  const { loading, isAuthenticated, isPending, isDisabled, authError, hasRole, usuario } = useAuth();
   const canRecepcion = hasRole('admin', 'admin_soporte');
+  const canPagos = usuario ? canAccessModulo(usuario, 'pagos') : false;
+  const canLeads = usuario ? canAccessModulo(usuario, 'leads') : false;
+  // Landing según permisos: ingeniería cae en Tickets; un perfil de pagos sin
+  // acceso a leads cae directo en Pagos VEP.
+  const landing = canLeads ? '/leads' : canPagos ? '/pagos-vep' : '/perfil';
 
   if (loading) {
     return (
@@ -121,7 +128,7 @@ function PrivateApp() {
       <UploadQueueLifecycle />
       <Routes>
         <Route element={<AppShell />}>
-          <Route index element={<Navigate to="/leads" replace />} />
+          <Route index element={<Navigate to={landing} replace />} />
           <Route path="ordenes-trabajo" element={<OTListPage />} />
           <Route path="ordenes-trabajo/:otNumber" element={<OTDetailPage />} />
           <Route path="historial" element={<HistorialPage />} />
@@ -142,8 +149,9 @@ function PrivateApp() {
               <Route path="recepcion/egreso/:fichaId" element={<FichaFotosPage />} />
             </>
           )}
+          {canPagos && <Route path="pagos-vep" element={<PagosVEPPage />} />}
           <Route path="perfil" element={<PerfilPage />} />
-          <Route path="*" element={<Navigate to="/leads" replace />} />
+          <Route path="*" element={<Navigate to={landing} replace />} />
         </Route>
       </Routes>
     </>

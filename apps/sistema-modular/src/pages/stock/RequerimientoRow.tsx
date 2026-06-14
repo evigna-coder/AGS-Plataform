@@ -124,9 +124,7 @@ export const RequerimientoRow = ({
             <button onClick={() => onAprobar(r.id)} className="text-xs text-green-600 hover:underline font-medium">Aprobar</button>
           )}
           <button className="text-xs text-teal-600 hover:underline font-medium">Ver</button>
-          {r.estado === 'pendiente' && (
-            <button onClick={() => onDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">Eliminar</button>
-          )}
+          <button onClick={() => onDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">Eliminar</button>
         </div>
       </td>
     </tr>

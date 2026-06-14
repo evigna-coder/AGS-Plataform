@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ordenesCompraService, requerimientosService } from '../services/firebaseService';
+import { ordenesCompraService, requerimientosService, presupuestosService, leadsService } from '../services/firebaseService';
 import type { RequerimientoCompra, ItemOC } from '@ags/shared';
 
 export function useGenerarOC() {
@@ -7,12 +7,12 @@ export function useGenerarOC() {
   const [error, setError] = useState<string | null>(null);
   const [generadas, setGeneradas] = useState(0);
 
-  const generarOCs = useCallback(async (selected: RequerimientoCompra[]): Promise<number> => {
-    if (selected.length === 0) return 0;
+  const generarOCs = useCallback(async (selected: RequerimientoCompra[]): Promise<string[]> => {
+    if (selected.length === 0) return [];
     setLoading(true);
     setError(null);
     setGeneradas(0);
-    let count = 0;
+    const ocIds: string[] = [];
 
     try {
       // Group by proveedorSugeridoId (null/empty = '__sin_proveedor__')
@@ -71,20 +71,44 @@ export function useGenerarOC() {
           })
         ));
 
-        count++;
+        ocIds.push(ocId);
       }
 
-      setGeneradas(count);
-      return count;
+      // Flujo de tickets: creada la OC, el ticket de origen pasa a "Materiales"
+      // para disparar la importación. Cadena req → presupuesto → origen (ticket).
+      await advanceTicketsToMateriales(selected);
+
+      setGeneradas(ocIds.length);
+      return ocIds;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error generando OC(s)';
       setError(msg);
       console.error('[useGenerarOC]', err);
-      return 0;
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
   return { generarOCs, loading, error, generadas };
+}
+
+/** Mueve a "Materiales" los tickets de origen de los presupuestos detrás de estos requerimientos. */
+async function advanceTicketsToMateriales(reqs: RequerimientoCompra[]): Promise<void> {
+  try {
+    const presupuestoIds = [...new Set(reqs.map(r => r.presupuestoId).filter(Boolean) as string[])];
+    if (presupuestoIds.length === 0) return;
+    const ticketIds = new Set<string>();
+    for (const pid of presupuestoIds) {
+      const pres = await presupuestosService.getById(pid).catch(() => null);
+      if (pres?.origenTipo === 'lead' && pres.origenId) ticketIds.add(pres.origenId);
+    }
+    await Promise.all([...ticketIds].map(tid =>
+      leadsService.moverAArea(tid, 'materiales').catch(err =>
+        console.error(`Error moviendo ticket ${tid} a Materiales:`, err),
+      ),
+    ));
+  } catch (err) {
+    console.error('[advanceTicketsToMateriales]', err);
+  }
 }

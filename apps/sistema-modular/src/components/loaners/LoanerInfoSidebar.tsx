@@ -45,6 +45,8 @@ export function LoanerInfoSidebar({ loaner }: Props) {
         <dl className="space-y-2">
           <LV label="Descripcion" value={loaner.descripcion} />
           <LV label="Categoria" value={loaner.categoriaEquipo} />
+          <LV label="Categoria de modulo" value={loaner.categoriaModuloNombre} />
+          <LV label="Modelo" value={loaner.moduloCodigo ? `${loaner.moduloCodigo}${loaner.moduloDescripcion ? ` — ${loaner.moduloDescripcion}` : ''}` : null} />
           <LV label="Serie" value={loaner.serie} />
           <LV label="Condicion" value={loaner.condicion} />
         </dl>

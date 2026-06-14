@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { updateDoc, runTransaction } from './firebase';
-import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
-import { PRESUPUESTO_ESTADO_MIGRATION } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, TipoPresupuesto, OrdenCompra, CategoriaPresupuesto, CondicionPago, ConceptoServicio, Posta, Lead, PendingAction, TicketEstado, TicketArea, MotivoLlamado, RequerimientoCompra, UnidadStock, MonedaCuota, PresupuestoCuotaFacturacion, PlantillaTextoPresupuesto } from '@ags/shared';
+import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY } from '@ags/shared';
 
 /** Mapping del tipo de presupuesto al motivoLlamado del ticket de seguimiento. */
 const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
@@ -1931,6 +1931,36 @@ export const presupuestosService = {
       console.error('[hardDelete] error finalizando tickets linkeados:', err);
     }
 
+    // Cascada: eliminar los requerimientos condicionales SIN compromiso (pendiente/aprobado)
+    // generados al aceptar este presupuesto. Los en_compra/comprado (ya con OC) se dejan
+    // intactos — son gasto comprometido, el admin los maneja desde la OC.
+    try {
+      const reqs = await requerimientosService.getAll({ presupuestoId: id }).catch(() => [] as RequerimientoCompra[]);
+      const eliminables = reqs.filter(r => (r as any).condicional === true && (r.estado === 'pendiente' || r.estado === 'aprobado'));
+      for (const r of eliminables) {
+        await requerimientosService.delete(r.id).catch(err => console.error(`[hardDelete] eliminar req ${r.id}:`, err));
+      }
+    } catch (err) {
+      console.error('[hardDelete] eliminar requerimientos condicionales:', err);
+    }
+
+    // Cascada: liberar las reservas de stock que generó la aceptación del presupuesto.
+    try {
+      const resSnap = await getDocs(query(
+        collection(db, 'unidades'),
+        where('reservadoParaPresupuestoId', '==', id),
+        where('estado', '==', 'reservado'),
+      ));
+      for (const d of resSnap.docs) {
+        const unidad = { id: d.id, ...d.data() } as UnidadStock;
+        await reservasService.liberar({
+          unidadId: d.id, unidad, motivo: 'Presupuesto eliminado', solicitadoPorNombre: 'Sistema',
+        }).catch(err => console.error(`[hardDelete] liberar unidad ${d.id}:`, err));
+      }
+    } catch (err) {
+      console.error('[hardDelete] liberar reservas:', err);
+    }
+
     const batch = createBatch();
     batch.delete(docRef('presupuestos', id));
     batchAudit(batch, { action: 'delete', collection: 'presupuestos', documentId: id });
@@ -1995,9 +2025,12 @@ export const presupuestosService = {
 
 // Servicio para Ordenes de Compra
 export const ordenesCompraService = {
-  // Atómico vía counter doc — antes era scan-and-max no transaccional.
-  async getNextOCNumber(): Promise<string> {
-    const counterRef = doc(db, '_counters', 'ocNumber');
+  // Número correlativo POR PREFIJO de proveedor (3 letras + 3 dígitos: JAS027).
+  // Counter atómico por prefijo. Si no existe, siembra desde el máximo de OCs ya
+  // cargadas con ese prefijo. El prefijo viene de Proveedor.codigoOC (fallback 'OC').
+  async getNextOCNumber(prefijo: string): Promise<string> {
+    const pref = (prefijo || 'OC').toUpperCase();
+    const counterRef = doc(db, '_counters', `ocNumber_${pref}`);
     const next = await runTransaction(db, async (tx) => {
       const counterSnap = await tx.get(counterRef);
       let current: number;
@@ -2006,8 +2039,9 @@ export const ordenesCompraService = {
       } else {
         const snap = await getDocs(collection(db, 'ordenes_compra'));
         let maxNum = 0;
+        const re = new RegExp(`^${pref}-?(\\d+)$`);
         snap.docs.forEach(d => {
-          const match = d.data().numero?.match(/OC-(\d+)/);
+          const match = d.data().numero?.match(re);
           if (match) { const n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
         });
         current = maxNum;
@@ -2016,7 +2050,7 @@ export const ordenesCompraService = {
       tx.set(counterRef, { value: nextVal, updatedAt: Timestamp.now() });
       return nextVal;
     });
-    return `OC-${String(next).padStart(4, '0')}`;
+    return `${pref}${String(next).padStart(3, '0')}`;
   },
 
   async getAll(filters?: { estado?: string; tipo?: string; proveedorId?: string }): Promise<OrdenCompra[]> {
@@ -2029,6 +2063,7 @@ export const ordenesCompraService = {
     return snap.docs.map(d => ({
       id: d.id,
       ...d.data(),
+      estado: ESTADO_OC_LEGACY[d.data().estado] ?? d.data().estado,
       fechaRecepcion: d.data().fechaRecepcion?.toDate?.()?.toISOString() ?? null,
       fechaProforma: d.data().fechaProforma?.toDate?.()?.toISOString() ?? null,
       fechaEntregaEstimada: d.data().fechaEntregaEstimada?.toDate?.()?.toISOString() ?? null,
@@ -2044,6 +2079,7 @@ export const ordenesCompraService = {
     return {
       id: snap.id,
       ...d,
+      estado: ESTADO_OC_LEGACY[d.estado] ?? d.estado,
       fechaRecepcion: d.fechaRecepcion?.toDate?.()?.toISOString() ?? null,
       fechaProforma: d.fechaProforma?.toDate?.()?.toISOString() ?? null,
       fechaEntregaEstimada: d.fechaEntregaEstimada?.toDate?.()?.toISOString() ?? null,
@@ -2053,7 +2089,16 @@ export const ordenesCompraService = {
   },
 
   async create(data: Omit<OrdenCompra, 'id' | 'createdAt' | 'updatedAt' | 'numero'> & { numero?: string }): Promise<string> {
-    const numero = data.numero || await this.getNextOCNumber();
+    // Prefijo de numeración derivado del proveedor (codigoOC). Fallback 'OC'.
+    let prefijoOC = 'OC';
+    if (!data.numero && data.proveedorId) {
+      try {
+        const provSnap = await getDoc(doc(db, 'proveedores', data.proveedorId));
+        const codigo = provSnap.exists() ? (provSnap.data().codigoOC as string | undefined) : undefined;
+        if (codigo) prefijoOC = codigo;
+      } catch { /* fallback 'OC' */ }
+    }
+    const numero = data.numero || await this.getNextOCNumber(prefijoOC);
     const id = crypto.randomUUID();
     const payload: any = {
       ...cleanFirestoreData(data as any),
@@ -2085,8 +2130,36 @@ export const ordenesCompraService = {
     await batch.commit();
   },
 
+  // Marca la OC como enviada al proveedor (tras mandar el mail). Solo avanza
+  // desde estados previos al envío; nunca retrocede una OC ya en curso/recibida.
+  async markEnviada(id: string): Promise<void> {
+    const oc = await this.getById(id);
+    if (!oc) throw new Error('Orden de compra no encontrada');
+    // Registra siempre la fecha del envío; avanza el estado solo si está en borrador.
+    const patch: Partial<OrdenCompra> = { fechaEnvio: new Date().toISOString() };
+    if (oc.estado === 'borrador') patch.estado = 'enviada_proveedor';
+    await this.update(id, patch);
+  },
+
   async delete(id: string): Promise<void> {
+    // No permitir eliminar una OC con importaciones asociadas (quedarían huérfanas).
+    const impSnap = await getDocs(query(collection(db, 'importaciones'), where('ordenCompraId', '==', id)));
+    if (!impSnap.empty) {
+      throw new Error('La OC tiene una importación asociada. Eliminá primero la importación.');
+    }
+    // Revertir los requerimientos que esta OC había puesto 'en_compra': vuelven a
+    // 'aprobado' y se desvinculan, para que puedan re-generar otra OC.
+    const reqSnap = await getDocs(query(collection(db, 'requerimientos_compra'), where('ordenCompraId', '==', id)));
     const batch = createBatch();
+    reqSnap.docs.forEach(d => {
+      batch.update(d.ref, cleanFirestoreData({
+        estado: 'aprobado',
+        ordenCompraId: null,
+        ordenCompraNumero: null,
+        ...getUpdateTrace(),
+        updatedAt: Timestamp.now(),
+      }));
+    });
     batch.delete(docRef('ordenes_compra', id));
     batchAudit(batch, { action: 'delete', collection: 'ordenes_compra', documentId: id });
     await batch.commit();

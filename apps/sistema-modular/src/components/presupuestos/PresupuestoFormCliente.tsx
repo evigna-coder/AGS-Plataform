@@ -1,6 +1,7 @@
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Cliente, Establecimiento, Sistema, ContactoEstablecimiento } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/useCreatePresupuestoForm';
+import { FactorHistoryButton } from './FactorHistoryButton';
 
 const lbl = "block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide";
 
@@ -19,7 +20,15 @@ export const PresupuestoFormCliente: React.FC<Props> = ({
   <>
     <div className="grid grid-cols-4 gap-2.5">
       <div>
-        <label className={lbl}>Cliente *</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className={lbl + ' mb-0'}>Cliente *</label>
+          {form.clienteId && (
+            <FactorHistoryButton
+              clienteId={form.clienteId}
+              clienteNombre={clientes.find(c => c.id === form.clienteId)?.razonSocial}
+            />
+          )}
+        </div>
         <SearchableSelect value={form.clienteId} onChange={v => setForm(prev => ({ ...prev, clienteId: v, establecimientoId: '', sistemaId: '', contactoId: '' }))}
           options={clientes.map(c => ({ value: c.id, label: c.razonSocial }))} placeholder="Seleccionar cliente..." />
       </div>

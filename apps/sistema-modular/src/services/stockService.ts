@@ -406,6 +406,37 @@ export const unidadesService = {
     return id;
   },
 
+  /**
+   * Crea N unidades en lote. Cada unidad = un documento. Útil para el alta masiva
+   * (artículos con serie: una fila por unidad; lotes: una fila por lote+cantidad).
+   * Se chunkea cada 200 documentos porque cada unidad consume 2 ops de batch (set + audit)
+   * y el límite de Firestore es 500 ops por commit.
+   */
+  async createMany(items: Omit<UnidadStock, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<string[]> {
+    const ids: string[] = [];
+    const CHUNK = 200;
+    for (let i = 0; i < items.length; i += CHUNK) {
+      const slice = items.slice(i, i + CHUNK);
+      const batch = createBatch();
+      const trace = getCreateTrace();
+      for (const data of slice) {
+        const id = crypto.randomUUID();
+        const payload = deepCleanForFirestore({
+          ...data,
+          ...trace,
+          activo: data.activo !== undefined ? data.activo : true,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+        batch.set(doc(db, 'unidades', id), payload);
+        batchAudit(batch, { action: 'create', collection: 'unidades_stock', documentId: id, after: payload });
+        ids.push(id);
+      }
+      await batch.commit();
+    }
+    return ids;
+  },
+
   async update(id: string, data: Partial<Omit<UnidadStock, 'id' | 'createdAt'>>): Promise<void> {
     const payload = deepCleanForFirestore({
       ...data,
@@ -1277,5 +1308,106 @@ export const reservasService = {
 
     // Audit — post-tx best-effort (fire-and-forget). Mismo patrón que reservar().
     logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
+  },
+
+  /**
+   * Entrega una unidad RESERVADA al cliente (salida definitiva del inventario).
+   * reservado → entregado. Deducción real: 'entregado' está fuera del whitelist de ATP,
+   * así que la unidad deja de contar como stock comprometido. Crea un MovimientoStock
+   * 'egreso' con destino cliente. Conserva los campos reservadoPara* como traza histórica.
+   * Validación atómica de estado: solo entrega si está 'reservado'.
+   */
+  async entregar(params: {
+    unidadId: string;
+    unidad: UnidadStock;
+    otNumber: string;
+    motivo: string;
+    solicitadoPorNombre: string;
+  }): Promise<void> {
+    const now = Timestamp.now();
+    const movId = crypto.randomUUID();
+    const unidadRef = docRef('unidades', params.unidadId);
+    const movRef = doc(db, 'movimientosStock', movId);
+
+    await runTransaction(db, async (tx) => {
+      const unidadSnap = await tx.get(unidadRef);
+      if (!unidadSnap.exists()) {
+        throw new Error(`Unidad ${params.unidadId} no encontrada`);
+      }
+      const data = unidadSnap.data();
+      if (data.estado !== 'reservado') {
+        throw new Error(
+          `Unidad no entregable — estado actual '${data.estado}' (esperaba 'reservado')`,
+        );
+      }
+
+      const unitPayload = deepCleanForFirestore({
+        estado: 'entregado' as EstadoUnidad,
+        ...getUpdateTrace(),
+        updatedAt: now.toDate().toISOString(),
+      });
+
+      const movPayload = deepCleanForFirestore({
+        tipo: 'egreso' as TipoMovimiento,
+        unidadId: params.unidadId,
+        articuloId: params.unidad.articuloId,
+        articuloCodigo: params.unidad.articuloCodigo,
+        articuloDescripcion: params.unidad.articuloDescripcion,
+        cantidad: 1,
+        origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+        origenId: params.unidad.ubicacion.referenciaId,
+        origenNombre: params.unidad.ubicacion.referenciaNombre,
+        destinoTipo: 'cliente' as TipoOrigenDestino,
+        destinoId: data.reservadoParaClienteId ?? params.otNumber,
+        destinoNombre: data.reservadoParaClienteNombre ?? `OT ${params.otNumber}`,
+        otNumber: params.otNumber,
+        motivo: params.motivo,
+        creadoPor: params.solicitadoPorNombre,
+        ...getCreateTrace(),
+        createdAt: now,
+      });
+
+      tx.update(unidadRef, unitPayload);
+      tx.set(movRef, movPayload);
+    });
+
+    logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
+  },
+
+  /**
+   * Entrega todas las unidades reservadas para un presupuesto (al cerrar la OT).
+   * Best-effort por unidad: si una falla (estado cambiado, race), loguea y sigue.
+   * Devuelve cuántas unidades se entregaron efectivamente.
+   */
+  async entregarPorPresupuesto(params: {
+    presupuestoId: string;
+    otNumber: string;
+    solicitadoPorNombre: string;
+  }): Promise<{ entregadas: number }> {
+    const q = query(
+      collection(db, 'unidades'),
+      where('reservadoParaPresupuestoId', '==', params.presupuestoId),
+      where('estado', '==', 'reservado'),
+    );
+    const snap = await getDocs(q);
+    let entregadas = 0;
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (data.activo === false) continue;
+      const unidad = { id: d.id, ...data } as UnidadStock;
+      try {
+        await this.entregar({
+          unidadId: d.id,
+          unidad,
+          otNumber: params.otNumber,
+          motivo: `Entregado al cerrar OT ${params.otNumber}`,
+          solicitadoPorNombre: params.solicitadoPorNombre,
+        });
+        entregadas++;
+      } catch (err) {
+        console.error(`[entregarPorPresupuesto] unidad ${d.id} no entregada:`, err);
+      }
+    }
+    return { entregadas };
   },
 };

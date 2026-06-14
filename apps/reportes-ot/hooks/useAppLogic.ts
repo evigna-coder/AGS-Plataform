@@ -685,7 +685,8 @@ export function useAppLogic(
       { key: 'direccion', label: 'Dirección', value: direccion, stepKey: 'datos' },
       { key: 'localidad', label: 'Localidad', value: localidad, stepKey: 'datos' },
       ...(isCABA ? [] : [{ key: 'provincia', label: 'Provincia', value: provincia, stepKey: 'datos' as const }]),
-      { key: 'sistema', label: 'Sistema / equipo', value: sistema, stepKey: 'datos' },
+      // En OT de entrega el equipo es opcional; no se exige para finalizar.
+      ...(otManagement.tipoOT === 'entrega' ? [] : [{ key: 'sistema', label: 'Sistema / equipo', value: sistema, stepKey: 'datos' as const }]),
       { key: 'fechaInicio', label: 'Fecha de inicio', value: fechaInicio, stepKey: 'datos' },
       { key: 'fechaFin', label: 'Fecha de fin', value: fechaFin, stepKey: 'datos' },
       { key: 'horasTrabajadas', label: 'Horas trabajadas', value: horasTrabajadas, stepKey: 'datos' },

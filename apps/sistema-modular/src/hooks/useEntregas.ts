@@ -11,13 +11,18 @@ import { deepCleanForFirestore } from '../services/firebase';
 type EstadoPresupuestoActivo = 'aceptado' | 'en_ejecucion' | 'finalizado';
 const ESTADOS_ACTIVOS: EstadoPresupuestoActivo[] = ['aceptado', 'en_ejecucion', 'finalizado'];
 
+/** Campos del item editables inline desde /entregas. */
+export type EntregaItemPatch = Partial<
+  Pick<PresupuestoItem, 'otNumeroVinculada' | 'fechaComprometida' | 'entregadoManual' | 'disponibilidad'>
+>;
+
 interface UseEntregasReturn {
   rows: EntregaRow[];
   loading: boolean;
   error: Error | null;
   reload: () => Promise<void>;
-  /** Actualiza otNumeroVinculada en el item del presupuesto. */
-  updateOtNumero: (presupuestoId: string, itemId: string, otNumero: string | null) => Promise<void>;
+  /** Patch parcial de un item del presupuesto (OT#, fecha comprometida, entregado, disponibilidad). */
+  updateItem: (presupuestoId: string, itemId: string, patch: EntregaItemPatch) => Promise<void>;
 }
 
 export function useEntregas(): UseEntregasReturn {
@@ -73,15 +78,15 @@ export function useEntregas(): UseEntregasReturn {
 
   useEffect(() => { void load(); }, [load]);
 
-  const updateOtNumero = useCallback(async (
+  const updateItem = useCallback(async (
     presupuestoId: string,
     itemId: string,
-    otNumero: string | null,
+    patch: EntregaItemPatch,
   ) => {
     const pres = await presupuestosService.getById(presupuestoId);
     if (!pres) throw new Error('Presupuesto no encontrado');
     const newItems: PresupuestoItem[] = (pres.items ?? []).map((it: PresupuestoItem) =>
-      it.id === itemId ? { ...it, otNumeroVinculada: otNumero ?? null } : it,
+      it.id === itemId ? { ...it, ...patch } : it,
     );
     // presupuestosService.update usa writes desde './firebase' (convención repo — fix Electron keyboard router).
     // Envolvemos con deepCleanForFirestore para strip undefined en campos opcionales de PresupuestoItem.
@@ -89,5 +94,5 @@ export function useEntregas(): UseEntregasReturn {
     await load();
   }, [load]);
 
-  return { rows, loading, error, reload: load, updateOtNumero };
+  return { rows, loading, error, reload: load, updateItem };
 }

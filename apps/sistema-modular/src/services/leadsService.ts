@@ -228,6 +228,21 @@ export const leadsService = {
     await batch.commit();
   },
 
+  /**
+   * Mueve un ticket a un área de destino y, si esa área tiene un responsable por
+   * defecto configurado (adminConfig/flujos.responsablePorArea), lo auto-asigna.
+   * Usado por los avances automáticos del circuito de compras (OT→compras,
+   * OC→materiales), donde no hay un usuario que esté "derivando" manualmente.
+   */
+  async moverAArea(id: string, area: TicketArea) {
+    const patch: Partial<Omit<Lead, 'id' | 'createdAt'>> = { areaActual: area };
+    if (area !== 'sistema') {
+      const def = await resolveDefaultResponsableForArea(area);
+      if (def) { patch.asignadoA = def.id; patch.asignadoNombre = def.displayName; }
+    }
+    await this.update(id, patch);
+  },
+
   async derivar(id: string, posta: Posta, nuevoAsignadoA: string, nuevoAsignadoNombre?: string | null, area?: TicketArea | null, accionRequerida?: string | null, extras?: { prioridad?: TicketPrioridad | null; proximoContacto?: string | null; motivoLlamado?: MotivoLlamado; motivoOtros?: string | null }) {
     // Si se deriva a un área sin elegir persona, auto-asignar al responsable
     // configurado para esa área (adminConfig/flujos.responsablePorArea). El

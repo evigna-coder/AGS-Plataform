@@ -616,7 +616,7 @@ function createWindow() {
     "style-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com; " +
     "img-src 'self' data: blob: http://localhost:* https:; " +
     "font-src 'self' data: http://localhost:* https://fonts.gstatic.com; " +
-    "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io;";
+    "connect-src 'self' data: blob: http://localhost:* ws://localhost:* wss://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.google.com https://*.gstatic.com https://*.firebaseapp.com https://*.run.app https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://dolarapi.com;";
 
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url || '';
