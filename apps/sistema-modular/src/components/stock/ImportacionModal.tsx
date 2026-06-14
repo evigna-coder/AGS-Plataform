@@ -198,7 +198,7 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
           {/* Artículos + costeo */}
           <div className="border-t border-slate-200 pt-3">
             <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Artículos y costeo</p>
-            <ImportacionCosteoPanel items={h.items} costeo={costeo} monedaOC={h.monedaOC} />
+            <ImportacionCosteoPanel costeo={costeo} />
           </div>
 
           {/* Notas */}
