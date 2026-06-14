@@ -45,6 +45,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const [articulosById, setArticulosById] = useState<Map<string, Articulo>>(new Map());
   const [agentes, setAgentes] = useState<AgenteCarga[]>([]);
   const [tcInfo, setTcInfo] = useState<CotizacionDolar | null>(null);
+  const [tcError, setTcError] = useState(false);
 
   const [ordenCompraId, setOrdenCompraId] = useState('');
   const [ordenCompraNumero, setOrdenCompraNumero] = useState('');
@@ -118,8 +119,10 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
       // Autocompleta el TC solo si está vacío (no pisa lo guardado ni lo manual).
       const cot = await cotizacionesService.mayorista();
       if (cot) {
-        setTcInfo(cot);
+        setTcInfo(cot); setTcError(false);
         setForm(prev => prev.tipoCambio ? prev : { ...prev, tipoCambio: String(cot.compra) });
+      } else {
+        setTcError(true);
       }
     } finally {
       setLoading(false);
@@ -128,8 +131,8 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
 
   const fetchTC = async () => {
     const cot = await cotizacionesService.mayorista();
-    if (cot) { setTcInfo(cot); setForm(prev => ({ ...prev, tipoCambio: String(cot.compra) })); }
-    else alert('No se pudo obtener la cotización mayorista del BNA.');
+    if (cot) { setTcInfo(cot); setTcError(false); setForm(prev => ({ ...prev, tipoCambio: String(cot.compra) })); }
+    else setTcError(true);
   };
 
   useEffect(() => { if (open) load(); }, [open, load]);
@@ -207,7 +210,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
 
   return {
     loading, saving, imp, ocOptions, articulosById, agentes, crearAgente,
-    tcInfo, fetchTC,
+    tcInfo, tcError, fetchTC,
     ordenCompraId, ordenCompraNumero, proveedorNombre, monedaOC,
     form, set, selectOC,
     gastos, addGasto, updateGasto, removeGasto, items,

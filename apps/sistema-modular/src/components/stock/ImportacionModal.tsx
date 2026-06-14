@@ -100,11 +100,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
                 <button type="button" title="Traer mayorista comprador BNA" onClick={() => void h.fetchTC()}
                   className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">↻</button>
               </div>
-              {h.tcInfo && (
+              {h.tcInfo ? (
                 <p className="text-[10px] text-slate-400 mt-0.5">
                   Mayorista BNA: ${h.tcInfo.compra}{h.tcInfo.fecha ? ` · ${new Date(h.tcInfo.fecha).toLocaleDateString('es-AR')}` : ''}
                 </p>
-              )}
+              ) : h.tcError ? (
+                <p className="text-[10px] text-amber-600 mt-0.5">No se pudo traer el mayorista — cargalo manual o tocá ↻</p>
+              ) : null}
             </div>
             <div>
               <label className={lbl}>Incoterm</label>

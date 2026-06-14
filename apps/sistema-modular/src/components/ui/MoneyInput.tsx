@@ -43,7 +43,13 @@ export const MoneyInput: React.FC<Props> = ({ value, onChange, className, autoFo
       value={text}
       autoFocus={autoFocus}
       placeholder={placeholder}
-      onFocus={e => { focused.current = true; setText(value != null ? String(value) : ''); e.target.select(); }}
+      onFocus={e => {
+        focused.current = true;
+        const el = e.currentTarget;
+        setText(value != null ? String(value) : '');
+        // El setText re-renderiza y pierde la selección → seleccionar tras el render.
+        requestAnimationFrame(() => el.select());
+      }}
       onChange={e => handleChange(e.target.value)}
       onBlur={format}
       onKeyDown={e => {
