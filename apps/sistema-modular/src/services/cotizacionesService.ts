@@ -31,4 +31,27 @@ export const cotizacionesService = {
       return null;
     }
   },
+
+  /**
+   * Pase EUR→USD (USD por EUR) derivado del cross oficial ARS/EUR ÷ ARS/USD.
+   * Sólo una **sugerencia**: el pase real lo fija el banco/despachante. Null si falla.
+   */
+  async paseEurUsd(): Promise<number | null> {
+    try {
+      const [eurRes, usdRes] = await Promise.all([
+        fetch('https://dolarapi.com/v1/cotizaciones/eur', { cache: 'no-store' }),
+        fetch('https://dolarapi.com/v1/dolares/oficial', { cache: 'no-store' }),
+      ]);
+      if (!eurRes.ok || !usdRes.ok) return null;
+      const eur = await eurRes.json();
+      const usd = await usdRes.json();
+      const eurArs = Number(eur?.venta) || Number(eur?.compra);
+      const usdArs = Number(usd?.venta) || Number(usd?.compra);
+      if (!eurArs || !usdArs || isNaN(eurArs) || isNaN(usdArs)) return null;
+      return eurArs / usdArs;
+    } catch (err) {
+      console.warn('[cotizacionesService] no se pudo obtener el pase EUR/USD:', err);
+      return null;
+    }
+  },
 };

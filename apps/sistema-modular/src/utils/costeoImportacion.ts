@@ -2,10 +2,12 @@
  * Costeo de importación (Argentina). Calcula los gravámenes aduaneros de cada
  * ítem del embarque y el costo total.
  *
- * Decisiones del dueño (2026-06-12):
- *   - Todo el cálculo se hace en la **moneda de la importación** (USD por defecto),
- *     no en ARS. El tipo de cambio se usa solo para convertir a ARS al final y
- *     para incorporar gastos cargados en ARS.
+ * Decisiones del dueño (2026-06-12 / 2026-06-15):
+ *   - Todo el cálculo se hace y se guarda en **USD** (moneda canónica del costo).
+ *     `tipoCambio` = ARS por USD (mayorista BNA), se usa sólo para el equivalente en ARS
+ *     y para convertir gastos cargados en ARS.
+ *   - Embarques en EUR: se normaliza FOB/flete/seguro/gastos a USD con `paseEurUsd`
+ *     (USD por EUR, lo da el banco/despachante). Sin pase se degrada a 1:1 (warn visual en UI).
  *   - Base imponible (valor en aduana) = CIF = FOB (precio×cantidad)
  *     + **flete declarado** + **seguro declarado** (los de la guía, NO los pagos
  *     locales). El flete/seguro pagados localmente van como gastos reales y NO
@@ -57,8 +59,10 @@ export interface LineaCosteoItem {
 }
 
 export interface CosteoImportacion {
-  moneda: string;             // moneda base del cálculo (USD/EUR)
-  tipoCambio: number | null;  // ARS por unidad de la moneda base
+  moneda: string;             // moneda del costo: siempre 'USD' (canónica)
+  monedaEmbarque: string;     // moneda original del embarque (USD/EUR) — para mostrar el origen
+  paseEurUsd: number | null;  // pase USD/EUR aplicado (solo si monedaEmbarque==='EUR')
+  tipoCambio: number | null;  // ARS por USD (mayorista)
   fobTotal: number;
   fleteDeclarado: number;
   seguroDeclarado: number;
@@ -83,14 +87,6 @@ export interface CosteoImportacion {
 const DEFAULTS = { derechoImportacion: 0, estadistica: 3, iva: 21, ivaAdicional: 0, ganancias: 0, ingresosBrutos: 0 };
 const pct = (v: number | null | undefined, def: number): number => (v ?? def) / 100;
 
-/** Convierte el monto de un gasto a la moneda base. ARS → ÷TC; misma moneda → directo. */
-const gastoEnBase = (g: GastoImportacion, monedaBase: string, tc: number | null): number => {
-  const monto = g.monto || 0;
-  if (g.moneda === monedaBase) return monto;
-  if (g.moneda === 'ARS') return tc && tc > 0 ? monto / tc : 0;
-  return monto; // otra moneda extranjera: se asume equivalente (caso raro)
-};
-
 export function computeCosteoImportacion(input: {
   items: ItemImportacion[];
   articulosById: Map<string, Articulo>;
@@ -99,22 +95,35 @@ export function computeCosteoImportacion(input: {
   fleteDeclarado: number;
   seguroDeclarado: number;
   tipoCambio: number | null | undefined;
+  paseEurUsd?: number | null;
 }): CosteoImportacion {
-  const monedaBase = input.monedaBase || 'USD';
-  const tc = input.tipoCambio && input.tipoCambio > 0 ? input.tipoCambio : null;
-  const fleteDeclarado = input.fleteDeclarado || 0;
-  const seguroDeclarado = input.seguroDeclarado || 0;
+  const monedaEmbarque = input.monedaBase || 'USD';
+  const tc = input.tipoCambio && input.tipoCambio > 0 ? input.tipoCambio : null; // ARS/USD
+  const pase = input.paseEurUsd && input.paseEurUsd > 0 ? input.paseEurUsd : null; // USD/EUR
+
+  /** Normaliza cualquier monto a USD. EUR → ×pase (1:1 si falta); ARS → ÷TC; USD → directo. */
+  const toUsd = (monto: number, moneda: string): number => {
+    if (!monto) return 0;
+    if (moneda === 'USD') return monto;
+    if (moneda === 'EUR') return pase ? monto * pase : monto;
+    if (moneda === 'ARS') return tc && tc > 0 ? monto / tc : 0;
+    return monto;
+  };
+
+  // Flete/seguro declarados están en la moneda del embarque → a USD.
+  const fleteDeclarado = toUsd(input.fleteDeclarado || 0, monedaEmbarque);
+  const seguroDeclarado = toUsd(input.seguroDeclarado || 0, monedaEmbarque);
   const adicionalCif = fleteDeclarado + seguroDeclarado;
 
-  // 1) FOB por ítem (en moneda base).
+  // 1) FOB por ítem (precio×cantidad en moneda del embarque → USD).
   const fobByItem = input.items.map(it => ({
     item: it,
-    fob: (it.precioUnitario || 0) * (it.cantidadPedida || 0),
+    fob: toUsd((it.precioUnitario || 0) * (it.cantidadPedida || 0), it.moneda || monedaEmbarque),
   }));
   const fobTotal = fobByItem.reduce((s, x) => s + x.fob, 0);
 
-  // Gastos reales (todos los cargados) en moneda base — se prorratean por valor.
-  const gastosReales = input.gastos.reduce((s, g) => s + gastoEnBase(g, monedaBase, tc), 0);
+  // Gastos reales (todos los cargados) en USD — se prorratean por valor.
+  const gastosReales = input.gastos.reduce((s, g) => s + toUsd(g.monto || 0, g.moneda), 0);
   const finPct = COSTO_FINANCIERO_PCT / 100;
 
   // 2) Línea de costeo por ítem: CIF + gravámenes + costo computable + factor.
@@ -170,7 +179,8 @@ export function computeCosteoImportacion(input: {
   const factorEmbarque = fobTotal > 0 ? costoComputable / fobTotal : 0;
 
   return {
-    moneda: monedaBase, tipoCambio: tc, fobTotal, fleteDeclarado, seguroDeclarado, cifTotal,
+    moneda: 'USD', monedaEmbarque, paseEurUsd: pase, tipoCambio: tc,
+    fobTotal, fleteDeclarado, seguroDeclarado, cifTotal,
     derechos, estadistica, iva, ivaAdicional, ganancias, iibb,
     totalGravamenes, gastosReales, costoTotal, costoTotalARS,
     costoFinanciero, costoComputable, factorEmbarque, lineas,

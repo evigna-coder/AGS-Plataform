@@ -30,14 +30,17 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     fleteDeclarado: h.form.fleteDeclarado ? Number(h.form.fleteDeclarado) : 0,
     seguroDeclarado: h.form.seguroDeclarado ? Number(h.form.seguroDeclarado) : 0,
     tipoCambio: h.form.tipoCambio ? Number(h.form.tipoCambio) : null,
-  }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado, h.form.tipoCambio]);
+    paseEurUsd: h.form.paseEurUsd ? Number(h.form.paseEurUsd) : null,
+  }), [h.items, h.articulosById, h.gastos, h.monedaOC, h.form.fleteDeclarado, h.form.seguroDeclarado, h.form.tipoCambio, h.form.paseEurUsd]);
 
   const handleSave = async () => {
-    const id = await h.save(costeo.costoTotalARS);
+    const id = await h.save(costeo.costoTotalARS, costeo.factorEmbarque);
     if (id) { onSaved?.(); onClose(); }
   };
 
   const selectAll = (e: React.FocusEvent<HTMLInputElement>) => e.target.select();
+  // El pase EUR→USD se necesita si el embarque o algún gasto está en euros.
+  const necesitaPase = h.monedaOC === 'EUR' || h.gastos.some(g => g.moneda === 'EUR');
 
   const tc = h.form.tipoCambio ? Number(h.form.tipoCambio) : null;
   const fmtN = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
@@ -94,7 +97,7 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
             <Input inputSize="sm" label="Fecha de carga" type="date" value={h.form.fechaEmbarque} onChange={e => h.set('fechaEmbarque', e.target.value)} />
             <Input inputSize="sm" label="Fecha de arribo" type="date" value={h.form.fechaEstimadaArribo} onChange={e => h.set('fechaEstimadaArribo', e.target.value)} />
             <div>
-              <label className={lbl}>Tipo de cambio (ARS/{h.monedaOC})</label>
+              <label className={lbl}>Tipo de cambio (ARS/USD)</label>
               <div className="flex gap-1">
                 <input type="number" className={ctrl} value={h.form.tipoCambio} onFocus={selectAll} onChange={e => h.set('tipoCambio', e.target.value)} placeholder="0.00" />
                 <button type="button" title="Traer mayorista comprador BNA" onClick={() => void h.fetchTC()}
@@ -108,6 +111,21 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
                 <p className="text-[10px] text-amber-600 mt-0.5">No se pudo traer el mayorista — cargalo manual o tocá ↻</p>
               ) : null}
             </div>
+            {necesitaPase && (
+              <div>
+                <label className={lbl}>Pase EUR→USD (USD/EUR)</label>
+                <div className="flex gap-1">
+                  <input type="number" step="0.0001" className={ctrl} value={h.form.paseEurUsd} onFocus={selectAll} onChange={e => h.set('paseEurUsd', e.target.value)} placeholder="1.0800" />
+                  <button type="button" title="Sugerir pase (cross oficial)" onClick={() => void h.fetchPase()}
+                    className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">↻</button>
+                </div>
+                {h.paseSugerido ? (
+                  <p className="text-[10px] text-slate-400 mt-0.5">Sugerido: {h.paseSugerido.toFixed(4)} · el real lo da el banco</p>
+                ) : (
+                  <p className="text-[10px] text-amber-600 mt-0.5">Cargá el pase para costear en USD</p>
+                )}
+              </div>
+            )}
             <div>
               <label className={lbl}>Incoterm</label>
               <select className={ctrl} value={h.form.incoterm} onChange={e => h.set('incoterm', e.target.value)}>
@@ -139,13 +157,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
             <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Valor en aduana (declarado)</p>
             <div className="grid grid-cols-4 gap-3 items-end">
               <div>
-                <label className={lbl}>FOB ({h.monedaOC})</label>
+                <label className={lbl}>FOB (USD)</label>
                 <div className="text-xs font-mono text-slate-600 px-2 py-1.5 bg-slate-50 rounded-md">{costeo.fobTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
               </div>
               <Input inputSize="sm" label={`Flete declarado (${h.monedaOC})`} type="number" value={h.form.fleteDeclarado} onFocus={selectAll} onChange={e => h.set('fleteDeclarado', e.target.value)} placeholder="0.00" />
               <Input inputSize="sm" label={`Seguro declarado (${h.monedaOC})`} type="number" value={h.form.seguroDeclarado} onFocus={selectAll} onChange={e => h.set('seguroDeclarado', e.target.value)} placeholder="0.00" />
               <div>
-                <label className={lbl}>CIF ({h.monedaOC})</label>
+                <label className={lbl}>CIF (USD)</label>
                 <div className="text-xs font-mono font-semibold text-teal-700 px-2 py-1.5 bg-teal-50 rounded-md">{costeo.cifTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
               </div>
             </div>

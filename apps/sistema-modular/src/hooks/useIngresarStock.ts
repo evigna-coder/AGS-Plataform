@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import type { Importacion, ItemImportacion } from '@ags/shared';
+import type { Importacion, ItemImportacion, Articulo } from '@ags/shared';
 import {
   createBatch,
   docRef,
@@ -10,7 +10,8 @@ import {
   getUpdateTrace,
   getCurrentUserTrace,
 } from '../services/firebase';
-import { calcularCostoConGastos } from '../utils/calcularProrrateo';
+import { articulosService } from '../services/firebaseService';
+import { computeCosteoImportacion } from '../utils/costeoImportacion';
 
 export interface RecepcionItem {
   item: ItemImportacion;
@@ -28,29 +29,44 @@ export function useIngresarStock() {
     setLoading(true);
     setError(null);
     try {
-      const monedaOC = imp.items?.[0]?.moneda ?? 'USD';
-      const monedaCosto: 'ARS' | 'USD' | null =
-        monedaOC === 'ARS' ? 'ARS' : monedaOC === 'USD' ? 'USD' : null;
-
-      const totalGastosEnMonedaOC = (imp.gastos ?? [])
-        .filter(g => g.moneda === monedaOC)
-        .reduce((sum, g) => sum + g.monto, 0);
-
-      const valorTotalImportacion = recepciones.reduce(
-        (sum, r) => sum + (r.item.precioUnitario ?? 0) * r.cantidadReal,
-        0,
+      // Costeo completo del embarque (CIF + gravámenes + factor), en USD.
+      // El costo por unidad = costoComputable de la línea / cantidad costeada (cantidadPedida).
+      const monedaEmbarque = imp.items?.[0]?.moneda ?? 'USD';
+      const articuloIds = Array.from(
+        new Set((imp.items ?? []).map(i => i.articuloId).filter(Boolean) as string[]),
       );
+      const arts = await Promise.all(articuloIds.map(id => articulosService.getById(id).catch(() => null)));
+      const articulosById = new Map<string, Articulo>();
+      arts.forEach(a => { if (a) articulosById.set(a.id, a); });
+
+      const costeo = computeCosteoImportacion({
+        items: imp.items ?? [],
+        articulosById,
+        gastos: imp.gastos ?? [],
+        monedaBase: monedaEmbarque,
+        fleteDeclarado: imp.fleteDeclarado ?? 0,
+        seguroDeclarado: imp.seguroDeclarado ?? 0,
+        tipoCambio: imp.tipoCambio ?? null,
+        paseEurUsd: imp.paseEurUsd ?? null,
+      });
+      const lineaByItemId = new Map(costeo.lineas.map(l => [l.itemId, l]));
+      const nowIso = new Date().toISOString();
+      // Último costo por artículo (denormalizado, last-wins) para escribir en el catálogo.
+      const ultimoCostoByArticulo = new Map<string, { costo: number; factor: number }>();
 
       const batch = createBatch();
       const userTrace = getCurrentUserTrace();
 
       for (const rec of recepciones) {
-        const costoUnitario = calcularCostoConGastos({
-          precioUnitario: rec.item.precioUnitario ?? 0,
-          cantidadRecibida: rec.cantidadReal,
-          valorTotalImportacion,
-          totalGastosEnMonedaOC,
-        });
+        const linea = lineaByItemId.get(rec.item.id);
+        const cantBase = rec.item.cantidadPedida || 0;
+        const costoUnitario = linea && cantBase > 0
+          ? linea.costoComputable / cantBase
+          : (rec.item.precioUnitario ?? 0);
+        const factorImportacion = linea?.factor ?? null;
+        if (rec.item.articuloId) {
+          ultimoCostoByArticulo.set(rec.item.articuloId, { costo: costoUnitario, factor: factorImportacion ?? 0 });
+        }
 
         // One entry per serial; if no serials given, one null entry per unit
         const seriesOrNulls: (string | null)[] =
@@ -76,7 +92,11 @@ export function useIngresarStock() {
               referenciaNombre: rec.posicionNombre,
             },
             costoUnitario,
-            monedaCosto,
+            monedaCosto: 'USD' as const,
+            factorImportacion,
+            importacionNumero: imp.numero,
+            ordenCompraNumero: imp.ordenCompraNumero ?? null,
+            despachoImportacionNumero: imp.despachoNumero ?? null,
             observaciones: `Ingreso por importación ${imp.numero}`,
             activo: true,
             ...getCreateTrace(),
@@ -133,6 +153,21 @@ export function useIngresarStock() {
         }
       }
 
+      // Denormalizar el último costo/factor en cada artículo del catálogo (last-wins).
+      for (const [articuloId, { costo, factor }] of ultimoCostoByArticulo) {
+        batch.update(
+          docRef('articulos', articuloId),
+          deepCleanForFirestore({
+            ultimoCostoImportacion: costo,
+            ultimoFactorImportacion: factor || null,
+            ultimoCostoMoneda: 'USD',
+            ultimoCostoFecha: nowIso,
+            updatedAt: Timestamp.now(),
+            ...getUpdateTrace(),
+          }),
+        );
+      }
+
       // Mark importacion done and update cantidadRecibida on each item
       const updatedItems = (imp.items ?? []).map(it => {
         const rec = recepciones.find(r => r.item.id === it.id);
@@ -144,6 +179,7 @@ export function useIngresarStock() {
         deepCleanForFirestore({
           stockIngresado: true,
           items: updatedItems,
+          factorEmbarque: costeo.factorEmbarque,
           updatedAt: Timestamp.now(),
           ...getUpdateTrace(),
         }),

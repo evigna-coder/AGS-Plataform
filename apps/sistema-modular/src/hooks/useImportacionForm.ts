@@ -46,6 +46,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const [agentes, setAgentes] = useState<AgenteCarga[]>([]);
   const [tcInfo, setTcInfo] = useState<CotizacionDolar | null>(null);
   const [tcError, setTcError] = useState(false);
+  const [paseSugerido, setPaseSugerido] = useState<number | null>(null);
 
   const [ordenCompraId, setOrdenCompraId] = useState('');
   const [ordenCompraNumero, setOrdenCompraNumero] = useState('');
@@ -54,7 +55,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const [monedaOC, setMonedaOC] = useState<Moneda>('USD');
   const [form, setForm] = useState({
     fechaEmbarque: '', fechaEstimadaArribo: '', incoterm: '', agenteCarga: '',
-    numeroGuia: '', despachoNumero: '', tipoCambio: '' as string,
+    numeroGuia: '', despachoNumero: '', tipoCambio: '' as string, paseEurUsd: '' as string,
     fleteDeclarado: '' as string, seguroDeclarado: '' as string,
     vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '',
     giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '',
@@ -81,12 +82,14 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
           setImp(data);
           setOrdenCompraId(data.ordenCompraId); setOrdenCompraNumero(data.ordenCompraNumero);
           setProveedorId(data.proveedorId); setProveedorNombre(data.proveedorNombre);
+          setMonedaOC((data.items?.[0]?.moneda ?? 'USD') as Moneda);
           setForm({
             fechaEmbarque: (data.fechaEmbarque ?? '').slice(0, 10),
             fechaEstimadaArribo: (data.fechaEstimadaArribo ?? '').slice(0, 10),
             incoterm: data.incoterm ?? '', agenteCarga: data.agenteCarga ?? '',
             numeroGuia: data.numeroGuia ?? '', despachoNumero: data.despachoNumero ?? '',
             tipoCambio: data.tipoCambio != null ? String(data.tipoCambio) : '',
+            paseEurUsd: data.paseEurUsd != null ? String(data.paseEurUsd) : '',
             fleteDeclarado: data.fleteDeclarado != null ? String(data.fleteDeclarado) : '',
             seguroDeclarado: data.seguroDeclarado != null ? String(data.seguroDeclarado) : '',
             vepNumero: data.vepNumero ?? '', vepMonto: data.vepMonto != null ? String(data.vepMonto) : '',
@@ -124,6 +127,17 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
       } else {
         setTcError(true);
       }
+      // Pase EUR/USD sugerido. Sólo autocompleta el campo si el embarque es en euros.
+      const embarqueEsEur = impId
+        ? false /* se resuelve en el effect de monedaOC más abajo si hace falta */
+        : (prefill?.moneda === 'EUR');
+      const pase = await cotizacionesService.paseEurUsd();
+      if (pase) {
+        setPaseSugerido(pase);
+        if (embarqueEsEur) {
+          setForm(prev => prev.paseEurUsd ? prev : { ...prev, paseEurUsd: pase.toFixed(4) });
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -135,6 +149,11 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     else setTcError(true);
   };
 
+  const fetchPase = async () => {
+    const pase = await cotizacionesService.paseEurUsd();
+    if (pase) { setPaseSugerido(pase); setForm(prev => ({ ...prev, paseEurUsd: pase.toFixed(4) })); }
+  };
+
   useEffect(() => { if (open) load(); }, [open, load]);
 
   const selectOC = (ocId: string) => {
@@ -144,7 +163,12 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     setOrdenCompraId(oc.id); setOrdenCompraNumero(oc.numero);
     setProveedorId(oc.proveedorId); setProveedorNombre(oc.proveedorNombre);
     setMonedaOC(m);
-    setForm(prev => ({ ...prev, incoterm: prev.incoterm || (oc.incoterm ?? '') }));
+    setForm(prev => ({
+      ...prev,
+      incoterm: prev.incoterm || (oc.incoterm ?? ''),
+      // Si el embarque es en euros y hay sugerencia de pase, precargarla (si está vacío).
+      paseEurUsd: m === 'EUR' && !prev.paseEurUsd && paseSugerido ? paseSugerido.toFixed(4) : prev.paseEurUsd,
+    }));
     setItems(itemsFromOC(oc.items ?? [], m));
     setGastos(prev => prev.some(g => g.monto > 0) ? prev : gastosPrecargados(m));
   };
@@ -164,7 +188,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     setGastos(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g));
   const removeGasto = (id: string) => setGastos(prev => prev.filter(g => g.id !== id));
 
-  const save = useCallback(async (costoTotalARS: number | null): Promise<string | null> => {
+  const save = useCallback(async (costoTotalARS: number | null, factorEmbarque?: number | null): Promise<string | null> => {
     if (!ordenCompraId) { alert('Seleccioná una orden de compra'); return null; }
     setSaving(true);
     try {
@@ -176,8 +200,10 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         incoterm: form.incoterm || null, agenteCarga: form.agenteCarga || null,
         numeroGuia: form.numeroGuia || null, despachoNumero: form.despachoNumero || null,
         tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : null,
+        paseEurUsd: form.paseEurUsd ? Number(form.paseEurUsd) : null,
         fleteDeclarado: form.fleteDeclarado ? Number(form.fleteDeclarado) : null,
         seguroDeclarado: form.seguroDeclarado ? Number(form.seguroDeclarado) : null,
+        factorEmbarque: factorEmbarque ?? null,
         vepNumero: form.vepNumero || null, vepMonto: form.vepMonto ? Number(form.vepMonto) : null,
         vepMoneda: form.vepMoneda, vepFechaPago: form.vepFechaPago || null,
         giroMonto: form.giroMonto ? Number(form.giroMonto) : null,
@@ -211,6 +237,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   return {
     loading, saving, imp, ocOptions, articulosById, agentes, crearAgente,
     tcInfo, tcError, fetchTC,
+    paseSugerido, fetchPase,
     ordenCompraId, ordenCompraNumero, proveedorNombre, monedaOC,
     form, set, selectOC,
     gastos, addGasto, updateGasto, removeGasto, items,

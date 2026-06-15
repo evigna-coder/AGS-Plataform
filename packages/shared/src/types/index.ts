@@ -2689,6 +2689,16 @@ export interface Articulo {
    * `null` cuando no hay equivalencia configurada.
    */
   articuloIdDestinoEquivalencia?: string | null;
+  /**
+   * Snapshot denormalizado del costo de la ÚLTIMA importación ingresada de este artículo
+   * (last-wins). Conveniencia para listas/detalle sin abrir las unidades. La verdad por lote
+   * vive en `UnidadStock.costoUnitario` / `factorImportacion`. Siempre en USD (`ultimoCostoMoneda`).
+   * Ausente hasta el primer ingreso por importación con costeo.
+   */
+  ultimoCostoImportacion?: number | null;
+  ultimoFactorImportacion?: number | null;
+  ultimoCostoMoneda?: 'ARS' | 'USD' | 'EUR' | null;
+  ultimoCostoFecha?: string | null;
 }
 
 // --- StockAmplio — 4-bucket extended stock shape (Phase 9) ---
@@ -2758,10 +2768,19 @@ export interface UnidadStock {
   ubicacion: UbicacionStock;
   costoUnitario?: number | null;
   monedaCosto?: 'ARS' | 'USD' | null;
+  /**
+   * Factor de importación con el que se costeó esta unidad (costoComputable / FOB).
+   * Sólo presente en unidades ingresadas vía importación con costeo. Ausente en altas
+   * manuales o unidades previas a la feature → mostrar "—" / "sin costear". Verdad por lote:
+   * el mismo artículo importado en otra fecha tendrá otro factor (cambia flete/TC/derechos).
+   */
+  factorImportacion?: number | null;
   observaciones?: string | null;
   /** Trazabilidad de ingreso (alta manual / importación). Texto libre. */
   ordenCompraNumero?: string | null;
   despachoImportacionNumero?: string | null;
+  /** N° de importación (IMP-xxxx) que dio de alta esta unidad. */
+  importacionNumero?: string | null;
   // --- Campos de reserva (añadidos Phase 01-stock-requerimientos-oc) ---
   reservadoParaPresupuestoId?: string | null;
   reservadoParaPresupuestoNumero?: string | null;
@@ -3612,8 +3631,16 @@ export interface Importacion {
   giroFechaEstimada?: string | null;
   // Costeo
   gastos: GastoImportacion[];
-  /** Tipo de cambio ARS por unidad de la moneda de la OC (del día del despacho). */
+  /** Tipo de cambio ARS por USD (mayorista BNA / Com. A 3500, del día del despacho). El costeo se hace en USD. */
   tipoCambio?: number | null;
+  /**
+   * Pase EUR→USD (USD por EUR) cuando el embarque está facturado en euros. Convierte FOB/flete/seguro
+   * y gastos en EUR a USD antes del costeo. Manual (lo da el banco/despachante), con sugerencia automática.
+   * Null/ausente cuando la moneda es USD.
+   */
+  paseEurUsd?: number | null;
+  /** Factor de importación del embarque (costoComputable / FOB total), persistido al guardar/ingresar. */
+  factorEmbarque?: number | null;
   /** Flete declarado en la guía (moneda de la OC) — integra el valor en aduana (CIF). */
   fleteDeclarado?: number | null;
   /** Seguro declarado (moneda de la OC) — integra el valor en aduana. Suele ser % del CPT. */

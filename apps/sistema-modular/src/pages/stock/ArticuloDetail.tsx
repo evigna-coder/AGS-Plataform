@@ -126,6 +126,20 @@ export const ArticuloDetail = () => {
                 <LV label="Moneda" value={articulo.monedaPrecio} />
               </div>
             </Card>
+            {articulo.ultimoCostoImportacion != null && (
+              <Card compact title="Costo importación">
+                <div className="space-y-2.5">
+                  <LV label="Último costo (USD)" value={<span className="font-mono font-semibold text-teal-700">{articulo.ultimoCostoImportacion.toFixed(2)}</span>} />
+                  {articulo.ultimoFactorImportacion != null && (
+                    <LV label="Factor" value={<span className="font-mono">{articulo.ultimoFactorImportacion.toFixed(3)}</span>} />
+                  )}
+                  {articulo.ultimoCostoFecha && (
+                    <LV label="Última importación" value={new Date(articulo.ultimoCostoFecha).toLocaleDateString('es-AR')} />
+                  )}
+                  <p className="text-[10px] text-slate-400">Costo computable de la última importación ingresada (no recuperable + IIBB + financiero).</p>
+                </div>
+              </Card>
+            )}
             {(articulo.posicionArancelaria || articulo.proveedorIds?.length || articulo.notas) && (
               <Card compact title="Otros">
                 <div className="space-y-2.5">
@@ -144,7 +158,7 @@ export const ArticuloDetail = () => {
               ) : (
                 <div className="space-y-1.5">
                   {unidades.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <div key={u.id} className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
                       <div className="flex items-center gap-2 flex-wrap">
                         {(u.cantidad ?? 1) > 1 && <span className="text-xs font-semibold text-teal-700">×{u.cantidad}</span>}
                         {u.nroSerie && <span className="text-xs font-mono text-slate-800">S/N: {u.nroSerie}</span>}
@@ -153,6 +167,12 @@ export const ArticuloDetail = () => {
                         <Badge label={u.estado.replace('_', ' ')} color={ESTADO_COLORS[u.estado] ?? 'bg-slate-100 text-slate-600'} />
                         <span className="text-[11px] text-slate-500">{TIPO_UBICACION_LABELS[u.ubicacion.tipo]}: {u.ubicacion.referenciaNombre}</span>
                       </div>
+                      {u.costoUnitario != null && (
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-mono text-slate-700">{u.monedaCosto ?? 'USD'} {u.costoUnitario.toFixed(2)}</p>
+                          {u.factorImportacion != null && <p className="text-[10px] font-mono text-teal-600">factor {u.factorImportacion.toFixed(3)}</p>}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
