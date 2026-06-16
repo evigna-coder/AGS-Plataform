@@ -24,7 +24,9 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
   const [sel, setSel] = useState<{ articuloId: string | null; articuloCodigo: string | null; descripcion: string } | null>(null);
   const [cantidad, setCantidad] = useState(1);
   const [precio, setPrecio] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => { articulosService.getAll().then(setArticulos).catch(() => {}); }, []);
   useEffect(() => {
@@ -34,7 +36,7 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
 
   const term = search.trim().toLowerCase();
   const filtered = term
-    ? articulos.filter(a => (a.codigo || '').toLowerCase().includes(term) || (a.descripcion || '').toLowerCase().includes(term)).slice(0, 8)
+    ? articulos.filter(a => (a.codigo || '').toLowerCase().includes(term) || (a.descripcion || '').toLowerCase().includes(term)).slice(0, 50)
     : [];
 
   const selectArticulo = (a: Articulo) => {
@@ -70,10 +72,30 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
           <div>
             <label className={lbl}>Buscar articulo</label>
             <input ref={inputRef} className={ctrl + ' mb-2'} placeholder="Codigo o descripcion..."
-              value={search} onChange={e => setSearch(e.target.value)}
+              value={search}
+              onChange={e => { setSearch(e.target.value); setActiveIndex(0); }}
               onKeyDown={e => {
-                if (e.key === 'Enter') { e.preventDefault(); if (filtered[0]) selectArticulo(filtered[0]); else selectLibre(); }
-                if (e.key === 'Escape') onClose();
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setActiveIndex(i => {
+                    const next = Math.min(i + 1, filtered.length - 1);
+                    itemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
+                    return next < 0 ? 0 : next;
+                  });
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActiveIndex(i => {
+                    const next = Math.max(i - 1, 0);
+                    itemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
+                    return next;
+                  });
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const pick = filtered[activeIndex] ?? filtered[0];
+                  if (pick) selectArticulo(pick); else selectLibre();
+                } else if (e.key === 'Escape') {
+                  onClose();
+                }
               }} />
             <div className="border border-slate-200 rounded-md max-h-56 overflow-y-auto divide-y divide-slate-50">
               {filtered.length === 0 && term && (
@@ -81,14 +103,16 @@ export const OCAddItemWizard: React.FC<Props> = ({ onAdd, onClose }) => {
                   Usar "{search.trim()}" como descripcion libre
                 </button>
               )}
-              {filtered.map(a => (
-                <button key={a.id} onClick={() => selectArticulo(a)}
-                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-teal-50 flex items-center justify-between gap-2">
+              {filtered.map((a, idx) => (
+                <button key={a.id} ref={el => { itemRefs.current[idx] = el; }}
+                  onClick={() => selectArticulo(a)} onMouseEnter={() => setActiveIndex(idx)}
+                  className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between gap-2 ${idx === activeIndex ? 'bg-teal-50' : 'hover:bg-teal-50'}`}>
                   <span className="text-slate-700 truncate">{a.descripcion}</span>
                   <span className="text-[10px] font-mono text-teal-700 shrink-0">{a.codigo}</span>
                 </button>
               ))}
             </div>
+            {filtered.length > 0 && <p className="text-[10px] text-slate-300 mt-1">↑↓ para elegir · Enter para seleccionar</p>}
           </div>
         )}
 

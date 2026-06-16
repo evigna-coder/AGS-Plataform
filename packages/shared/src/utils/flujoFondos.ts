@@ -29,20 +29,38 @@ export const TIPO_COLOR: Record<EventoTipo, string> = {
 
 const RECIBIDO = new Set(['recibido', 'cancelado']);
 
+/**
+ * Normaliza una fecha a 'YYYY-MM-DD'. Tolerante: acepta string ISO, Firestore Timestamp
+ * (`.toDate()` o `{ seconds }`) o Date. Las importaciones leídas crudas de Firestore pueden
+ * traer Timestamps en vez de strings → sin esto, `.slice` revienta ("is not a function").
+ */
+function toFecha(v: unknown): string | null {
+  if (!v) return null;
+  if (typeof v === 'string') return v.slice(0, 10);
+  const anyV = v as { toDate?: () => Date; seconds?: number };
+  if (typeof anyV.toDate === 'function') return anyV.toDate().toISOString().slice(0, 10);
+  if (typeof anyV.seconds === 'number') return new Date(anyV.seconds * 1000).toISOString().slice(0, 10);
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  return null;
+}
+
 /** Aplana las importaciones en eventos de flujo de fondos (VEP, giro, arribo). */
 export function buildEventos(importaciones: Importacion[]): EventoFlujo[] {
   const eventos: EventoFlujo[] = [];
   for (const imp of importaciones) {
     const base = { impId: imp.id, ocNumero: imp.ordenCompraNumero || imp.numero, proveedor: imp.proveedorNombre || '—' };
     const cumplido = RECIBIDO.has(imp.estado);
-    if (imp.vepFechaPago) {
-      eventos.push({ id: `${imp.id}-vep`, fecha: imp.vepFechaPago.slice(0, 10), tipo: 'vep', monto: imp.vepMonto ?? null, moneda: imp.vepMoneda ?? 'ARS', pagado: cumplido, ...base });
+    const vepFecha = toFecha(imp.vepFechaPago);
+    const giroFecha = toFecha(imp.giroFechaEstimada);
+    const arriboFecha = toFecha(imp.fechaEstimadaArribo);
+    if (vepFecha) {
+      eventos.push({ id: `${imp.id}-vep`, fecha: vepFecha, tipo: 'vep', monto: imp.vepMonto ?? null, moneda: imp.vepMoneda ?? 'ARS', pagado: cumplido, ...base });
     }
-    if (imp.giroFechaEstimada) {
-      eventos.push({ id: `${imp.id}-giro`, fecha: imp.giroFechaEstimada.slice(0, 10), tipo: 'giro', monto: imp.giroMonto ?? null, moneda: imp.giroMoneda ?? 'USD', pagado: cumplido, ...base });
+    if (giroFecha) {
+      eventos.push({ id: `${imp.id}-giro`, fecha: giroFecha, tipo: 'giro', monto: imp.giroMonto ?? null, moneda: imp.giroMoneda ?? 'USD', pagado: cumplido, ...base });
     }
-    if (imp.fechaEstimadaArribo) {
-      eventos.push({ id: `${imp.id}-arr`, fecha: imp.fechaEstimadaArribo.slice(0, 10), tipo: 'arribo', monto: null, moneda: null, pagado: cumplido, ...base });
+    if (arriboFecha) {
+      eventos.push({ id: `${imp.id}-arr`, fecha: arriboFecha, tipo: 'arribo', monto: null, moneda: null, pagado: cumplido, ...base });
     }
   }
   return eventos.sort((a, b) => a.fecha.localeCompare(b.fecha));
