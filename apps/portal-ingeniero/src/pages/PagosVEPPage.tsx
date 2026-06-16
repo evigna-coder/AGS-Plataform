@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Importacion } from '@ags/shared';
+import { buildEventos, totalPendiente, proximoPago, groupByMes, TIPO_LABEL, TIPO_COLOR, type EventoFlujo, type MesFlujo } from '@ags/shared';
 import { PageHeader } from '../components/ui/PageHeader';
 import { importacionesService } from '../services/importacionesService';
-import { buildEventos, totalPendiente, proximoPago, TIPO_LABEL, TIPO_COLOR, type EventoFlujo } from '../utils/flujoFondos';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -28,7 +28,7 @@ function EventoRow({ e }: { e: EventoFlujo }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLOR[e.tipo]}`}>{TIPO_LABEL[e.tipo]}</span>
-          <span className="text-xs font-mono text-teal-700">{e.impNumero}</span>
+          <span className="text-xs font-mono text-teal-700">OC {e.ocNumero}</span>
         </div>
         <div className="text-xs text-slate-500 truncate mt-0.5">{e.proveedor}</div>
       </div>
@@ -36,6 +36,26 @@ function EventoRow({ e }: { e: EventoFlujo }) {
         {e.monto != null
           ? <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">{e.moneda} {fmt(e.monto)}</span>
           : <span className="text-[11px] text-slate-400">arribo</span>}
+      </div>
+    </div>
+  );
+}
+
+function MesSection({ mes }: { mes: MesFlujo }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2 px-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{mes.label}</p>
+        <div className="flex flex-wrap gap-1.5 justify-end">
+          {mes.subtotales.map(s => (
+            <span key={`${s.tipo}-${s.moneda}`} className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${TIPO_COLOR[s.tipo]}`}>
+              {TIPO_LABEL[s.tipo]} {s.moneda} {fmt(s.monto)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {mes.eventos.map(e => <EventoRow key={e.id} e={e} />)}
       </div>
     </div>
   );
@@ -52,18 +72,16 @@ export default function PagosVEPPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const { futuros, girosUSD, vepARS, prox, prox30 } = useMemo(() => {
+  const { meses, girosUSD, vepARS, prox, futurosCount } = useMemo(() => {
     const eventos = buildEventos(importaciones);
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const futuros = eventos.filter(e => new Date(e.fecha + 'T00:00:00') >= hoy && !e.pagado);
-    const limite30 = new Date(hoy.getTime() + 30 * 86400000);
-    const prox30 = futuros.filter(e => e.tipo !== 'arribo' && new Date(e.fecha + 'T00:00:00') <= limite30).length;
     return {
-      futuros,
+      meses: groupByMes(futuros),
       girosUSD: totalPendiente(eventos, 'giro', 'USD'),
       vepARS: totalPendiente(eventos, 'vep', 'ARS'),
       prox: proximoPago(eventos),
-      prox30,
+      futurosCount: futuros.length,
     };
   }, [importaciones]);
 
@@ -71,7 +89,7 @@ export default function PagosVEPPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <PageHeader title="Pagos VEP" subtitle="Flujo de fondos · solo consulta" count={loading ? undefined : futuros.length} />
+      <PageHeader title="Pagos VEP" subtitle="Flujo de fondos · solo consulta" count={loading ? undefined : futurosCount} />
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         {loading ? (
@@ -85,23 +103,19 @@ export default function PagosVEPPage() {
                 sub={prox ? `${proxFecha!.getDate()}-${MESES[proxFecha!.getMonth()]} · ${prox.moneda} ${fmt(prox.monto || 0)}` : 'sin pagos próximos'}
                 accent="text-teal-700"
               />
-              <KpiCard label="Próx. 30 días" value={String(prox30)} sub="pagos comprometidos" />
               <KpiCard label="Giros al exterior" value={`USD ${fmt(girosUSD)}`} sub="pendientes" accent="text-teal-700" />
               <KpiCard label="VEP pendientes" value={`ARS ${fmt(vepARS)}`} sub="pendientes" accent="text-amber-700" />
             </div>
 
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-2 px-1">Próximos pagos</p>
-              {futuros.length === 0 ? (
-                <div className="text-center py-10 text-xs text-slate-400 bg-white rounded-xl border border-slate-200">
-                  Sin pagos ni arribos próximos
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {futuros.map(e => <EventoRow key={e.id} e={e} />)}
-                </div>
-              )}
-            </div>
+            {meses.length === 0 ? (
+              <div className="text-center py-10 text-xs text-slate-400 bg-white rounded-xl border border-slate-200">
+                Sin pagos ni arribos próximos
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {meses.map(m => <MesSection key={m.mes} mes={m} />)}
+              </div>
+            )}
           </>
         )}
       </div>

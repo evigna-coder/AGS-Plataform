@@ -1,171 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import type { Importacion, ItemImportacion, PosicionStock } from '@ags/shared';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { Importacion, ItemImportacion, PosicionStock, Articulo } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { SearchableSelect } from '../ui/SearchableSelect';
-import { posicionesStockService } from '../../services/stockService';
+import { posicionesStockService, articulosService } from '../../services/stockService';
 import { useIngresarStock, type RecepcionItem } from '../../hooks/useIngresarStock';
+import { IngresarStockItemRow, rowValido, seriesDe, type IngresoItemState } from './IngresarStockItemRow';
 
-interface ImportacionIngresarStockModalProps {
+interface Props {
   imp: Importacion;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-interface ItemState {
-  posicionId: string;
-  posicionNombre: string;
-  cantidadReal: number;
-  serialesText: string;
-}
+const initState = (it: ItemImportacion): IngresoItemState => ({
+  verificado: false, posicionId: '', posicionNombre: '',
+  cantidadReal: it.cantidadPedida, serialesText: '', nroLote: '',
+});
 
-const labelClass = 'block text-[10px] font-medium uppercase tracking-wider text-slate-400 font-mono mb-1';
-const inputClass = 'w-full border border-slate-200 rounded px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500';
-
-export const ImportacionIngresarStockModal: React.FC<ImportacionIngresarStockModalProps> = ({
-  imp,
-  onClose,
-  onSuccess,
-}) => {
+export const ImportacionIngresarStockModal: React.FC<Props> = ({ imp, onClose, onSuccess }) => {
   const items = imp.items ?? [];
   const [posiciones, setPosiciones] = useState<PosicionStock[]>([]);
-  const [itemStates, setItemStates] = useState<Record<string, ItemState>>(() =>
-    Object.fromEntries(
-      items.map((it: ItemImportacion) => [
-        it.id,
-        { posicionId: '', posicionNombre: '', cantidadReal: it.cantidadPedida, serialesText: '' },
-      ]),
-    ),
+  const [articulosById, setArticulosById] = useState<Map<string, Articulo>>(new Map());
+  const [itemStates, setItemStates] = useState<Record<string, IngresoItemState>>(
+    () => Object.fromEntries(items.map(it => [it.id, initState(it)])),
   );
   const { ingresarStock, loading, error } = useIngresarStock();
 
   useEffect(() => {
-    posicionesStockService
-      .getAll(true)
-      .then(all => setPosiciones(all.filter(p => p.codigo !== 'RESERVAS')));
+    posicionesStockService.getAll(true).then(all => setPosiciones(all.filter(p => p.codigo !== 'RESERVAS')));
+    const ids = Array.from(new Set(items.map(i => i.articuloId).filter(Boolean) as string[]));
+    Promise.all(ids.map(id => articulosService.getById(id).catch(() => null)))
+      .then(arts => setArticulosById(new Map(arts.filter((a): a is Articulo => !!a).map(a => [a.id, a]))));
   }, []);
 
-  const posicionOptions = posiciones.map(p => ({ value: p.id, label: p.nombre }));
+  const posicionOptions = useMemo(() => posiciones.map(p => ({ value: p.id, label: p.nombre })), [posiciones]);
+  const artDe = (it: ItemImportacion) => (it.articuloId ? articulosById.get(it.articuloId) ?? null : null);
 
+  const patch = (itemId: string, p: Partial<IngresoItemState>) =>
+    setItemStates(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...p } }));
   const handlePosicion = (itemId: string, posicionId: string) => {
     const pos = posiciones.find(p => p.id === posicionId);
-    setItemStates(prev => ({
-      ...prev,
-      [itemId]: { ...prev[itemId], posicionId, posicionNombre: pos?.nombre ?? '' },
-    }));
+    patch(itemId, { posicionId, posicionNombre: pos?.nombre ?? '' });
   };
 
-  const handleCantidad = (itemId: string, value: string) => {
-    const n = parseInt(value, 10);
-    if (!isNaN(n) && n >= 0) {
-      setItemStates(prev => ({ ...prev, [itemId]: { ...prev[itemId], cantidadReal: n } }));
-    }
-  };
+  const verificadosCount = items.filter(it => itemStates[it.id]?.verificado).length;
+  const allVerificados = items.length > 0 && verificadosCount === items.length;
+  const toggleTodos = () => setItemStates(prev => {
+    const next = { ...prev };
+    for (const it of items) next[it.id] = { ...next[it.id], verificado: !allVerificados };
+    return next;
+  });
 
-  const handleSeriales = (itemId: string, value: string) => {
-    setItemStates(prev => ({ ...prev, [itemId]: { ...prev[itemId], serialesText: value } }));
-  };
+  // Solo los tildados se ingresan; los no tildados se asumen "no llegaron".
+  const tildados = items.filter(it => itemStates[it.id]?.verificado);
+  const noTildados = items.filter(it => !itemStates[it.id]?.verificado);
+  const puedeConfirmar = tildados.length > 0 && tildados.every(it => rowValido(artDe(it), itemStates[it.id]));
+  const [confirmandoFaltantes, setConfirmandoFaltantes] = useState(false);
 
-  const handleConfirmar = async () => {
-    const recepciones: RecepcionItem[] = items.map((it: ItemImportacion) => {
+  const doIngresar = async () => {
+    const recepciones: RecepcionItem[] = tildados.map(it => {
       const s = itemStates[it.id];
       return {
         item: it,
         posicionId: s.posicionId,
         posicionNombre: s.posicionNombre,
         cantidadReal: s.cantidadReal,
-        nrosSerie: s.serialesText.trim()
-          ? s.serialesText.split('\n').map(l => l.trim()).filter(Boolean)
-          : [],
+        nroLote: s.nroLote.trim() || null,
+        nrosSerie: seriesDe(s),
       };
     });
-
     const ok = await ingresarStock(imp, recepciones);
-    if (ok) {
-      onSuccess();
-      onClose();
-    }
+    if (ok) { onSuccess(); onClose(); }
+  };
+
+  const handleConfirmar = () => {
+    // Si hay artículos sin tildar, pedir confirmación explícita antes de ingresar.
+    if (noTildados.length > 0 && !confirmandoFaltantes) { setConfirmandoFaltantes(true); return; }
+    void doIngresar();
   };
 
   const footer = (
     <div className="flex items-center justify-between w-full">
-      <div className="flex-1">
-        {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex-1 text-xs">
+        {error ? <span className="text-red-600">{error}</span>
+          : <span className="text-slate-400">{verificadosCount}/{items.length} verificados{noTildados.length > 0 ? ` · ${noTildados.length} sin tildar` : ''}</span>}
       </div>
       <div className="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
-          Cancelar
-        </Button>
-        <Button size="sm" onClick={handleConfirmar} disabled={loading}>
-          {loading ? 'Procesando...' : 'Confirmar ingreso'}
+        {confirmandoFaltantes && (
+          <Button variant="ghost" size="sm" onClick={() => setConfirmandoFaltantes(false)} disabled={loading}>Volver</Button>
+        )}
+        {!confirmandoFaltantes && <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>Cancelar</Button>}
+        <Button size="sm" onClick={handleConfirmar} disabled={loading || !puedeConfirmar}
+          variant={confirmandoFaltantes ? 'danger' : 'primary'}>
+          {loading ? 'Procesando...' : confirmandoFaltantes ? 'Sí, ingresar igual' : 'Confirmar ingreso'}
         </Button>
       </div>
     </div>
   );
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title="Ingresar al stock"
-      subtitle={`Importación ${imp.numero} — ${imp.proveedorNombre}`}
-      maxWidth="xl"
-      footer={footer}
-      closeOnBackdropClick={false}
-    >
+    <Modal open onClose={onClose} title="Ingresar al stock"
+      subtitle={`OC ${imp.ordenCompraNumero}${imp.despachoNumero ? ` · Despacho ${imp.despachoNumero}` : ''} — ${imp.proveedorNombre}`}
+      maxWidth="xl" footer={footer} closeOnBackdropClick={false}>
       {items.length === 0 ? (
         <p className="text-xs text-slate-400 py-4">Esta importación no tiene ítems registrados.</p>
       ) : (
-        <div className="space-y-4">
-          {items.map((it: ItemImportacion) => {
-            const s = itemStates[it.id];
-            return (
-              <div key={it.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-xs font-medium text-slate-800">{it.descripcion}</p>
-                    {it.articuloCodigo && (
-                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">{it.articuloCodigo}</p>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono ml-4 shrink-0">
-                    Pedido: {it.cantidadPedida} {it.unidadMedida}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className={labelClass}>Cantidad recibida</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={s.cantidadReal}
-                      onChange={e => handleCantidad(it.id, e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Posición destino</label>
-                    <SearchableSelect
-                      value={s.posicionId}
-                      onChange={v => handlePosicion(it.id, v)}
-                      options={posicionOptions}
-                      placeholder="Seleccionar posición..."
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Números de serie (uno por línea)</label>
-                    <textarea
-                      value={s.serialesText}
-                      onChange={e => handleSeriales(it.id, e.target.value)}
-                      rows={2}
-                      placeholder="Opcional — uno por línea"
-                      className={`${inputClass} resize-none`}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <p className="text-[11px] text-slate-500">
+              Cada unidad se vincula a <span className="font-mono text-teal-700">OC {imp.ordenCompraNumero}</span>
+              {imp.despachoNumero && <> y al despacho <span className="font-mono text-teal-700">{imp.despachoNumero}</span></>}.
+            </p>
+            <button type="button" onClick={toggleTodos} className="text-[11px] font-medium text-teal-600 hover:underline shrink-0">
+              {allVerificados ? 'Destildar todos' : 'Tildar todos'}
+            </button>
+          </div>
+
+          {confirmandoFaltantes && noTildados.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2.5">
+              <p className="text-xs font-medium text-amber-800">⚠ {noTildados.length} artículo{noTildados.length > 1 ? 's' : ''} sin tildar — se asume que NO llegaron y no se ingresarán:</p>
+              <ul className="mt-1 space-y-0.5">
+                {noTildados.map(it => (
+                  <li key={it.id} className="text-[11px] text-amber-700">
+                    • {it.articuloCodigo ? <span className="font-mono">{it.articuloCodigo} </span> : null}{it.descripcion} <span className="text-amber-500">({it.cantidadPedida} {it.unidadMedida})</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-amber-600 mt-1.5">¿Confirmás que estos artículos no vinieron en este embarque?</p>
+            </div>
+          )}
+          {items.map(it => (
+            <IngresarStockItemRow
+              key={it.id}
+              item={it}
+              articulo={artDe(it)}
+              state={itemStates[it.id]}
+              posicionOptions={posicionOptions}
+              onChange={p => patch(it.id, p)}
+              onPosicion={posId => handlePosicion(it.id, posId)}
+            />
+          ))}
         </div>
       )}
     </Modal>

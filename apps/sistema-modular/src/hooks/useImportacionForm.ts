@@ -3,7 +3,7 @@ import { importacionesService, ordenesCompraService, articulosService, agentesCa
 import type { AgenteCarga } from '../services/agentesCargaService';
 import { cotizacionesService, type CotizacionDolar } from '../services/cotizacionesService';
 import { deepCleanForFirestore } from '../services/firebase';
-import { CONCEPTOS_GASTO_IMPORTACION } from '@ags/shared';
+import { CONCEPTOS_GASTO_IMPORTACION, derivarEstadoImportacion } from '@ags/shared';
 import type { Importacion, OrdenCompra, ItemImportacion, GastoImportacion, Articulo, ItemOC } from '@ags/shared';
 
 type Moneda = 'ARS' | 'USD' | 'EUR';
@@ -55,10 +55,10 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
   const [monedaOC, setMonedaOC] = useState<Moneda>('USD');
   const [form, setForm] = useState({
     fechaEmbarque: '', fechaEstimadaArribo: '', incoterm: '', agenteCarga: '',
-    numeroGuia: '', despachoNumero: '', tipoCambio: '' as string, paseEurUsd: '' as string,
+    numeroGuia: '', despachoNumero: '', fechaRecepcion: '', tipoCambio: '' as string, paseEurUsd: '' as string,
     fleteDeclarado: '' as string, seguroDeclarado: '' as string,
     vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '',
-    giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '',
+    giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '', anticipoPct: '' as string,
     notas: '',
   });
   const [gastos, setGastos] = useState<GastoImportacion[]>([]);
@@ -88,6 +88,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
             fechaEstimadaArribo: (data.fechaEstimadaArribo ?? '').slice(0, 10),
             incoterm: data.incoterm ?? '', agenteCarga: data.agenteCarga ?? '',
             numeroGuia: data.numeroGuia ?? '', despachoNumero: data.despachoNumero ?? '',
+            fechaRecepcion: (data.fechaRecepcion ?? '').slice(0, 10),
             tipoCambio: data.tipoCambio != null ? String(data.tipoCambio) : '',
             paseEurUsd: data.paseEurUsd != null ? String(data.paseEurUsd) : '',
             fleteDeclarado: data.fleteDeclarado != null ? String(data.fleteDeclarado) : '',
@@ -95,7 +96,9 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
             vepNumero: data.vepNumero ?? '', vepMonto: data.vepMonto != null ? String(data.vepMonto) : '',
             vepMoneda: (data.vepMoneda ?? 'ARS') as Moneda, vepFechaPago: (data.vepFechaPago ?? '').slice(0, 10),
             giroMonto: data.giroMonto != null ? String(data.giroMonto) : '',
-            giroMoneda: (data.giroMoneda ?? 'USD') as Moneda, giroFechaEstimada: (data.giroFechaEstimada ?? '').slice(0, 10),
+            giroMoneda: (data.giroMoneda ?? data.items?.[0]?.moneda ?? 'USD') as Moneda,
+            giroFechaEstimada: (data.giroFechaEstimada ?? '').slice(0, 10),
+            anticipoPct: data.anticipoPct != null ? String(data.anticipoPct) : '',
             notas: data.notas ?? '',
           });
           setGastos(data.gastos?.length ? data.gastos : gastosPrecargados('USD'));
@@ -109,7 +112,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
           setOrdenCompraId(prefill.ordenCompraId); setOrdenCompraNumero(prefill.ordenCompraNumero);
           setProveedorId(prefill.proveedorId ?? ''); setProveedorNombre(prefill.proveedorNombre ?? '');
           setMonedaOC(m);
-          setForm(prev => ({ ...prev, incoterm: prefill.incoterm ?? '' }));
+          setForm(prev => ({ ...prev, incoterm: prefill.incoterm ?? '', giroMoneda: m }));
           setItems(prefill.items?.length ? itemsFromOC(prefill.items, m) : []);
           setGastos(gastosPrecargados(m));
         } else {
@@ -166,6 +169,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     setForm(prev => ({
       ...prev,
       incoterm: prev.incoterm || (oc.incoterm ?? ''),
+      giroMoneda: m,
       // Si el embarque es en euros y hay sugerencia de pase, precargarla (si está vacío).
       paseEurUsd: m === 'EUR' && !prev.paseEurUsd && paseSugerido ? paseSugerido.toFixed(4) : prev.paseEurUsd,
     }));
@@ -192,11 +196,25 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     if (!ordenCompraId) { alert('Seleccioná una orden de compra'); return null; }
     setSaving(true);
     try {
+      // Estado automático derivado de los datos cargados (embarque+guía → embarcada;
+      // despacho → oficializada; recepción → recibida). Forward-only.
+      const estado = derivarEstadoImportacion(
+        {
+          fechaEmbarque: form.fechaEmbarque || null,
+          numeroGuia: form.numeroGuia || null,
+          despachoNumero: form.despachoNumero || null,
+          fechaRecepcion: form.fechaRecepcion || null,
+          stockIngresado: imp?.stockIngresado ?? null,
+        },
+        imp?.estado ?? 'preparacion',
+      );
       const payload = deepCleanForFirestore({
         ordenCompraId, ordenCompraNumero,
         proveedorId: proveedorId || null, proveedorNombre: proveedorNombre || null,
+        estado,
         fechaEmbarque: form.fechaEmbarque || null,
         fechaEstimadaArribo: form.fechaEstimadaArribo || null,
+        fechaRecepcion: form.fechaRecepcion || null,
         incoterm: form.incoterm || null, agenteCarga: form.agenteCarga || null,
         numeroGuia: form.numeroGuia || null, despachoNumero: form.despachoNumero || null,
         tipoCambio: form.tipoCambio ? Number(form.tipoCambio) : null,
@@ -208,6 +226,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         vepMoneda: form.vepMoneda, vepFechaPago: form.vepFechaPago || null,
         giroMonto: form.giroMonto ? Number(form.giroMonto) : null,
         giroMoneda: form.giroMoneda, giroFechaEstimada: form.giroFechaEstimada || null,
+        anticipoPct: form.anticipoPct ? Number(form.anticipoPct) : null,
         notas: form.notas || null,
         gastos, items: items.length ? items : null,
         costoTotalARS,
@@ -232,7 +251,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     } finally {
       setSaving(false);
     }
-  }, [ordenCompraId, ordenCompraNumero, proveedorId, proveedorNombre, form, gastos, items, isEdit, impId]);
+  }, [ordenCompraId, ordenCompraNumero, proveedorId, proveedorNombre, form, gastos, items, isEdit, impId, imp]);
 
   return {
     loading, saving, imp, ocOptions, articulosById, agentes, crearAgente,

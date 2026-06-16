@@ -65,6 +65,7 @@ export const navigation: NavItem[] = [
           { name: 'Planificación', path: '/stock/planificacion' },
           { name: 'Ordenes de Compra', path: '/stock/ordenes-compra' },
           { name: 'Importaciones', path: '/stock/importaciones' },
+          { name: 'Pagos VEP', path: '/stock/pagos-vep', icon: '💸', modulo: 'pagos' },
           { name: 'Entregas', path: '/entregas' },
         ],
       },

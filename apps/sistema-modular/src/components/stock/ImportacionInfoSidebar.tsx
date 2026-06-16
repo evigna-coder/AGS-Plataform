@@ -23,12 +23,6 @@ export const ImportacionInfoSidebar: React.FC<Props> = ({ imp, onUpdate }) => {
     <div className="space-y-4">
       <Card compact>
         <div className="space-y-3">
-          {/* Numero */}
-          <div>
-            <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Numero</label>
-            <p className="text-xs text-slate-700 font-semibold">{imp.numero}</p>
-          </div>
-
           {/* Estado */}
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Estado</label>

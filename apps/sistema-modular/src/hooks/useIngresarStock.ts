@@ -19,6 +19,7 @@ export interface RecepcionItem {
   posicionNombre: string;
   nrosSerie: string[];     // one per unit; empty array if no serial required
   cantidadReal: number;
+  nroLote?: string | null; // si el artículo se maneja por lote
 }
 
 export function useIngresarStock() {
@@ -68,13 +69,19 @@ export function useIngresarStock() {
           ultimoCostoByArticulo.set(rec.item.articuloId, { costo: costoUnitario, factor: factorImportacion ?? 0 });
         }
 
-        // One entry per serial; if no serials given, one null entry per unit
-        const seriesOrNulls: (string | null)[] =
+        // Cómo se materializan las unidades físicas:
+        //  - con series → un doc por serie (cantidad 1).
+        //  - sin series pero con lote → un solo doc agrupado (cantidad = N).
+        //  - sin trazabilidad → un doc por unidad (cantidad 1).
+        const loteId = rec.nroLote?.trim() || null;
+        const unidadesACrear: { nroSerie: string | null; nroLote: string | null; cantidad: number }[] =
           rec.nrosSerie.length > 0
-            ? rec.nrosSerie
-            : Array.from({ length: rec.cantidadReal }, () => null);
+            ? rec.nrosSerie.map(s => ({ nroSerie: s, nroLote: loteId, cantidad: 1 }))
+            : loteId
+              ? [{ nroSerie: null, nroLote: loteId, cantidad: rec.cantidadReal }]
+              : Array.from({ length: rec.cantidadReal }, () => ({ nroSerie: null, nroLote: null, cantidad: 1 }));
 
-        for (const nroSerie of seriesOrNulls) {
+        for (const u of unidadesACrear) {
           const unidadId = crypto.randomUUID();
           const movId = crypto.randomUUID();
 
@@ -82,8 +89,9 @@ export function useIngresarStock() {
             articuloId: rec.item.articuloId ?? '',
             articuloCodigo: rec.item.articuloCodigo ?? '',
             articuloDescripcion: rec.item.descripcion,
-            nroSerie,
-            nroLote: null,
+            nroSerie: u.nroSerie,
+            nroLote: u.nroLote,
+            cantidad: u.cantidad,
             condicion: 'nuevo' as const,
             estado: 'disponible' as const,
             ubicacion: {
@@ -97,7 +105,7 @@ export function useIngresarStock() {
             importacionNumero: imp.numero,
             ordenCompraNumero: imp.ordenCompraNumero ?? null,
             despachoImportacionNumero: imp.despachoNumero ?? null,
-            observaciones: `Ingreso por importación ${imp.numero}`,
+            observaciones: `Ingreso por importación (OC ${imp.ordenCompraNumero})`,
             activo: true,
             ...getCreateTrace(),
             createdAt: Timestamp.now(),
@@ -118,14 +126,14 @@ export function useIngresarStock() {
             articuloId: rec.item.articuloId ?? '',
             articuloCodigo: rec.item.articuloCodigo ?? '',
             articuloDescripcion: rec.item.descripcion,
-            cantidad: 1,
+            cantidad: u.cantidad,
             origenTipo: 'proveedor' as const,
             origenId: imp.id,
             origenNombre: imp.proveedorNombre,
             destinoTipo: 'posicion' as const,
             destinoId: rec.posicionId,
             destinoNombre: rec.posicionNombre,
-            motivo: `Ingreso por importación ${imp.numero}`,
+            motivo: `Ingreso por importación (OC ${imp.ordenCompraNumero})`,
             creadoPor: userTrace?.name ?? '',
             ...getCreateTrace(),
             createdAt: Timestamp.now(),

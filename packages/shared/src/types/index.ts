@@ -3526,13 +3526,39 @@ export type EstadoImportacion = 'preparacion' | 'embarcado' | 'en_transito' | 'e
 
 export const ESTADO_IMPORTACION_LABELS: Record<EstadoImportacion, string> = {
   preparacion: 'Preparación',
-  embarcado: 'Embarcado',
+  embarcado: 'Embarcada',
   en_transito: 'En tránsito',
   en_aduana: 'En aduana',
-  despachado: 'Despachado',
-  recibido: 'Recibido',
-  cancelado: 'Cancelado',
+  despachado: 'Oficializada',
+  recibido: 'Recibida',
+  cancelado: 'Cancelada',
 };
+
+/** Orden de progresión de los estados (sin cancelado, que es terminal lateral). */
+const ESTADO_IMPORTACION_ORDEN: EstadoImportacion[] = ['preparacion', 'embarcado', 'en_transito', 'en_aduana', 'despachado', 'recibido'];
+
+/**
+ * Deriva el estado de una importación a partir de los datos cargados (forward-only):
+ *   - fecha de embarque + N° de guía → Embarcada
+ *   - N° de despacho → Oficializada
+ *   - fecha de recepción (o stock ingresado) → Recibida
+ * Nunca retrocede respecto al estado actual ni pisa 'cancelado'. Devuelve el estado más
+ * avanzado entre el actual y el derivado de los campos.
+ */
+export function derivarEstadoImportacion(
+  campos: { fechaEmbarque?: string | null; numeroGuia?: string | null; despachoNumero?: string | null; fechaRecepcion?: string | null; stockIngresado?: boolean | null },
+  estadoActual?: EstadoImportacion | null,
+): EstadoImportacion {
+  if (estadoActual === 'cancelado') return 'cancelado';
+  const has = (v: unknown) => v != null && String(v).trim() !== '';
+  let idx = ESTADO_IMPORTACION_ORDEN.indexOf(estadoActual ?? 'preparacion');
+  if (idx < 0) idx = 0;
+  let derived = 0; // preparacion
+  if (has(campos.fechaEmbarque) && has(campos.numeroGuia)) derived = Math.max(derived, 1); // embarcado
+  if (has(campos.despachoNumero)) derived = Math.max(derived, 4);                            // despachado/oficializada
+  if (has(campos.fechaRecepcion) || campos.stockIngresado) derived = Math.max(derived, 5);   // recibido
+  return ESTADO_IMPORTACION_ORDEN[Math.max(idx, derived)];
+}
 
 export const ESTADO_IMPORTACION_COLORS: Record<EstadoImportacion, string> = {
   preparacion: 'bg-slate-100 text-slate-600',
@@ -3624,11 +3650,17 @@ export interface Importacion {
   vepMonto?: number | null;
   vepMoneda?: 'ARS' | 'USD' | null;
   vepFechaPago?: string | null;
-  // Giro al exterior (pago al proveedor) — manual; suele ser ~30 días post VEP,
+  // Giro al exterior (pago al proveedor) — suele ser ~30 días post VEP,
   // a veces al momento del VEP. Para la vista de flujo de fondos.
   giroMonto?: number | null;
   giroMoneda?: 'ARS' | 'USD' | 'EUR' | null;
   giroFechaEstimada?: string | null;
+  /**
+   * % de la mercadería pagado por anticipado (0 = 100% diferido). El giro al exterior
+   * (saldo a pagar al proveedor) = valor de factura de la OC × (1 − anticipoPct/100),
+   * en la moneda del proveedor. Driver de la condición de pago / tipo de transferencia.
+   */
+  anticipoPct?: number | null;
   // Costeo
   gastos: GastoImportacion[];
   /** Tipo de cambio ARS por USD (mayorista BNA / Com. A 3500, del día del despacho). El costeo se hace en USD. */

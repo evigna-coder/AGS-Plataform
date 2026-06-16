@@ -17,7 +17,7 @@ import { PatronesList, PatronEditorPage } from '../../pages/patrones';
 import { ColumnasList, ColumnaEditorPage } from '../../pages/columnas';
 import { FichasList, FichaDetail } from '../../pages/fichas';
 import { LoanersList, LoanerEditor, LoanerDetail } from '../../pages/loaners';
-import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
+import { MarcasPage, IngenierosPage, ProveedoresPage, PosicionesPage, ArticulosList, ArticuloEditor, ArticuloDetail, UnidadesList, MinikitsList, MinikitDetail, MinikitFaltantesPage, MovimientosPage, RemitosList, RemitoDetail, AlertasStockPage, PosicionesArancelariasPage, ProveedorDetail, RequerimientosList, OCList, OCEditor, OCDetail, ImportacionesList, PagosVEPPage, ImportacionEditor, ImportacionDetail, AsignacionRapidaPage, AsignacionesList, AsignacionDetail, InventarioIngenieroPage, PlanificacionStockPage } from '../../pages/stock';
 import { IngresoEmpresasList } from '../../pages/ingreso-empresas';
 import { DispositivosList } from '../../pages/dispositivos';
 import { VehiculosList, VehiculoDetail } from '../../pages/vehiculos';
@@ -160,6 +160,7 @@ function AppRoutes() {
       <Route path="/stock/ordenes-compra/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCDetail /></ProtectedRoute>} />
       <Route path="/stock/ordenes-compra/:id/editar" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCEditor /></ProtectedRoute>} />
       <Route path="/stock/importaciones" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionesList /></ProtectedRoute>} />
+      <Route path="/stock/pagos-vep" element={<ProtectedRoute modulo="pagos"><PagosVEPPage /></ProtectedRoute>} />
       <Route path="/entregas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><EntregasList /></ProtectedRoute>} />
       <Route path="/stock/importaciones/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionEditor /></ProtectedRoute>} />
       <Route path="/stock/importaciones/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><ImportacionDetail /></ProtectedRoute>} />

@@ -57,15 +57,15 @@ export const ImportacionDetail = () => {
 
   if (!imp) return null;
 
-  const puedeIngresarStock = imp.estado === 'recibido' && !imp.stockIngresado;
+  const puedeIngresarStock = (imp.estado === 'recibido' || imp.estado === 'despachado') && !imp.stockIngresado;
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <div className="shrink-0 bg-white border-b border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] z-10">
         <div className="flex items-center justify-between px-5 pt-4 pb-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 tracking-tight">{imp.numero}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Importacion de {imp.proveedorNombre}</p>
+            <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Importación · OC {imp.ordenCompraNumero}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{imp.proveedorNombre}</p>
           </div>
           <div className="flex gap-2">
             {puedeIngresarStock && (

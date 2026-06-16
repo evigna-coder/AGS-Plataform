@@ -1,12 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { derivarEstadoImportacion, ESTADO_IMPORTACION_LABELS, ESTADO_IMPORTACION_COLORS } from '@ags/shared';
 import { useImportacionForm, type ImportacionPrefill } from '../../hooks/useImportacionForm';
 import { computeCosteoImportacion } from '../../utils/costeoImportacion';
 import { ImportacionGastosEditor } from './ImportacionGastosEditor';
 import { ImportacionCosteoPanel } from './ImportacionCosteoPanel';
+import { ImportacionIngresarStockModal } from './ImportacionIngresarStockModal';
+import { ImportacionDocumentosSection } from './ImportacionDocumentosSection';
 
 interface Props {
   open: boolean;
@@ -42,6 +45,29 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
   // El pase EUR→USD se necesita si el embarque o algún gasto está en euros.
   const necesitaPase = h.monedaOC === 'EUR' || h.gastos.some(g => g.moneda === 'EUR');
 
+  // Estado automático en vivo (se actualiza al tipear guía/despacho/recepción).
+  const estadoLive = derivarEstadoImportacion({
+    fechaEmbarque: h.form.fechaEmbarque || null,
+    numeroGuia: h.form.numeroGuia || null,
+    despachoNumero: h.form.despachoNumero || null,
+    fechaRecepcion: h.form.fechaRecepcion || null,
+    stockIngresado: h.imp?.stockIngresado ?? null,
+  }, h.imp?.estado ?? 'preparacion');
+
+  const [showIngresar, setShowIngresar] = useState(false);
+  // Mostramos "Ingresar a stock" siempre que la importación esté guardada, tenga ítems
+  // y no se haya ingresado aún. La disciplina de estados (despachado/recibido) vive en
+  // la página detalle; acá el dato declarado (despacho, items) alcanza para operar.
+  const puedeIngresar = !!h.imp && !h.imp.stockIngresado && (h.imp.items?.length ?? 0) > 0;
+
+  // Alta de agente de carga inline (window.prompt no existe en el renderer de Electron).
+  const [nuevoAgente, setNuevoAgente] = useState<string | null>(null);
+  const confirmarAgente = async () => {
+    const n = (nuevoAgente ?? '').trim();
+    if (n) await h.crearAgente(n);
+    setNuevoAgente(null);
+  };
+
   const tc = h.form.tipoCambio ? Number(h.form.tipoCambio) : null;
   const fmtN = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
   // Equivalente del VEP en la otra moneda (ARS↔USD) usando el TC mayorista.
@@ -56,7 +82,34 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
     h.set('giroFechaEstimada', d.toISOString().slice(0, 10));
   };
 
-  const title = h.imp ? `Importación ${h.imp.numero}` : 'Nueva importación';
+  // --- VEP y giro automáticos ---
+  // VEP = total de tributos aduaneros (gravámenes). En ARS = ×TC; en USD = directo.
+  const vepSugerido = h.form.vepMoneda === 'ARS'
+    ? (tc ? costeo.totalGravamenes * tc : null)
+    : costeo.totalGravamenes;
+  // Giro = valor de factura de la OC (Σ precio×cant, en moneda del proveedor) × (1 − %anticipo).
+  const valorFactura = useMemo(
+    () => h.items.reduce((s, it) => s + (it.precioUnitario || 0) * (it.cantidadPedida || 0), 0),
+    [h.items],
+  );
+  const anticipoPct = h.form.anticipoPct ? Number(h.form.anticipoPct) : 0;
+  const giroSugerido = valorFactura * (1 - anticipoPct / 100);
+  const aplicarVep = () => { if (vepSugerido != null) h.set('vepMonto', vepSugerido.toFixed(2)); };
+  const aplicarGiro = () => { if (giroSugerido > 0) { h.set('giroMonto', giroSugerido.toFixed(2)); h.set('giroMoneda', h.monedaOC); } };
+
+  // Autocompletar una vez (al abrir, con los datos listos) si están vacíos. Se puede recalcular con ↻.
+  const autoFilledRef = useRef(false);
+  useEffect(() => { autoFilledRef.current = false; }, [impId, open]);
+  useEffect(() => {
+    if (h.loading || autoFilledRef.current) return;
+    if (costeo.totalGravamenes <= 0 && valorFactura <= 0) return;
+    autoFilledRef.current = true;
+    if (!h.form.vepMonto && vepSugerido != null && vepSugerido > 0) h.set('vepMonto', vepSugerido.toFixed(2));
+    if (!h.form.giroMonto && giroSugerido > 0) { h.set('giroMonto', giroSugerido.toFixed(2)); h.set('giroMoneda', h.monedaOC); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [h.loading, costeo.totalGravamenes, valorFactura]);
+
+  const title = h.imp ? `Importación · OC ${h.ordenCompraNumero}` : 'Nueva importación';
   const seleccionarOC = !impId && !prefill;
 
   const footer = (
@@ -67,6 +120,14 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
           Detalle completo
         </Button>
       )}
+      {puedeIngresar && (
+        <Button variant="secondary" size="sm" onClick={() => setShowIngresar(true)}>
+          Ingresar a stock
+        </Button>
+      )}
+      {h.imp?.stockIngresado && (
+        <span className="text-[11px] text-teal-600 font-medium self-center mr-1">✓ Ingresada a stock</span>
+      )}
       <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
       <Button size="sm" onClick={handleSave} disabled={h.saving || !h.ordenCompraId}>
         {h.saving ? 'Guardando...' : 'Guardar'}
@@ -75,12 +136,22 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
   );
 
   return (
+    <>
     <Modal open={open} onClose={onClose} maxWidth="2xl" title={title}
-      subtitle={h.ordenCompraNumero ? `OC ${h.ordenCompraNumero} · ${h.proveedorNombre}` : 'Comercio exterior'} footer={footer}>
+      subtitle={h.proveedorNombre || 'Comercio exterior'} footer={footer}>
       {h.loading ? (
         <div className="text-center py-10 text-xs text-slate-400">Cargando...</div>
       ) : (
         <div className="space-y-4">
+          {/* Estado automático (derivado de los datos cargados) */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-wide text-slate-400">Estado</span>
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${ESTADO_IMPORTACION_COLORS[estadoLive]}`}>
+              {ESTADO_IMPORTACION_LABELS[estadoLive]}
+            </span>
+            <span className="text-[10px] text-slate-400">· automático según embarque / despacho / recepción</span>
+          </div>
+
           {/* OC + proveedor */}
           {seleccionarOC ? (
             <div>
@@ -135,21 +206,33 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
             </div>
             <div>
               <label className={lbl}>Agente de carga</label>
-              <div className="flex gap-1">
-                <select className={ctrl} value={h.form.agenteCarga} onChange={e => h.set('agenteCarga', e.target.value)}>
-                  <option value="">—</option>
-                  {h.form.agenteCarga && !h.agentes.some(a => a.nombre === h.form.agenteCarga) && (
-                    <option value={h.form.agenteCarga}>{h.form.agenteCarga}</option>
-                  )}
-                  {h.agentes.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
-                </select>
-                <button type="button" title="Nuevo agente"
-                  onClick={() => { const n = window.prompt('Nuevo agente de carga (DHL, FedEx, ...)'); if (n) void h.crearAgente(n); }}
-                  className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">+</button>
-              </div>
+              {nuevoAgente === null ? (
+                <div className="flex gap-1">
+                  <select className={ctrl} value={h.form.agenteCarga} onChange={e => h.set('agenteCarga', e.target.value)}>
+                    <option value="">—</option>
+                    {h.form.agenteCarga && !h.agentes.some(a => a.nombre === h.form.agenteCarga) && (
+                      <option value={h.form.agenteCarga}>{h.form.agenteCarga}</option>
+                    )}
+                    {h.agentes.map(a => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
+                  </select>
+                  <button type="button" title="Nuevo agente" onClick={() => setNuevoAgente('')}
+                    className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">+</button>
+                </div>
+              ) : (
+                <div className="flex gap-1">
+                  <input autoFocus className={ctrl} value={nuevoAgente} placeholder="DHL, FedEx, ..."
+                    onChange={e => setNuevoAgente(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void confirmarAgente(); } if (e.key === 'Escape') setNuevoAgente(null); }} />
+                  <button type="button" title="Guardar agente" onClick={() => void confirmarAgente()}
+                    className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-teal-600 hover:bg-teal-50">✓</button>
+                  <button type="button" title="Cancelar" onClick={() => setNuevoAgente(null)}
+                    className="shrink-0 px-2 text-xs border border-slate-300 rounded-md text-slate-400 hover:bg-slate-50">✕</button>
+                </div>
+              )}
             </div>
             <Input inputSize="sm" label="N° de guía" value={h.form.numeroGuia} onFocus={selectAll} onChange={e => h.set('numeroGuia', e.target.value)} />
             <Input inputSize="sm" label="Despacho N°" value={h.form.despachoNumero} onFocus={selectAll} onChange={e => h.set('despachoNumero', e.target.value)} />
+            <Input inputSize="sm" label="Fecha de recepción" type="date" value={h.form.fechaRecepcion} onChange={e => h.set('fechaRecepcion', e.target.value)} />
           </div>
 
           {/* Valor en aduana — flete/seguro DECLARADOS (guía), distintos de los pagos locales */}
@@ -175,8 +258,17 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
             <div className="grid grid-cols-4 gap-3 items-start">
               <Input inputSize="sm" label="N° VEP" value={h.form.vepNumero} onFocus={selectAll} onChange={e => h.set('vepNumero', e.target.value)} />
               <div>
-                <Input inputSize="sm" label="Monto VEP" type="number" value={h.form.vepMonto} onFocus={selectAll} onChange={e => h.set('vepMonto', e.target.value)} />
-                {vepEquiv && <p className="text-[10px] text-slate-400 mt-0.5">≈ {vepEquiv}</p>}
+                <div className="flex items-end justify-between">
+                  <label className={lbl}>Monto VEP (tributos)</label>
+                  {vepSugerido != null && vepSugerido > 0 && (
+                    <button type="button" onClick={aplicarVep} title="Usar el total de tributos aduaneros"
+                      className="text-[10px] text-teal-600 hover:underline mb-0.5">↻ tributos</button>
+                  )}
+                </div>
+                <input type="number" className={ctrl} value={h.form.vepMonto} onFocus={selectAll} onChange={e => h.set('vepMonto', e.target.value)} placeholder="0.00" />
+                {vepSugerido != null && vepSugerido > 0
+                  ? <p className="text-[10px] text-slate-400 mt-0.5">Tributos: {h.form.vepMoneda} {fmtN(vepSugerido)}{vepEquiv ? ` · ≈ ${vepEquiv}` : ''}</p>
+                  : vepEquiv && <p className="text-[10px] text-slate-400 mt-0.5">≈ {vepEquiv}</p>}
               </div>
               <div>
                 <label className={lbl}>Moneda VEP</label>
@@ -189,15 +281,32 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
             </div>
           </div>
 
-          {/* Giro al exterior — pago al proveedor (manual; ~30 días post VEP) */}
+          {/* Giro al exterior — pago al proveedor. Monto = valor factura OC × (1 − %anticipo). */}
           <div className="border-t border-slate-200 pt-3">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">Giro al exterior</p>
               <button type="button" onClick={giroPostVep} disabled={!h.form.vepFechaPago}
                 className="text-[10px] text-teal-600 hover:underline disabled:text-slate-300">30 días post VEP</button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Input inputSize="sm" label={`Monto giro`} type="number" value={h.form.giroMonto} onFocus={selectAll} onChange={e => h.set('giroMonto', e.target.value)} />
+            <div className="grid grid-cols-4 gap-3">
+              <div>
+                <label className={lbl}>% anticipo</label>
+                <input type="number" className={ctrl} value={h.form.anticipoPct} onFocus={selectAll} onChange={e => h.set('anticipoPct', e.target.value)} placeholder="0" />
+                <p className="text-[10px] text-slate-400 mt-0.5">{anticipoPct > 0 ? `Saldo ${100 - anticipoPct}% diferido` : '100% diferido'}</p>
+              </div>
+              <div>
+                <div className="flex items-end justify-between">
+                  <label className={lbl}>Monto giro</label>
+                  {giroSugerido > 0 && (
+                    <button type="button" onClick={aplicarGiro} title="Usar el saldo de la factura"
+                      className="text-[10px] text-teal-600 hover:underline mb-0.5">↻ saldo</button>
+                  )}
+                </div>
+                <input type="number" className={ctrl} value={h.form.giroMonto} onFocus={selectAll} onChange={e => h.set('giroMonto', e.target.value)} placeholder="0.00" />
+                {valorFactura > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-0.5">Factura {h.monedaOC} {fmtN(valorFactura)} → saldo {fmtN(giroSugerido)}</p>
+                )}
+              </div>
               <div>
                 <label className={lbl}>Moneda</label>
                 <select className={ctrl} value={h.form.giroMoneda} onChange={e => h.set('giroMoneda', e.target.value as 'ARS' | 'USD' | 'EUR')}>
@@ -215,6 +324,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
             <ImportacionGastosEditor gastos={h.gastos} onAdd={h.addGasto} onUpdate={h.updateGasto} onRemove={h.removeGasto} />
           </div>
 
+          {/* Documentos — adjuntar invoice, packing, BL, despacho, etc. (requiere importación guardada) */}
+          {h.imp && (
+            <div className="border-t border-slate-200 pt-3">
+              <ImportacionDocumentosSection imp={h.imp} onUpdate={h.reload} />
+            </div>
+          )}
+
           {/* Artículos + costeo */}
           <div className="border-t border-slate-200 pt-3">
             <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">Artículos y costeo</p>
@@ -229,5 +345,13 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
         </div>
       )}
     </Modal>
+    {showIngresar && h.imp && (
+      <ImportacionIngresarStockModal
+        imp={h.imp}
+        onClose={() => setShowIngresar(false)}
+        onSuccess={() => { setShowIngresar(false); h.reload(); }}
+      />
+    )}
+    </>
   );
 };
