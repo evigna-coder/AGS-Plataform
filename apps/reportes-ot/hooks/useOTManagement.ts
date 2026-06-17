@@ -355,7 +355,20 @@ export const useOTManagement = (
           contacto: data.contacto || '',
         };
       } else {
-        // 🟡 NO EXISTE → mostrar modal de confirmación
+        // 🟡 NO EXISTE
+        // No permitimos CREAR una OT "padre" (número pelado sin sufijo .NN). El
+        // padre es la familia de la OT; los ingenieros trabajan siempre sobre un
+        // ítem (.01, .02, ...). Si se crea un padre, queda un doc que el portal
+        // oculta a propósito (filtra ids sin punto en "Mis Pendientes") → "se
+        // crea, se puede escribir, pero después no aparece". Fue el bug de 29573.
+        // Cargar un padre EXISTENTE sí se permite (rama `if (data)` de arriba),
+        // para poder recuperar reportes ya guardados así.
+        if (!v.includes('.')) {
+          hasInitialized.current = true; // re-habilitar autosave para futuras cargas
+          throw new Error(
+            `La OT ${v} es un número "padre". Para crear un reporte usá el número de ítem con sufijo, por ejemplo ${v}.01`
+          );
+        }
         logger.debug("⚠️ OT no encontrada, solicitando confirmación...");
         setPendingOt(v);
         setShowNewOtModal(true);
