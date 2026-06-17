@@ -52,6 +52,30 @@ export default function HistorialPage() {
     setSortField(s.field); setSortDir(s.dir);
   };
 
+  const [envioBusy, setEnvioBusy] = useState<string | null>(null);
+
+  const markSent = async (ot: WorkOrderWithPdf) => {
+    setEnvioBusy(ot.otNumber);
+    try {
+      await otService.marcarEnvioManual(ot.otNumber);
+    } catch (err) {
+      console.error('No se pudo marcar envío manual:', err);
+    } finally {
+      setEnvioBusy(null);
+    }
+  };
+
+  const unmarkSent = async (ot: WorkOrderWithPdf) => {
+    setEnvioBusy(ot.otNumber);
+    try {
+      await otService.quitarEnvioManual(ot.otNumber);
+    } catch (err) {
+      console.error('No se pudo deshacer envío manual:', err);
+    } finally {
+      setEnvioBusy(null);
+    }
+  };
+
   const unsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -202,10 +226,21 @@ export default function HistorialPage() {
               onSort={handleSort}
               onOpenPdf={openPDF}
               onOpenProtocol={openProtocol}
+              onMarkSent={markSent}
+              onUnmarkSent={unmarkSent}
+              envioBusy={envioBusy}
               fmt={fmt}
             />
             <div className="md:hidden space-y-2">
-              {filtered.map(ot => <HistorialOTCard key={ot.otNumber} ot={ot} />)}
+              {filtered.map(ot => (
+                <HistorialOTCard
+                  key={ot.otNumber}
+                  ot={ot}
+                  onMarkSent={markSent}
+                  onUnmarkSent={unmarkSent}
+                  envioBusy={envioBusy}
+                />
+              ))}
             </div>
           </>
         )}

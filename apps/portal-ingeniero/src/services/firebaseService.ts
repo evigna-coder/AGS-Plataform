@@ -16,6 +16,7 @@ import {
   onSnapshot,
   arrayUnion,
   runTransaction,
+  deleteField,
   type QueryConstraint,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -583,13 +584,27 @@ export interface EnviadoPorEmail {
   error?: string | null;
 }
 
+/** Marca manual: "el reporte se entregó por otro medio" (WhatsApp, mail personal,
+ *  impreso, etc.). La pone un usuario desde el Historial del portal cuando el envío
+ *  automático falló (típicamente adjunto > 24 MB) pero el reporte igual llegó al
+ *  cliente. Vive como campo HERMANO de `enviadoPorEmail` para no pisar la traza del
+ *  intento real del sistema: el badge le da prioridad cuando está presente, y
+ *  "deshacer" la borra dejando a la vista el estado real (error / sin envío). */
+export interface EnvioManual {
+  marcadoPorUid?: string | null;
+  marcadoPorNombre?: string | null;
+  fecha?: string | null;
+}
+
 /** WorkOrder extendido con pdfUrl(s) de reportes finalizados.
  *  protocolPdfUrl existe cuando la OT tiene protocolo digital adjunto (split en 2 archivos).
- *  enviadoPorEmail registra si el reporte se envió al cliente por mail (y si falló). */
+ *  enviadoPorEmail registra si el reporte se envió al cliente por mail (y si falló).
+ *  envioManual registra una entrega manual marcada desde el portal (override). */
 export type WorkOrderWithPdf = WorkOrder & {
   pdfUrl?: string | null;
   protocolPdfUrl?: string | null;
   enviadoPorEmail?: EnviadoPorEmail | null;
+  envioManual?: EnvioManual | null;
 };
 
 function reporteToWorkOrder(id: string, data: Record<string, unknown>): WorkOrderWithPdf {
@@ -657,6 +672,7 @@ export const otService = {
         pdfUrl: ot.pdfUrl ?? rep.pdfUrl ?? null,
         protocolPdfUrl: ot.protocolPdfUrl ?? rep.protocolPdfUrl ?? null,
         enviadoPorEmail: ot.enviadoPorEmail ?? rep.enviadoPorEmail ?? null,
+        envioManual: ot.envioManual ?? rep.envioManual ?? null,
       };
     });
     const seen = new Set(fromOT.map(ot => ot.otNumber));
@@ -703,6 +719,7 @@ export const otService = {
       'fechaInicio', 'fechaFin', 'signatureEngineer', 'signatureClient',
       'aclaracionEspecialista', 'aclaracionCliente', 'pdfUrl', 'protocolPdfUrl',
       'problemaFallaInicial', 'materialesParaServicio', 'articulos', 'enviadoPorEmail',
+      'envioManual',
     ];
 
     const emit = () => {
@@ -775,6 +792,31 @@ export const otService = {
     });
   },
 
+  /** Marca el reporte como "entregado por otro medio" (override manual del Historial).
+   *  Escribe el campo hermano `envioManual` en `reportes/{otNumber}` (merge) sin tocar
+   *  `enviadoPorEmail`, para que el badge muestre verde sin perder la traza del fallo
+   *  real del envío automático. La lista (subscribe realtime) refleja el cambio sola. */
+  async marcarEnvioManual(otNumber: string): Promise<void> {
+    const trace = getCurrentUserTrace();
+    await setDoc(doc(db, 'reportes', otNumber), {
+      envioManual: {
+        marcadoPorUid: trace?.uid ?? null,
+        marcadoPorNombre: trace?.name ?? null,
+        fecha: new Date().toISOString(),
+      },
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+  },
+
+  /** Deshace la marca manual: borra `envioManual` y deja a la vista el estado real
+   *  (error / sin envío). No toca `enviadoPorEmail`. */
+  async quitarEnvioManual(otNumber: string): Promise<void> {
+    await setDoc(doc(db, 'reportes', otNumber), {
+      envioManual: deleteField(),
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
+  },
+
   async getByEquipoId(sistemaId: string, limitN = 10): Promise<WorkOrder[]> {
     const q = query(
       collection(db, 'ordenes_trabajo'),
@@ -821,6 +863,7 @@ export const otService = {
           pdfUrl: ot.pdfUrl ?? rep.pdfUrl ?? null,
           protocolPdfUrl: ot.protocolPdfUrl ?? rep.protocolPdfUrl ?? null,
           enviadoPorEmail: ot.enviadoPorEmail ?? rep.enviadoPorEmail ?? null,
+          envioManual: ot.envioManual ?? rep.envioManual ?? null,
         };
       });
       const seen = new Set(fromOT.map(o => o.otNumber));

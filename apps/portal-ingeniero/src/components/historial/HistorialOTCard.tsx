@@ -15,7 +15,14 @@ const openProtocol = (ot: WorkOrderWithPdf) => {
   if (ot.protocolPdfUrl) window.open(ot.protocolPdfUrl, '_blank');
 };
 
-export default function HistorialOTCard({ ot }: { ot: WorkOrderWithPdf }) {
+interface Props {
+  ot: WorkOrderWithPdf;
+  onMarkSent?: (ot: WorkOrderWithPdf) => void;
+  onUnmarkSent?: (ot: WorkOrderWithPdf) => void;
+  envioBusy?: string | null;
+}
+
+export default function HistorialOTCard({ ot, onMarkSent, onUnmarkSent, envioBusy }: Props) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5">
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -76,7 +83,13 @@ export default function HistorialOTCard({ ot }: { ot: WorkOrderWithPdf }) {
           </button>
         )}
         <span className="ml-auto shrink-0">
-          <EnvioEmailBadge envio={ot.enviadoPorEmail} />
+          <EnvioEmailBadge
+            envio={ot.enviadoPorEmail}
+            envioManual={ot.envioManual}
+            onMark={onMarkSent && (() => onMarkSent(ot))}
+            onUnmark={onUnmarkSent && (() => onUnmarkSent(ot))}
+            busy={envioBusy === ot.otNumber}
+          />
         </span>
       </div>
     </div>

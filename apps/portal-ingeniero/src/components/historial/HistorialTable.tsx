@@ -24,6 +24,9 @@ interface Props {
   onSort: (field: string) => void;
   onOpenPdf: (ot: WorkOrderWithPdf) => void;
   onOpenProtocol: (ot: WorkOrderWithPdf) => void;
+  onMarkSent?: (ot: WorkOrderWithPdf) => void;
+  onUnmarkSent?: (ot: WorkOrderWithPdf) => void;
+  envioBusy?: string | null;
   fmt: (d?: string) => string;
 }
 
@@ -36,7 +39,7 @@ const COLS = [
   { key: 'fechaInicio', label: 'Fecha', width: '11%' },
 ] as const;
 
-export default function HistorialTable({ rows, sortField, sortDir, onSort, onOpenPdf, onOpenProtocol, fmt }: Props) {
+export default function HistorialTable({ rows, sortField, sortDir, onSort, onOpenPdf, onOpenProtocol, onMarkSent, onUnmarkSent, envioBusy, fmt }: Props) {
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('pi-historial-list');
 
   return (
@@ -98,7 +101,13 @@ export default function HistorialTable({ rows, sortField, sortDir, onSort, onOpe
                   )}
                 </div>
                 <div className="mt-0.5 flex justify-center">
-                  <EnvioEmailBadge envio={ot.enviadoPorEmail} />
+                  <EnvioEmailBadge
+                    envio={ot.enviadoPorEmail}
+                    envioManual={ot.envioManual}
+                    onMark={onMarkSent && (() => onMarkSent(ot))}
+                    onUnmark={onUnmarkSent && (() => onUnmarkSent(ot))}
+                    busy={envioBusy === ot.otNumber}
+                  />
                 </div>
               </td>
             </tr>
