@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export interface WizardStep {
   key: string;
@@ -18,8 +18,16 @@ interface Props {
 export const WizardLayout: React.FC<Props> = ({ steps, extra, pendingFocus }) => {
   const [current, setCurrent] = useState(0);
 
+  // Solo saltar de step cuando llega un pendingFocus NUEVO (nonce distinto).
+  // `steps` es un array nuevo en cada render de App, así que sin este guard el
+  // efecto se redispararía en cada tecla y patearía al usuario al último step
+  // pedido por validación (ej. 'firmas') mientras intenta editar otro campo.
+  const lastFocusNonceRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!pendingFocus) return;
+    if (lastFocusNonceRef.current === pendingFocus.nonce) return;
+    lastFocusNonceRef.current = pendingFocus.nonce;
     const idx = steps.findIndex(s => s.key === pendingFocus.step);
     if (idx >= 0) setCurrent(idx);
   }, [pendingFocus, steps]);
