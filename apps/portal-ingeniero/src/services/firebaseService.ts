@@ -325,14 +325,38 @@ function extractTicketNumber(numero: unknown): number {
   return match ? parseInt(match[1], 10) : 0;
 }
 
+/**
+ * Genera el siguiente numero correlativo de ticket: TKT-00001, TKT-00002, ...
+ * Atómico vía counter doc `_counters/tickets` — el MISMO doc que usan
+ * sistema-modular (leadsService.getNextTicketNumero) y la Cloud Function de
+ * firma remota (reportes-ot). Firestore garantiza atomicidad cross-app.
+ *
+ * Antes este portal usaba scan-and-max NO transaccional sobre `leads`, que no
+ * tocaba el counter: eso desincronizaba a este portal de sistema-modular y
+ * generaba números repetidos (ej. dos TKT-00164). No reintroducir scan-and-max.
+ */
 async function getNextTicketNumero(): Promise<string> {
-  const snap = await getDocs(collection(db, 'leads'));
-  let max = 0;
-  snap.docs.forEach(d => {
-    const n = extractTicketNumber(d.data().numero);
-    if (n > max) max = n;
+  const counterRef = doc(db, '_counters', 'tickets');
+  const next = await runTransaction(db, async (tx) => {
+    const counterSnap = await tx.get(counterRef);
+    let current: number;
+    if (counterSnap.exists()) {
+      current = counterSnap.data().value as number;
+    } else {
+      // Bootstrap: el counter no existe todavía → escanear leads una sola vez.
+      const snap = await getDocs(collection(db, 'leads'));
+      let max = 0;
+      snap.docs.forEach(d => {
+        const n = extractTicketNumber(d.data().numero);
+        if (n > max) max = n;
+      });
+      current = max;
+    }
+    const nextVal = current + 1;
+    tx.set(counterRef, { value: nextVal, updatedAt: Timestamp.now() });
+    return nextVal;
   });
-  return `TKT-${String(max + 1).padStart(5, '0')}`;
+  return `TKT-${String(next).padStart(5, '0')}`;
 }
 
 export const leadsService = {
