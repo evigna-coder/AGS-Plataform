@@ -125,6 +125,11 @@ export const usuariosService = {
         photoURL: d['photoURL'] ?? null,
         role: d['role'] ?? null,
         status: d['status'],
+        // permisos: override per-user que controla qué módulos ve cada usuario.
+        // SIN esto, canAccessModulo() siempre cae a los defaults del rol y los
+        // unticks por usuario en sistema-modular /usuarios/{id} se ignoraban en
+        // el portal (los tickets/leads no respetaban el toggle por usuario).
+        permisos: d['permisos'] ?? null,
         createdAt: d['createdAt']?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         updatedAt: d['updatedAt']?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
