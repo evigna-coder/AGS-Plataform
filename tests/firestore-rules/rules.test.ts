@@ -75,26 +75,71 @@ describe('Colecciones internas — requieren auth', () => {
 });
 
 describe('Superficies públicas', () => {
-  it('sistemas: lectura anónima permitida, escritura anónima denegada', async () => {
-    await seed((db) => setDoc(doc(db, 'sistemas', 'S1'), { agsVisibleId: 'AGS-1', nombre: 'HPLC' }));
+  it('sistemas: lectura y escritura anónima DENEGADAS (cerrado, va por CF getEquipoPublico)', async () => {
+    await seed((db) => setDoc(doc(db, 'sistemas', 'S1'), { agsVisibleId: 'AGS-1', nombre: 'HPLC', clienteId: 'C1' }));
     const db = anon();
-    await assertSucceeds(getDoc(doc(db, 'sistemas', 'S1')));
+    await assertFails(getDoc(doc(db, 'sistemas', 'S1')));
     await assertFails(setDoc(doc(db, 'sistemas', 'S1'), { nombre: 'hackeado' }));
   });
 
-  it('leads: lectura (scan) y alta anónima permitidas; update/delete denegados', async () => {
-    const db = anon();
-    await assertSucceeds(getDocs(collection(db, 'leads')));
-    await assertSucceeds(setDoc(doc(db, 'leads', 'L1'), { razonSocial: 'ACME', estado: 'nuevo' }));
-    // update/delete sin auth: bloqueados
-    await seed((d) => setDoc(doc(d, 'leads', 'L2'), { razonSocial: 'X', estado: 'nuevo' }));
-    await assertFails(updateDoc(doc(db, 'leads', 'L2'), { estado: 'perdido' }));
-    await assertFails(deleteDoc(doc(db, 'leads', 'L2')));
+  it('sistemas: staff (auth) SÍ lee', async () => {
+    await seed((db) => setDoc(doc(db, 'sistemas', 'S1'), { nombre: 'HPLC', clienteId: 'C1' }));
+    await assertSucceeds(getDoc(doc(authed(), 'sistemas', 'S1')));
   });
 
-  it('reportes: lectura anónima permitida (preview de firma)', async () => {
+  it('leads: lectura y alta anónima DENEGADAS (cerrado, va por CF submitSoporte)', async () => {
+    const db = anon();
+    await assertFails(getDocs(collection(db, 'leads')));
+    await assertFails(setDoc(doc(db, 'leads', 'L1'), { razonSocial: 'ACME', estado: 'nuevo' }));
+  });
+
+  it('leads: staff (auth) lee y crea', async () => {
+    const db = authed();
+    await assertSucceeds(getDocs(collection(db, 'leads')));
+    await assertSucceeds(setDoc(doc(db, 'leads', 'L1'), { razonSocial: 'ACME', estado: 'nuevo' }));
+  });
+
+  it('reportes: lectura anónima permitida (preview de firma — A.3 diferida)', async () => {
     await seed((db) => setDoc(doc(db, 'reportes', 'OT-1'), { otNumber: 'OT-1', status: 'BORRADOR' }));
     await assertSucceeds(getDoc(doc(anon(), 'reportes', 'OT-1')));
+  });
+});
+
+describe('Aislamiento de cliente (multi-tenant)', () => {
+  // Cliente C1 autenticado con custom claims role:'client' + clienteId:'C1'.
+  const clienteC1 = () =>
+    testEnv.authenticatedContext('client-1', { role: 'client', clienteId: 'C1' }).firestore();
+
+  beforeEach(async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'sistemas', 'S1'), { nombre: 'HPLC C1', clienteId: 'C1' });
+      await setDoc(doc(db, 'sistemas', 'S2'), { nombre: 'GC C2', clienteId: 'C2' });
+      await setDoc(doc(db, 'ordenes_trabajo', 'OT1'), { otNumber: '111', clienteId: 'C1' });
+      await setDoc(doc(db, 'ordenes_trabajo', 'OT2'), { otNumber: '222', clienteId: 'C2' });
+    });
+  });
+
+  it('el cliente SÍ lee sus propios equipos, NO los de otro cliente', async () => {
+    const db = clienteC1();
+    await assertSucceeds(getDoc(doc(db, 'sistemas', 'S1')));
+    await assertFails(getDoc(doc(db, 'sistemas', 'S2')));
+  });
+
+  it('el cliente SÍ lee sus propias OTs, NO las de otro cliente', async () => {
+    const db = clienteC1();
+    await assertSucceeds(getDoc(doc(db, 'ordenes_trabajo', 'OT1')));
+    await assertFails(getDoc(doc(db, 'ordenes_trabajo', 'OT2')));
+  });
+
+  it('el cliente NO puede escribir sus equipos (solo lectura)', async () => {
+    await assertFails(setDoc(doc(clienteC1(), 'sistemas', 'S1'), { nombre: 'editado' }, { merge: true }));
+  });
+
+  it('el cliente NO puede tocar colecciones internas (clientes, presupuestos, leads)', async () => {
+    const db = clienteC1();
+    await assertFails(getDoc(doc(db, 'clientes', 'C1')));
+    await assertFails(getDoc(doc(db, 'presupuestos', 'P1')));
+    await assertFails(getDocs(collection(db, 'leads')));
   });
 });
 

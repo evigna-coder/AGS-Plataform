@@ -10,24 +10,39 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // ── Identidad de CLIENTE (custom claims, Fase B del plan seguridad-qr-cliente) ──
+    // Un usuario CLIENTE tiene claim role == 'client' + clienteId. Cualquier otro
+    // usuario autenticado es STAFF de AGS (acceso interno). Los claims los asigna la
+    // Cloud Function setClientClaims (solo staff @agsanalitica.com puede invocarla).
+    // Acceso SEGURO al claim: un staff no tiene la clave 'role', y el acceso por
+    // punto a una clave ausente ABORTA la regla ("Property role is undefined").
+    // Por eso se usa .get(clave, default).
+    function esCliente() {
+      return signedIn() && request.auth.token.get('role', '') == 'client';
+    }
+    function esStaff() {
+      return signedIn() && request.auth.token.get('role', '') != 'client';
+    }
+    function miCliente(rid) {
+      return esCliente() && request.auth.token.get('clienteId', '') == rid;
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // SUPERFICIES PÚBLICAS (sin login, por diseño). Acotadas al mínimo necesario.
     // ──────────────────────────────────────────────────────────────────────────
 
-    // PÚBLICO: formulario de soporte de la página /equipo/:agsId (portal-ingeniero).
-    //   - read: getNextTicketNumero() escanea leads para calcular el próximo número.
-    //   - create: alta del ticket desde el formulario público.
-    // Pendiente Fase 3: mover la numeración a server-side para poder cerrar la lectura.
+    // Tickets (leads): SOLO staff. El alta pública del QR pasó a la Cloud Function
+    // `submitSoporte` (admin SDK, numeración atómica server-side), así que ya NO se
+    // expone lectura ni alta anónima. (Fase A.2 del plan seguridad-qr-cliente.)
     match /leads/{leadId} {
-      allow read, create: if true;
-      allow update, delete: if signedIn();
+      allow read, create, update, delete: if esStaff();
     }
 
     // PÚBLICO ACOTADO: firma remota (reportes-ot ?modo=firma).
-    //   - read: el preview de la OT antes de firmar (se acotará a campos seguros en Fase 2).
-    //   - write anónimo: SOLO los campos de firma sobre una OT existente. Crear u
-    //     overwrite de otros campos queda bloqueado para no autenticados.
-    // Coincide exactamente con el payload de updateSignature() en reportes-ot.
+    //   - read: el preview de la OT antes de firmar.
+    //   - write anónimo: SOLO los campos de firma sobre una OT existente.
+    // Se cerrará en Fase A.3 (link con token + vencimiento). Diferida: toca la app
+    // de campo (superficie congelada) y se prueba en terreno aparte.
     match /reportes/{document=**} {
       allow read: if true;
       allow write: if signedIn()
@@ -35,132 +50,140 @@ service cloud.firestore {
              .hasOnly(['signatureClient', 'signedAt', 'signedFrom']);
     }
 
-    // PÚBLICO: la página /equipo/:agsId lee el equipo por agsVisibleId sin login.
+    // Equipos (sistemas): lectura anónima CERRADA. El visitante anónimo del QR lee
+    // la proyección segura vía Cloud Function `getEquipoPublico`. Staff lee todo;
+    // un CLIENTE solo sus propios equipos. (Fase A.1 + C del plan.)
+    // Nota: equipos legacy con clienteId null (solo establecimientoId) no son visibles
+    // por esta regla para clientes — pendiente matcheo por establecimiento (Fase D).
     match /sistemas/{sistemaId} {
-      allow read: if true;
-      allow write: if signedIn();
+      allow read: if esStaff() || miCliente(resource.data.clienteId);
+      allow write: if esStaff();
       match /modulos/{moduloId} {
-        allow read, write: if signedIn(); // no leído por el flujo público
+        allow read, write: if esStaff();
       }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // COLECCIONES INTERNAS — solo usuarios autenticados.
+    // COLECCIONES INTERNAS — solo STAFF de AGS (un token de cliente queda inerte).
     // ──────────────────────────────────────────────────────────────────────────
 
     // Colecciones legacy/futuro
-    match /quotes/{quoteId}            { allow read, write: if signedIn(); }
-    match /inventory/{itemId}          { allow read, write: if signedIn(); }
-    match /appointments/{appointmentId}{ allow read, write: if signedIn(); }
-    match /invoices/{invoiceId}        { allow read, write: if signedIn(); }
+    match /quotes/{quoteId}            { allow read, write: if esStaff(); }
+    match /inventory/{itemId}          { allow read, write: if esStaff(); }
+    match /appointments/{appointmentId}{ allow read, write: if esStaff(); }
+    match /invoices/{invoiceId}        { allow read, write: if esStaff(); }
 
     // Clientes (+ contactos legacy)
     match /clientes/{clienteId} {
-      allow read, write: if signedIn();
+      allow read, write: if esStaff();
       match /contactos/{contactoId} {
-        allow read, write: if signedIn();
+        allow read, write: if esStaff();
       }
     }
 
     // Establecimientos (sedes/plantas por cliente)
     match /establecimientos/{establecimientoId} {
-      allow read, write: if signedIn();
+      allow read, write: if esStaff();
       match /contactos/{contactoId} {
-        allow read, write: if signedIn();
+        allow read, write: if esStaff();
       }
     }
 
     // Catálogos y otras colecciones del sistema modular
-    match /categorias_equipo/{categoriaId}        { allow read, write: if signedIn(); }
-    match /categorias_modulo/{categoriaId}        { allow read, write: if signedIn(); }
-    match /presupuestos/{presupuestoId}           { allow read, write: if signedIn(); }
-    match /categorias_presupuesto/{categoriaId}   { allow read, write: if signedIn(); }
-    match /plantillas_texto_presupuesto/{plantillaId} { allow read, write: if signedIn(); }
-    match /condiciones_pago/{condicionId}         { allow read, write: if signedIn(); }
-    match /tipos_servicio/{tipoId}                { allow read, write: if signedIn(); }
-    match /ordenes_compra/{ocId}                  { allow read, write: if signedIn(); }
+    match /categorias_equipo/{categoriaId}        { allow read, write: if esStaff(); }
+    match /categorias_modulo/{categoriaId}        { allow read, write: if esStaff(); }
+    match /presupuestos/{presupuestoId}           { allow read, write: if esStaff(); }
+    match /categorias_presupuesto/{categoriaId}   { allow read, write: if esStaff(); }
+    match /plantillas_texto_presupuesto/{plantillaId} { allow read, write: if esStaff(); }
+    match /condiciones_pago/{condicionId}         { allow read, write: if esStaff(); }
+    match /tipos_servicio/{tipoId}                { allow read, write: if esStaff(); }
+    match /ordenes_compra/{ocId}                  { allow read, write: if esStaff(); }
 
     // Catálogo de Protocolos legacy (mantenido por compatibilidad)
-    match /protocolCatalog/{catalogId}            { allow read, write: if signedIn(); }
+    match /protocolCatalog/{catalogId}            { allow read, write: if esStaff(); }
 
     // Biblioteca de Tablas individuales (técnicos en reportes-ot leen autenticados)
-    match /tableCatalog/{tableId}                 { allow read, write: if signedIn(); }
-    match /tableProjects/{projectId}              { allow read, write: if signedIn(); }
+    match /tableCatalog/{tableId}                 { allow read, write: if esStaff(); }
+    match /tableProjects/{projectId}              { allow read, write: if esStaff(); }
 
     // Usuarios AGS (roles)
     match /usuarios/{uid} {
-      allow read, write: if signedIn();
+      allow read, write: if esStaff();
       match /fcmTokens/{tokenId} {
-        allow read, write: if signedIn();
+        allow read, write: if esStaff();
       }
     }
 
     // Adjuntos (metadata; binario en Firebase Storage)
-    match /adjuntos/{adjuntoId}                   { allow read, write: if signedIn(); }
+    match /adjuntos/{adjuntoId}                   { allow read, write: if esStaff(); }
 
     // Instrumentos y Patrones (certificados de calibración)
-    match /instrumentos/{instrumentoId}           { allow read, write: if signedIn(); }
-    match /patrones/{patronId}                    { allow read, write: if signedIn(); }
+    match /instrumentos/{instrumentoId}           { allow read, write: if esStaff(); }
+    match /patrones/{patronId}                    { allow read, write: if esStaff(); }
 
     // Columnas cromatográficas (GC, HPLC)
-    match /columnas/{columnaId}                   { allow read, write: if signedIn(); }
+    match /columnas/{columnaId}                   { allow read, write: if esStaff(); }
 
     // Marcas (catálogo compartido)
-    match /marcas/{marcaId}                       { allow read, write: if signedIn(); }
+    match /marcas/{marcaId}                       { allow read, write: if esStaff(); }
 
     // ── Stock Module ──
-    match /ingenieros/{ingenieroId}               { allow read, write: if signedIn(); }
-    match /proveedores/{proveedorId}              { allow read, write: if signedIn(); }
-    match /posicionesStock/{posicionId}           { allow read, write: if signedIn(); }
-    match /articulos/{articuloId}                 { allow read, write: if signedIn(); }
-    match /unidades/{unidadId}                    { allow read, write: if signedIn(); }
-    match /minikits/{minikitId}                   { allow read, write: if signedIn(); }
-    match /movimientosStock/{movimientoId}        { allow read, write: if signedIn(); }
-    match /remitos/{remitoId}                     { allow read, write: if signedIn(); }
-    match /conceptos_servicio/{conceptoId}        { allow read, write: if signedIn(); }
-    match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if signedIn(); }
-    match /consumibles_por_modulo/{moduloId}      { allow read, write: if signedIn(); }
-    match /fichasPropiedad/{fichaId}              { allow read, write: if signedIn(); }
-    match /loaners/{loanerId}                     { allow read, write: if signedIn(); }
-    match /posiciones_arancelarias/{posicionId}   { allow read, write: if signedIn(); }
-    match /requerimientos_compra/{requerimientoId}{ allow read, write: if signedIn(); }
-    match /importaciones/{importacionId}          { allow read, write: if signedIn(); }
-    match /agentesCarga/{agenteId}                { allow read, write: if signedIn(); }
-    match /asignaciones/{asignacionId}            { allow read, write: if signedIn(); }
+    match /ingenieros/{ingenieroId}               { allow read, write: if esStaff(); }
+    match /proveedores/{proveedorId}              { allow read, write: if esStaff(); }
+    match /posicionesStock/{posicionId}           { allow read, write: if esStaff(); }
+    match /articulos/{articuloId}                 { allow read, write: if esStaff(); }
+    match /unidades/{unidadId}                    { allow read, write: if esStaff(); }
+    match /minikits/{minikitId}                   { allow read, write: if esStaff(); }
+    match /movimientosStock/{movimientoId}        { allow read, write: if esStaff(); }
+    match /remitos/{remitoId}                     { allow read, write: if esStaff(); }
+    match /conceptos_servicio/{conceptoId}        { allow read, write: if esStaff(); }
+    match /tiposEquipoPlantillas/{tipoId}         { allow read, write: if esStaff(); }
+    match /consumibles_por_modulo/{moduloId}      { allow read, write: if esStaff(); }
+    match /fichasPropiedad/{fichaId}              { allow read, write: if esStaff(); }
+    match /loaners/{loanerId}                     { allow read, write: if esStaff(); }
+    match /posiciones_arancelarias/{posicionId}   { allow read, write: if esStaff(); }
+    match /requerimientos_compra/{requerimientoId}{ allow read, write: if esStaff(); }
+    match /importaciones/{importacionId}          { allow read, write: if esStaff(); }
+    match /agentesCarga/{agenteId}                { allow read, write: if esStaff(); }
+    match /asignaciones/{asignacionId}            { allow read, write: if esStaff(); }
 
     // Agenda
-    match /agendaEntries/{entryId}                { allow read, write: if signedIn(); }
-    match /agendaNotas/{notaId}                   { allow read, write: if signedIn(); }
+    match /agendaEntries/{entryId}                { allow read, write: if esStaff(); }
+    match /agendaNotas/{notaId}                   { allow read, write: if esStaff(); }
 
     // Workflow / OTs / facturación
-    match /pendientes/{pendienteId}               { allow read, write: if signedIn(); }
-    match /postas/{postaId}                        { allow read, write: if signedIn(); }
-    match /viaticos/{viaticoId}                    { allow read, write: if signedIn(); }
-    match /ordenes_trabajo/{otId}                  { allow read, write: if signedIn(); }
-    match /contratos/{contratoId}                  { allow read, write: if signedIn(); }
-    match /solicitudesFacturacion/{solicitudId}    { allow read, write: if signedIn(); }
-    match /ordenesCompraCliente/{ocId}             { allow read, write: if signedIn(); }
+    match /pendientes/{pendienteId}               { allow read, write: if esStaff(); }
+    match /postas/{postaId}                        { allow read, write: if esStaff(); }
+    match /viaticos/{viaticoId}                    { allow read, write: if esStaff(); }
+    // OTs: staff completo; un CLIENTE solo lee las suyas (portal de cliente, Fase D).
+    match /ordenes_trabajo/{otId} {
+      allow read: if esStaff() || miCliente(resource.data.clienteId);
+      allow write: if esStaff();
+    }
+    match /contratos/{contratoId}                  { allow read, write: if esStaff(); }
+    match /solicitudesFacturacion/{solicitudId}    { allow read, write: if esStaff(); }
+    match /ordenesCompraCliente/{ocId}             { allow read, write: if esStaff(); }
 
     // Counters atómicos (OT number, contrato number, etc.)
-    match /_counters/{counterId}                   { allow read, write: if signedIn(); }
+    match /_counters/{counterId}                   { allow read, write: if esStaff(); }
 
     // Misceláneos
-    match /feriados/{feriadoId}                    { allow read, write: if signedIn(); }
-    match /mailQueue/{mailId}                      { allow read, write: if signedIn(); }
-    match /emailTemplates/{templateId}             { allow read, write: if signedIn(); }
-    match /ingresosEmpresas/{ingresoId}            { allow read, write: if signedIn(); }
-    match /dispositivos/{dispositivoId}            { allow read, write: if signedIn(); }
-    match /vehiculos/{vehiculoId}                  { allow read, write: if signedIn(); }
-    match /calificaciones_proveedor/{calificacionId} { allow read, write: if signedIn(); }
-    match /catalogoSectores/{sectorId}             { allow read, write: if signedIn(); }
-    match /certificadosIngeniero/{certId}          { allow read, write: if signedIn(); }
-    match /adminConfig/{configId}                  { allow read, write: if signedIn(); }
-    match /featureFlags/{flagId}                   { allow read, write: if signedIn(); }
-    match /qfDocumentos/{qfId}                     { allow read, write: if signedIn(); }
+    match /feriados/{feriadoId}                    { allow read, write: if esStaff(); }
+    match /mailQueue/{mailId}                      { allow read, write: if esStaff(); }
+    match /emailTemplates/{templateId}             { allow read, write: if esStaff(); }
+    match /ingresosEmpresas/{ingresoId}            { allow read, write: if esStaff(); }
+    match /dispositivos/{dispositivoId}            { allow read, write: if esStaff(); }
+    match /vehiculos/{vehiculoId}                  { allow read, write: if esStaff(); }
+    match /calificaciones_proveedor/{calificacionId} { allow read, write: if esStaff(); }
+    match /catalogoSectores/{sectorId}             { allow read, write: if esStaff(); }
+    match /certificadosIngeniero/{certId}          { allow read, write: if esStaff(); }
+    match /adminConfig/{configId}                  { allow read, write: if esStaff(); }
+    match /featureFlags/{flagId}                   { allow read, write: if esStaff(); }
+    match /qfDocumentos/{qfId}                     { allow read, write: if esStaff(); }
 
     // Audit Log — inmutable: se crea pero nunca se modifica ni borra.
     match /audit_log/{logId} {
-      allow read, create: if signedIn();
+      allow read, create: if esStaff();
       allow update, delete: if false;
     }
 

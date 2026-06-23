@@ -20,7 +20,8 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { app, storage } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { app, storage, functions } from './firebase';
 import type { UsuarioAGS, Sistema, Cliente, ContactoCliente, Lead, TicketEstado, TicketArea, Posta, MotivoLlamado, AgendaEntry, UserRole, WorkOrder, TableCatalogEntry, ProtocolSelection, ViaticoPeriodo, GastoViatico, ViaticoPeriodoEstado, AdjuntoTicket, AdminConfigFlujos, ModuloSistema } from '@ags/shared';
 import {
   TICKET_MAX_ADJUNTOS,
@@ -260,6 +261,46 @@ export const sistemasService = {
       agsVisibleId: (d.data().agsVisibleId as string) ?? null,
       activo: true,
     }));
+  },
+};
+
+// =============================================
+// --- Superficie pública del QR (vía Cloud Functions) ---
+// =============================================
+// El visitante anónimo NO lee Firestore directo: pasa por Cloud Functions que
+// devuelven/aceptan solo lo seguro. Esto permite cerrar `sistemas` y `leads` a
+// signedIn(). Ver .claude/plans/seguridad-qr-cliente.md (Fases A.1 y A.2).
+
+export interface EquipoPublico {
+  found: boolean;
+  nombre?: string;
+  software?: string | null;
+  softwareRevision?: string | null;
+  softwares?: { nombre: string; revision?: string | null }[];
+  agsVisibleId?: string | null;
+}
+
+export interface SoporteInput {
+  agsId: string;
+  razonSocial: string;
+  contacto: string;
+  email: string;
+  telefono: string;
+  motivoContacto: string;
+}
+
+export const publicService = {
+  /** Proyección segura de un equipo para visitantes NO autenticados. */
+  async getEquipoPublico(agsId: string): Promise<EquipoPublico> {
+    const fn = httpsCallable<{ agsId: string }, EquipoPublico>(functions, 'getEquipoPublico');
+    const res = await fn({ agsId });
+    return res.data;
+  },
+  /** Alta de ticket de soporte desde el formulario público. Devuelve el número. */
+  async submitSoporte(input: SoporteInput): Promise<{ numero: string }> {
+    const fn = httpsCallable<SoporteInput, { ok: true; numero: string }>(functions, 'submitSoporte');
+    const res = await fn(input);
+    return { numero: res.data.numero };
   },
 };
 

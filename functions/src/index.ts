@@ -25,3 +25,8 @@ export {
   updateResumenStockOnRequerimiento,
 } from './updateResumenStock';
 export { onOTCerrada } from './onOTCerrada';
+
+// Seguridad — QR a clientes (plan .claude/plans/seguridad-qr-cliente.md)
+export { getEquipoPublico } from './getEquipoPublico';   // A.1
+export { submitSoporte } from './submitSoporte';         // A.2
+export { setClientClaims } from './setClientClaims';     // B

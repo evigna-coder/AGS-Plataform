@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { Sistema, WorkOrder } from '@ags/shared';
-import { sistemasService, leadsService, otService } from '../services/firebaseService';
+import type { WorkOrder } from '@ags/shared';
+import { sistemasService, otService, publicService, type EquipoPublico } from '../services/firebaseService';
 import { useAuth } from '../contexts/AuthContext';
 import { Spinner } from '../components/ui/Spinner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
+
+/** Modelo de vista unificado: anónimo (proyección segura) o IST (sistema completo). */
+interface EquipoView {
+  id: string | null; // solo presente para IST autenticado (habilita historial)
+  nombre: string;
+  software?: string | null;
+  softwareRevision?: string | null;
+  softwares?: { nombre: string; revision?: string | null }[];
+  agsVisibleId: string;
+}
 
 // ─── Sub-component: header branding ──────────────────────────────────────────
 function PublicHeader() {
@@ -28,12 +38,11 @@ function PublicHeader() {
 
 // ─── Sub-component: support form ─────────────────────────────────────────────
 interface SoporteFormProps {
-  sistema: Sistema;
   agsId: string;
   onSuccess: () => void;
 }
 
-function SoporteForm({ sistema, agsId, onSuccess }: SoporteFormProps) {
+function SoporteForm({ agsId, onSuccess }: SoporteFormProps) {
   const [form, setForm] = useState({ razonSocial: '', contacto: '', email: '', telefono: '', motivoContacto: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,22 +55,15 @@ function SoporteForm({ sistema, agsId, onSuccess }: SoporteFormProps) {
     setSaving(true);
     setError(null);
     try {
-      await leadsService.create({
-        clienteId: null,
-        contactoId: null,
+      // El alta pasa por Cloud Function (submitSoporte): resuelve el equipo y asigna
+      // el número server-side. La página ya no escribe en `leads` directo.
+      await publicService.submitSoporte({
+        agsId,
         razonSocial: form.razonSocial,
         contacto: form.contacto,
         email: form.email,
         telefono: form.telefono,
-        motivoLlamado: 'soporte',
         motivoContacto: form.motivoContacto,
-        sistemaId: sistema.id,
-        estado: 'nuevo',
-        postas: [],
-        asignadoA: null,
-        derivadoPor: null,
-        source: 'qr',
-        sistemaAgsVisibleId: agsId,
       });
       onSuccess();
     } catch (err) {
@@ -175,17 +177,39 @@ function HistorialOTs({ sistemaId }: { sistemaId: string }) {
 export default function EquipoPublicPage() {
   const { agsId } = useParams<{ agsId: string }>();
   const { isAuthenticated, usuario } = useAuth();
-  const [sistema, setSistema] = useState<Sistema | null>(null);
+  const [equipo, setEquipo] = useState<EquipoView | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (!agsId) return;
-    sistemasService.getByAgsVisibleId(agsId)
-      .then(setSistema)
-      .catch(console.error)
+    setLoading(true);
+    // IST autenticado: lee el sistema completo por reglas (signedIn) para tener
+    // el id y poder mostrar el historial. Anónimo: proyección segura vía CF, que
+    // NO expone clienteId/establecimiento ni el doc completo.
+    const load: Promise<EquipoView | null> = isAuthenticated
+      ? sistemasService.getByAgsVisibleId(agsId).then(s => s && ({
+          id: s.id,
+          nombre: s.nombre,
+          software: s.software,
+          softwareRevision: s.softwareRevision,
+          softwares: s.softwares,
+          agsVisibleId: s.agsVisibleId ?? agsId,
+        }))
+      : publicService.getEquipoPublico(agsId).then((e: EquipoPublico) => e.found ? {
+          id: null,
+          nombre: e.nombre ?? '',
+          software: e.software,
+          softwareRevision: e.softwareRevision,
+          softwares: e.softwares,
+          agsVisibleId: e.agsVisibleId ?? agsId,
+        } : null);
+
+    load
+      .then(v => setEquipo(v ?? null))
+      .catch(err => { console.error(err); setEquipo(null); })
       .finally(() => setLoading(false));
-  }, [agsId]);
+  }, [agsId, isAuthenticated]);
 
   if (loading) {
     return (
@@ -195,7 +219,7 @@ export default function EquipoPublicPage() {
     );
   }
 
-  if (!sistema) {
+  if (!equipo) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <PublicHeader />
@@ -219,11 +243,11 @@ export default function EquipoPublicPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">Equipo registrado</p>
-              <p className="text-base font-semibold text-slate-900">{sistema.nombre}</p>
+              <p className="text-base font-semibold text-slate-900">{equipo.nombre}</p>
               {(() => {
-                const list = Array.isArray(sistema.softwares) && sistema.softwares.length > 0
-                  ? sistema.softwares
-                  : (sistema.software ? [{ nombre: sistema.software, revision: sistema.softwareRevision }] : []);
+                const list = Array.isArray(equipo.softwares) && equipo.softwares.length > 0
+                  ? equipo.softwares
+                  : (equipo.software ? [{ nombre: equipo.software, revision: equipo.softwareRevision }] : []);
                 if (list.length === 0) return null;
                 return (
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -251,8 +275,8 @@ export default function EquipoPublicPage() {
         )}
 
         {/* OT History (IST only) */}
-        {isAuthenticated && sistema.id && (
-          <HistorialOTs sistemaId={sistema.id} />
+        {isAuthenticated && equipo.id && (
+          <HistorialOTs sistemaId={equipo.id} />
         )}
 
         {/* Form or success */}
@@ -270,7 +294,7 @@ export default function EquipoPublicPage() {
           ) : (
             <>
               <p className="text-sm font-semibold text-slate-800 mb-4">Solicitar soporte técnico</p>
-              <SoporteForm sistema={sistema} agsId={agsId!} onSuccess={() => setSubmitted(true)} />
+              <SoporteForm agsId={agsId!} onSuccess={() => setSubmitted(true)} />
             </>
           )}
         </Card>
