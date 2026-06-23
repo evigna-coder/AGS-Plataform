@@ -14,7 +14,7 @@ description: >
 
 # AGS Plataform — System Guide
 
-> **Last verified against codebase:** 2026-04-25 (commit `7e6d7b4`).
+> **Last verified against codebase:** 2026-06-23 (commit `d678c8e`).
 > **Skill type:** domain knowledge (per `[ketzal88/claude-code-framework]`: *"domain knowledge that activates contextually"*).
 > **Scope:** stable architecture + module map + entity catalog. Volatile module status lives in `memory/`; canonical invariants live in `[.claude/rules/]`.
 
@@ -87,17 +87,17 @@ The codebase is a **pnpm monorepo** with three React 19 + TypeScript apps and on
 ## Business flow (current — verify against memory before quoting)
 
 1. **Lead/Ticket** arrives via QR scan, portal form, manual entry, or sales call. (Module `leads` — collection still named `leads`, see Tickets refactor below.)
-2. **Ticket triaged** by area (`soporte`, `administracion`, `ventas`, `ingenieria`) and prioridad. Multi-area/multi-rol supported.
-3. **Presupuesto** generated from the ticket (`presupuestos` module) — types: `tecnico`, `contrato`, `ventas`, `garantia`, etc.
-4. **Aceptación**:
-   - **Tipo `tecnico`** → presupuesto aprobado dispara creación de OT(s).
-   - **Tipo `ventas` / `insumos`** → crea **ticket en estado `en_coordinacion`**, *no* OT directa. La coordinadora arma 0, 1 o N OTs manualmente. (Confirmar en `memory/feedback_auto_ot_to_ticket.md`.)
+2. **Ticket triaged** por **área destino** (`TicketArea`: `admin_soporte`, `ing_soporte`, `administracion`, `ventas`, `compras`, `materiales`, `sistema`) y prioridad. Multi-área/multi-rol soportado. *(Áreas viejas `soporte`/`ingenieria` ya no existen — verificar `TicketArea` en types antes de citar.)*
+3. **Presupuesto** generado desde el ticket (`presupuestos` module) — tipos actuales (`TipoPresupuesto`): `servicio`, `partes`, `ventas`, `contrato`, `mixto`. *(El set viejo `tecnico/insumos/garantia/cambio_paridad/...` fue reemplazado.)*
+4. **Aceptación** (la aceptación por OC ya existe; no agregar botón — ver `memory/project_presupuestos_link_tracking.md`):
+   - **Tipo `servicio`** → presupuesto aceptado puede disparar creación de OT(s).
+   - **Tipo `ventas`** → crea **ticket en estado `en_coordinacion`**, *no* OT directa. La coordinadora arma 0, 1 o N OTs manualmente. (`memory/feedback_auto_ot_to_ticket.md`.)
    - **Tipo `contrato`** → flujo cerrado end-to-end (2026-04-10): editor jerárquico Sector → Sistema → Servicios, plantillas en `tiposEquipoPlantillas`, PDF moderno teal con cuotas asimétricas MIXTA.
 5. **OT scheduled** in `agenda` and assigned to ingeniero(s).
 6. **Engineer opens OT** → `portal-ingeniero` → tab a `reportes-ot` para completar el reporte técnico (protocolos, tablas, instrumentos firmados, fotos).
-7. **OT finalizada** (técnicamente) → multi-part PDF generado y stored in Storage; status técnico → `FINALIZADO`.
-8. **Cierre administrativo** (módulo en construcción — ver `memory/project_ot_lifecycle.md`).
-9. **Facturación** — módulo `/facturacion` (Apr-23) controla la generación de comprobantes; AFIP integrado vía `afipService.ts`. Bejerman descartado.
+7. **OT finalizada** (técnicamente) → multi-part PDF generado y stored in Storage; status técnico (`status`) → `FINALIZADO`.
+8. **Cierre administrativo** (implementado — ver `memory/project_ot_lifecycle.md`). La OT tiene un **workflow administrativo separado** (`estadoAdmin: OTEstadoAdmin` = `CREADA → ASIGNADA → COORDINADA → EN_CURSO → CIERRE_TECNICO → CIERRE_ADMINISTRATIVO → FINALIZADO`). El cierre (`cierreAdmin: CierreAdministrativo`) confirma horas, partes y **deduce stock** (`stockDeducido`) — la deducción es acto administrativo, no técnico (`memory/project_cutover_v2_circuito_comercial.md`). Dispara aviso de facturación (pero el consumer de la cola de mail no está desplegado — `memory/project_mailqueue_consumer_not_deployed.md`).
+9. **Facturación** — módulo `/facturacion` controla la generación de comprobantes; AFIP integrado vía `afipService.ts`. Bejerman descartado.
 
 ---
 
@@ -111,7 +111,7 @@ For service files, hooks, and per-module conventions, read `references/modules.m
 | Establecimientos | `/establecimientos` | `Establecimiento` | `establecimientosService.ts` | per-cliente, con lat/lng |
 | Equipos | `/equipos`, `/categorias-equipo` | `Sistema`, `ModuloSistema`, `CategoriaEquipo` | `equiposService.ts` | GC ports activos cuando `esGaseoso(nombre)` |
 | Tipos de Equipo | `/presupuestos/tipos-equipo` | `TipoEquipoPlantilla` | `tiposEquipoService.ts` | Catálogo de plantillas con `componentes[]` (S/L) y `servicios[]` |
-| OT | `/ordenes-trabajo`, `/ordenes-trabajo/nuevo`, `/ordenes-trabajo/:otNumber` | `WorkOrder` | `otService.ts` | `otNumber` = 5 dígitos + opcional `.NN` |
+| OT | `/ordenes-trabajo`, `/ordenes-trabajo/nuevo`, `/ordenes-trabajo/:otNumber` | `WorkOrder` | `otService.ts` | `otNumber` = 5 dígitos + opcional `.NN`. `tipoOT` = `servicio`/`entrega`; `status` técnico + `estadoAdmin` administrativo + `cierreAdmin` |
 | Leads (= Tickets) | `/leads`, `/leads/:id` | `Lead` / `Ticket` | `leadsService.ts` | Renombrado conceptualmente a Ticket; colección Firestore sigue `leads/` |
 | Presupuestos | `/presupuestos`, `/presupuestos/nuevo`, `/presupuestos/:id` + sub-routes | `Presupuesto`, `PresupuestoItem` | `presupuestosService.ts` (~88KB) | Cerrado end-to-end para `contrato`; cosecha Item→OT diferida |
 | Contratos | `/contratos` | `Contrato`, `ServicioContrato` | `contratosService.ts` | Granularidad hasta sistema (Apr-19) |
@@ -121,7 +121,7 @@ For service files, hooks, and per-module conventions, read `references/modules.m
 | Instrumentos & Patrones | `/instrumentos`, `/patrones`, `/columnas` | `InstrumentoPatron`, `Patron`, `Columna` | `patronesService.ts`, `columnasService.ts` | Solo instrumentos llevan trazabilidad |
 | Fichas | `/fichas` | `FichaPropiedad` | `fichasService.ts` | Equipos de cliente bajo reparación |
 | Loaners | `/loaners` | `Loaner` | `loanersService.ts` | Préstamo / extracción / venta |
-| Stock | `/stock/*` (~18 sub-rutas) | `Articulo`, `UnidadStock`, `Minikit`, `Remito`, `MovimientoStock`, `OrdenCompra`, `Importacion`, `RequerimientoCompra` | `stockService.ts`, `stockAmplioService.ts`, `importacionesService.ts` | Plan de evolución en 5 fases (memory) |
+| Stock | `/stock/*` (~18 sub-rutas) | `Articulo`, `UnidadStock`, `Minikit`, `Remito`, `MovimientoStock`, `OrdenCompra`, `Importacion`, `RequerimientoCompra`, `PagoVEP` | `stockService.ts`, `stockAmplioService.ts`, `importacionesService.ts` | Minikit lleva config de artículos **inline** (colección `minikitTemplates` eliminada). Importaciones con motor de costeo CIF/USD + factor importación |
 | Agenda | `/agenda` | `AgendaEntry` | `agendaService.ts` | Calendario asignaciones |
 | Pendientes | `/pendientes` | `Pendiente` | `pendientesService.ts` | Cola de acciones |
 | Vehículos | `/vehiculos` | `Vehiculo` | `vehiculosService.ts` | Flota + servicios + km |
@@ -150,7 +150,7 @@ Para definiciones de tipos completas (campos, enums, labels, helpers), leer `ref
 | `Cliente` | CUIT o `LEGACY-{uuid}` | `clientes` | `condicionIva`, `requiereTrazabilidad`, contactos[] |
 | `Establecimiento` | auto | `establecimientos` | `clienteCuit`, `direccion`, `lat`/`lng` |
 | `Sistema` | auto | `sistemas` | `agsVisibleId` (para QR), `categoriaId`, `configuracionGC` si gaseoso |
-| `WorkOrder` | `otNumber` (5 dígitos + opc `.NN`) | `workorders` | `status` admin/técnico, `articulos`, signatures |
+| `WorkOrder` | `otNumber` (5 dígitos + opc `.NN`) | `workorders` | `status` técnico (`BORRADOR`/`FINALIZADO`) + `estadoAdmin` (`OTEstadoAdmin`, 7 estados) + `cierreAdmin`, `tipoOT`, `articulos`, signatures |
 | `Lead` (Ticket) | auto | `leads` | `area`, `prioridad`, `estado`, `motivoLlamado`, `source` (qr/portal/manual) |
 | `Presupuesto` | `PRE-XXXX` | `presupuestos` | `tipo`, `moneda` (incl MIXTA para contrato), `items[]`, `cantidadCuotasPorMoneda` |
 | `Contrato` | auto | `contratos` | servicios por sistema, fechas inicio/fin |
@@ -169,21 +169,25 @@ Para definiciones de tipos completas (campos, enums, labels, helpers), leer `ref
 
 ## RBAC — modelo híbrido
 
-6 roles + per-user overrides en Firestore. Lectura completa: `memory/project_rbac.md`.
+**7 roles** (`UserRole`) + roles adicionales (`roles?: UserRole[]`) + per-user overrides en Firestore. Lectura completa: `memory/project_rbac.md`.
 
-| Role | Acceso típico | Apps |
+| Role | Acceso típico | Áreas de ticket (`ROLE_TICKET_AREAS`) |
 |---|---|---|
-| `admin` | Todo | sistema-modular, portal-ingeniero |
-| `admin_soporte` | Operaciones de soporte (sin usuarios) | sistema-modular, portal-ingeniero |
-| `admin_ing_soporte` | Soporte + contratos + pendientes | sistema-modular, portal-ingeniero |
-| `ingeniero_soporte` | OT, agenda, stock, viáticos | portal-ingeniero, reportes-ot |
-| `administracion` | Tickets, presupuestos, stock, facturación | sistema-modular |
-| `pendiente` | Solo `/pending-approval` hasta que admin asigne rol | — |
+| `admin` | Todo | (ve todos los tickets) |
+| `admin_soporte` | Operaciones de soporte (sin usuarios) | `admin_soporte` |
+| `admin_ing_soporte` | Soporte + contratos + pendientes; ve todos los tickets | `ing_soporte` |
+| `ingeniero_soporte` | OT, agenda, stock, viáticos | `ing_soporte` |
+| `administracion` | Tickets, presupuestos, stock, facturación | `administracion`, `compras`, `materiales` |
+| `admin_contable` | Administración contable | `administracion`, `compras`, `materiales` |
+| `ventas` | Ventas / presupuestos | `ventas` |
+
+> `pendiente` **no** es un `UserRole` — es un `UserStatus` (`pendiente`/`activo`/`deshabilitado`). Un usuario sin rol asignado queda en status `pendiente` hasta que un admin lo habilite.
 
 **Regla de auth**: Google OAuth restringido a dominio `@agsanalitica.com`.
-**Helpers de permiso** (en `@ags/shared/utils.ts`): `userHasRole`, `canAccessApp`, `canAccessModulo`, `getUserPermissions`, `getModuloFromPath`. Override granular: `UserPermissionsOverride`.
+**Helpers de permiso** (en `@ags/shared/utils.ts`): `userHasRole`, `canAccessApp`, `canAccessModulo`, `getUserPermissions`, `getModuloFromPath`, `getUserTicketAreas`, `canViewAllTickets`, `canUserModifyTicket`. Override granular: `UserPermissionsOverride`.
+> El portal-ingeniero recién respeta los overrides por-usuario al loguear desde 2026-06-19 (`memory/project_portal_ignores_permisos.md`); `ingeniero_soporte` **no** trae `leads`/tickets por defecto, solo vía override.
 
-Pendientes de implementar: roles externos (`cliente`, `proveedor`, `admin_contable`).
+Pendientes de implementar: roles externos (`cliente`, `proveedor`).
 
 ---
 
@@ -232,16 +236,16 @@ App.tsx en reportes-ot **ya no es monolítico** (~600 líneas hoy, modularizado 
 
 ## Stock — visión rápida
 
-Inventario completo. Plan de evolución en 5 fases (memory `project_stock_evolution.md`):
+Inventario completo. El plan de evolución original (5 fases, memory `project_stock_evolution.md`) ya no es roadmap activo — las páginas están implementadas.
 
-- **Articulos** — catálogo SKU (part numbers, categorías, aranceles)
-- **Unidades** — instancias físicas (serial, condición, ubicación)
-- **Minikits** + **MinikitTemplate** — sets agrupados, plantillas reutilizables
+- **Articulos** — catálogo SKU (part numbers, categorías, aranceles, flags serie/lote, último costo importación denormalizado)
+- **Unidades** (`UnidadStock`) — instancias físicas: `cantidad` (1 para serializados; N para lotes), `condicion`, `estado` (incluye `entregado` = salió al cliente al cerrar OT), `ubicacion`, `costoUnitario`/`factorImportacion` (cuando se ingresó vía importación con costeo)
+- **Minikits** — sets agrupados; cada minikit tiene su config de artículos requeridos **inline** (colección `minikitTemplates` y tipos `MinikitTemplate*` eliminados, 1:1 — `memory/project_minikit_plantillas.md`)
 - **Remitos** — órdenes digitales de despacho (`salida_campo`, `devolucion`, etc.)
 - **Movimientos** — log inmutable de movimientos
-- **Órdenes de Compra** (`nacional` / `importacion`)
-- **Importaciones** — comercio internacional con tracking aduana
-- **Requerimientos** — solicitudes de compra
+- **Órdenes de Compra** (`nacional` / `importacion`) — modal-first (`OrdenCompraModal`), con PDF + datos del proveedor
+- **Importaciones** — comercio internacional con tracking aduana + **motor de costeo CIF/USD** y **factor de importación** que impacta el costo real al ingresar stock (v1.9.0); incluye Pagos VEP
+- **Requerimientos** — solicitudes de compra (auto-abren modal de OC)
 
 ---
 

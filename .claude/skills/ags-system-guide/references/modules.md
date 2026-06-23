@@ -1,7 +1,7 @@
 # AGS Plataform — Module Deep-Dive
 
 > **Authoritative source:** `[apps/sistema-modular/src/App.tsx]` for routes, `[apps/sistema-modular/src/services/]` for service contracts, `[apps/sistema-modular/src/pages/]` for page components. This file is a navigable summary; verify before *acting*.
-> **Last verified:** 2026-04-25.
+> **Last verified:** 2026-06-23 (commit `d678c8e`).
 
 ## Table of Contents
 1. [sistema-modular Modules](#sistema-modular-modules)
@@ -44,17 +44,21 @@
 **Route**: `/ordenes-trabajo` | **Pages**: OTList, OTDetail, OTNew, TiposServicio
 
 - Central entity linking Client → Equipment → Service
-- Status: BORRADOR → FINALIZADO
-- OT number: 5 digits + optional .NN suffix
+- **Dos ejes de estado**: `status` técnico (`BORRADOR` → `FINALIZADO`, lo escribe reportes-ot) y `estadoAdmin` administrativo (`CREADA` → `ASIGNADA` → `COORDINADA` → `EN_CURSO` → `CIERRE_TECNICO` → `CIERRE_ADMINISTRATIVO` → `FINALIZADO`).
+- `tipoOT`: `servicio` (equipo obligatorio) / `entrega` (entrega de partes/insumos, equipo opcional). Implementado 2026-06-10 (`memory/project_ot_entrega_partes.md`).
+- **Cierre administrativo** (`cierreAdmin`): confirma horas, partes y **deduce stock** (`stockDeducido` + `stockSelections[]`); la deducción es acto administrativo, no técnico. Dispara aviso de facturación.
+- OT number: 5 digits + optional .NN suffix. Crear una OT "pelada" (sin `.NN`) generaba un padre fantasma — `loadOT` ahora lo rechaza (`memory/project_reportes_ot_padre_hijo.md`).
 - `tipoServicio` determines which protocols apply
 - Parts (articulos) with optional stock linking
+- **Documentos adicionales**: el admin puede anexar PDF/JPG/PNG al PDF definitivo del reporte después de finalizar, desde el cierre (`documentosAdicionales[]`).
 
 ### Leads (= Tickets)
 **Route**: `/leads`, `/leads/:id` | **Pages**: LeadsListPage, LeadDetailPage | **Service**: `leadsService.ts`
 
 - **Conceptualmente "Tickets"** (rename UI/types-side; collection sigue siendo `leads/`). Detalle: `memory/project_tickets_refactor.md`.
-- Multi-area (`soporte` / `administracion` / `ventas` / `ingenieria`), multi-prioridad, multi-asignación.
-- Estados: ~8 estados extendidos incluyendo `en_coordinacion` (post-aceptación de presupuesto ventas).
+- Áreas destino (`TicketArea`): `admin_soporte` / `ing_soporte` / `administracion` / `ventas` / `compras` / `materiales` / `sistema`. Multi-prioridad, multi-asignación. Auto-asignación por área configurable en `/admin/config-flujos` (`memory/project_responsable_por_area.md`).
+- Estados (`TicketEstado`): 17 estados, incluyendo `en_coordinacion` (post-aceptación de presupuesto ventas) y la cola `pendiente_aviso_facturacion` / `pendiente_facturacion`.
+- Número `TKT-NNNNN` vía counter atómico `_counters/tickets` (no scan-and-max — `memory/project_tickets_numero_duplicado.md`).
 - Sources: QR scan, portal form, manual, email.
 - Componentes: CrearLeadModal, DerivarLeadModal, FinalizarLeadModal, LeadFilters, LeadSidebar, LeadTimeline, ContactosTicketSection.
 - Real-time QR notifications via `useQRLeadNotifications` (Electron native notifications).
@@ -63,14 +67,19 @@
 ### Presupuestos (Quotes)
 **Route**: `/presupuestos`, `/presupuestos/nuevo`, `/presupuestos/:id` + sub-rutas (`categorias`, `condiciones-pago`, `conceptos-servicio`, `tipos-equipo`) | **Service**: `presupuestosService.ts` (~88KB) | **Estado**: cerrado end-to-end para tipo `contrato` (2026-04-10).
 
-- **Tipos**: `tecnico`, `partes`, `ventas`, `insumos`, `contrato`, `garantia`, `cambio_paridad`, `terminos_condiciones`.
+- **Tipos** (`TipoPresupuesto`): `servicio`, `partes`, `ventas`, `contrato`, `mixto`.
+- **Orígenes** (`OrigenPresupuesto`): `lead`, `ot`, `requerimiento_compra`, `directo`.
+- **Estados** (`PresupuestoEstado`): `borrador`, `enviado`, `aceptado`, `en_ejecucion`, `pendiente_facturacion`, `anulado`, `finalizado`.
 - **Monedas**: `USD` / `ARS` / `EUR` / `MIXTA` (MIXTA solo para contrato, con cuotas asimétricas por moneda).
+- **Factor por item** (`PresupuestoItem.factor`): multiplicador FOB de referencia para el armador, **no sale en el PDF**. Ventana "Factores anteriores" por cliente (`memory/project_presupuestos_factor_historial.md`).
+- **Carga rápida**: wizard de mini-modales (buscar → cantidad → precio) con buscador unificado servicios+artículos (`memory/project_carga_rapida_wizard.md`).
 - **Categorías fiscales** (CategoriaPresupuesto): IVA, Ganancias, IIBB.
 - **Condiciones de pago**: catálogo CondicionesPago.
 - **Validez**: default 15 días.
 - **Flujo contrato**: editor jerárquico Sector → Sistema → Servicios con auto-completado desde catálogo `tiposEquipoPlantillas`. PDF moderno teal con plan de cuotas. Componentes: `apps/sistema-modular/src/components/presupuestos/contrato/` y `apps/sistema-modular/src/components/presupuestos/pdf/contrato/`.
-- **Flujo ventas/insumos**: aceptación deja ticket en `en_coordinacion`. *No* dispara OT automática.
-- **Flujo técnico**: aceptación dispara creación de OT.
+- **Flujo ventas**: aceptación deja ticket en `en_coordinacion`. *No* dispara OT automática.
+- **Flujo servicio**: aceptación dispara creación de OT.
+- **Aceptación por OC**: ya existe (no agregar botón). Propuesta de link+tracking pendiente de OK del director (`memory/project_presupuestos_link_tracking.md`).
 - **Cosecha Item→OT (Fase 6)**: diseñada (`.claude/plans/presupuestos-item-a-ot-design.md`), no implementada.
 - **OAuth email envío**: pendiente verificación productiva (Fase 7).
 
@@ -144,19 +153,20 @@
 ### Stock
 **Route**: `/stock/*` (~18 sub-rutas) | **Services**: `stockService.ts`, `stockAmplioService.ts`, `importacionesService.ts`
 
-Plan de evolución en 5 fases (memory `project_stock_evolution.md`).
+Las páginas del plan de evolución (5 fases, memory `project_stock_evolution.md`) están implementadas; ya no es roadmap activo.
 
 | Subpage | Purpose |
 |---------|---------|
-| Articulos | SKU master catalog |
-| Unidades | Physical unit instances |
-| Minikits + MinikitTemplate | Grouped sets, templates reutilizables |
+| Articulos | SKU master catalog (flags serie/lote, último costo importación denormalizado) |
+| Unidades | Physical unit instances (`cantidad`, `costoUnitario`, `factorImportacion`) |
+| Minikits | Grouped sets — config de artículos requeridos **inline** (sin colección de templates) |
 | Remitos | Órdenes digitales de despacho (salida_campo, devolucion, etc.) |
 | Movimientos | Log inmutable |
 | Alertas | Stock level alerts |
-| Requerimientos | Purchase requisitions |
-| OC | Purchase orders (nacional / importacion) |
-| Importaciones | International trade + customs tracking |
+| Requerimientos | Purchase requisitions (auto-abren modal de OC) |
+| OC | Purchase orders (nacional / importacion) — modal-first `OrdenCompraModal`, PDF al proveedor |
+| Importaciones | International trade + customs tracking + motor de costeo CIF/USD + factor importación |
+| Pagos VEP | Pagos VEP del circuito de importación |
 | Ingenieros | Field engineers catalog |
 | Proveedores | Supplier management |
 | Posiciones | Stock locations (drawers, shelves) |
@@ -200,8 +210,8 @@ Plan de evolución en 5 fases (memory `project_stock_evolution.md`).
 ### Usuarios
 **Route**: `/usuarios` | **Page**: UsuariosList (admin only)
 
-- Roles: `admin`, `admin_soporte`, `admin_ing_soporte`, `ingeniero_soporte`, `administracion`, `pendiente`.
-- Status: `pendiente` → `activo` / `deshabilitado`.
+- Roles (`UserRole`, 7): `admin`, `ingeniero_soporte`, `admin_soporte`, `admin_ing_soporte`, `admin_contable`, `administracion`, `ventas`. Roles adicionales acumulables vía `roles[]`.
+- Status (`UserStatus`): `pendiente` → `activo` / `deshabilitado` (`pendiente` es status, no rol).
 - `permissionsOverride` per-user (modelo híbrido — defaults del rol + grants/revokes individuales).
 - Google OAuth accounts (`@agsanalitica.com`).
 - Detalle: `memory/project_rbac.md`.

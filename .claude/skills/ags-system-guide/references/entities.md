@@ -1,7 +1,7 @@
 # AGS Plataform — Complete Entity Reference
 
 > **Authoritative source:** `[packages/shared/src/types/index.ts]` (~3900 lines) and `[packages/shared/src/utils.ts]`. This file is a navigable summary; before *acting* on a specific field name, grep the type file to confirm. See the self-clean protocol in [SKILL.md](../SKILL.md).
-> **Last verified:** 2026-04-25.
+> **Last verified:** 2026-06-23 (commit `d678c8e`).
 
 ## Table of Contents
 1. [Cliente](#cliente)
@@ -125,7 +125,14 @@
 | Field | Type | Description |
 |-------|------|-------------|
 | otNumber | string | 5-digit + optional .NN (e.g., 25660.02) |
-| status | enum | `BORRADOR` / `FINALIZADO` |
+| status | enum | **Status técnico** (lo usa reportes-ot): `BORRADOR` / `FINALIZADO` |
+| tipoOT | TipoOT | `servicio` (default; equipo obligatorio) / `entrega` (entrega de partes, equipo opcional) |
+| estadoAdmin | OTEstadoAdmin | **Workflow administrativo** (sistema-modular): `CREADA` → `ASIGNADA` → `COORDINADA` → `EN_CURSO` → `CIERRE_TECNICO` → `CIERRE_ADMINISTRATIVO` → `FINALIZADO`; historial en `estadoHistorial[]` |
+| cierreAdmin | CierreAdministrativo | Datos del cierre admin: `horasConfirmadas`, `partesConfirmadas`, `stockDeducido`, `stockSelections[]`, `solicitudFacturacionId`, `avisoAdminEnviado` |
+| esSinCargo | boolean | OT cortesía: no va a facturación |
+| presupuestoPendiente | boolean | OT creada con presupuesto aún sin preparar/enviar (dispara ticket a Adm. Soporte) |
+| ordenesCompra | string[] | OCs del cliente (puede haber más de una; `ordenCompra` legacy = 1ra) |
+| documentosAdicionales | DocumentoAdicionalReporte[] | Docs anexados al PDF definitivo **post-finalización** desde el cierre (pdf-lib append, reversible — `memory/project_reportes_documentos_adicionales.md`) |
 | clienteId | string | FK to Cliente |
 | establecimientoId | string | FK to Establecimiento |
 | sistemaId | string | FK to Sistema |
@@ -169,10 +176,10 @@
 | id | string | Auto-generated |
 | razonSocial | string | Company name (denormalizado) |
 | contactos | ContactoTicket[] | Contactos principales y secundarios |
-| motivoLlamado | enum | `ventas` / `soporte` / `insumos` / `administracion` / `otros` (con labels y colors) |
-| area | TicketArea | `soporte` / `administracion` / `ventas` / `ingenieria` |
-| prioridad | TicketPrioridad | calculada por proximidad de próxima acción |
-| estado | TicketEstado | set extendido (~8 estados) — incluye `en_coordinacion` para flujo ventas |
+| motivoLlamado | MotivoLlamado | `soporte` / `ventas_insumos` / `ventas_equipos` / `administracion` / `otros` (con labels y colors) |
+| areaActual | TicketArea | `admin_soporte` / `ing_soporte` / `administracion` / `ventas` / `compras` / `materiales` / `sistema` |
+| prioridad | TicketPrioridad | `urgente` / `alta` / `normal` / `baja` / `muy_baja` — días de próximo contacto en `TICKET_PRIORIDAD_DIAS` |
+| estado | TicketEstado | 17 estados: `nuevo`, `relevamiento_pendiente`, `presupuesto_pendiente`, `en_seguimiento`, `presupuesto_enviado`, `esperando_oc`, `oc_recibida`, `espera_importacion`, `pendiente_entrega`, `en_coordinacion`, `ot_creada`, `ot_coordinada`, `ot_realizada`, `pendiente_aviso_facturacion`, `pendiente_facturacion`, `finalizado`, `no_concretado` |
 | clienteId | string | FK opcional |
 | sistemaId | string | FK opcional |
 | source | enum | `qr` / `portal` / `manual` / `email` / null |
@@ -182,9 +189,11 @@
 | otIds | string[] | OTs relacionadas |
 | adjuntos | AdjuntoTicket[] | Files/photos |
 
-**Helpers** (en `@ags/shared`): `getContactoPrincipal`, `getSimplifiedEstado`, `getSimplifiedEstadoLabel`, `getSimplifiedEstadoColor`, `canUserModifyTicket`, `getUserTicketAreas`.
+**Helpers** (en `@ags/shared`): `getContactoPrincipal`, `getSimplifiedEstado`, `getSimplifiedEstadoLabel`, `getSimplifiedEstadoColor`, `canUserModifyTicket`, `getUserTicketAreas`, `canViewAllTickets`. `ROLE_TICKET_AREAS` mapea cada `UserRole` → áreas que puede gestionar.
 
-**Flujo ventas crítico**: aceptar un presupuesto tipo `ventas` o `insumos` deja el ticket en `estado: 'en_coordinacion'` — *no* crea OT automáticamente. La coordinadora arma 0/1/N OTs manualmente. (Memory: `feedback_auto_ot_to_ticket.md`.)
+**Numeración**: el número de ticket (`TKT-NNNNN`) usa el counter atómico `_counters/tickets`. portal-ingeniero solía usar scan-and-max y generaba duplicados — arreglado 2026-06-18 (`memory/project_tickets_numero_duplicado.md`).
+
+**Flujo ventas crítico**: aceptar un presupuesto tipo `ventas` deja el ticket en `estado: 'en_coordinacion'` — *no* crea OT automáticamente. La coordinadora arma 0/1/N OTs manualmente. (Memory: `feedback_auto_ot_to_ticket.md`.)
 
 ---
 
@@ -196,10 +205,10 @@
 | Field | Type | Description |
 |-------|------|-------------|
 | numero | string | PRE-0001 format |
-| tipo | TipoPresupuesto | `tecnico` / `partes` / `ventas` / `insumos` / `contrato` / `garantia` / `cambio_paridad` / `terminos_condiciones` |
+| tipo | TipoPresupuesto | `servicio` / `partes` / `ventas` / `contrato` / `mixto` |
 | moneda | MonedaPresupuesto | `USD` / `ARS` / `EUR` / `MIXTA` (MIXTA solo para contrato) |
-| origen | OrigenPresupuesto | `manual` / `lead` / `revision` / `clonado` |
-| estado | PresupuestoEstado | `borrador` → `enviado` → `pendiente_oc` → `aceptado` → `autorizado` → `rechazado` / `vencido` |
+| origen | OrigenPresupuesto | `lead` / `ot` / `requerimiento_compra` / `directo` |
+| estado | PresupuestoEstado | `borrador` / `enviado` / `aceptado` / `en_ejecucion` / `pendiente_facturacion` / `anulado` / `finalizado` |
 | clienteId | string | FK to Cliente |
 | leadId | string | FK opcional al ticket origen |
 | items | PresupuestoItem[] | Line items (ver abajo) |
@@ -229,6 +238,7 @@
 | esBonificacion | boolean | Línea de bonificación |
 | itemNotasAdicionales | string | Notas inline |
 | moneda | MonedaPresupuesto | Para MIXTA por item |
+| factor | number | Multiplicador sobre FOB — **referencia pura del armador, NO sale en el PDF** (`memory/project_presupuestos_factor_historial.md`) |
 | cantidad, precioUnitario, total | number | Cálculos |
 
 **Helper de matching**: `findPlantillaForSistema()` busca substring por longitud descendente (HPLC 1260 Infinity antes que HPLC 1260).
@@ -443,8 +453,11 @@ Helper: `calcularEstadoCertificado(vencimiento)` → `vigente` / `por_vencer` / 
 | articuloId | string | FK to Articulo |
 | nroSerie | string | Serial number |
 | nroLote | string | Lot number |
+| cantidad | number | Unidades físicas que representa el doc. Serializados = 1; lotes/sin trazabilidad = N. Ausente = 1 (legacy) |
 | condicion | enum | `nuevo` / `bien_de_uso` / `reacondicionado` / `vendible` / `scrap` |
-| estado | enum | `disponible` / `reservado` / `asignado` / `en_transito` / `consumido` / `vendido` / `baja` |
+| estado | enum | `disponible` / `reservado` / `asignado` / `en_transito` / `consumido` / `vendido` / `entregado` (salió al cliente al cerrar OT — fuera de ATP) / `baja` |
+| costoUnitario, monedaCosto | number, enum | Costo del lote (`ARS`/`USD`) |
+| factorImportacion | number / null | Factor con que se costeó (sólo unidades ingresadas vía importación con costeo) |
 | ubicacion | UbicacionStock | Location object |
 
 ### UbicacionStock.tipo
@@ -533,12 +546,12 @@ Tipo TS: `Posta`, `UsuarioPosta`, `PostaHandoff` (variantes según contexto).
 |-------|------|-------------|
 | email | string | Google email (`@agsanalitica.com` only) |
 | displayName | string | Full name |
-| role | UserRole | `admin` / `admin_soporte` / `admin_ing_soporte` / `ingeniero_soporte` / `administracion` / null |
-| status | UserStatus | `pendiente` / `activo` / `deshabilitado` |
+| role | UserRole | `admin` / `ingeniero_soporte` / `admin_soporte` / `admin_ing_soporte` / `admin_contable` / `administracion` / `ventas` (**7 roles**) |
+| roles | UserRole[] | Roles adicionales (un usuario puede acumular áreas de varios roles) |
+| status | UserStatus | `pendiente` / `activo` / `deshabilitado` (un usuario sin rol queda `pendiente`) |
 | permissionsOverride | UserPermissionsOverride | Per-user grants/revokes sobre defaults del rol (modelo híbrido) |
-| areas | TicketArea[] | Áreas a las que pertenece (para tickets multi-rol) |
 | lastLoginAt | string ISO | Last login |
 
-**Helpers** (`@ags/shared/utils.ts`): `userHasRole`, `getUserPermissions`, `canAccessApp`, `canAccessModulo`, `getModuloFromPath`, `getUserTicketAreas`, `canUserModifyTicket`.
+**Helpers** (`@ags/shared/utils.ts`): `userHasRole`, `getUserPermissions`, `canAccessApp`, `canAccessModulo`, `getModuloFromPath`, `getUserTicketAreas`, `canViewAllTickets`, `canUserModifyTicket`. `ROLE_TICKET_AREAS` mapea rol → áreas de ticket.
 
-**Roles pendientes** (no implementados): `cliente`, `proveedor`, `admin_contable`. Detalle del modelo: `memory/project_rbac.md`.
+**Roles pendientes** (no implementados): `cliente`, `proveedor` (externos). Detalle del modelo: `memory/project_rbac.md`.
