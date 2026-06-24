@@ -49,7 +49,9 @@ beforeEach(async () => {
 
 // Helpers
 const anon = () => testEnv.unauthenticatedContext().firestore();
-const authed = () => testEnv.authenticatedContext('user-123').firestore();
+// Staff = token con email verificado del dominio AGS (lo exige esStaff() fail-closed).
+const authed = () =>
+  testEnv.authenticatedContext('user-123', { email: 'staff@agsanalitica.com', email_verified: true }).firestore();
 /** Siembra datos saltando las reglas (como lo haría el admin SDK / un usuario interno). */
 const seed = (fn: (db: ReturnType<typeof anon>) => Promise<unknown>) =>
   testEnv.withSecurityRulesDisabled((ctx) => fn(ctx.firestore() as never));
@@ -71,6 +73,29 @@ describe('Colecciones internas — requieren auth', () => {
       await assertSucceeds(getDoc(doc(db, col, 'x')));
       await assertSucceeds(setDoc(doc(db, col, 'x'), { foo: 'bar' }));
     }
+  });
+});
+
+describe('Staff fail-closed — autenticado sin dominio AGS NO es staff', () => {
+  // Cuenta Google ajena: autenticada y con email verificado, pero NO @agsanalitica.com.
+  // Antes del fix esto era tratado como staff (esStaff = cualquier auth sin role:'client').
+  const intruso = () =>
+    testEnv.authenticatedContext('intruso-1', { email: 'attacker@gmail.com', email_verified: true }).firestore();
+
+  it('un usuario autenticado de dominio ajeno NO accede a colecciones internas', async () => {
+    const db = intruso();
+    for (const col of ['clientes', 'presupuestos', 'usuarios', 'ordenes_trabajo']) {
+      await assertFails(getDoc(doc(db, col, 'x')));
+      await assertFails(setDoc(doc(db, col, 'x'), { foo: 'bar' }));
+    }
+  });
+
+  it('email del dominio pero NO verificado tampoco es staff', async () => {
+    const db = testEnv
+      .authenticatedContext('sinverif', { email: 'x@agsanalitica.com', email_verified: false })
+      .firestore();
+    await assertFails(getDoc(doc(db, 'clientes', 'x')));
+    await assertFails(setDoc(doc(db, 'clientes', 'x'), { foo: 'bar' }));
   });
 });
 

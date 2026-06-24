@@ -20,8 +20,16 @@ service cloud.firestore {
     function esCliente() {
       return signedIn() && request.auth.token.get('role', '') == 'client';
     }
+    // STAFF = autenticado con email VERIFICADO del dominio AGS. Fail-CLOSED: un token
+    // sin email de dominio (cuenta Google ajena, cliente, anónimo) NO es staff, aunque
+    // le falte el claim 'role'. El dominio se valida ACÁ (server-side), no solo en el
+    // cliente: sin esto, cualquier cuenta Google que autentique contra la config pública
+    // del bundle obtendría R/W total a la base interna. Acceso seguro al token con .get()
+    // (una clave ausente abortaría la regla). matches() hace full-match sobre todo el email.
     function esStaff() {
-      return signedIn() && request.auth.token.get('role', '') != 'client';
+      return signedIn()
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '').lower().matches('.*@agsanalitica[.]com');
     }
     function miCliente(rid) {
       return esCliente() && request.auth.token.get('clienteId', '') == rid;
