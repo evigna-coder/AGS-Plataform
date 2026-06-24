@@ -6,6 +6,21 @@
       "sourceType": "github",
       "computedHash": "150be87ff7b18f273ad07da303adb1cf2ca21cc3e76db7a2cf0373405178a278"
     },
+    "firebase-auth-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "9eb2db290f00437021a8fc09353a1be28663170b669b028ade3691d57b061874"
+    },
+    "firebase-firestore": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "7fb6533c63627fc0ec0f6bab00d641ce0050eed823925d61a9a40545061646ee"
+    },
+    "firebase-security-rules-auditor": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "computedHash": "0ef93a495615c8fb4db2458e526897a9e7e58c7efca4fdb76564a0962fef5d43"
+    },
     "monorepo-setup": {
       "source": "patricio0312rev/skills",
       "sourceType": "github",
