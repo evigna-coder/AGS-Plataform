@@ -30,7 +30,6 @@ export const AppModals: React.FC<AppModalsProps> = ({
   showNewOtModal, setShowNewOtModal, pendingOt, setPendingOt, setOtInput, confirmCreateNewOt,
   modal,
 }) => {
-  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   return (
     <>
       {/* Modal Compartir PDF */}
@@ -107,17 +106,31 @@ export const AppModals: React.FC<AppModalsProps> = ({
             )}
 
             <div className="pt-4 space-y-2">
-              {canShare && qrUrl && (
+              {qrUrl && (
                 <button
                   onClick={async () => {
+                    const shareData: ShareData = {
+                      title: `Firma de conformidad — OT ${otNumber}`,
+                      text: `Por favor, firmá la conformidad del reporte OT ${otNumber}:`,
+                      url: qrUrl,
+                    };
+                    // 1) Share nativo (mobile/tablet). 2) Fallback: copiar al portapapeles.
                     try {
-                      await navigator.share({
-                        title: `Firma de conformidad — OT ${otNumber}`,
-                        text: `Por favor, firmá la conformidad del reporte OT ${otNumber}:`,
-                        url: qrUrl,
-                      });
+                      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+                        await navigator.share(shareData);
+                        return;
+                      }
+                    } catch (err) {
+                      // El usuario canceló la hoja de compartir → no hacer fallback.
+                      if ((err as Error)?.name === 'AbortError') return;
+                      // Otro error (permiso/no soportado) → seguimos al fallback.
+                      console.warn('navigator.share falló, copio el enlace:', err);
+                    }
+                    try {
+                      await navigator.clipboard.writeText(qrUrl);
+                      modal.showAlert({ title: 'Enlace copiado', message: 'Pegalo en WhatsApp, mail o donde quieras compartirlo.', type: 'success' });
                     } catch {
-                      /* el usuario canceló la hoja de compartir */
+                      modal.showAlert({ title: 'Compartir enlace', message: qrUrl, type: 'info' });
                     }
                   }}
                   className="w-full bg-blue-600 text-white font-black py-3 rounded-xl uppercase tracking-widest text-[10px] hover:bg-blue-700 shadow-lg transition-colors flex items-center justify-center gap-2"
