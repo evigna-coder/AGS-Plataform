@@ -56,6 +56,9 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   const savedSignatureRef = useRef<string | null>(initialValue || null);
   // Guard: prevenir que el IntersectionObserver interfiera durante/después del dibujo
   const skipObserverUntilRef = useRef(0);
+  // Marca que el usuario limpió a propósito: evita que initCanvas (al rotar/resize)
+  // resucite el `initialValue` original. Se resetea al dibujar o al cambiar initialValue.
+  const clearedRef = useRef(false);
 
   const setupCtx = useCallback((canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d');
@@ -108,7 +111,8 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     // Prevent IntersectionObserver from re-drawing during initial mount
     skipObserverUntilRef.current = Date.now() + 1000;
     setupCtx(canvas);
-    const signatureToRestore = savedSignatureRef.current || initialValue;
+    // Si el usuario limpió, NO resucitar el initialValue.
+    const signatureToRestore = savedSignatureRef.current || (clearedRef.current ? null : initialValue);
     if (signatureToRestore) {
       restoreSignature(canvas, signatureToRestore);
       hasDrawnRef.current = true;
@@ -139,10 +143,17 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
       }
       savedSignatureRef.current = null;
       hasDrawnRef.current = false;
+      clearedRef.current = true;
       setHasSignature(false);
       onClear();
     }
   }));
+
+  // Si llega un initialValue nuevo (p.ej. carga async de la firma guardada),
+  // dejar de considerar "limpiado" para que se restaure.
+  useEffect(() => {
+    if (initialValue) clearedRef.current = false;
+  }, [initialValue]);
 
   useEffect(() => {
     initCanvas();
@@ -208,6 +219,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   const handleDown = (e: React.PointerEvent) => {
     e.preventDefault();
     skipObserverUntilRef.current = Date.now() + 4000;
+    clearedRef.current = false; // volvió a dibujar: ya no está "limpiado"
     drawingRef.current = true;
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext('2d');
@@ -251,6 +263,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     }
     savedSignatureRef.current = null;
     hasDrawnRef.current = false;
+    clearedRef.current = true;
     setHasSignature(false);
     onClear();
   };
