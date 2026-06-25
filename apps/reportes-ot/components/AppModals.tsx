@@ -127,20 +127,23 @@ export const AppModals: React.FC<AppModalsProps> = ({
                   <button
                     onClick={() => {
                       // Handler SINCRÓNICO (iOS: async/await consume el gesto → NotAllowedError).
-                      const fallbackCopy = (reason: string) => {
+                      // En vistas Safari in-app (PWA → link externo) iOS bloquea Web Share
+                      // siempre; ahí cae a copiar. En Android/desktop/Safari directo abre la
+                      // hoja nativa.
+                      const copyLink = () => {
                         navigator.clipboard?.writeText(qrUrl).catch(() => { /* noop */ });
                         modal.showAlert({
                           title: 'Enlace copiado',
-                          message: `No se pudo abrir compartir (${reason}). Pegalo donde quieras.`,
-                          type: 'info',
+                          message: 'Pegalo donde quieras compartirlo.',
+                          type: 'success',
                         });
                       };
-                      if (typeof navigator.share !== 'function') { fallbackCopy('sin-soporte'); return; }
+                      if (typeof navigator.share !== 'function') { copyLink(); return; }
                       navigator
                         .share({ title: `Firma de conformidad — OT ${otNumber}`, text: `Firmá la conformidad del reporte OT ${otNumber}:`, url: qrUrl })
                         .catch((err: Error) => {
-                          if (err?.name === 'AbortError') return;
-                          fallbackCopy(err?.name || 'error');
+                          if (err?.name === 'AbortError') return; // usuario canceló
+                          copyLink();
                         });
                     }}
                     className="w-full bg-slate-100 text-slate-600 font-black py-3 rounded-xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
