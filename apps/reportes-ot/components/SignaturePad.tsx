@@ -77,13 +77,16 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
     const dpr = window.devicePixelRatio || 1;
     const img = new Image();
     img.onload = () => {
-      // Soporta dos casos sin pixelar:
-      //  - PNG full-canvas (savedSignatureRef in-session): scale=1, x=0, y=0 → render 1:1.
-      //  - PNG ya recortado (initialValue post-reload): centrado a su tamaño natural,
-      //    capeado a 1 para no upscalear (origen del pixelado anterior).
+      // Soporta dos casos:
+      //  - PNG full-canvas (savedSignatureRef in-session): imgW≈rect.width → scale=1 → render 1:1.
+      //  - PNG ya recortado (initialValue post-reload / firma guardada): se ESCALA para
+      //    llenar la caja preservando aspecto. Sin esto la firma recortada se dibuja a su
+      //    tamaño natural (chico) y se ve chiquita. Permitimos upscale hasta MAX_RESTORE_SCALE
+      //    para que llene sin convertir un trazo diminuto en un borrón pixelado.
+      const MAX_RESTORE_SCALE = 4;
       const imgW = img.naturalWidth / dpr;
       const imgH = img.naturalHeight / dpr;
-      const scale = Math.min(rect.width / imgW, rect.height / imgH, 1);
+      const scale = Math.min(rect.width / imgW, rect.height / imgH, MAX_RESTORE_SCALE);
       const w = imgW * scale;
       const h = imgH * scale;
       const x = (rect.width - w) / 2;
