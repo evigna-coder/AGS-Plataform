@@ -52,7 +52,19 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
   const [showPreview, setShowPreview] = useState(false);
   const [report, setReport] = useState<ReportPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  // Firma capturada en el overlay fullscreen (se confirma desde la card).
+  const [capturedSignature, setCapturedSignature] = useState<string | null>(null);
+  const [showSignPad, setShowSignPad] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
   const padRef = useRef<SignaturePadHandle>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)');
+    const update = () => setIsPortrait(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     if (showPreview && !report) {
@@ -63,8 +75,23 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
     }
   }, [showPreview, report, ot, firebase]);
 
-  const handleConfirmFirma = async () => {
+  // Cierra el overlay capturando la firma dibujada.
+  const handleFinishSigning = () => {
     const dataUrl = padRef.current?.getSignature();
+    if (!dataUrl) {
+      showAlert({
+        title: 'Firma vacía',
+        message: 'Dibujá tu firma antes de continuar.',
+        type: 'warning'
+      });
+      return;
+    }
+    setCapturedSignature(dataUrl);
+    setShowSignPad(false);
+  };
+
+  const handleConfirmFirma = async () => {
+    const dataUrl = capturedSignature;
     if (!dataUrl) {
       showAlert({
         title: 'Firma Requerida',
@@ -222,6 +249,7 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
   }
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
       <div className="w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl border border-slate-100">
         <div className="mx-auto mb-6 flex justify-center">
@@ -245,11 +273,37 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
               Ver reporte antes de firmar
             </button>
 
-            <p className="text-xs text-slate-500 italic">Por favor, firme en el recuadro para validar el servicio.</p>
-            <SignaturePad ref={padRef} label="" onClear={() => {}} />
+            <p className="text-xs text-slate-500 italic">Por favor, firme para validar el servicio.</p>
+
+            {/* Recuadro: tocar para abrir el lienzo a pantalla completa */}
+            {!capturedSignature ? (
+              <button
+                onClick={() => setShowSignPad(true)}
+                className="w-full h-40 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-slate-400 hover:text-slate-500 active:scale-[0.98] transition-all"
+              >
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span className="text-[11px] font-black uppercase tracking-widest">Tocá para firmar</span>
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="w-full h-40 border-2 border-slate-100 rounded-2xl bg-white shadow-inner flex items-center justify-center p-2">
+                  <img src={capturedSignature} alt="Firma" className="h-full w-full object-contain" />
+                </div>
+                <button
+                  onClick={() => setShowSignPad(true)}
+                  className="text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                >
+                  Volver a firmar
+                </button>
+              </div>
+            )}
+
             <button
               onClick={handleConfirmFirma}
-              className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95 transition-all"
+              disabled={!capturedSignature}
+              className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               Confirmar Firma
             </button>
@@ -266,5 +320,55 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
         )}
       </div>
     </div>
+
+    {/* Overlay de firma a pantalla completa */}
+    {showSignPad && (
+      <div className="fixed inset-0 z-[200] bg-white flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
+          <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Firmá en el recuadro</span>
+          <button
+            onClick={() => setShowSignPad(false)}
+            className="text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest px-3 py-1.5"
+          >
+            Cancelar
+          </button>
+        </div>
+
+        {isPortrait && (
+          <div className="px-4 py-2 bg-amber-50 text-amber-700 text-[11px] font-bold text-center flex items-center justify-center gap-2 shrink-0">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Girá el teléfono para firmar más cómodo
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0 p-3 flex flex-col justify-center">
+          <SignaturePad
+            ref={padRef}
+            label=""
+            onClear={() => {}}
+            initialValue={capturedSignature}
+            heightClass={isPortrait ? 'h-[60vh]' : 'h-[68vh]'}
+          />
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-100 flex gap-3 shrink-0">
+          <button
+            onClick={() => padRef.current?.clear()}
+            className="flex-1 bg-slate-100 text-slate-700 font-black py-3.5 rounded-xl uppercase text-[11px] tracking-widest hover:bg-slate-200 active:scale-95 transition-all"
+          >
+            Limpiar
+          </button>
+          <button
+            onClick={handleFinishSigning}
+            className="flex-[2] bg-slate-900 text-white font-black py-3.5 rounded-xl uppercase text-[11px] tracking-widest shadow-lg active:scale-95 transition-all"
+          >
+            Listo
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 };

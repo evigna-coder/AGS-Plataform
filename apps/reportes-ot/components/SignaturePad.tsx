@@ -37,6 +37,8 @@ interface SignaturePadProps {
   onClear: () => void;
   initialValue?: string | null;
   onEnd?: (dataUrl: string) => void;
+  /** Clase de altura Tailwind del canvas. Default: 'h-[120px]'. Usar p.ej. 'h-full' en fullscreen. */
+  heightClass?: string;
 }
 
 export interface SignaturePadHandle {
@@ -44,7 +46,7 @@ export interface SignaturePadHandle {
   clear: () => void;
 }
 
-const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label, onClear, initialValue, onEnd }, ref) => {
+const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label, onClear, initialValue, onEnd, heightClass = 'h-[120px]' }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Usar refs para estado de dibujo (evita re-renders que causan layout shifts)
   const drawingRef = useRef(false);
@@ -255,7 +257,7 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
           onPointerMove={handleMove}
           onPointerUp={finishDrawing}
           onPointerLeave={finishDrawing}
-          className="w-full h-[120px] block cursor-crosshair touch-none"
+          className={`w-full ${heightClass} block cursor-crosshair touch-none`}
         />
         {!hasSignature && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
