@@ -109,23 +109,23 @@ export const AppModals: React.FC<AppModalsProps> = ({
               {qrUrl && (
                 <button
                   onClick={async () => {
-                    const shareData: ShareData = {
-                      title: `Firma de conformidad — OT ${otNumber}`,
-                      text: `Por favor, firmá la conformidad del reporte OT ${otNumber}:`,
-                      url: qrUrl,
-                    };
-                    // 1) Share nativo (mobile/tablet). 2) Fallback: copiar al portapapeles.
-                    try {
-                      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
-                        await navigator.share(shareData);
+                    // Un solo intento de share nativo (el primer await consume el gesto
+                    // del usuario, no se puede reintentar). Payload máximamente compatible:
+                    // el enlace va DENTRO del text, sin campo `url` separado (que algunos
+                    // browsers mobile rechazan en canShare → se saltearía el share).
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: `Firma de conformidad — OT ${otNumber}`,
+                          text: `Por favor, firmá la conformidad del reporte OT ${otNumber}: ${qrUrl}`,
+                        });
                         return;
+                      } catch (err) {
+                        if ((err as Error)?.name === 'AbortError') return; // usuario canceló
+                        console.warn('navigator.share falló, copio el enlace:', err);
                       }
-                    } catch (err) {
-                      // El usuario canceló la hoja de compartir → no hacer fallback.
-                      if ((err as Error)?.name === 'AbortError') return;
-                      // Otro error (permiso/no soportado) → seguimos al fallback.
-                      console.warn('navigator.share falló, copio el enlace:', err);
                     }
+                    // Fallback (desktop sin share / error): copiar al portapapeles.
                     try {
                       await navigator.clipboard.writeText(qrUrl);
                       modal.showAlert({ title: 'Enlace copiado', message: 'Pegalo en WhatsApp, mail o donde quieras compartirlo.', type: 'success' });
