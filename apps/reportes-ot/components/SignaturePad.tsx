@@ -173,11 +173,25 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
       canvas.addEventListener('touchmove', preventZoom, { passive: false });
     }
 
-    const handleResize = () => initCanvas();
-    window.addEventListener('resize', handleResize);
+    // Re-sincroniza el bitmap del canvas con su tamaño REAL en pantalla cada vez
+    // que cambia (mobile: la barra del navegador y la rotación cambian el alto y,
+    // sin esto, el toque queda desalineado y la firma "se va para abajo").
+    let resizeRaf = 0;
+    const resync = () => {
+      if (drawingRef.current) return; // no limpiar a mitad de un trazo
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => initCanvas());
+    };
+    const resizeObserver = new ResizeObserver(resync);
+    if (canvas) resizeObserver.observe(canvas);
+    window.addEventListener('resize', resync);
+    window.visualViewport?.addEventListener('resize', resync);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(resizeRaf);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', resync);
+      window.visualViewport?.removeEventListener('resize', resync);
       if (canvas) {
         observer.unobserve(canvas);
         canvas.removeEventListener('touchstart', preventZoom);

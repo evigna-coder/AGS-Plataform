@@ -349,7 +349,7 @@ export const MobileSignatureView: React.FC<MobileSignatureViewProps> = ({ ot, ra
             label=""
             onClear={() => {}}
             initialValue={capturedSignature}
-            heightClass={isPortrait ? 'h-[60vh]' : 'h-[68vh]'}
+            heightClass={isPortrait ? 'h-[60dvh]' : 'h-[68dvh]'}
           />
         </div>
 
