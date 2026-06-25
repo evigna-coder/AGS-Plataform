@@ -1,19 +1,19 @@
 /**
- * Recorta el whitespace transparente alrededor del trazo de una firma guardada
- * como dataURL PNG. Devuelve un dataURL nuevo con el bounding-box de los trazos
- * reales + padding, o el original si no se puede procesar / está vacío.
+ * Recorta el whitespace y las "manchitas" aisladas alrededor de la firma de un
+ * dataURL PNG. Devuelve un dataURL nuevo ajustado al bloque real de la firma, o
+ * el original si no se puede procesar.
  *
- * Por qué: las firmas guardadas del ingeniero (`getUserFirma` → `firmaBase64`)
- * y las de reportes viejos se almacenaron full-canvas, con el trazo chico
- * rodeado de transparencia. Al renderizarlas (pad / PDF con `object-contain`) el
- * trazo queda diminuto y centrado. Recortando el whitespace al cargar, tanto el
- * pad como el PDF reciben un bbox ajustado y lo agrandan para llenar la caja.
+ * Por qué: las firmas guardadas (`getUserFirma` → `firmaBase64`, o las de
+ * reportes) suelen tener un trazo suelto / tap accidental (una "manchita")
+ * separada de la firma. El recorte ingenuo abarca desde la manchita hasta la
+ * firma → imagen alta y angosta → al renderizarla en una caja baja
+ * (`object-contain`) la firma queda diminuta.
  *
- * Robusto a "manchitas": muchas firmas guardadas tienen specks sueltos (un
- * puntito o tick aislado lejos de la firma). Un bbox ingenuo de TODO el tinta se
- * estira hasta esa mancha y deja la firma real chica. Por eso descartamos los
- * componentes conexos cuya área es despreciable frente al trazo principal antes
- * de calcular el bbox. Las firmas nuevas ya vienen recortadas → no-op.
+ * Estrategia: recorte por BANDAS de densidad. Proyectamos la tinta sobre los
+ * ejes Y (filas) y X (columnas), partimos cada eje en bandas contiguas de tinta
+ * separadas por bandas vacías, y descartamos las bandas marginales con poca
+ * tinta (manchitas) antes de calcular el bbox. Robusto al tamaño de la mancha:
+ * lo que importa es que esté AISLADA y sea de baja densidad, no su área.
  */
 export function trimSignatureDataUrl(dataUrl: string, padding = 10): Promise<string> {
   return new Promise((resolve) => {
@@ -35,79 +35,60 @@ export function trimSignatureDataUrl(dataUrl: string, padding = 10): Promise<str
         sctx.drawImage(img, 0, 0);
         const alpha = sctx.getImageData(0, 0, w, h).data;
 
-        // Máscara de píxeles con tinta. Umbral > 16 para ignorar el antialias casi
-        // transparente del borde.
-        const opaque = new Uint8Array(w * h);
-        let totalOpaque = 0;
-        for (let i = 0; i < w * h; i++) {
-          if (alpha[i * 4 + 3] > 16) { opaque[i] = 1; totalOpaque++; }
-        }
-        if (totalOpaque === 0) { resolve(dataUrl); return; } // canvas vacío
-
-        // Componentes conexos (8-conectividad) por BFS iterativo.
-        const label = new Int32Array(w * h).fill(-1);
-        const stack = new Int32Array(w * h);
-        const compArea: number[] = [];
-        let nComp = 0;
-        for (let start = 0; start < w * h; start++) {
-          if (!opaque[start] || label[start] !== -1) continue;
-          const id = nComp++;
-          let area = 0;
-          let sp = 0;
-          stack[sp++] = start;
-          label[start] = id;
-          while (sp > 0) {
-            const p = stack[--sp];
-            area++;
-            const px = p % w;
-            const py = (p / w) | 0;
-            for (let dy = -1; dy <= 1; dy++) {
-              for (let dx = -1; dx <= 1; dx++) {
-                if (dx === 0 && dy === 0) continue;
-                const nx = px + dx, ny = py + dy;
-                if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-                const np = ny * w + nx;
-                if (opaque[np] && label[np] === -1) {
-                  label[np] = id;
-                  stack[sp++] = np;
-                }
-              }
+        const rowInk = new Float64Array(h);
+        const colInk = new Float64Array(w);
+        let total = 0;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            if (alpha[(y * w + x) * 4 + 3] > 16) {
+              rowInk[y]++; colInk[x]++; total++;
             }
           }
-          compArea.push(area);
         }
+        if (total === 0) { resolve(dataUrl); return; } // vacío
 
-        // Umbral: descartar componentes despreciables (specks). Conservamos los que
-        // superan el 4% del componente más grande o un piso absoluto, lo que sea mayor.
-        const largest = Math.max(...compArea);
-        const minArea = Math.max(40, largest * 0.04);
+        // Devuelve [start, end] (inclusive) del bloque de la firma sobre un eje,
+        // descartando las bandas marginales de poca tinta y aisladas (manchitas).
+        const blockExtent = (ink: Float64Array, n: number): [number, number] => {
+          // Bandas contiguas de tinta (separadas por celdas vacías).
+          const bands: { start: number; end: number; sum: number }[] = [];
+          let i = 0;
+          while (i < n) {
+            if (ink[i] <= 0) { i++; continue; }
+            let j = i, sum = 0;
+            while (j < n && ink[j] > 0) { sum += ink[j]; j++; }
+            bands.push({ start: i, end: j - 1, sum });
+            i = j;
+          }
+          if (bands.length === 0) return [0, n - 1];
+          const maxSum = bands.reduce((m, b) => Math.max(m, b.sum), 0);
+          // Mantener bandas con tinta significativa; descartar manchitas marginales.
+          const keep = bands.filter(b => b.sum >= Math.max(80, maxSum * 0.08));
+          const kept = keep.length > 0 ? keep : bands;
+          return [kept[0].start, kept[kept.length - 1].end];
+        };
 
-        let top = h, bottom = -1, left = w, right = -1;
-        for (let p = 0; p < w * h; p++) {
-          const id = label[p];
-          if (id < 0) continue;
-          if (compArea[id] < minArea) continue;
-          const px = p % w;
-          const py = (p / w) | 0;
-          if (py < top) top = py;
-          if (py > bottom) bottom = py;
-          if (px < left) left = px;
-          if (px > right) right = px;
-        }
-        if (right < left) { resolve(dataUrl); return; }
+        const [top, bottom] = blockExtent(rowInk, h);
+        const [left, right] = blockExtent(colInk, w);
+        if (bottom < top || right < left) { resolve(dataUrl); return; }
 
-        const tw = right - left + 1 + padding * 2;
-        const th = bottom - top + 1 + padding * 2;
-        // Si ya está prácticamente ajustado (margen ≤ padding por lado) y sin specks
-        // recortados, no re-encodear.
-        if (left <= padding && top <= padding && right >= w - 1 - padding && bottom >= h - 1 - padding) {
+        const x0 = Math.max(0, left - padding);
+        const y0 = Math.max(0, top - padding);
+        const x1 = Math.min(w - 1, right + padding);
+        const y1 = Math.min(h - 1, bottom + padding);
+        const tw = x1 - x0 + 1;
+        const th = y1 - y0 + 1;
+
+        // Si el recorte no cambia nada (ya estaba ajustado y sin manchitas), no
+        // re-encodear.
+        if (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === h - 1) {
           resolve(dataUrl);
           return;
         }
         const out = document.createElement('canvas');
         out.width = tw;
         out.height = th;
-        out.getContext('2d')!.drawImage(src, left - padding, top - padding, tw, th, 0, 0, tw, th);
+        out.getContext('2d')!.drawImage(src, x0, y0, tw, th, 0, 0, tw, th);
         resolve(out.toDataURL('image/png'));
       } catch {
         resolve(dataUrl);
