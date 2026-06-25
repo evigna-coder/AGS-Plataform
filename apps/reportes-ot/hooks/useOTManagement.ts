@@ -8,6 +8,7 @@ import { UseReportFormReturn } from './useReportForm';
 import { createEmptyProtocolDataForTemplate } from '../data/sampleProtocol';
 import { getProtocolTemplateForServiceType } from '../utils/protocolSelector';
 import { logger } from '../utils/logger';
+import { trimSignatureDataUrl } from '../utils/trimSignature';
 
 /** Recorta whitespace de una firma base64. Devuelve la versión trimmed como dataURL. */
 function trimSignatureBase64(dataUrl: string, padding = 10): Promise<string> {
@@ -216,7 +217,8 @@ export const useOTManagement = (
         currentUser.email ? firebase.getIngenieroByEmail(currentUser.email) : Promise.resolve(null),
       ]);
       if (firma) {
-        setSignatureEngineer(firma.firmaBase64);
+        // Firmas guardadas full-canvas (con whitespace) se ven chiquitas: recortar al cargar.
+        setSignatureEngineer(await trimSignatureDataUrl(firma.firmaBase64));
         setAclaracionEspecialista(firma.nombreAclaracion);
       }
       setResolvedIngenieroId(ingeniero?.id ?? null);
@@ -293,8 +295,8 @@ export const useOTManagement = (
         }));
         setArticulos(articulosData);
         setEmailPrincipal(data.emailPrincipal || '');
-        setSignatureEngineer(data.signatureEngineer || null);
-        setSignatureClient(data.signatureClient || null);
+        setSignatureEngineer(data.signatureEngineer ? await trimSignatureDataUrl(data.signatureEngineer) : null);
+        setSignatureClient(data.signatureClient ? await trimSignatureDataUrl(data.signatureClient) : null);
         setAclaracionCliente(data.aclaracionCliente || '');
         setAclaracionEspecialista(data.aclaracionEspecialista || '');
         // Tablas dinámicas del catálogo
