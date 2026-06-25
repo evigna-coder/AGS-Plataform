@@ -109,29 +109,33 @@ export const AppModals: React.FC<AppModalsProps> = ({
               {qrUrl && (
                 <button
                   onClick={async () => {
+                    const shareText = `Por favor, firmá la conformidad del reporte OT ${otNumber}: ${qrUrl}`;
                     // Un solo intento de share nativo (el primer await consume el gesto
-                    // del usuario, no se puede reintentar). Payload máximamente compatible:
-                    // el enlace va DENTRO del text, sin campo `url` separado (que algunos
-                    // browsers mobile rechazan en canShare → se saltearía el share).
-                    if (navigator.share) {
+                    // del usuario, no se puede reintentar). iOS prefiere tener `url`.
+                    let reason = '';
+                    if (typeof navigator.share === 'function') {
                       try {
                         await navigator.share({
                           title: `Firma de conformidad — OT ${otNumber}`,
-                          text: `Por favor, firmá la conformidad del reporte OT ${otNumber}: ${qrUrl}`,
+                          text: shareText,
+                          url: qrUrl,
                         });
                         return;
                       } catch (err) {
-                        if ((err as Error)?.name === 'AbortError') return; // usuario canceló
-                        console.warn('navigator.share falló, copio el enlace:', err);
+                        const e = err as Error;
+                        if (e?.name === 'AbortError') return; // usuario canceló la hoja
+                        reason = e?.name || 'error';
                       }
+                    } else {
+                      reason = 'sin-soporte';
                     }
-                    // Fallback (desktop sin share / error): copiar al portapapeles.
-                    try {
-                      await navigator.clipboard.writeText(qrUrl);
-                      modal.showAlert({ title: 'Enlace copiado', message: 'Pegalo en WhatsApp, mail o donde quieras compartirlo.', type: 'success' });
-                    } catch {
-                      modal.showAlert({ title: 'Compartir enlace', message: qrUrl, type: 'info' });
-                    }
+                    // Fallback: copiar al portapapeles + mostrar el motivo (diagnóstico).
+                    try { await navigator.clipboard.writeText(qrUrl); } catch { /* noop */ }
+                    modal.showAlert({
+                      title: 'Enlace copiado',
+                      message: `No se pudo abrir compartir (motivo: ${reason}). Pegalo en WhatsApp/mail.`,
+                      type: 'info',
+                    });
                   }}
                   className="w-full bg-blue-600 text-white font-black py-3 rounded-xl uppercase tracking-widest text-[10px] hover:bg-blue-700 shadow-lg transition-colors flex items-center justify-center gap-2"
                 >
