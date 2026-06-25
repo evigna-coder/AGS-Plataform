@@ -59,7 +59,10 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
-      const ratio = window.devicePixelRatio || 1;
+      // Supersample (≥3x): la firma se escala para llenar la caja en reportes-ot
+      // y el PDF. A 1x (desktop) pixela; capturando a 3x el raster sobra y se ve
+      // nítido al reducirse.
+      const ratio = Math.max(window.devicePixelRatio || 1, 3);
       canvas.width = rect.width * ratio;
       canvas.height = rect.height * ratio;
       const ctx = getCtx();

@@ -58,11 +58,14 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   const setupCtx = useCallback((canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    const dpr = window.devicePixelRatio || 1;
+    // Supersample (≥3x) en vez de sólo dpr: la firma es un raster que después se
+    // escala para llenar la caja (pad/PDF). A 1x (desktop) eso pixela. Capturando
+    // a 3x el raster sobra y al mostrarlo se REDUCE → nítido.
+    const ss = Math.max(window.devicePixelRatio || 1, 3);
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    canvas.width = rect.width * ss;
+    canvas.height = rect.height * ss;
+    ctx.scale(ss, ss);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.lineWidth = 2.5;
