@@ -85,10 +85,11 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
       // Soporta dos casos:
       //  - PNG full-canvas (savedSignatureRef in-session): imgW≈rect.width → scale=1 → render 1:1.
       //  - PNG ya recortado (initialValue post-reload / firma guardada): se ESCALA para
-      //    llenar la caja preservando aspecto. Sin esto la firma recortada se dibuja a su
-      //    tamaño natural (chico) y se ve chiquita. Permitimos upscale hasta MAX_RESTORE_SCALE
-      //    para que llene sin convertir un trazo diminuto en un borrón pixelado.
-      const MAX_RESTORE_SCALE = 4;
+      //    llenar la caja preservando aspecto. Sin esto la firma recortada se ve chiquita.
+      //    Tope de upscale moderado: si fuera muy alto (4x), un trazo chico (o un punto)
+      //    se agranda demasiado y engorda el grosor → borrón. 2.5x llena lo normal sin
+      //    explotar entradas chicas ni amplificar de más el trazo.
+      const MAX_RESTORE_SCALE = 2.5;
       const imgW = img.naturalWidth / dpr;
       const imgH = img.naturalHeight / dpr;
       const scale = Math.min(rect.width / imgW, rect.height / imgH, MAX_RESTORE_SCALE);
