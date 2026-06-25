@@ -108,34 +108,30 @@ export const AppModals: React.FC<AppModalsProps> = ({
             <div className="pt-4 space-y-2">
               {qrUrl && (
                 <button
-                  onClick={async () => {
-                    const shareText = `Por favor, firmá la conformidad del reporte OT ${otNumber}: ${qrUrl}`;
-                    // Un solo intento de share nativo (el primer await consume el gesto
-                    // del usuario, no se puede reintentar). iOS prefiere tener `url`.
-                    let reason = '';
-                    if (typeof navigator.share === 'function') {
-                      try {
-                        await navigator.share({
-                          title: `Firma de conformidad — OT ${otNumber}`,
-                          text: shareText,
-                          url: qrUrl,
-                        });
-                        return;
-                      } catch (err) {
-                        const e = err as Error;
-                        if (e?.name === 'AbortError') return; // usuario canceló la hoja
-                        reason = e?.name || 'error';
-                      }
-                    } else {
-                      reason = 'sin-soporte';
-                    }
-                    // Fallback: copiar al portapapeles + mostrar el motivo (diagnóstico).
-                    try { await navigator.clipboard.writeText(qrUrl); } catch { /* noop */ }
-                    modal.showAlert({
-                      title: 'Enlace copiado',
-                      message: `No se pudo abrir compartir (motivo: ${reason}). Pegalo en WhatsApp/mail.`,
-                      type: 'info',
-                    });
+                  onClick={() => {
+                    // IMPORTANTE: handler SINCRÓNICO. iOS Safari exige que navigator.share
+                    // se llame dentro del gesto del usuario; con un handler async/await iOS
+                    // considera el gesto "consumido" y tira NotAllowedError. Por eso se llama
+                    // directo y la promesa se maneja con .then/.catch (sin await previo).
+                    const fallbackCopy = (reason: string) => {
+                      navigator.clipboard?.writeText(qrUrl).catch(() => { /* noop */ });
+                      modal.showAlert({
+                        title: 'Enlace copiado',
+                        message: `No se pudo abrir compartir (${reason}). Pegalo en WhatsApp/mail.`,
+                        type: 'info',
+                      });
+                    };
+                    if (typeof navigator.share !== 'function') { fallbackCopy('sin-soporte'); return; }
+                    navigator
+                      .share({
+                        title: `Firma de conformidad — OT ${otNumber}`,
+                        text: `Por favor, firmá la conformidad del reporte OT ${otNumber}:`,
+                        url: qrUrl,
+                      })
+                      .catch((err: Error) => {
+                        if (err?.name === 'AbortError') return; // usuario canceló la hoja
+                        fallbackCopy(err?.name || 'error');
+                      });
                   }}
                   className="w-full bg-blue-600 text-white font-black py-3 rounded-xl uppercase tracking-widest text-[10px] hover:bg-blue-700 shadow-lg transition-colors flex items-center justify-center gap-2"
                 >
