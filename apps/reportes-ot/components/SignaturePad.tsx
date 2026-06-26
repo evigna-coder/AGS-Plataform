@@ -81,10 +81,18 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(({ label,
   const restoreSignature = useCallback((canvas: HTMLCanvasElement, dataUrl: string) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     const img = new Image();
     img.onload = () => {
+      const rect = canvas.getBoundingClientRect();
+      // Limpiar el canvas ANTES de dibujar. setupCtx limpia al inicio, pero este
+      // onload es asíncrono: si hay varios restore en carrera (ResizeObserver /
+      // IntersectionObserver disparando seguido al scrollear/navegar en mobile),
+      // sin este clear las firmas se ACUMULAN y aparece "duplicada".
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
       // Soporta dos casos:
       //  - PNG full-canvas (savedSignatureRef in-session): imgW≈rect.width → scale=1 → render 1:1.
       //  - PNG ya recortado (initialValue post-reload / firma guardada): se ESCALA para
