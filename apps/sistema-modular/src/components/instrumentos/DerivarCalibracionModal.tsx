@@ -5,8 +5,10 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { proveedoresService } from '../../services/personalService';
 import { remitosService, type DatosTransportista } from '../../services/stockService';
+import { instrumentosService } from '../../services/firebaseService';
 import { useInstrumentos } from '../../hooks/useInstrumentos';
 import { RemitoOverlayPDF } from '../remitos/pdf/RemitoOverlayPDF';
+import { DerivarInstrumentosPicker, instrumentoResumen } from './DerivarInstrumentosPicker';
 import { openRemitoPdfInNewTab } from '../../utils/remitoPdfActions';
 import { formatFechaAR } from '../../utils/formatFecha';
 import type { InstrumentoPatron, Proveedor } from '@ags/shared';
@@ -42,6 +44,8 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [destinatario, setDestinatario] = useState<DatosTransportista>(EMPTY_PARTY);
   const [observaciones, setObservaciones] = useState('');
+  const [disponibles, setDisponibles] = useState<InstrumentoPatron[]>([]);
+  const [seleccionados, setSeleccionados] = useState<InstrumentoPatron[]>([instrumento]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,9 +53,17 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
     if (!open) return;
     setError(null);
     setObservaciones('');
+    setSeleccionados([instrumento]);
     proveedoresService.getAll().then(setProveedores).catch(() => setError('Error cargando proveedores'));
     remitosService.getProximoNumeroPreimpreso().then(setNumero).catch(() => { /* el usuario edita manual */ });
-  }, [open]);
+    instrumentosService.getAll({ activoOnly: true })
+      .then(all => setDisponibles(all.filter(i => i.estadoCalibracion !== 'en_calibracion')))
+      .catch(() => { /* el seed siempre está disponible */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, instrumento.id]);
+
+  const addInstrumento = (i: InstrumentoPatron) => setSeleccionados(prev => [...prev, i]);
+  const removeInstrumento = (id: string) => setSeleccionados(prev => prev.filter(x => x.id !== id));
 
   const handlePickProveedor = (id: string) => {
     setProveedorId(id);
@@ -74,12 +86,8 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
     try {
       const proveedor = proveedores.find(p => p.id === proveedorId);
       if (!proveedor) throw new Error('Proveedor no encontrado');
+      if (seleccionados.length === 0) throw new Error('Agregá al menos un instrumento');
 
-      const equipoLabel = [
-        instrumento.nombre,
-        [instrumento.marca, instrumento.modelo].filter(Boolean).join(' '),
-        instrumento.serie ? `S/N ${instrumento.serie}` : null,
-      ].filter(Boolean).join(' · ');
       const motivo = 'Derivación para recalibración';
 
       const remitoId = await remitosService.create({
@@ -88,35 +96,40 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
         estado: 'en_transito',
         ingenieroId: '',
         ingenieroNombre: '',
-        items: [{
+        items: seleccionados.map(i => ({
           id: crypto.randomUUID(),
           cantidad: 1,
-          tipoItem: 'sale_y_vuelve',
+          tipoItem: 'sale_y_vuelve' as const,
           devuelto: false,
-          instrumentoId: instrumento.id,
-          instrumentoCodigo: instrumento.nombre,
-          instrumentoDescripcion: equipoLabel,
-        }],
+          instrumentoId: i.id,
+          instrumentoCodigo: i.nombre,
+          instrumentoDescripcion: instrumentoResumen(i),
+        })),
         observaciones: observaciones.trim() || null,
         fechaSalida: fecha,
         proveedorId: proveedor.id,
         proveedorNombre: proveedor.nombre,
       });
 
-      await derivarACalibracion(instrumento.id, {
+      await Promise.all(seleccionados.map(i => derivarACalibracion(i.id, {
         proveedorId: proveedor.id,
         proveedorNombre: proveedor.nombre,
         remitoId,
         remitoNumero: numero,
         fechaEnvio: fecha,
         observaciones: observaciones.trim() || null,
-      });
+      })));
 
       await openRemitoPdfInNewTab(
         <RemitoOverlayPDF
           fecha={formatFechaAR(fecha)}
           destinatario={destinatario}
-          items={[{ numero: 1, cantidad: 1, producto: instrumento.nombre, descripcion: `${equipoLabel} · ${motivo}` }]}
+          items={seleccionados.map((i, idx) => ({
+            numero: idx + 1,
+            cantidad: 1,
+            producto: i.nombre,
+            descripcion: `${instrumentoResumen(i)} · ${motivo}`,
+          }))}
         />,
       );
       onDerivado();
@@ -160,6 +173,14 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
           />
         </div>
 
+        <DerivarInstrumentosPicker
+          seleccionados={seleccionados}
+          disponibles={disponibles}
+          seedId={instrumento.id}
+          onAdd={addInstrumento}
+          onRemove={removeInstrumento}
+        />
+
         <div className="grid grid-cols-2 gap-3">
           <Input
             inputSize="sm"
@@ -202,7 +223,7 @@ export function DerivarCalibracionModal({ open, onClose, instrumento, onDerivado
         </div>
 
         <p className="text-[11px] text-slate-500 leading-relaxed">
-          Se generará un remito tipo «derivación a proveedor» con este equipo como item «sale y vuelve», se marcará el instrumento como <strong>En calibración</strong>, y se abrirá el PDF para imprimir sobre el papel preimpreso.
+          Se generará un remito tipo «derivación a proveedor» con {seleccionados.length === 1 ? 'el instrumento' : `los ${seleccionados.length} instrumentos`} como items «sale y vuelve», se marcarán como <strong>En calibración</strong>, y se abrirá el PDF para imprimir sobre el papel preimpreso.
         </p>
       </div>
     </Modal>

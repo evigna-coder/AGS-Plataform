@@ -395,6 +395,7 @@ export const instrumentosService = {
     nuevoEmisor?: string | null;
     nuevoFechaEmision?: string | null;
     nuevoVencimiento: string;
+    nuevaTrazabilidad: File;
   }): Promise<{ url: string; path: string }> {
     const inst = await this.getById(instrumentoId);
     if (!inst) throw new Error(`Instrumento ${instrumentoId} no encontrado`);
@@ -410,6 +411,9 @@ export const instrumentosService = {
         certificadoEmisor: inst.certificadoEmisor ?? null,
         certificadoFechaEmision: inst.certificadoFechaEmision ?? null,
         certificadoVencimiento: inst.certificadoVencimiento ?? null,
+        trazabilidadUrl: inst.trazabilidadUrl ?? null,
+        trazabilidadNombre: inst.trazabilidadNombre ?? null,
+        trazabilidadStoragePath: inst.trazabilidadStoragePath ?? null,
         reemplazadoEn: new Date().toISOString(),
         reemplazadoPorUid: actor?.uid ?? null,
         reemplazadoPorNombre: actor?.name ?? null,
@@ -418,12 +422,18 @@ export const instrumentosService = {
       });
     }
 
-    // Sufijo timestamp para no pisar el archivo antiguo en Storage.
+    // Sufijo timestamp para no pisar los archivos antiguos en Storage.
     const safeName = input.nuevoCert.name;
     const path = `certificados/${instrumentoId}/${Date.now()}-${safeName}`;
     const fileRef = storageRef(storage, path);
     await uploadBytes(fileRef, input.nuevoCert, { contentType: input.nuevoCert.type || 'application/pdf' });
     const url = await getDownloadURL(fileRef);
+
+    const trazName = input.nuevaTrazabilidad.name;
+    const trazPath = `certificados/${instrumentoId}/trazabilidad/${Date.now()}-${trazName}`;
+    const trazRef = storageRef(storage, trazPath);
+    await uploadBytes(trazRef, input.nuevaTrazabilidad, { contentType: input.nuevaTrazabilidad.type || 'application/pdf' });
+    const trazUrl = await getDownloadURL(trazRef);
 
     await this.update(instrumentoId, {
       certificadoUrl: url,
@@ -432,6 +442,9 @@ export const instrumentosService = {
       certificadoEmisor: input.nuevoEmisor ?? null,
       certificadoFechaEmision: input.nuevoFechaEmision ?? null,
       certificadoVencimiento: input.nuevoVencimiento,
+      trazabilidadUrl: trazUrl,
+      trazabilidadNombre: trazName,
+      trazabilidadStoragePath: trazPath,
       certificadosHistorial: historial,
       estadoCalibracion: 'operativo',
       calibracionProveedorId: null,

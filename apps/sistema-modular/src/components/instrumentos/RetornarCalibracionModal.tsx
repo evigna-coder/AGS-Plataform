@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { PdfPickerRow } from './PdfPickerRow';
 import { useInstrumentos } from '../../hooks/useInstrumentos';
 import { formatFechaAR } from '../../utils/formatFecha';
 import type { InstrumentoPatron } from '@ags/shared';
@@ -15,8 +16,8 @@ interface Props {
 
 export function RetornarCalibracionModal({ open, onClose, instrumento, onRetornado }: Props) {
   const { retornarDeCalibracion } = useInstrumentos();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [archivo, setArchivo] = useState<File | null>(null);
+  const [trazabilidad, setTrazabilidad] = useState<File | null>(null);
   const [emisor, setEmisor] = useState('');
   const [fechaEmision, setFechaEmision] = useState('');
   const [vencimiento, setVencimiento] = useState('');
@@ -26,16 +27,17 @@ export function RetornarCalibracionModal({ open, onClose, instrumento, onRetorna
   useEffect(() => {
     if (!open) return;
     setArchivo(null);
+    setTrazabilidad(null);
     setEmisor('');
     setFechaEmision('');
     setVencimiento('');
     setError(null);
   }, [open]);
 
-  const canSubmit = !!archivo && !!vencimiento;
+  const canSubmit = !!archivo && !!trazabilidad && !!vencimiento;
 
   const handleSubmit = async () => {
-    if (!canSubmit || !archivo) return;
+    if (!canSubmit || !archivo || !trazabilidad) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -44,6 +46,7 @@ export function RetornarCalibracionModal({ open, onClose, instrumento, onRetorna
         nuevoEmisor: emisor.trim() || null,
         nuevoFechaEmision: fechaEmision || null,
         nuevoVencimiento: vencimiento,
+        nuevaTrazabilidad: trazabilidad,
       });
       onRetornado();
       onClose();
@@ -84,26 +87,9 @@ export function RetornarCalibracionModal({ open, onClose, instrumento, onRetorna
           </div>
         )}
 
-        <div>
-          <label className="block text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-1.5">
-            Nuevo certificado (PDF) *
-          </label>
-          {archivo ? (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-teal-700 font-medium truncate max-w-xs">{archivo.name}</span>
-              <button onClick={() => fileRef.current?.click()}
-                className="text-slate-500 hover:text-slate-700 underline">
-                Cambiar
-              </button>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-              Seleccionar PDF…
-            </Button>
-          )}
-          <input ref={fileRef} type="file" accept=".pdf" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) setArchivo(f); e.target.value = ''; }} />
-        </div>
+        <PdfPickerRow label="Nuevo certificado (PDF) *" file={archivo} onPick={setArchivo} />
+
+        <PdfPickerRow label="Trazabilidad (PDF) *" file={trazabilidad} onPick={setTrazabilidad} />
 
         <div className="grid grid-cols-2 gap-3">
           <Input inputSize="sm" label="Emisor" value={emisor}
