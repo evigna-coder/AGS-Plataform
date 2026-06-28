@@ -14,6 +14,7 @@ import { LeadAdjuntosSection } from '../../components/leads/LeadAdjuntosSection'
 import { ContactosTicketSection } from '../../components/leads/ContactosTicketSection';
 import type { ContactoTicket } from '@ags/shared';
 import { CreatePresupuestoModal } from '../../components/presupuestos/CreatePresupuestoModal';
+import { OTResumenModal } from '../../components/ordenes-trabajo/OTResumenModal';
 import { TicketPendientesChips } from '../../components/pendientes/TicketPendientesChips';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -30,6 +31,7 @@ export const LeadDetail = () => {
   const [showDerivar, setShowDerivar] = useState(false);
   const [showFinalizar, setShowFinalizar] = useState(false);
   const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
+  const [resumenOt, setResumenOt] = useState<string | null>(null);
   const [comentario, setComentario] = useState('');
   const [enviandoComentario, setEnviandoComentario] = useState(false);
 
@@ -361,13 +363,13 @@ export const LeadDetail = () => {
                     {linkedOTs.map(ot => (
                       <div key={ot.otNumber} className="flex items-center gap-2">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">OT</span>
-                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{ot.otNumber}</Link>
+                        <button onClick={() => setResumenOt(ot.otNumber)} className="text-xs text-teal-600 hover:text-teal-800 font-medium">{ot.otNumber}</button>
                       </div>
                     ))}
                     {otsRelacionadas.map(ot => (
                       <div key={`rel-${ot.otNumber}`} className="flex items-center gap-2" title="OT preexistente que motivó este ticket de seguimiento">
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">OT relacionada</span>
-                        <Link to={`/ordenes-trabajo/${ot.otNumber}`} state={{ from: pathname }} className="text-xs text-slate-600 hover:text-teal-700 font-medium">{ot.otNumber}</Link>
+                        <button onClick={() => setResumenOt(ot.otNumber)} className="text-xs text-slate-600 hover:text-teal-700 font-medium">{ot.otNumber}</button>
                       </div>
                     ))}
                   </div>
@@ -378,6 +380,7 @@ export const LeadDetail = () => {
         </div>
       </div>
 
+      <OTResumenModal open={!!resumenOt} otNumber={resumenOt} onClose={() => setResumenOt(null)} />
       {showDerivar && <DerivarLeadModal lead={lead} onClose={() => setShowDerivar(false)} onDerived={() => { setShowDerivar(false); }} />}
       {showFinalizar && <FinalizarLeadModal lead={lead} onClose={() => setShowFinalizar(false)} onFinalized={() => { setShowFinalizar(false); navigate('/leads'); }} />}
       <CreatePresupuestoModal

@@ -8,6 +8,7 @@ interface SortableHeaderProps {
   onSort: (field: string) => void;
   className?: string;
   children?: React.ReactNode;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export function sortByField<T>(items: T[], field: string, dir: SortDir): T[] {
@@ -36,11 +37,12 @@ export function toggleSort(
 }
 
 export const SortableHeader: React.FC<SortableHeaderProps> = ({
-  label, field, currentField, currentDir, onSort, className = '', children,
+  label, field, currentField, currentDir, onSort, className = '', children, onContextMenu,
 }) => (
   <th
     className={`cursor-pointer select-none hover:text-slate-600 transition-colors ${className}`}
     onClick={() => onSort(field)}
+    onContextMenu={onContextMenu}
   >
     <span className="inline-flex items-center gap-0.5">
       {label}

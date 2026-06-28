@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Cliente, Sistema, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { OT_ESTADO_LABELS, OT_ESTADO_ORDER } from '@ags/shared';
 import { Button } from '../ui/Button';
@@ -9,9 +9,8 @@ interface FiltersShape {
   clienteId: string;
   sistemaId: string;
   estadoAdmin: string;
-  busquedaOT: string;
-  busquedaModulo: string;
-  busquedaEquipo: string;
+  busqueda: string;
+  busquedaDescripcion: string;
   tipoServicio: string;
   ingenieroId: string;
   fechaDesde: string;
@@ -25,7 +24,7 @@ interface FiltersShape {
 const TIPO_FECHA_OPTIONS = [
   { value: 'createdAt', label: 'Creación' },
   { value: 'fechaInicio', label: 'Realización' },
-  { value: 'fechaFin', label: 'Finalización' },
+  { value: 'fechaCierre', label: 'Finalización' },
 ];
 
 interface Props {
@@ -47,33 +46,61 @@ const ESTADO_OPTIONS = [
   ...OT_ESTADO_ORDER.map(e => ({ value: e, label: OT_ESTADO_LABELS[e] })),
 ];
 
-/** Header bar de filtros para OTList. Toggleable "Más filtros" para los avanzados. */
+/** Header bar de filtros para OTList. Un buscador unificado + estado siempre
+ *  visibles; el resto se esconde en "Más filtros". */
 export const OTFiltersBar: React.FC<Props> = ({
   filters, setFilter, resetFilters,
   clientes, sistemas, tiposServicioList, ingenierosList,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Inputs de texto con estado local instantáneo + propagación debounced al filtro
+  // (que escribe la URL vía useUrlFilters). Sin esto, atar el value directo a
+  // filters.* hace que cada tecla dispare un write de URL async que reordena/come
+  // letras en Electron — el bug clásico de los buscadores del repo.
+  const [busquedaLocal, setBusquedaLocal] = useState(filters.busqueda);
+  const [descLocal, setDescLocal] = useState(filters.busquedaDescripcion);
+  const timers = useRef<{ b?: ReturnType<typeof setTimeout>; d?: ReturnType<typeof setTimeout> }>({});
+  // Último valor que NOSOTROS propagamos al filtro, para distinguir el "eco" de
+  // nuestro propio push de un cambio externo (ej. "Limpiar"). Sin esto, el efecto
+  // de sincronización pisa la última letra cuando el debounce dispara mientras se tipea.
+  const lastPushed = useRef({ b: filters.busqueda, d: filters.busquedaDescripcion });
+
+  useEffect(() => {
+    if (filters.busqueda !== lastPushed.current.b) {
+      lastPushed.current.b = filters.busqueda;
+      setBusquedaLocal(filters.busqueda);
+    }
+  }, [filters.busqueda]);
+  useEffect(() => {
+    if (filters.busquedaDescripcion !== lastPushed.current.d) {
+      lastPushed.current.d = filters.busquedaDescripcion;
+      setDescLocal(filters.busquedaDescripcion);
+    }
+  }, [filters.busquedaDescripcion]);
+
+  const onBusqueda = (v: string) => {
+    setBusquedaLocal(v);
+    clearTimeout(timers.current.b);
+    timers.current.b = setTimeout(() => { lastPushed.current.b = v; setFilter('busqueda', v); }, 200);
+  };
+  const onDesc = (v: string) => {
+    setDescLocal(v);
+    clearTimeout(timers.current.d);
+    timers.current.d = setTimeout(() => { lastPushed.current.d = v; setFilter('busquedaDescripcion', v); }, 200);
+  };
+
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="text"
+          value={busquedaLocal}
+          onChange={e => onBusqueda(e.target.value)}
+          placeholder="Buscar cliente, N° OT, equipo, módulo, N° serie…"
+          className="flex-1 min-w-[260px] border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
+        />
         <div className="min-w-[120px]">
-          <SearchableSelect size="sm"
-            value={filters.clienteId}
-            onChange={(value) => setFilter('clienteId', value)}
-            options={[{ value: '', label: 'Todos' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
-            placeholder="Cliente"
-          />
-        </div>
-        <div className="min-w-[120px]">
-          <SearchableSelect size="sm"
-            value={filters.sistemaId}
-            onChange={(value) => setFilter('sistemaId', value)}
-            options={[{ value: '', label: 'Todos' }, ...sistemas.map(s => ({ value: s.id, label: s.nombre }))]}
-            placeholder="Sistema"
-          />
-        </div>
-        <div className="min-w-[110px]">
           <SearchableSelect size="sm"
             value={filters.estadoAdmin}
             onChange={(value) => setFilter('estadoAdmin', value)}
@@ -81,27 +108,6 @@ export const OTFiltersBar: React.FC<Props> = ({
             placeholder="Estado"
           />
         </div>
-        <input
-          type="text"
-          value={filters.busquedaOT}
-          onChange={e => setFilter('busquedaOT', e.target.value)}
-          placeholder="Buscar OT #"
-          className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
-        />
-        <input
-          type="text"
-          value={filters.busquedaEquipo}
-          onChange={e => setFilter('busquedaEquipo', e.target.value)}
-          placeholder="Id Equipo"
-          className="w-28 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
-        />
-        <input
-          type="text"
-          value={filters.busquedaModulo}
-          onChange={e => setFilter('busquedaModulo', e.target.value)}
-          placeholder="Módulo / N° serie"
-          className="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
-        />
         <Button size="sm" variant="ghost" onClick={() => setShowAdvanced(!showAdvanced)}>
           {showAdvanced ? 'Menos filtros' : 'Más filtros'}
         </Button>
@@ -111,6 +117,22 @@ export const OTFiltersBar: React.FC<Props> = ({
       </div>
       {showAdvanced && (
         <div className="flex items-center gap-2 flex-wrap mt-2">
+          <div className="min-w-[140px]">
+            <SearchableSelect size="sm"
+              value={filters.clienteId}
+              onChange={(value) => setFilter('clienteId', value)}
+              options={[{ value: '', label: 'Cliente' }, ...clientes.map(c => ({ value: c.id, label: c.razonSocial }))]}
+              placeholder="Cliente"
+            />
+          </div>
+          <div className="min-w-[130px]">
+            <SearchableSelect size="sm"
+              value={filters.sistemaId}
+              onChange={(value) => setFilter('sistemaId', value)}
+              options={[{ value: '', label: 'Sistema' }, ...sistemas.map(s => ({ value: s.id, label: s.nombre }))]}
+              placeholder="Sistema"
+            />
+          </div>
           <div className="min-w-[110px]">
             <SearchableSelect size="sm" value={filters.tipoServicio}
               onChange={v => setFilter('tipoServicio', v)}
@@ -123,6 +145,13 @@ export const OTFiltersBar: React.FC<Props> = ({
               options={[{ value: '', label: 'Ingeniero' }, ...ingenierosList.map(u => ({ value: u.id, label: u.displayName }))]}
               placeholder="Ingeniero" />
           </div>
+          <input
+            type="text"
+            value={descLocal}
+            onChange={e => onDesc(e.target.value)}
+            placeholder="Buscar en descripción"
+            className="w-44 border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400 outline-none"
+          />
           <div className="min-w-[110px]">
             <SearchableSelect size="sm" value={filters.tipoFecha}
               onChange={v => setFilter('tipoFecha', v)}

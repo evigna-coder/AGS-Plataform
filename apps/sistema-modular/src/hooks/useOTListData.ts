@@ -3,6 +3,7 @@ import { ordenesTrabajoService, clientesService, sistemasService, tiposServicioS
 import type { WorkOrder, Cliente, Sistema, TipoServicio, UsuarioAGS } from '@ags/shared';
 import { sortByField, type SortDir } from '../components/ui/SortableHeader';
 import { resolveEstadoOT } from '../components/ordenes-trabajo/OTStatusBadge';
+import { fechaLocalYMD } from '../utils/formatFecha';
 
 export interface OTListFilters {
   clienteId: string;
@@ -19,10 +20,11 @@ export interface OTListFilters {
   soloGarantia: boolean;
   sortField: string;
   sortDir: string;
-  /** Ya debounced por el caller — el grouping no aplica debouncing él mismo. */
-  busquedaOT: string;
-  busquedaModulo: string;
-  busquedaEquipo: string;
+  /** Buscador unificado (cliente, N° OT, equipo, módulo, serie, sistema, servicio).
+   *  Ya debounced por el caller — el grouping no aplica debouncing él mismo. */
+  busqueda: string;
+  /** Búsqueda específica en la descripción (problema inicial + reporte técnico). Debounced. */
+  busquedaDescripcion: string;
 }
 
 export interface GroupedOT {
@@ -99,6 +101,14 @@ export function useOTListData(filters: OTListFilters) {
     return set;
   }, [ordenes]);
 
+  // Mapa sistemaId → nombre, para que el buscador unificado matchee por nombre de
+  // sistema aunque el WorkOrder solo tenga el sistemaId (no el string `sistema`).
+  const sistemaNombreById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of sistemas) m.set(s.id, s.nombre);
+    return m;
+  }, [sistemas]);
+
   // Grouping: parents + sus items + orphans.
   const grouped = useMemo<GroupedOT[]>(() => {
     let list = ordenes;
@@ -107,36 +117,45 @@ export function useOTListData(filters: OTListFilters) {
     } else if (filters.estadoAdmin) {
       list = list.filter(ot => resolveEstadoOT(ot) === filters.estadoAdmin);
     }
-    const hasOtNumberSearch = !!filters.busquedaOT.trim();
-    if (hasOtNumberSearch) {
-      const q = filters.busquedaOT.trim().toLowerCase();
-      list = list.filter(ot => ot.otNumber.toLowerCase().includes(q));
-    } else {
-      // Sin búsqueda por número: ocultar parents que tengan al menos 1 child.
-      list = list.filter(ot => !parentsWithChildren.has(ot.otNumber));
-    }
-    if (filters.busquedaModulo.trim()) {
-      const q = filters.busquedaModulo.trim().toLowerCase();
+    const q = filters.busqueda.trim().toLowerCase();
+    const hasSearch = !!q;
+    if (hasSearch) {
+      // Buscador unificado: matchea contra cliente, N° OT, equipo, módulo, serie,
+      // sistema (string o nombre resuelto), tipo servicio e ingeniero.
       list = list.filter(ot =>
+        ot.otNumber.toLowerCase().includes(q) ||
+        (ot.razonSocial || '').toLowerCase().includes(q) ||
+        (ot.codigoInternoCliente || '').toLowerCase().includes(q) ||
         (ot.moduloModelo || '').toLowerCase().includes(q) ||
         (ot.moduloDescripcion || '').toLowerCase().includes(q) ||
-        (ot.moduloSerie || '').toLowerCase().includes(q)
+        (ot.moduloSerie || '').toLowerCase().includes(q) ||
+        (ot.sistema || '').toLowerCase().includes(q) ||
+        (ot.sistemaId ? (sistemaNombreById.get(ot.sistemaId) || '') : '').toLowerCase().includes(q) ||
+        (ot.tipoServicio || '').toLowerCase().includes(q) ||
+        (ot.ingenieroAsignadoNombre || '').toLowerCase().includes(q)
       );
+    } else {
+      // Sin búsqueda: ocultar parents que tengan al menos 1 child.
+      list = list.filter(ot => !parentsWithChildren.has(ot.otNumber));
     }
-    if (filters.busquedaEquipo.trim()) {
-      const q = filters.busquedaEquipo.trim().toLowerCase();
-      list = list.filter(ot => (ot.codigoInternoCliente || '').toLowerCase().includes(q));
+    const qDesc = filters.busquedaDescripcion.trim().toLowerCase();
+    if (qDesc) {
+      list = list.filter(ot =>
+        (ot.problemaFallaInicial || '').toLowerCase().includes(qDesc) ||
+        (ot.reporteTecnico || '').toLowerCase().includes(qDesc)
+      );
     }
     if (filters.tipoServicio) list = list.filter(ot => ot.tipoServicio === filters.tipoServicio);
     if (filters.ingenieroId) list = list.filter(ot => ot.ingenieroAsignadoId === filters.ingenieroId);
     if (filters.fechaDesde || filters.fechaHasta) {
       const campo = (filters.tipoFecha || 'createdAt') as keyof WorkOrder;
-      const hasta = filters.fechaHasta ? filters.fechaHasta + 'T23:59:59' : '';
+      // Normalizar el campo a 'YYYY-MM-DD' local: createdAt llega como Timestamp (objeto),
+      // comparar el objeto como string descartaba TODO. fechaDesde/Hasta ya son días locales.
       list = list.filter(ot => {
-        const v = (ot[campo] as string | undefined) || '';
-        if (!v) return false;
-        if (filters.fechaDesde && v < filters.fechaDesde) return false;
-        if (hasta && v > hasta) return false;
+        const ymd = fechaLocalYMD(ot[campo]);
+        if (!ymd) return false;
+        if (filters.fechaDesde && ymd < filters.fechaDesde) return false;
+        if (filters.fechaHasta && ymd > filters.fechaHasta) return false;
         return true;
       });
     }
@@ -191,11 +210,11 @@ export function useOTListData(filters: OTListFilters) {
 
     return result;
   }, [
-    ordenes, parentsWithChildren,
+    ordenes, parentsWithChildren, sistemaNombreById,
     filters.estadoAdmin, filters.tipoServicio, filters.ingenieroId,
     filters.fechaDesde, filters.fechaHasta, filters.tipoFecha,
     filters.soloFacturable, filters.soloContrato, filters.soloGarantia,
-    filters.busquedaOT, filters.busquedaModulo, filters.busquedaEquipo,
+    filters.busqueda, filters.busquedaDescripcion,
     filters.sortField, filters.sortDir,
   ]);
 
