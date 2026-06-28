@@ -4,6 +4,7 @@ import { sistemasService, categoriasEquipoService, clientesService, establecimie
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import type { Sistema, CategoriaEquipo, Cliente, Establecimiento } from '@ags/shared';
+import { establecimientoPerteneceACliente } from '@ags/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
@@ -193,7 +194,7 @@ export const EquiposList = () => {
 
   const reassignEstFiltrados = useMemo(() => {
     if (!reassignClienteId) return [];
-    return establecimientos.filter(e => e.clienteCuit === reassignClienteId);
+    return establecimientos.filter(e => establecimientoPerteneceACliente(e, reassignClienteId));
   }, [reassignClienteId, establecimientos]);
 
   const reassignEstSectores = useMemo(() => {

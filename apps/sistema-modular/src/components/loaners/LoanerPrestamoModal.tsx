@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { clientesService, establecimientosService, remitosService } from '../../services/firebaseService';
 import type { Cliente, Establecimiento, Loaner } from '@ags/shared';
+import { establecimientoUnicoId } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -37,7 +38,12 @@ export function LoanerPrestamoModal({ open, onClose, loaner, onConfirm }: Props)
 
   useEffect(() => {
     if (!clienteId) { setEstablecimientos([]); return; }
-    establecimientosService.getByCliente(clienteId).then(setEstablecimientos);
+    establecimientosService.getByCliente(clienteId).then(ests => {
+      setEstablecimientos(ests);
+      // Regla del proyecto: cliente con un único establecimiento (activo) → autoseleccionarlo.
+      const unico = establecimientoUnicoId(ests.filter(e => e.activo));
+      if (unico) setEstablecimientoId(unico);
+    });
   }, [clienteId]);
 
   const selectedCliente = clientes.find(c => c.id === clienteId);

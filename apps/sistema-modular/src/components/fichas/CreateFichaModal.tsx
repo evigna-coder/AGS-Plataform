@@ -21,7 +21,7 @@ import type {
   ViaIngreso,
   FichaPropiedad,
 } from '@ags/shared';
-import { VIA_INGRESO_LABELS } from '@ags/shared';
+import { VIA_INGRESO_LABELS, establecimientoUnicoId } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -72,7 +72,12 @@ export function CreateFichaModal({ open, onClose, onCreated }: Props) {
 
   useEffect(() => {
     if (!clienteId) { setEstablecimientos([]); setEstablecimientoId(''); return; }
-    establecimientosService.getByCliente(clienteId).then(setEstablecimientos);
+    establecimientosService.getByCliente(clienteId).then(ests => {
+      setEstablecimientos(ests);
+      // Regla del proyecto: cliente con un único establecimiento (activo) → autoseleccionarlo.
+      const unico = establecimientoUnicoId(ests.filter(e => e.activo));
+      if (unico) setEstablecimientoId(unico);
+    });
   }, [clienteId]);
 
   useEffect(() => { setTraidoPor(''); }, [viaIngreso]);

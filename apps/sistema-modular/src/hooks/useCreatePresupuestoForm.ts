@@ -4,6 +4,7 @@ import { establecimientosService, contactosEstablecimientoService } from '../ser
 import { pendientesService } from '../services/pendientesService';
 import { useAuth } from '../contexts/AuthContext';
 import type { Cliente, Sistema, Establecimiento, ContactoEstablecimiento, Presupuesto, PresupuestoItem, PresupuestoCuota, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, Posta, Ticket, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota, PlantillaTextoPresupuesto } from '@ags/shared';
+import { establecimientoUnicoId } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
 
 export interface PresupuestoFormState {
@@ -112,6 +113,9 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
       conceptosServicioService.getAll(),
     ]).then(([c, s, cats, conds, concs]) => {
       setClientes(c); setSistemas(s); setCategorias(cats); setCondiciones(conds); setConceptos(concs);
+      // Default condición de pago: 30 días (si está en el catálogo y no hay una ya elegida).
+      const treintaDias = conds.find(cp => cp.dias === 30);
+      if (treintaDias) setForm(prev => (prev.condicionPagoId ? prev : { ...prev, condicionPagoId: treintaDias.id }));
     });
   }, [open]);
 
@@ -204,7 +208,13 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
   // Load establecimientos
   useEffect(() => {
     if (form.clienteId) {
-      establecimientosService.getByCliente(form.clienteId).then(setEstablecimientos).catch(() => setEstablecimientos([]));
+      establecimientosService.getByCliente(form.clienteId).then(ests => {
+        setEstablecimientos(ests);
+        // Regla del proyecto: cliente con un único establecimiento → autoseleccionarlo
+        // si todavía no hay uno elegido (no pisa prefill ni el derivado del sistema).
+        const unico = establecimientoUnicoId(ests);
+        if (unico) setForm(prev => (prev.establecimientoId ? prev : { ...prev, establecimientoId: unico }));
+      }).catch(() => setEstablecimientos([]));
     } else { setEstablecimientos([]); setContactos([]); setSistemasFiltrados([]); }
   }, [form.clienteId]);
 
@@ -376,6 +386,37 @@ export function useCreatePresupuestoForm(open: boolean, onClose: () => void, onC
         };
         await leadsService.agregarComentario(form.origenId, posta).catch(err => console.error('Error agregando posta al lead:', err));
         await leadsService.linkPresupuesto(form.origenId, presupuestoId).catch(err => console.error('Error vinculando presupuesto al lead:', err));
+        // Reflejar el avance en el ticket: próxima acción = enviar, y la última observación
+        // visible en la grilla pasa a "presupuesto creado". Antes el ticket seguía mostrando
+        // la consigna original ("preparar y enviar presupuesto") aunque ya estuviera creado.
+        await leadsService.update(form.origenId, {
+          accionPendiente: `Enviar presupuesto ${numero} al cliente`,
+          ultimaObservacion: `Presupuesto ${numero} creado — pendiente de envío`,
+        }).catch(err => console.error('Error actualizando acción del ticket:', err));
+
+        // Si el ticket está ligado a OT(s) (ej. el ticket de "presupuesto pendiente"),
+        // ligar el presupuesto a esas OT(s) — bidireccional, para que la OT muestre el
+        // presupuesto. El recordatorio de envío ya lo cubre este mismo ticket.
+        try {
+          const ticket = await leadsService.getById(form.origenId);
+          for (const otNum of ticket?.otIds ?? []) {
+            await ordenesTrabajoService.vincularPresupuesto(otNum, numero)
+              .catch(err => console.error(`Error vinculando ppto a OT ${otNum}:`, err));
+          }
+        } catch (err) {
+          console.error('Error ligando presupuesto a OTs del ticket:', err);
+        }
+      }
+
+      // Presupuesto creado DESDE una OT (botón "Crear Presupuesto" en OTDetail):
+      // vincularlo al array `budgets` de la OT para que el cierre lo levante.
+      // origenId es el otNumber; budgets guarda el `numero` (PRE-XXXX) del ppto.
+      if (form.origenTipo === 'ot' && form.origenId) {
+        await ordenesTrabajoService.vincularPresupuesto(form.origenId, numero)
+          .catch(err => console.error('Error vinculando presupuesto a la OT:', err));
+        // Ppto recién creado desde la OT → sin enviar. Recordar enviarlo (no-op si ya se envió).
+        await presupuestosService.crearRecordatorioEnvio(presupuestoId)
+          .catch(err => console.error('Error creando recordatorio de envío:', err));
       }
       handleClose();
       onCreated?.(presupuestoId);

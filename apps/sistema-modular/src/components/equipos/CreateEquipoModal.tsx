@@ -8,7 +8,7 @@ import { GCPortsGrid } from '../GCPortsGrid';
 import { sistemasService, clientesService, establecimientosService, categoriasEquipoService } from '../../services/firebaseService';
 import { sectoresCatalogService, type SectorCatalog } from '../../services/catalogService';
 import type { Cliente, Establecimiento, CategoriaEquipo, ConfiguracionGC } from '@ags/shared';
-import { esGaseoso } from '@ags/shared';
+import { esGaseoso, establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 
 interface Props {
   open: boolean;
@@ -54,7 +54,12 @@ export const CreateEquipoModal: React.FC<Props> = ({ open, onClose, onCreated, d
 
   useEffect(() => {
     if (form.clienteId) {
-      setEstFiltrados(establecimientos.filter(e => e.clienteCuit === form.clienteId));
+      const filtrados = establecimientos.filter(e => establecimientoPerteneceACliente(e, form.clienteId));
+      setEstFiltrados(filtrados);
+      // Regla del proyecto: cliente con un único establecimiento → autoseleccionarlo
+      // si todavía no hay uno elegido (no pisa un prefill).
+      const unico = establecimientoUnicoId(filtrados);
+      if (unico && !form.establecimientoId) setForm(prev => ({ ...prev, establecimientoId: unico }));
     } else {
       setEstFiltrados([]);
     }
