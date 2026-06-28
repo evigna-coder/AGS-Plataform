@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { runTransaction } from './firebase';
-import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor } from '@ags/shared';
+import type { PosicionStock, Articulo, UnidadStock, Minikit, MovimientoStock, Remito, RemitoItem, EstadoUnidad, TipoMovimiento, TipoOrigenDestino, HistorialFicha, ItemFicha, FichaPropiedad, DerivacionProveedor, StockSelection } from '@ags/shared';
 import { computeFichaEstado } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, logAudit, logBusinessEvent, onSnapshot } from './firebase';
 
@@ -1160,6 +1160,18 @@ export interface CreateRemitoItemsInput {
 // ========== RESERVAS DE STOCK ==========
 
 export const reservasService = {
+  /** Unidades actualmente reservadas para un presupuesto (estado 'reservado'). */
+  async getByPresupuesto(presupuestoId: string): Promise<UnidadStock[]> {
+    if (!presupuestoId) return [];
+    const q = query(
+      collection(db, 'unidades'),
+      where('reservadoParaPresupuestoId', '==', presupuestoId),
+      where('estado', '==', 'reservado'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as UnidadStock));
+  },
+
   /**
    * Reserves a specific UnidadStock for a presupuesto.
    * Physically moves the unit to the RESERVAS position and sets estado='reservado'.
@@ -1174,6 +1186,14 @@ export const reservasService = {
     clienteId: string;
     clienteNombre: string;
     solicitadoPorNombre: string;
+    /**
+     * Cantidad física a reservar de esta unidad. Para artículos serializados (cantidad 1)
+     * omitir → reserva la unidad entera. Para LOTES (cantidad > 1) pasar la cantidad
+     * necesaria: si es menor a la del lote, se SPLITEA — el resto queda disponible en la
+     * unidad original y se crea una nueva unidad reservada con la porción pedida. Sin esto
+     * se reservaba el lote entero aunque solo se necesitara una parte (bug de sobre-reserva).
+     */
+    cantidad?: number;
   }): Promise<void> {
     // Fetch RESERVAS position OUTSIDE tx — stable singleton, safe to prefetch.
     // getOrCreateReservasPosition() is idempotent by 'RESERVAS' code lookup.
@@ -1182,39 +1202,69 @@ export const reservasService = {
     const movId = crypto.randomUUID();
     const unidadRef = docRef('unidades', params.unidadId);
     const movRef = doc(db, 'movimientosStock', movId);
+    const splitRef = docRef('unidades', crypto.randomUUID()); // destino si hay split de lote
 
-    await runTransaction(db, async (tx) => {
+    const reservadoUnidadId = await runTransaction(db, async (tx) => {
       // READ FIRST (all reads before any write — Firestore tx requirement)
       const unidadSnap = await tx.get(unidadRef);
       if (!unidadSnap.exists()) {
         throw new Error(`Unidad ${params.unidadId} no encontrada`);
       }
-      const currentEstado = unidadSnap.data().estado;
-      if (currentEstado !== 'disponible') {
+      const data = unidadSnap.data();
+      if (data.estado !== 'disponible') {
         throw new Error(
-          `Unidad no disponible — estado actual '${currentEstado}' (reservada por otro usuario?)`,
+          `Unidad no disponible — estado actual '${data.estado}' (reservada por otro usuario?)`,
         );
       }
 
-      // BUILD payloads (no external awaits between reads and writes)
-      const unitPayload = deepCleanForFirestore({
+      const qtyActual = data.cantidad ?? 1;
+      const aReservar = params.cantidad != null ? Math.min(params.cantidad, qtyActual) : qtyActual;
+      const esSplitParcial = aReservar < qtyActual;
+
+      const reservaFields = {
         estado: 'reservado' as EstadoUnidad,
         ubicacion: { tipo: 'posicion', referenciaId: posReservas.id, referenciaNombre: posReservas.nombre },
         reservadoParaPresupuestoId: params.presupuestoId,
         reservadoParaPresupuestoNumero: params.presupuestoNumero,
         reservadoParaClienteId: params.clienteId,
         reservadoParaClienteNombre: params.clienteNombre,
-        ...getUpdateTrace(),
-        updatedAt: now.toDate().toISOString(),
-      });
+      };
 
-      const movPayload = deepCleanForFirestore({
+      let movUnidadId = params.unidadId;
+      if (esSplitParcial) {
+        // Lote: descontar lo reservado de la unidad original (queda disponible) y crear
+        // una unidad nueva con la porción reservada. Clonamos el doc original; deepClean
+        // preserva los Timestamp (no recursa instancias), y pisamos createdAt/updatedAt.
+        const { id: _id, ...rest } = data as Record<string, any>;
+        tx.update(unidadRef, deepCleanForFirestore({
+          cantidad: qtyActual - aReservar,
+          ...getUpdateTrace(),
+          updatedAt: now.toDate().toISOString(),
+        }));
+        tx.set(splitRef, deepCleanForFirestore({
+          ...rest,
+          cantidad: aReservar,
+          ...reservaFields,
+          ...getCreateTrace(),
+          createdAt: now,
+          updatedAt: now,
+        }));
+        movUnidadId = splitRef.id;
+      } else {
+        tx.update(unidadRef, deepCleanForFirestore({
+          ...reservaFields,
+          ...getUpdateTrace(),
+          updatedAt: now.toDate().toISOString(),
+        }));
+      }
+
+      tx.set(movRef, deepCleanForFirestore({
         tipo: 'transferencia' as TipoMovimiento,
-        unidadId: params.unidadId,
+        unidadId: movUnidadId,
         articuloId: params.unidad.articuloId,
         articuloCodigo: params.unidad.articuloCodigo,
         articuloDescripcion: params.unidad.articuloDescripcion,
-        cantidad: 1,
+        cantidad: aReservar,
         origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
         origenId: params.unidad.ubicacion.referenciaId,
         origenNombre: params.unidad.ubicacion.referenciaNombre,
@@ -1225,16 +1275,14 @@ export const reservasService = {
         creadoPor: params.solicitadoPorNombre,
         ...getCreateTrace(),
         createdAt: now,
-      });
+      }));
 
-      // THEN WRITE — atomic with unidad estado check above
-      tx.update(unidadRef, unitPayload);
-      tx.set(movRef, movPayload);
+      return movUnidadId;
     });
 
     // Audit — post-tx best-effort (fire-and-forget, non-blocking).
     // Audit is observational; losing it is acceptable vs. rolling back the reservation.
-    logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidadId });
+    logAudit({ action: 'update', collection: 'unidades_stock', documentId: reservadoUnidadId });
   },
 
   /**
@@ -1409,5 +1457,125 @@ export const reservasService = {
       }
     }
     return { entregadas };
+  },
+
+  /**
+   * Descuenta `aDeducir` unidades de un doc DISPONIBLE (salida hacia cliente al cerrar OT).
+   * - aDeducir >= cantidad del doc → el doc pasa a 'entregado' (sale del ATP).
+   * - aDeducir < cantidad (lote/bulk) → decrementa `cantidad` del doc.
+   * Crea un MovimientoStock 'egreso'. Validación atómica: solo toca 'disponible'
+   * (así no choca con el camino de presupuesto reservado→entregado).
+   */
+  async deducirUnidadDisponible(params: {
+    unidad: UnidadStock;
+    aDeducir: number;
+    otNumber: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
+    motivo: string;
+    solicitadoPorNombre: string;
+  }): Promise<void> {
+    const now = Timestamp.now();
+    const movRef = doc(db, 'movimientosStock', crypto.randomUUID());
+    const unidadRef = docRef('unidades', params.unidad.id);
+
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(unidadRef);
+      if (!snap.exists()) throw new Error(`Unidad ${params.unidad.id} no encontrada`);
+      const data = snap.data();
+      if (data.estado !== 'disponible') {
+        throw new Error(`Unidad no descontable — estado '${data.estado}' (esperaba 'disponible')`);
+      }
+      const qtyActual = data.cantidad ?? 1;
+      const total = params.aDeducir >= qtyActual;
+      tx.update(unidadRef, deepCleanForFirestore(total
+        ? { estado: 'entregado' as EstadoUnidad, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }
+        : { cantidad: qtyActual - params.aDeducir, ...getUpdateTrace(), updatedAt: now.toDate().toISOString() }));
+
+      tx.set(movRef, deepCleanForFirestore({
+        tipo: 'egreso' as TipoMovimiento,
+        unidadId: params.unidad.id,
+        articuloId: params.unidad.articuloId,
+        articuloCodigo: params.unidad.articuloCodigo,
+        articuloDescripcion: params.unidad.articuloDescripcion,
+        cantidad: total ? qtyActual : params.aDeducir,
+        origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
+        origenId: params.unidad.ubicacion.referenciaId,
+        origenNombre: params.unidad.ubicacion.referenciaNombre,
+        destinoTipo: 'cliente' as TipoOrigenDestino,
+        destinoId: params.clienteId ?? params.otNumber,
+        destinoNombre: params.clienteNombre ?? `OT ${params.otNumber}`,
+        otNumber: params.otNumber,
+        motivo: params.motivo,
+        creadoPor: params.solicitadoPorNombre,
+        ...getCreateTrace(),
+        createdAt: now,
+      }));
+    });
+
+    logAudit({ action: 'update', collection: 'unidades_stock', documentId: params.unidad.id });
+  },
+
+  /**
+   * Deducción al cierre por una StockSelection (selección MANUAL, no por reserva):
+   * - con `unidadStockId` (serie/lote) → descuenta esa unidad puntual.
+   * - sin unidad pero con `articuloId` (no-serializado) → descuenta `cantidad` de las
+   *   unidades disponibles del artículo en la posición elegida (`origenId`), FIFO.
+   * Best-effort por unidad. Devuelve cuántas se descontaron efectivamente.
+   */
+  async entregarSeleccionCierre(params: {
+    selection: StockSelection;
+    otNumber: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
+    solicitadoPorNombre: string;
+  }): Promise<{ deducidas: number }> {
+    const sel = params.selection;
+    let candidatos: UnidadStock[] = [];
+    if (sel.unidadStockId) {
+      const snap = await getDoc(docRef('unidades', sel.unidadStockId));
+      if (snap.exists()) candidatos = [{ id: snap.id, ...snap.data() } as UnidadStock];
+    } else if (sel.articuloId) {
+      const todas = await unidadesService.getByArticulo(sel.articuloId);
+      candidatos = todas
+        .filter(u => u.estado === 'disponible' && (!sel.origenId || u.ubicacion.referenciaId === sel.origenId))
+        .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); // FIFO
+    }
+
+    let restante = sel.cantidad ?? 1;
+    let deducidas = 0;
+    for (const u of candidatos) {
+      if (restante <= 0) break;
+      const aDeducir = Math.min(u.cantidad ?? 1, restante);
+      try {
+        await this.deducirUnidadDisponible({
+          unidad: u, aDeducir, otNumber: params.otNumber,
+          clienteId: params.clienteId, clienteNombre: params.clienteNombre,
+          motivo: `Entregado al cerrar OT ${params.otNumber}`,
+          solicitadoPorNombre: params.solicitadoPorNombre,
+        });
+        deducidas += aDeducir;
+        restante -= aDeducir;
+      } catch (err) {
+        console.error(`[entregarSeleccionCierre] unidad ${u.id}:`, err);
+      }
+    }
+    return { deducidas };
+  },
+
+  /** Orquesta la deducción de todas las selecciones de stock del cierre. Best-effort. */
+  async entregarSeleccionesCierre(params: {
+    selections: StockSelection[];
+    otNumber: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
+    solicitadoPorNombre: string;
+  }): Promise<{ deducidas: number }> {
+    let deducidas = 0;
+    for (const selection of params.selections) {
+      const r = await this.entregarSeleccionCierre({ selection, ...params });
+      deducidas += r.deducidas;
+    }
+    return { deducidas };
   },
 };

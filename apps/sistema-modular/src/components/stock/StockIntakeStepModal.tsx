@@ -33,14 +33,23 @@ const STEP_TITLE: Record<string, string> = {
 
 export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, error, onPatch, onAdvance, onCancel }) => {
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
+  const ubicListRef = useRef<HTMLDivElement | null>(null);
   const [ubicSearch, setUbicSearch] = useState('');
+  const [ubicHi, setUbicHi] = useState(0); // índice resaltado en la lista de ubicación
 
   // Auto-focus en cada paso / cada serie
   useEffect(() => {
     setUbicSearch('');
+    setUbicHi(0);
     const t = setTimeout(() => inputRef.current?.focus(), 30);
     return () => clearTimeout(t);
   }, [draft.step, draft.series.length]);
+
+  // Mantener visible la opción resaltada al navegar con el teclado.
+  useEffect(() => {
+    const el = ubicListRef.current?.children[ubicHi] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [ubicHi]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); onAdvance(); }
@@ -86,13 +95,20 @@ export const StockIntakeStepModal: React.FC<Props> = ({ draft, ubicOptions, erro
           <div>
             <label className={lbl}>Ubicación</label>
             <input ref={inputRef as any} className={ctrl + ' mb-2'} placeholder="Buscar ubicación..."
-              value={ubicSearch} onChange={e => setUbicSearch(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && filteredUbic[0]) { e.preventDefault(); onAdvance({ ubic: filteredUbic[0] }); } if (e.key === 'Escape') onCancel(); }} />
-            <div className="border border-slate-200 rounded-md max-h-56 overflow-y-auto divide-y divide-slate-50">
+              value={ubicSearch}
+              onChange={e => { setUbicSearch(e.target.value); setUbicHi(0); }}
+              onKeyDown={e => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setUbicHi(i => Math.min(filteredUbic.length - 1, i + 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setUbicHi(i => Math.max(0, i - 1)); }
+                else if (e.key === 'Enter') { e.preventDefault(); const sel = filteredUbic[ubicHi]; if (sel) onAdvance({ ubic: sel }); }
+                else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+              }} />
+            <div ref={ubicListRef} className="border border-slate-200 rounded-md max-h-56 overflow-y-auto divide-y divide-slate-50">
               {filteredUbic.length === 0 && <p className="text-xs text-slate-400 px-3 py-3 text-center">Sin coincidencias</p>}
-              {filteredUbic.map(o => (
+              {filteredUbic.map((o, idx) => (
                 <button key={o.key} onClick={() => onAdvance({ ubic: o })}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-teal-50 flex items-center justify-between ${o.historica ? 'text-slate-400' : 'text-slate-700'}`}>
+                  onMouseEnter={() => setUbicHi(idx)}
+                  className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between ${idx === ubicHi ? 'bg-teal-50' : 'hover:bg-teal-50'} ${o.historica ? 'text-slate-400' : 'text-slate-700'}`}>
                   <span>{o.nombre}{o.historica && <span className="ml-1 text-[10px] italic">· sugerido (sin stock actual)</span>}</span>
                   {o.count > 0 && <span className="text-[10px] font-semibold text-teal-700">{o.count} u.</span>}
                 </button>

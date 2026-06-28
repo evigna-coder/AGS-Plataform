@@ -36,11 +36,13 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated }) 
             placeholder="¿De quién ingresa el stock?" />
         </div>
 
-        {/* Buscador de artículo */}
+        {/* Buscador de artículo — deshabilitado mientras el wizard por pasos está activo,
+            para que no quede un dropdown de fondo abierto/clavado detrás del mini-modal. */}
         <div>
           <label className={lbl}>Agregar artículo</label>
           <SearchableSelect value="" onChange={(v) => { const a = h.articulos.find(x => x.id === v); if (a) h.startArticulo(a); }}
             options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
+            disabled={!!h.draft}
             placeholder="Buscar por código o descripción y elegir..." />
         </div>
 

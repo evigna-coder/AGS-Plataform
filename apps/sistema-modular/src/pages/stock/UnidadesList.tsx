@@ -68,7 +68,9 @@ export const UnidadesList = () => {
         u.articuloCodigo.toLowerCase().includes(term) ||
         u.articuloDescripcion.toLowerCase().includes(term) ||
         (u.nroSerie ?? '').toLowerCase().includes(term) ||
-        (u.nroLote ?? '').toLowerCase().includes(term)
+        (u.nroLote ?? '').toLowerCase().includes(term) ||
+        (u.reservadoParaPresupuestoNumero ?? '').toLowerCase().includes(term) ||
+        (u.reservadoParaClienteNombre ?? '').toLowerCase().includes(term)
       );
     }
     return sortByField(list, filters.sortField, filters.sortDir as SortDir);
@@ -176,6 +178,12 @@ export const UnidadesList = () => {
                     </td>
                     <td className={`px-4 py-2 ${getAlignClass(6)}`}>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_COLORS[u.estado]}`}>{ESTADO_LABELS[u.estado]}</span>
+                      {u.estado === 'reservado' && (u.reservadoParaPresupuestoNumero || u.reservadoParaClienteNombre) && (
+                        <div className="mt-0.5 text-[10px] text-slate-400 leading-tight">
+                          {u.reservadoParaPresupuestoNumero && <span className="font-mono">{u.reservadoParaPresupuestoNumero}</span>}
+                          {u.reservadoParaClienteNombre && <span>{u.reservadoParaPresupuestoNumero ? ' · ' : ''}{u.reservadoParaClienteNombre}</span>}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={e => { e.stopPropagation(); setAjustandoUnidad(u); }}
