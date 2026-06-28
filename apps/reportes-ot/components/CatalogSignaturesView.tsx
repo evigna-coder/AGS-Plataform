@@ -122,7 +122,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
             <div className="flex-1 flex flex-col items-center">
               <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                 {signatureClient && (
-                  <img src={signatureClient} className="h-full w-full object-contain object-bottom" alt="Firma Cliente" />
+                  <img src={signatureClient} className="max-h-full max-w-full object-contain" alt="Firma Cliente" />
                 )}
               </div>
               <p className="font-bold text-[11px] mt-1 text-center leading-none">
@@ -138,7 +138,7 @@ export const CatalogSignaturesView: React.FC<Props> = ({
             <div className="flex-1 flex flex-col items-center">
               <div className="h-12 w-full border-b border-slate-900 flex items-end justify-center pb-1">
                 {signatureEngineer && (
-                  <img src={signatureEngineer} className="h-full w-full object-contain object-bottom" alt="Firma Técnico" />
+                  <img src={signatureEngineer} className="max-h-full max-w-full object-contain" alt="Firma Técnico" />
                 )}
               </div>
               <p className="font-bold text-[11px] mt-1 text-center leading-none">
