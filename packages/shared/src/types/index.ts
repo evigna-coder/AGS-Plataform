@@ -85,6 +85,10 @@ export interface WorkOrder {
   esFacturable: boolean;
   tieneContrato: boolean;
   esGarantia: boolean;
+  /** OT sin cargo (cortesía): no va a facturación. Base de facturación elegida al crear. */
+  esSinCargo?: boolean;
+  /** OT creada con el presupuesto todavía pendiente de preparar/enviar (dispara ticket a Adm. Soporte). */
+  presupuestoPendiente?: boolean;
   razonSocial: string;
   contacto: string;
   sector?: string;
@@ -116,7 +120,8 @@ export interface WorkOrder {
   estadoAdmin?: OTEstadoAdmin;              // Estado del workflow administrativo
   estadoAdminFecha?: string;                // Fecha del último cambio de estado
   estadoHistorial?: OTEstadoHistorial[];    // Historial completo de cambios de estado
-  ordenCompra?: string;                     // Número de orden de compra del cliente
+  ordenCompra?: string;                     // Número de orden de compra del cliente (legacy: 1ra OC; ver ordenesCompra)
+  ordenesCompra?: string[];                 // Órdenes de compra del cliente (puede haber más de una)
   fechaServicioAprox?: string;              // Fecha aproximada del servicio (coordinación)
   // --- Referencias a entidades ---
   clienteId?: string;
@@ -142,6 +147,28 @@ export interface WorkOrder {
   instrumentosSeleccionados?: Record<string, unknown>[];
   protocolTemplateId?: string | null;
   protocolData?: Record<string, unknown> | null;
+  // --- PDFs generados por reportes-ot (escritos en el mismo doc `reportes/{otNumber}`) ---
+  pdfUrl?: string | null;                   // PDF del reporte (hoja 1 + fotos)
+  protocolPdfUrl?: string | null;           // PDF del protocolo (solo cuando hay protocolo digital; split en 2 archivos)
+  // --- Documentos agregados al reporte DESPUÉS de finalizar (sistema-modular) ---
+  // El ingeniero a veces olvida adjuntar documentación; el admin la anexa al PDF
+  // definitivo desde el cierre. Cada entrada guarda el archivo fuente + el backup
+  // del PDF previo (reversible). Ver reportePdfService.appendDocumentToReportPdf.
+  documentosAdicionales?: DocumentoAdicionalReporte[];
+  pdfActualizadoAt?: string;                // Última vez que se re-mergeó el PDF definitivo
+}
+
+/** Documento anexado al PDF definitivo de un reporte tras su finalización. */
+export interface DocumentoAdicionalReporte {
+  fileName: string;
+  storagePath: string;       // archivo fuente subido aparte (recuperable)
+  url: string;               // download URL del archivo fuente
+  mimeType: string;
+  sizeBytes: number;
+  paginasAgregadas: number;  // páginas que sumó al PDF definitivo
+  backupPath: string;        // Storage path del PDF previo al merge (para revertir)
+  agregadoAt: string;        // ISO
+  agregadoPor: { uid: string; nombre: string } | null;
 }
 
 /** Datos del cierre administrativo de la OT */
@@ -153,7 +180,13 @@ export interface StockSelection {
   origenTipo: 'posicion' | 'ingeniero';
   origenId: string;
   origenNombre: string;
+  /** Artículo de catálogo resuelto — driver de la deducción por posición (no-serializados). */
+  articuloId?: string | null;
+  /** Unidad de stock puntual elegida (artículos con serie/lote). Driver de la deducción al cierre. */
   unidadStockId?: string | null;
+  /** Snapshot de la serie/lote de la unidad elegida — para mostrar en el cierre y el PDF sin re-leer. */
+  nroSerie?: string | null;
+  nroLote?: string | null;
 }
 
 export interface CierreAdministrativo {
@@ -274,6 +307,13 @@ export type TipoEstablecimiento = 'planta' | 'sucursal' | 'oficina' | 'laborator
 export interface Establecimiento {
   id: string;
   clienteCuit: string;
+  /**
+   * Campo legacy de migración: algunos establecimientos viejos quedaron asociados
+   * al cliente por `clienteId` (con `clienteCuit` vacío). Para filtrar por cliente
+   * usar `establecimientoPerteneceACliente()`, no comparar `clienteCuit` solo —
+   * si no, esos establecimientos quedan invisibles en los selectores.
+   */
+  clienteId?: string | null;
   nombre: string;
   direccion: string;
   localidad: string;
@@ -871,6 +911,7 @@ export type PresupuestoEstado =
   | 'enviado'
   | 'aceptado'
   | 'en_ejecucion'
+  | 'pendiente_facturacion'
   | 'anulado'
   | 'finalizado';
 
@@ -879,6 +920,7 @@ export const ESTADO_PRESUPUESTO_LABELS: Record<PresupuestoEstado, string> = {
   enviado: 'Enviado',
   aceptado: 'Aceptado',
   en_ejecucion: 'En ejecución',
+  pendiente_facturacion: 'Pendiente de facturación',
   anulado: 'Anulado',
   finalizado: 'Finalizado',
 };
@@ -888,6 +930,7 @@ export const ESTADO_PRESUPUESTO_COLORS: Record<PresupuestoEstado, string> = {
   enviado: 'bg-blue-100 text-blue-700',
   aceptado: 'bg-emerald-100 text-emerald-700',
   en_ejecucion: 'bg-cyan-100 text-cyan-700',
+  pendiente_facturacion: 'bg-amber-100 text-amber-700',
   anulado: 'bg-slate-200 text-slate-500',
   finalizado: 'bg-teal-100 text-teal-700',
 };
@@ -1397,6 +1440,13 @@ export interface Presupuesto {
   proximoContacto?: string | null; // ISO date para próximo follow-up
   responsableId?: string | null;
   responsableNombre?: string | null;
+  /**
+   * Ticket-recordatorio de "enviar este presupuesto al cliente". Se genera cuando se
+   * crea una OT vinculada a un presupuesto que TODAVÍA no fue enviado (urgencia: se
+   * adelanta la OT sabiendo que el cliente va a aceptar). Sirve de marca de idempotencia
+   * (no duplicar el recordatorio) y se cierra automáticamente al enviar el presupuesto.
+   */
+  recordatorioEnvioTicketId?: string | null;
   // --- Revisiones ---
   version?: number; // Número de revisión (1, 2, 3...). Default 1.
   presupuestoOrigenId?: string | null; // ID del presupuesto desde el cual se creó esta revisión
@@ -2284,6 +2334,10 @@ export interface CertificadoHistorialEntry {
   certificadoEmisor?: string | null;
   certificadoFechaEmision?: string | null;
   certificadoVencimiento?: string | null;
+  /** Trazabilidad que estaba vigente junto a este certificado (si la había) */
+  trazabilidadUrl?: string | null;
+  trazabilidadNombre?: string | null;
+  trazabilidadStoragePath?: string | null;
   /** ISO — cuándo se movió al historial (i.e. cuándo lo reemplazó otro) */
   reemplazadoEn: string;
   /** Quién hizo el reemplazo */

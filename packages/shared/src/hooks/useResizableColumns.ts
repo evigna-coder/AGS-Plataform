@@ -216,6 +216,25 @@ export function useResizableColumns(storageKey?: string) {
     persistHidden([]);
   }, [persistHidden]);
 
+  const showCol = useCallback((colIndex: number) => {
+    setHiddenCols(prev => {
+      if (!prev.includes(colIndex)) return prev;
+      const next = prev.filter(c => c !== colIndex);
+      persistHidden(next);
+      return next;
+    });
+  }, [persistHidden]);
+
+  const toggleCol = useCallback((colIndex: number) => {
+    setHiddenCols(prev => {
+      const next = prev.includes(colIndex)
+        ? prev.filter(c => c !== colIndex)
+        : [...prev, colIndex].sort((a, b) => a - b);
+      persistHidden(next);
+      return next;
+    });
+  }, [persistHidden]);
+
   const isHidden = useCallback((colIndex: number) => hiddenCols.includes(colIndex), [hiddenCols]);
 
   // Reset to default widths/alignments/visibility and clear storage
@@ -235,6 +254,6 @@ export function useResizableColumns(storageKey?: string) {
   return {
     tableRef, colWidths, colAligns,
     onResizeStart, onAutoFit, cycleAlign, setAlign, getAlignClass, resetWidths,
-    hiddenCols, hideCol, showAllCols, isHidden,
+    hiddenCols, hideCol, showCol, toggleCol, showAllCols, isHidden,
   };
 }

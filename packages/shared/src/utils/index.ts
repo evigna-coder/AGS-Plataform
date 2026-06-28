@@ -30,6 +30,36 @@ export function deepCleanForFirestore(obj: any): any {
   return cleaned;
 }
 
+/**
+ * True si el establecimiento pertenece al cliente.
+ *
+ * Soporta el campo legacy `clienteId` (poblado por migraciones viejas) además de
+ * `clienteCuit`. Algunos establecimientos migrados tienen `clienteCuit` vacío y solo
+ * `clienteId` seteado; sin contemplarlo quedan invisibles en los selectores de
+ * establecimiento (modal de OT, alta/reasignación de equipos). Mismo criterio que
+ * usa `contactosService.getByCliente`.
+ */
+export function establecimientoPerteneceACliente(
+  est: { clienteCuit?: string | null; clienteId?: string | null },
+  clienteId: string,
+): boolean {
+  if (!clienteId) return false;
+  return est.clienteCuit === clienteId || est.clienteId === clienteId;
+}
+
+/**
+ * Auto-selección de establecimiento: si la lista (ya filtrada por cliente, y por
+ * `activo` si el form lo aplica) tiene EXACTAMENTE uno, devuelve su id; si no, ''.
+ *
+ * Regla del proyecto: al elegir un cliente con un único establecimiento, ese
+ * establecimiento debe venir precargado en todo flujo de creación (OT, presupuesto,
+ * equipo, ficha, loaner, reporte). Ver `.claude/rules/establecimiento-autoselect.md`.
+ * Pasar la MISMA lista que el form muestra para que el conteo coincida con lo visible.
+ */
+export function establecimientoUnicoId(establecimientosDelCliente: { id: string }[]): string {
+  return establecimientosDelCliente.length === 1 ? establecimientosDelCliente[0].id : '';
+}
+
 // --- Templates default para secciones de presupuesto ---
 
 export const PRESUPUESTO_TEMPLATES = {
