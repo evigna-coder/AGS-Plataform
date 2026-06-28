@@ -4,6 +4,7 @@ import { modulosService } from '../services/equiposService';
 import type { Presupuesto, Cliente, Sistema, Establecimiento, PresupuestoItem, CategoriaPresupuesto, CondicionPago, ConceptoServicio, TipoPresupuesto, MonedaPresupuesto, AdjuntoPresupuesto, UsuarioAGS, ContactoCliente, ContactoEstablecimiento, TicketEstado, PresupuestoSeccionesVisibles, VentasMetadata, PresupuestoCuotaFacturacion, MonedaCuota } from '@ags/shared';
 import { PRESUPUESTO_SECCIONES_DEFAULT } from '@ags/shared';
 import { validateEsquemaSum, findEmptyCuotas } from '../utils/cuotasFacturacion';
+import { hoyLocalISODate } from '../utils/formatFecha';
 
 /** Mapping: when a presupuesto originates from a lead, sync lead estado on presupuesto state changes */
 const PRESUPUESTO_TO_LEAD_ESTADO: Partial<Record<Presupuesto['estado'], TicketEstado>> = {
@@ -278,7 +279,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
       const totals = calculateTotals();
       let fechaEnvioToSave = form.fechaEnvio;
       if (form.estado === 'enviado' && !form.fechaEnvio) {
-        fechaEnvioToSave = new Date().toISOString().split('T')[0];
+        fechaEnvioToSave = hoyLocalISODate();
         setFormState(prev => ({ ...prev, fechaEnvio: fechaEnvioToSave }));
       }
 
@@ -423,7 +424,7 @@ export function usePresupuestoEdit(presupuestoId: string | null) {
     setFormState(prev => {
       const updated = { ...prev, estado: newEstado };
       if (newEstado === 'enviado' && !prev.fechaEnvio) {
-        updated.fechaEnvio = new Date().toISOString().split('T')[0];
+        updated.fechaEnvio = hoyLocalISODate();
       }
       return updated;
     });

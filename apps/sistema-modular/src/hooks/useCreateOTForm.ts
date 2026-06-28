@@ -4,10 +4,11 @@ import {
   tiposServicioService, contactosService, modulosService, presupuestosService,
   contratosService, leadsService,
 } from '../services/firebaseService';
-import { ingenierosService } from '../services/personalService';
+import { getResponsablesOT } from '../services/personalService';
 import { pendientesService } from '../services/pendientesService';
 import { deepCleanForFirestore } from '../services/firebase';
 import type { Cliente, Establecimiento, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, WorkOrder, Presupuesto, PresupuestoItem, Contrato, TipoOT } from '@ags/shared';
+import { establecimientoPerteneceACliente, establecimientoUnicoId } from '@ags/shared';
 
 export interface CreateOTFormState {
   tipoOT: TipoOT;
@@ -20,6 +21,10 @@ export interface CreateOTFormState {
   ingenieroId: string;
   presupuestoId: string;
   presupuestoNumero: string;
+  /** Base de facturación cuando NO hay un presupuesto concreto seleccionado. */
+  motivoFacturacion: '' | 'pendiente' | 'sin_cargo' | 'garantia';
+  /** Detalle de qué presupuestar (solo aplica a 'pendiente'); se concatena al ticket. */
+  detallePresupuestoPendiente: string;
   ordenCompra: string;
   fechaServicioAprox: string;
   problemaFallaInicial: string;
@@ -33,7 +38,7 @@ const INITIAL_FORM: CreateOTFormState = {
   tipoOT: 'servicio',
   clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '',
   tipoServicioId: '', contactoId: '', ingenieroId: '',
-  presupuestoId: '', presupuestoNumero: '', ordenCompra: '', fechaServicioAprox: '',
+  presupuestoId: '', presupuestoNumero: '', motivoFacturacion: '', detallePresupuestoPendiente: '', ordenCompra: '', fechaServicioAprox: '',
   problemaFallaInicial: '', contratoId: '', comentarioFacturacion: '',
   materialesParaServicio: '', leadId: '',
 };
@@ -82,7 +87,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       try {
         const [c, est, s, ts, ings] = await Promise.all([
           clientesService.getAll(true), establecimientosService.getAll(),
-          sistemasService.getAll(), tiposServicioService.getAll(), ingenierosService.getAll(true),
+          sistemasService.getAll(), tiposServicioService.getAll(), getResponsablesOT(),
         ]);
         setClientes(c); setEstablecimientos(est); setSistemas(s); setTiposServicio(ts);
         setIngenieros(ings);
@@ -118,22 +123,30 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   // Cascade: client -> establecimientos + contactos + presupuestos + contratos
   useEffect(() => {
     if (form.clienteId) {
-      setEstablecimientosFiltrados(establecimientos.filter(e => e.clienteCuit === form.clienteId));
+      const filtrados = establecimientos.filter(e => establecimientoPerteneceACliente(e, form.clienteId));
+      setEstablecimientosFiltrados(filtrados);
       contactosService.getByCliente(form.clienteId).then(c => { console.log('[OT] contactos cargados:', c.length); setContactos(c); }).catch(err => { console.error('[OT] Error contactos:', err); setContactos([]); });
       presupuestosService.getAll({ clienteId: form.clienteId }).then(pres => {
         setPresupuestosCliente(pres.filter(p => p.estado !== 'anulado'));
       }).catch(() => setPresupuestosCliente([]));
       contratosService.getActiveForCliente(form.clienteId).then(setContratosCliente).catch(() => setContratosCliente([]));
+
+      // Regla del proyecto: cliente con un único establecimiento → autoseleccionarlo.
+      const unico = establecimientoUnicoId(filtrados);
+      const clienteChanged = lastCascadeClientId.current && lastCascadeClientId.current !== form.clienteId;
+      if (clienteChanged) {
+        // El reset deja establecimientoId en el único (o '' si hay varios).
+        set('establecimientoId', unico); set('sistemaId', ''); set('moduloId', '');
+        set('contactoId', ''); set('presupuestoId', ''); set('presupuestoNumero', '');
+        set('ordenCompra', ''); set('contratoId', '');
+      } else if (unico && !form.establecimientoId) {
+        // Primera selección de cliente (o recarga): precargar el único establecimiento
+        // si todavía no hay uno elegido (no pisa un prefill).
+        set('establecimientoId', unico);
+      }
     } else {
       setEstablecimientosFiltrados([]); setContactos([]); setPresupuestosCliente([]);
       setContratosCliente([]);
-    }
-    // Only reset dependent fields when the CLIENT actually changed, not when
-    // establecimientos reloaded for the same client
-    if (lastCascadeClientId.current && lastCascadeClientId.current !== form.clienteId) {
-      set('establecimientoId', ''); set('sistemaId', ''); set('moduloId', '');
-      set('contactoId', ''); set('presupuestoId', ''); set('presupuestoNumero', '');
-      set('ordenCompra', ''); set('contratoId', '');
     }
     lastCascadeClientId.current = form.clienteId;
   }, [form.clienteId, establecimientos]);
@@ -178,6 +191,24 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     }
   };
 
+  /**
+   * Selección del campo "Presupuesto" de la OT. Acepta el id de un presupuesto concreto,
+   * '' (sin presupuesto) o un sentinel de base de facturación (__pendiente__ / __sin_cargo__
+   * / __garantia__). Los sentinels limpian el presupuesto concreto y setean motivoFacturacion.
+   */
+  const handlePresupuestoBaseChange = (v: string) => {
+    if (v === '__pendiente__' || v === '__sin_cargo__' || v === '__garantia__') {
+      const motivo = v.slice(2, -2) as 'pendiente' | 'sin_cargo' | 'garantia';
+      setForm(prev => ({
+        ...prev, motivoFacturacion: motivo, presupuestoId: '', presupuestoNumero: '', ordenCompra: '',
+        detallePresupuestoPendiente: motivo === 'pendiente' ? prev.detallePresupuestoPendiente : '',
+      }));
+    } else {
+      setForm(prev => ({ ...prev, motivoFacturacion: '', detallePresupuestoPendiente: '' }));
+      handlePresupuestoChange(v);
+    }
+  };
+
   const handleClose = () => {
     onClose();
     setForm(INITIAL_FORM);
@@ -188,8 +219,8 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   const handleSave = async () => {
     if (!form.clienteId) { alert('Seleccione un cliente'); return; }
     if (!form.tipoServicioId) { alert('Seleccione un tipo de servicio'); return; }
-    if (presupuestoRequerido && !form.presupuestoId) {
-      alert('Debe seleccionar un presupuesto (cliente sin contrato activo)');
+    if (presupuestoRequerido && !form.presupuestoId && !form.motivoFacturacion) {
+      alert('Debe seleccionar un presupuesto, o indicar la base de facturación (presupuesto pendiente, sin cargo o en garantía)');
       return;
     }
 
@@ -241,9 +272,12 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         budgets: form.presupuestoNumero ? [form.presupuestoNumero] : [],
         ordenCompra: form.ordenCompra || '',
         tipoServicio: tipoServ.nombre,
-        esFacturable: true,
+        // Base de facturación: sin cargo / garantía → la OT no va a facturación.
+        esFacturable: !(form.motivoFacturacion === 'sin_cargo' || form.motivoFacturacion === 'garantia'),
         tieneContrato: hasContrato,
-        esGarantia: false,
+        esGarantia: form.motivoFacturacion === 'garantia',
+        esSinCargo: form.motivoFacturacion === 'sin_cargo',
+        presupuestoPendiente: form.motivoFacturacion === 'pendiente',
         razonSocial: cliente.razonSocial,
         contacto: contacto?.nombre ?? '',
         direccion: establecimiento?.direccion ?? '',
@@ -308,12 +342,25 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
           const itemsVinculados = (presActual?.items ?? []).map((it: PresupuestoItem) =>
             it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: otNum },
           );
+          // Solo avanzar a 'en_ejecucion' si el presupuesto YA fue enviado/aceptado.
+          // Si todavía está en borrador (OT adelantada antes de mandarlo), NO se toca el
+          // estado: queda como pendiente de envío y el recordatorio de abajo lo flaggea.
+          // Pasar a en_ejecución sin haberlo enviado era incoherente.
+          const estadoActual = presActual?.estado;
+          const yaAvanzado = !!presActual?.fechaEnvio
+            || estadoActual === 'enviado' || estadoActual === 'aceptado' || estadoActual === 'en_ejecucion';
           await presupuestosService.update(form.presupuestoId, deepCleanForFirestore({
             otVinculadaNumber: otNum,
             otsVinculadasNumbers: nextList,
-            estado: 'en_ejecucion',
+            ...(yaAvanzado ? { estado: 'en_ejecucion' } : {}),
             items: itemsVinculados,
           }) as any);
+
+          // Si el presupuesto se adelantó (OT creada antes de enviarlo), recordar enviarlo.
+          // No-op si ya fue enviado. Best-effort.
+          await presupuestosService.crearRecordatorioEnvio(form.presupuestoId).catch(err =>
+            console.error('Error creando recordatorio de envío de presupuesto:', err),
+          );
 
           // Flujo de tickets: si la OT cubre ítems que NO están en stock (a importar),
           // el ticket pasa de coordinación a "Compras" para disparar la compra de la parte.
@@ -330,6 +377,17 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         } catch (err) {
           console.error('Error vinculando presupuesto:', err);
         }
+      }
+
+      // Base "presupuesto pendiente": OT creada sin presupuesto aún → ticket a Adm. Soporte
+      // (Miguel Barrios) para que prepare y envíe el presupuesto. Best-effort.
+      if (form.motivoFacturacion === 'pendiente') {
+        await ordenesTrabajoService.crearTicketPresupuestoPendiente({
+          otNumber: otNum,
+          clienteId: form.clienteId,
+          clienteNombre: cliente.razonSocial,
+          detalle: form.detallePresupuestoPendiente.trim() || undefined,
+        }).catch(err => console.error('Error creando ticket de presupuesto pendiente:', err));
       }
 
       // Auto-complete pendientes marcadas
@@ -358,7 +416,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
   };
 
   return {
-    saving, loadError, form, set, handleClose, handleSave, handlePresupuestoChange,
+    saving, loadError, form, set, handleClose, handleSave, handlePresupuestoChange, handlePresupuestoBaseChange,
     clientes, establecimientosFiltrados, sistemasFiltrados, tiposServicio,
     contactos, modulos, ingenieros, presupuestosCliente,
     contratosCliente, hasContrato, presupuestoRequerido,

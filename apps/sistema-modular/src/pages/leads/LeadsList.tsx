@@ -173,6 +173,7 @@ export const LeadsList = () => {
         l.razonSocial.toLowerCase().includes(q) ||
         l.contacto.toLowerCase().includes(q) ||
         (l.descripcion || '').toLowerCase().includes(q) ||
+        (l.ultimaObservacion || '').toLowerCase().includes(q) ||
         (l.motivoContacto || '').toLowerCase().includes(q)
       );
     }
@@ -446,15 +447,19 @@ export const LeadsList = () => {
                           ) : <span className="text-[10px] text-slate-300">—</span>}
                         </td>
                       )}
-                      {!isHidden(9) && (
-                        <td className={tdCls(9, 'px-3 py-2 overflow-hidden')}>
-                          <span className="text-[10px] text-slate-500 truncate block" title={lead.descripcion || lead.motivoContacto || ''}>
-                            {((lead.descripcion || lead.motivoContacto || '—').length > 30
-                              ? (lead.descripcion || lead.motivoContacto || '').slice(0, 30) + '...'
-                              : lead.descripcion || lead.motivoContacto || '—')}
-                          </span>
-                        </td>
-                      )}
+                      {!isHidden(9) && (() => {
+                        // Mostrar la última observación (avance del ticket) y, si no hay,
+                        // la descripción original. Así la grilla refleja la última actualización
+                        // sin perder el contexto original (que sigue en `descripcion`).
+                        const obs = lead.ultimaObservacion || lead.descripcion || lead.motivoContacto || '—';
+                        return (
+                          <td className={tdCls(9, 'px-3 py-2 overflow-hidden')}>
+                            <span className="text-[10px] text-slate-500 truncate block" title={obs}>
+                              {obs.length > 30 ? obs.slice(0, 30) + '...' : obs}
+                            </span>
+                          </td>
+                        );
+                      })()}
                       <td className="px-3 py-2 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                           {!isClosed && (

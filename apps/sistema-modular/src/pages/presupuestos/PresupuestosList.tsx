@@ -30,9 +30,10 @@ import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
+import { hoyLocalISODate } from '../../utils/formatFecha';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
-const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion'];
+const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendiente_facturacion'];
 
 export const PresupuestosList = () => {
   const confirm = useConfirm();
@@ -63,7 +64,7 @@ export const PresupuestosList = () => {
   const handleQuickEstado = async (p: Presupuesto, nuevoEstado: PresupuestoEstado) => {
     if (!await confirm(`¿Cambiar ${p.numero} a "${ESTADO_PRESUPUESTO_LABELS[nuevoEstado]}"?`)) return;
     const updates: Partial<Presupuesto> = { estado: nuevoEstado };
-    if (nuevoEstado === 'enviado' && !p.fechaEnvio) updates.fechaEnvio = new Date().toISOString().split('T')[0];
+    if (nuevoEstado === 'enviado' && !p.fechaEnvio) updates.fechaEnvio = hoyLocalISODate();
     await presupuestosService.update(p.id, updates).catch(() => alert('Error al cambiar estado'));
   };
 
@@ -216,6 +217,11 @@ export const PresupuestosList = () => {
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '—';
+    // Timezone-safe: tomar la parte 'YYYY-MM-DD' y armar la fecha en zona local.
+    // Evita que `new Date(isoUTC)` corra el día al mostrarlo en UTC-3 (incluye los
+    // registros históricos guardados como medianoche UTC antes del fix).
+    const m = dateString.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
     try { return new Date(dateString).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }); } catch { return dateString; }
   };
 

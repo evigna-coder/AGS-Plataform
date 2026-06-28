@@ -1,10 +1,11 @@
-import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
-import { updateDoc, addDoc, runTransaction } from './firebase';
-import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado } from '@ags/shared';
+import { collection, getDocs, doc, getDoc, query, where, documentId, Timestamp } from 'firebase/firestore';
+import { updateDoc, runTransaction } from './firebase';
+import type { WorkOrder, CierreAdministrativo, OTEstadoAdmin, Lead, TicketArea, TicketEstado, Presupuesto, PatronSeleccionado, DocumentoAdicionalReporte } from '@ags/shared';
 import { isOTTransicionValida, OT_TRANSICIONES_VALIDAS } from '@ags/shared';
 import { db, createBatch, docRef, batchAudit, logBusinessEvent, getCreateTrace, getUpdateTrace, getCurrentUserTrace, deepCleanForFirestore, onSnapshot, newDocRef } from './firebase';
 import { leadsService } from './leadsService';
 import { presupuestosService } from './presupuestosService';
+import { getAdminSoporteAssignee } from './personalService';
 import { agendaService } from './agendaService';
 import { adminConfigService } from './adminConfigService';
 import { reservasService } from './stockService';
@@ -261,6 +262,217 @@ export const ordenesTrabajoService = {
       } as WorkOrder;
     }
     return null;
+  },
+
+  /**
+   * Agrega un número de presupuesto al array `budgets` de una OT (dedupe).
+   * Usado cuando se crea un presupuesto ADICIONAL desde la pantalla de una OT:
+   * sin esto el ppto quedaba solo como metadata (`origenTipo:'ot'`) y el cierre
+   * —que resuelve los presupuestos por `ot.budgets`— no lo levantaba. Reusa
+   * `update` (mismo camino que agregar el budget a mano en la sidebar de la OT).
+   * No-op si la OT no existe o el número ya está vinculado.
+   */
+  async vincularPresupuesto(otNumber: string, presupuestoNumero: string): Promise<void> {
+    if (!otNumber || !presupuestoNumero) return;
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) return;
+    // Lado OT: agregar el budget a la OT y, si es PADRE, a todos sus items. El item .01
+    // (la work unit que se edita) copia los budgets del padre al crearse; cuando el vínculo
+    // llega después (flujo "presupuesto pendiente"), hay que propagarlo a los items o el
+    // presupuesto no aparece al abrir el .01.
+    const targets = [otNumber];
+    if (!otNumber.includes('.')) {
+      try {
+        const itemsSnap = await getDocs(query(
+          collection(db, 'reportes'),
+          where(documentId(), '>=', `${otNumber}.`),
+          where(documentId(), '<', `${otNumber}.:`), // ':' (0x3A) > digitos
+        ));
+        for (const d of itemsSnap.docs) targets.push(d.id);
+      } catch (err) {
+        console.error('[vincularPresupuesto] buscar items del padre falló:', err);
+      }
+    }
+    for (const num of targets) {
+      const target = num === otNumber ? ot : await this.getByOtNumber(num);
+      if (!target) continue;
+      const actuales = (target.budgets || []).filter(Boolean);
+      if (!actuales.includes(presupuestoNumero)) {
+        await this.update(num, { budgets: [...actuales, presupuestoNumero] });
+      }
+    }
+    // Lado presupuesto: agregar la OT a otsVinculadasNumbers (vínculo BIDIRECCIONAL).
+    // Sin esto, el presupuesto no "sabía" de la OT y la OT no mostraba el presupuesto.
+    try {
+      const pres = (await presupuestosService.getAll()).find(p => p.numero === presupuestoNumero);
+      if (pres) {
+        const prev = pres.otsVinculadasNumbers ?? [];
+        const yaVinculada = prev.includes(otNumber);
+        // Items sin OT asignada → asignarles esta OT, para que aparezcan en /entregas con
+        // su OT# (igual que el flujo de alta de OT). No pisa un otNumeroVinculada ya seteado.
+        const items = pres.items ?? [];
+        const itemsVinculados = items.map(it => it.otNumeroVinculada ? it : { ...it, otNumeroVinculada: otNumber });
+        const itemsCambiaron = itemsVinculados.some((it, i) => it !== items[i]);
+        if (!yaVinculada || itemsCambiaron) {
+          await presupuestosService.update(pres.id, {
+            otsVinculadasNumbers: yaVinculada ? prev : [...prev, otNumber],
+            otVinculadaNumber: otNumber,
+            ...(itemsCambiaron ? { items: itemsVinculados } : {}),
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[vincularPresupuesto] lado presupuesto falló:', err);
+    }
+  },
+
+  /**
+   * True si alguna de las OTs dadas (o sus items) ya tuvo cierre administrativo
+   * (estadoAdmin CIERRE_ADMINISTRATIVO/FINALIZADO o cierreAdmin.stockDeducido). Usado por
+   * la aceptación de presupuesto para NO reservar stock cuando la baja real ya ocurrió en
+   * el cierre — reservar después generaría stock fantasma.
+   */
+  async algunaConCierreAdmin(otNumbers: string[]): Promise<boolean> {
+    const cerrados = new Set<OTEstadoAdmin>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+    for (const base of otNumbers.filter(Boolean)) {
+      const nums = [base];
+      if (!base.includes('.')) {
+        try {
+          const prefijo = base + '.';
+          const snap = await getDocs(query(
+            collection(db, 'reportes'),
+            where(documentId(), '>=', prefijo),
+            where(documentId(), '<', prefijo + ':'),
+          ));
+          for (const d of snap.docs) nums.push(d.id);
+        } catch (err) {
+          console.error('[algunaConCierreAdmin] buscar items falló:', err);
+        }
+      }
+      for (const num of nums) {
+        const ot = await this.getByOtNumber(num);
+        if (ot && (cerrados.has(ot.estadoAdmin as OTEstadoAdmin) || ot.cierreAdmin?.stockDeducido)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Agrega un N° de OC a la OT y, si es PADRE, a todos sus items (mismo criterio que
+   * vincularPresupuesto). Sin duplicar. Mantiene `ordenCompra` (legacy) = primera OC.
+   * Usado al propagar la OC del presupuesto: la OC debe verse en el item .01 que se edita,
+   * no solo en el padre.
+   */
+  async agregarOrdenCompra(otNumber: string, ocNumero: string): Promise<void> {
+    if (!otNumber || !ocNumero) return;
+    const targets = [otNumber];
+    if (!otNumber.includes('.')) {
+      try {
+        const prefijo = otNumber + '.';
+        const itemsSnap = await getDocs(query(
+          collection(db, 'reportes'),
+          where(documentId(), '>=', prefijo),
+          where(documentId(), '<', prefijo + ':'),
+        ));
+        for (const d of itemsSnap.docs) targets.push(d.id);
+      } catch (err) {
+        console.error('[agregarOrdenCompra] buscar items del padre falló:', err);
+      }
+    }
+    for (const num of targets) {
+      try {
+        const ot = await this.getByOtNumber(num);
+        if (!ot) continue;
+        const ocs = (ot.ordenesCompra && ot.ordenesCompra.length > 0
+          ? ot.ordenesCompra
+          : (ot.ordenCompra ? [ot.ordenCompra] : [])).filter(Boolean);
+        if (!ocs.includes(ocNumero)) {
+          const next = [...ocs, ocNumero];
+          await this.update(num, { ordenesCompra: next, ordenCompra: next[0] });
+        }
+      } catch (err) {
+        console.error(`[agregarOrdenCompra] OT ${num} falló:`, err);
+      }
+    }
+  },
+
+  /**
+   * Ticket a Administración Soporte (Miguel Barrios) para preparar y ENVIAR el presupuesto
+   * de una OT que se creó con base "presupuesto pendiente" (todavía no hay presupuesto).
+   * Si no se resuelve a Miguel, queda sin asignar y el área 'admin_soporte' auto-asigna.
+   * Best-effort: devuelve el id del ticket o null.
+   */
+  async crearTicketPresupuestoPendiente(params: {
+    otNumber: string;
+    clienteId?: string | null;
+    clienteNombre?: string | null;
+    /** Detalle de qué presupuestar (ej. "Presupuestar visita de diagnóstico"). Se concatena. */
+    detalle?: string | null;
+  }): Promise<string | null> {
+    try {
+      const miguel = await getAdminSoporteAssignee();
+      const detalleTxt = params.detalle?.trim();
+      const ticketId = await leadsService.create({
+        clienteId: params.clienteId ?? null,
+        contactoId: null,
+        razonSocial: params.clienteNombre || '',
+        contactos: [],
+        contacto: '',
+        email: '',
+        telefono: '',
+        motivoLlamado: 'administracion',
+        motivoContacto: `Preparar presupuesto — OT ${params.otNumber}`,
+        descripcion: `La OT ${params.otNumber}${params.clienteNombre ? ` (${params.clienteNombre})` : ''} se creó con presupuesto PENDIENTE. Preparar y enviar el presupuesto al cliente.${detalleTxt ? `\n\nA presupuestar: ${detalleTxt}` : ''}`,
+        // Detalle a la vista en la grilla (que muestra ultimaObservacion antes que descripcion).
+        ultimaObservacion: detalleTxt ? `A presupuestar: ${detalleTxt}` : null,
+        sistemaId: null,
+        moduloId: null,
+        estado: 'nuevo' as TicketEstado,
+        postas: [],
+        asignadoA: miguel?.id ?? null,
+        asignadoNombre: miguel?.nombre ?? null,
+        derivadoPor: null,
+        areaActual: 'admin_soporte' as TicketArea,
+        accionPendiente: `Preparar y enviar presupuesto${detalleTxt ? `: ${detalleTxt}` : ''}`,
+        adjuntos: [],
+        presupuestosIds: [],
+        otIds: [params.otNumber],
+        finalizadoAt: null,
+        prioridad: 'urgente', // prioridad más alta: preparar el presupuesto no debe esperar
+        proximoContacto: null,
+        valorEstimado: null,
+      });
+      return ticketId;
+    } catch (err) {
+      console.error('[crearTicketPresupuestoPendiente] falló:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Registra un documento anexado al PDF definitivo de un reporte finalizado.
+   * El merge físico (descarga + pdf-lib + re-upload + backup) lo hace
+   * `reportePdfService.appendDocumentToReportPdf`; acá solo se persiste el
+   * metadata en el doc del reporte. No toca estadoAdmin → no dispara los
+   * side-effects de transición de `update`.
+   */
+  async registrarDocumentoAdicional(
+    otNumber: string,
+    entry: DocumentoAdicionalReporte,
+    nuevaPdfUrl?: string,
+  ): Promise<void> {
+    const ot = await this.getByOtNumber(otNumber);
+    if (!ot) throw new Error(`OT ${otNumber} no existe`);
+    const actuales = ot.documentosAdicionales ?? [];
+    await this.update(otNumber, {
+      documentosAdicionales: [...actuales, entry],
+      pdfActualizadoAt: new Date().toISOString(),
+      // Sobrescribir el PDF rota su downloadToken → persistir la URL nueva
+      // para que portal/cierre no apunten a un token muerto.
+      ...(nuevaPdfUrl ? { pdfUrl: nuevaPdfUrl } : {}),
+    });
   },
 
   /**
@@ -592,15 +804,38 @@ export const ordenesTrabajoService = {
       console.error(`[otService.delete] Error limpiando agenda de ${otNumber}:`, err);
     }
 
-    // 2. Quitar otNumber de lead.otIds[] en cualquier ticket que lo contenga
+    // 2. Quitar otNumber de lead.otIds[] en cualquier ticket que lo contenga.
+    //    Además, FINALIZAR el ticket auto-generado de "presupuesto pendiente" de ESTA OT
+    //    (su único motivo era esta OT; sin ella el presupuesto ya no hace falta). Se
+    //    identifica por la firma exacta del motivoContacto que setea
+    //    crearTicketPresupuestoPendiente. Los tickets de coordinación/origen (que pueden
+    //    tener otras OTs o seguir vivos) solo pierden el otId, no se finalizan.
     try {
       const leadsSnap = await getDocs(
         query(collection(db, 'leads'), where('otIds', 'array-contains', otNumber)),
       );
+      const ahora = Timestamp.now();
+      const actor = getCurrentUserTrace();
       await Promise.all(leadsSnap.docs.map(async d => {
-        const otIds = (d.data().otIds as string[] | undefined) ?? [];
-        const next = otIds.filter(n => n !== otNumber);
-        await updateDoc(d.ref, { otIds: next, updatedAt: Timestamp.now() });
+        const data = d.data();
+        const next = ((data.otIds as string[] | undefined) ?? []).filter(n => n !== otNumber);
+        const updates: Record<string, any> = { otIds: next, updatedAt: ahora, ...getUpdateTrace() };
+
+        const esTicketPendienteDeEstaOT = data.motivoContacto === `Preparar presupuesto — OT ${otNumber}`;
+        if (esTicketPendienteDeEstaOT && data.estado !== 'finalizado') {
+          updates.estado = 'finalizado';
+          updates.finalizadoAt = ahora;
+          updates.accionPendiente = null;
+          updates.ultimaObservacion = `OT ${otNumber} eliminada — presupuesto ya no es necesario`;
+          updates.postas = [...((data.postas as unknown[]) ?? []), deepCleanForFirestore({
+            id: crypto.randomUUID(), fecha: new Date().toISOString(),
+            deUsuarioId: actor?.uid ?? '', deUsuarioNombre: actor?.name ?? 'Sistema',
+            aUsuarioId: actor?.uid ?? '', aUsuarioNombre: actor?.name ?? 'Sistema',
+            comentario: `OT ${otNumber} eliminada — ticket finalizado automáticamente.`,
+            estadoAnterior: data.estado ?? 'nuevo', estadoNuevo: 'finalizado',
+          })];
+        }
+        await updateDoc(d.ref, updates);
       }));
     } catch (err) {
       console.error(`[otService.delete] Error limpiando otIds de tickets:`, err);
@@ -714,15 +949,15 @@ export const ordenesTrabajoService = {
       const otSnap = await tx.get(otRef);
       if (!otSnap.exists()) throw new Error(`OT ${otNumber} no encontrada (tx)`);
 
-      // R2+: leer doc de cada presupuesto para conocer otsListasParaFacturar actual
-      const pptoSnaps = new Map<string, { ref: ReturnType<typeof doc>; current: string[] }>();
+      // R2+: leer doc de cada presupuesto para conocer otsListasParaFacturar + estado actual
+      const pptoSnaps = new Map<string, { ref: ReturnType<typeof doc>; current: string[]; estado: string }>();
       for (const pid of presupuestoIds) {
         const pRef = doc(db, 'presupuestos', pid);
         const pSnap = await tx.get(pRef);
         const existing: string[] = pSnap.exists()
           ? (pSnap.data()?.otsListasParaFacturar ?? [])
           : [];
-        pptoSnaps.set(pid, { ref: pRef, current: existing });
+        pptoSnaps.set(pid, { ref: pRef, current: existing, estado: pSnap.data()?.estado ?? '' });
       }
 
       // ═══════════════ WRITE PHASE (todos los tx.set/update después de los reads) ═══════════════
@@ -736,7 +971,9 @@ export const ordenesTrabajoService = {
         updatedByName: actor?.name ?? null,
       }));
 
-      // Write 2: ticket admin nuevo (area='administracion') — notificación de que la OT cerró
+      // Write 2: ticket de cierre para admin_soporte — revisar el cierre/entrega de la OT.
+      // El aviso de facturación NO se genera acá: es un paso posterior y manual a nivel
+      // presupuesto (cuando todas las OTs del ppto están finalizadas, o anticipado).
       const adminTicketPayload: Omit<Lead, 'id'> & { createdAt: string; updatedAt: string } = {
         clienteId: ot.clienteId ?? null,
         contactoId: null,
@@ -746,8 +983,8 @@ export const ordenesTrabajoService = {
         email: ot.emailPrincipal || '',
         telefono: '',
         motivoLlamado: 'administracion',
-        motivoContacto: `Aviso facturación — OT ${otNumber}`,
-        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.` : 'Sin presupuesto vinculado.'} Generar aviso de facturación desde el presupuesto.`,
+        motivoContacto: `Cierre OT ${otNumber}`,
+        descripcion: `OT ${otNumber} cerrada administrativamente. ${presupuestoNumeros.length ? `Presupuesto(s): ${presupuestoNumeros.join(', ')}.` : 'Sin presupuesto vinculado.'} Revisar cierre/entrega.`,
         sistemaId: ot.sistemaId ?? null,
         moduloId: ot.moduloId ?? null,
         estado: 'nuevo' as TicketEstado,
@@ -755,8 +992,8 @@ export const ordenesTrabajoService = {
         asignadoA: null,
         asignadoNombre: null,
         derivadoPor: actor?.uid ?? null,
-        areaActual: 'administracion' as TicketArea,
-        accionPendiente: 'Generar aviso de facturación desde el presupuesto',
+        areaActual: 'admin_soporte' as TicketArea,
+        accionPendiente: 'Revisar cierre de OT',
         adjuntos: [],
         presupuestosIds: presupuestoIds,
         otIds: [otNumber],
@@ -793,15 +1030,20 @@ export const ordenesTrabajoService = {
       }));
 
       // Write 4+: registrar otNumber en otsListasParaFacturar[] de cada presupuesto vinculado.
-      // Se usa manual merge (no arrayUnion — sentinel prohibido en tx).
-      for (const [pid, { ref: pRef, current }] of pptoSnaps) {
-        if (!current.includes(otNumber)) {
+      // Se usa manual merge (no arrayUnion — sentinel prohibido en tx). Además, el cierre
+      // genera el aviso a facturación → el presupuesto pasa a 'pendiente_facturacion' (a la
+      // espera de que Administración confirme la factura). No se pisa anulado/finalizado.
+      for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
+        const yaListo = current.includes(otNumber);
+        const avanzaEstado = estado === 'aceptado' || estado === 'en_ejecucion';
+        if (!yaListo || avanzaEstado) {
           tx.update(pRef, deepCleanForFirestore({
-            otsListasParaFacturar: [...current, otNumber],
+            ...(yaListo ? {} : { otsListasParaFacturar: [...current, otNumber] }),
+            ...(avanzaEstado ? { estado: 'pendiente_facturacion' } : {}),
             updatedAt: nowIso,
           }));
         } else {
-          console.log(`[cerrarAdministrativamente] OT ${otNumber} ya está en otsListasParaFacturar de ppto ${pid}, skip`);
+          console.log(`[cerrarAdministrativamente] OT ${otNumber} ya en otsListasParaFacturar y estado ${estado} de ppto ${pid}, skip`);
         }
       }
 
@@ -834,38 +1076,73 @@ export const ordenesTrabajoService = {
       }
     }
 
-    // ── Deducción de stock: entregar unidades reservadas de los presupuestos vinculados ──
-    // Las unidades reservadas (estado 'reservado') pasan a 'entregado' → salen del ATP.
-    // Best-effort: si falla, el cierre admin no se revierte (el stock se puede ajustar a mano).
-    if (presupuestoIds.length > 0) {
-      let stockEntregado = 0;
-      for (const presupuestoId of presupuestoIds) {
+    // ── Deducción de stock al cierre (idempotente) ─────────────────────────────
+    // Guard de re-entrada: si la OT ya tuvo su stock deducido en un cierre previo,
+    // NO volver a descontar. Sin esto, reinvocar cerrarAdministrativamente sobre la
+    // misma OT generaba un segundo egreso (doble descuento). El flag existía pero no
+    // se chequeaba a la entrada — acá lo cableamos.
+    if (ot.cierreAdmin?.stockDeducido) {
+      console.log(`[cerrarAdmin] OT ${otNumber} ya tiene stock deducido; se omite la deducción.`);
+    } else {
+      let huboDeduccion = false;
+
+      // Camino A — SELECCIÓN manual del cierre (entrega de partes).
+      // Las unidades/posiciones elegidas en cierreAdmin.stockSelections se descuentan
+      // (disponible→entregado). Independiente del camino de presupuesto (reservado→
+      // entregado): el guard por estado evita solapamiento. Best-effort.
+      const stockSelections = ot.cierreAdmin?.stockSelections ?? [];
+      if (stockSelections.length > 0) {
+        huboDeduccion = true;
         try {
-          const { entregadas } = await reservasService.entregarPorPresupuesto({
-            presupuestoId,
+          const { deducidas } = await reservasService.entregarSeleccionesCierre({
+            selections: stockSelections,
             otNumber,
+            clienteId: ot.clienteId ?? null,
+            clienteNombre: ot.razonSocial ?? null,
             solicitadoPorNombre: actor?.name || 'Sistema',
           });
-          stockEntregado += entregadas;
+          if (deducidas > 0) {
+            console.log(`[cerrarAdmin] ${deducidas} unidad(es) descontada(s) por selección manual en OT ${otNumber}`);
+          }
         } catch (err) {
-          console.warn(`[cerrarAdmin.stock] ppto ${presupuestoId}:`, err);
+          console.warn(`[cerrarAdmin.stockSelections] OT ${otNumber}:`, err);
         }
       }
-      // Marcar stockDeducido en el cierre admin de la OT (merge con lo existente).
-      try {
-        const cierreAdminActual: CierreAdministrativo = {
-          horasConfirmadas: false,
-          partesConfirmadas: false,
-          avisoAdminEnviado: false,
-          ...(ot.cierreAdmin ?? {}),
-          stockDeducido: true,
-        };
-        await this.update(otNumber, { cierreAdmin: cierreAdminActual });
-      } catch (err) {
-        console.warn(`[cerrarAdmin.stockDeducido] no se pudo marcar OT ${otNumber}:`, err);
+
+      // Camino B — entregar unidades RESERVADAS de los presupuestos vinculados.
+      // Las unidades reservadas (estado 'reservado') pasan a 'entregado' → salen del ATP.
+      // Best-effort: si falla, el cierre admin no se revierte (el stock se ajusta a mano).
+      if (presupuestoIds.length > 0) {
+        huboDeduccion = true;
+        let stockEntregado = 0;
+        for (const presupuestoId of presupuestoIds) {
+          try {
+            const { entregadas } = await reservasService.entregarPorPresupuesto({
+              presupuestoId,
+              otNumber,
+              solicitadoPorNombre: actor?.name || 'Sistema',
+            });
+            stockEntregado += entregadas;
+          } catch (err) {
+            console.warn(`[cerrarAdmin.stock] ppto ${presupuestoId}:`, err);
+          }
+        }
+        if (stockEntregado > 0) {
+          console.log(`[cerrarAdmin] ${stockEntregado} unidad(es) entregada(s) por cierre de OT ${otNumber}`);
+        }
       }
-      if (stockEntregado > 0) {
-        console.log(`[cerrarAdmin] ${stockEntregado} unidad(es) entregada(s) por cierre de OT ${otNumber}`);
+
+      // Marcar stockDeducido UNA sola vez si hubo algún camino de deducción.
+      if (huboDeduccion) {
+        try {
+          const cierreAdminActual: CierreAdministrativo = {
+            horasConfirmadas: false, partesConfirmadas: false, avisoAdminEnviado: false,
+            ...(ot.cierreAdmin ?? {}), stockDeducido: true,
+          };
+          await this.update(otNumber, { cierreAdmin: cierreAdminActual });
+        } catch (err) {
+          console.warn(`[cerrarAdmin.stockDeducido] no se pudo marcar OT ${otNumber}:`, err);
+        }
       }
     }
 

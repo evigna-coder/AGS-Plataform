@@ -491,6 +491,9 @@ export const leadsService = {
 
     const updates: Record<string, any> = {
       postas: arrayUnion(deepCleanForFirestore(posta)),
+      // Reflejar la transición del presupuesto en la grilla (D12: última observación,
+      // sin pisar la descripción original). Ej. "Presupuesto PRE-0001 → Enviado".
+      ultimaObservacion: posta.comentario,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };

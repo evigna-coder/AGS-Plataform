@@ -442,3 +442,49 @@ export const certificadosIngenieroService = {
     await deleteDoc(doc(db, 'certificadosIngeniero', certId));
   },
 };
+
+/**
+ * Responsables asignables a una OT: ingenieros + usuarios admin_soporte.
+ *
+ * En entregas de materiales/equipos el responsable que cierra suele ser
+ * admin_soporte (no un ingeniero). Los admin_soporte se devuelven con shape
+ * Ingeniero (id = uid, usuarioId = uid) y el nombre etiquetado "(Admin soporte)"
+ * para distinguirlos en el selector. Se dedupe contra ingenieros ya vinculados.
+ */
+export async function getResponsablesOT(): Promise<Ingeniero[]> {
+  const [ings, usuarios] = await Promise.all([
+    ingenierosService.getAll(true),
+    usuariosService.getAll(),
+  ]);
+  const yaIngeniero = new Set(ings.map(i => i.usuarioId ?? i.id));
+  const adminSoporte: Ingeniero[] = usuarios
+    .filter(u =>
+      u.status === 'activo' &&
+      (u.role === 'admin_soporte' || (u.roles ?? []).includes('admin_soporte')) &&
+      !yaIngeniero.has(u.id))
+    .map(u => ({
+      id: u.id,
+      nombre: `${u.displayName || u.email} (Admin soporte)`,
+      activo: true,
+      usuarioId: u.id,
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+    }));
+  return [...ings, ...adminSoporte];
+}
+
+/**
+ * Assignee de Administración Soporte para tickets de "preparar/enviar presupuesto":
+ * Miguel Barrios, resuelto por email para no hardcodear el uid. null si no se encuentra
+ * (el caller deja asignadoA en null y el área 'admin_soporte' auto-asigna por config).
+ */
+export async function getAdminSoporteAssignee(): Promise<{ id: string; nombre: string } | null> {
+  const EMAIL = 'mbarrios@agsanalitica.com';
+  try {
+    const u = (await usuariosService.getAll()).find(x => (x.email || '').toLowerCase() === EMAIL);
+    return u ? { id: u.id, nombre: u.displayName || u.email } : null;
+  } catch (err) {
+    console.warn('[getAdminSoporteAssignee] no se pudo resolver:', err);
+    return null;
+  }
+}

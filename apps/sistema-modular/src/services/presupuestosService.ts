@@ -14,11 +14,12 @@ const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
 import { db, cleanFirestoreData, deepCleanForFirestore, getCreateTrace, getUpdateTrace, getCurrentUserTrace, createBatch, newDocRef, docRef, batchAudit, logBusinessEvent, onSnapshot } from './firebase';
 import { leadsService } from './leadsService';
 import { adminConfigService } from './adminConfigService';
-import { usuariosService } from './personalService';
+import { usuariosService, getAdminSoporteAssignee } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
 import { computeStockAmplio } from './stockAmplioService';
 import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual } from '../utils/cuotasFacturacion';
+import { hoyLocalISODate } from '../utils/formatFecha';
 
 // Helper: recover ISO string from Timestamp, broken {seconds,nanoseconds} map, or string
 function toISO(val: any, fallback: string | null = null): string | null {
@@ -27,6 +28,18 @@ function toISO(val: any, fallback: string | null = null): string | null {
   if (typeof val?.toDate === 'function') return val.toDate().toISOString();
   if (typeof val?.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
   return fallback;
+}
+
+// fechaEnvio es un DÍA DE CALENDARIO. Lo anclamos al MEDIODÍA LOCAL para que el offset
+// de zona (Argentina UTC-3) no lo corra al día anterior al mostrarlo ni al re-leerlo en
+// el form de edición. Antes se guardaba `new Date('YYYY-MM-DD')` = medianoche UTC, que en
+// local mostraba el día previo (bug "envié el 19, dice 18").
+function fechaEnvioToTimestamp(val: any): Timestamp {
+  const datePart = String(val).slice(0, 10);
+  const m = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return Timestamp.fromDate(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0));
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? Timestamp.now() : Timestamp.fromDate(d);
 }
 
 /** Migrate legacy presupuesto estado to simplified states */
@@ -223,7 +236,7 @@ export const presupuestosService = {
       validezDias: presupuestoData.validezDias ?? 15,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-      ...(presupuestoData.fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date(presupuestoData.fechaEnvio as any)) } : {}),
+      ...(presupuestoData.fechaEnvio ? { fechaEnvio: fechaEnvioToTimestamp(presupuestoData.fechaEnvio) } : {}),
       ...(presupuestoData.validUntil ? { validUntil: Timestamp.fromDate(new Date(presupuestoData.validUntil as any)) } : {}),
     };
     const payload = deepCleanForFirestore(raw);
@@ -375,7 +388,7 @@ export const presupuestosService = {
             ...otherFields,
             ...getUpdateTrace(),
             updatedAt: Timestamp.now(),
-            ...((otherFields as any).fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date((otherFields as any).fechaEnvio)) } : {}),
+            ...((otherFields as any).fechaEnvio ? { fechaEnvio: fechaEnvioToTimestamp((otherFields as any).fechaEnvio) } : {}),
             ...((otherFields as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((otherFields as any).validUntil)) } : {}),
           };
           const cleaned2 = deepCleanForFirestore(raw2);
@@ -394,7 +407,7 @@ export const presupuestosService = {
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-      ...((data as any).fechaEnvio ? { fechaEnvio: Timestamp.fromDate(new Date((data as any).fechaEnvio)) } : {}),
+      ...((data as any).fechaEnvio ? { fechaEnvio: fechaEnvioToTimestamp((data as any).fechaEnvio) } : {}),
       ...((data as any).validUntil ? { validUntil: Timestamp.fromDate(new Date((data as any).validUntil)) } : {}),
     };
     const cleanedData = deepCleanForFirestore(raw);
@@ -407,12 +420,29 @@ export const presupuestosService = {
     // ticket linkeado a `oc_recibida` con posta de audit, y si hay coord en
     // config, derivar a `en_coordinacion`. Best-effort — no bloquea el update.
     if (data.ordenCompraNumero && typeof data.ordenCompraNumero === 'string' && data.ordenCompraNumero.trim()) {
+      const ocNum = data.ordenCompraNumero.trim();
       try {
-        await this._transicionarTicketOCRecibida(id, data.ordenCompraNumero.trim()).catch(err =>
+        await this._transicionarTicketOCRecibida(id, ocNum).catch(err =>
           console.error('[update ocNumero] _transicionarTicketOCRecibida failed:', err),
         );
       } catch (err) {
         console.error('[update ocNumero] ticket transition post-commit failed:', err);
+      }
+      // Propagar el N° de OC a las OTs vinculadas (la OT debe mostrar la OC del ppto).
+      // Solo si la OT no tiene una OC ya cargada (no pisar una entrada manual). Best-effort.
+      try {
+        const pres = await this.getById(id);
+        const ots = pres?.otsVinculadasNumbers ?? [];
+        if (ots.length > 0) {
+          const { ordenesTrabajoService } = await import('./otService');
+          for (const otNum of ots) {
+            // agregarOrdenCompra propaga al padre y a sus items (.01, ...) sin duplicar.
+            await ordenesTrabajoService.agregarOrdenCompra(otNum, ocNum)
+              .catch(err => console.error(`[update ocNumero] propagar OC a OT ${otNum} falló:`, err));
+          }
+        }
+      } catch (err) {
+        console.error('[update ocNumero] propagación de OC a OTs falló:', err);
       }
     }
 
@@ -426,6 +456,12 @@ export const presupuestosService = {
         if (pres) {
           await this._cancelarRequerimientosCondicionales(id).catch(err =>
             console.error('[update anular] _cancelarRequerimientosCondicionales failed:', err),
+          );
+
+          // Liberar las reservas de stock que generó la aceptación: reservado → disponible.
+          // Sin esto, las unidades quedaban trabadas en 'reservado' al anular (stock fantasma).
+          await this._liberarReservasDePresupuesto(id, `Presupuesto ${pres.numero ?? id} anulado`).catch(err =>
+            console.error('[update anular] _liberarReservasDePresupuesto failed:', err),
           );
 
           // D9: si hay OTs vinculadas no-finalizadas, registrar pendingAction.
@@ -496,11 +532,12 @@ export const presupuestosService = {
     id: string,
     hint?: { origenTipo?: string | null; origenId?: string | null; numero?: string }
   ): Promise<void> {
-    // YYYY-MM-DD — consistent with usePresupuestoEdit.handleEstadoChange + existing fechaEnvio reads.
-    const today = new Date().toISOString().split('T')[0];
+    // YYYY-MM-DD en zona LOCAL (no UTC) + anclado a mediodía local al guardar, para que
+    // la fecha de envío no aparezca un día antes (bug timezone UTC-3).
+    const today = hoyLocalISODate();
     const raw = {
       estado: 'enviado' as PresupuestoEstado,
-      fechaEnvio: Timestamp.fromDate(new Date(today)),
+      fechaEnvio: fechaEnvioToTimestamp(today),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
     };
@@ -518,6 +555,29 @@ export const presupuestosService = {
       entityLabel: hint?.numero ? `Pres. ${hint.numero}` : `Pres. ${id}`,
       details: { fechaEnvio: today },
     });
+
+    // Cerrar el ticket-recordatorio de envío si existía (la obligación quedó cumplida).
+    try {
+      const presActual = await this.getById(id);
+      const recordatorioId = presActual?.recordatorioEnvioTicketId;
+      if (recordatorioId) {
+        const actorTrace = getCurrentUserTrace();
+        await leadsService.finalizar(recordatorioId, {
+          id: crypto.randomUUID(),
+          fecha: new Date().toISOString(),
+          deUsuarioId: actorTrace?.uid ?? '',
+          deUsuarioNombre: actorTrace?.name ?? 'Sistema',
+          aUsuarioId: actorTrace?.uid ?? '',
+          aUsuarioNombre: actorTrace?.name ?? 'Sistema',
+          comentario: `Presupuesto ${hint?.numero ?? id} enviado al cliente.`,
+          estadoAnterior: 'nuevo',
+          estadoNuevo: 'finalizado',
+        }).catch(err => console.error('[markEnviado] cerrar recordatorio falló:', err));
+        await this.update(id, { recordatorioEnvioTicketId: null }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('[markEnviado] cierre de recordatorio de envío falló:', err);
+    }
 
     // Lead sync: prefer the hint; if any piece is missing, fall back to getById once.
     let origenTipo = hint?.origenTipo ?? undefined;
@@ -1050,8 +1110,23 @@ export const presupuestosService = {
     // emitir un requerimiento de compra. Best-effort — failures por item no
     // bloquean ni la aceptación ni los siguientes items. Antes este bloque vivía
     // en update() pero quedaba muerto por el short-circuit que delega acá.
+    // Regla: si alguna OT vinculada ya tuvo CIERRE ADMINISTRATIVO, NO reservar stock — la
+    // baja real ya ocurrió en el cierre (técnico/administrativo). Esto cubre el caso de la
+    // ingeniera que descargó la parte de su minikit y se cerró la OT antes de aceptar/enviar
+    // el presupuesto: reservar a esta altura crearía stock fantasma.
+    let omitirReserva = false;
+    try {
+      const { ordenesTrabajoService } = await import('./otService');
+      omitirReserva = await ordenesTrabajoService.algunaConCierreAdmin(pres.otsVinculadasNumbers ?? []);
+    } catch (err) {
+      console.warn('[aceptarConRequerimientos] check cierre admin falló:', err);
+    }
+    if (omitirReserva) {
+      console.log(`[aceptarConRequerimientos] OT vinculada con cierre admin → se omite la reserva de stock (ppto ${pres.numero})`);
+    }
+
     const itemsConStock = (pres.items ?? []).filter(i => i.stockArticuloId);
-    if (itemsConStock.length > 0) {
+    if (itemsConStock.length > 0 && !omitirReserva) {
       // Resolver cliente nombre una vez (reservar() lo guarda en cada unidad).
       let clienteNombre = '';
       try {
@@ -1062,13 +1137,22 @@ export const presupuestosService = {
         console.warn('[aceptarConRequerimientos] cliente lookup falló — clienteNombre vacío:', err);
       }
 
+      // Resumen de lo efectivamente reservado, para el aviso a Materiales (1 ticket al final).
+      const reservasResumen: string[] = [];
+
       for (const item of itemsConStock) {
         try {
           const articulo = await articulosService.getById(item.stockArticuloId!).catch(() => null);
-          const unidades = await unidadesService
+          const unidadesRaw = await unidadesService
             .getAll({ articuloId: item.stockArticuloId!, estado: 'disponible' })
             .catch(() => []);
-          const qtyDisponible = unidades.length;
+          // Excluir las unidades en poder de ingenieros (minikits en campo): ese stock se
+          // consume en terreno y no debe reservarse centralmente (moverlo a RESERVAS lo
+          // sacaría del minikit). La baja real de esas partes se da en el cierre de la OT.
+          const unidades = unidadesRaw.filter(u => u.ubicacion?.tipo !== 'ingeniero');
+          // Cantidad FÍSICA disponible: sumar u.cantidad (un doc puede ser un lote
+          // con cantidad > 1). Contar docs (.length) sobre-contaba/sobre-reservaba.
+          const qtyDisponible = unidades.reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
           const stockMinimo = articulo?.stockMinimo ?? 0;
           const qtyResultante = qtyDisponible - item.cantidad;
 
@@ -1105,9 +1189,13 @@ export const presupuestosService = {
             });
           }
 
-          // Auto-reserva: tomar las unidades disponibles hasta item.cantidad.
-          const unidadesAReservar = unidades.slice(0, item.cantidad);
-          for (const unidad of unidadesAReservar) {
+          // Auto-reserva: acumular unidades por cantidad FÍSICA hasta cubrir item.cantidad.
+          // En la última unidad, si es un lote con más de lo necesario, reservar() splitea
+          // y reserva solo la porción pedida (evita la sobre-reserva 1→2 de los lotes).
+          let restante = item.cantidad;
+          for (const unidad of unidades) {
+            if (restante <= 0) break;
+            const aReservar = Math.min(unidad.cantidad ?? 1, restante);
             try {
               await reservasService.reservar({
                 unidadId: unidad.id,
@@ -1117,13 +1205,64 @@ export const presupuestosService = {
                 clienteId: pres.clienteId ?? '',
                 clienteNombre,
                 solicitadoPorNombre: actor?.name || 'Sistema',
+                cantidad: aReservar,
               });
+              restante -= aReservar;
             } catch (reservaErr) {
               console.error(`[aceptarConRequerimientos] reservar unidad ${unidad.id} falló:`, reservaErr);
             }
           }
+
+          const reservado = item.cantidad - restante;
+          if (reservado > 0) {
+            const codigo = articulo?.codigo ?? '—';
+            const desc = articulo?.descripcion ?? item.descripcion ?? '';
+            const faltante = item.cantidad - reservado;
+            reservasResumen.push(
+              `• ${codigo} ${desc} — ${reservado}/${item.cantidad} u.${faltante > 0 ? ` (faltan ${faltante}, en compra)` : ''}`,
+            );
+          }
         } catch (itemErr) {
           console.error(`[aceptarConRequerimientos] item ${item.stockArticuloId} falló:`, itemErr);
+        }
+      }
+
+      // ── Aviso a Materiales: ticket para reservar FÍSICAMENTE lo ya reservado en sistema ──
+      // La reserva de arriba es lógica (marca unidades, las mueve a RESERVAS). El acto físico
+      // lo hace Materiales — este ticket es ese aviso. Auto-asignado al responsable del área
+      // 'materiales' (leadsService.create resuelve responsablePorArea). Best-effort.
+      if (reservasResumen.length > 0) {
+        try {
+          await leadsService.create({
+            clienteId: pres.clienteId ?? null,
+            contactoId: null,
+            razonSocial: clienteNombre || '',
+            contactos: [],
+            contacto: '',
+            email: '',
+            telefono: '',
+            motivoLlamado: 'administracion',
+            motivoContacto: `Reservar stock — Ppto ${pres.numero}`,
+            descripcion: `Reservar físicamente para el presupuesto ${pres.numero}${clienteNombre ? ` (${clienteNombre})` : ''}:\n${reservasResumen.join('\n')}`,
+            sistemaId: null,
+            moduloId: null,
+            estado: 'nuevo',
+            postas: [],
+            asignadoA: null,
+            asignadoNombre: null,
+            derivadoPor: actor?.uid ?? null,
+            areaActual: 'materiales',
+            accionPendiente: 'Reservar stock físicamente',
+            adjuntos: [],
+            presupuestosIds: [presupuestoId],
+            otIds: [],
+            finalizadoAt: null,
+            prioridad: 'normal',
+            proximoContacto: null,
+            valorEstimado: null,
+          });
+        } catch (avisoErr) {
+          console.error('[aceptarConRequerimientos] aviso a Materiales falló:', avisoErr);
         }
       }
     }
@@ -1764,6 +1903,108 @@ export const presupuestosService = {
     return { cancelled: cancellables.length, skipped };
   },
 
+  /**
+   * Recordatorio de "enviar este presupuesto al cliente". Se llama al vincular una OT a
+   * un presupuesto que TODAVÍA no fue enviado (caso: se adelanta la OT porque el cliente
+   * va a aceptar, pero el ppto quedó sin mandar). Crea un ticket asignado al responsable
+   * del presupuesto (fallback: responsable del área). Idempotente y no-op si ya se envió.
+   * El ticket se cierra solo cuando el ppto se marca enviado (ver markEnviado).
+   */
+  async crearRecordatorioEnvio(
+    presupuestoId: string,
+    actor?: { uid: string; name?: string },
+  ): Promise<string | null> {
+    try {
+      const pres = await this.getById(presupuestoId);
+      if (!pres) return null;
+      if (pres.fechaEnvio) return null;                 // ya se envió → no hace falta recordatorio
+      if (pres.recordatorioEnvioTicketId) return pres.recordatorioEnvioTicketId; // idempotente
+
+      let clienteNombre = '';
+      try {
+        const { clientesService } = await import('./clientesService');
+        clienteNombre = (await clientesService.getById(pres.clienteId))?.razonSocial ?? '';
+      } catch { /* nombre opcional */ }
+
+      // El recordatorio va a Administración Soporte (Miguel Barrios). Si no se resuelve,
+      // queda null y leadsService auto-asigna por el responsable del área 'admin_soporte'.
+      const miguel = await getAdminSoporteAssignee();
+      const asignadoA = miguel?.id ?? null;
+      const asignadoNombre = miguel?.nombre ?? null;
+
+      const ticketId = await leadsService.create({
+        clienteId: pres.clienteId ?? null,
+        contactoId: null,
+        razonSocial: clienteNombre || '',
+        contactos: [],
+        contacto: '',
+        email: '',
+        telefono: '',
+        motivoLlamado: 'administracion',
+        motivoContacto: `Enviar presupuesto ${pres.numero}`,
+        descripcion: `El presupuesto ${pres.numero}${clienteNombre ? ` (${clienteNombre})` : ''} tiene una OT vinculada pero AÚN NO fue enviado al cliente. Enviarlo.`,
+        sistemaId: null,
+        moduloId: null,
+        estado: 'nuevo',
+        postas: [],
+        asignadoA,                                      // Miguel Barrios (o null → auto por área)
+        asignadoNombre,
+        derivadoPor: actor?.uid ?? null,
+        areaActual: 'admin_soporte',
+        accionPendiente: 'Enviar presupuesto al cliente',
+        adjuntos: [],
+        presupuestosIds: [presupuestoId],
+        otIds: [],
+        finalizadoAt: null,
+        prioridad: 'urgente', // prioridad más alta: presupuesto adelantado por una OT, no debe esperar
+        proximoContacto: null,
+        valorEstimado: null,
+      });
+      await this.update(presupuestoId, { recordatorioEnvioTicketId: ticketId }).catch(err =>
+        console.error('[crearRecordatorioEnvio] no se pudo marcar el ticket en el ppto:', err),
+      );
+      return ticketId;
+    } catch (err) {
+      console.error('[crearRecordatorioEnvio] falló:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Libera las reservas de stock generadas al aceptar este presupuesto
+   * (unidades en estado 'reservado' atadas al ppto → vuelven a 'disponible').
+   *
+   * Se llama al ANULAR un presupuesto y también desde hardDelete. Sin esto, las
+   * unidades reservadas al aceptar quedaban colgadas en 'reservado' para siempre
+   * (stock fantasma fuera del ATP). Best-effort por unidad.
+   */
+  async _liberarReservasDePresupuesto(
+    presupuestoId: string,
+    motivo: string,
+  ): Promise<{ liberadas: number }> {
+    let liberadas = 0;
+    try {
+      const resSnap = await getDocs(query(
+        collection(db, 'unidades'),
+        where('reservadoParaPresupuestoId', '==', presupuestoId),
+        where('estado', '==', 'reservado'),
+      ));
+      for (const d of resSnap.docs) {
+        const unidad = { id: d.id, ...d.data() } as UnidadStock;
+        try {
+          await reservasService.liberar({ unidadId: d.id, unidad, motivo, solicitadoPorNombre: 'Sistema' });
+          liberadas++;
+        } catch (err) {
+          console.error(`[_liberarReservasDePresupuesto] liberar unidad ${d.id}:`, err);
+        }
+      }
+    } catch (err) {
+      console.error(`[_liberarReservasDePresupuesto] pres ${presupuestoId}:`, err);
+    }
+    if (liberadas > 0) console.log(`[_liberarReservasDePresupuesto] liberadas=${liberadas} pres=${presupuestoId}`);
+    return { liberadas };
+  },
+
   // Crear revisión de un presupuesto (anula el original)
   async createRevision(id: string, motivo: string): Promise<{ id: string; numero: string }> {
     const original = await this.getById(id);
@@ -1945,21 +2186,9 @@ export const presupuestosService = {
     }
 
     // Cascada: liberar las reservas de stock que generó la aceptación del presupuesto.
-    try {
-      const resSnap = await getDocs(query(
-        collection(db, 'unidades'),
-        where('reservadoParaPresupuestoId', '==', id),
-        where('estado', '==', 'reservado'),
-      ));
-      for (const d of resSnap.docs) {
-        const unidad = { id: d.id, ...d.data() } as UnidadStock;
-        await reservasService.liberar({
-          unidadId: d.id, unidad, motivo: 'Presupuesto eliminado', solicitadoPorNombre: 'Sistema',
-        }).catch(err => console.error(`[hardDelete] liberar unidad ${d.id}:`, err));
-      }
-    } catch (err) {
-      console.error('[hardDelete] liberar reservas:', err);
-    }
+    await this._liberarReservasDePresupuesto(id, 'Presupuesto eliminado').catch(err =>
+      console.error('[hardDelete] liberar reservas:', err),
+    );
 
     const batch = createBatch();
     batch.delete(docRef('presupuestos', id));

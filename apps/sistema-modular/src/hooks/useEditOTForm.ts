@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   ordenesTrabajoService, clientesService, sistemasService,
-  tiposServicioService, contactosService, modulosService,
+  tiposServicioService, contactosService, modulosService, presupuestosService,
 } from '../services/firebaseService';
-import { ingenierosService } from '../services/personalService';
+import { getResponsablesOT } from '../services/personalService';
 import type {
   WorkOrder, Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema,
   Ingeniero, OTEstadoAdmin, CierreAdministrativo, Part, OTEstadoHistorial,
-  PatronSeleccionado,
+  PatronSeleccionado, Presupuesto,
 } from '@ags/shared';
 
 export interface EditOTFormState {
@@ -18,7 +18,7 @@ export interface EditOTFormState {
   contactoId: string;
   ingenieroId: string;
   presupuestos: string[];
-  ordenCompra: string;
+  ordenesCompra: string[];
   fechaServicioAprox: string;
   problemaFallaInicial: string;
   estadoAdmin: OTEstadoAdmin;
@@ -50,7 +50,7 @@ const INITIAL_CIERRE: CierreAdministrativo = {
 
 const INITIAL_FORM: EditOTFormState = {
   clienteId: '', sistemaId: '', moduloId: '', tipoServicio: '',
-  contactoId: '', ingenieroId: '', presupuestos: [''], ordenCompra: '',
+  contactoId: '', ingenieroId: '', presupuestos: [''], ordenesCompra: [''],
   fechaServicioAprox: '', problemaFallaInicial: '', estadoAdmin: 'CREADA',
   esFacturable: true, tieneContrato: false, esGarantia: false,
   cierreAdmin: INITIAL_CIERRE,
@@ -72,6 +72,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   const [modulos, setModulos] = useState<ModuloSistema[]>([]);
   const [ingenieros, setIngenieros] = useState<Ingeniero[]>([]);
   const [sistemasFiltrados, setSistemasFiltrados] = useState<Sistema[]>([]);
+  const [presupuestosCliente, setPresupuestosCliente] = useState<Presupuesto[]>([]);
   const [otOriginal, setOtOriginal] = useState<WorkOrder | null>(null);
   const [form, setForm] = useState<EditOTFormState>(INITIAL_FORM);
 
@@ -87,7 +88,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
       clientesService.getAll(true),
       sistemasService.getAll(),
       tiposServicioService.getAll(),
-      ingenierosService.getAll(true),
+      getResponsablesOT(),
       // Phase 14 BOM-05 — best-effort read; empty array si no hay reporte/campo
       // (deja CierrePatronesConsumidosSection en estado "sin BOM en esta OT")
       ordenesTrabajoService.getPatronesSeleccionados(otNumber).catch(() => [] as PatronSeleccionado[]),
@@ -124,7 +125,9 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         contactoId,
         ingenieroId: ot.ingenieroAsignadoId || '',
         presupuestos: ot.budgets && ot.budgets.length > 0 ? ot.budgets : [''],
-        ordenCompra: ot.ordenCompra || '',
+        ordenesCompra: ot.ordenesCompra && ot.ordenesCompra.length > 0
+          ? ot.ordenesCompra
+          : (ot.ordenCompra ? [ot.ordenCompra] : ['']),
         fechaServicioAprox: ot.fechaServicioAprox || '',
         problemaFallaInicial: ot.problemaFallaInicial || '',
         estadoAdmin: ot.estadoAdmin || (ot.status === 'FINALIZADO' ? 'FINALIZADO' : 'CREADA'),
@@ -149,9 +152,13 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
     if (form.clienteId) {
       setSistemasFiltrados(sistemas.filter(s => s.clienteId === form.clienteId));
       contactosService.getByCliente(form.clienteId).then(setContactos).catch(() => setContactos([]));
+      presupuestosService.getAll({ clienteId: form.clienteId })
+        .then(pres => setPresupuestosCliente(pres.filter(p => p.estado !== 'anulado')))
+        .catch(() => setPresupuestosCliente([]));
     } else {
       setSistemasFiltrados([]);
       setContactos([]);
+      setPresupuestosCliente([]);
     }
   }, [form.clienteId, sistemas, open, loading]);
 
@@ -280,7 +287,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
   const handleSave = async () => {
     if (!form.clienteId) { alert('Seleccione un cliente'); return; }
     if (!form.tipoServicio) { alert('Seleccione un tipo de servicio'); return; }
-    if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId) { alert('Seleccione un ingeniero para estado "Asignada" o superior'); return; }
+    if (form.estadoAdmin !== 'CREADA' && !form.ingenieroId) { alert('Seleccione un responsable (ingeniero o admin de soporte) para estado "Asignada" o superior'); return; }
 
     const cliente = clientes.find(c => c.id === form.clienteId);
     const sistema = sistemasFiltrados.find(s => s.id === form.sistemaId);
@@ -319,7 +326,9 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
         ingenieroAsignadoId: ingeniero?.usuarioId ?? ingeniero?.id ?? null,
         ingenieroAsignadoNombre: ingeniero?.nombre ?? null,
         budgets: form.presupuestos.filter(b => b.trim() !== ''),
-        ordenCompra: form.ordenCompra || null,
+        ordenesCompra: form.ordenesCompra.filter(o => o.trim() !== ''),
+        // Legacy: mantener ordenCompra (string) = primera OC, para lectores existentes.
+        ordenCompra: form.ordenesCompra.find(o => o.trim() !== '')?.trim() || null,
         fechaServicioAprox: form.fechaServicioAprox || null,
         problemaFallaInicial: form.problemaFallaInicial || '',
         estadoAdmin: form.estadoAdmin,
@@ -350,7 +359,7 @@ export function useEditOTForm(open: boolean, otNumber: string, onClose: () => vo
 
   return {
     loading, saving, form, set, readOnly,
-    clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros,
+    clientes, sistemasFiltrados, tiposServicio, contactos, modulos, ingenieros, presupuestosCliente,
     otOriginal, handleSave, openInReportesOT,
     handleCierreChange, handleCierreAdminTransition, handleConfirmarCierre, handleReabrirOT,
   };

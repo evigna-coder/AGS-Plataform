@@ -179,7 +179,7 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
               disabled={h.contactos.length === 0} />
           </div>
           <div>
-            <label className={lbl}>Ingeniero asignado</label>
+            <label className={lbl}>Responsable asignado</label>
             <SearchableSelect value={h.form.ingenieroId}
               onChange={v => h.set('ingenieroId', v)}
               options={[
@@ -196,10 +196,13 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
             <label className={lbl}>
               Presupuesto {h.presupuestoRequerido ? <span className="text-red-500">*</span> : <span className="text-slate-300">(opcional)</span>}
             </label>
-            <SearchableSelect value={h.form.presupuestoId}
-              onChange={h.handlePresupuestoChange}
+            <SearchableSelect value={h.form.presupuestoId || (h.form.motivoFacturacion ? `__${h.form.motivoFacturacion}__` : '')}
+              onChange={h.handlePresupuestoBaseChange}
               options={[
                 { value: '', label: 'Sin presupuesto' },
+                { value: '__pendiente__', label: 'Presupuesto pendiente' },
+                { value: '__sin_cargo__', label: 'Sin cargo' },
+                { value: '__garantia__', label: 'En garantía' },
                 ...h.presupuestosCliente.map(p => ({
                   value: p.id,
                   label: `${p.numero} — ${MONEDA_PRESUPUESTO_LABELS[p.moneda]} $${p.total?.toLocaleString('es-AR') ?? '0'}`,
@@ -220,6 +223,16 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
               className={selectClass} />
           </div>
         </div>
+
+        {/* Detalle para el ticket de presupuesto pendiente (qué hay que presupuestar) */}
+        {h.form.motivoFacturacion === 'pendiente' && (
+          <div>
+            <label className={lbl}>¿Qué presupuestar? <span className="text-slate-300">(se envía a quien arma el presupuesto)</span></label>
+            <Input value={h.form.detallePresupuestoPendiente}
+              onChange={e => h.set('detallePresupuestoPendiente', e.target.value)}
+              inputSize="sm" placeholder="Ej: visita de diagnóstico, repuesto X, etc." />
+          </div>
+        )}
 
         {/* Lead link */}
         <div className="flex items-center gap-2">

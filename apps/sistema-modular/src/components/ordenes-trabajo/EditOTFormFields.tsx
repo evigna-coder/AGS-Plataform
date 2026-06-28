@@ -1,6 +1,7 @@
 import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
-import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero } from '@ags/shared';
+import type { Cliente, Sistema, TipoServicio, ContactoCliente, ModuloSistema, Ingeniero, Presupuesto } from '@ags/shared';
+import { MONEDA_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { EditOTFormState } from '../../hooks/useEditOTForm';
 
 const lbl = 'block text-[11px] font-medium text-slate-500 mb-0.5';
@@ -16,10 +17,11 @@ interface Props {
   modulos: ModuloSistema[];
   contactos: ContactoCliente[];
   ingenieros: Ingeniero[];
+  presupuestosCliente: Presupuesto[];
 }
 
 export const EditOTFormFields: React.FC<Props> = ({
-  form, set, readOnly, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros,
+  form, set, readOnly, tiposServicio, clientes, sistemasFiltrados, modulos, contactos, ingenieros, presupuestosCliente,
 }) => (
   <>
     {/* Tipo de Servicio */}
@@ -82,7 +84,7 @@ export const EditOTFormFields: React.FC<Props> = ({
       </div>
       <div>
         <label className={`${lbl}${form.estadoAdmin !== 'CREADA' && !form.ingenieroId ? ' text-amber-600' : ''}`}>
-          Ingeniero asignado{form.estadoAdmin !== 'CREADA' ? ' *' : ''}
+          Responsable asignado{form.estadoAdmin !== 'CREADA' ? ' *' : ''}
         </label>
         <select value={form.ingenieroId} onChange={e => {
             set('ingenieroId', e.target.value);
@@ -108,14 +110,27 @@ export const EditOTFormFields: React.FC<Props> = ({
           )}
         </div>
         {form.presupuestos.map((b, idx) => (
-          <div key={idx} className="flex gap-1 mb-1">
-            <Input value={b}
-              onChange={e => {
-                const u = [...form.presupuestos];
-                u[idx] = e.target.value.substring(0, 15);
-                set('presupuestos', u);
-              }}
-              inputSize="sm" placeholder="PRE-XXXX" disabled={readOnly} />
+          <div key={idx} className="flex gap-1 mb-1 items-center">
+            <div className="flex-1">
+              <SearchableSelect value={b}
+                onChange={v => {
+                  const u = [...form.presupuestos];
+                  u[idx] = v;
+                  set('presupuestos', u);
+                }}
+                options={[
+                  { value: '', label: 'Sin presupuesto' },
+                  ...presupuestosCliente.map(p => ({
+                    value: p.numero,
+                    label: `${p.numero} — ${MONEDA_PRESUPUESTO_LABELS[p.moneda]} $${p.total?.toLocaleString('es-AR') ?? '0'}`,
+                  })),
+                  // Conservar un número ya cargado que no esté en la lista del cliente.
+                  ...(b && !presupuestosCliente.some(p => p.numero === b) ? [{ value: b, label: b }] : []),
+                ]}
+                size="sm" creatable createLabel="Usar"
+                placeholder={form.clienteId ? 'Seleccionar presupuesto...' : 'Seleccione cliente primero'}
+                disabled={readOnly || !form.clienteId} />
+            </div>
             {!readOnly && form.presupuestos.length > 1 && (
               <button onClick={() => set('presupuestos', form.presupuestos.filter((_, i) => i !== idx))}
                 className="text-red-400 hover:text-red-600 text-xs px-1">x</button>
@@ -124,9 +139,28 @@ export const EditOTFormFields: React.FC<Props> = ({
         ))}
       </div>
       <div>
-        <label className={lbl}>Orden de compra</label>
-        <Input value={form.ordenCompra} onChange={e => set('ordenCompra', e.target.value)}
-          inputSize="sm" placeholder="OC cliente" disabled={readOnly} />
+        <div className="flex items-center justify-between mb-0.5">
+          <label className="text-[11px] font-medium text-slate-500">Orden de compra</label>
+          {!readOnly && form.ordenesCompra.length < 5 && (
+            <button onClick={() => set('ordenesCompra', [...form.ordenesCompra, ''])}
+              className="text-[10px] text-teal-600 hover:underline">+</button>
+          )}
+        </div>
+        {form.ordenesCompra.map((oc, idx) => (
+          <div key={idx} className="flex gap-1 mb-1 items-center">
+            <Input value={oc}
+              onChange={e => {
+                const u = [...form.ordenesCompra];
+                u[idx] = e.target.value;
+                set('ordenesCompra', u);
+              }}
+              inputSize="sm" placeholder="OC cliente" disabled={readOnly} />
+            {!readOnly && form.ordenesCompra.length > 1 && (
+              <button onClick={() => set('ordenesCompra', form.ordenesCompra.filter((_, i) => i !== idx))}
+                className="text-red-400 hover:text-red-600 text-xs px-1">x</button>
+            )}
+          </div>
+        ))}
       </div>
       <div>
         <label className={lbl}>Fecha aprox. servicio</label>

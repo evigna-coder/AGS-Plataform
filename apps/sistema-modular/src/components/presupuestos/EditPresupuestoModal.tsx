@@ -10,6 +10,7 @@ import { PresupuestoHeaderBar } from './PresupuestoHeaderBar';
 import { PresupuestoMetadataStrip } from './PresupuestoMetadataStrip';
 import { PresupuestoRevisionHistory } from './PresupuestoRevisionHistory';
 import { PresupuestoRequerimientosSection } from './PresupuestoRequerimientosSection';
+import { PresupuestoReservasSection } from './PresupuestoReservasSection';
 import { PresupuestoOTsVinculadas } from './PresupuestoOTsVinculadas';
 import { FactorHistoryButton } from './FactorHistoryButton';
 import { PresupuestoItemsTableContrato } from './contrato/PresupuestoItemsTableContrato';
@@ -41,7 +42,7 @@ interface Props {
   onMinimize?: () => void;
 }
 
-const FACTURACION_STATES = ['aceptado'];
+const FACTURACION_STATES = ['aceptado', 'en_ejecucion', 'pendiente_facturacion'];
 
 export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onClose, onUpdated, onMinimize }) => {
   const { firebaseUser, usuario } = useAuth();
@@ -450,6 +451,11 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
           )}
 
           <PresupuestoRequerimientosSection
+            presupuestoId={presupuestoId}
+            refreshKey={requerimientosRefreshKey}
+          />
+
+          <PresupuestoReservasSection
             presupuestoId={presupuestoId}
             refreshKey={requerimientosRefreshKey}
           />

@@ -61,6 +61,7 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
             tiposServicio={h.tiposServicio} clientes={h.clientes}
             sistemasFiltrados={h.sistemasFiltrados} modulos={h.modulos}
             contactos={h.contactos} ingenieros={h.ingenieros}
+            presupuestosCliente={h.presupuestosCliente}
           />
           {showCierreAdmin && (
             <OTCierreAdminSection

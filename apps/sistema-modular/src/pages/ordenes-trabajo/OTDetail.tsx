@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { OTInfoSidebar } from '../../components/ordenes-trabajo/OTInfoSidebar';
 import { OTProtocolSection } from '../../components/ordenes-trabajo/OTProtocolSection';
@@ -25,11 +25,17 @@ const ESTADO_COLORS: Record<string, string> = {
 
 export const OTDetail = () => {
   const { otNumber } = useParams<{ otNumber: string }>();
+  const { state } = useLocation();
   const goBack = useNavigateBack();
   const ot = useOTDetail(otNumber);
 
-  // Padre jerárquico: listado de OTs (siempre, independiente del referrer).
-  useDeclareParent('/ordenes-trabajo');
+  // Padre jerárquico: el referrer (ticket, presupuesto, etc.) si la OT se abrió
+  // con uno; si se llegó por URL directa, el listado de OTs. Sin esto el "volver"
+  // siempre caía al listado, aunque hubieras entrado desde un ticket.
+  const cameFrom = state && typeof (state as { from?: unknown }).from === 'string'
+    ? (state as { from: string }).from
+    : null;
+  useDeclareParent(cameFrom ?? '/ordenes-trabajo');
   const [showCrearLead, setShowCrearLead] = useState(false);
   const [showCrearPresupuesto, setShowCrearPresupuesto] = useState(false);
 
