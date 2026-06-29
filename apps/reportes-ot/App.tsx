@@ -4,7 +4,7 @@ import { CompanyHeader } from './components/CompanyHeader';
 import { MobileSignatureView } from './components/MobileSignatureView';
 import { OTFormSection } from './components/OTFormSection';
 import { SidebarPanel } from './components/SidebarPanel';
-import { ServiceReportSection } from './components/ServiceReportSection';
+import { ServiceReportSection, MOTIVO_SERVICIO_TIPOS } from './components/ServiceReportSection';
 import { SignaturesSection } from './components/SignaturesSection';
 import { ObservationsBillingSection } from './components/ObservationsBillingSection';
 import { AdjuntosSection } from './components/AdjuntosSection';
@@ -50,6 +50,9 @@ const App: React.FC = () => {
 
   const handleTipoServicioChange = (newServiceType: string) => {
     app.setTipoServicio(newServiceType);
+    // El motivo solo aplica a tipos de reparación/diagnóstico; al salir de esos
+    // tipos limpiamos el campo para no arrastrar un texto que ya no se muestra.
+    if (!MOTIVO_SERVICIO_TIPOS.has(newServiceType)) app.setMotivoServicio('');
     app.setProtocolSelections([]);
     const template = getProtocolTemplateForServiceType(newServiceType);
     if (template) {
@@ -136,6 +139,7 @@ const App: React.FC = () => {
             readOnly={app.readOnly}
             tipoServicio={app.tipoServicio}
             onTipoServicioChange={handleTipoServicioChange}
+            motivoServicio={app.motivoServicio} setMotivoServicio={app.setMotivoServicio}
             reporteTecnico={app.reporteTecnico} setReporteTecnico={app.setReporteTecnico}
             loadingAI={app.loadingAI} onOptimizeReport={app.handleOptimizeReport}
             articulos={app.articulos}
@@ -464,6 +468,7 @@ const App: React.FC = () => {
             readOnly={app.readOnly}
             tipoServicio={app.tipoServicio}
             onTipoServicioChange={handleTipoServicioChange}
+            motivoServicio={app.motivoServicio} setMotivoServicio={app.setMotivoServicio}
             reporteTecnico={app.reporteTecnico} setReporteTecnico={app.setReporteTecnico}
             loadingAI={app.loadingAI} onOptimizeReport={app.handleOptimizeReport}
             articulos={app.articulos}
@@ -660,7 +665,7 @@ const App: React.FC = () => {
             fechaInicio={app.fechaInicio} fechaFin={app.fechaFin}
             horaInicio={app.horaInicio} horaFin={app.horaFin}
             horasTrabajadas={app.horasTrabajadas} tiempoViaje={app.tiempoViaje}
-            tipoServicio={app.tipoServicio} reporteTecnico={app.reporteTecnico}
+            tipoServicio={app.tipoServicio} motivoServicio={app.motivoServicio} reporteTecnico={app.reporteTecnico}
             articulos={app.articulos} accionesTomar={app.accionesTomar} accionesInternaOnly={app.accionesInternaOnly}
             budgets={app.budgets}
             esFacturable={app.esFacturable} tieneContrato={app.tieneContrato} esGarantia={app.esGarantia}

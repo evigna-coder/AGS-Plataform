@@ -8,10 +8,19 @@ interface ArticuloCatalog {
   descripcion: string;
 }
 
+/** Tipos de servicio que habilitan el campo "Motivo del Servicio" (qué originó la
+ * reparación/visita). Si crece, mantener en sync con PreviewSection. */
+export const MOTIVO_SERVICIO_TIPOS = new Set<string>([
+  'Reparación en bench',
+  'Visita de diagnóstico / reparación',
+]);
+
 interface ServiceReportSectionProps {
   readOnly: boolean;
   tipoServicio: string;
   onTipoServicioChange: (value: string) => void;
+  motivoServicio: string;
+  setMotivoServicio: (v: string) => void;
   reporteTecnico: string;
   setReporteTecnico: (v: string) => void;
   loadingAI: boolean;
@@ -127,6 +136,7 @@ const ArticuloAutocomplete: React.FC<{
 
 export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
   readOnly, tipoServicio, onTipoServicioChange,
+  motivoServicio, setMotivoServicio,
   reporteTecnico, setReporteTecnico, loadingAI, onOptimizeReport,
   articulos, onAddPart, onUpdatePart, onRemovePart,
 }) => {
@@ -179,9 +189,30 @@ export const ServiceReportSection: React.FC<ServiceReportSectionProps> = ({
           <option>Otros</option>
           <option>Recalificación post reparación</option>
           <option>Reparación en bench</option>
-          <option>Trabajo en bench</option>
           <option>Visita de diagnóstico / reparación</option>
         </select>
+
+        {MOTIVO_SERVICIO_TIPOS.has(tipoServicio) && (
+          <div className="mt-3">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+              Motivo del Servicio
+            </label>
+            <input
+              value={motivoServicio}
+              onChange={e => { if (readOnly) return; setMotivoServicio(e.target.value); }}
+              disabled={readOnly}
+              maxLength={180}
+              placeholder="¿Qué motivó la reparación / visita? (ej: bomba con fuga de fase móvil)"
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm bg-white outline-none
+                ${
+                  readOnly
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
+                    : 'border-slate-200 focus:ring-1 focus:ring-blue-500'
+                }
+              `}
+            />
+          </div>
+        )}
       </section>
 
       <section>

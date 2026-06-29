@@ -58,7 +58,7 @@ export function useAppLogic(
 
   // Desestructurar estados para facilitar el uso
   const {
-    otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
+    otNumber, otInput, status, clientConfirmed, budgets, tipoServicio, motivoServicio,
     esFacturable, tieneContrato, esGarantia, razonSocial, contacto, sector,
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
@@ -157,7 +157,7 @@ export function useAppLogic(
   // Desestructurar setters para facilitar el uso
   const {
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
-    setTipoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
+    setTipoServicio, setMotivoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
     setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
     setEmailPrincipal, setSistema, setModuloModelo, setModuloMarca, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,
@@ -1189,7 +1189,7 @@ export function useAppLogic(
     hasInitialized,
     markUserInteracted,
     // Destructured form state
-    otNumber, otInput, status, clientConfirmed, budgets, tipoServicio,
+    otNumber, otInput, status, clientConfirmed, budgets, tipoServicio, motivoServicio,
     esFacturable, tieneContrato, esGarantia, razonSocial, contacto, sector,
     direccion, localidad, provincia, emailPrincipal, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
@@ -1214,7 +1214,7 @@ export function useAppLogic(
     adjuntos, setAdjuntos,
     // Destructured setters
     setOtNumber, setOtInput, setStatus, setClientConfirmed, setBudgets,
-    setTipoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
+    setTipoServicio, setMotivoServicio, setEsFacturable, setTieneContrato, setEsGarantia,
     setRazonSocial, setContacto, setDireccion, setLocalidad, setProvincia,
     setEmailPrincipal, setSistema, setModuloModelo, setModuloMarca, setModuloDescripcion,
     setModuloSerie, setCodigoInternoCliente, setFechaInicio, setFechaFin,

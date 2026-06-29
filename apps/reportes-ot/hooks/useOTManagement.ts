@@ -133,6 +133,7 @@ export const useOTManagement = (
     otNumber,
     budgets,
     tipoServicio,
+    motivoServicio,
     esFacturable,
     tieneContrato,
     esGarantia,
@@ -164,6 +165,7 @@ export const useOTManagement = (
     setClientConfirmed,
     setBudgets,
     setTipoServicio,
+    setMotivoServicio,
     setEsFacturable,
     setTieneContrato,
     setEsGarantia,
@@ -261,6 +263,7 @@ export const useOTManagement = (
         setOtNumber(data.otNumber || v);
         setBudgets(data.budgets || ['']);
         setTipoServicio(data.tipoServicio || 'Visita de diagnóstico / reparación');
+        setMotivoServicio(data.motivoServicio || '');
         setEsFacturable(!!data.esFacturable);
         setTieneContrato(!!data.tieneContrato);
         setEsGarantia(!!data.esGarantia);
@@ -432,6 +435,7 @@ export const useOTManagement = (
     setOtNumber('');
     setBudgets(['']);
     setTipoServicio('Visita de diagnóstico / reparación');
+    setMotivoServicio('');
     setEsFacturable(false);
     setTieneContrato(false);
     setEsGarantia(false);
@@ -588,6 +592,7 @@ export const useOTManagement = (
     setOtNumber(newOt);
     setBudgets(newState.budgets);
     setTipoServicio(tipoServicio);
+    setMotivoServicio(motivoServicio);
     setEsFacturable(esFacturable);
     setTieneContrato(tieneContrato);
     setEsGarantia(esGarantia);

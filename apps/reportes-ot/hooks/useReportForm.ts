@@ -18,6 +18,9 @@ export interface ReportFormState {
   // Servicio
   budgets: string[];
   tipoServicio: string;
+  /** Motivo del servicio: qué originó la reparación/visita. Solo se usa (y se
+   * muestra en el PDF) para tipos de servicio de reparación/diagnóstico. */
+  motivoServicio: string;
   esFacturable: boolean;
   tieneContrato: boolean;
   esGarantia: boolean;
@@ -91,6 +94,7 @@ export interface ReportState {
   otNumber: string;
   budgets: string[];
   tipoServicio: string;
+  motivoServicio: string;
   esFacturable: boolean;
   tieneContrato: boolean;
   esGarantia: boolean;
@@ -146,6 +150,7 @@ export interface UseReportFormReturn {
     setClientConfirmed: (value: boolean) => void;
     setBudgets: (value: string[]) => void;
     setTipoServicio: (value: string) => void;
+    setMotivoServicio: (value: string) => void;
     setEsFacturable: (value: boolean) => void;
     setTieneContrato: (value: boolean) => void;
     setEsGarantia: (value: boolean) => void;
@@ -212,6 +217,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
   }, []);
   const [budgets, setBudgets] = useState<string[]>(['']);
   const [tipoServicio, setTipoServicio] = useState('Visita de diagnóstico / reparación');
+  const [motivoServicio, setMotivoServicio] = useState('');
   const [esFacturable, setEsFacturable] = useState(false);
   const [tieneContrato, setTieneContrato] = useState(false);
   const [esGarantia, setEsGarantia] = useState(false);
@@ -273,7 +279,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
 
   // reportState memoizado (incluye protocolSelections para autosave)
   const reportState = useMemo(() => ({
-    otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
+    otNumber, budgets, tipoServicio, motivoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
@@ -284,7 +290,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     certificadosIngenieroSeleccionados, resolvedIngenieroId,
     destinatariosExtras, destinatariosManuales,
   }), [
-    otNumber, budgets, tipoServicio, esFacturable, tieneContrato, esGarantia,
+    otNumber, budgets, tipoServicio, motivoServicio, esFacturable, tieneContrato, esGarantia,
     razonSocial, contacto, sector, direccion, localidad, provincia, sistema,
     moduloModelo, moduloMarca, moduloDescripcion, moduloSerie, codigoInternoCliente,
     fechaInicio, fechaFin, horaInicio, horaFin, horasTrabajadas, tiempoViaje, manualHoras, reporteTecnico,
@@ -304,6 +310,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
     clientConfirmed,
     budgets,
     tipoServicio,
+    motivoServicio,
     esFacturable,
     tieneContrato,
     esGarantia,
@@ -356,6 +363,7 @@ export const useReportForm = (initialOtNumber: string = ''): UseReportFormReturn
       setClientConfirmed,
       setBudgets,
       setTipoServicio,
+      setMotivoServicio,
       setEsFacturable,
       setTieneContrato,
       setEsGarantia,
