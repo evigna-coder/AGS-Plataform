@@ -1,0 +1,13 @@
+{
+  "name": "ags-backup",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backup local AGS (Firestore NDJSON dump + Storage download) vía Firebase Admin SDK. No usa gcloud.",
+  "scripts": {
+    "backup": "node backup-ags.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
