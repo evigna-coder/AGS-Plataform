@@ -86,7 +86,7 @@ const script = `
     console.log('   ANTES :', before.slice(0, 240));
     console.log('   DESPUES:', after.slice(0, 240));
     if (APPLY) {
-      await updateDoc(doc(db, 'tableCatalog', d.id), { textContent: after, updatedAt: Timestamp.now().toDate().toISOString() });
+      await updateDoc(doc(db, 'tableCatalog', d.id), { textContent: after, updatedAt: Timestamp.now() });
       changed++;
     }
   }

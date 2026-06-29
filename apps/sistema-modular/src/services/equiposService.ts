@@ -205,7 +205,10 @@ export const sistemasService = {
       throw new Error('sistemasService.create: establecimientoId es requerido');
     }
     console.log('Creando sistema:', sistemaData.nombre);
-    const payload = {
+    // deepCleanForFirestore strippea undefined (ej. `software` vacío llega como
+    // undefined desde el modal) preservando los Timestamp. Mismo patrón que el
+    // create de módulo. Firestore rechaza undefined en WriteBatch.set().
+    const payload = deepCleanForFirestore({
       ...sistemaData,
       ...getCreateTrace(),
       ubicaciones: sistemaData.ubicaciones || [],
@@ -213,7 +216,7 @@ export const sistemasService = {
       activo: sistemaData.activo !== undefined ? sistemaData.activo : true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    };
+    });
     const ref = newDocRef('sistemas');
     const batch = createBatch();
     batch.set(ref, payload);
@@ -305,11 +308,11 @@ export const sistemasService = {
 
   // Actualizar sistema
   async update(id: string, data: Partial<Omit<Sistema, 'id' | 'createdAt' | 'updatedAt'>>) {
-    const payload = {
+    const payload = deepCleanForFirestore({
       ...data,
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
-    };
+    });
     const batch = createBatch();
     batch.update(docRef('sistemas', id), payload);
     batchAudit(batch, { action: 'update', collection: 'sistemas', documentId: id, after: payload });
