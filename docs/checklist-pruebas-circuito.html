@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: #1e293b; font-size: 10.5pt; line-height: 1.4; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2px; }
+  .sub { color: #64748b; font-size: 9pt; margin-bottom: 14px; }
+  h2 { font-size: 11.5pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #0D6E6E; color: #0D6E6E; }
+  .case { border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px 10px; margin: 8px 0; page-break-inside: avoid; }
+  .case-title { font-weight: 600; font-size: 10.5pt; margin-bottom: 5px; }
+  .tag { display: inline-block; font-size: 7.5pt; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+  .tag-fix { background: #fee2e2; color: #b91c1c; }
+  .tag-core { background: #e0f2f1; color: #0D6E6E; }
+  .tag-extra { background: #fef3c7; color: #92400e; }
+  .tag-warn { background: #fef9c3; color: #854d0e; }
+  ol.steps { margin: 4px 0 0; padding-left: 0; list-style: none; }
+  ol.steps li { padding: 2px 0 2px 24px; position: relative; }
+  ol.steps li::before { content: "☐"; position: absolute; left: 0; font-size: 12pt; line-height: 1; top: 1px; color: #475569; }
+  .ok { color: #15803d; font-weight: 600; }
+  .alert { color: #b45309; font-weight: 600; }
+  .note { font-size: 8.5pt; color: #64748b; font-style: italic; margin-top: 4px; padding-left: 2px; }
+  .result-line { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #cbd5e1; font-size: 9pt; }
+  .result-line .lbl { color: #64748b; }
+  .intro { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 8px 10px; font-size: 9pt; color: #475569; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+  <h1>Checklist de pruebas — Circuito presupuesto / stock / OT / facturación</h1>
+  <div class="sub">AGS sistema-modular · 19/06/2026 · imprimir y tildar a mano</div>
+
+  <div class="intro">
+    Orden sugerido: primero <b>P0</b> (validan los fixes de esta tanda), después las <b>P1–P5</b> originales,
+    y al final las <b>extra (P6–P11)</b>. ☐ = paso a tildar · <span class="ok">✅</span> = resultado esperado ·
+    <span class="alert">⚠️</span> = atención / limitación conocida.
+  </div>
+
+  <h2>P0 · Pruebas de los fixes (hacer primero)</h2>
+
+  <div class="case">
+    <div class="case-title">P0-A · Liberar reserva al anular presupuesto <span class="tag tag-fix">FIX bug 1</span></div>
+    <ol class="steps">
+      <li>Crear ppto de partes con un artículo que tenga stock disponible.</li>
+      <li>Aceptar el ppto → en Stock, verificar que las unidades quedan en estado <b>reservado</b>.</li>
+      <li>Anular el ppto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ las unidades vuelven a <b>disponible</b></span> (antes quedaban trabadas en reservado para siempre).</div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P0-B · No doble descuento al re-cerrar OT <span class="tag tag-fix">FIX bug 2</span></div>
+    <ol class="steps">
+      <li>OT con partes que descuente stock al cierre administrativo. Cerrar.</li>
+      <li>Verificar: 1 solo MovimientoStock egreso, unidades en estado <b>entregado</b>.</li>
+      <li>Si el sistema deja reintentar el cierre, hacerlo.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ NO se genera un segundo egreso</span> (el stock no se descuenta dos veces).</div>
+  </div>
+
+  <h2>P1–P5 · Pruebas originales del circuito</h2>
+
+  <div class="case">
+    <div class="case-title">P1 · Presupuesto de servicios + 3 OTs <span class="tag tag-core">CORE</span></div>
+    <ol class="steps">
+      <li>Crear ppto tipo <b>servicio</b>.</li>
+      <li>Generar 3 OTs asociadas desde el ppto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ las 3 OTs quedan vinculadas</span> (campo otsVinculadas del ppto).</div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P2 · Presupuesto de partes CON stock <span class="tag tag-core">CORE</span></div>
+    <ol class="steps">
+      <li>Crear ppto tipo partes con items que tengan stock disponible.</li>
+      <li>Aceptar → verificar reserva (disponible → reservado).</li>
+      <li>Crear OT de entrega y cerrarla.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ al cerrar, stock pasa de reservado → entregado.</span></div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P3 · Presupuesto de partes SIN stock <span class="tag tag-core">CORE</span></div>
+    <ol class="steps">
+      <li>Crear ppto tipo partes con items sin stock disponible.</li>
+      <li>Aceptar el ppto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ crea RequerimientoCompra condicional automático y NO bloquea</span> la aceptación.</div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P4 · Presupuesto mixto (servicios + partes) <span class="tag tag-core">CORE</span></div>
+    <ol class="steps">
+      <li>Crear ppto tipo <b>mixto</b> con items de servicio y de parte.</li>
+      <li>Verificar que el sistema distingue correctamente item servicio vs item parte.</li>
+    </ol>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P5 · Circuito completo de facturación <span class="tag tag-warn">LIMITACIÓN</span></div>
+    <ol class="steps">
+      <li>Crear ppto con servicios y partes.</li>
+      <li>Facturar las OTs a medida que cierran (lista de OTs listas para facturar).</li>
+      <li>Importar las partes faltantes, cerrar OTs, facturar el resto.</li>
+    </ol>
+    <div class="result-line">
+      <span class="alert">⚠️ Limitación conocida:</span> hoy NO hay facturación parcial por ítem ("partes primero, servicios después" como líneas separadas),
+      y la UI del esquema de cuotas/anticipos no está construida. Se puede facturar por OTs a medida que cierran.
+      <div class="note">Decidir si se ataca la UI de cuotas (Fase 2) antes de probar este caso a fondo.</div>
+    </div>
+  </div>
+
+  <h2>P6–P11 · Pruebas extra recomendadas</h2>
+
+  <div class="case">
+    <div class="case-title">P6 · Stock parcial <span class="tag tag-extra">EXTRA</span></div>
+    <ol class="steps">
+      <li>Ppto que pide 5 unidades de un artículo del que hay solo 2 en stock. Aceptar.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ reserva las 2 disponibles + crea requerimiento por las 3 faltantes</span> (no es todo-o-nada).</div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P7 · Selección manual de stock al cierre (código nuevo) <span class="tag tag-extra">EXTRA</span></div>
+    <ol class="steps">
+      <li>En el cierre de una OT, elegir una parte <b>trazable</b> (seleccionar serie/lote).</li>
+      <li>Elegir además una parte <b>no-trazable</b> (seleccionar posición).</li>
+      <li>Cerrar.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ descuento real correcto + MovimientoStock egreso por cada una.</span></div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P8 · Unidad reservada + seleccionada a mano <span class="tag tag-extra">EXTRA</span></div>
+    <ol class="steps">
+      <li>Una unidad reservada por ppto que además se selecciona manualmente en el cierre.</li>
+      <li>Cerrar la OT.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ NO se descuenta dos veces</span> (la procesa solo el camino de reserva).</div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P9 · Responsable = admin de soporte <span class="tag tag-extra">EXTRA</span></div>
+    <ol class="steps">
+      <li>En una OT de entrega, abrir el selector de responsable.</li>
+      <li>Asignar un usuario admin_soporte.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ aparece en el selector etiquetado "(Admin soporte)" y se puede asignar.</span></div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P10 · Anular solicitud de facturación <span class="tag tag-warn">HUECO 3</span></div>
+    <ol class="steps">
+      <li>Anular una solicitud generada por <b>cuota</b>.</li>
+      <li>Anular una solicitud generada por <b>OTs</b>.</li>
+    </ol>
+    <div class="result-line">
+      <span class="lbl">Esperado:</span> por cuota <span class="ok">✅ la cuota vuelve a habilitada</span>;
+      por OTs <span class="alert">⚠️ las OTs NO vuelven a la lista</span> (hueco conocido, confirmar el síntoma).
+    </div>
+  </div>
+
+  <div class="case">
+    <div class="case-title">P11 · Presupuesto adicional desde una OT existente <span class="tag tag-fix">FIX nuevo</span></div>
+    <ol class="steps">
+      <li>Crear ppto inicial + OT vinculada (flujo normal).</li>
+      <li>Desde la OT (botón "Crear Presupuesto"), crear un ppto <b>adicional</b>.</li>
+      <li>Verificar que el modal viene con cliente/sistema precargados.</li>
+      <li>Volver a la OT y mirar el campo "Presupuestos".</li>
+      <li>Cerrar la OT.</li>
+      <li>Caso borde: crear dos ppto desde la misma OT.</li>
+    </ol>
+    <div class="result-line">
+      <span class="lbl">Esperado:</span> <span class="ok">✅ el nuevo ppto aparece automáticamente en la OT</span> (sin paso manual);
+      <span class="ok">✅ el cierre lo considera</span> (reserva/descuenta su stock);
+      <span class="ok">✅ dos ppto desde la misma OT → ambos sin duplicados.</span>
+    </div>
+  </div>
+
+</body>
+</html>

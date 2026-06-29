@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual — Biblioteca de Tablas · AGS Analítica</title>
+<style>
+  :root{
+    --teal:#0D6E6E;
+    --teal-light:#0f8a8a;
+    --ink:#1e293b;
+    --slate:#475569;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg-soft:#f8fafc;
+    --amber:#b45309;
+    --amber-bg:#fffbeb;
+    --blue:#1d4ed8;
+    --blue-bg:#eff6ff;
+    --green:#15803d;
+    --green-bg:#f0fdf4;
+    --red:#b91c1c;
+  }
+
+  @page {
+    size: A4;
+    margin: 20mm 16mm 18mm 16mm;
+  }
+  @page :first { margin: 0; }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body{
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  h1,h2,h3,h4 { font-family: "Newsreader", Georgia, "Times New Roman", serif; color: var(--teal); line-height:1.2; }
+
+  code, .mono, .label-mono {
+    font-family: "JetBrains Mono", "Consolas", monospace;
+  }
+
+  /* ---------- COVER ---------- */
+  .cover{
+    height: 297mm;
+    width: 100%;
+    background: linear-gradient(150deg, #0D6E6E 0%, #0a5757 55%, #073f3f 100%);
+    color:#fff;
+    padding: 40mm 24mm;
+    page-break-after: always;
+    position: relative;
+    display:flex;
+    flex-direction:column;
+  }
+  .cover .kicker{
+    font-family:"JetBrains Mono", monospace;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-size: 10pt;
+    color:#9ce0e0;
+    margin-bottom: 14mm;
+  }
+  .cover h1{
+    color:#fff;
+    font-size: 40pt;
+    margin: 0 0 6mm 0;
+    line-height:1.05;
+  }
+  .cover .sub{
+    font-size: 15pt;
+    color:#cdeaea;
+    font-weight:400;
+    max-width: 130mm;
+    border-left: 3px solid #5bbcbc;
+    padding-left: 6mm;
+    margin-top: 4mm;
+  }
+  .cover .spacer{ flex:1; }
+  .cover .meta{
+    font-family:"JetBrains Mono", monospace;
+    font-size: 9.5pt;
+    color:#bfe4e4;
+    line-height:1.9;
+    border-top:1px solid rgba(255,255,255,.25);
+    padding-top:6mm;
+  }
+  .cover .meta strong{ color:#fff; font-weight:600; }
+  .cover .badge-ags{
+    position:absolute;
+    top: 40mm; right: 24mm;
+    font-family:"JetBrains Mono", monospace;
+    font-size: 8pt;
+    letter-spacing:2px;
+    color:#9ce0e0;
+    text-align:right;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  h2.chapter{
+    font-size: 22pt;
+    border-bottom: 3px solid var(--teal);
+    padding-bottom: 3mm;
+    margin: 0 0 6mm 0;
+    page-break-before: always;
+  }
+  h2.chapter .num{
+    font-family:"JetBrains Mono", monospace;
+    color:#9bb7b7;
+    font-size: 16pt;
+    margin-right: 4mm;
+  }
+  /* first chapter after TOC shouldn't force a redundant break beyond its own */
+  h3{
+    font-size: 14pt;
+    margin: 8mm 0 2mm 0;
+    border-left: 4px solid var(--teal-light);
+    padding-left: 3mm;
+  }
+  h4{
+    font-size: 11.5pt;
+    color: var(--slate);
+    margin: 6mm 0 1.5mm 0;
+  }
+  p{ margin: 0 0 2.5mm 0; }
+  ul,ol{ margin: 0 0 3mm 0; padding-left: 6mm; }
+  li{ margin-bottom: 1.2mm; }
+
+  strong{ color:#0f172a; }
+
+  code{
+    background: #f1f5f9;
+    border:1px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 0.5px 4px;
+    font-size: 9pt;
+    color:#0f172a;
+  }
+
+  .lead{
+    font-size: 11.5pt;
+    color: var(--slate);
+  }
+
+  /* labels like field names */
+  .ui{
+    font-family:"JetBrains Mono", monospace;
+    font-size: 9pt;
+    background:#ecfeff;
+    border:1px solid #cffafe;
+    color:#0e7490;
+    border-radius:3px;
+    padding:0.5px 5px;
+    white-space:nowrap;
+  }
+
+  /* ---------- CALLOUTS ---------- */
+  .box{
+    border-radius: 8px;
+    padding: 4mm 5mm;
+    margin: 4mm 0;
+    page-break-inside: avoid;
+    font-size: 10pt;
+  }
+  .box .box-title{
+    font-family:"JetBrains Mono", monospace;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    font-size:8.5pt;
+    font-weight:700;
+    margin-bottom:1.5mm;
+    display:block;
+  }
+  .box.tip{ background:var(--green-bg); border:1px solid #bbf7d0; }
+  .box.tip .box-title{ color:var(--green); }
+  .box.note{ background:var(--blue-bg); border:1px solid #bfdbfe; }
+  .box.note .box-title{ color:var(--blue); }
+  .box.warn{ background:var(--amber-bg); border:1px solid #fde68a; }
+  .box.warn .box-title{ color:var(--amber); }
+  .box.ex{ background:#faf5ff; border:1px solid #e9d5ff; }
+  .box.ex .box-title{ color:#7e22ce; }
+
+  /* ---------- TABLES ---------- */
+  table.t{
+    width:100%;
+    border-collapse: collapse;
+    margin: 3mm 0 5mm 0;
+    font-size: 9.3pt;
+    page-break-inside: auto;
+  }
+  table.t th{
+    background: var(--teal);
+    color:#fff;
+    text-align:left;
+    padding: 2mm 2.5mm;
+    font-family:"JetBrains Mono", monospace;
+    font-size:8pt;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    font-weight:600;
+  }
+  table.t td{
+    border-bottom:1px solid var(--line);
+    padding: 2mm 2.5mm;
+    vertical-align: top;
+  }
+  table.t tr:nth-child(even) td{ background: var(--bg-soft); }
+  table.t td:first-child{ font-weight:600; color:#0f172a; white-space:nowrap; }
+  table.t.wrap td:first-child{ white-space:normal; }
+  tr{ page-break-inside: avoid; }
+
+  /* type cards */
+  .typecard{
+    border:1px solid var(--line);
+    border-left:5px solid var(--teal);
+    border-radius:6px;
+    padding:3.5mm 4mm;
+    margin:3mm 0;
+    page-break-inside: avoid;
+  }
+  .typecard h4{ margin:0 0 1mm 0; color:var(--teal); font-family:"Newsreader",serif; font-size:12pt;}
+  .typecard .when{ font-size:9pt; color:var(--muted); font-style:italic; }
+
+  /* ---------- TOC ---------- */
+  .toc{ page-break-after: always; padding-top: 4mm; }
+  .toc h2{ font-size:20pt; border-bottom:3px solid var(--teal); padding-bottom:3mm; }
+  .toc ol{ list-style:none; padding-left:0; counter-reset: toc; }
+  .toc > ol > li{
+    margin: 2mm 0;
+    font-weight:600;
+    font-size: 11pt;
+    color:var(--ink);
+    border-bottom:1px dotted #cbd5e1;
+    padding-bottom:1.5mm;
+  }
+  .toc > ol > li > .n{ color:var(--teal); font-family:"JetBrains Mono",monospace; margin-right:3mm; }
+  .toc ul{ list-style:none; padding-left:9mm; margin:1mm 0 0 0; }
+  .toc ul li{ font-weight:400; font-size:9.5pt; color:var(--muted); margin:.6mm 0; border:none; }
+
+  .pill{
+    display:inline-block;
+    font-family:"JetBrains Mono",monospace;
+    font-size:8pt;
+    padding:1px 7px;
+    border-radius:999px;
+    font-weight:700;
+  }
+  .pill.draft{ background:#fef9c3; color:#854d0e; }
+  .pill.pub{ background:#dcfce7; color:#166534; }
+  .pill.arch{ background:#f1f5f9; color:#475569; }
+
+  .path{
+    font-family:"JetBrains Mono",monospace;
+    font-size:9pt;
+    background:#0f172a;
+    color:#7dd3fc;
+    padding:1px 6px;
+    border-radius:4px;
+  }
+
+  .kbd{
+    font-family:"JetBrains Mono",monospace;
+    border:1px solid #cbd5e1;
+    border-bottom-width:2px;
+    border-radius:4px;
+    padding:0 5px;
+    font-size:8.5pt;
+    background:#fff;
+  }
+
+  .small{ font-size:9pt; color:var(--muted); }
+  hr.soft{ border:none; border-top:1px solid var(--line); margin:5mm 0; }
+
+  .steps{ counter-reset: step; list-style:none; padding-left:0; }
+  .steps > li{
+    position:relative;
+    padding-left: 10mm;
+    margin-bottom: 3mm;
+    page-break-inside: avoid;
+  }
+  .steps > li::before{
+    counter-increment: step;
+    content: counter(step);
+    position:absolute; left:0; top:-1mm;
+    width: 7mm; height:7mm;
+    background: var(--teal); color:#fff;
+    border-radius:50%;
+    font-family:"JetBrains Mono",monospace;
+    font-size:9pt; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="badge-ags">AGS ANALÍTICA<br>SISTEMA-MODULAR</div>
+  <div class="kicker">Manual operativo · v1</div>
+  <h1>Biblioteca<br>de Tablas</h1>
+  <div class="sub">Cómo crear, editar y publicar las tablas y protocolos que los técnicos completan en campo. Guía completa desde cero, sin conocimientos previos del sistema.</div>
+  <div class="spacer"></div>
+  <div class="meta">
+    <strong>Documento:</strong> Manual de usuario — Biblioteca de Tablas<br>
+    <strong>Aplicación:</strong> sistema-modular · módulo “Biblioteca Tablas”<br>
+    <strong>Audiencia:</strong> persona que nunca usó el sistema<br>
+    <strong>Propósito:</strong> backup operativo para crear tablas sin supervisión<br>
+    <strong>Fecha:</strong> Junio 2026
+  </div>
+</section>
+
+<!-- ============ TOC ============ -->
+<section class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><span class="n">01</span>Introducción: qué es y por qué existe
+      <ul>
+        <li>El problema que resuelve · Dónde encaja en el flujo de la OT · Conceptos clave · Vocabulario mínimo</li>
+      </ul>
+    </li>
+    <li><span class="n">02</span>La pantalla principal (lista de tablas)
+      <ul><li>Proyectos · Filtros · Estados · Acciones por tabla · Acciones en lote · Importar</li></ul>
+    </li>
+    <li><span class="n">03</span>Anatomía de una tabla: los metadatos
+      <ul><li>Nombre, sistema, tipo · Opciones de presentación · Encabezado/pie · Servicios · Modelos</li></ul>
+    </li>
+    <li><span class="n">04</span>Los 7 tipos de tabla
+      <ul><li>Validación · Informacional · Instrumentos · Checklist · Texto · Firmas · Carátula</li></ul>
+    </li>
+    <li><span class="n">05</span>El editor de tablas: pestaña Columnas
+      <ul><li>Tipos de columna · Propiedades · Grupos de columnas y cabeceras multinivel</li></ul>
+    </li>
+    <li><span class="n">06</span>El editor de tablas: pestaña Filas
+      <ul><li>Fila de datos · Título · Selector · Checkbox · Variables · Visibilidad condicional · Fusión de celdas · Unidades por fila</li></ul>
+    </li>
+    <li><span class="n">07</span>El editor de tablas: pestaña Reglas (validación)
+      <ul><li>Umbral fijo · Contra especificación · Cálculo entre columnas · Por fila · Especificaciones del cliente</li></ul>
+    </li>
+    <li><span class="n">08</span>El editor de tablas: pestaña Encabezados
+      <ul><li>Título · Campos inline · Mini-tabla de encabezado · Sub-tablas por instancia</li></ul>
+    </li>
+    <li><span class="n">09</span>Checklist en detalle</li>
+    <li><span class="n">10</span>Texto, Firmas y Carátula en detalle</li>
+    <li><span class="n">11</span>Importar protocolos (Word, JSON, PDF)</li>
+    <li><span class="n">12</span>Caracteres especiales (subíndices y superíndices)</li>
+    <li><span class="n">13</span>Receta: crear una tabla de cero, paso a paso</li>
+    <li><span class="n">14</span>Errores comunes y preguntas frecuentes</li>
+    <li><span class="n">15</span>Glosario</li>
+  </ol>
+</section>
+
+<!-- ============ 01 INTRO ============ -->
+<h2 class="chapter"><span class="num">01</span>Introducción: qué es y por qué existe</h2>
+
+<p class="lead">La <strong>Biblioteca de Tablas</strong> es el lugar donde se diseñan, de una sola vez, las tablas y los protocolos de verificación que después los técnicos completan en el campo. Pensala como un “molde”: vos armás el molde acá (qué columnas tiene, qué filas, qué se valida automáticamente), y ese molde se usa una y otra vez en cada Orden de Trabajo (OT).</p>
+
+<h3>El problema que resuelve</h3>
+<p>Cada servicio que hace AGS (una calibración, una calificación de operación, un mantenimiento) genera un <strong>informe</strong>. Ese informe lleva tablas: presiones medidas, tolerancias, resultados PASA/FALLA, checklists de pasos, listados de instrumentos usados, una carátula, firmas, etc.</p>
+<p>Sin la Biblioteca, cada técnico tendría que armar esas tablas a mano en cada visita. Con la Biblioteca, el trabajo de diseño se hace <strong>una sola vez</strong>: se define la tabla, se publica, y a partir de ahí aparece disponible para que el ingeniero la elija y la rellene durante la OT. Las cuentas (diferencias, comparaciones contra tolerancia, conclusiones) se calculan solas.</p>
+
+<div class="box note">
+  <span class="box-title">Idea central</span>
+  Vos no cargás datos de medición acá. Acá <strong>diseñás la estructura</strong>. Los valores reales (lo que mide el instrumento) los carga el técnico después, en la app de campo, sobre una copia de tu diseño.
+</div>
+
+<h3>Dónde encaja en el flujo de trabajo</h3>
+<p>El recorrido completo de una tabla, de punta a punta, es así:</p>
+<ol class="steps">
+  <li><strong>Diseño (acá).</strong> En sistema-modular → <span class="ui">Biblioteca Tablas</span> creás la tabla, la configurás y la <strong>publicás</strong>. Solo las tablas publicadas llegan a los técnicos.</li>
+  <li><strong>Selección.</strong> Cuando un ingeniero abre una OT en la app de campo (<em>reportes-ot</em>), elige de un listado qué tablas/protocolos aplican a ese equipo y servicio. Al elegir una, el sistema guarda una <strong>foto (snapshot)</strong> de la tabla tal como estaba en ese momento.</li>
+  <li><strong>Carga en campo.</strong> El técnico completa la tabla en la tablet: escribe valores, tilda checkboxes, elige opciones. Las reglas calculan diferencias y conclusiones en vivo.</li>
+  <li><strong>PDF.</strong> Al finalizar, todo se arma en el informe PDF que se entrega al cliente.</li>
+</ol>
+
+<div class="box tip">
+  <span class="box-title">Por qué importa el “snapshot”</span>
+  Como cada OT guarda una copia de la tabla al momento de elegirla, podés seguir mejorando una tabla en la Biblioteca sin romper informes viejos. Los informes ya emitidos conservan la versión que tenían. Lo que cambies hoy aplica solo a las OT nuevas.
+</div>
+
+<h3>Conceptos clave (leé esto antes de seguir)</h3>
+<table class="t wrap">
+  <tr><th style="width:32%">Concepto</th><th>Qué significa</th></tr>
+  <tr><td>Tabla</td><td>La unidad básica de la Biblioteca. Cada tabla es un documento independiente. Una “tabla” puede ser en realidad una tabla de datos, un checklist, un texto, una carátula o un bloque de firmas — eso lo define su <em>tipo</em>.</td></tr>
+  <tr><td>Protocolo</td><td>El conjunto de tablas que el ingeniero arma para una OT. El protocolo no existe como tal en la Biblioteca: se compone “al vuelo” eligiendo tablas. Por eso cada tabla tiene un campo <strong>Orden</strong>, que define en qué posición aparece dentro del protocolo.</td></tr>
+  <tr><td>Tipo de sistema (sysType)</td><td>La familia de equipo a la que aplica la tabla: HPLC, GC, MSD, HSS, UV, OSMOMETRO, POLARIMETRO, HTA u OTRO. Sirve para filtrar qué tablas le aparecen al técnico según el equipo.</td></tr>
+  <tr><td>Tipo de tabla (tableType)</td><td>Qué clase de contenido es: Validación, Informacional, Instrumentos, Checklist, Texto, Firmas o Carátula. Determina qué editor y qué opciones ves. Es la decisión más importante al crear una tabla.</td></tr>
+  <tr><td>Estado</td><td><span class="pill draft">Borrador</span> mientras la editás · <span class="pill pub">Publicado</span> cuando está lista y visible para técnicos · <span class="pill arch">Archivado</span> cuando se retira sin borrarla.</td></tr>
+  <tr><td>Proyecto</td><td>Una carpeta para agrupar tablas relacionadas (ej. “Calificación OQ HPLC”). Es opcional y solo organiza; no cambia el comportamiento de las tablas.</td></tr>
+  <tr><td>Modelo</td><td>El modelo de equipo concreto (ej. “HPLC 1260 Infinity”). Una tabla puede restringirse a ciertos modelos para que no aparezca donde no corresponde.</td></tr>
+</table>
+
+<div class="box warn">
+  <span class="box-title">Regla de oro</span>
+  Una tabla con la que querés que trabajen los técnicos tiene que estar <strong>Publicada</strong>. Un Borrador, por más completo que esté, no le aparece a nadie en campo.
+</div>
+
+<h3>Cómo llegar a la Biblioteca</h3>
+<p>En el menú lateral de sistema-modular, ítem <span class="ui">📐 Biblioteca Tablas</span>. La dirección es <span class="path">/table-catalog</span>. Desde ahí ves el listado y el botón <span class="ui">+ Nueva tabla</span>.</p>
+
+<!-- ============ 02 LIST ============ -->
+<h2 class="chapter"><span class="num">02</span>La pantalla principal (lista de tablas)</h2>
+<p class="lead">Es lo primero que ves al entrar. Un listado de todas las tablas, con herramientas arriba para filtrar, organizar en proyectos e importar.</p>
+
+<h3>2.1 Selector de proyecto</h3>
+<p>Arriba de todo hay un selector <span class="ui">Proyecto:</span>. Define qué subconjunto de tablas estás viendo:</p>
+<ul>
+  <li><strong>Todas las tablas</strong> — sin filtrar por proyecto.</li>
+  <li><strong>Sin proyecto asignado</strong> — solo las que no pertenecen a ninguna carpeta.</li>
+  <li><strong>[Nombre del proyecto]</strong> — solo las de esa carpeta. El selector es buscable: escribí para filtrar.</li>
+</ul>
+<p>Con el botón <span class="ui">+ Nuevo</span> creás una carpeta nueva (ej. “Validación HPLC 2026”). Al crearla, pasa a ser el proyecto activo. Cuando hay un proyecto seleccionado aparece <span class="ui">⋮ Gestionar</span>, con estas opciones:</p>
+<table class="t wrap">
+  <tr><th style="width:34%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Renombrar</td><td>Cambia el nombre del proyecto (Enter confirma, Escape cancela).</td></tr>
+  <tr><td>Encabezado / Pie</td><td>Define un <strong>Título de protocolo</strong> y un <strong>N° QF</strong> que se aplican a todas las tablas del proyecto que no tengan los suyos propios. Útil para no repetir lo mismo tabla por tabla.</td></tr>
+  <tr><td>Agregar modelos a tablas…</td><td>Asigna en lote una lista de modelos de equipo a todas las tablas del proyecto de una vez (ver 2.6).</td></tr>
+  <tr><td>Eliminar</td><td>Borra la carpeta. <strong>Las tablas no se borran</strong>: solo quedan “sin proyecto”.</td></tr>
+</table>
+
+<h3>2.2 Filtros</h3>
+<p>Debajo del selector de proyecto hay dos filtros, combinables:</p>
+<ul>
+  <li><span class="ui">Tipo de sistema</span> — HPLC, GC, MSD, HSS, UV, OSMOMETRO, POLARIMETRO, HTA, OTRO, o “Todos”.</li>
+  <li><span class="ui">Estado</span> — Borrador, Publicado, Archivado, o “Todos”.</li>
+</ul>
+<p>El botón <span class="ui">Limpiar</span> resetea ambos.</p>
+
+<h3>2.3 Las columnas del listado</h3>
+<p>Cada fila es una tabla. Las columnas son: casilla de selección, <strong>#</strong> (orden), <strong>Nombre</strong>, <strong>SysType</strong>, <strong>Modelos</strong> (o “Todos” si no se restringió), <strong>Tipo</strong>, <strong>Cols</strong> (cantidad de columnas), <strong>Filas</strong>, <strong>Default</strong> (✓ si es la tabla por defecto de su sysType), <strong>Estado</strong> y <strong>Acciones</strong>.</p>
+<div class="box note">
+  <span class="box-title">Tip de tabla</span>
+  Podés ordenar haciendo click en cualquier encabezado, y ajustar el ancho de columnas arrastrando el borde. Click derecho sobre un encabezado abre un menú para alinear u ocultar esa columna. Son comodidades visuales, no afectan los datos.
+</div>
+
+<h3>2.4 Acciones por tabla</h3>
+<table class="t wrap">
+  <tr><th style="width:24%">Acción</th><th>Qué hace</th></tr>
+  <tr><td>Editar</td><td>Abre el editor de esa tabla.</td></tr>
+  <tr><td>Clonar</td><td>Crea una copia. Te pide nombre, tipo de sistema y proyecto, y te lleva a editar la copia. Ideal para hacer una variante sin partir de cero.</td></tr>
+  <tr><td>Publicar</td><td>Pasa la tabla a <span class="pill pub">Publicado</span> (visible para técnicos). Solo aparece si no está ya publicada.</td></tr>
+  <tr><td>Archivar</td><td>Pasa a <span class="pill arch">Archivado</span>: se retira de circulación sin borrarla. Reversible.</td></tr>
+  <tr><td>Eliminar</td><td>Borra la tabla <strong>permanentemente</strong>. Pide confirmación y no se puede deshacer.</td></tr>
+</table>
+
+<h3>2.5 Acciones en lote</h3>
+<p>Si marcás las casillas de varias tablas, aparece una barra teal arriba del listado que permite: <strong>moverlas a un proyecto</strong> (o sacarlas de todos con “Sin proyecto”), <strong>deseleccionar</strong>, o <strong>eliminar</strong> todas las seleccionadas de una vez.</p>
+
+<h3>2.6 Agregar modelos en lote a un proyecto</h3>
+<p>Desde <span class="ui">⋮ Gestionar → Agregar modelos a tablas…</span> abrís un modal donde elegís modelos de equipo (agrupados por categoría) y al confirmar se agregan a <strong>todas</strong> las tablas del proyecto.</p>
+<div class="box tip">
+  <span class="box-title">No pisa nada</span>
+  Los modelos seleccionados se <em>suman</em>: no reemplazan ni duplican los que ya tenía cada tabla. Si el resumen dice “se agregaron a 3 de 7 tablas”, las otras 4 ya los tenían. Es normal.
+</div>
+
+<h3>2.7 Importar</h3>
+<p>El botón <span class="ui">Importar</span> (arriba a la derecha) abre el asistente para traer tablas desde un documento Word o desde JSON. Se explica en detalle en el <strong>Capítulo 11</strong>.</p>
+
+<!-- ============ 03 METADATA ============ -->
+<h2 class="chapter"><span class="num">03</span>Anatomía de una tabla: los metadatos</h2>
+<p class="lead">Al crear (<span class="ui">+ Nueva tabla</span>) o editar una tabla, la pantalla se divide en dos: a la izquierda el panel de <strong>Metadatos</strong> (datos generales de la tabla), a la derecha el <strong>editor de contenido</strong> (que cambia según el tipo). Este capítulo cubre el panel izquierdo, que es común a casi todos los tipos.</p>
+
+<h3>3.1 Identidad de la tabla</h3>
+<table class="t wrap">
+  <tr><th style="width:30%">Campo</th><th>Qué es</th></tr>
+  <tr><td>Nombre <span class="small">(obligatorio)</span></td><td>El título de la tabla. Aparece en el protocolo como encabezado del bloque (salvo que se oculte). Ej. “Verificación de caudal de bomba”.</td></tr>
+  <tr><td>Descripción</td><td>Texto secundario opcional. En la mayoría de los tipos es solo referencia interna; en la Carátula se usa como línea bajo el título.</td></tr>
+  <tr><td>Proyecto</td><td>La carpeta a la que pertenece. Opcional.</td></tr>
+  <tr><td>Tipo de sistema <span class="small">(obligatorio)</span></td><td>HPLC, GC, MSD, HSS, UV, OSMOMETRO, POLARIMETRO, HTA u OTRO. Define para qué familia de equipos se ofrece.</td></tr>
+  <tr><td>Tipo de tabla</td><td>Validación, Informacional, Instrumentos, Checklist, Texto, Firmas o Carátula. <strong>Cambia todo el editor de la derecha.</strong> Ver Capítulo 4.</td></tr>
+</table>
+
+<h3>3.2 Posición y comportamiento en el protocolo</h3>
+<table class="t wrap">
+  <tr><th style="width:34%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Tabla por defecto para este sysType</td><td>Marca esta tabla como la opción “sugerida” de su tipo de sistema.</td></tr>
+  <tr><td>Orden</td><td>Número de posición dentro del protocolo. Menor = aparece primero. Si lo dejás en 0, se ordena al final.</td></tr>
+  <tr><td>Mostrar título en protocolo</td><td>Si se destilda, la barra de título (nombre + etiquetas) no se muestra en el informe. Útil cuando dos tablas tienen que verse como una sola.</td></tr>
+  <tr><td>Vincular con tabla anterior</td><td>Fusiona visualmente este bloque con la tabla de arriba, manteniéndolos en la misma “unidad” al paginar el PDF (no se separan entre páginas).</td></tr>
+  <tr><td>Vincular con tabla siguiente</td><td>Igual, pero hacia abajo: mantiene este bloque en la misma página que la tabla que le sigue.</td></tr>
+  <tr><td>Duplicable en protocolo</td><td>Permite al ingeniero clonar la tabla entera durante la OT (ej. repetir el mismo bloque para un segundo módulo).</td></tr>
+  <tr><td>Permitir agregar filas extra en protocolo</td><td>El técnico puede sumar filas vacías al rellenar. No disponible en Checklist, Texto, Firmas ni Carátula.</td></tr>
+  <tr><td>Permitir eliminar filas en protocolo</td><td>El técnico puede borrar filas (incluso del molde) al ejecutar. Solo en Informacional y Validación. No toca el molde de la Biblioteca.</td></tr>
+  <tr><td>Modo compacto</td><td>Renderiza la tabla con el estilo apretado de las tablas de Instrumentos/Patrones (texto chico, celdas compactas). Bueno para tablas que deben verse igual que las auto-generadas.</td></tr>
+  <tr><td>Tamaño de texto (contenido)</td><td>Normal (defecto), Mediano (13px), Grande (15px) o Muy grande (17px). Afecta el tamaño de letra de las celdas.</td></tr>
+</table>
+
+<h3>3.3 Encabezado y pie de página del informe</h3>
+<p>Dos campos opcionales que se imprimen en cada página del reporte:</p>
+<ul>
+  <li><span class="ui">Título del protocolo</span> — ej. “Protocolo de verificación GC-MS”. Va en el encabezado de cada hoja.</li>
+  <li><span class="ui">N° formulario (QF)</span> — ej. “QF-AGS-012 Rev.01”. Va en el pie de cada hoja.</li>
+</ul>
+<p class="small">Si la tabla pertenece a un proyecto que ya define estos valores, no hace falta repetirlos aquí.</p>
+
+<h3>3.4 Tipos de servicio</h3>
+<p>Lista de casillas para asociar la tabla a uno o más servicios: Calibración, Calificación de instalación, Calificación de operación, Calificación de operación de software, Limpieza de fuente de iones, los distintos Mantenimientos preventivos, Recalificación post reparación.</p>
+<div class="box note">
+  <span class="box-title">Si no marcás ninguno</span>
+  La tabla no se filtra por servicio: aparece disponible en <strong>todos</strong> los servicios. Marcá servicios solo si querés acotar dónde aparece.
+</div>
+
+<h3>3.5 Modelos de equipo</h3>
+<p>Cuando elegiste un Tipo de sistema, aparece el selector de <strong>Modelos</strong> (agrupados por categoría de equipo). Tildás los modelos concretos a los que aplica la tabla.</p>
+<div class="box note">
+  <span class="box-title">Si no marcás ninguno</span>
+  La tabla aplica a <strong>todos</strong> los modelos de su tipo de sistema. Acotá modelos solo cuando una tabla es específica de un equipo y no debe aparecer para otros.
+</div>
+
+<h3>3.6 Guardar y publicar</h3>
+<p>Arriba a la derecha tenés tres botones:</p>
+<ul>
+  <li><span class="ui">← Volver</span> — vuelve al listado.</li>
+  <li><span class="ui">Guardar borrador</span> — guarda sin publicar. Podés guardar cuantas veces quieras mientras armás la tabla.</li>
+  <li><span class="ui">Publicar</span> — valida y publica. Si hay datos incompletos (nombre vacío, sin sysType, reglas a medias, checklist sin ítems, etc.) te muestra las advertencias y te deja decidir si publicar igual.</li>
+</ul>
+<div class="box tip">
+  <span class="box-title">Vista previa</span>
+  Para los tipos de tabla (no para Checklist/Texto/Firmas/Carátula) hay una <strong>Vista previa</strong> colapsable al pie del editor, que muestra cómo va quedando la tabla a medida que la armás.
+</div>
+
+<!-- ============ 04 TYPES ============ -->
+<h2 class="chapter"><span class="num">04</span>Los 7 tipos de tabla</h2>
+<p class="lead">El <strong>Tipo de tabla</strong> es la decisión más importante: define qué editor ves a la derecha y qué hace la tabla en el informe. Hay siete. Elegí según lo que necesites mostrar.</p>
+
+<div class="typecard">
+  <h4>1 · Validación</h4>
+  <p>Tabla de datos con <strong>reglas automáticas</strong>. El técnico carga mediciones y el sistema calcula diferencias, compara contra tolerancias y escribe el resultado PASA / FALLA solo. Es el tipo más potente.</p>
+  <p class="when">Cuándo usarla: cualquier verificación con criterio de aceptación. Caudales, presiones, deriva de detector, exactitud, linealidad, etc.</p>
+</div>
+<div class="typecard">
+  <h4>2 · Informacional</h4>
+  <p>Tabla de datos <strong>sin reglas</strong>. El técnico carga valores pero no hay validación automática PASA/FALLA. Misma estructura que Validación pero sin la pestaña Reglas.</p>
+  <p class="when">Cuándo usarla: registrar condiciones, observaciones, datos que no se comparan contra una tolerancia.</p>
+</div>
+<div class="typecard">
+  <h4>3 · Instrumentos</h4>
+  <p>Variante de tabla de datos pensada para listar los <strong>instrumentos/patrones usados</strong> en la verificación (modelo, serie, certificado, trazabilidad). Estilo compacto.</p>
+  <p class="when">Cuándo usarla: la tabla de “Instrumentos utilizados” y similares.</p>
+</div>
+<div class="typecard">
+  <h4>4 · Checklist</h4>
+  <p>Lista jerárquica de pasos para tildar/evaluar. En vez de columnas y filas, se arma con ítems anidados (secciones, sub-secciones, tareas). Cada ítem puede ser un checkbox, un campo de valor, un Cumple/No cumple, un selector o una tabla embebida.</p>
+  <p class="when">Cuándo usarla: protocolos de inspección paso a paso, mantenimientos con checklist.</p>
+</div>
+<div class="typecard">
+  <h4>5 · Texto</h4>
+  <p>Un bloque de texto libre con formato (objetivos, alcance, procedimiento, notas). Editor de texto enriquecido.</p>
+  <p class="when">Cuándo usarla: secciones narrativas del informe.</p>
+</div>
+<div class="typecard">
+  <h4>6 · Firmas</h4>
+  <p>Bloque que muestra automáticamente las firmas capturadas en la hoja 1 del reporte (cliente e/o ingeniero), con fecha opcional.</p>
+  <p class="when">Cuándo usarla: el cierre de un protocolo que requiere conformidad firmada.</p>
+</div>
+<div class="typecard">
+  <h4>7 · Carátula</h4>
+  <p>La portada del protocolo. Título grande, marca/modelo, datos del equipo, fecha e ingeniero (todo auto-completado desde la OT), N° QF, revisión y campos extra.</p>
+  <p class="when">Cuándo usarla: primera hoja de un protocolo de calificación.</p>
+</div>
+
+<div class="box note">
+  <span class="box-title">Los próximos capítulos</span>
+  Los capítulos <strong>5 a 8</strong> explican el editor de los tipos de <em>datos</em> (Validación, Informacional, Instrumentos), que comparten las cuatro pestañas Columnas / Filas / Reglas / Encabezados. El capítulo <strong>9</strong> cubre Checklist, y el <strong>10</strong> cubre Texto, Firmas y Carátula.
+</div>
+
+<!-- ============ 05 COLUMNS ============ -->
+<h2 class="chapter"><span class="num">05</span>El editor de tablas: pestaña <em>Columnas</em></h2>
+<p class="lead">Para Validación, Informacional e Instrumentos, el editor de la derecha tiene pestañas: <strong>Columnas · Filas · Reglas</strong> (solo Validación) <strong>· Encabezados</strong>. Cada pestaña muestra entre paréntesis cuántos elementos tiene. Empezá siempre por Columnas: definen el esqueleto de la tabla.</p>
+
+<h3>5.1 Los tipos de columna</h3>
+<p>Cada columna tiene un <strong>tipo</strong> que decide cómo se carga y se muestra:</p>
+<table class="t wrap">
+  <tr><th style="width:24%">Tipo</th><th>Qué hace</th></tr>
+  <tr><td>Texto libre <span class="small">(text_input)</span></td><td>Campo de texto. Acepta cualquier contenido. Puede ser multilínea.</td></tr>
+  <tr><td>Número <span class="small">(number_input)</span></td><td>Campo numérico. Admite unidad de medida.</td></tr>
+  <tr><td>Texto fijo <span class="small">(fixed_text)</span></td><td>Valor que define el administrador y el técnico solo lee (no edita). Para valores preestablecidos o notas.</td></tr>
+  <tr><td>Fecha <span class="small">(date_input)</span></td><td>Selector de fecha (calendario).</td></tr>
+  <tr><td>Casilla <span class="small">(checkbox)</span></td><td>Sí/No.</td></tr>
+  <tr><td>Pasa/Falla <span class="small">(pass_fail)</span></td><td>Conclusión con tres valores: PASA, FALLA, N/A. Puede llenarla una regla automáticamente o el técnico a mano.</td></tr>
+  <tr><td>Selección <span class="small">(select_input)</span></td><td>Desplegable de opciones fijas; el técnico elige una.</td></tr>
+  <tr><td>Multi-selección <span class="small">(multi_select)</span></td><td>El técnico elige varias opciones. Las opciones pueden ser fijas o traerse de otra tabla.</td></tr>
+</table>
+
+<h3>5.2 Propiedades de una columna</h3>
+<p>Al crear o editar una columna (<span class="ui">+ Agregar columna</span>) configurás:</p>
+<table class="t wrap">
+  <tr><th style="width:26%">Propiedad</th><th>Para qué</th></tr>
+  <tr><td>Clave (key)</td><td>Identificador interno único de la columna. Se autogenera; rara vez hace falta tocarlo.</td></tr>
+  <tr><td>Etiqueta (label)</td><td>El encabezado visible. Si lo dejás vacío, la columna no muestra encabezado (útil para columnas que son solo una etiqueta fija a la izquierda).</td></tr>
+  <tr><td>Tipo</td><td>Uno de los 8 de arriba.</td></tr>
+  <tr><td>Unidad</td><td>Para número/texto: la unidad que se muestra junto al valor (ej. <code>mL/min</code>). Se puede sobreescribir por fila.</td></tr>
+  <tr><td>Valor esperado</td><td>Texto de ayuda (placeholder) que orienta al técnico sobre qué cargar. No valida, solo guía.</td></tr>
+  <tr><td>Valor fijo</td><td>Solo para “Texto fijo”: el valor inmutable que se muestra.</td></tr>
+  <tr><td>Opciones</td><td>Para Selección/Multi-selección: las opciones, separadas por coma (ej. <code>Sí, No, N/A</code>).</td></tr>
+  <tr><td>Obligatorio</td><td>El técnico debe completar la columna.</td></tr>
+  <tr><td>Ancho (mm)</td><td>Ancho fijo en milímetros. Vacío = se reparte automáticamente.</td></tr>
+  <tr><td>Alinear</td><td>Izquierda / Centro / Derecha. Default Centro.</td></tr>
+  <tr><td>Tamaño (px)</td><td>Tamaño de letra del contenido de esa columna (6–20). Útil para columnas con texto largo.</td></tr>
+</table>
+
+<h4>Propiedades avanzadas (según el caso)</h4>
+<table class="t wrap">
+  <tr><th style="width:28%">Propiedad</th><th>Para qué</th></tr>
+  <tr><td>Multilínea</td><td>Renderiza la celda como un cuadro de varios renglones, y el salto se respeta también en el PDF. Para columnas de “resultado” con texto descriptivo.</td></tr>
+  <tr><td>Etiqueta fija (isLabelColumn)</td><td>La columna funciona como rótulo: las filas sin valor de molde quedan en blanco (sin input editable).</td></tr>
+  <tr><td>Oculta por defecto</td><td>La columna existe y guarda datos, pero arranca escondida en la app de campo. El ingeniero puede mostrarla cuando la necesita. Las fórmulas siguen funcionando aunque esté oculta.</td></tr>
+  <tr><td>Editable en encabezado</td><td>Agrega un input entre paréntesis en el encabezado, que el ingeniero completa al ejecutar (ej. “Valor medido (Benzaldehído)”). Máx. 15 caracteres por defecto.</td></tr>
+  <tr><td>Opción manual <span class="small">(select)</span></td><td>Agrega al desplegable una opción extra (ej. “Resultado manual”) que, al elegirla, abre un campo de texto libre. Lo que el ingeniero escribe es lo que se guarda e imprime.</td></tr>
+  <tr><td>Opciones desde otra tabla <span class="small">(multi_select)</span></td><td>En vez de opciones fijas, las trae de otra tabla del protocolo (indicás nombre de la tabla y la columna fuente).</td></tr>
+  <tr><td>Sin auto-fill (disableAutoFill)</td><td>Evita que la columna se autocomplete con datos del equipo (marca/modelo/serie). Para inventarios donde “Marca” es un dato a mano, no la del equipo en calibración.</td></tr>
+  <tr><td>Modelo desde módulo (autoFillFromModulo)</td><td>En tablas de cabecera, la columna “Modelo” lee del módulo en vez del sistema. Para mantenimiento de accesorios (MSD, HSS, HTA).</td></tr>
+</table>
+
+<h3>5.3 Reordenar, editar y borrar columnas</h3>
+<p>Cada columna del listado tiene flechas <span class="kbd">◀</span> <span class="kbd">▶</span> para moverla, y botones <strong>Editar</strong> / <strong>Eliminar</strong>. El botón naranja <strong>Unidades</strong> (en columnas de número/texto) abre un panel para asignar una unidad distinta por fila — útil cuando una misma columna usa, por ejemplo, “bar” en una fila y “psi” en otra.</p>
+
+<h3>5.4 Cabeceras multinivel y grupos de columnas</h3>
+<p>Cuando hay 2 o más columnas, abajo aparece la sección para armar encabezados de varios niveles:</p>
+<table class="t wrap">
+  <tr><th style="width:30%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Título del header</td><td>Una fila superior que abarca <strong>todas</strong> las columnas (ej. “Configuración de sistema”). Vacío = sin esa fila.</td></tr>
+  <tr><td>Sub-grupos de columnas</td><td>Agrupan columnas contiguas bajo una cabecera común. Definís la etiqueta del grupo (ej. “ALS”), desde qué columna empieza y cuántas abarca.</td></tr>
+  <tr><td>Header combinado (mergeHeader)</td><td>Colapsa el header del grupo a una sola fila: la etiqueta abarca con colspan, sin sub-encabezados debajo. Las columnas de datos siguen separadas.</td></tr>
+</table>
+<div class="box ex">
+  <span class="box-title">Ejemplo</span>
+  Una tabla con columnas “Modelo” y “SN”, ambas agrupadas bajo el rótulo común <strong>“ALS”</strong>. En el header se ve “ALS” arriba abarcando las dos, y “Modelo” / “SN” debajo.
+</div>
+
+<!-- ============ 06 ROWS ============ -->
+<h2 class="chapter"><span class="num">06</span>El editor de tablas: pestaña <em>Filas</em></h2>
+<p class="lead">Las filas son el contenido vertical de la tabla. Hay cuatro clases de fila, y cada una se agrega con su propio botón: <span class="ui">+ Fila</span>, <span class="ui">+ Título sección</span>, <span class="ui">+ Fila selector</span>, <span class="ui">+ Fila checkbox</span>.</p>
+
+<h3>6.1 Las cuatro clases de fila</h3>
+<table class="t wrap">
+  <tr><th style="width:24%">Clase</th><th>Para qué sirve</th></tr>
+  <tr><td>Fila de datos</td><td>La fila normal: una celda por columna. Es donde se cargan los valores. Soporta todas las opciones avanzadas (variables, visibilidad, fusión, unidades).</td></tr>
+  <tr><td>Título de sección</td><td>Una fila a todo el ancho con un texto de encabezado (ej. “Sección 1 — Preparación del sistema”). No se carga nada, solo separa visualmente.</td></tr>
+  <tr><td>Fila selector</td><td>Una fila con un desplegable que ramifica la tabla. El técnico elige una opción y, según esa elección, aparecen u ocultan otras filas. Ej. “Tipo de inyector: ALS / Manual”.</td></tr>
+  <tr><td>Fila checkbox</td><td>Una fila a todo el ancho con un texto y una casilla de confirmación (<code>☐ texto</code>). El técnico tilda cuando completó ese paso. El texto puede ser largo y multilínea.</td></tr>
+</table>
+
+<h3>6.2 Manejar las filas</h3>
+<p>Cada fila tiene flechas <span class="kbd">▲</span> <span class="kbd">▼</span> para reordenar, y botones <strong>Duplicar</strong>, <strong>Eliminar</strong> y <strong>Editar</strong>. Para borrar muchas a la vez, usá <span class="ui">Seleccionar para eliminar</span>, marcá las filas y confirmá. Al hacer click en una fila se abre su panel de edición inline.</p>
+
+<h3>6.3 Opciones de una fila de datos</h3>
+<p>Dentro del panel de edición de una fila de datos completás el valor de cada celda y, además, tenés estas opciones (que distinguen una fila “simple” de una “inteligente”):</p>
+
+<h4>Variable del reporte</h4>
+<p>Hace que una celda se <strong>auto-rellene</strong> con un dato del contexto del reporte, sin que el técnico escriba nada. Las variables disponibles son:</p>
+<table class="t wrap">
+  <tr><th style="width:30%">Grupo</th><th>Variables</th></tr>
+  <tr><td>Cliente</td><td>Razón social · Dirección completa · Sector/Área · Contacto</td></tr>
+  <tr><td>Orden de Trabajo</td><td>Número de OT</td></tr>
+  <tr><td>Ingeniero</td><td>Nombre y apellido</td></tr>
+  <tr><td>AGS Analítica</td><td>Razón social · Dirección · Teléfono · Email · Sitio web</td></tr>
+</table>
+<p class="small">Sin variable asignada, la celda es de carga manual (el comportamiento normal).</p>
+
+<h4>Duplicable en protocolo</h4>
+<p>El técnico podrá agregar copias de esta fila al rellenar (ej. un segundo inyector). Las copias se guardan en la OT, no en el molde.</p>
+
+<h4>Mostrar por defecto</h4>
+<p>Si la tabla tiene un selector de encabezado vacío, la fila se muestra igual. Cuando el técnico elige un valor del selector, la fila se oculta salvo que cumpla su condición de visibilidad. Sirve para filas que deben verse “hasta que se filtre”.</p>
+
+<h4>Conclusión manual</h4>
+<p>Para filas con columna Pasa/Falla: el ingeniero elige Cumple / No cumple / N/A <strong>a mano</strong>, sin que una regla automática decida. Para observaciones visuales donde no hay cálculo posible.</p>
+
+<h4>Unidades por columna</h4>
+<p>Override de la unidad global de la columna, solo para esta fila. Vacío = usa la unidad de la columna. Solo completás las filas que necesiten una unidad distinta.</p>
+
+<h3>6.4 Visibilidad condicional de filas</h3>
+<p>Una fila puede mostrarse u ocultarse según lo que el técnico elija en los <strong>campos de encabezado</strong> de la tabla (ver Capítulo 8). En el panel de la fila, sección <span class="ui">Visible solo si…</span>:</p>
+<ul>
+  <li>Elegís un <strong>campo de encabezado</strong> y un <strong>operador</strong>: “Es uno de” (la fila aparece cuando el valor está en tu lista) o “Es distinto de” (aparece cuando NO está).</li>
+  <li>Tildás los <strong>valores</strong> que activan la condición.</li>
+  <li>Podés agregar varias condiciones con <span class="ui">+ Agregar condición</span>: se combinan con <strong>Y</strong> (deben cumplirse todas).</li>
+</ul>
+<div class="box ex">
+  <span class="box-title">Ejemplo</span>
+  Una fila visible solo cuando “Modelo = 8453” <strong>Y</strong> “Concentración ≠ 60”. Si el técnico elige otro modelo, la fila no aparece en la tabla.
+</div>
+<div class="box warn">
+  <span class="box-title">Requisito</span>
+  La visibilidad condicional necesita que la tabla tenga al menos un <strong>campo de encabezado</strong> definido (pestaña Encabezados). Sin eso, la sección te avisa que primero lo agregues.
+</div>
+
+<h3>6.5 Fusión de celdas (rowspan por columna)</h3>
+<p>En la sección <span class="ui">Fusión de filas por columna</span> (color ámbar) podés hacer que cada columna abarque varias filas hacia abajo, creando celdas combinadas. Para cada columna ponés cuántas filas ocupa (1 = sin fusión). Las filas “cubiertas” por la fusión no vuelven a dibujar esa celda.</p>
+<div class="box ex">
+  <span class="box-title">Ejemplo</span>
+  Una columna “Detector” con valor 6 ocupa una sola celda alta que abarca 6 filas; las columnas vecinas siguen teniendo una celda por fila.
+</div>
+
+<!-- ============ 07 RULES ============ -->
+<h2 class="chapter"><span class="num">07</span>El editor de tablas: pestaña <em>Reglas</em></h2>
+<p class="lead">Esta pestaña existe <strong>solo en tablas de Validación</strong>. Las reglas son la magia del sistema: hacen las cuentas y deciden PASA/FALLA solas, en base a lo que el técnico carga. Una tabla puede tener varias reglas.</p>
+
+<h3>7.1 La idea general</h3>
+<p>Una regla toma el valor de una columna, lo evalúa (lo compara con un umbral, con una especificación, o lo calcula a partir de otras columnas) y escribe el resultado en una columna de destino. Hay <strong>tres modos</strong> de regla.</p>
+
+<h3>7.2 Modo A — Comparación contra un umbral fijo</h3>
+<p>Compara el valor de una columna contra un número fijo, igual para todas las filas.</p>
+<table class="t wrap">
+  <tr><th style="width:30%">Campo de la regla</th><th>Qué define</th></tr>
+  <tr><td>Columna a evaluar</td><td>La columna cuyo valor se compara.</td></tr>
+  <tr><td>Operador</td><td>Uno de: <code>&lt;=</code> (menor o igual) · <code>&gt;=</code> (mayor o igual) · <code>&lt;</code> (menor) · <code>&gt;</code> (mayor) · <code>==</code> (igual) · <code>!=</code> (distinto).</td></tr>
+  <tr><td>Umbral global</td><td>El número contra el que se compara (ej. 100).</td></tr>
+  <tr><td>Columna resultado</td><td>Dónde se escribe la conclusión.</td></tr>
+  <tr><td>Texto si cumple / si no cumple</td><td>Qué etiqueta poner (ej. “PASA” / “FALLA”, u “OK” / “FUERA DE RANGO”).</td></tr>
+</table>
+<div class="box ex">
+  <span class="box-title">Ejemplo</span>
+  “Detector A (mAU)” <code>&lt;=</code> 100 → escribe “OK” si cumple, “FUERA DE RANGO” si no.
+</div>
+
+<h3>7.3 Modo B — Comparación contra la especificación de cada fila</h3>
+<p>Lee la <strong>especificación escrita en cada fila</strong> (en una columna) y evalúa si el valor medido la cumple. Permite que distintas filas tengan distintas tolerancias sin crear una regla por fila.</p>
+<p>Reconoce automáticamente varios formatos de especificación:</p>
+<ul>
+  <li>Rangos: <code>10..20</code> o <code>10 a 20</code></li>
+  <li>Tolerancia bilateral: <code>±1.2</code> (valor nominal ± delta)</li>
+  <li>Límites: <code>&gt;5</code>, <code>&lt;100</code>, <code>NLT 50</code> (no menor que), <code>NMT 80</code> (no mayor que)</li>
+  <li>Con unidad: <code>10..20 psi</code>, <code>1.5±0.2 mg/L</code></li>
+</ul>
+<table class="t wrap">
+  <tr><th style="width:30%">Campo de la regla</th><th>Qué define</th></tr>
+  <tr><td>Valor medido</td><td>La columna con el dato que carga el técnico.</td></tr>
+  <tr><td>Especificación</td><td>La columna con el texto de la tolerancia.</td></tr>
+  <tr><td>Dónde escribir resultado</td><td>La columna de conclusión.</td></tr>
+  <tr><td>Valor nominal / referencia <span class="small">(opcional)</span></td><td>Si la spec es <code>±X</code>: la columna con el valor de referencia. Con ella se evalúa <code>|medido − nominal| ≤ X</code>. Sin ella, se asume que el medido ya es la diferencia (<code>|medido| ≤ X</code>).</td></tr>
+</table>
+<div class="box tip">
+  <span class="box-title">Auto-detectar</span>
+  Hay un botón <strong>Auto-detectar</strong> que rellena estos campos buscando en los nombres de tus columnas patrones como “resultado”, “especificación”, “conclusión”, “nominal”.
+</div>
+
+<h3>7.4 Modo C — Cálculo automático entre columnas</h3>
+<p>Calcula un valor a partir de dos operandos y lo escribe en una tercera columna. <strong>El técnico no edita la columna resultado: se calcula sola.</strong></p>
+<table class="t wrap">
+  <tr><th style="width:30%">Campo de la regla</th><th>Qué define</th></tr>
+  <tr><td>Columna A</td><td>Primer operando.</td></tr>
+  <tr><td>Operación</td><td><code>+</code> suma · <code>−</code> resta · <code>×</code> multiplica · <code>÷</code> divide · <code>|A−B|</code> desvío absoluto (valor absoluto de la diferencia).</td></tr>
+  <tr><td>Operando B</td><td>Puede ser una <strong>constante</strong> (un número, igual para todas las filas — con opción de constante distinta por fila) o <strong>otra columna</strong> (usa el valor de cada fila).</td></tr>
+  <tr><td>Columna resultado</td><td>Dónde se escribe el cálculo.</td></tr>
+  <tr><td>Unidad <span class="small">(opcional)</span></td><td>Solo informativa, no afecta la cuenta.</td></tr>
+</table>
+<div class="box ex">
+  <span class="box-title">Ejemplo (deriva de detector)</span>
+  Columna A “Lectura inicial” <code>−</code> Columna B “Lectura final” → escribe el resultado en “Δ Detector”. Después, una regla de Modo A o B sobre “Δ Detector” decide PASA/FALLA.
+</div>
+
+<h3>7.5 Ajustes finos comunes a todas las reglas</h3>
+<table class="t wrap">
+  <tr><th style="width:30%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Umbrales por fila</td><td>(Modos A y C con constante) Un umbral/constante distinto por fila. Vacío en una fila = usa el global. Para cuando un detector tiene una tolerancia más estricta que el resto.</td></tr>
+  <tr><td>Aplica a</td><td>Restringe la regla a un subconjunto de filas. Por defecto aplica a todas; destildás las filas donde NO debe aplicarse. Permite tener reglas distintas para grupos de filas.</td></tr>
+  <tr><td>Descripción</td><td>Texto libre para documentar qué hace la regla (se autocompleta, es editable).</td></tr>
+</table>
+
+<h3>7.6 Especificaciones del cliente</h3>
+<p>Arriba de la lista de reglas hay una casilla <span class="ui">Permitir especificaciones del cliente</span>. Si la activás, el ingeniero podrá tildar en campo “Especificaciones ampliadas” y <strong>sobreescribir la spec de fábrica</strong> por una propia del cliente, fila por fila. La conclusión PASA/FALLA se calcula entonces contra la spec del cliente. Útil cuando un cliente trabaja con tolerancias más exigentes que las del fabricante.</p>
+
+<div class="box warn">
+  <span class="box-title">Para que publicar no se queje</span>
+  Una regla incompleta (sin operador, sin umbral, sin columna resultado o sin textos de PASA/FALLA) genera advertencia al publicar. Revisá que cada regla tenga todos sus campos.
+</div>
+
+<!-- ============ 08 HEADERS ============ -->
+<h2 class="chapter"><span class="num">08</span>El editor de tablas: pestaña <em>Encabezados</em></h2>
+<p class="lead">El “encabezado” es todo lo que aparece <strong>arriba</strong> de la tabla de datos: un título, campos sueltos que el técnico elige (ej. tipo de inyector), y una mini-tabla auxiliar (ej. instrumentos utilizados). Es opcional, pero habilita funciones potentes como la visibilidad condicional y las sub-tablas por instancia.</p>
+
+<h3>8.1 Título del encabezado</h3>
+<p>Un texto que se renderiza arriba del bloque de encabezado, ej. “Usuarios autorizados para este test:” o “Instrumentos utilizados:”. Vacío = sin título.</p>
+
+<h3>8.2 Campos inline</h3>
+<p>Son inputs sueltos que el ingeniero completa <strong>antes</strong> de cargar la tabla principal. Cada campo (<span class="ui">+ Agregar campo</span>) tiene:</p>
+<table class="t wrap">
+  <tr><th style="width:26%">Propiedad</th><th>Qué define</th></tr>
+  <tr><td>Etiqueta</td><td>El nombre visible (ej. “Inyector”, “Ruido”).</td></tr>
+  <tr><td>Tipo de entrada</td><td><strong>Dropdown</strong> (lista cerrada de opciones), <strong>Numérico</strong> (con unidad opcional) o <strong>Texto libre</strong>.</td></tr>
+  <tr><td>Opciones <span class="small">(dropdown)</span></td><td>Separadas por coma (ej. <code>ALS, SSL, PTV, COC</code>).</td></tr>
+  <tr><td>Selección múltiple <span class="small">(dropdown)</span></td><td>El ingeniero puede elegir varias opciones; las filas se agrupan por valor.</td></tr>
+  <tr><td>Unidad / Placeholder <span class="small">(numérico/texto)</span></td><td>Unidad junto al input y/o texto de ejemplo.</td></tr>
+  <tr><td>Ocultar en PDF / preview</td><td>El campo se usa durante la carga pero no aparece en el documento final. Para selectores que solo sirven para condicionar filas.</td></tr>
+  <tr><td>Visibilidad condicional</td><td>Mostrar este campo solo cuando otro campo dropdown tiene ciertos valores.</td></tr>
+</table>
+<div class="box note">
+  <span class="box-title">Campos numéricos en especificaciones</span>
+  Un campo numérico de encabezado se puede referenciar dentro de una especificación con la sintaxis <code>{idDelCampo}</code>. Ej. si el campo “ruido” vale 2 y la spec dice <code>≥ 1600*{ruido}</code>, se evalúa como “≥ 3200”.
+</div>
+
+<h3>8.3 Sub-tablas por instancia (el multiSelect como divisor)</h3>
+<p>Cuando un campo dropdown tiene <strong>Selección múltiple</strong> activada, cada valor que el técnico elija genera una <strong>sub-tabla independiente</strong> con su propio título, sus propios encabezados y sus propias filas.</p>
+<div class="box ex">
+  <span class="box-title">Ejemplo</span>
+  Un test de “Ruido/Deriva” con un campo multiSelect “Detector” = FID, ECD, TCD. Si el técnico marca ECD y TCD, aparecen dos bloques de tabla: uno para ECD y otro para TCD. Una sola tabla en la Biblioteca cubre todas las variantes, sin duplicar.
+</div>
+
+<h3>8.4 Mini-tabla de encabezado</h3>
+<p>Una tabla pequeña que aparece sobre la principal, para datos estructurados como instrumentos o condiciones. Solo soporta columnas de <strong>texto</strong> y <strong>número</strong> (sin reglas ni fusiones). Definís columnas (etiqueta, tipo, alineación) y filas template. Las celdas con contenido aparecen pre-cargadas; las vacías quedan como inputs en blanco para el técnico. Con <span class="ui">Permitir agregar filas en la OT</span> el técnico puede sumar filas al ejecutar.</p>
+<div class="box ex">
+  <span class="box-title">Ejemplo</span>
+  Tabla “Instrumentos utilizados” con columnas Instrumento · Modelo · N° de serie · Certificado. El molde trae los instrumentos habituales; el técnico completa series y certificados en campo.
+</div>
+
+<!-- ============ 09 CHECKLIST ============ -->
+<h2 class="chapter"><span class="num">09</span>Checklist en detalle</h2>
+<p class="lead">Cuando el Tipo de tabla es <strong>Checklist</strong>, el editor de la derecha cambia por completo: en lugar de columnas y filas, armás una <strong>lista jerárquica de ítems</strong>. Es el formato ideal para protocolos de inspección paso a paso.</p>
+
+<h3>9.1 Cómo se arma</h3>
+<p>Con <span class="ui">+ Agregar ítem</span> sumás ítems al final; pasando el mouse entre dos ítems aparece un <span class="kbd">+</span> para insertar en el medio. Cada ítem tiene flechas para mover, <strong>Dup</strong> (duplicar), <strong>Editar</strong> y <strong>×</strong> (eliminar).</p>
+
+<h3>9.2 Jerarquía (profundidad)</h3>
+<p>La <strong>profundidad</strong> define la indentación y el rol del ítem:</p>
+<table class="t wrap">
+  <tr><th style="width:24%">Nivel</th><th>Rol</th></tr>
+  <tr><td>0 — Cabecera</td><td>Título principal de sección (fondo oscuro). No interactivo.</td></tr>
+  <tr><td>1 — Sección</td><td>Sección numerada (ej. “1. Sistema general”).</td></tr>
+  <tr><td>2 — Sub-sección</td><td>Ej. “3.1 Bomba”.</td></tr>
+  <tr><td>3 — Sub-sub / detalle</td><td>Ej. “3.2.a Inyector manual”. Suele ser el ítem-tarea.</td></tr>
+  <tr><td>4 — Detalle</td><td>Nivel máximo de anidamiento.</td></tr>
+</table>
+
+<h3>9.3 Tipos de ítem</h3>
+<table class="t wrap">
+  <tr><th style="width:26%">Tipo</th><th>Qué hace</th></tr>
+  <tr><td>Checkbox</td><td>Casilla simple para tildar.</td></tr>
+  <tr><td>Campo valor</td><td>Input de texto/número con unidad opcional (ej. “Presión ___ bar”).</td></tr>
+  <tr><td>Cumple / No cumple</td><td>Evaluación con CUMPLE / NO CUMPLE / N/A.</td></tr>
+  <tr><td>Selector</td><td>Desplegable con opciones que vos definís.</td></tr>
+  <tr><td>Tabla informacional</td><td>Una tabla embebida dentro del checklist (columnas y filas de referencia; las celdas pueden ser texto, desplegable o botones radio).</td></tr>
+</table>
+
+<h3>9.4 Campos y opciones de cada ítem</h3>
+<table class="t wrap">
+  <tr><th style="width:30%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Texto del ítem</td><td>Lo que ve el técnico.</td></tr>
+  <tr><td>Prefijo</td><td>Numeración visible (ej. “3.2.a”).</td></tr>
+  <tr><td>Unidad</td><td>Para campos de valor (ej. “bar”, “hs.”).</td></tr>
+  <tr><td>Opciones del selector</td><td>Para tipo Selector: se agregan una por una.</td></tr>
+  <tr><td>Mostrar campo de valor</td><td>En un checkbox, agrega un input de valor al lado, con etiqueta y unidad. Con “Mostrar siempre” aparece aunque no se tilde el checkbox.</td></tr>
+  <tr><td>Traer fecha de la OT</td><td>Inserta la fecha de realización, de finalización o ambas, con etiqueta personalizable.</td></tr>
+  <tr><td>Traer firmas de la OT</td><td>Inserta firma del ingeniero, del cliente o ambas.</td></tr>
+  <tr><td>Visible solo si…</td><td>Condiciona la aparición del ítem al valor de un selector previo o al estado (tildado/no) de un checkbox previo.</td></tr>
+  <tr><td>Ocultar nombre en protocolo</td><td>El ítem aparece pero sin su texto (útil cuando solo muestra fecha/firma).</td></tr>
+  <tr><td>Puede marcarse “No Aplica”</td><td>El técnico puede marcar la sección/ítem como N/A.</td></tr>
+</table>
+
+<h3>9.5 Importar un checklist desde PDF</h3>
+<p>Dentro del editor de Checklist hay un botón <span class="ui">Importar desde PDF</span> que detecta automáticamente la estructura de un protocolo impreso y la convierte en ítems. Se explica en el Capítulo 11.</p>
+
+<!-- ============ 10 TEXT/SIGN/COVER ============ -->
+<h2 class="chapter"><span class="num">10</span>Texto, Firmas y Carátula en detalle</h2>
+
+<h3>10.1 Tabla de tipo Texto</h3>
+<p>Un bloque de texto libre con formato. El editor es un procesador de texto enriquecido (negrita, listas, etc.). Opciones:</p>
+<table class="t wrap">
+  <tr><th style="width:30%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Contenido</td><td>El texto que aparece en el protocolo (objetivos, alcance, procedimiento…).</td></tr>
+  <tr><td>Alineación</td><td>Justificada (default), Izquierda, Centro o Derecha. Para textos cortos conviene Izquierda; justificada queda mejor en párrafos largos.</td></tr>
+  <tr><td>Texto suelto (sin recuadro)</td><td>Muestra el texto sin la tarjeta/borde. Default es “con recuadro”.</td></tr>
+</table>
+<div class="box note">
+  <span class="box-title">Tamaños de letra (sub/super-índices)</span>
+  El editor enriquecido no tiene botón de subíndice/superíndice. Para fórmulas químicas usá los caracteres Unicode del Capítulo 12 (H₂O, 10⁻³, etc.): se pegan directo y funcionan en cualquier campo.
+</div>
+
+<h3>10.2 Tabla de tipo Firmas</h3>
+<p>Muestra automáticamente las firmas capturadas en la hoja 1 del reporte. Opciones:</p>
+<table class="t wrap">
+  <tr><th style="width:30%">Opción</th><th>Valores</th></tr>
+  <tr><td>Firmas a mostrar</td><td>Ambas (cliente e ingeniero) · Solo cliente · Solo ingeniero.</td></tr>
+  <tr><td>Fecha a mostrar</td><td>Sin fecha · Fecha de inicio · Fecha de finalización · Ambas.</td></tr>
+  <tr><td>Texto con fecha</td><td>Texto que acompaña la fecha. Podés insertar <code>{fechaInicio}</code> y <code>{fechaFin}</code> donde quieras que aparezcan. Sin placeholders, la fecha va al final.</td></tr>
+</table>
+
+<h3>10.3 Tabla de tipo Carátula</h3>
+<p>La portada del protocolo. El <strong>Nombre</strong> de la tabla se usa como título principal; si contiene “/”, la primera parte es el título grande y el resto el subtítulo. La <strong>Descripción</strong> va como línea secundaria (ej. modelos compatibles). Los datos del equipo, fecha e ingeniero se completan solos desde la OT.</p>
+<table class="t wrap">
+  <tr><th style="width:30%">Opción</th><th>Qué hace</th></tr>
+  <tr><td>Marca/Modelo desde módulo</td><td>La carátula identifica el módulo (no el sistema padre). Para mantenimientos de accesorios (MSD, HSS, HTA).</td></tr>
+  <tr><td>N° QF / Revisión / Fecha</td><td>Pie de la carátula (ej. “QF7.0506”, “Rev. 09”, “01/03/2026”).</td></tr>
+  <tr><td>Campos extra editables</td><td>Campos que el ingeniero completa al ejecutar (ej. “Versión del software”, “Estación de trabajo”). Aparecen en la carátula antes del nombre del ingeniero.</td></tr>
+</table>
+
+<!-- ============ 11 IMPORT ============ -->
+<h2 class="chapter"><span class="num">11</span>Importar protocolos</h2>
+<p class="lead">Hay tres vías para no armar todo a mano: importar desde Word, desde JSON, o importar un checklist desde un PDF. Todas abren un asistente de varios pasos con revisión antes de confirmar.</p>
+
+<h3>11.1 Importar desde Word o JSON (botón “Importar” del listado)</h3>
+<p>Primero elegís el <strong>Tipo de sistema</strong> que se aplicará a todo lo importado. Después:</p>
+<ul>
+  <li><strong>Word (.docx):</strong> arrastrás o seleccionás el archivo y se convierte automáticamente. Lee títulos → secciones, tablas de Word → tablas, listas numeradas → ítems de checklist.</li>
+  <li><strong>JSON:</strong> subís un <code>.json</code> o lo pegás. Acepta un array de tablas exportadas desde la app, o un documento estructurado con secciones.</li>
+</ul>
+<p>El asistente detecta varias tablas y muestra una <strong>vista previa</strong> con el nombre (editable), el tipo y las dimensiones de cada una. Revisás los nombres y confirmás con <span class="ui">Importar X tabla(s)</span>. Cada tipo de contenido se convierte en su tipo de tabla correspondiente (tabla de datos, checklist, texto o firmas).</p>
+<div class="box tip">
+  <span class="box-title">Quedan como borradores en el proyecto activo</span>
+  Si tenés un proyecto seleccionado en el listado, las tablas importadas entran a ese proyecto. Revisalas y publicá cuando estén listas.
+</div>
+
+<h3>11.2 Importar un checklist desde PDF</h3>
+<p>Desde el editor de un Checklist, <span class="ui">Importar desde PDF</span>. Seleccionás un PDF (o pegás el texto a mano) y el sistema detecta la estructura:</p>
+<ul>
+  <li>Líneas en MAYÚSCULAS → cabeceras. <code>1.</code> → secciones. <code>1.2</code> → sub-secciones. <code>1.2.a</code> → ítems.</li>
+  <li>Líneas con <code>o</code>, <code>•</code>, <code>✓</code>, <code>-</code> → tareas (checkbox).</li>
+  <li>Detecta el tipo: “Resultado del test” → Cumple/No cumple; <code>___</code> o <code>:</code> al final → campo de valor; el resto → checkbox. Extrae unidades de <code>___ unidad</code>.</li>
+  <li>Reconoce “Esta sección No Aplica” para marcar la sección como N/A. Ignora encabezados de página, números de página, etc.</li>
+</ul>
+<p>Después mostrás una <strong>revisión</strong> donde podés corregir el texto y el tipo de cada ítem detectado antes de confirmar con <span class="ui">Importar X ítems</span>.</p>
+
+<!-- ============ 12 UNICODE ============ -->
+<h2 class="chapter"><span class="num">12</span>Caracteres especiales (subíndices y superíndices)</h2>
+<p class="lead">Muchos campos de la Biblioteca son inputs de texto plano sin botones de formato. Para escribir fórmulas como H₂O o exponentes como 10⁻³, copiá y pegá estos caracteres Unicode: funcionan en cualquier campo, sin tocar nada.</p>
+
+<h3>12.1 Subíndices</h3>
+<p class="mono">₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ ₊ ₋ ₌ ₍ ₎<br>ₐ ₑ ₕ ᵢ ⱼ ₖ ₗ ₘ ₙ ₒ ₚ ᵣ ₛ ₜ ᵤ ᵥ ₓ</p>
+
+<h3>12.2 Superíndices</h3>
+<p class="mono">⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁺ ⁻ ⁼ ⁽ ⁾<br>ᵃ ᵇ ᶜ ᵈ ᵉ ᶠ ᵍ ʰ ⁱ ʲ ᵏ ˡ ᵐ ⁿ ᵒ ᵖ ʳ ˢ ᵗ ᵘ ᵛ ʷ ˣ ʸ ᶻ</p>
+
+<h3>12.3 Combinaciones frecuentes</h3>
+<p class="mono">H₂O&nbsp;&nbsp;&nbsp;CO₂&nbsp;&nbsp;&nbsp;O₂&nbsp;&nbsp;&nbsp;N₂&nbsp;&nbsp;&nbsp;H₂SO₄&nbsp;&nbsp;&nbsp;NH₃&nbsp;&nbsp;&nbsp;CaCO₃<br>
+m²&nbsp;&nbsp;&nbsp;m³&nbsp;&nbsp;&nbsp;cm²&nbsp;&nbsp;&nbsp;cm³&nbsp;&nbsp;&nbsp;µm&nbsp;&nbsp;&nbsp;°C&nbsp;&nbsp;&nbsp;Å<br>
+10⁻³&nbsp;&nbsp;&nbsp;10⁻⁶&nbsp;&nbsp;&nbsp;10⁻⁹&nbsp;&nbsp;&nbsp;10³&nbsp;&nbsp;&nbsp;10⁶</p>
+
+<!-- ============ 13 RECIPE ============ -->
+<h2 class="chapter"><span class="num">13</span>Receta: crear una tabla de cero</h2>
+<p class="lead">Una secuencia segura para armar una tabla de Validación típica. Adaptá los pasos según el tipo que necesites.</p>
+<ol class="steps">
+  <li><strong>Entrá a la Biblioteca</strong> (menú → 📐 Biblioteca Tablas) y tocá <span class="ui">+ Nueva tabla</span>.</li>
+  <li><strong>Completá los metadatos</strong> (panel izquierdo): Nombre, Tipo de sistema (obligatorios), Tipo de tabla = Validación. Asigná Proyecto, Orden, Servicios y Modelos si corresponde.</li>
+  <li><strong>Definí las columnas</strong> (pestaña Columnas): agregá cada columna con su etiqueta y tipo. Para una verificación típica: una columna de etiqueta, una de “Valor medido” (número), una de “Especificación” (texto) y una de “Conclusión” (Pasa/Falla).</li>
+  <li><strong>Cargá las filas</strong> (pestaña Filas): una fila por punto a verificar. Escribí la especificación en su columna. Usá Títulos de sección para separar grupos, si hace falta.</li>
+  <li><strong>Agregá las reglas</strong> (pestaña Reglas): por ejemplo, una regla Modo B (vs especificación) que lea “Valor medido” contra “Especificación” y escriba en “Conclusión”. Usá Auto-detectar para acelerar.</li>
+  <li><strong>Configurá el encabezado</strong> (pestaña Encabezados) si necesitás selectores (ej. tipo de detector) o una mini-tabla de instrumentos.</li>
+  <li><strong>Revisá la Vista previa</strong> al pie y ajustá anchos, alineaciones y unidades.</li>
+  <li><strong>Guardá borrador</strong> tantas veces como quieras mientras trabajás.</li>
+  <li><strong>Publicá</strong> cuando esté lista. Atendé las advertencias si aparecen. Recién publicada, la tabla queda disponible para los técnicos.</li>
+</ol>
+<div class="box tip">
+  <span class="box-title">Atajo</span>
+  Si ya existe una tabla parecida, <strong>Clonala</strong> desde el listado y editá la copia. Es mucho más rápido que partir de cero.
+</div>
+
+<!-- ============ 14 FAQ ============ -->
+<h2 class="chapter"><span class="num">14</span>Errores comunes y preguntas frecuentes</h2>
+
+<h4>“Creé la tabla pero el técnico no la ve en campo.”</h4>
+<p>Casi siempre es porque está en <span class="pill draft">Borrador</span>. Publicala. Verificá además que el <strong>Tipo de sistema</strong> y los <strong>Modelos/Servicios</strong> coincidan con el equipo de la OT: si la restringiste a modelos que no son el del equipo, no aparece.</p>
+
+<h4>“Cambié una tabla y los informes viejos no cambiaron.”</h4>
+<p>Es el comportamiento esperado. Cada OT guarda una <strong>foto</strong> de la tabla al elegirla. Tus cambios aplican solo a OT nuevas. No hay forma (ni conviene) de reescribir informes ya emitidos.</p>
+
+<h4>“La conclusión PASA/FALLA no se calcula.”</h4>
+<p>Revisá que: (1) la tabla sea de tipo <strong>Validación</strong>; (2) exista una <strong>regla</strong> que escriba en la columna de conclusión; (3) la columna de conclusión sea de tipo <strong>Pasa/Falla</strong>; (4) la fila no tenga marcada “Conclusión manual” (eso desactiva la regla para esa fila); (5) si usás “Aplica a”, que la fila esté incluida.</p>
+
+<h4>“Agregué una fila nueva y la regla no la valida.”</h4>
+<p>Si una regla está restringida a ciertas filas (“Aplica a”), las filas nuevas se incluyen automáticamente. Si igualmente no valida, abrí la regla y verificá que la fila esté tildada en “Aplica a”.</p>
+
+<h4>“Necesito la misma tabla para tres detectores distintos.”</h4>
+<p>No dupliques. Usá un campo de encabezado <strong>dropdown con Selección múltiple</strong> (ej. Detector = FID/ECD/TCD): cada valor elegido genera su propia sub-tabla. Ver 8.3.</p>
+
+<h4>“¿Borrador vs Archivado?”</h4>
+<p>Borrador = todavía no salió a producción. Archivado = ya salió pero la retiraste de circulación. Ninguno de los dos le aparece al técnico; ambos son reversibles. Eliminar sí es permanente.</p>
+
+<h4>“¿Cómo pongo H₂O o 10⁻³ en una celda?”</h4>
+<p>Copiá el carácter Unicode del Capítulo 12 y pegalo. No hay botón de subíndice.</p>
+
+<h4>“¿Puedo organizar las tablas por cliente o por equipo?”</h4>
+<p>Sí, con <strong>Proyectos</strong> (carpetas). Creá uno, mové tablas en lote, y definí su Título de protocolo y N° QF una sola vez para todas.</p>
+
+<!-- ============ 15 GLOSSARY ============ -->
+<h2 class="chapter"><span class="num">15</span>Glosario</h2>
+<table class="t wrap">
+  <tr><th style="width:28%">Término</th><th>Definición</th></tr>
+  <tr><td>OT</td><td>Orden de Trabajo. El registro de un servicio concreto a un equipo de un cliente.</td></tr>
+  <tr><td>Protocolo</td><td>Conjunto ordenado de tablas que componen el informe de una OT.</td></tr>
+  <tr><td>Tabla</td><td>Unidad de la Biblioteca; documento independiente con un tipo (Validación, Checklist, etc.).</td></tr>
+  <tr><td>Tipo de sistema (sysType)</td><td>Familia de equipo: HPLC, GC, MSD, HSS, UV, OSMOMETRO, POLARIMETRO, HTA, OTRO.</td></tr>
+  <tr><td>Tipo de tabla (tableType)</td><td>Qué clase de contenido es la tabla. Define el editor.</td></tr>
+  <tr><td>Snapshot</td><td>Copia congelada de una tabla guardada en la OT al momento de elegirla.</td></tr>
+  <tr><td>Regla de validación</td><td>Cálculo automático que evalúa un valor y escribe PASA/FALLA o un resultado calculado.</td></tr>
+  <tr><td>vs_spec</td><td>Modo de regla que compara el valor medido contra la especificación escrita en cada fila.</td></tr>
+  <tr><td>compute</td><td>Modo de regla que calcula una columna a partir de otras (suma, resta, etc.).</td></tr>
+  <tr><td>Campo de encabezado</td><td>Input que el ingeniero completa arriba de la tabla; puede condicionar qué filas se ven.</td></tr>
+  <tr><td>multiSelect / sub-tabla por instancia</td><td>Campo de encabezado de selección múltiple donde cada valor elegido genera una sub-tabla propia.</td></tr>
+  <tr><td>Mini-tabla de encabezado</td><td>Tabla auxiliar (solo texto/número) sobre la principal, ej. instrumentos utilizados.</td></tr>
+  <tr><td>Especificación del cliente</td><td>Posibilidad de que el ingeniero sobreescriba la tolerancia de fábrica con la del cliente.</td></tr>
+  <tr><td>Proyecto</td><td>Carpeta para agrupar tablas; opcionalmente define título de protocolo y N° QF comunes.</td></tr>
+  <tr><td>QF</td><td>Número de formulario de calidad que aparece en el pie del informe.</td></tr>
+  <tr><td>Estado</td><td>Borrador / Publicado / Archivado.</td></tr>
+</table>
+
+<div style="margin-top:14mm; padding-top:5mm; border-top:1px solid var(--line); text-align:center;" class="small">
+  Manual de la Biblioteca de Tablas · AGS Analítica · sistema-modular · Junio 2026<br>
+  Documento de respaldo operativo. Ante dudas no cubiertas, consultá a Esteban.
+</div>
+
+</body>
+</html>
