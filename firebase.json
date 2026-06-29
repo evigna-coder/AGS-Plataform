@@ -18,7 +18,7 @@
         "*.local"
       ],
       "predeploy": [
-        "pnpm --filter @ags/functions build"
+        "pnpm --dir functions run build"
       ]
     }
   ],
