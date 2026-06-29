@@ -199,7 +199,8 @@ export const PreviewSection: React.FC<PreviewSectionProps> = (props) => {
             <div className="mt-2 mb-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Informe Técnico</label>
               <div className="text-[12px] whitespace-pre-wrap border-l-4 border-blue-600 pl-3 py-2 bg-slate-50/50 rounded-r-lg leading-relaxed min-h-[35mm]" style={{ textAlign: 'justify' }}>
-                {tipoServicio && <p className="mb-2 font-bold">{tipoServicio}{motivoServicio.trim() ? `: ${motivoServicio.trim()}` : ''}</p>}
+                {tipoServicio && <p className="mb-2 font-bold">{tipoServicio}</p>}
+                {motivoServicio.trim() && <p className="mb-2 font-bold">Motivo del Servicio: {motivoServicio.trim()}</p>}
                 <p className="italic">{reporteTecnico || "Sin descripción registrada."}</p>
               </div>
             </div>
