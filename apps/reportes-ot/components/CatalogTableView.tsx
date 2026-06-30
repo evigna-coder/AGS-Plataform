@@ -1529,6 +1529,38 @@ export const CatalogTableView: React.FC<Props> = ({
       );
     }
 
+    // ── Celda con prefijo fijo (ej. "X₁=", "R₁=") ──────────────────────────
+    // Si el valor de fábrica termina en "=", se trata como una etiqueta fija:
+    // el prefijo queda read-only y el técnico escribe SOLO el número al lado.
+    // Así el prefijo no se borra al tipear y la validación lee el número limpio
+    // (computeConclusion haría NaN si el valor incluyera "X₁=").
+    const cellPrefix = getFactoryValue(rowId, col.key).trim();
+    if (/=\s*$/.test(cellPrefix) && (col.type === 'text_input' || col.type === 'number_input')) {
+      const prefixUnit = templateRow?.cellUnits?.[col.key] ?? col.unit ?? null;
+      if (isPrint) {
+        return (
+          <span className="text-[10px]">
+            {cellPrefix}{rawValue || '—'}{rawValue && prefixUnit ? ` ${prefixUnit}` : ''}
+          </span>
+        );
+      }
+      return (
+        <div className={`relative flex items-center gap-0.5 ${compact ? '' : 'border border-slate-300 rounded bg-white px-1 py-0.5 focus-within:ring-1 focus-within:ring-blue-500'} ${readOnly ? 'bg-slate-50' : ''}`}>
+          <span className="text-[10px] text-slate-500 select-none shrink-0">{cellPrefix}</span>
+          <input
+            type="text"
+            value={rawValue}
+            disabled={readOnly}
+            placeholder="—"
+            onChange={(e) => handleCellChange(rowId, col.key, e.target.value)}
+            onFocus={(e) => e.target.select()}
+            className="min-w-0 flex-1 text-[10px] text-center bg-transparent border-none outline-none focus:outline-none disabled:cursor-not-allowed placeholder:text-slate-300"
+          />
+          {prefixUnit && <span className="text-[10px] text-slate-400 select-none shrink-0">{prefixUnit}</span>}
+        </div>
+      );
+    }
+
     // ── Columnas con valor de fábrica fijo (ej. Parámetro) ─────────────────
     // Si la columna tiene valor en templateRows y NO es una columna especial
     // (resultado/spec/conclusión), se muestra como texto de solo lectura.
@@ -1817,7 +1849,8 @@ export const CatalogTableView: React.FC<Props> = ({
               <div key={hf.fieldId} className="flex items-center gap-2">
                 {hf.label?.trim() && (
                   <span className={`font-semibold ${isPrint ? 'text-[9px]' : 'text-xs text-slate-700'}`}>
-                    {hf.label}:
+                    {/* No agregar ':' cuando el label ya termina en un signo (ej. "Medición (X) - C =") */}
+                    {hf.label}{/[=:+\-]\s*$/.test(hf.label) ? '' : ':'}
                   </span>
                 )}
                 {(() => {
