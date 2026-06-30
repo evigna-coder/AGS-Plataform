@@ -82,6 +82,20 @@ export const CatalogCoverView: React.FC<Props> = ({
   const mainTitle = titleParts[0] || titulo;
   const subTitle = titleParts.length > 1 ? titleParts.slice(1).join(' / ') : '';
 
+  // Auto-ajuste del título en la carátula PDF: a mayor longitud, menor tamaño,
+  // para que no desborde ni wrappee en demasiadas líneas. Heurística por cantidad
+  // de caracteres (estable para html2canvas, que no permite medir el DOM al render).
+  const titleLen = mainTitle.length;
+  const titleFontSize =
+    titleLen <= 22 ? 50 :
+    titleLen <= 32 ? 44 :
+    titleLen <= 44 ? 38 :
+    titleLen <= 58 ? 33 :
+    titleLen <= 72 ? 29 :
+    26;
+  // El subtítulo acompaña proporcionalmente, con un piso para que siga legible.
+  const subTitleFontSize = Math.max(17, Math.round(titleFontSize * 0.48));
+
   // En blank preview, los datos del bloque grilla se vacían pero la línea de marca/título
   // se conserva. Modelo/fecha/ID/serie/ingeniero quedan en "—" para que el cliente los
   // complete manualmente. Los coverExtraFields también arrancan vacíos.
@@ -234,7 +248,7 @@ export const CatalogCoverView: React.FC<Props> = ({
         <div style={{ marginTop: '12mm' }}>
           <p style={{
             fontFamily: 'Inter, sans-serif',
-            fontSize: 50,
+            fontSize: titleFontSize,
             fontWeight: 700,
             color: '#1e293b',
             lineHeight: 1.1,
@@ -243,7 +257,7 @@ export const CatalogCoverView: React.FC<Props> = ({
           {subTitle && (
             <p style={{
               fontFamily: 'Inter, sans-serif',
-              fontSize: 24,
+              fontSize: subTitleFontSize,
               fontWeight: 400,
               color: '#94a3b8',
               lineHeight: 1.3,
