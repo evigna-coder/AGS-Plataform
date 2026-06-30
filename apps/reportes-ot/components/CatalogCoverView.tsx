@@ -82,17 +82,17 @@ export const CatalogCoverView: React.FC<Props> = ({
   const mainTitle = titleParts[0] || titulo;
   const subTitle = titleParts.length > 1 ? titleParts.slice(1).join(' / ') : '';
 
-  // Auto-ajuste del título en la carátula PDF: a mayor longitud, menor tamaño,
-  // para que no desborde ni wrappee en demasiadas líneas. Heurística por cantidad
-  // de caracteres (estable para html2canvas, que no permite medir el DOM al render).
-  const titleLen = mainTitle.length;
-  const titleFontSize =
-    titleLen <= 22 ? 50 :
-    titleLen <= 32 ? 44 :
-    titleLen <= 44 ? 38 :
-    titleLen <= 58 ? 33 :
-    titleLen <= 72 ? 29 :
-    26;
+  // Carátula PDF: quiebre del título en el guión (' - ' / ' – ' rodeado de espacios;
+  // NO parte palabras como "Semi-Micro"). Cada parte va en su propia línea y el guión
+  // queda al final de la línea, no colgando suelto.
+  const dashSegments = mainTitle.split(/\s+[-–]\s+/).map(s => s.trim()).filter(Boolean);
+  const titleLines = dashSegments.length > 1
+    ? dashSegments.map((s, i) => (i < dashSegments.length - 1 ? `${s} -` : s))
+    : [mainTitle];
+  // Auto-ajuste de tamaño: la línea más larga define el tamaño para que entre en una
+  // sola línea (heurística por caracteres, estable para html2canvas que no mide el DOM).
+  const longestLineLen = Math.max(1, ...titleLines.map(s => s.length));
+  const titleFontSize = Math.max(18, Math.min(50, Math.floor(880 / longestLineLen)));
   // El subtítulo acompaña proporcionalmente, con un piso para que siga legible.
   const subTitleFontSize = Math.max(17, Math.round(titleFontSize * 0.48));
 
@@ -246,14 +246,17 @@ export const CatalogCoverView: React.FC<Props> = ({
 
         {/* Título grande — alineado izquierda */}
         <div style={{ marginTop: '12mm' }}>
-          <p style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize: titleFontSize,
-            fontWeight: 700,
-            color: '#1e293b',
-            lineHeight: 1.1,
-            textAlign: 'left',
-          }}>{mainTitle}</p>
+          {titleLines.map((line, i) => (
+            <p key={i} style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: titleFontSize,
+              fontWeight: 700,
+              color: '#1e293b',
+              lineHeight: 1.1,
+              textAlign: 'left',
+              margin: 0,
+            }}>{line}</p>
+          ))}
           {subTitle && (
             <p style={{
               fontFamily: 'Inter, sans-serif',
