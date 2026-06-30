@@ -2185,6 +2185,12 @@ export const CatalogTableView: React.FC<Props> = ({
                 if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(colKey)) return row.rowSpan;
                 return 1;
               };
+              // Fusión horizontal (colspan): cuántas columnas visibles abarca la celda, clamp a las restantes.
+              const hSpanAt = (row: typeof table.templateRows[number], colKey: string, colIdx: number): number => {
+                const h = row.horizontalSpans?.[colKey];
+                if (!h || h <= 1) return 1;
+                return Math.min(h, visibleColumns.length - colIdx);
+              };
               table.templateRows.forEach((row, idx) => {
                 for (const col of visibleColumns) {
                   const span = spanAt(row, col.key);
@@ -2483,15 +2489,25 @@ export const CatalogTableView: React.FC<Props> = ({
                 >
                   {(() => {
                     const hasActions = canDuplicate || canRemoveDup || canRemoveTemplate || (isExtra && !readOnly && !isPrint && !!onRemoveRow);
-                    // Última celda renderizada (última columna no cubierta por un span).
+                    // Columnas cubiertas por una fusión horizontal que arranca a su izquierda en ESTA fila.
+                    const hCoveredIdx = new Set<number>();
+                    visibleColumns.forEach((c, ci) => {
+                      if (hCoveredIdx.has(ci)) return;
+                      const hs = hSpanAt(row, c.key, ci);
+                      if (hs > 1) for (let o = 1; o < hs; o++) hCoveredIdx.add(ci + o);
+                    });
+                    // Última celda renderizada (última columna no cubierta por un span vertical ni horizontal).
                     let lastRenderedIdx = -1;
                     for (let i = visibleColumns.length - 1; i >= 0; i--) {
-                      if (!coveredCells.has(`${idx}:${visibleColumns[i].key}`)) { lastRenderedIdx = i; break; }
+                      if (!coveredCells.has(`${idx}:${visibleColumns[i].key}`) && !hCoveredIdx.has(i)) { lastRenderedIdx = i; break; }
                     }
                     return visibleColumns.map((col, colIdx) => {
                       if (coveredCells.has(`${idx}:${col.key}`)) return null;
+                      if (hCoveredIdx.has(colIdx)) return null;
                       const colSpan = spanAt(row, col.key);
                       const isSpanning = colSpan > 1;
+                      const hSpan = hSpanAt(row, col.key, colIdx);
+                      const effectiveLastColIdx = colIdx + hSpan - 1;
                       const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
                       const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
                       const isLabelCol = colIdx === 0 || col.align === 'left';
@@ -2504,9 +2520,10 @@ export const CatalogTableView: React.FC<Props> = ({
                           data-col-label={col.label || ''}
                           data-col-key={col.key}
                           rowSpan={isSpanning ? colSpan : undefined}
+                          colSpan={hSpan > 1 ? hSpan : undefined}
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
-                            `${isPrint ? 'text-[10px]' : 'text-xs'}${colIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
+                            `${isPrint ? 'text-[10px]' : 'text-xs'}${effectiveLastColIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
                             alignCls,
                             !isPrint && boundaryAbove ? 'border-t border-t-slate-300' : '',
                             showActionsHere ? 'relative pr-4' : '',

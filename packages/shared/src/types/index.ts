@@ -1816,6 +1816,15 @@ export interface TableCatalogRow {
    */
   columnSpans?: Record<string, number>;
   /**
+   * Fusión HORIZONTAL de celdas dentro de esta fila. Cada key es el column key de la
+   * celda más a la izquierda del merge; el value es cuántas columnas consecutivas abarca
+   * (incluyéndose). Ej: { resultado_x: 2 } → la celda de "resultado_x" se extiende sobre
+   * "resultado_x" + la siguiente columna visible, y esa siguiente no se renderiza en esta fila.
+   * El contenido/valor de la celda fusionada vive en la columna más a la izquierda.
+   * Es independiente de `columnSpans` (vertical): una celda puede tener ambos.
+   */
+  horizontalSpans?: Record<string, number>;
+  /**
    * Si es true, el técnico puede duplicar esta fila al llenar el protocolo (p.ej. agregar
    * un segundo "Inyector automático"). Las filas duplicadas se guardan en el reporte de la OT
    * y no modifican la plantilla de la biblioteca.

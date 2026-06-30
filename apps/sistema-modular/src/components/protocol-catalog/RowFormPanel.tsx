@@ -40,6 +40,9 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   };
   const [columnSpans, setColumnSpans] = useState<Record<string, number>>(initColumnSpans);
 
+  // Fusión horizontal: cada columna puede abarcar N columnas hacia la derecha.
+  const [horizontalSpans, setHorizontalSpans] = useState<Record<string, number>>(() => ({ ...(row.horizontalSpans ?? {}) }));
+
   // Variable binding
   const [variable, setVariable] = useState(row.variable ?? '');
 
@@ -86,16 +89,16 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
       onSave({
         ...row, cells: {}, isCheckboxRow: true, checkboxText: checkboxText || null,
         isTitle: false, titleText: null, isSelector: false, selectorLabel: null, selectorOptions: null,
-        rowSpan: undefined, spanColumns: undefined, columnSpans: undefined,
+        rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, horizontalSpans: undefined,
         duplicableEnProtocolo: undefined, defaultVisible: undefined, manualConclusion: undefined,
         variable: null, cellUnits: null,
       });
     } else if (mode === 'title') {
-      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: undefined, isCheckboxRow: false, checkboxText: null });
+      onSave({ ...row, cells: {}, isTitle: true, titleText, isSelector: false, selectorLabel: null, selectorOptions: null, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, horizontalSpans: undefined, duplicableEnProtocolo: undefined, isCheckboxRow: false, checkboxText: null });
     } else if (mode === 'selector') {
       const options = selectorOptionsText.split(',').map(o => o.trim()).filter(Boolean);
       const effectiveSelectorCol = selectorColumn > 0 ? selectorColumn : undefined;
-      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, duplicableEnProtocolo: duplicableEnProtocolo || undefined, isCheckboxRow: false, checkboxText: null });
+      onSave({ ...row, cells, isTitle: false, titleText: null, isSelector: true, selectorLabel, selectorOptions: options, selectorColumn: effectiveSelectorCol, rowSpan: undefined, spanColumns: undefined, columnSpans: undefined, horizontalSpans: undefined, duplicableEnProtocolo: duplicableEnProtocolo || undefined, isCheckboxRow: false, checkboxText: null });
     } else {
       // Filtrar spans <= 1 y construir el objeto limpio
       const cleanSpans: Record<string, number> = {};
@@ -103,6 +106,11 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         if (val > 1) cleanSpans[key] = val;
       }
       const hasSpans = Object.keys(cleanSpans).length > 0;
+      const cleanHSpans: Record<string, number> = {};
+      for (const [key, val] of Object.entries(horizontalSpans)) {
+        if (val > 1) cleanHSpans[key] = val;
+      }
+      const hasHSpans = Object.keys(cleanHSpans).length > 0;
       // Visibilidad condicional: solo condiciones completas (campo elegido + al menos un valor).
       // La 1ª va en visibleWhenSelector (retrocompat); el resto, combinadas con AND, en visibleWhenAll.
       const validConditions = visConditions.filter(c => c.headerFieldId && c.values.length > 0);
@@ -116,6 +124,7 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
         isCheckboxRow: false, checkboxText: null,
         rowSpan: undefined, spanColumns: undefined,
         columnSpans: hasSpans ? cleanSpans : undefined,
+        horizontalSpans: hasHSpans ? cleanHSpans : undefined,
         visibleWhenSelector: visWhen,
         visibleWhenAll: visAll,
         variable: variable || null,
@@ -143,6 +152,19 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
   };
 
   const hasAnySpan = Object.values(columnSpans).some(v => v > 1);
+
+  // Setter de fusión horizontal: clamp a las columnas restantes a la derecha.
+  const setHSpan = (colKey: string, value: number) => {
+    const colIdx = columns.findIndex(c => c.key === colKey);
+    const maxH = columns.length - colIdx;
+    setHorizontalSpans(prev => {
+      const next = { ...prev };
+      if (value > 1) next[colKey] = Math.min(value, maxH);
+      else delete next[colKey];
+      return next;
+    });
+  };
+  const hasAnyHSpan = Object.values(horizontalSpans).some(v => v > 1);
 
   // En modo selector, la primera columna se reemplaza por el dropdown; el resto son editables
   const restColumns = mode === 'selector' && columns.length > 1 ? columns.slice(1) : [];
@@ -479,6 +501,38 @@ export const RowFormPanel = ({ row, columns, totalRows, rowIndex, headerFields =
               {hasAnySpan && (
                 <p className="text-[10px] text-amber-600 mt-1">
                   Las columnas con valor {'>'} 1 mostrarán una celda fusionada. Las filas cubiertas no renderizan esas celdas.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Fusión horizontal de celdas (colspan) — solo esta fila */}
+          {columns.length > 1 && (
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 space-y-2">
+              <p className="text-[10px] font-bold text-teal-700 uppercase">Fusión de celdas horizontal (solo esta fila)</p>
+              <p className="text-[10px] text-teal-600">Cuántas columnas abarca cada celda hacia la derecha. El valor se carga en la columna más a la izquierda. Dejá en 1 las que no se fusionan.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {columns.map((col, colIdx) => {
+                  const maxH = columns.length - colIdx;
+                  return (
+                    <div key={col.key} className="flex items-center gap-2">
+                      <span className="text-xs text-slate-700 truncate flex-1">{col.label}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={maxH}
+                        disabled={maxH <= 1}
+                        value={horizontalSpans[col.key] ?? 1}
+                        onChange={e => setHSpan(col.key, Math.max(1, Math.min(maxH, Number(e.target.value) || 1)))}
+                        className={`w-14 border rounded-lg px-2 py-1 text-xs text-center disabled:opacity-40 ${(horizontalSpans[col.key] ?? 1) > 1 ? 'border-teal-400 bg-teal-100 font-bold' : 'border-slate-300'}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              {hasAnyHSpan && (
+                <p className="text-[10px] text-teal-600 mt-1">
+                  Las columnas con valor {'>'} 1 ocupan varias columnas en esta fila. Las columnas cubiertas a la derecha no se renderizan.
                 </p>
               )}
             </div>

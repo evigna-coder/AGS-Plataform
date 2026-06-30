@@ -125,6 +125,12 @@ export const TablePreview = ({ table }: Props) => {
                   if (row.rowSpan && row.rowSpan > 1 && row.spanColumns?.includes(colKey)) return row.rowSpan;
                   return 1;
                 };
+                // Fusión horizontal (colspan): cuántas columnas abarca la celda, clamp a las restantes.
+                const hSpanAt = (row: typeof table.templateRows[number], colKey: string, colIdx: number): number => {
+                  const h = row.horizontalSpans?.[colKey];
+                  if (!h || h <= 1) return 1;
+                  return Math.min(h, table.columns.length - colIdx);
+                };
                 table.templateRows.forEach((row, idx) => {
                   for (const col of table.columns) {
                     const span = spanAt(row, col.key);
@@ -210,12 +216,21 @@ export const TablePreview = ({ table }: Props) => {
                   })() : (() => {
                     const groupStart = isGroupStart(idx);
                     const boundaryAbove = hasMergeBoundaryAbove(idx);
+                    // Columnas cubiertas por una fusión horizontal que arranca a su izquierda en esta fila.
+                    const hCoveredIdx = new Set<number>();
+                    table.columns.forEach((c: TableCatalogEntry['columns'][number], ci: number) => {
+                      if (hCoveredIdx.has(ci)) return;
+                      const hs = hSpanAt(row, c.key, ci);
+                      if (hs > 1) for (let o = 1; o < hs; o++) hCoveredIdx.add(ci + o);
+                    });
                     return (
                     <tr key={row.rowId}>
-                      {table.columns.map((col: TableCatalogEntry['columns'][number]) => {
+                      {table.columns.map((col: TableCatalogEntry['columns'][number], colIdx: number) => {
                         if (coveredCells.has(`${idx}:${col.key}`)) return null;
+                        if (hCoveredIdx.has(colIdx)) return null;
                         const colSpan = spanAt(row, col.key);
                         const isSpanning = colSpan > 1;
+                        const hSpan = hSpanAt(row, col.key, colIdx);
                         // Single-row group cell (e.g. μECD): style like spanning, but only for columns that have spans elsewhere
                         const colHasSpansElsewhere = table.templateRows.some(r => spanAt(r, col.key) > 1);
                         const isGroupCell = isSpanning || (groupStart && colHasSpansElsewhere && !coveredCells.has(`${idx}:${col.key}`));
@@ -223,6 +238,7 @@ export const TablePreview = ({ table }: Props) => {
                           <td
                             key={col.key}
                             rowSpan={isSpanning ? colSpan : undefined}
+                            colSpan={hSpan > 1 ? hSpan : undefined}
                             style={{
                               whiteSpace: 'pre-line',
                               ...(col.fontSize ? { fontSize: `${col.fontSize}px`, lineHeight: 1.35 } : {}),
