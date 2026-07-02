@@ -2524,6 +2524,9 @@ export const CatalogTableView: React.FC<Props> = ({
                           className={[
                             `px-2 ${compact ? 'py-1' : 'py-1.5'} align-middle`,
                             `${isPrint ? 'text-[10px]' : 'text-xs'}${effectiveLastColIdx < visibleColumns.length - 1 ? ' border-r border-slate-100' : ''}${isPrint ? '' : ' border-b border-b-slate-100'}${groupStyle}`,
+                            // Celda combinada verticalmente: fondo opaco para tapar el zebra-striping
+                            // de las filas cubiertas (si no, las líneas de fila la atraviesan y no se unifica).
+                            isSpanning ? 'bg-white' : '',
                             alignCls,
                             !isPrint && boundaryAbove ? 'border-t border-t-slate-300' : '',
                             showActionsHere ? 'relative pr-4' : '',
