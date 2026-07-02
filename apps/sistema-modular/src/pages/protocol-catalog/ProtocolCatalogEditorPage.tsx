@@ -221,7 +221,13 @@ export const TableCatalogEditorPage = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
-              <Input value={entry.description ?? ''} onChange={e => setMeta('description', e.target.value || null)} />
+              <textarea
+                value={entry.description ?? ''}
+                onChange={e => setMeta('description', e.target.value || null)}
+                rows={3}
+                placeholder="Objetivo / línea secundaria. Enter o Shift+Enter para escribir en el renglón de abajo."
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm resize-y whitespace-pre-wrap focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Proyecto</label>
