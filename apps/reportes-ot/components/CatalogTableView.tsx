@@ -1627,7 +1627,7 @@ export const CatalogTableView: React.FC<Props> = ({
             {table.name}
           </p>
           {table.description && (
-            <p className={`text-[10px] text-slate-500 mt-0.5 whitespace-pre-line leading-snug text-justify ${isPrint ? '' : 'line-clamp-4'}`}>{table.description}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5 whitespace-pre-line leading-snug text-justify">{table.description}</p>
           )}
         </AccordionHeaderChrome>
 
