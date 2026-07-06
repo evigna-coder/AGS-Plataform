@@ -8,102 +8,7 @@ import { articulosService } from '../../services/firebaseService';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
 
-// ─── Autocomplete de código de artículo (mismo patrón que reportes-ot) ──────
-
 interface ArticuloCatalog { id: string; codigo: string; descripcion: string }
-
-const CodigoAutocomplete: React.FC<{
-  value: string;
-  onChange: (val: string) => void;
-  onSelect: (art: ArticuloCatalog) => void;
-  catalog: ArticuloCatalog[];
-}> = ({ value, onChange, onSelect, catalog }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState(value);
-  const [highlightIdx, setHighlightIdx] = useState(-1);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setSearch(value); }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const filtered = useMemo(() => search.length >= 2
-    ? catalog.filter(a =>
-        a.codigo.toLowerCase().includes(search.toLowerCase()) ||
-        a.descripcion.toLowerCase().includes(search.toLowerCase())
-      ).slice(0, 12)
-    : [], [search, catalog]);
-
-  const selectItem = (art: ArticuloCatalog) => {
-    onSelect(art);
-    setSearch(art.codigo);
-    setOpen(false);
-    setHighlightIdx(-1);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || filtered.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const next = highlightIdx < filtered.length - 1 ? highlightIdx + 1 : 0;
-      setHighlightIdx(next);
-      listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const next = highlightIdx > 0 ? highlightIdx - 1 : filtered.length - 1;
-      setHighlightIdx(next);
-      listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
-    } else if ((e.key === 'Enter' || e.key === 'Tab') && highlightIdx >= 0) {
-      e.preventDefault();
-      selectItem(filtered[highlightIdx]);
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-      setHighlightIdx(-1);
-    }
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <input
-        value={search}
-        onChange={e => {
-          setSearch(e.target.value);
-          onChange(e.target.value);
-          setOpen(e.target.value.length >= 2);
-          setHighlightIdx(-1);
-        }}
-        onFocus={() => { if (search.length >= 2 && filtered.length > 0) setOpen(true); }}
-        onKeyDown={handleKeyDown}
-        placeholder="Buscar código..."
-        className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white"
-      />
-      {open && filtered.length > 0 && (
-        <div ref={listRef} className="absolute z-[9999] left-0 top-full mt-1 min-w-[400px] bg-white border border-slate-200 rounded-lg shadow-xl max-h-[240px] overflow-y-auto">
-          {filtered.map((a, i) => (
-            <button
-              key={a.id}
-              type="button"
-              className={`w-full text-left px-3 py-1.5 text-[11px] border-b border-slate-100 last:border-0 flex gap-3 items-baseline transition-colors
-                ${i === highlightIdx ? 'bg-teal-50' : 'hover:bg-slate-50'}`}
-              onMouseEnter={() => setHighlightIdx(i)}
-              onClick={() => selectItem(a)}
-            >
-              <span className="font-mono font-bold text-teal-700 whitespace-nowrap shrink-0">{a.codigo}</span>
-              <span className="text-slate-500 truncate">{a.descripcion}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ─── Main component ─────────────────────────────────────────────────────────
 
@@ -133,6 +38,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
   const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({ ...EMPTY_ITEM, categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), moneda: moneda === 'MIXTA' ? 'USD' : null });
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloCatalog[]>([]);
   const [showWizard, setShowWizard] = useState(false);
+  const cantidadRef = useRef<HTMLInputElement>(null);
   // Las categorías cargan async: el default del useState inicial corre con [] y queda sin
   // categoría. Aplicamos el default IVA 21% una vez que el catálogo está disponible (sin
   // pisar una elección posterior del usuario).
@@ -224,6 +130,9 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
     setNewItem(prev => ({
       ...prev,
       stockArticuloId: art.id,
+      // Buscador unificado: elegir artículo desvincula un servicio previo.
+      conceptoServicioId: null,
+      servicioCode: null,
       codigoProducto: art.codigo,
       descripcion: art.descripcion,
     }));
@@ -241,7 +150,28 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
       conceptoServicioId: concepto.id,
       servicioCode: concepto.codigo || null,
       codigoProducto: concepto.codigo || prev.codigoProducto || null,
+      // Buscador unificado: elegir servicio desvincula un artículo previo.
+      stockArticuloId: null,
     }));
+  };
+
+  // Buscador UNIFICADO: servicios + artículos en un mismo campo. Los valores se
+  // prefijan `srv:`/`art:` para enrutar al handler correcto. Al elegir, mover el foco
+  // a Cantidad (rAF: corre antes del re-focus interno del SearchableSelect, que respeta
+  // el input ya enfocado).
+  const focusCantidad = () => requestAnimationFrame(() => cantidadRef.current?.focus());
+  const handleUnifiedSelect = (v: string) => {
+    if (!v) { setNewItem(prev => ({ ...prev, conceptoServicioId: null, servicioCode: null, stockArticuloId: null })); return; }
+    if (v.startsWith('srv:')) { handleSelectConcepto(v.slice(4)); focusCantidad(); return; }
+    if (v.startsWith('art:')) {
+      const art = articulosCatalog.find(a => a.id === v.slice(4));
+      if (art) { handleSelectArticulo(art); focusCantidad(); }
+    }
+  };
+
+  // Enter en cualquier campo de la fila de carga → agregar el ítem.
+  const onEnterAdd = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleAdd(); }
   };
 
   const categoria = categoriasPresupuesto.find(c => c.id === newItem.categoriaPresupuestoId);
@@ -271,10 +201,22 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
     );
   };
 
-  const conceptoOptions = conceptosServicio.filter(c => c.activo).map(c => ({
-    value: c.id,
-    label: `${c.codigo ? c.codigo + ' — ' : ''}${c.descripcion} — ${MONEDA_SIMBOLO[c.moneda]} ${(c.valorBase * c.factorActualizacion).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
-  }));
+  const searchOptions = [
+    { value: '', label: 'Carga manual...' },
+    ...conceptosServicio.filter(c => c.activo).map(c => ({
+      value: `srv:${c.id}`,
+      label: `Servicio · ${c.codigo ? c.codigo + ' — ' : ''}${c.descripcion} — ${MONEDA_SIMBOLO[c.moneda]} ${(c.valorBase * c.factorActualizacion).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
+      linkedCode: c.codigo || undefined,
+    })),
+    ...articulosCatalog.map(a => ({
+      value: `art:${a.id}`,
+      label: `Artículo · [${a.codigo || '—'}] ${a.descripcion}`,
+      linkedCode: a.codigo || undefined,
+    })),
+  ];
+  const searchValue = newItem.stockArticuloId ? `art:${newItem.stockArticuloId}` : (newItem.conceptoServicioId ? `srv:${newItem.conceptoServicioId}` : '');
+  // Hay un servicio/artículo elegido del buscador → código y descripción vienen dados.
+  const haySeleccion = !!newItem.stockArticuloId || !!newItem.conceptoServicioId;
 
   const categoriaOptions = [
     { value: '', label: 'Sin categoria' },
@@ -299,29 +241,34 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
         />
       )}
 
-      {/* Row 1: Catálogo selector */}
-      {conceptoOptions.length > 0 && (
+      {/* Row 1: Buscador UNIFICADO (servicios + artículos) */}
+      {searchOptions.length > 1 && (
         <div>
-          <label className={lbl}>Catalogo de servicios</label>
-          <SearchableSelect value="" onChange={handleSelectConcepto} options={[{ value: '', label: 'Carga manual...' }, ...conceptoOptions]} placeholder="Buscar concepto..." />
+          <label className={lbl}>Buscar servicio o artículo</label>
+          <SearchableSelect value={searchValue} onChange={handleUnifiedSelect} options={searchOptions}
+            placeholder="Buscar por código o descripción (servicios y artículos)..." />
         </div>
       )}
 
-      {/* Row 2: Código (autocomplete) + Descripción en la misma línea */}
+      {/* Row 2: Código + Descripción en la misma línea */}
       <div className="grid grid-cols-[140px_1fr] gap-2.5">
         <div>
           <label className={lbl}>Código</label>
-          <CodigoAutocomplete
-            value={newItem.codigoProducto || ''}
-            onChange={val => setNewItem(prev => ({ ...prev, codigoProducto: val, stockArticuloId: null }))}
-            onSelect={handleSelectArticulo}
-            catalog={articulosCatalog}
-          />
+          {/* Con selección del buscador: bloqueado y gris (se completa solo; escribir acá
+              confundía porque antes este campo ERA el buscador de artículos). En carga
+              manual queda editable. */}
+          <input value={newItem.codigoProducto || ''}
+            onChange={e => setNewItem(prev => ({ ...prev, codigoProducto: e.target.value }))} onKeyDown={onEnterAdd}
+            disabled={haySeleccion} tabIndex={-1}
+            className={`w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs ${haySeleccion ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
+            placeholder="Usá el buscador de arriba ↑" />
         </div>
         <div>
           <label className={lbl}>Descripcion *</label>
-          <input value={newItem.descripcion || ''} onChange={e => setNewItem({ ...newItem, descripcion: e.target.value })}
-            className="w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs bg-white" placeholder="Descripcion del item..." />
+          <input value={newItem.descripcion || ''} onChange={e => setNewItem({ ...newItem, descripcion: e.target.value })} onKeyDown={onEnterAdd}
+            disabled={haySeleccion}
+            className={`w-full border border-[#E5E5E5] rounded-md px-2.5 py-1.5 text-xs ${haySeleccion ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
+            placeholder="Descripcion del item (o elegí arriba)..." />
         </div>
       </div>
 
@@ -329,27 +276,30 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
       <div className={`grid ${isMixta ? 'grid-cols-[60px_75px_90px_50px_70px_70px_1fr_auto]' : 'grid-cols-[60px_75px_90px_50px_70px_1fr_auto]'} gap-2.5 items-end`}>
         <div>
           <label className={lbl}>Cant. *</label>
-          <input type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={e => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })}
+          <input ref={cantidadRef} type="number" min="0" step="0.01" value={newItem.cantidad || ''} onChange={e => setNewItem({ ...newItem, cantidad: Number(e.target.value) || 0 })} onKeyDown={onEnterAdd}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" />
         </div>
         <div>
           <label className={lbl}>Unidad</label>
-          <input value={newItem.unidad || 'unidad'} onChange={e => setNewItem({ ...newItem, unidad: e.target.value })}
+          {/* tabIndex -1: casi nunca se toca — Tab salta de Cantidad directo a Precio.
+              Sigue editable con click si hace falta. */}
+          <input value={newItem.unidad || 'unidad'} onChange={e => setNewItem({ ...newItem, unidad: e.target.value })} onKeyDown={onEnterAdd}
+            tabIndex={-1}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white" />
         </div>
         <div>
           <label className={lbl}>Precio unit. *</label>
-          <input type="number" min="0" step="0.01" value={newItem.precioUnitario || ''} onChange={e => setNewItem({ ...newItem, precioUnitario: Number(e.target.value) || 0 })}
+          <input type="number" min="0" step="0.01" value={newItem.precioUnitario || ''} onChange={e => setNewItem({ ...newItem, precioUnitario: Number(e.target.value) || 0 })} onKeyDown={onEnterAdd}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white" />
         </div>
         <div>
           <label className={lbl}>Dto %</label>
-          <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={e => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })}
+          <input type="number" min="0" max="100" step="0.5" value={newItem.descuento || ''} onChange={e => setNewItem({ ...newItem, descuento: Number(e.target.value) || 0 })} onKeyDown={onEnterAdd}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" placeholder="0" />
         </div>
         <div>
           <label className={lbl} title="Multiplicador sobre FOB — referencia interna, no se muestra en el PDF">Factor</label>
-          <input type="number" min="0" step="0.01" value={newItem.factor ?? ''} onChange={e => setNewItem({ ...newItem, factor: e.target.value === '' ? null : Number(e.target.value) })}
+          <input type="number" min="0" step="0.01" value={newItem.factor ?? ''} onChange={e => setNewItem({ ...newItem, factor: e.target.value === '' ? null : Number(e.target.value) })} onKeyDown={onEnterAdd}
             className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs bg-white text-center" placeholder="1.45" />
         </div>
         {isMixta && (

@@ -11,6 +11,7 @@ import { PresupuestoFormHeader } from './PresupuestoFormHeader';
 import { PresupuestoFormCliente } from './PresupuestoFormCliente';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
 import { VentasMetadataSection } from './VentasMetadataSection';
+import { RichTextEditor } from '../ui/RichTextEditor';
 
 interface Props {
   open: boolean;
@@ -102,13 +103,15 @@ export const CreatePresupuestoModal: React.FC<Props> = ({ open, onClose, onCreat
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={lbl}>Notas tecnicas</label>
-            <textarea value={h.form.notasTecnicas} onChange={e => h.setForm({ ...h.form, notasTecnicas: e.target.value })}
-              rows={2} className="w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-xs" placeholder="Observaciones tecnicas..." />
+            <RichTextEditor value={h.form.notasTecnicas || ''}
+              onChange={html => h.setForm({ ...h.form, notasTecnicas: html })}
+              placeholder="Observaciones tecnicas..." />
           </div>
           <div>
             <label className={lbl}>Condiciones comerciales</label>
-            <textarea value={h.form.condicionesComerciales} onChange={e => h.setForm({ ...h.form, condicionesComerciales: e.target.value })}
-              rows={2} className="w-full border border-[#E5E5E5] rounded-md px-3 py-2 text-xs" placeholder="Forma de pago, plazos..." />
+            <RichTextEditor value={h.form.condicionesComerciales || ''}
+              onChange={html => h.setForm({ ...h.form, condicionesComerciales: html })}
+              placeholder="Forma de pago, plazos..." />
           </div>
         </div>
       </div>

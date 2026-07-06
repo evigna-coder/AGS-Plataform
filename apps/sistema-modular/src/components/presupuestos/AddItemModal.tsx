@@ -5,9 +5,10 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { EquipoLinkPanel } from './EquipoLinkPanel';
-import { ArticuloPickerPanel } from './ArticuloPickerPanel';
+import { PresupuestoItemSearch } from './PresupuestoItemSearch';
 import { PresupuestoDisponibilidadFields } from './PresupuestoDisponibilidadFields';
 import { computeStockAmplio } from '../../services/stockAmplioService';
+import { atpFromStockAmplio } from '../../services/atpHelpers';
 import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { useTabs } from '../../contexts/TabsContext';
 import { useFloatingPresupuesto } from '../../contexts/FloatingPresupuestoContext';
@@ -90,7 +91,7 @@ export const AddItemModal = ({
       try {
         const stock = await computeStockAmplio(artId);
         if (cancelled) return;
-        const atp = stock.atp ?? 0;
+        const atp = atpFromStockAmplio(stock);
         setAtpHint({ atp });
         const disp = atp > 0 ? 'stock' : 'a_importar';
         const eta = atp > 0 ? 0 : 30;
@@ -117,19 +118,21 @@ export const AddItemModal = ({
   const handleSelectConcepto = (conceptoId: string) => {
     const concepto = conceptosServicio.find(c => c.id === conceptoId);
     if (!concepto) return;
-    // FLOW-03: servicios sin stockArticuloId → itemRequiereImportacion false
+    // FLOW-03: servicios sin stockArticuloId → itemRequiereImportacion false.
+    // Buscador unificado: al elegir un servicio, desvincular cualquier artículo previo.
     setNewItem({ ...newItem,
       descripcion: concepto.descripcion, precioUnitario: concepto.valorBase * concepto.factorActualizacion,
       codigoProducto: concepto.codigo || newItem.codigoProducto || null,
       categoriaPresupuestoId: concepto.categoriaPresupuestoId || newItem.categoriaPresupuestoId || findCategoriaIvaDefaultId(categoriasPresupuesto),
-      conceptoServicioId: concepto.id, itemRequiereImportacion: false,
+      conceptoServicioId: concepto.id, stockArticuloId: null, itemRequiereImportacion: false,
     });
   };
 
   const handleSelectArticulo = (art: Articulo | null, meta: { itemRequiereImportacion: boolean }) => {
     if (!art) { setNewItem({ ...newItem, stockArticuloId: null, itemRequiereImportacion: false }); return; }
+    // Buscador unificado: al elegir un artículo, desvincular cualquier servicio previo.
     setNewItem({ ...newItem,
-      stockArticuloId: art.id, codigoProducto: art.codigo || newItem.codigoProducto || null,
+      stockArticuloId: art.id, conceptoServicioId: null, codigoProducto: art.codigo || newItem.codigoProducto || null,
       descripcion: newItem.descripcion || art.descripcion,
       precioUnitario: newItem.precioUnitario || art.precioReferencia || 0,
       categoriaPresupuestoId: newItem.categoriaPresupuestoId || findCategoriaIvaDefaultId(categoriasPresupuesto),
@@ -144,10 +147,7 @@ export const AddItemModal = ({
     !!articulos && articulos.length > 0
   );
 
-  const conceptoOptions = conceptosServicio.filter(c => c.activo).map(c => ({
-    value: c.id,
-    label: `${c.codigo ? `[${c.codigo}] ` : ''}${c.descripcion} — ${MONEDA_SIMBOLO[c.moneda]} ${(c.valorBase * c.factorActualizacion).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`,
-  }));
+  const conceptosActivos = conceptosServicio.filter(c => c.activo);
 
   const showEquipoPanel = tipoPresupuesto === 'contrato' && sistemas && sistemas.length > 0 && !!loadModulos;
 
@@ -156,12 +156,17 @@ export const AddItemModal = ({
       <Card compact className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <h3 className="text-sm font-semibold text-slate-900 tracking-tight mb-3">Agregar item</h3>
         <div className="space-y-3">
-          {/* Concepto picker */}
-          {conceptoOptions.length > 0 && (
-            <div>
-              <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Seleccionar del catalogo</label>
-              <SearchableSelect value="" onChange={handleSelectConcepto} options={[{ value: '', label: 'Carga manual...' }, ...conceptoOptions]} placeholder="Buscar concepto..." />
-            </div>
+          {/* Buscador UNIFICADO: servicios + artículos en un mismo campo. */}
+          {(conceptosActivos.length > 0 || showArticuloPicker) && (
+            <PresupuestoItemSearch
+              conceptos={conceptosActivos}
+              articulos={showArticuloPicker ? articulos! : []}
+              stockArticuloId={newItem.stockArticuloId || null}
+              conceptoServicioId={newItem.conceptoServicioId || null}
+              onSelectConcepto={handleSelectConcepto}
+              onSelectArticulo={handleSelectArticulo}
+              onClear={() => setNewItem({ ...newItem, conceptoServicioId: null, stockArticuloId: null, itemRequiereImportacion: false })}
+            />
           )}
           {/* Equipo selector — solo contrato */}
           {showEquipoPanel && (
@@ -170,14 +175,6 @@ export const AddItemModal = ({
               setNewItem={setNewItem}
               sistemas={sistemas!}
               loadModulos={loadModulos!}
-            />
-          )}
-          {/* Article picker — partes/mixto/ventas */}
-          {showArticuloPicker && (
-            <ArticuloPickerPanel
-              articulos={articulos!}
-              articuloSeleccionadoId={newItem.stockArticuloId || null}
-              onSelect={handleSelectArticulo}
             />
           )}
 

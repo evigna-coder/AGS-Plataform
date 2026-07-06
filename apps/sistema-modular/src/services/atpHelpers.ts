@@ -12,6 +12,15 @@
  */
 
 import { computeStockAmplio } from './stockAmplioService';
+import type { StockAmplio } from '@ags/shared';
+
+/**
+ * ATP (Available To Promise) = disponible + enTransito + reservado + comprometido.
+ * Fórmula canónica STKP-01 sobre el snapshot de `computeStockAmplio()`.
+ */
+export function atpFromStockAmplio(sa: StockAmplio): number {
+  return sa.disponible + sa.enTransito + sa.reservado + sa.comprometido;
+}
 
 /**
  * Retorna `true` si un artículo de stock tiene ATP === 0 y por lo tanto requiere importación.
@@ -31,8 +40,7 @@ export async function itemRequiresImportacion(
   if (!stockArticuloId) return false;
   try {
     const sa = await computeStockAmplio(stockArticuloId);
-    const total = sa.disponible + sa.enTransito + sa.reservado + sa.comprometido;
-    return total === 0;
+    return atpFromStockAmplio(sa) === 0;
   } catch (err) {
     console.warn('[atpHelpers.itemRequiresImportacion] fallo:', err);
     return false;
