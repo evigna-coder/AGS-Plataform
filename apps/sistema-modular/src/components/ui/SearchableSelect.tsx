@@ -36,7 +36,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 }) => {
   const {
     isOpen,
-    searchTerm,
     highlightedIndex,
     dropdownPos,
     containerRef,

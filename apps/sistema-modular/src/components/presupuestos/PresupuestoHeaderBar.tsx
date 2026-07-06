@@ -21,9 +21,9 @@ interface Props {
 }
 
 export const PresupuestoHeaderBar: React.FC<Props> = ({
-  presupuestoId, numero, estado, clienteRazonSocial,
+  numero, estado, clienteRazonSocial,
   saving, generatingPDF, deleting,
-  onMinimize, onClose, onPreviewPDF, onDownloadPDF, onEnviar, onDelete, onCrearOT,
+  onMinimize, onPreviewPDF, onDownloadPDF, onEnviar, onDelete, onCrearOT,
 }) => {
   return (
     <div className="-mx-5 -mt-4 px-5 pb-3 mb-4 border-b border-slate-100">

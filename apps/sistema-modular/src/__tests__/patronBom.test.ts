@@ -52,7 +52,6 @@ import {
   loteAllZero,
   patronWithThreeLotes,
   patronWith2Componentes,
-  otPatronesSeleccionadosDuplicados,
   buildState,
   type MockPatronBomState,
 } from './fixtures/patronBom';

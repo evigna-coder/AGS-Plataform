@@ -17,7 +17,7 @@
     "build:all": "pnpm --filter \"./apps/*\" build",
     "dev:portal": "pnpm --filter @ags/portal-ingeniero dev",
     "build:portal": "pnpm --filter @ags/portal-ingeniero build",
-    "type-check": "pnpm --filter \"./packages/*\" type-check",
+    "type-check": "pnpm --filter \"./packages/*\" --filter @ags/sistema-modular type-check",
     "lint:ast": "ast-grep scan --config sgconfig.yml apps packages",
     "test:rules": "firebase emulators:exec --only firestore --project demo-ags \"vitest run\""
   },

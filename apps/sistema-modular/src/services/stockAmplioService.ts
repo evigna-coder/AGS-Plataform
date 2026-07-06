@@ -99,6 +99,10 @@ interface MockState {
   }>;
 }
 
+/** Row shapes shared by the mock state and the real Firestore fetchers. */
+type OCRecord = MockState['ocs'][number];
+type RequerimientoRecord = MockState['requerimientos'][number];
+
 let __testState: MockState | null = null;
 
 /**
@@ -212,7 +216,7 @@ async function fetchUnidades(articuloId: string) {
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 }
 
-async function fetchOpenOCs() {
+async function fetchOpenOCs(): Promise<OCRecord[]> {
   // Firestore `in` operator supports up to 30 values — OC_OPEN_STATES has 7 values.
   const { db, collection, query, where, getDocs } = await getFirebaseModules();
   const openStates = Array.from(OC_OPEN_STATES);
@@ -221,10 +225,10 @@ async function fetchOpenOCs() {
     where('estado', 'in', openStates),
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as OCRecord);
 }
 
-async function fetchCondicionales(articuloId: string) {
+async function fetchCondicionales(articuloId: string): Promise<RequerimientoRecord[]> {
   const { db, collection, query, where, getDocs } = await getFirebaseModules();
   const q = query(
     collection(db, 'requerimientos_compra'),
@@ -232,5 +236,5 @@ async function fetchCondicionales(articuloId: string) {
     where('condicional', '==', true),
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as RequerimientoRecord);
 }

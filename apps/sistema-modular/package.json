@@ -11,6 +11,7 @@
     "build:web": "vite build",
     "build:desktop": "vite build --mode desktop && electron-builder --publish never",
     "preview": "vite preview",
+    "type-check": "tsc --noEmit",
     "electron": "node scripts/start-electron.cjs",
     "electron:dev": "node scripts/start-electron.cjs --dev",
     "e2e:setup": "npx tsx e2e/global-setup.ts",

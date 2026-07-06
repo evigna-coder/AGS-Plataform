@@ -35,16 +35,6 @@ const hasEsquema = (e?: PresupuestoCuotaFacturacion[] | null): e is PresupuestoC
   (e?.length ?? 0) > 0;
 
 /**
- * Pitfall 3 mitigation: reuse the exact fallback from presupuestosService.ts:1343-1345.
- * Used by template builders. Avoids importing crypto shims at module scope.
- */
-function newCuotaId(): string {
-  return (typeof crypto !== 'undefined' && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-/**
  * Pitfall 4 mitigation: 2-decimal rounding before equality check.
  * Prevents 33.33+33.33+33.34 from summing to 99.99999...
  */

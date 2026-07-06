@@ -10,7 +10,6 @@ import {
   TICKET_PRIORIDAD_LABELS, TICKET_PRIORIDAD_COLORS,
   getUserTicketAreas,
   canViewAllTickets,
-  canUserModifyTicket,
 } from '@ags/shared';
 import { leadsService, usuariosService } from '../../services/firebaseService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -369,7 +368,6 @@ export const LeadsList = () => {
               <tbody className="divide-y divide-slate-100">
                 {leadsSorted.map(lead => {
                   const isClosed = lead.estado === 'finalizado' || lead.estado === 'no_concretado';
-                  const canModify = usuario ? canUserModifyTicket(lead, usuario) : false;
                   const daysOpen = getDaysOpen(lead.createdAt);
                   const daysUntil = getDaysUntilContacto(lead.proximoContacto);
                   return (

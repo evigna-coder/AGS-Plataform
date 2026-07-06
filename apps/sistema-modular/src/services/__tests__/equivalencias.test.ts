@@ -43,22 +43,18 @@ async function run() {
   __setTestFirestore(FIXTURE_HAPPY_PATH);
   await assert.rejects(
     linkEquivalencia('art-compra', 'art-uso', 0),
-    undefined,
     'STKE-02b: must reject factor=0',
   );
   await assert.rejects(
     linkEquivalencia('art-compra', 'art-uso', -1),
-    undefined,
     'STKE-02b: must reject factor=-1',
   );
   await assert.rejects(
     linkEquivalencia('art-compra', 'art-uso', NaN),
-    undefined,
     'STKE-02b: must reject factor=NaN',
   );
   await assert.rejects(
     linkEquivalencia('art-compra', 'art-uso', Infinity),
-    undefined,
     'STKE-02b: must reject factor=Infinity',
   );
   console.log('  ✓ STKE-02b passed: rejects invalid factors (0, -1, NaN, Infinity)');

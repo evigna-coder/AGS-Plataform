@@ -57,7 +57,7 @@ export async function geocodeAddress(address: string): Promise<GeocodingResult |
     geocoderInstance = new (window as any).google.maps.Geocoder();
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     geocoderInstance.geocode(
       { address, region: 'ar', language: 'es' },
       (results: any[], status: string) => {

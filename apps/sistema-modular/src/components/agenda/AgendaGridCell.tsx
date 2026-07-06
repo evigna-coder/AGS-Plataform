@@ -1,7 +1,6 @@
 import { memo, useCallback, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgendaEntry, EstadoAgenda } from '@ags/shared';
-import { ESTADO_AGENDA_LABELS } from '@ags/shared';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { AgendaCellPopover } from './AgendaCellPopover';
 
@@ -56,8 +55,7 @@ interface AgendaGridCellProps {
 /** Lightweight cell — only re-renders when its own data changes. */
 export const AgendaGridCell = memo<AgendaGridCellProps>(({
   ingenieroId, fecha, quarter,
-  entryId, entryOtNumber, entryTitulo, entryEstado, entryClienteNombre,
-  entryTipoServicio, entrySistemaNombre, entryNotas,
+  entryId, entryOtNumber, entryTitulo, entryEstado,
   isStart, isEnd, entryCount = 0,
   isToday, isFeriado, showText, compact, isSelected, inSelectionRange, rowHeight,
   entryRef, allEntriesRef, onClick, onContextMenu,

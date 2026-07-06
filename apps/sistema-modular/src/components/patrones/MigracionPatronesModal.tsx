@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { useMigracionPatrones, type MigracionPreviewItem } from '../../hooks/useMigracionPatrones';
+import { useMigracionPatrones } from '../../hooks/useMigracionPatrones';
 
 interface Props {
   open: boolean;

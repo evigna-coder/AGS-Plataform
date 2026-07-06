@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Type-check
+        # Gate: si tsc falla, el release no sale. Corre antes del build porque
+        # vite build NO type-checkea (esbuild solo transpila).
+        working-directory: apps/sistema-modular
+        run: pnpm type-check
+
       - name: Write .env.local from secrets
         # Vite a veces no respeta process.env (especialmente en algunos modos);
         # crear .env.local explícitamente es más confiable. Mismo path que en

@@ -129,7 +129,7 @@ export const FIXTURE_30_70_TODAS_OTS_CERRADAS: {
     { otNumber: 'OT-002', estadoAdmin: 'CIERRE_ADMINISTRATIVO', budgets: ['PRES-001'] },
   ],
   solicitudes: [
-    { id: 'sol-1', cuotaId: 'cuota-1', estado: 'solicitada' },
+    { id: 'sol-1', cuotaId: 'cuota-1', estado: 'pendiente' },
   ],
 };
 
