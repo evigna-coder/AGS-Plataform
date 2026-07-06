@@ -33,6 +33,10 @@ const TOOLBAR_BUTTONS: { id: BtnId; label: string; title: string; className?: st
 export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
+  // Última selección DENTRO del editor. El <select> de tamaño roba el foco al abrirse y
+  // colapsa la selección → execCommand('fontSize') no aplicaba. Guardamos el rango y lo
+  // restauramos antes de aplicar el tamaño.
+  const savedRange = useRef<Range | null>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
 
   // Sync external value into editor only when it actually differs
@@ -64,6 +68,27 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
     updateActiveFormats();
   }, [emitChange]);
 
+  // Guarda el rango actual si está dentro del editor (para restaurarlo tras usar el <select>).
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  // Restaura la selección guardada y aplica el tamaño de fuente sobre ella.
+  const execFontSize = useCallback((val: string) => {
+    const el = editorRef.current;
+    const range = savedRange.current;
+    el?.focus();
+    if (range && el?.contains(range.commonAncestorContainer)) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+    exec('fontSize', val);
+  }, [exec]);
+
   const updateActiveFormats = useCallback(() => {
     const formats = new Set<string>();
     if (document.queryCommandState('bold')) formats.add('bold');
@@ -83,12 +108,14 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
   }, [emitChange, updateActiveFormats]);
 
   const handleKeyUp = useCallback(() => {
+    saveSelection();
     updateActiveFormats();
-  }, [updateActiveFormats]);
+  }, [saveSelection, updateActiveFormats]);
 
   const handleMouseUp = useCallback(() => {
+    saveSelection();
     updateActiveFormats();
-  }, [updateActiveFormats]);
+  }, [saveSelection, updateActiveFormats]);
 
   const showPlaceholder = !value || value === '<br>' || value === '<div><br></div>';
 
@@ -132,12 +159,12 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
 
         <div className="w-px h-5 bg-slate-300 mx-1" />
 
-        {/* Font size */}
+        {/* Font size — value fijo en '' para que actúe como menú (permite reelegir el mismo). */}
         <select
-          onChange={e => { if (e.target.value) exec('fontSize', e.target.value); }}
-          onMouseDown={e => e.stopPropagation()}
+          value=""
+          onMouseDown={saveSelection}
+          onChange={e => { if (e.target.value) execFontSize(e.target.value); }}
           className="text-xs border border-slate-300 rounded px-1.5 py-1 bg-white text-slate-600 cursor-pointer"
-          defaultValue=""
           title="Tamaño de letra"
         >
           <option value="" disabled>Tamaño</option>
@@ -161,6 +188,7 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }
           onInput={handleInput}
           onKeyUp={handleKeyUp}
           onMouseUp={handleMouseUp}
+          onBlur={saveSelection}
           className="px-3 py-2 text-sm leading-relaxed outline-none"
           style={{ minHeight }}
         />

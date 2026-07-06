@@ -275,7 +275,7 @@ export const baseStyles = StyleSheet.create({
     fontSize: 7,
     color: COLORS.text,
     lineHeight: 1.5,
-    textAlign: 'justify',
+    textAlign: 'left',
   },
 
   // --- Forma de pago ---

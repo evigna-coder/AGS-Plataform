@@ -5,7 +5,6 @@ import { PRESUPUESTO_SECCIONES_LABELS, TIPO_PRESUPUESTO_LABELS } from '@ags/shar
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useConfirm } from '../ui/ConfirmDialog';
-import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { PlantillaTextoForm } from './PlantillaTextoForm';
 import { PlantillaRow } from './PlantillaRow';
 
@@ -30,12 +29,13 @@ export const PlantillasTextoModal: React.FC<Props> = ({ open, onClose }) => {
   const [showForm, setShowForm] = useState(false);
   const confirm = useConfirm();
 
-  // URL-persisted filters (HARD RULE — never useState for list filters)
-  const [filters, setFilter, , resetFilters] = useUrlFilters({
-    plantilla_seccion: { type: 'string' as const, default: '' },
-    plantilla_tipo: { type: 'string' as const, default: '' },
-    plantilla_soloActivas: { type: 'boolean' as const, default: true },
-  });
+  // Filtros locales con useState (NO useUrlFilters): este modal puede renderizarse fuera
+  // del <Router> (p.ej. desde el editor de PDF / condiciones flotante), y useLocation()
+  // rompería. La regla de filtros-por-URL aplica a PÁGINAS de lista, no a un modal.
+  const DEFAULT_FILTERS = { plantilla_seccion: '', plantilla_tipo: '', plantilla_soloActivas: true };
+  const [filters, setFilters] = useState<{ plantilla_seccion: string; plantilla_tipo: string; plantilla_soloActivas: boolean }>(DEFAULT_FILTERS);
+  const setFilter = (key: keyof typeof filters, value: string | boolean) => setFilters(prev => ({ ...prev, [key]: value }));
+  const resetFilters = () => setFilters(DEFAULT_FILTERS);
 
   useEffect(() => { if (open) loadData(); }, [open]);
 
