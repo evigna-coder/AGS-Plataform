@@ -5,6 +5,7 @@ import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 
 // ── Page imports ──
+import { NotFoundPage } from '../../pages/auth';
 import { LeadsList, LeadDetail } from '../../pages/leads';
 import { ClientesList, ClienteDetail } from '../../pages/clientes';
 import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from '../../pages/establecimientos';
@@ -201,6 +202,8 @@ function AppRoutes() {
       <Route path="/admin/backfill-cliente-ids" element={<ProtectedRoute allowedRoles={['admin']}><BackfillClienteIdsPage /></ProtectedRoute>} />
       <Route path="/admin/backfill-responsables" element={<ProtectedRoute allowedRoles={['admin']}><BackfillResponsablesPage /></ProtectedRoute>} />
       <Route path="/admin/backfill-ventas-insumos-derivador" element={<ProtectedRoute allowedRoles={['admin']}><BackfillVentasInsumosDerivadorPage /></ProtectedRoute>} />
+      {/* Catch-all: render inline como AccessDeniedPage (sin redirect — cada tab tiene su MemoryRouter) */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
