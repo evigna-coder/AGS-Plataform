@@ -1,6 +1,6 @@
 import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import type { SolicitudFacturacion, SolicitudFacturacionEstado } from '@ags/shared';
-import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, onSnapshot } from './firebase';
+import { db, cleanFirestoreData, getCreateTrace, getUpdateTrace, createBatch, newDocRef, docRef, onSnapshot, runTransaction } from './firebase';
 
 function toISO(val: any, fallback: string | null = null): string | null {
   if (!val) return fallback;
@@ -101,6 +101,42 @@ export const facturacionService = {
     if (triggersRecompute) {
       // Read solicitud after write to get presupuestoId (may not be in `data`)
       const sol = await this.getById(id);
+
+      // ── Hueco P10 (checklist circuito): anular una solicitud generada por OTs
+      // (legacy, sin cuotaId) devuelve esas OTs a `otsListasParaFacturar` del ppto
+      // para que se puedan volver a facturar. Antes quedaban en el limbo: la
+      // solicitud anulada ya no las representaba y el array no las recuperaba.
+      // Corre ANTES del recompute/trySync para que la finalización vea el array
+      // restaurado y no finalice un ppto con OTs pendientes de re-facturar.
+      if (
+        data.estado === 'anulada' &&
+        sol?.presupuestoId &&
+        !sol.cuotaId &&
+        (sol.otNumbers?.length ?? 0) > 0
+      ) {
+        try {
+          await runTransaction(db, async (tx) => {
+            const pRef = doc(db, 'presupuestos', sol.presupuestoId);
+            const pSnap = await tx.get(pRef);
+            if (!pSnap.exists()) return;
+            const pData = pSnap.data();
+            const listas: string[] = pData?.otsListasParaFacturar ?? [];
+            const restauradas = [...listas];
+            for (const otn of sol.otNumbers ?? []) {
+              if (!restauradas.includes(otn)) restauradas.push(otn);
+            }
+            const patch: Record<string, unknown> = { updatedAt: Timestamp.now() };
+            if (restauradas.length !== listas.length) patch.otsListasParaFacturar = restauradas;
+            // Si el ppto había avanzado a finalizado por esta solicitud, vuelve a
+            // pendiente_facturacion (las OTs restauradas están pendientes de facturar).
+            if (pData?.estado === 'finalizado') patch.estado = 'pendiente_facturacion';
+            if (Object.keys(patch).length > 1) tx.update(pRef, patch as { [key: string]: any });
+          });
+        } catch (err) {
+          console.warn('[facturacionService.update] restaurar otsListasParaFacturar tras anulación falló:', err);
+        }
+      }
+
       if (sol?.presupuestoId) {
         const { presupuestosService } = await import('./presupuestosService');
         // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
