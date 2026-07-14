@@ -9,13 +9,13 @@ Monorepo pnpm con tres apps y un paquete compartido. Este archivo es el punto de
 - **Frontend**: React 19 + Tailwind CSS
 - **Backend-as-a-Service**: Firebase (Firestore, Auth, Storage, FCM)
 - **Empaque Desktop** (solo `sistema-modular`): Electron
-- **PDF**: html2pdf.js + html2canvas + pdf-lib (solo `reportes-ot`)
+- **PDF**: html2pdf.js + html2canvas + pdf-lib (`reportes-ot`); @react-pdf/renderer (presupuestos, en `sistema-modular`)
 
 ## Apps
 
 | Path | Rol |
 |---|---|
-| [apps/sistema-modular/](apps/sistema-modular/) | Back-office administrativo. CRUD de clientes, OTs, presupuestos, stock, agenda. Corre en browser y en Electron. |
+| [apps/sistema-modular/](apps/sistema-modular/) | Back-office administrativo. Clientes, OTs, presupuestos/contratos, tickets, stock, compras (OC, importaciones), loaners, agenda. Corre en browser y en Electron. |
 | [apps/reportes-ot/](apps/reportes-ot/) | PWA para técnicos en campo. Genera el PDF del informe de OT. **Superficie congelada** — ver [.claude/rules/reportes-ot.md](.claude/rules/reportes-ot.md). |
 | [apps/portal-ingeniero/](apps/portal-ingeniero/) | Portal para ingenieros de soporte. Más nuevo, en evolución activa. |
 | [packages/shared/](packages/shared/) | Tipos TS compartidos entre apps (`@ags/shared`). |
@@ -34,10 +34,29 @@ pnpm build:reportes       # build reportes-ot
 pnpm build:portal         # build portal-ingeniero
 pnpm build:all            # build todas
 
-pnpm type-check           # typecheck de packages/*
+pnpm type-check           # typecheck de packages/* + sistema-modular
+pnpm test:rules           # tests de firestore.rules (emulador)
+pnpm lint:ast             # AST rules (no-firestore-undefined)
 ```
 
 Cada app tiene sus propios scripts (`lint`, `test` donde aplica) en su `package.json`.
+
+## Definición de "terminado"
+
+Antes de reportar un cambio de código como listo:
+
+1. `pnpm type-check` verde (cubre `packages/*` y sistema-modular).
+2. Tests del área tocada: los `test:*` del `package.json` de la app (ej. `test:entregas`, `test:venta-loaner`); `pnpm test:rules` si se tocó `firestore.rules` (necesita emulador).
+3. Build de la app afectada (`pnpm build:modular` / `build:portal` / `build:reportes`).
+4. E2E (Playwright, `pnpm --filter @ags/sistema-modular e2e`) solo a pedido — es pesado.
+
+## Commits
+
+Conventional commits en español, scope = módulo: `fix(presupuestos-pdf): …`, `feat(biblioteca-tablas): …`, `ops(backup): …`. Los `release(…)` los genera el script de release, no escribirlos a mano.
+
+## Documentos de negocio
+
+Informes/evaluaciones/propuestas nuevos van a `docs/informes/`, nunca al root del repo. Convenciones de formato y naming: [docs/CLAUDE.md](docs/CLAUDE.md).
 
 ## Hard rules — leer antes de editar
 
@@ -63,7 +82,7 @@ Helpers clave en [apps/sistema-modular/src/services/firebase.ts](apps/sistema-mo
 
 ### UI atoms
 
-`components/ui/` — `Button`, `Card`, `Input`, `SearchableSelect`. Reusá antes de recrear. Si necesitás una variante, extendela en lugar de duplicar.
+`components/ui/` — ~19 atoms: `Button`, `Card`, `Input`, `SearchableSelect`, `Modal`, `Drawer`, `ConfirmDialog`, `MoneyInput`, `DateInput`, `StatusBadge`, `SortableHeader`, `EmptyState`, `RichTextEditor`, etc. **Mirá la carpeta antes de crear nada** — reusá antes de recrear; si necesitás una variante, extendela en lugar de duplicar.
 
 ### Páginas
 

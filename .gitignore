@@ -64,6 +64,9 @@ Thumbs.db
 # CA bundle exportado para firebase deploy detrás de Avast (ver memoria)
 /corp-ca-bundle.pem
 
+# Graphify (knowledge graph de /gsd:graphify — working dir + caché del CLI)
+graphify-out/
+
 # Workspaces temporales (scripts ad-hoc, capturas, sesiones de browser, etc.)
 .tmp_*/
 .tmp_*.js

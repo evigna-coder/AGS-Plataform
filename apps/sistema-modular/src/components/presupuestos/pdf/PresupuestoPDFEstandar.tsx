@@ -397,12 +397,26 @@ function PDFTotals({ data }: { data: PresupuestoPDFData }) {
   );
 }
 
+/** Notas técnicas en la PRIMERA hoja (pedido del user: el contexto técnico del trabajo
+ *  debe verse junto a los items, no enterrado en la página de condiciones). */
+function PDFNotasTecnicas({ data }: { data: PresupuestoPDFData }) {
+  const { presupuesto } = data;
+  const visible = (presupuesto.seccionesVisibles || {}).notasTecnicas !== false;
+  if (!visible || !presupuesto.notasTecnicas) return null;
+  return (
+    <View style={[S.condicionSection, { marginTop: 10 }]} wrap={false}>
+      <Text style={S.condicionTitle}>NOTAS TÉCNICAS:</Text>
+      <PDFRichText html={presupuesto.notasTecnicas} fallbackStyle={S.condicionText} />
+    </View>
+  );
+}
+
 function PDFCondiciones({ data }: { data: PresupuestoPDFData }) {
   const { presupuesto } = data;
   const secciones = presupuesto.seccionesVisibles || {};
 
   const sections: { key: string; title: string; content: string | null | undefined }[] = [
-    { key: 'notasTecnicas', title: 'NOTAS TÉCNICAS:', content: presupuesto.notasTecnicas },
+    // notasTecnicas NO va acá: sale en la PRIMERA hoja (PDFNotasTecnicas), junto a los items.
     { key: 'notasAdministrativas', title: 'NOTAS ADMINISTRATIVAS:', content: presupuesto.notasAdministrativas },
     { key: 'garantia', title: 'GARANTÍA:', content: presupuesto.garantia },
     { key: 'variacionTipoCambio', title: 'VARIACIÓN DEL TIPO DE CAMBIO:', content: presupuesto.variacionTipoCambio },
@@ -487,6 +501,7 @@ export function PresupuestoPDFEstandar({ data }: { data: PresupuestoPDFData }) {
         )}
 
         <PDFTotals data={data} />
+        <PDFNotasTecnicas data={data} />
         <PDFFooter />
       </Page>
 

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: #1e293b; font-size: 10.5pt; line-height: 1.4; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2px; }
+  .sub { color: #64748b; font-size: 9pt; margin-bottom: 14px; }
+  h2 { font-size: 11.5pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #0D6E6E; color: #0D6E6E; }
+  .case { border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px 10px; margin: 8px 0; page-break-inside: avoid; }
+  .case-title { font-weight: 600; font-size: 10.5pt; margin-bottom: 5px; }
+  .tag { display: inline-block; font-size: 7.5pt; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+  .tag-auto { background: #e0f2f1; color: #0D6E6E; }
+  .tag-manual { background: #fef3c7; color: #92400e; }
+  .tag-fix { background: #dcfce7; color: #166534; }
+  ol.steps { margin: 4px 0 0; padding-left: 0; list-style: none; }
+  ol.steps li { padding: 2px 0 2px 24px; position: relative; }
+  ol.steps li::before { content: "☐"; position: absolute; left: 0; font-size: 12pt; line-height: 1; top: 1px; color: #475569; }
+  .ok { color: #15803d; font-weight: 600; }
+  .alert { color: #b45309; font-weight: 600; }
+  .note { font-size: 8.5pt; color: #64748b; font-style: italic; margin-top: 4px; padding-left: 2px; }
+  .result-line { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #cbd5e1; font-size: 9pt; }
+  .result-line .lbl { color: #64748b; }
+  .intro { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 8px 10px; font-size: 9pt; color: #475569; margin-bottom: 6px; }
+  code { font-family: "JetBrains Mono", Consolas, monospace; font-size: 8.5pt; background: #f1f5f9; padding: 0 3px; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <h1>Guía de pruebas paso a paso — Circuito completo v2</h1>
+  <div class="sub">AGS sistema-modular · 14/07/2026 · requiere v1.14.1 o posterior · imprimir y tildar</div>
+
+  <div class="intro">
+    Cada bloque es una sesión corta (10–25 min) y deja el sistema listo para el siguiente.
+    <b>Hacerlos en orden</b> — el bloque 0 crea los datos de prueba que usan todos los demás.<br>
+    <span class="tag tag-auto">AUTO</span> = el fondo (Firestore) ya lo verifica el test e2e del circuito 15 en cada corrida:
+    acá el foco es que la <b>pantalla</b> muestre lo correcto y la UX cierre.
+    <span class="tag tag-manual">MANUAL</span> = no hay test automático: mirar fondo y forma.<br>
+    Si algo no da lo esperado: anotar número de bloque + paso, captura de pantalla, y seguir con el resto.
+  </div>
+
+  <h2>Bloque 0 · Preparación de datos de prueba (una sola vez)</h2>
+  <div class="case">
+    <div class="case-title">0.1 · Entidades base <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Cliente nuevo: razón social <b>PRUEBAS AGS (no facturar)</b>, con un único establecimiento <b>Depósito Central</b>.</li>
+      <li>Proveedor nacional: <b>PRB Proveedor Local</b> (moneda ARS).</li>
+      <li>Proveedor internacional: <b>PRB Proveedor Import</b> (moneda USD, con país y dirección para el PDF de OC).</li>
+      <li>Artículo simple: código <b>PRB-SIMPLE</b>, sin serie ni lote, stock mínimo <b>1</b>, proveedor sugerido PRB Local.</li>
+      <li>Artículo trazable: código <b>PRB-SERIE</b>, con "requiere número de serie", stock mínimo 0.</li>
+      <li>Artículo de importación: código <b>PRB-IMPORT</b>, proveedor sugerido PRB Import, stock mínimo 0, sin stock inicial.</li>
+      <li>Posición de stock: <b>PRB-ESTANTE</b> (si no existe una posición de pruebas).</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Al elegir el cliente en cualquier form:</span> <span class="ok">✅ el establecimiento único se autoselecciona solo.</span></div>
+  </div>
+
+  <h2>Bloque 1 · Ingreso de stock (altas manuales)</h2>
+  <div class="case">
+    <div class="case-title">1.1 · Alta de unidades <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Ingresar <b>5 unidades de PRB-SIMPLE</b> en la posición PRB-ESTANTE (alta/carga en lote, condición "nuevo").</li>
+      <li>Ingresar <b>1 unidad de PRB-SERIE</b> con serie <b>PRB-SN-001</b>.</li>
+      <li>Stock &gt; Unidades: filtrar por PRB.</li>
+      <li>Stock &gt; Movimientos: verificar los ingresos recién hechos.</li>
+      <li>Stock &gt; Planificación: buscar PRB-SIMPLE.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ 5 + 1 unidades en estado <b>disponible</b>, en la posición correcta;</span> <span class="ok">✅ un movimiento de ingreso por cada alta;</span> <span class="ok">✅ Planificación muestra Disp 5 / ATP 5 para PRB-SIMPLE.</span></div>
+  </div>
+
+  <h2>Bloque 2 · Presupuesto de partes CON stock → reserva → OT → consumo</h2>
+  <div class="case">
+    <div class="case-title">2.1 · Reserva al aceptar <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Crear presupuesto tipo <b>partes</b> para PRUEBAS AGS con <b>2 × PRB-SIMPLE</b> (elegir el artículo desde el buscador, que lo linkee a stock).</li>
+      <li>Marcarlo <b>enviado</b> y después <b>aceptado</b>.</li>
+      <li>Stock &gt; Unidades: filtrar PRB-SIMPLE.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ 2 unidades pasan a <b>reservado</b> (ubicación RESERVAS), 3 quedan disponibles;</span> <span class="ok">✅ en el detalle del ppto se ve la reserva;</span> <span class="ok">✅ Planificación: ATP baja a 3.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">2.2 · OT de entrega + cierre = consumo <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Desde el ppto, crear <b>OT tipo entrega</b> (sin equipo — verificar que no lo exija).</li>
+      <li>Verificar en Stock &gt; Entregas que los items del ppto aparecen con la OT auto-vinculada.</li>
+      <li>Cerrar administrativamente la OT.</li>
+      <li>Stock &gt; Unidades y Movimientos.</li>
+      <li>Volver al presupuesto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ las 2 reservadas pasan a <b>entregado</b>, con UN movimiento de egreso cada una;</span>
+    <span class="ok">✅ el ppto queda en <b>Pend. facturación</b></span> <span class="tag tag-fix">FIX v1.14.1</span> (antes se mostraba "Borrador" — si ves eso, la PC no se actualizó);
+    <span class="ok">✅ la fila de Entregas queda como entregada.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">2.3 · Anular libera la reserva <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Repetir 2.1 con <b>1 × PRB-SIMPLE</b> (nuevo ppto, aceptar, ver la unidad reservada).</li>
+      <li><b>Anular</b> el presupuesto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ la unidad vuelve a <b>disponible</b></span> y el requerimiento condicional (si hubo) queda cancelado.</div>
+  </div>
+
+  <h2>Bloque 3 · Stock parcial y requerimientos</h2>
+  <div class="case">
+    <div class="case-title">3.1 · Pide más de lo que hay <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Verificar que queden <b>2</b> PRB-SIMPLE disponibles (si no, ajustar cantidades).</li>
+      <li>Crear ppto partes con <b>5 × PRB-SIMPLE</b>. Aceptarlo.</li>
+      <li>Stock &gt; Unidades y Stock &gt; Requerimientos.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ reserva las 2 disponibles</span> + <span class="ok">✅ requerimiento de compra por <b>4</b></span>.
+    <span class="alert">⚠️ Ojo:</span> pide 4 y no 3 porque compra el faltante (3) <b>más</b> la reposición del stock mínimo (1). Decidir si esa semántica te cierra — está anotada como decisión abierta.
+    <div class="note">Recordatorio: el requerimiento ya se genera al CREAR el ppto (decisión confirmada 14/07): el comprador decide, y si el ppto se anula el requerimiento se cancela.</div></div>
+  </div>
+
+  <h2>Bloque 4 · Compras nacional: requerimiento → OC → recepción</h2>
+  <div class="case">
+    <div class="case-title">4.1 · Generar OC desde requerimientos <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Stock &gt; Requerimientos: seleccionar el requerimiento de PRB-SIMPLE del bloque 3 y <b>generar OC</b>.</li>
+      <li>Verificar que el modal de OC se abre solo, con proveedor <b>PRB Local</b> y moneda <b>ARS</b> precargados.</li>
+      <li>Completar precios y guardar. Generar el <b>PDF de la OC</b>: debe traer dirección/contacto del proveedor.</li>
+      <li>Avanzar estados de la OC (borrador → enviada → confirmada/aprobada, según flujo).</li>
+      <li>Stock &gt; Entregas: la fila del requerimiento debe mostrar el número de OC como link al PDF.</li>
+      <li>Tickets: verificar que el ticket avanzó de área (compras → materiales al generar la OC).</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ modal auto-abierto, moneda del proveedor, PDF completo, link en Entregas, ticket en materiales.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">4.2 · Recepción de la mercadería <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Registrar la recepción / ingresar el stock de esa OC (4 unidades PRB-SIMPLE).</li>
+      <li>Stock &gt; Unidades: las 4 nuevas unidades disponibles.</li>
+      <li>Planificación: verificar que "en tránsito" bajó y "disponible" subió coherentemente.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ unidades creadas con movimiento de ingreso; el ppto del bloque 3 puede completar su entrega.</span></div>
+  </div>
+
+  <h2>Bloque 5 · Importaciones end-to-end</h2>
+  <div class="case">
+    <div class="case-title">5.1 · Ppto con item a importar <span class="tag tag-auto">AUTO</span> (el condicional) <span class="tag tag-manual">MANUAL</span> (el resto)</div>
+    <ol class="steps">
+      <li>Crear ppto partes con <b>2 × PRB-IMPORT</b> marcado como <b>a importar</b>. Aceptarlo.</li>
+      <li>Verificar requerimiento <b>condicional</b> en Stock &gt; Requerimientos.</li>
+      <li>Cargar la <b>OC del cliente</b> en el ppto (botón "Cargar OC" en la fila del ppto aceptado, con PDF adjunto).</li>
+      <li>Verificar que el ticket derivó a comex/compras.</li>
+    </ol>
+  </div>
+  <div class="case">
+    <div class="case-title">5.2 · OC al proveedor internacional + importación <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Generar la OC al proveedor <b>PRB Import</b> (moneda USD precargada). PDF con datos del proveedor.</li>
+      <li>Crear la <b>importación</b> desde la OC: fecha embarque, fecha arribo, nº guía, despacho.</li>
+      <li>Cargar <b>gastos</b> del embarque (flete, seguro, despachante, etc.) y verificar el costeo CIF: factor por embarque/artículo.</li>
+      <li>Registrar VEP si aplica.</li>
+      <li><b>Ingresar stock desde la importación</b> (2 × PRB-IMPORT).</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ las unidades ingresan con el <b>costo real</b> (FOB × factor) en USD;</span> <span class="ok">✅ la fila de Entregas del ppto marca la importación recibida (semáforo entregado);</span> <span class="ok">✅ movimientos de ingreso correctos.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">5.3 · Cerrar el círculo <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Reservar/asignar esas unidades al ppto (aceptación ya hecha — si no se reservaron solas, reservar manualmente desde el ppto).</li>
+      <li>OT de entrega + cierre administrativo.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ unidades a entregado, ppto a Pend. facturación.</span></div>
+  </div>
+
+  <h2>Bloque 6 · Multi-OT y facturación</h2>
+  <div class="case">
+    <div class="case-title">6.1 · Un ppto, varias OTs <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Crear ppto <b>servicio</b> para PRUEBAS AGS. Aceptar.</li>
+      <li>Crear <b>3 OTs</b> desde el ppto. Verificar las 3 vinculadas en el detalle.</li>
+      <li>Cerrar administrativamente la OT 1 → en Facturación aparece el aviso; el ppto lista la OT como "lista para facturar".</li>
+      <li>Cerrar la OT 2 → se suma (la 1 no desaparece).</li>
+      <li>Cerrar la OT 3 → las tres listadas.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ un aviso de facturación por cada cierre (sin duplicados)</span> <span class="tag tag-fix">FIX v1.14.1</span>; <span class="ok">✅ estado del ppto: Pend. facturación.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">6.2 · Solicitar factura por OTs + anular <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Desde el ppto, <b>solicitar factura</b> agrupando las OTs 1 y 2.</li>
+      <li>Verificar que esas 2 OTs salen de la lista de "listas para facturar" (queda la 3).</li>
+      <li>En Facturación, <b>anular</b> esa solicitud.</li>
+      <li>Volver al ppto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ las OTs 1 y 2 VUELVEN a la lista de facturables</span> <span class="tag tag-fix">FIX v1.14.1</span> (antes quedaban en el limbo).</div>
+  </div>
+  <div class="case">
+    <div class="case-title">6.3 · Flujo del contable <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Re-solicitar factura por las 3 OTs.</li>
+      <li>Marcar <b>enviada</b> → <b>facturada</b> (con nº de factura) → <b>cobrada</b>.</li>
+      <li>Verificar que el ppto pasa a <b>finalizado</b> al facturar la última.</li>
+      <li>Exportar Excel y PDF desde Facturación.</li>
+    </ol>
+  </div>
+
+  <h2>Bloque 7 · Selección manual de stock al cierre</h2>
+  <div class="case">
+    <div class="case-title">7.1 · Trazable + por posición <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>OT de entrega (sin ppto). En el cierre, agregar la parte <b>PRB-SERIE</b> eligiendo la serie PRB-SN-001, y una <b>PRB-SIMPLE</b> eligiendo la posición.</li>
+      <li>Cerrar.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ ambas descontadas con un egreso cada una;</span> la UI del picker debe hacer fácil encontrar serie/posición (evaluar UX).</div>
+  </div>
+  <div class="case">
+    <div class="case-title">7.2 · Reservada + elegida a mano = un solo descuento <span class="tag tag-auto">AUTO</span></div>
+    <ol class="steps">
+      <li>Ppto partes 1 × PRB-SIMPLE aceptado (reserva una unidad). OT vinculada.</li>
+      <li>En el cierre, seleccionar además <b>la misma unidad</b> a mano. Cerrar.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ UN solo egreso</span> (no se descuenta dos veces).</div>
+  </div>
+
+  <h2>Bloque 8 · Limpieza</h2>
+  <div class="case">
+    <div class="case-title">8.1 · Dejar el sistema limpio <span class="tag tag-manual">MANUAL</span></div>
+    <ol class="steps">
+      <li>Anular los pptos de prueba abiertos y verificar que liberan reservas.</li>
+      <li>Dar de baja las unidades PRB-* remanentes (o dejarlas para la próxima ronda).</li>
+      <li>Cerrar/finalizar los tickets generados por las pruebas.</li>
+      <li>Cliente PRUEBAS AGS: marcarlo inactivo si no se sigue usando.</li>
+    </ol>
+    <div class="note">Los datos con prefijo [E2E] los crea y borra el test automático — no tocarlos a mano.</div>
+  </div>
+
+</body>
+</html>

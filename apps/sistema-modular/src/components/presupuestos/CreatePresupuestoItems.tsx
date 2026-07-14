@@ -39,6 +39,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
   const [articulosCatalog, setArticulosCatalog] = useState<ArticuloCatalog[]>([]);
   const [showWizard, setShowWizard] = useState(false);
   const cantidadRef = useRef<HTMLInputElement>(null);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
   // Las categorías cargan async: el default del useState inicial corre con [] y queda sin
   // categoría. Aplicamos el default IVA 21% una vez que el catálogo está disponible (sin
   // pisar una elección posterior del usuario).
@@ -101,6 +102,11 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
       ...(isMixta ? { moneda: newItem.moneda || 'USD' } : {}),
     });
     setNewItem({ ...EMPTY_ITEM, categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), moneda: isMixta ? (newItem.moneda || 'USD') : null });
+    // Volver el foco al buscador (abierto y listo para tipear) — cargar N ítems seguidos
+    // sin tocar el mouse. El click programático abre el dropdown, que auto-enfoca su input.
+    requestAnimationFrame(() => {
+      searchWrapRef.current?.querySelector<HTMLElement>('[role="combobox"]')?.click();
+    });
   };
 
   const addFromWizard = (p: Partial<PresupuestoItem>) => {
@@ -243,7 +249,7 @@ export const CreatePresupuestoItems = ({ items, onAdd, onRemove, onUpdate, categ
 
       {/* Row 1: Buscador UNIFICADO (servicios + artículos) */}
       {searchOptions.length > 1 && (
-        <div>
+        <div ref={searchWrapRef}>
           <label className={lbl}>Buscar servicio o artículo</label>
           <SearchableSelect value={searchValue} onChange={handleUnifiedSelect} options={searchOptions}
             placeholder="Buscar por código o descripción (servicios y artículos)..." />
