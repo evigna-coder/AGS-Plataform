@@ -53,6 +53,63 @@ export { expect };
 
 // ─── Navigation Helpers ───────────────────────────────────────
 
+/**
+ * Mapa label → ruta. El sidebar ahora es un árbol con grupos colapsados
+ * (Comercial / Operaciones / Stock / Personas / Admin — ver navigation.ts),
+ * así que navegamos por URL directa en lugar de clickear textos del nav.
+ * Acepta las variantes con y sin acento que usan los specs.
+ */
+const ROUTE_MAP: Record<string, string> = {
+  'Dashboard': '/dashboard',
+  'Clientes': '/clientes',
+  'Ingreso Empresas': '/ingreso-empresas',
+  'Tickets': '/leads',
+  'Presupuestos': '/presupuestos',
+  'Contratos': '/contratos',
+  'Facturacion': '/facturacion',
+  'Facturación': '/facturacion',
+  'Ordenes de Trabajo': '/ordenes-trabajo',
+  'Órdenes de Trabajo': '/ordenes-trabajo',
+  'Equipos': '/equipos',
+  'Agenda': '/agenda',
+  'Pendientes': '/pendientes',
+  'Instrumentos': '/instrumentos',
+  'Patrones': '/patrones',
+  'Columnas': '/columnas',
+  'Dispositivos': '/dispositivos',
+  'Vehículos': '/vehiculos',
+  'Vehiculos': '/vehiculos',
+  'Fichas': '/fichas',
+  'Fichas Propiedad': '/fichas',
+  'Loaners': '/loaners',
+  'Usuarios': '/usuarios',
+  'Biblioteca Tablas': '/table-catalog',
+  'Documentos QF': '/qf-documentos',
+  'Entregas': '/entregas',
+};
+
+const STOCK_ROUTE_MAP: Record<string, string> = {
+  'Unidades': '/stock/unidades',
+  'Minikits': '/stock/minikits',
+  'Faltantes en minikits': '/stock/minikits/faltantes',
+  'Asignaciones': '/stock/asignaciones',
+  'Remitos': '/stock/remitos',
+  'Movimientos': '/stock/movimientos',
+  'Alertas': '/stock/alertas',
+  'Requerimientos': '/stock/requerimientos',
+  'Planificacion': '/stock/planificacion',
+  'Planificación': '/stock/planificacion',
+  'Ordenes de Compra': '/stock/ordenes-compra',
+  'Órdenes de Compra': '/stock/ordenes-compra',
+  'Importaciones': '/stock/importaciones',
+  'Entregas': '/entregas',
+  'Articulos': '/stock/articulos',
+  'Artículos': '/stock/articulos',
+  'Proveedores': '/stock/proveedores',
+  'Posiciones': '/stock/posiciones',
+  'Marcas': '/stock/marcas',
+};
+
 class NavHelpers {
   constructor(private page: Page) {}
 
@@ -63,8 +120,20 @@ class NavHelpers {
     await this.page.locator('aside nav').waitFor({ timeout: 30_000 });
   }
 
+  private async gotoRoute(route: string) {
+    await this.page.goto(`http://localhost:3001${route}`);
+    await this.page.locator('aside nav').waitFor({ timeout: 30_000 });
+    await this.page.waitForTimeout(1500);
+  }
+
   async goTo(label: string) {
     await this.ensureLoaded();
+    const route = ROUTE_MAP[label];
+    if (route) {
+      await this.gotoRoute(route);
+      return;
+    }
+    // Fallback: click en el sidebar (labels no mapeados)
     const item = this.page.locator('aside nav').getByText(label, { exact: false }).first();
     await item.waitFor({ timeout: 10_000 });
     await item.scrollIntoViewIfNeeded();
@@ -73,73 +142,30 @@ class NavHelpers {
   }
 
   /**
-   * Navega forzando un cambio de ruta: va a Equipos primero (flat, no group),
-   * luego al destino. Esto resetea el MemoryRouter y garantiza vista lista.
-   *
-   * Para labels que son grupos parent en el sidebar (ej: 'Clientes' tiene
-   * children 'Todos los clientes' / 'Ingreso Empresas'), el click directo
-   * sobre el parent solo expande el grupo, no navega. En esos casos
-   * usamos URL directa.
+   * Navega forzando un cambio de ruta real: pasa por /equipos primero y
+   * después va al destino, así la vista destino se monta de cero.
    */
   async goToFresh(label: string) {
     await this.ensureLoaded();
-    // Map label → URL para items que son grupos parent (el click toggle-a
-    // expansión, no navega). Mantener sincronizado con navigation.ts.
-    const groupParentUrls: Record<string, string> = {
-      'Clientes': '/clientes',
-    };
-
-    // Ir a Equipos primero (flat item, no group) para forzar cambio de ruta
-    const equipos = this.page.locator('aside nav').getByText('Equipos', { exact: true }).first();
-    await equipos.scrollIntoViewIfNeeded();
-    await equipos.click({ force: true });
-    await this.page.waitForTimeout(800);
-
-    // Si el destino es un group parent, usar URL directa
-    if (groupParentUrls[label]) {
-      await this.page.goto(`http://localhost:3001${groupParentUrls[label]}`);
-      await this.page.waitForTimeout(2000);
-      return;
+    const route = ROUTE_MAP[label];
+    if (route && route !== '/equipos') {
+      await this.gotoRoute('/equipos');
     }
-
-    // Caso normal: click en el sidebar
-    const item = this.page.locator('aside nav').getByText(label, { exact: false }).first();
-    await item.scrollIntoViewIfNeeded();
-    await item.click({ force: true });
-    await this.page.waitForTimeout(2000);
+    await this.goTo(label);
   }
 
   /** Igual que goToFresh pero para sub-items de Stock */
   async goToStockFresh(submenu: string) {
     await this.ensureLoaded();
-    // Ir a Equipos primero (flat item) para forzar cambio de ruta
-    const equipos = this.page.locator('aside nav').getByText('Equipos', { exact: true }).first();
-    await equipos.scrollIntoViewIfNeeded();
-    await equipos.click({ force: true });
-    await this.page.waitForTimeout(800);
-    // Ahora ir a Stock > submenu
+    await this.gotoRoute('/equipos');
     await this.goToStock(submenu);
   }
 
   async goToStock(submenu: string) {
     await this.ensureLoaded();
-    // Expandir Stock si los sub-items no son visibles
-    const subItem = this.page.locator('aside nav').getByText(submenu, { exact: true }).first();
-    if (!await subItem.isVisible({ timeout: 1000 }).catch(() => false)) {
-      // Click en el botón Stock para expandir — usar evaluate para evitar issues de scroll
-      const stockBtn = this.page.locator('aside nav').getByText('Stock', { exact: true }).first();
-      await stockBtn.waitFor({ timeout: 5_000 });
-      await stockBtn.evaluate((el: HTMLElement) => {
-        // Subir hasta el button padre y clickearlo
-        const btn = el.closest('button') || el;
-        btn.click();
-      });
-      await this.page.waitForTimeout(800);
-    }
-    await subItem.waitFor({ timeout: 5_000 });
-    await subItem.scrollIntoViewIfNeeded();
-    await subItem.click({ force: true });
-    await this.page.waitForTimeout(1500);
+    const route = STOCK_ROUTE_MAP[submenu];
+    if (!route) throw new Error(`goToStock: submenu "${submenu}" no está en STOCK_ROUTE_MAP — agregarlo (ver navigation.ts)`);
+    await this.gotoRoute(route);
   }
 
   async expectPageTitle(title: string) {
