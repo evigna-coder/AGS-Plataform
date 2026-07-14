@@ -37,22 +37,42 @@ async function captureNextDialog(page: Page): Promise<string> {
 }
 
 test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
+  // 120s: cuando este spec abre la corrida completa, el primer test paga el
+  // arranque frío (login + hidratación auth + TLS del proxy) y 60s no alcanzan.
+  test.describe.configure({ timeout: 120_000 });
+
   let seeded: SeededPatron | null = null;
 
-  test.afterEach(async () => {
+  /**
+   * Abre el editor del patrón con retry: en frío la página puede quedar
+   * clavada en "Cargando patrón…" (glitch de long-polling de Firestore en el
+   * primer load de la sesión) — un reload lo destraba.
+   */
+  async function gotoEditor(app: Page, patronId: string) {
+    const url = `${BASE}/patrones/${patronId}/editar`;
+    await app.goto(url);
+    const guardarBtn = app.getByRole('button', { name: /guardar y cerrar/i });
+    try {
+      await guardarBtn.waitFor({ timeout: 20_000 });
+    } catch {
+      await app.reload();
+      await guardarBtn.waitFor({ timeout: 30_000 });
+    }
+  }
+
+  test.afterEach(async ({ app }) => {
     if (seeded) {
-      await cleanupPatronBomFixture({ patronId: seeded.patronId });
+      await cleanupPatronBomFixture(app, { patronId: seeded.patronId });
       seeded = null;
     }
   });
 
   test('14.40.1 — agregar componente → guardar → reload → persiste', async ({ app }) => {
     // Seed: patron SIN componentes (queremos drive la UI para agregar)
-    seeded = await seedPatronBom({ componentes: [] });
+    seeded = await seedPatronBom(app, { componentes: [] });
     const editorUrl = `${BASE}/patrones/${seeded.patronId}/editar`;
-    await app.goto(editorUrl);
-    // Esperar que el editor monte (el form, no el loading state)
-    await app.getByRole('button', { name: /guardar y cerrar/i }).waitFor({ timeout: 15_000 });
+    // Esperar que el editor monte (con retry anti-"Cargando patrón…" colgado)
+    await gotoEditor(app, seeded.patronId);
 
     // La sección BOM existe — empty state visible con el CTA "+ Agregar componente"
     await expect(app.locator('[data-testid="bom-empty"]')).toBeVisible({ timeout: 10_000 });
@@ -75,14 +95,15 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
     await app.waitForURL(/\/patrones(\?|$)/, { timeout: 10_000 });
 
     // Verificación 1 — el doc en Firestore tiene el componente
-    const patronDoc = await getPatron(seeded.patronId);
+    const patronDoc = await getPatron(app, seeded.patronId);
     expect(patronDoc?.componentes ?? []).toHaveLength(1);
     expect(patronDoc.componentes[0].codigoComponente).toBe('amp-A');
     expect(patronDoc.componentes[0].cantidadPorKit).toBe(3);
     expect(patronDoc.componentes[0].stockMinimo).toBe(1);
 
     // Verificación 2 — al recargar el editor, el componente persiste en UI
-    await app.goto(editorUrl);
+    void editorUrl;
+    await gotoEditor(app, seeded.patronId);
     const reloadedRow = app
       .locator('[data-testid="bom-row"][data-codigo="amp-A"]')
       .first();
@@ -91,8 +112,8 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
   });
 
   test('14.41 — dos filas con mismo código → alert bloquea save', async ({ app }) => {
-    seeded = await seedPatronBom({ componentes: [] });
-    await app.goto(`${BASE}/patrones/${seeded.patronId}/editar`);
+    seeded = await seedPatronBom(app, { componentes: [] });
+    await gotoEditor(app, seeded.patronId);
 
     await expect(app.locator('[data-testid="bom-empty"]')).toBeVisible({ timeout: 10_000 });
 
@@ -120,13 +141,13 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
     expect(app.url()).toContain(`/patrones/${seeded.patronId}`);
 
     // Doc en Firestore sigue sin componentes (no se persistió)
-    const after = await getPatron(seeded.patronId);
+    const after = await getPatron(app, seeded.patronId);
     expect(after?.componentes ?? []).toHaveLength(0);
   });
 
   test('14.42 — componente con consumos previos: 🔒, input disabled, delete bloqueado', async ({ app }) => {
     // Seed: patron con componente AMP-A y un lote que YA tiene consumos sobre AMP-A
-    seeded = await seedPatronBom({
+    seeded = await seedPatronBom(app, {
       componentes: [
         {
           codigoComponente: 'amp-A',
@@ -145,7 +166,7 @@ test.describe.serial('14.40 — Patron BOM Editor (BOM-04)', () => {
         },
       ],
     });
-    await app.goto(`${BASE}/patrones/${seeded.patronId}/editar`);
+    await gotoEditor(app, seeded.patronId);
 
     const row = app.locator('[data-testid="bom-row"][data-codigo="amp-A"]').first();
     await expect(row).toBeVisible({ timeout: 10_000 });

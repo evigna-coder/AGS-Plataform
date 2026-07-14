@@ -1,22 +1,34 @@
 /**
  * Phase 13 — equivalencias E2E helpers.
  *
- * seedEquivalenciaPair is a REAL implementation (not a TODO stub) that writes
- * two artículo docs to Firestore using the client SDK (same pattern as
- * firestore-assert.ts / fixtures/firebase-e2e.ts). Reuses the existing `db`
- * export — no new admin SDK wiring path introduced.
- *
- * Decision (m4 fix): all 4 describe groups in equivalencias.spec.ts must have
- * fixme count == 0. "Annotated-skip-reason if seed pending" is no longer acceptable.
+ * REWRITE 2026-07: las reglas Firestore endurecidas rompieron el client SDK
+ * desde Node sin auth. El seed corre ahora EN EL BROWSER autenticado vía
+ * `page.evaluate` + `window.__ags` (patrón circuito 15). La page debe venir
+ * de la fixture `app` de test-base (persistent context con login) — el raw
+ * `page` de @playwright/test no está autenticado.
  */
 
 import type { Page } from '@playwright/test';
-import { db } from '../fixtures/firebase-e2e';
-import { collection, doc, setDoc } from 'firebase/firestore';
+
+const BASE = 'http://localhost:3001';
+
+/** Recarga la app si la page perdió el bundle (window.__ags ausente). */
+async function ensureAgs(page: Page): Promise<void> {
+  const ok = await page
+    .evaluate(() => typeof (window as any).__ags !== 'undefined')
+    .catch(() => false);
+  if (!ok) {
+    await page.goto(BASE);
+    await page.locator('aside nav').waitFor({ timeout: 30_000 });
+    await page.waitForTimeout(1000);
+  }
+}
 
 export async function navigateToArticulosList(page: Page): Promise<void> {
-  await page.goto('/stock/articulos');
-  await page.waitForSelector('[data-testid="articulos-list"], h1', { timeout: 10000 });
+  // URL absoluta: la page compartida viene de launchPersistentContext sin baseURL.
+  await page.goto(`${BASE}/stock/articulos`);
+  // 25s: con caches fríos (o tras una corrida larga) la lista tarda en montar.
+  await page.waitForSelector('[data-testid="articulos-list"], h1', { timeout: 25_000 });
 }
 
 export async function openArticuloDetail(page: Page, codigo: string): Promise<void> {
@@ -26,13 +38,10 @@ export async function openArticuloDetail(page: Page, codigo: string): Promise<vo
 /**
  * Phase 13 STKE-07 — seed a linked pair of artículos for E2E.
  *
- * REAL implementation (m4 fix — no TODO stub). Uses the Firestore client SDK
- * (`db` from fixtures/firebase-e2e.ts) that the test suite already establishes.
- * Writes two artículo documents (destino first, then origen with equivalencias[]).
- *
- * Returns the pair's IDs and codes for use in test assertions.
+ * Writes two artículo documents (destino first, then origen with equivalencias[])
+ * in the authenticated browser. Returns the pair's IDs and codes.
  */
-export async function seedEquivalenciaPair(opts: {
+export async function seedEquivalenciaPair(page: Page, opts: {
   codigoOrigen?: string;
   codigoDestino?: string;
   factor?: number;
@@ -48,53 +57,74 @@ export async function seedEquivalenciaPair(opts: {
   const codigoDestino = opts.codigoDestino ?? `TEST-USO-${ts}`;
   const factor = opts.factor ?? 10;
 
-  const articulosCol = collection(db, 'articulos');
+  await ensureAgs(page);
+  const { origenId, destinoId } = await page.evaluate(async (p) => {
+    const ags = (window as any).__ags;
+    const { collection, doc, setDoc } = ags.firestore;
+    const articulosCol = collection(ags.db, 'articulos');
 
-  // 1. Create destino artículo first (origen needs to denormalize its codigo/descripcion)
-  const destinoRef = doc(articulosCol);
-  const destinoId = destinoRef.id;
-  await setDoc(destinoRef, {
-    id: destinoId,
-    codigo: codigoDestino,
-    descripcion: `E2E destino ${codigoDestino}`,
-    categoriaEquipo: 'GENERAL',
-    marcaId: null,
-    proveedorIds: [],
-    tipo: 'consumible',
-    unidadMedida: 'unidad',
-    stockMinimo: 0,
-    activo: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    equivalencias: [],
-    articuloIdDestinoEquivalencia: null,
-  });
+    // 1. Create destino artículo first (origen denormalizes its codigo/descripcion)
+    const destinoRef = doc(articulosCol);
+    const destinoId = destinoRef.id;
+    await setDoc(destinoRef, {
+      id: destinoId,
+      codigo: p.codigoDestino,
+      descripcion: `E2E destino ${p.codigoDestino}`,
+      categoriaEquipo: 'GENERAL',
+      marcaId: null,
+      proveedorIds: [],
+      tipo: 'consumible',
+      unidadMedida: 'unidad',
+      stockMinimo: 0,
+      activo: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      equivalencias: [],
+      articuloIdDestinoEquivalencia: null,
+    });
 
-  // 2. Create origen with the equivalencia payload + flat pointer field
-  const origenRef = doc(articulosCol);
-  const origenId = origenRef.id;
-  await setDoc(origenRef, {
-    id: origenId,
-    codigo: codigoOrigen,
-    descripcion: `E2E origen ${codigoOrigen}`,
-    categoriaEquipo: 'GENERAL',
-    marcaId: null,
-    proveedorIds: [],
-    tipo: 'consumible',
-    unidadMedida: 'unidad',
-    stockMinimo: 0,
-    activo: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    equivalencias: [{
-      articuloIdDestino: destinoId,
-      articuloCodigoDestino: codigoDestino,
-      articuloDescripcionDestino: `E2E destino ${codigoDestino}`,
-      factor,
-    }],
-    // Flat index field for Firestore where() queries (source of truth stays in equivalencias[])
-    articuloIdDestinoEquivalencia: destinoId,
-  });
+    // 2. Create origen with the equivalencia payload + flat pointer field
+    const origenRef = doc(articulosCol);
+    const origenId = origenRef.id;
+    await setDoc(origenRef, {
+      id: origenId,
+      codigo: p.codigoOrigen,
+      descripcion: `E2E origen ${p.codigoOrigen}`,
+      categoriaEquipo: 'GENERAL',
+      marcaId: null,
+      proveedorIds: [],
+      tipo: 'consumible',
+      unidadMedida: 'unidad',
+      stockMinimo: 0,
+      activo: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      equivalencias: [{
+        articuloIdDestino: destinoId,
+        articuloCodigoDestino: p.codigoDestino,
+        articuloDescripcionDestino: `E2E destino ${p.codigoDestino}`,
+        factor: p.factor,
+      }],
+      // Flat index field for Firestore where() queries
+      articuloIdDestinoEquivalencia: destinoId,
+    });
+
+    return { origenId, destinoId };
+  }, { codigoOrigen, codigoDestino, factor });
 
   return { origenId, destinoId, codigoOrigen, codigoDestino, factor };
+}
+
+/** Borra el par seedeado (antes no había cleanup y quedaban artículos TEST-*). */
+export async function cleanupEquivalenciaPair(
+  page: Page,
+  seeded: { origenId: string; destinoId: string },
+): Promise<void> {
+  await ensureAgs(page);
+  await page.evaluate(async (s) => {
+    const ags = (window as any).__ags;
+    const { doc, deleteDoc } = ags.firestore;
+    await deleteDoc(doc(ags.db, 'articulos', s.origenId)).catch(() => {});
+    await deleteDoc(doc(ags.db, 'articulos', s.destinoId)).catch(() => {});
+  }, seeded);
 }

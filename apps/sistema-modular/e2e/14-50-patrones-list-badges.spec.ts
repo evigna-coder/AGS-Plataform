@@ -33,9 +33,13 @@ test.describe.serial('14.50 — Patrones BOM visibility (BOM-06)', () => {
   let bloqueado: SeededPatron | null = null;   // patron con un componente bajo mínimo
   let legacy: SeededPatron | null = null;      // patron sin componentes
 
-  test.beforeAll(async () => {
+  // NOTA 2026-07: el seed corre en el browser autenticado (fixture `app`), que
+  // es test-scoped — beforeAll/afterAll no pueden usarla. La suite es serial,
+  // así que seed y cleanup son tests explícitos (mismo patrón que 15.99).
+  test('14.50.0 — seed fixtures de patrones', async ({ app, nav }) => {
+    await nav.ensureLoaded();
     // Patron sano: BOM-aware, saldo abundante
-    healthy = await seedPatronBom({
+    healthy = await seedPatronBom(app, {
       codigoArticulo: `TEST-HEALTHY-${Date.now()}`,
       componentes: [{
         codigoComponente: 'amp-A',
@@ -49,7 +53,7 @@ test.describe.serial('14.50 — Patrones BOM visibility (BOM-06)', () => {
 
     // Patron bloqueado: saldo = stockMinimo → status 'agotado' (todos los componentes)
     // saldo = 1*3 - 3 = 0, minimo = 1 → 0 ≤ 1 → bloqueado/agotado
-    bloqueado = await seedPatronBom({
+    bloqueado = await seedPatronBom(app, {
       codigoArticulo: `TEST-BLOQ-${Date.now()}`,
       componentes: [{
         codigoComponente: 'amp-Z',
@@ -67,17 +71,11 @@ test.describe.serial('14.50 — Patrones BOM visibility (BOM-06)', () => {
     });
 
     // Patron legacy: sin componentes
-    legacy = await seedPatronBom({
+    legacy = await seedPatronBom(app, {
       codigoArticulo: `TEST-LEGACY-${Date.now()}`,
       componentes: [],
       lotes: [{ lote: `L-LEG-${Date.now()}`, cantidad: 1, fechaVencimiento: null }],
     });
-  });
-
-  test.afterAll(async () => {
-    for (const p of [healthy, bloqueado, legacy]) {
-      if (p) await cleanupPatronBomFixture({ patronId: p.patronId });
-    }
   });
 
   test('14.50 — patron BOM-aware muestra badge "BOM" (teal) en la fila', async ({ app }) => {
@@ -178,5 +176,11 @@ test.describe.serial('14.50 — Patrones BOM visibility (BOM-06)', () => {
     await app.goto(`${BASE}/patrones/${legacy!.patronId}/editar`);
     await app.getByRole('button', { name: /guardar y cerrar/i }).waitFor({ timeout: 15_000 });
     await expect(app.locator('[data-testid="patron-componentes-alert-banner"]')).toHaveCount(0);
+  });
+
+  test('14.55 — cleanup fixtures de patrones', async ({ app }) => {
+    for (const p of [healthy, bloqueado, legacy]) {
+      if (p) await cleanupPatronBomFixture(app, { patronId: p.patronId });
+    }
   });
 });

@@ -67,7 +67,10 @@ test.describe('Circuito 4: Órdenes de Trabajo', () => {
 
   test('4.3 — Verificar OTs en lista', async ({ app, nav }) => {
     await nav.goToFresh('Ordenes de Trabajo');
-    await app.waitForTimeout(2000);
+    // Esperar la carga real (el "Cargando órdenes..." puede tardar más que un
+    // sleep fijo con caches fríos — misma carrera que tenía 11.08)
+    await app.getByText('Cargando órdenes de trabajo').waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+    await app.locator('tbody tr').first().waitFor({ timeout: 15_000 });
     expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
   });
 

@@ -1,5 +1,5 @@
 import { test, expect, TEST_PREFIX, timestamp } from '../fixtures/test-base';
-import { getSolicitudesFacturacionByOt, getSolicitudFacturacion, pollUntil } from '../helpers/firestore-assert';
+import { getSolicitudFacturacion, pollUntil } from '../helpers/firestore-assert';
 
 /**
  * CIRCUITO 7: Facturación — Verificar lista y filtros
@@ -103,7 +103,7 @@ test.describe('Circuito 7: Facturación', () => {
 
     // Assert estado transitioned to enviada
     await pollUntil(
-      () => getSolicitudFacturacion(solicitudId),
+      () => getSolicitudFacturacion(app, solicitudId),
       (s) => (s as any)?.estado === 'enviada',
       { timeout: 10_000 },
     );

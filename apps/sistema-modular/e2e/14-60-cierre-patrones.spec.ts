@@ -96,19 +96,14 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
   let seeded: SeededPatron | null = null;
   const usedOTs: string[] = [];
 
-  test.beforeAll(async () => {
+  // NOTA 2026-07: seed/restore corren en el browser autenticado (fixture `app`,
+  // test-scoped) — beforeAll/afterAll no pueden usarla. Suite serial → seed y
+  // cleanup son tests explícitos (patrón 15.99).
+  test('14.60.0 — seed: adminConfig.usuarioRequerimientosPatronId sentinel', async ({ app, nav }) => {
+    await nav.ensureLoaded();
     // E2E: usar un uid sentinela; el field solo se usa para asignar el REQ
-    configSnapshot = await seedAdminConfigUsuarioRequerimientosPatron('e2e-test-user-uid');
-  });
-
-  test.afterAll(async () => {
-    if (configSnapshot) {
-      await restoreAdminConfigUsuarioRequerimientosPatron(configSnapshot);
-      configSnapshot = null;
-    }
-    if (seeded) {
-      await cleanupPatronBomFixture({ patronId: seeded.patronId, otNumbers: usedOTs });
-    }
+    configSnapshot = await seedAdminConfigUsuarioRequerimientosPatron(app, 'e2e-test-user-uid');
+    expect(configSnapshot).toBeTruthy();
   });
 
   test('14.60 — /admin/config-flujos guarda usuarioRequerimientosPatronId y persiste', async ({ app }) => {
@@ -150,11 +145,11 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
 
     // Re-restaurar el sentinel para los tests 14.63/14.64 que esperan que el
     // auto-REQ se cree (necesita usuarioRequerimientosPatronId no-null).
-    await seedAdminConfigUsuarioRequerimientosPatron('e2e-test-user-uid');
+    await seedAdminConfigUsuarioRequerimientosPatron(app, 'e2e-test-user-uid');
   });
 
   test('14.61 — divergencia crea movimientoStock con motivo + actualiza componentesConsumidos', async ({ app }) => {
-    seeded = await seedPatronBom({
+    seeded = await seedPatronBom(app, {
       componentes: [{
         codigoComponente: 'amp-A',
         descripcion: 'Ampolla cafeína',
@@ -166,7 +161,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     });
     const otNumber = `E2E-DIV-${Date.now()}`;
     usedOTs.push(otNumber);
-    await seedOTReportePatrones({ otNumber, patron: seeded });
+    await seedOTReportePatrones(app, { otNumber, patron: seeded });
 
     const motivoTexto = 'Técnico abrió 2 ampollas no documentadas';
     const result = await callConsumirComponentes(app, {
@@ -186,7 +181,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     expect(result.movimientoIds).toHaveLength(1);
 
     // movimientoStock tiene el motivo, entidadTipo, cantidad correctos
-    const movs = await getMovimientosPatronByOt(otNumber);
+    const movs = await getMovimientosPatronByOt(app, otNumber);
     expect(movs).toHaveLength(1);
     expect(movs[0].codigoComponente).toBe('amp-A');
     expect(movs[0].cantidad).toBe(2);
@@ -195,7 +190,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     expect(movs[0].patronId).toBe(seeded.patronId);
 
     // Patron tiene componentesConsumidos actualizado
-    const patron = await getPatron(seeded.patronId);
+    const patron = await getPatron(app, seeded.patronId);
     const lote0 = patron.lotes[0];
     expect(lote0.componentesConsumidos).toEqual(
       expect.arrayContaining([
@@ -222,7 +217,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     expect(result.error ?? '').toMatch(/ya descontados/i);
 
     // movimientoStock sigue teniendo solo 1 entrada (la de 14.61)
-    const movs = await getMovimientosPatronByOt(otNumber);
+    const movs = await getMovimientosPatronByOt(app, otNumber);
     expect(movs).toHaveLength(1);
   });
 
@@ -235,7 +230,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     };
     app.on('console', handler);
     // Nuevo patron donde el descuento dejará saldo == minimo
-    const patron2 = await seedPatronBom({
+    const patron2 = await seedPatronBom(app, {
       componentes: [{
         codigoComponente: 'amp-X',
         descripcion: 'Ampolla X',
@@ -250,7 +245,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     // ref sigue viva al final. Limpiamos manualmente al fin.
     const otNumberB = `E2E-REQ-${Date.now()}`;
     usedOTs.push(otNumberB);
-    await seedOTReportePatrones({ otNumber: otNumberB, patron: patron2 });
+    await seedOTReportePatrones(app, { otNumber: otNumberB, patron: patron2 });
 
     const result = await callConsumirComponentes(app, {
       otNumber: otNumberB,
@@ -264,7 +259,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     expect(result.ok, `service error: ${result.error}`).toBe(true);
 
     // Requerimiento creado con origen patron_minimo + asignado al sentinel
-    const reqs = await getReqsPatronMinimoByPatron(patron2.patronId);
+    const reqs = await getReqsPatronMinimoByPatron(app, patron2.patronId);
     app.off('console', handler);
     // El auto-REQ helper es best-effort y depende de un índice compuesto en
     // /requerimientos_compra (origen ASC + createdAt DESC). Si el índice no
@@ -275,7 +270,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     const indexMissing = browserErrors.some(e => /query requires an index/i.test(e));
     if (reqs.length === 0 && indexMissing) {
       // Cleanup parcial antes de skip
-      await cleanupPatronBomFixture({
+      await cleanupPatronBomFixture(app, {
         patronId: patron2.patronId,
         otNumbers: [otNumberB],
       });
@@ -297,7 +292,7 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     // 14.64 — corrida en OT C no debe duplicar el REQ (dedupe (patron, lote, codigo))
     const otNumberC = `E2E-DEDUP-${Date.now()}`;
     usedOTs.push(otNumberC);
-    await seedOTReportePatrones({ otNumber: otNumberC, patron: patron2 });
+    await seedOTReportePatrones(app, { otNumber: otNumberC, patron: patron2 });
     const result2 = await callConsumirComponentes(app, {
       otNumber: otNumberC,
       consumos: [{
@@ -315,25 +310,36 @@ test.describe.serial('14.60 — Cierre admin patrones (BOM-05 + BOM-08)', () => 
     });
     expect(result2.ok, `service error: ${result2.error}`).toBe(true);
 
-    const reqsAfter = await getReqsPatronMinimoByPatron(patron2.patronId);
+    const reqsAfter = await getReqsPatronMinimoByPatron(app, patron2.patronId);
     const reqsAmpX = reqsAfter.filter(r => r.codigoComponente === 'amp-X');
     expect(reqsAmpX, 'auto-REQ debe deduplicarse por (patron, lote, codigo)').toHaveLength(1);
 
     // Cleanup explícito de este patron + OTs (B + C)
-    await cleanupPatronBomFixture({
+    await cleanupPatronBomFixture(app, {
       patronId: patron2.patronId,
       otNumbers: [otNumberB, otNumberC],
     });
   });
 
-  test('14.65 — reporte técnico es intocable tras el descuento (BOM-05 invariante)', async ({ app: _app }) => {
+  test('14.65 — reporte técnico es intocable tras el descuento (BOM-05 invariante)', async ({ app }) => {
     if (!seeded) throw new Error('14.65 requiere fixture de 14.61');
     const otNumber = usedOTs[0]; // la OT de 14.61
-    const reporte = await getReporteOT(otNumber);
+    const reporte = await getReporteOT(app, otNumber);
     expect(reporte).toBeTruthy();
     // patronesSeleccionados sigue tal cual lo seedeamos
     expect(reporte.patronesSeleccionados).toHaveLength(1);
     expect(reporte.patronesSeleccionados[0].patronId).toBe(seeded.patronId);
     expect(reporte.patronesSeleccionados[0].lote).toBe(seeded.lotes[0].lote);
+  });
+
+  test('14.69 — cleanup: restore adminConfig + fixtures', async ({ app }) => {
+    if (configSnapshot) {
+      await restoreAdminConfigUsuarioRequerimientosPatron(app, configSnapshot);
+      configSnapshot = null;
+    }
+    if (seeded) {
+      await cleanupPatronBomFixture(app, { patronId: seeded.patronId, otNumbers: usedOTs });
+      seeded = null;
+    }
   });
 });

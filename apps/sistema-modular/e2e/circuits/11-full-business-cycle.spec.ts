@@ -1,5 +1,5 @@
 import { test, expect, TEST_PREFIX, timestamp } from '../fixtures/test-base';
-import { getMailQueueDocs, getSolicitudesFacturacionByOt, getSolicitudesFacturacion, pollUntil, getPresupuesto, getPresupuestoEsquema, getSolicitudesFacturacionByPresupuesto } from '../helpers/firestore-assert';
+import { getMailQueueDocsByOt, getSolicitudesFacturacion, pollUntil, getPresupuesto, getPresupuestoEsquema, getSolicitudesFacturacionByPresupuesto } from '../helpers/firestore-assert';
 import type { Page } from '@playwright/test';
 
 /**
@@ -69,11 +69,32 @@ const NOTA_CIERRE = `${TEST_PREFIX} Horas confirmadas OK, materiales consumidos 
 const TODAY = new Date().toISOString().slice(0, 10);
 
 test.describe('Circuito 11: Ciclo Comercial Completo', () => {
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 120_000 });
+
+  // OT creada en 11.07 — capturada para que 11.08+ no dependa de "la primera
+  // fila de la lista" (residuos E2E viejos aparecían primero y desviaban todo
+  // el ciclo de estados hacia una OT ya cerrada).
+  let otCreada: string | null = null;
 
   // ═══════════════════════════════════════════════════════════
-  // SETUP: Cliente
+  // SETUP: sweep de residuos + Cliente
   // ═══════════════════════════════════════════════════════════
+
+  test('11.00 — Sweep de reportes E2E residuales (seeds viejos sin limpiar)', async ({ app, nav }) => {
+    await nav.ensureLoaded();
+    // Los seeds de patrones (14-60) escriben reportes con createdBy 'e2e-seed'.
+    // Corridas viejas dejaron docs E2E-REQ-* que aparecen primero en la lista
+    // de OTs y rompen las asunciones de este circuito.
+    const swept = await app.evaluate(async () => {
+      const ags = (window as any).__ags;
+      const { collection, query, where, getDocs, deleteDoc } = ags.firestore;
+      let deleted = 0;
+      const snap = await getDocs(query(collection(ags.db, 'reportes'), where('createdBy', '==', 'e2e-seed')));
+      for (const d of snap.docs) { await deleteDoc(d.ref).catch(() => {}); deleted++; }
+      return deleted;
+    });
+    console.log(`[11.00] sweep: ${swept} reportes e2e-seed borrados`);
+  });
 
   test('11.01 — Crear cliente nuevo', async ({ app, nav, forms }) => {
     await nav.goToFresh('Clientes');
@@ -189,7 +210,7 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
     }
 
     // Agregar línea + Crear
-    await app.getByRole('button', { name: '+ Agregar' }).evaluate((el: HTMLElement) => el.click());
+    await app.getByRole('button', { name: '+ Agregar', exact: true }).evaluate((el: HTMLElement) => el.click());
     await app.waitForTimeout(500);
     await app.getByRole('button', { name: 'Crear presupuesto' }).evaluate((el: HTMLElement) => el.click());
     await app.waitForTimeout(3000);
@@ -205,7 +226,8 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
 
   test('11.06 — Verificar presupuesto y abrir detalle', async ({ app, nav }) => {
     await nav.goToFresh('Presupuestos');
-    await app.waitForTimeout(2000);
+    // Esperar la carga real de la lista (el sleep fijo perdía la carrera en frío)
+    await app.locator('tbody tr').first().waitFor({ timeout: 20_000 });
     expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
     await app.locator('tbody tr').first().click({ force: true });
     await app.waitForTimeout(2000);
@@ -216,97 +238,119 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
   // OT COMPLETA — Ciclo de 7 estados
   // ═══════════════════════════════════════════════════════════
 
-  test('11.07 — Crear OT con ingeniero y fecha', async ({ app, nav }) => {
+  test('11.07 — Crear OT para el cliente E2E (modal smoke + service real)', async ({ app, nav }) => {
     // Safety: close any leftover modal
     await app.keyboard.press('Escape');
     await app.waitForTimeout(500);
 
+    // ── Smoke UI: el modal "+ Nueva OT" abre y cierra sin crash ──
+    // NOTA 2026-07: crear la OT COMPLETA vía UI requiere que el cliente tenga
+    // equipo (sistemaId obligatorio en tipo servicio — useCreateOTForm.ts:252)
+    // y el cliente [E2E] recién creado no tiene equipos. La versión anterior
+    // del test "creaba" contra el primer cliente real y el alert de validación
+    // se descartaba en silencio: las corridas históricas avanzaban estados
+    // sobre una OT REAL arbitraria de la lista.
     await nav.goToFresh('Ordenes de Trabajo');
     await app.getByRole('button', { name: '+ Nueva OT' }).click();
     await app.waitForTimeout(1500);
-
-    // Tipo servicio
-    await app.getByRole('combobox').filter({ hasText: 'Seleccionar tipo...' }).click();
-    await app.waitForTimeout(500);
-    await app.getByRole('option').first().click();
-    await app.waitForTimeout(500);
-
-    // Cliente
-    await app.getByRole('combobox').filter({ hasText: 'Seleccionar cliente...' }).click();
-    await app.waitForTimeout(500);
-    await app.getByRole('option').first().click();
-    await app.waitForTimeout(1500);
-
-    // Ingeniero
-    const ingCombo = app.getByRole('combobox').filter({ hasText: 'Sin asignar' });
-    if (await ingCombo.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await ingCombo.click();
-      await app.waitForTimeout(500);
-      const ingOpt = app.locator('[role="listbox"] [role="option"]').filter({ hasNotText: /sin asignar/i }).first();
-      if (await ingOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await ingOpt.click();
-        await app.waitForTimeout(500);
-      }
+    await expect(app.locator('[role="dialog"]').last()).toBeVisible({ timeout: 5000 });
+    const cancelBtn = app.getByRole('button', { name: /cancelar/i }).first();
+    if (await cancelBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await cancelBtn.click();
+    } else {
+      await app.keyboard.press('Escape');
     }
+    await app.waitForTimeout(1000);
 
-    // Fecha aprox servicio
-    const fechaInput = app.locator('input[type="date"]').last();
-    if (await fechaInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await fechaInput.fill(TODAY);
-    }
-
-    // Problema
-    const descInput = app.locator('textarea[placeholder*="Descripcion"], textarea[placeholder*="problema"]').first();
-    if (await descInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await descInput.fill(PROBLEMA);
-    }
-
-    await app.getByRole('button', { name: 'Crear OT' }).click();
-    await app.waitForTimeout(3000);
-
-    // Force close modal if still open
-    const modalOverlay = app.locator('[class*="bg-black/50"]');
-    if (await modalOverlay.isVisible({ timeout: 2000 }).catch(() => false)) {
-      const cancelBtn = app.getByRole('button', { name: /cancelar/i }).first();
-      if (await cancelBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await cancelBtn.click();
-      } else {
-        await app.keyboard.press('Escape');
-      }
-      await app.waitForTimeout(1500);
-    }
+    // ── Crear la OT vía el service real (patrón circuito 15) ──
+    // tipoOT 'entrega' (equipo opcional) para el cliente [E2E] de 11.01.
+    const r = await app.evaluate(async (razonSocial) => {
+      const ags = (window as any).__ags;
+      const { collection, query, where, getDocs } = ags.firestore;
+      const cs = await getDocs(query(collection(ags.db, 'clientes'), where('razonSocial', '==', razonSocial)));
+      const clienteId = cs.docs[0]?.id ?? null;
+      if (!clienteId) return { child: null };
+      const { ordenesTrabajoService } = await import('/src/services/otService.ts');
+      const otNumber = await ordenesTrabajoService.getNextOtNumber();
+      // Campos que la UI valida para poder avanzar estados (useOTFormState.validate):
+      // tipoServicio (siempre), fechaInicio (ASIGNADA+), ingeniero (COORDINADA+),
+      // reporteTecnico (CIERRE_TECNICO+).
+      await ordenesTrabajoService.create({
+        otNumber,
+        budgets: [],
+        clienteId,
+        razonSocial,
+        tipoOT: 'entrega',
+        estadoAdmin: 'CREADA',
+        tipoServicio: '[E2E] Servicio full-cycle',
+        fechaInicio: new Date().toISOString().slice(0, 10),
+        ingenieroAsignadoId: 'e2e-ingeniero',
+        ingenieroAsignadoNombre: '[E2E] Ingeniero',
+        reporteTecnico: '[E2E] Reporte técnico de prueba full-cycle',
+      } as any);
+      return { child: `${otNumber}.01` };
+    }, CLIENTE);
+    otCreada = r.child;
+    console.log(`[11.07] OT creada: ${otCreada}`);
+    expect(otCreada, 'no se pudo crear la OT para el cliente E2E').not.toBeNull();
   });
+
+  /** Abre el EditOTModal de la OT buscándola por número (la primera fila puede ser otra). */
+  async function abrirOT(app: Page, nav: { goToFresh: (l: string) => Promise<void> }) {
+    await nav.goToFresh('Ordenes de Trabajo');
+    await app.getByText('Cargando órdenes de trabajo').waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+    await app.getByPlaceholder(/buscar cliente/i).first().fill(otCreada!);
+    await app.waitForTimeout(1500);
+    const row = app.locator('tbody tr').filter({ hasText: otCreada! }).first();
+    await row.waitFor({ timeout: 15_000 });
+    await row.click({ force: true });
+    await app.waitForTimeout(2500);
+  }
+
+  /**
+   * Avanza el estado en el modal abierto y persiste con "Guardar" (EditOTModal
+   * NO tiene autosave — el viejo spec solo cambiaba el select y nada llegaba a
+   * Firestore). Guardar cierra el modal.
+   */
+  async function avanzarEstadoYGuardar(app: Page, estado: string) {
+    const estadoSelect = app.locator(`select:has(option[value="${estado}"])`).first();
+    await estadoSelect.waitFor({ timeout: 10_000 });
+    await estadoSelect.selectOption(estado);
+    await app.waitForTimeout(800);
+    await app.getByRole('button', { name: /^guardar$/i }).first().click();
+    await app.waitForTimeout(2500);
+  }
 
   test('11.08 — Abrir detalle de OT creada', async ({ app, nav }) => {
-    await nav.goToFresh('Ordenes de Trabajo');
-    await app.waitForTimeout(2000);
-    expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
-    // Click en la primera OT (la más reciente)
-    await app.locator('tbody tr').first().click({ force: true });
-    await app.waitForTimeout(3000);
+    expect(otCreada, '11.07 debe haber capturado la OT').not.toBeNull();
+    await abrirOT(app, nav);
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('11.09 — Avanzar OT → COORDINADA', async ({ app }) => {
-    // Buscar el select de estado admin
-    const estadoSelect = app.locator('select').filter({ has: app.locator('option', { hasText: /COORDINADA/i }) }).first();
-    if (await estadoSelect.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await estadoSelect.selectOption('COORDINADA');
-      await app.waitForTimeout(2000);
+  test('11.09 — Avanzar OT → ASIGNADA → COORDINADA', async ({ app, nav }) => {
+    // Responsable real requerido por handleSave para estados > CREADA
+    const respSelect = app.locator('select:has(option:text-is("Sin asignar"))').first();
+    if (await respSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await respSelect.selectOption({ index: 1 });
+      await app.waitForTimeout(400);
     }
+    // La máquina de estados NO permite CREADA→COORDINADA directo
+    // (OT_TRANSICIONES_VALIDAS: CREADA→ASIGNADA→COORDINADA) — el flujo viejo
+    // salteaba ASIGNADA y el update se rechazaba en silencio.
+    await avanzarEstadoYGuardar(app, 'ASIGNADA');
+    await abrirOT(app, nav);
+    await avanzarEstadoYGuardar(app, 'COORDINADA');
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('11.10 — Avanzar OT → EN_CURSO', async ({ app }) => {
-    const estadoSelect = app.locator('select').filter({ has: app.locator('option', { hasText: /EN_CURSO/i }) }).first();
-    if (await estadoSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await estadoSelect.selectOption('EN_CURSO');
-      await app.waitForTimeout(2000);
-    }
+  test('11.10 — Avanzar OT → EN_CURSO', async ({ app, nav }) => {
+    await abrirOT(app, nav);
+    await avanzarEstadoYGuardar(app, 'EN_CURSO');
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('11.11 — Completar informe técnico + agregar materiales', async ({ app }) => {
+  test('11.11 — Completar informe técnico + agregar materiales', async ({ app, nav }) => {
+    await abrirOT(app, nav);
     // Recorrer textareas para llenar campos de protocolo
     const textareas = app.locator('textarea');
     const count = await textareas.count();
@@ -372,60 +416,20 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
   });
 
   test('11.12 — Avanzar OT → CIERRE_TECNICO', async ({ app }) => {
-    const estadoSelect = app.locator('select').filter({ has: app.locator('option', { hasText: /CIERRE_TECNICO/i }) }).first();
-    if (await estadoSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await estadoSelect.selectOption('CIERRE_TECNICO');
-      await app.waitForTimeout(2000);
-    }
+    // El modal quedó abierto tras 11.11 (que no guarda)
+    await avanzarEstadoYGuardar(app, 'CIERRE_TECNICO');
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
-  test('11.13 — Avanzar OT → CIERRE_ADMINISTRATIVO', async ({ app }) => {
-    const estadoSelect = app.locator('select').filter({ has: app.locator('option', { hasText: /CIERRE_ADMINISTRATIVO/i }) }).first();
-    if (await estadoSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await estadoSelect.selectOption('CIERRE_ADMINISTRATIVO');
-      await app.waitForTimeout(2500);
-    }
-    await expect(app.locator('body')).not.toContainText('Something went wrong');
-  });
-
-  // FLOW-04 — Aviso a Facturación al CIERRE_ADMINISTRATIVO
-  //
-  // Plan 08-05 implementa `otService.cerrarAdministrativamente` que encola el mail
-  // en `mailQueue` con type='cierre_admin_ot' y crea un ticket admin atómicamente.
-  // Este test desfixmeado en plan 08-05.
-  test('11.13b — FLOW-04: mailQueue doc + ticket admin + solicitudFacturacion al CIERRE_ADMINISTRATIVO', async ({ app }) => {
-    // Assert 1: un doc en mailQueue con type='cierre_admin_ot' y status='pending'.
-    await pollUntil(
-      () => getMailQueueDocs({ type: 'cierre_admin_ot', status: 'pending', limit: 5 }),
-      (docs) => docs.length >= 1,
-      { timeout: 10_000 },
-    );
-
-    // Assert 2: ticket admin creado (area === 'administracion') con referencia
-    // al número de OT recién cerrada. Consulta pendiente — el plan 08-05
-    // puede extender firestore-assert con un helper `getTicketsByArea`.
-    //
-    //   const adminTickets = await getTicketsByArea({ area: 'administracion' });
-    //   expect(adminTickets.some(t => (t.descripcion || '').includes(otNumber)))
-    //     .toBeTruthy();
-
-    // Assert 3 (Phase 10 / Wave 3 — plan 10-04): solicitudFacturacion auto-created.
-    // Wave 3 landed — assert at least one solicitudFacturacion with estado='pendiente' exists.
-    // otNumber is not accessible directly across serial tests; poll all pending solicitudes instead.
-    const solicitudes = await pollUntil(
-      () => getSolicitudesFacturacion({ estado: 'pendiente' }),
-      (docs) => docs.length >= 1,
-      { timeout: 15_000 },
-    ).catch(() => [] as Awaited<ReturnType<typeof getSolicitudesFacturacion>>);
-
-    if (solicitudes.length === 0) {
-      console.warn('[11.13b] No pendiente solicitudesFacturacion found — cerrarAdministrativamente may not have run for this circuit\'s OT');
-    } else {
-      expect(solicitudes[0].estado, '11.13b: solicitudFacturacion.estado should be pendiente').toBe('pendiente');
-      expect(solicitudes[0].presupuestoId, '11.13b: solicitudFacturacion.presupuestoId should be set').toBeTruthy();
-    }
-
+  test('11.13 — Avanzar OT → CIERRE_ADMINISTRATIVO', async ({ app, nav }) => {
+    await abrirOT(app, nav);
+    // En CIERRE_TECNICO el footer expone el botón atómico "→ Cierre
+    // administrativo" (delegado a cerrarAdministrativamente: mailQueue +
+    // ticket admin + avance de ppto en una tx). El select NO persiste este paso.
+    const cierreBtn = app.getByRole('button', { name: /cierre administrativo/i }).first();
+    await cierreBtn.waitFor({ timeout: 10_000 });
+    await cierreBtn.click();
+    await app.waitForTimeout(5000);
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
@@ -447,9 +451,10 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
       await app.waitForTimeout(300);
     }
 
-    // Marcar "Horas confirmadas"
-    const horasCheck = app.locator('input[type="checkbox"]').filter({ has: app.locator('..', { hasText: /horas confirmadas/i }) }).first();
-    if (await horasCheck.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // Marcar "Horas confirmadas" (accessible name del checkbox — requerido por
+    // handleConfirmarCierre para pasar a FINALIZADO en 11.15)
+    const horasCheck = app.getByRole('checkbox', { name: /horas confirmadas/i }).first();
+    if (await horasCheck.isVisible({ timeout: 3000 }).catch(() => false) && await horasCheck.isEnabled().catch(() => false)) {
       if (!await horasCheck.isChecked()) {
         await horasCheck.click();
         await app.waitForTimeout(500);
@@ -457,8 +462,8 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
     }
 
     // Marcar "Partes confirmadas" (si hay artículos)
-    const partesCheck = app.locator('input[type="checkbox"]').filter({ has: app.locator('..', { hasText: /partes confirmadas/i }) }).first();
-    if (await partesCheck.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const partesCheck = app.getByRole('checkbox', { name: /partes confirmadas/i }).first();
+    if (await partesCheck.isVisible({ timeout: 2000 }).catch(() => false) && await partesCheck.isEnabled().catch(() => false)) {
       if (!await partesCheck.isChecked()) {
         await partesCheck.click();
         await app.waitForTimeout(500);
@@ -496,12 +501,47 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
       }
     } else {
       // Fallback: cambiar estado directamente via select si existe
-      const estadoSelect = app.locator('select').filter({ has: app.locator('option', { hasText: /FINALIZADO/i }) }).first();
+      const estadoSelect = app.locator('select:has(option[value="FINALIZADO"])').first();
       if (await estadoSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
         await estadoSelect.selectOption('FINALIZADO');
-        await app.waitForTimeout(2000);
+        await app.waitForTimeout(3000);
       }
     }
+    await expect(app.locator('body')).not.toContainText('Something went wrong');
+  });
+
+  // FLOW-04 — Aviso a Facturación al cierre administrativo
+  //
+  // `otService.cerrarAdministrativamente` (disparado por "Confirmar cierre" en
+  // 11.15, NO por el mero cambio de estado de 11.13) encola el mail en
+  // `mailQueue` con type='cierre_admin_ot' y crea el ticket admin. Por eso este
+  // assert corre DESPUÉS de 11.15 (movido 2026-07; antes corría tras 11.13 y
+  // fallaba siempre).
+  test('11.15b — FLOW-04: mailQueue doc + solicitudFacturacion tras confirmar cierre', async ({ app }) => {
+    expect(otCreada, '11.07 debe haber capturado la OT').not.toBeNull();
+    // Assert 1: el aviso en mailQueue para NUESTRA OT (type='cierre_admin_ot').
+    const mails = await pollUntil(
+      () => getMailQueueDocsByOt(app, otCreada!),
+      (docs) => docs.length >= 1,
+      { timeout: 20_000 },
+    );
+    expect(mails[0].data.type).toBe('cierre_admin_ot');
+
+    // Assert 2 (Phase 10 / Wave 3 — plan 10-04): solicitudFacturacion auto-created.
+    // otNumber is not accessible directly across serial tests; poll all pending solicitudes instead.
+    const solicitudes = await pollUntil(
+      () => getSolicitudesFacturacion(app, { estado: 'pendiente' }),
+      (docs) => docs.length >= 1,
+      { timeout: 15_000 },
+    ).catch(() => [] as Awaited<ReturnType<typeof getSolicitudesFacturacion>>);
+
+    if (solicitudes.length === 0) {
+      console.warn('[11.15b] No pendiente solicitudesFacturacion found — la OT del circuito puede no tener presupuesto vinculado');
+    } else {
+      expect(solicitudes[0].estado, '11.15b: solicitudFacturacion.estado should be pendiente').toBe('pendiente');
+      expect(solicitudes[0].presupuestoId, '11.15b: solicitudFacturacion.presupuestoId should be set').toBeTruthy();
+    }
+
     await expect(app.locator('body')).not.toContainText('Something went wrong');
   });
 
@@ -530,18 +570,38 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
     const modal = app.locator('[class*="modal"], [role="dialog"]').last();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    await forms.searchableSelectFirst('Seleccionar cliente...', modal);
+    // Elegir NUESTRO cliente [E2E] tipeando en el buscador del select — así el
+    // contrato queda colgado del cliente de test y el cleanup 11.99 lo borra.
+    // (searchableSelectFirst elegía el PRIMER cliente real y era flaky.)
+    const clienteCombo = modal.locator('[role="combobox"]').filter({ hasText: 'Seleccionar cliente...' }).first();
+    await clienteCombo.waitFor({ timeout: 8000 });
+    await clienteCombo.click();
     await app.waitForTimeout(500);
+    const comboInput = modal.locator('[role="combobox"] input:visible').first();
+    await comboInput.fill(CLIENTE.slice(0, 20));
+    await app.waitForTimeout(1000);
+    const nuestraOpcion = app.locator('[role="listbox"] [role="option"]').filter({ hasText: CLIENTE }).first();
+    if (await nuestraOpcion.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await nuestraOpcion.click();
+    } else {
+      await comboInput.fill('');
+      await app.waitForTimeout(800);
+      await app.locator('[role="listbox"] [role="option"]').first().click();
+    }
+    await app.waitForTimeout(800);
     await forms.fillField('Fecha inicio', '2026-04-01', modal);
     await forms.fillField('Fecha fin', '2027-04-01', modal);
 
     const serviceBtns = modal.locator('button.rounded-full, button[class*="rounded-full"]');
+    await serviceBtns.first().waitFor({ timeout: 8000 }).catch(() => {});
     if (await serviceBtns.count() > 0) {
       await serviceBtns.first().click();
       await app.waitForTimeout(300);
     }
 
-    await modal.getByRole('button', { name: /guardar|crear/i }).click();
+    const crearBtn = modal.getByRole('button', { name: /guardar|crear/i }).first();
+    await expect(crearBtn, 'Crear contrato sigue disabled — form incompleto (¿cliente sin seleccionar?)').toBeEnabled({ timeout: 10_000 });
+    await crearBtn.click();
     await app.waitForTimeout(2500);
   });
 
@@ -735,7 +795,8 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
 
   test('11.29 — Verificación final: OTs E2E existen', async ({ app, nav }) => {
     await nav.goToFresh('Ordenes de Trabajo');
-    await app.waitForTimeout(2000);
+    await app.getByText('Cargando órdenes de trabajo').waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+    await app.locator('tbody tr').first().waitFor({ timeout: 15_000 });
     expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
   });
 
@@ -743,6 +804,56 @@ test.describe('Circuito 11: Ciclo Comercial Completo', () => {
     await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
     expect(await app.locator('tbody tr').count()).toBeGreaterThanOrEqual(1);
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // CLEANUP — datos [E2E] identificables de este run
+  // ═══════════════════════════════════════════════════════════
+
+  test('11.99 — Cleanup datos [E2E] del circuito 11 (este run + residuos previos)', async ({ app }) => {
+    const summary = await app.evaluate(async (c) => {
+      const ags = (window as any).__ags;
+      const { collection, query, where, getDocs, doc, deleteDoc } = ags.firestore;
+      let deleted = 0;
+      const delSnap = async (snap: any) => {
+        for (const d of snap.docs) { await deleteDoc(d.ref).catch(() => {}); deleted++; }
+      };
+      const safeGet = (q: any) => getDocs(q).catch(() => ({ docs: [] as any[] }));
+      // Sweep por prefijo: cubre este run y residuos de runs anteriores.
+      const PFX = c.prefijo;
+      const HI = `${PFX}`;
+
+      // Clientes [E2E] Full-Cycle * + docs colgados de ellos
+      const cs = await safeGet(query(collection(ags.db, 'clientes'),
+        where('razonSocial', '>=', PFX), where('razonSocial', '<=', HI)));
+      for (const cDoc of cs.docs) {
+        const cid = cDoc.id;
+        await delSnap(await safeGet(query(collection(ags.db, 'leads'), where('clienteId', '==', cid))));
+        await delSnap(await safeGet(query(collection(ags.db, 'presupuestos'), where('clienteId', '==', cid))));
+        await delSnap(await safeGet(query(collection(ags.db, 'contratos'), where('clienteId', '==', cid))));
+        await delSnap(await safeGet(query(collection(ags.db, 'pendientes'), where('clienteId', '==', cid))));
+        await deleteDoc(doc(ags.db, 'clientes', cid)).catch(() => {});
+        deleted++;
+      }
+
+      // OTs [E2E] Full-Cycle * (parents + children) + side-effects del cierre
+      const ots = await safeGet(query(collection(ags.db, 'reportes'),
+        where('razonSocial', '>=', PFX), where('razonSocial', '<=', HI)));
+      for (const otDoc of ots.docs) {
+        const otId = otDoc.id;
+        await delSnap(await safeGet(query(collection(ags.db, 'mailQueue'), where('data.otNumber', '==', otId))));
+        await delSnap(await safeGet(query(collection(ags.db, 'leads'), where('otIds', 'array-contains', otId))));
+        await delSnap(await safeGet(query(collection(ags.db, 'solicitudesFacturacion'), where('otNumbers', 'array-contains', otId))));
+        await deleteDoc(otDoc.ref).catch(() => {});
+        deleted++;
+      }
+      return { deleted };
+    }, { prefijo: `${TEST_PREFIX} Full-Cycle` });
+    console.log(`[11.99] cleanup: ~${summary.deleted} docs borrados`);
+    // NOTA: el contrato de 11.17 y las pendientes de 11.18/11.20 se crean contra
+    // el PRIMER cliente de sus selects (no necesariamente el [E2E]) — deuda
+    // pre-existente del spec, no identificable con seguridad para borrado.
+    expect(summary.deleted).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -801,7 +912,7 @@ async function createPptoBorradorWithTemplate(
   }
 
   // Add an item line
-  const addBtn = page.getByRole('button', { name: '+ Agregar' }).first();
+  const addBtn = page.getByRole('button', { name: '+ Agregar', exact: true }).first();
   if (await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await addBtn.click();
     await page.waitForTimeout(500);
@@ -994,10 +1105,10 @@ async function runFullOTCycle(page: Page): Promise<void> {
 
   // Advance states: COORDINADA → EN_CURSO → CIERRE_TECNICO → CIERRE_ADMINISTRATIVO
   for (const estado of ['COORDINADA', 'EN_CURSO', 'CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO']) {
-    const estadoSelect = page.locator('select').filter({ has: page.locator(`option[value="${estado}"], option`, { hasText: estado }) }).first();
+    const estadoSelect = page.locator(`select:has(option[value="${estado}"])`).first();
     if (await estadoSelect.isVisible({ timeout: 5000 }).catch(() => false)) {
       await estadoSelect.selectOption(estado);
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(3000);
     }
   }
 
@@ -1056,34 +1167,26 @@ async function marcarSolicitudFacturada(page: Page, solicitudId: string): Promis
 }
 
 // ─── Sub-suite 11.50: 100% al cierre (Tier-1 equivalence) ───────────────────
+//
+// NOTA 2026-07: se eliminó la captura de console warnings de las sub-suites
+// 11.50/51/52 — escuchaba el fixture `page` crudo (un browser NUEVO sin login,
+// siempre en blanco), así que la aserción `toEqual([])` pasaba trivialmente y
+// solo agregaba el costo de lanzar un segundo browser por test. Los timeouts
+// suben a 240s: cada test recorre crear ppto → aceptar → ciclo completo de OT.
 
-test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
-  test.describe.configure({ mode: 'serial' });
+// FIXME 2026-07 (sub-suites 11.50/11.51/11.52): los helpers de este harness
+// (createPptoBorradorWithTemplate / acceptPresupuesto / runFullOTCycle) operan
+// sobre "la primera fila" de listas reales — runFullOTCycle usa la ruta
+// inexistente /ordenes-de-trabajo, su creación de OT vía UI falla en silencio
+// (equipo obligatorio) y después avanza/CIERRA una OT REAL arbitraria; el id
+// del ppto casi nunca se captura ('unknown-*') y los asserts se saltean.
+// Requiere rewrite service-driven (patrón circuito 15: seed ppto con
+// esquemaFacturacion + OT con budgets vinculados por service). No es un fix de
+// selector — quedan fixme hasta ese rewrite.
+test.describe.fixme('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
+  test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
-  let consoleWarnings50: string[] = [];
   let presId50 = '';
-
-  test.beforeEach(({ page }) => {
-    consoleWarnings50 = [];
-    page.on('console', msg => {
-      if (msg.type() === 'warning' || msg.type() === 'error') {
-        const text = msg.text();
-        // Ignore known non-actionable framework warnings
-        if (!text.includes('react-router future flag') &&
-            !text.includes('ResizeObserver loop') &&
-            !text.includes('Warning: Each child in a list')) {
-          consoleWarnings50.push(text);
-        }
-      }
-    });
-  });
-
-  test.afterEach(async () => {
-    expect(
-      consoleWarnings50,
-      `[11.50] Unexpected console warnings/errors:\n${consoleWarnings50.join('\n')}`,
-    ).toEqual([]);
-  });
 
   test('100-al-cierre: ppto con 1 cuota 100% todas_ots_cerradas se comporta como Tier-1', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
@@ -1103,7 +1206,7 @@ test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
     // 3. Assert cuota 1 starts as 'pendiente' (todas_ots_cerradas not met yet)
     if (presId50 && !presId50.startsWith('unknown-')) {
       const esquema = await pollUntil(
-        () => getPresupuestoEsquema(presId50),
+        () => getPresupuestoEsquema(page, presId50),
         (e) => e.length > 0,
         { timeout: 10_000 },
       ).catch(() => []);
@@ -1118,7 +1221,7 @@ test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
     // 5. After OT closes, cuota 1 should become 'habilitada'
     if (presId50 && !presId50.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId50).then(e => e[0]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId50).then(e => e[0]?.estado ?? 'unknown'),
         { timeout: 15_000, intervals: [1000, 2000, 3000] },
       ).toBe('habilitada');
     }
@@ -1148,7 +1251,7 @@ test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
     // 7. Assert: 1 solicitud linked to this ppto with cuotaId set
     if (presId50 && !presId50.startsWith('unknown-')) {
       const sols = await pollUntil(
-        () => getSolicitudesFacturacionByPresupuesto(presId50),
+        () => getSolicitudesFacturacionByPresupuesto(page, presId50),
         (s) => s.length >= 1,
         { timeout: 10_000 },
       ).catch(() => []);
@@ -1163,31 +1266,10 @@ test.describe('11.50 — Esquema 100% al cierre (equivalencia Tier-1)', () => {
 
 // ─── Sub-suite 11.51: 30/70 anticipo + cierre ────────────────────────────────
 
-test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
-  test.describe.configure({ mode: 'serial' });
-
-  let consoleWarnings51: string[] = [];
-
-  test.beforeEach(({ page }) => {
-    consoleWarnings51 = [];
-    page.on('console', msg => {
-      if (msg.type() === 'warning' || msg.type() === 'error') {
-        const text = msg.text();
-        if (!text.includes('react-router future flag') &&
-            !text.includes('ResizeObserver loop') &&
-            !text.includes('Warning: Each child in a list')) {
-          consoleWarnings51.push(text);
-        }
-      }
-    });
-  });
-
-  test.afterEach(async () => {
-    expect(
-      consoleWarnings51,
-      `[11.51] Unexpected console warnings/errors:\n${consoleWarnings51.join('\n')}`,
-    ).toEqual([]);
-  });
+// FIXME 2026-07: mismo motivo que 11.50 (harness sobre primera-fila real +
+// runFullOTCycle roto/peligroso) — rewrite service-driven pendiente.
+test.describe.fixme('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
+  test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
   test('editor-suma-100: editor bloquea save si Σ% != 100 por moneda', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
@@ -1307,7 +1389,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     // 3. Poll until cuota 1 becomes 'habilitada' (ppto_aceptado hito)
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[0]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[0]?.estado ?? 'unknown'),
         { timeout: 15_000, intervals: [1000, 2000, 3000] },
       ).toBe('habilitada');
     }
@@ -1336,7 +1418,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
       // 6. Assert: solicitud created with cuotaId set, ppto.otsListasParaFacturar still empty
       if (presId && !presId.startsWith('unknown-')) {
         const sols = await pollUntil(
-          () => getSolicitudesFacturacionByPresupuesto(presId),
+          () => getSolicitudesFacturacionByPresupuesto(page, presId),
           (s) => s.length >= 1,
           { timeout: 10_000 },
         ).catch(() => []);
@@ -1345,7 +1427,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
         expect(sol.cuotaId, 'solicitud.cuotaId must reference the cuota').toBeTruthy();
 
         // cuota 1 should now be 'solicitada'
-        const esquema = await getPresupuestoEsquema(presId);
+        const esquema = await getPresupuestoEsquema(page, presId);
         if (esquema.length > 0) {
           expect(['solicitada', 'facturada']).toContain(esquema[0].estado);
         }
@@ -1379,7 +1461,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     // Also verify via Firestore
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[0]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[0]?.estado ?? 'unknown'),
         { timeout: 10_000 },
       ).toBe('habilitada');
     }
@@ -1460,7 +1542,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
       // Get solicitud ID
       if (presId && !presId.startsWith('unknown-')) {
         const sols1 = await pollUntil(
-          () => getSolicitudesFacturacionByPresupuesto(presId),
+          () => getSolicitudesFacturacionByPresupuesto(page, presId),
           (s) => s.length >= 1,
           { timeout: 10_000 },
         ).catch(() => []);
@@ -1482,7 +1564,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     // 6. Wait for cuota 2 to become habilitada
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[1]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[1]?.estado ?? 'unknown'),
         { timeout: 20_000, intervals: [2000, 3000] },
       ).toBe('habilitada');
     }
@@ -1504,7 +1586,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
 
       if (presId && !presId.startsWith('unknown-')) {
         const sols2 = await pollUntil(
-          () => getSolicitudesFacturacionByPresupuesto(presId),
+          () => getSolicitudesFacturacionByPresupuesto(page, presId),
           (s) => s.length >= 2,
           { timeout: 10_000 },
         ).catch(() => []);
@@ -1523,7 +1605,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
     // 9. Assert: ppto reaches 'finalizado' (trySyncFinalizacion fires after cuota 2 facturada)
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuesto(presId).then(p => p?.estado ?? 'unknown'),
+        () => getPresupuesto(page, presId).then(p => p?.estado ?? 'unknown'),
         { timeout: 20_000, intervals: [2000, 3000] },
       ).toBe('finalizado');
     }
@@ -1543,7 +1625,7 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
 
     // Use getSolicitudesFacturacion to find solicitudes with cuotaId set
     // This asserts the global invariant: no solicitudes without cuotaId in esquema-based pptos
-    const allSols = await getSolicitudesFacturacion();
+    const allSols = await getSolicitudesFacturacion(page);
     const schemaSols = allSols.filter(s => s.cuotaId != null);
 
     // All solicitudes that reference a cuota must have cuotaId (no orphans)
@@ -1566,31 +1648,10 @@ test.describe('11.51 — Esquema 30/70 (anticipo + cierre)', () => {
 
 // ─── Sub-suite 11.52: 70/30 pre-embarque + cierre ────────────────────────────
 
-test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
-  test.describe.configure({ mode: 'serial' });
-
-  let consoleWarnings52: string[] = [];
-
-  test.beforeEach(({ page }) => {
-    consoleWarnings52 = [];
-    page.on('console', msg => {
-      if (msg.type() === 'warning' || msg.type() === 'error') {
-        const text = msg.text();
-        if (!text.includes('react-router future flag') &&
-            !text.includes('ResizeObserver loop') &&
-            !text.includes('Warning: Each child in a list')) {
-          consoleWarnings52.push(text);
-        }
-      }
-    });
-  });
-
-  test.afterEach(async () => {
-    expect(
-      consoleWarnings52,
-      `[11.52] Unexpected console warnings/errors:\n${consoleWarnings52.join('\n')}`,
-    ).toEqual([]);
-  });
+// FIXME 2026-07: mismo motivo que 11.50 (harness sobre primera-fila real +
+// runFullOTCycle roto/peligroso) — rewrite service-driven pendiente.
+test.describe.fixme('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
+  test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
   test('toggle-visibility: checkbox preEmbarque aparece sólo si esquema tiene hito pre_embarque', async ({ app: page }) => {
     const BASE = 'http://localhost:3001';
@@ -1648,7 +1709,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     // 3. Assert cuota 1 (pre_embarque hito) is 'pendiente' initially
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[0]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[0]?.estado ?? 'unknown'),
         { timeout: 10_000 },
       ).toBe('pendiente');
     }
@@ -1663,7 +1724,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     // 5. Assert cuota 1 is now 'habilitada' (Firestore eventual consistency)
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[0]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[0]?.estado ?? 'unknown'),
         { timeout: 15_000, intervals: [1000, 2000, 3000] },
       ).toBe('habilitada');
     }
@@ -1699,7 +1760,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     // 4. Wait for cuota 1 to be habilitada
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[0]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[0]?.estado ?? 'unknown'),
         { timeout: 15_000, intervals: [1000, 2000] },
       ).toBe('habilitada');
     }
@@ -1716,7 +1777,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
 
       if (presId && !presId.startsWith('unknown-')) {
         const sols1 = await pollUntil(
-          () => getSolicitudesFacturacionByPresupuesto(presId),
+          () => getSolicitudesFacturacionByPresupuesto(page, presId),
           (s) => s.length >= 1,
           { timeout: 10_000 },
         ).catch(() => []);
@@ -1737,7 +1798,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
 
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuestoEsquema(presId).then(e => e[1]?.estado ?? 'unknown'),
+        () => getPresupuestoEsquema(page, presId).then(e => e[1]?.estado ?? 'unknown'),
         { timeout: 20_000, intervals: [2000, 3000] },
       ).toBe('habilitada');
     }
@@ -1759,7 +1820,7 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
 
       if (presId && !presId.startsWith('unknown-')) {
         const sols2 = await pollUntil(
-          () => getSolicitudesFacturacionByPresupuesto(presId),
+          () => getSolicitudesFacturacionByPresupuesto(page, presId),
           (s) => s.length >= 2,
           { timeout: 10_000 },
         ).catch(() => []);
@@ -1778,14 +1839,14 @@ test.describe('11.52 — Esquema 70/30 (pre-embarque + cierre)', () => {
     // 10. Assert: ppto reaches 'finalizado'
     if (presId && !presId.startsWith('unknown-')) {
       await expect.poll(
-        () => getPresupuesto(presId).then(p => p?.estado ?? 'unknown'),
+        () => getPresupuesto(page, presId).then(p => p?.estado ?? 'unknown'),
         { timeout: 20_000, intervals: [2000, 3000] },
       ).toBe('finalizado');
     }
 
     // 11. Assert: no orphan solicitudes — both have cuotaId
     if (presId && !presId.startsWith('unknown-')) {
-      const sols = await getSolicitudesFacturacionByPresupuesto(presId);
+      const sols = await getSolicitudesFacturacionByPresupuesto(page, presId);
       expect(sols.length, 'Should have exactly 2 solicitudes').toBe(2);
       expect(sols.every(s => s.cuotaId != null), 'All solicitudes must have cuotaId').toBe(true);
     }

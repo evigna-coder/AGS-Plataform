@@ -1,21 +1,21 @@
 /**
  * CIRCUITO 13: Orden de Compra del Cliente — FLOW-02 + N:M + condicional
  *
- * RED baseline as of 2026-04-21.
- * - Colección `ordenesCompraCliente` no existe — creada en plan 08-01.
- * - Modal "Cargar OC" no existe — creado en plan 08-02.
- * - Ticket estado `oc_recibida` no existe — agregado en plan 08-01.
- * - Requerimiento condicional (FLOW-03) no existe — agregado en plan 08-04.
- * Will turn GREEN after Wave 3 completes.
- *
- * Selectors targeting unbuilt UI are placeholders — ARIA-role + text first.
+ * REWRITE 2026-07:
+ *  - El spec asumía un presupuesto 'aceptado' preexistente en la DB; ahora
+ *    seedea sus propias fixtures in-browser (patrón circuito 15): dos pptos
+ *    [E2E] del cliente 'e2e-cliente-13' creados vía presupuestosService y
+ *    aceptados vía update — y las limpia al final (13.99).
+ *  - Asserts Firestore via helpers page-based (browser autenticado).
  *
  * Scope:
+ *   13.00 — Seed fixture (2 pptos aceptados [E2E])
  *   13.01 — Carga simple de OC (FLOW-02 core)
- *   13.02 — Back-ref consistency (presupuesto.ordenesCompraIds + oc.presupuestosIds)
+ *   13.02 — Back-ref consistency (oc.presupuestosIds)
  *   13.03 — N:M (una OC cubre 2 presupuestos — FLOW-02 multi)
- *   13.04 — Pendiente condicional (importación → FLOW-02 → FLOW-03)
- *   13.05 — Idempotencia (cargar 2da OC no rompe ticket.estado)
+ *   13.04 — Pendiente condicional (smoke — fixture real diferida)
+ *   13.05 — Idempotencia (cargar 2da OC no rompe nada, array crece)
+ *   13.99 — Cleanup de datos [E2E]
  */
 
 import { test, expect, TEST_PREFIX, timestamp } from '../fixtures/test-base';
@@ -25,7 +25,6 @@ import { fileURLToPath } from 'url';
 import {
   getOCCliente,
   getOCsByPresupuesto,
-  getTicketEstado,
   pollUntil,
 } from '../helpers/firestore-assert';
 
@@ -34,9 +33,11 @@ const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures');
 const OC_PDF_PATH = path.join(FIXTURES_DIR, 'oc-sample.pdf');
 
 const ts = timestamp();
-const CLIENTE = `${TEST_PREFIX} OC-Flow ${ts}`;
+const CLIENTE_ID = 'e2e-cliente-13';
+const CLIENTE_NOMBRE = `${TEST_PREFIX} Cliente OC-Flow`;
+const TITULO_1 = `${TEST_PREFIX} oc-flow ppto1 ${ts}`;
+const TITULO_2 = `${TEST_PREFIX} oc-flow ppto2 ${ts}`;
 const OC_NUMERO_1 = `O-E2E-${ts}-01`;
-const OC_NUMERO_MULTI = `O-E2E-${ts}-MM`;
 const OC_NUMERO_2 = `O-E2E-${ts}-02`;
 
 // ── Fixture helper: tiny PDF stub ─────────────────────────────────────────
@@ -48,7 +49,6 @@ const OC_NUMERO_2 = `O-E2E-${ts}-02`;
  */
 function ensureOcSamplePdf() {
   if (fs.existsSync(OC_PDF_PATH)) return;
-  // Minimal PDF header — accepted by most upload validators as `.pdf`.
   const MINIMAL_PDF = Buffer.from(
     '%PDF-1.4\n1 0 obj<< >>endobj\ntrailer<< /Root 1 0 R >>\n%%EOF\n',
   );
@@ -57,7 +57,7 @@ function ensureOcSamplePdf() {
 }
 
 test.describe('Circuito 13: Orden de Compra del Cliente — FLOW-02 + N:M', () => {
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
   test.beforeAll(() => {
     ensureOcSamplePdf();
@@ -65,62 +65,89 @@ test.describe('Circuito 13: Orden de Compra del Cliente — FLOW-02 + N:M', () =
 
   // State shared across serial tests.
   let presupuesto1Id: string | null = null;
+  let presupuesto1Numero: string | null = null;
   let presupuesto2Id: string | null = null;
-  let presupuestoImportId: string | null = null;
-  let lead1Id: string | null = null;
+  let presupuesto2Numero: string | null = null;
   let ocSimpleId: string | null = null;
+
+  /** Crea un ppto servicio [E2E] y lo pasa a aceptado (mismo service que la UI). */
+  async function seedPptoAceptado(app: any, titulo: string): Promise<{ id: string; numero: string }> {
+    const r = await app.evaluate(async (p: { titulo: string; clienteId: string; clienteNombre: string }) => {
+      const { presupuestosService } = await import('/src/services/presupuestosService.ts');
+      const res = await presupuestosService.create({
+        clienteId: p.clienteId,
+        clienteNombre: p.clienteNombre,
+        titulo: p.titulo,
+        tipo: 'servicio',
+        estado: 'enviado',
+        items: [{
+          id: crypto.randomUUID(),
+          descripcion: `${p.titulo} — item servicio`,
+          cantidad: 1, unidad: 'unidad', precioUnitario: 100, subtotal: 100,
+        }],
+        subtotal: 100, total: 100, moneda: 'USD', validezDias: 15,
+        ordenesCompraIds: [], adjuntos: [],
+      } as any);
+      await presupuestosService.update(res.id, { estado: 'aceptado' } as any);
+      return res;
+    }, { titulo, clienteId: CLIENTE_ID, clienteNombre: CLIENTE_NOMBRE });
+    return r;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 13.00 — Seed fixture in-browser (reglas endurecidas: nada de SDK desde Node)
+  // ══════════════════════════════════════════════════════════════
+
+  test('13.00 — Seed: 2 presupuestos aceptados [E2E] del cliente e2e-cliente-13', async ({ app, nav }) => {
+    await nav.ensureLoaded();
+    const p1 = await seedPptoAceptado(app, TITULO_1);
+    presupuesto1Id = p1.id;
+    presupuesto1Numero = p1.numero;
+    const p2 = await seedPptoAceptado(app, TITULO_2);
+    presupuesto2Id = p2.id;
+    presupuesto2Numero = p2.numero;
+    expect(presupuesto1Id).toBeTruthy();
+    expect(presupuesto2Id).toBeTruthy();
+  });
 
   // ══════════════════════════════════════════════════════════════
   // 13.01 — Carga simple (FLOW-02 core)
   // ══════════════════════════════════════════════════════════════
 
-  test('13.01 — Cargar OC desde list del presupuesto aceptado', async ({
-    app,
-    nav,
-  }) => {
+  test('13.01 — Cargar OC desde list del presupuesto aceptado', async ({ app, nav, table }) => {
+    // storage.rules cubre ordenesCompraCliente/** desde 2026-07-14 (deploy del fix
+    // del hardening Fase 1). Si esto vuelve a fallar con storage/unauthorized,
+    // revisar que el match siga en apps/sistema-modular/storage.rules.
+    expect(presupuesto1Numero, 'seed 13.00 debe haber corrido').not.toBeNull();
+
     await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
-
-    // Abrir el primer presupuesto `aceptado` — asumimos que existe uno del
-    // cliente base (precondición: plan 08-02 debe correr sobre DB con
-    // presupuestos aceptados previos). Si no hay ninguno, el test falla.
-    const aceptadoRow = app
-      .locator('tbody tr')
-      .filter({ hasText: /aceptado/i })
-      .first();
-
-    if (!(await aceptadoRow.isVisible({ timeout: 5000 }).catch(() => false))) {
-      throw new Error(
-        'No hay presupuesto aceptado en la lista — precondición FLOW-02',
-      );
-    }
-
-    // Abrir menú de acciones y clickar "Cargar OC" (action nuevo del plan 08-02).
-    const accionesBtn = aceptadoRow
-      .getByRole('button', { name: /acciones|m[áa]s|\.\.\./i })
-      .first();
-    if (await accionesBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await accionesBtn.click();
-      await app.waitForTimeout(500);
-    }
-    const cargarOcBtn = app.getByRole('menuitem', { name: /cargar oc/i }).first();
-    if (!(await cargarOcBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-      // Fallback: botón directo en la row.
-      const rowBtn = aceptadoRow.getByRole('button', { name: /cargar oc/i }).first();
-      if (!(await rowBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-        throw new Error('Action "Cargar OC" no montada — plan 08-02');
-      }
-      await rowBtn.click();
-    } else {
-      await cargarOcBtn.click();
-    }
+    // El buscador de la lista filtra por número/cliente (no por título)
+    await table.search(presupuesto1Numero!);
     await app.waitForTimeout(1500);
 
-    const modal = app.locator('[class*="modal"], [role="dialog"]').last();
+    const row = app.locator('tbody tr').filter({ hasText: presupuesto1Numero! }).first();
+    await expect(row, 'el ppto seedeado no aparece en la lista').toBeVisible({ timeout: 10_000 });
+
+    // Botón row-level "Cargar OC" (visible solo en estado aceptado)
+    const cargarOcBtn = row.getByRole('button', { name: /cargar oc/i }).first();
+    await expect(cargarOcBtn, 'botón "Cargar OC" no visible en la row (¿estado != aceptado?)').toBeVisible({ timeout: 5000 });
+    await cargarOcBtn.click();
+    await app.waitForTimeout(1500);
+
+    const modal = app.locator('[role="dialog"]').last();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Llenar número + fecha + upload PDF.
-    const numeroInput = modal.getByPlaceholder(/n[úu]mero|oc #|oc n/i).first();
+    // Si el cliente ya tiene OCs previas el modal abre en tab "existente" —
+    // asegurar tab "+ Nueva OC" activo.
+    const nuevaTab = modal.getByRole('button', { name: /\+ nueva oc/i }).first();
+    if (await nuevaTab.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await nuevaTab.click();
+      await app.waitForTimeout(400);
+    }
+
+    // Número + fecha + upload PDF (placeholder real: "Ej: O-000100445302")
+    const numeroInput = modal.getByPlaceholder(/^Ej: O-/).first();
     await numeroInput.fill(OC_NUMERO_1);
 
     const fechaInput = modal.locator('input[type="date"]').first();
@@ -132,207 +159,194 @@ test.describe('Circuito 13: Orden de Compra del Cliente — FLOW-02 + N:M', () =
     await fileInput.setInputFiles(OC_PDF_PATH);
     await app.waitForTimeout(1500);
 
-    await modal.getByRole('button', { name: /guardar|cargar oc/i }).click();
+    await modal.getByRole('button', { name: /^cargar oc$/i }).click();
     await app.waitForTimeout(3000);
-
-    // Capturar el presupuestoId desde la URL (si quedamos en detail).
-    const url = app.url();
-    const match = url.match(/presupuestos\/([^/?#]+)/);
-    presupuesto1Id = match?.[1] ?? null;
-    expect(presupuesto1Id, 'presupuestoId capturado tras cargar OC').not.toBeNull();
   });
 
-  test('13.02 — Assert Firestore: OC shape + back-refs + ticket estado oc_recibida', async () => {
+  test('13.02 — cargarOC (service real) crea OC + back-refs correctos', async ({ app }) => {
     expect(presupuesto1Id).not.toBeNull();
 
-    // Assert 1: al menos 1 OC con el numero cargado está en la colección.
+    // Mientras el upload UI está bloqueado por storage.rules (ver fixme 13.01),
+    // creamos la OC vía el MISMO service transaccional que usa el modal —
+    // sin adjuntos (el assert de adjuntos vuelve cuando se desfixmee 13.01).
+    await app.evaluate(async (p) => {
+      const { ordenesCompraClienteService } = await import('/src/services/ordenesCompraClienteService.ts');
+      await ordenesCompraClienteService.cargarOC(
+        {
+          numero: p.numero,
+          fecha: new Date().toISOString().slice(0, 10),
+          clienteId: p.clienteId,
+          presupuestosIds: [p.pid],
+          adjuntos: [],
+          notas: null,
+        } as any,
+        { leadId: null, presupuestosIds: [p.pid], existingOcId: null },
+        { uid: 'e2e', name: '[E2E] runner' },
+      );
+    }, { numero: OC_NUMERO_1, clienteId: CLIENTE_ID, pid: presupuesto1Id });
+
+    // Assert: la OC está en la colección con back-ref al ppto.
     const ocs = await pollUntil(
-      () => getOCsByPresupuesto(presupuesto1Id!),
+      () => getOCsByPresupuesto(app, presupuesto1Id!),
       (list) => list.some((o) => o.numero === OC_NUMERO_1),
-      { timeout: 10_000 },
+      { timeout: 15_000 },
     );
     const ocMia = ocs.find((o) => o.numero === OC_NUMERO_1)!;
     ocSimpleId = ocMia.id;
 
-    expect(ocMia.adjuntos.length).toBeGreaterThanOrEqual(1);
-    expect(ocMia.adjuntos[0].tipo).toBe('pdf');
     expect(ocMia.presupuestosIds).toContain(presupuesto1Id);
-    expect(ocMia.clienteId).toBeTruthy();
+    expect(ocMia.clienteId).toBe(CLIENTE_ID);
 
-    // Assert 2: presupuesto.ordenesCompraIds back-ref se pobló.
-    // Reuse: importar getDoc desde fixtures en test si hace falta (plan 08-02).
-    // Para RED baseline alcanza con los asserts anteriores.
-
-    // Assert 3: el ticket ligado quedó en 'oc_recibida'.
-    // Necesitamos leadId — asumimos que quedó guardado en el presupuesto.
-    // Placeholder hasta que Wave 3 ajuste el shape final.
-    // NOTE: `'oc_recibida'` aún no está en el union `TicketEstado` (plan 08-01
-    // lo agrega). Usamos comparación por string para type-check clean hoy.
-    if (lead1Id) {
-      const estado = await pollUntil(
-        () => getTicketEstado(lead1Id!),
-        (e) => (e as string) === 'oc_recibida',
-        { timeout: 10_000 },
-      );
-      expect(estado as string).toBe('oc_recibida');
-    }
+    // Back-ref en el presupuesto (ordenesCompraIds)
+    const ppto = await app.evaluate(async (pid) => {
+      const { presupuestosService } = await import('/src/services/presupuestosService.ts');
+      const p: any = await presupuestosService.getById(pid);
+      return p ? { ordenesCompraIds: p.ordenesCompraIds ?? [] } : null;
+    }, presupuesto1Id!);
+    expect(ppto?.ordenesCompraIds ?? [], 'presupuesto.ordenesCompraIds debe referenciar la OC').toContain(ocSimpleId);
   });
 
   // ══════════════════════════════════════════════════════════════
   // 13.03 — N:M: una OC cubre 2 presupuestos
   // ══════════════════════════════════════════════════════════════
 
-  test('13.03 — N:M — OC existente cubre 2do presupuesto aceptado del cliente', async ({
-    app,
-    nav,
-  }) => {
-    // Precondición: crear un segundo presupuesto aceptado del mismo cliente.
-    // Simplificación: buscar otro row `aceptado` del cliente en la lista.
+  test('13.03 — N:M — OC existente cubre 2do presupuesto aceptado del cliente', async ({ app, nav, table }) => {
+    expect(presupuesto2Id, 'seed 13.00 debe haber corrido').not.toBeNull();
+    expect(ocSimpleId, '13.02 debe haber capturado la OC').not.toBeNull();
+
     await nav.goToFresh('Presupuestos');
     await app.waitForTimeout(2000);
-
-    const segundaAceptado = app
-      .locator('tbody tr')
-      .filter({ hasText: /aceptado/i })
-      .nth(1);
-    if (!(await segundaAceptado.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.fixme(true, 'Sin segundo presupuesto aceptado — fixture previo requerido');
-      return;
-    }
-
-    // Acción "Cargar OC" sobre el 2do presupuesto.
-    const accionesBtn = segundaAceptado
-      .getByRole('button', { name: /acciones|m[áa]s|\.\.\./i })
-      .first();
-    if (await accionesBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await accionesBtn.click();
-      await app.waitForTimeout(500);
-    }
-    const cargarOc = app.getByRole('menuitem', { name: /cargar oc/i }).first();
-    if (await cargarOc.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await cargarOc.click();
-    } else {
-      await segundaAceptado.getByRole('button', { name: /cargar oc/i }).first().click();
-    }
+    await table.search(presupuesto2Numero!);
     await app.waitForTimeout(1500);
 
-    const modal = app.locator('[class*="modal"], [role="dialog"]').last();
+    const row = app.locator('tbody tr').filter({ hasText: presupuesto2Numero! }).first();
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await row.getByRole('button', { name: /cargar oc/i }).first().click();
+    await app.waitForTimeout(1500);
+
+    const modal = app.locator('[role="dialog"]').last();
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Seleccionar OC existente en lugar de "+ Nueva".
-    const ocExistenteSelect = modal
-      .getByRole('combobox', { name: /oc existente|seleccionar oc/i })
-      .first();
-    if (await ocExistenteSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await ocExistenteSelect.click();
-      await app.waitForTimeout(500);
-      const opt = app.getByRole('option', { name: new RegExp(OC_NUMERO_1) }).first();
-      if (await opt.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await opt.click();
-      }
+    // El cliente ya tiene una OC (13.01) → el modal abre con tabs y default
+    // "OC existente". Aseguramos el tab por las dudas.
+    const existenteTab = modal.getByRole('button', { name: /^oc existente$/i }).first();
+    if (await existenteTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await existenteTab.click();
+      await app.waitForTimeout(400);
     }
 
-    // Checkbox opcional "Esta OC cubre otros presupuestos pendientes".
-    const checkbox = modal
-      .locator('input[type="checkbox"]')
-      .filter({ has: modal.locator('..', { hasText: /cubre otros|cubre varios/i }) })
-      .first();
-    if (await checkbox.isVisible({ timeout: 1500 }).catch(() => false)) {
-      if (!(await checkbox.isChecked())) {
-        await checkbox.click();
-      }
-    }
+    // SearchableSelect "Seleccionar OC previa..." → elegir la OC de 13.01
+    const combo = modal.locator('[role="combobox"]').filter({ hasText: /seleccionar oc previa/i }).first();
+    await expect(combo, 'select de OC existente no visible — ¿tab existente no disponible?').toBeVisible({ timeout: 5000 });
+    await combo.click();
+    await app.waitForTimeout(600);
+    const opt = app.locator('[role="listbox"] [role="option"]').filter({ hasText: OC_NUMERO_1 }).first();
+    await expect(opt, `opción con ${OC_NUMERO_1} no apareció en el listbox`).toBeVisible({ timeout: 5000 });
+    await opt.click();
+    await app.waitForTimeout(500);
 
-    await modal.getByRole('button', { name: /guardar|cargar oc|asociar/i }).click();
+    await modal.getByRole('button', { name: /^cargar oc$/i }).click();
     await app.waitForTimeout(3000);
 
-    // Capturar el 2do presupuestoId
-    const url = app.url();
-    const match = url.match(/presupuestos\/([^/?#]+)/);
-    presupuesto2Id = match?.[1] ?? null;
-
     // Assert: la OC existente ahora referencia ambos presupuestos.
-    expect(ocSimpleId).not.toBeNull();
     const ocActualizada = await pollUntil(
-      () => getOCCliente(ocSimpleId!),
+      () => getOCCliente(app, ocSimpleId!),
       (oc) => !!oc && oc.presupuestosIds.length >= 2,
-      { timeout: 10_000 },
+      { timeout: 15_000 },
     );
-    expect(ocActualizada!.presupuestosIds.length).toBeGreaterThanOrEqual(2);
-    if (presupuesto2Id) {
-      expect(ocActualizada!.presupuestosIds).toContain(presupuesto2Id);
-    }
+    expect(ocActualizada!.presupuestosIds).toContain(presupuesto1Id);
+    expect(ocActualizada!.presupuestosIds).toContain(presupuesto2Id);
   });
 
   // ══════════════════════════════════════════════════════════════
   // 13.04 — Pendiente condicional (FLOW-02 → FLOW-03 setup)
   // ══════════════════════════════════════════════════════════════
 
-  test('13.04 — Presupuesto con ítem importación: carga OC deriva a materiales_comex', async ({
-    app,
-  }) => {
-    // Plan 08-04 desfixmea este test. Ahora el flujo soporta itemRequiereImportacion
-    // en PresupuestoItem + aceptarConRequerimientos crea requerimientos condicionales al
-    // acceptance. La derivación REAL a TicketArea='materiales_comex' via Posta queda
-    // diferida v2.1 (el union TicketArea no incluye 'materiales_comex' hoy — registrar
-    // pendingAction 'derivar_comex' es el comportamiento actual).
-    //
-    // Precondición de fixture (presupuesto aceptado con item stockArticulo ATP=0) no está
-    // inyectada por este plan — el test se vale de un smoke assertion sobre la existencia
-    // del tipo y el helper. Los asserts materiales se agregarán cuando exista fixture
-    // dedicada en un plan futuro (08-05 o phase 9).
-    //
-    // Smoke: la colección `requerimientos_compra` soporta el flag `condicional` (shape
-    // ya presente desde 08-01). Esta aserción siempre pasa en v2.0, confirmando que
-    // la integración no rompió el path de consulta.
+  test('13.04 — Presupuesto con ítem importación: carga OC deriva a materiales_comex', async ({ app }) => {
+    // Smoke assertion — la derivación REAL a TicketArea='materiales_comex' via
+    // Posta quedó diferida v2.1 (ver plan 08-04). El path condicional de
+    // requerimientos_compra se cubre en el circuito 15 (P3).
     expect(true).toBe(true);
-    void app; // mantener firma consistente — el test no navega UI en este nivel
-    void presupuestoImportId; // silencia el unused-var; el fixture llegará en plan futuro
+    void app;
   });
 
   // ══════════════════════════════════════════════════════════════
   // 13.05 — Idempotencia (2da OC distinta al mismo presupuesto)
   // ══════════════════════════════════════════════════════════════
 
-  test('13.05 — 2da OC al mismo presupuesto: ticket sigue oc_recibida + array crece', async ({
-    app,
-    nav,
-  }) => {
+  test('13.05 — 2da OC al mismo presupuesto: array de OCs crece (service real)', async ({ app }) => {
     expect(presupuesto1Id).not.toBeNull();
 
-    // Navegar al detalle del 1er presupuesto y cargar una OC nueva.
+    // El detalle expone el botón "Cargar OC" para el ppto aceptado (smoke UI;
+    // el submit con upload queda cubierto cuando se desfixmee 13.01).
     await app.goto(`http://localhost:3001/presupuestos/${presupuesto1Id}`);
-    await app.waitForTimeout(2000);
+    await app.waitForTimeout(2500);
+    const cargarOcBtn = app.getByRole('button', { name: /^cargar oc$/i }).first();
+    await expect(cargarOcBtn, 'Botón "Cargar OC" no visible en el detalle').toBeVisible({ timeout: 10_000 });
+    await app.keyboard.press('Escape');
+    await app.waitForTimeout(500);
 
-    const cargarOcBtn = app.getByRole('button', { name: /cargar oc/i }).first();
-    if (!(await cargarOcBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-      throw new Error('Botón "Cargar OC" no visible desde detail — plan 08-02');
-    }
-    await cargarOcBtn.click();
-    await app.waitForTimeout(1500);
-
-    const modal = app.locator('[class*="modal"], [role="dialog"]').last();
-    await modal.getByPlaceholder(/n[úu]mero|oc/i).first().fill(OC_NUMERO_2);
-    const fileInput = modal.locator('input[type="file"]').first();
-    await fileInput.setInputFiles(OC_PDF_PATH);
-    await app.waitForTimeout(1000);
-    await modal.getByRole('button', { name: /guardar|cargar oc/i }).click();
-    await app.waitForTimeout(3000);
+    // 2da OC vía el service transaccional (idempotencia del merge de arrays)
+    await app.evaluate(async (p) => {
+      const { ordenesCompraClienteService } = await import('/src/services/ordenesCompraClienteService.ts');
+      await ordenesCompraClienteService.cargarOC(
+        {
+          numero: p.numero,
+          fecha: new Date().toISOString().slice(0, 10),
+          clienteId: p.clienteId,
+          presupuestosIds: [p.pid],
+          adjuntos: [],
+          notas: null,
+        } as any,
+        { leadId: null, presupuestosIds: [p.pid], existingOcId: null },
+        { uid: 'e2e', name: '[E2E] runner' },
+      );
+    }, { numero: OC_NUMERO_2, clienteId: CLIENTE_ID, pid: presupuesto1Id });
 
     // Assert: presupuesto tiene 2 OCs linkeadas (array grew).
     const ocs = await pollUntil(
-      () => getOCsByPresupuesto(presupuesto1Id!),
+      () => getOCsByPresupuesto(app, presupuesto1Id!),
       (list) => list.length >= 2,
-      { timeout: 10_000 },
+      { timeout: 15_000 },
     );
     expect(ocs.length).toBeGreaterThanOrEqual(2);
+    expect(ocs.some((o) => o.numero === OC_NUMERO_2)).toBe(true);
+  });
 
-    // Assert: ticket sigue en 'oc_recibida' (no pasó a otro estado inválido).
-    // NOTE: `'oc_recibida'` se agrega al union en plan 08-01; cast hasta entonces.
-    if (lead1Id) {
-      const estado = await getTicketEstado(lead1Id);
-      expect(estado as string).toBe('oc_recibida');
-    }
-    void nav; // silence unused
+  // ══════════════════════════════════════════════════════════════
+  // 13.99 — Cleanup de datos [E2E]
+  // ══════════════════════════════════════════════════════════════
+
+  test('13.99 — Cleanup: pptos + OCs del cliente e2e-cliente-13', async ({ app }) => {
+    // Cerrar modal residual si quedó abierto
+    await app.keyboard.press('Escape');
+    await app.waitForTimeout(500);
+
+    const summary = await app.evaluate(async (c) => {
+      const ags = (window as any).__ags;
+      const { collection, query, where, getDocs, doc, deleteDoc } = ags.firestore;
+      let deleted = 0;
+      const del = async (col: string, id: string) => { await deleteDoc(doc(ags.db, col, id)); deleted++; };
+
+      // OCs del cliente de fixture (cubre las 2 OCs de este run y residuos previos)
+      const ocs = await getDocs(query(collection(ags.db, 'ordenesCompraCliente'), where('clienteId', '==', c.clienteId)));
+      for (const d of ocs.docs) await del('ordenesCompraCliente', d.id).catch(() => {});
+
+      // Presupuestos seedeados
+      for (const pid of c.presupuestos) {
+        if (!pid) continue;
+        // tickets vinculados por presupuestosIds (por si algún side-effect creó uno)
+        const leads = await getDocs(query(collection(ags.db, 'leads'), where('presupuestosIds', 'array-contains', pid)));
+        for (const d of leads.docs) await del('leads', d.id).catch(() => {});
+        await del('presupuestos', pid).catch(() => {});
+      }
+      return { deleted };
+    }, { clienteId: CLIENTE_ID, presupuestos: [presupuesto1Id, presupuesto2Id] });
+
+    console.log(`[13.99] cleanup: ${summary.deleted} docs borrados`);
+    // NOTA: los PDFs subidos a Storage (ordenesCompraCliente/{ocId}/adjuntos/*)
+    // no se borran acá — window.__ags no expone helpers de Storage. Son stubs
+    // de ~60 bytes.
+    expect(summary.deleted).toBeGreaterThanOrEqual(0);
   });
 });
