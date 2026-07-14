@@ -948,6 +948,7 @@ export const PRESUPUESTO_ESTADO_MIGRATION: Record<string, PresupuestoEstado> = {
   rechazado: 'anulado',
   vencido: 'anulado',
   en_ejecucion: 'en_ejecucion',
+  pendiente_facturacion: 'pendiente_facturacion',
   anulado: 'anulado',
   finalizado: 'finalizado',
 };
