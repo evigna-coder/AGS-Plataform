@@ -903,6 +903,16 @@ export const ordenesTrabajoService = {
     const ot = await this.getByOtNumber(otNumber);
     if (!ot) throw new Error('OT no encontrada');
 
+    // Guard de re-entrada a nivel service: si la OT ya está cerrada, NO se
+    // re-escribe el estado ni se duplican ticket admin / mailQueue / avance de
+    // ppto (la UI ya lo bloqueaba por estado, pero el service no). La deducción
+    // de stock SÍ se reintenta más abajo — tiene su propio flag stockDeducido,
+    // y un retry legítimo es justamente para cuando esa parte best-effort falló.
+    const yaCerrada = ot.estadoAdmin === 'CIERRE_ADMINISTRATIVO' || ot.estadoAdmin === 'FINALIZADO';
+    if (yaCerrada) {
+      console.log(`[cerrarAdmin] OT ${otNumber} ya estaba en ${ot.estadoAdmin}; no se duplican ticket/mail (solo retry de stock si quedó pendiente).`);
+    }
+
     // Config con defaults (fallback hardcoded si adminConfig lectura falla).
     let mailTo = 'mbarrios@agsanalitica.com';
     try {
@@ -941,7 +951,9 @@ export const ordenesTrabajoService = {
     const newMailQueueRef = newDocRef('mailQueue');
 
     // ── Transaction: reads-before-writes invariant ──────────────────────────────
-    const txResult = await runTransaction(db, async (tx) => {
+    const txResult = yaCerrada
+      ? { adminTicketId: '', mailQueueId: '' }
+      : await runTransaction(db, async (tx) => {
       // ═══════════════ READ PHASE (todos los tx.get aquí — ningún write antes) ═══════════════
 
       // R1: OT
@@ -1051,28 +1063,30 @@ export const ordenesTrabajoService = {
     });
 
     // ── Post-commit side-effects (best-effort, NO bloquea) ────────
-    try {
-      if (ot.leadId) {
-        await leadsService.syncFromOT(ot.leadId, otNumber, 'CIERRE_ADMINISTRATIVO');
+    if (!yaCerrada) {
+      try {
+        if (ot.leadId) {
+          await leadsService.syncFromOT(ot.leadId, otNumber, 'CIERRE_ADMINISTRATIVO');
+        }
+      } catch (err) {
+        console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
       }
-    } catch (err) {
-      console.error('[cerrarAdministrativamente] syncFromOT failed (non-blocking):', err);
-    }
 
-    // ── Phase 12 BILL-02: recompute cuota estados for all linked presupuestos ──
-    // When an OT closes, cuotas with hito='todas_ots_cerradas' may become habilitada.
-    // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
-    // Pitfall 2: called post-commit (never inside runTransaction).
-    for (const presupuestoId of presupuestoIds) {
-      try {
-        await (presupuestosService as any)._recomputeAndPersistEsquema(presupuestoId);
-      } catch (err) {
-        console.warn(`[cerrarAdmin.recompute] ppto ${presupuestoId}:`, err);
-      }
-      try {
-        await presupuestosService.trySyncFinalizacion(presupuestoId);
-      } catch (err) {
-        console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
+      // ── Phase 12 BILL-02: recompute cuota estados for all linked presupuestos ──
+      // When an OT closes, cuotas with hito='todas_ots_cerradas' may become habilitada.
+      // Recompute BEFORE trySyncFinalizacion so finalizacion sees fresh cuota estados.
+      // Pitfall 2: called post-commit (never inside runTransaction).
+      for (const presupuestoId of presupuestoIds) {
+        try {
+          await (presupuestosService as any)._recomputeAndPersistEsquema(presupuestoId);
+        } catch (err) {
+          console.warn(`[cerrarAdmin.recompute] ppto ${presupuestoId}:`, err);
+        }
+        try {
+          await presupuestosService.trySyncFinalizacion(presupuestoId);
+        } catch (err) {
+          console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
+        }
       }
     }
 
@@ -1146,18 +1160,20 @@ export const ordenesTrabajoService = {
       }
     }
 
-    // Evento de negocio: OT cerrada administrativamente.
-    logBusinessEvent({
-      eventName: 'ot.cerrada',
-      collection: 'ordenes_trabajo',
-      documentId: otNumber,
-      entityLabel: `OT ${otNumber}`,
-      details: {
-        adminTicketId: txResult.adminTicketId,
-        pptosNotificados: presupuestoIds,
-        notas: cierreData.notas ?? null,
-      },
-    });
+    // Evento de negocio: OT cerrada administrativamente (solo en el cierre real).
+    if (!yaCerrada) {
+      logBusinessEvent({
+        eventName: 'ot.cerrada',
+        collection: 'ordenes_trabajo',
+        documentId: otNumber,
+        entityLabel: `OT ${otNumber}`,
+        details: {
+          adminTicketId: txResult.adminTicketId,
+          pptosNotificados: presupuestoIds,
+          notas: cierreData.notas ?? null,
+        },
+      });
+    }
 
     return {
       adminTicketId: txResult.adminTicketId,
