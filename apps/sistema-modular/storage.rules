@@ -42,6 +42,12 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
 
+    // Adjuntos de órdenes de compra del cliente (FLOW-02 "Cargar OC" — CargarOCModal).
+    // Quedó fuera del whitelist en el hardening Fase 1 y el upload daba storage/unauthorized.
+    match /ordenesCompraCliente/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
     // Reportes PDF generados
     match /reports/{allPaths=**} {
       allow read, write: if request.auth != null;
