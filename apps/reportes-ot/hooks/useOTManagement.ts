@@ -275,12 +275,15 @@ export const useOTManagement = (
         setDireccion(data.direccion || '');
         setLocalidad(data.localidad || '');
         setProvincia(data.provincia || '');
-        setTipoOT(data.tipoOT === 'entrega' ? 'entrega' : 'servicio');
+        const esEntrega = data.tipoOT === 'entrega';
+        setTipoOT(esEntrega ? 'entrega' : 'servicio');
+        // OT de entrega de materiales: el equipo no aplica — precargar "N/A" en los
+        // campos vacíos (editables por si el técnico quiere detallar). Autorizado 2026-07-15.
         setSistema(data.sistema || '');
-        setModuloModelo(data.moduloModelo || '');
-        setModuloMarca(data.moduloMarca || '');
-        setModuloDescripcion(data.moduloDescripcion || '');
-        setModuloSerie(data.moduloSerie || '');
+        setModuloModelo(data.moduloModelo || (esEntrega ? 'N/A' : ''));
+        setModuloMarca(data.moduloMarca || (esEntrega ? 'N/A' : ''));
+        setModuloDescripcion(data.moduloDescripcion || (esEntrega ? 'N/A' : ''));
+        setModuloSerie(data.moduloSerie || (esEntrega ? 'N/A' : ''));
         setCodigoInternoCliente(data.codigoInternoCliente || '');
         setFechaInicio(data.fechaInicio || new Date().toISOString().split('T')[0]);
         setFechaFin(data.fechaFin || new Date().toISOString().split('T')[0]);
@@ -289,7 +292,8 @@ export const useOTManagement = (
         setHorasTrabajadas(data.horasTrabajadas || '');
         setTiempoViaje(data.tiempoViaje || '');
         setManualHoras(!!data.manualHoras);
-        setReporteTecnico(data.reporteTecnico || '');
+        // Entrega: informe técnico precargado (editable) — el reporte es un trámite administrativo.
+        setReporteTecnico(data.reporteTecnico || (esEntrega ? 'Entrega de insumos.' : ''));
         setAccionesTomar(data.accionesTomar || '');
         setAccionesInternaOnly(data.accionesInternaOnly !== false); // default true
         const articulosData = (data.articulos || []).map((p: Part) => ({

@@ -689,9 +689,11 @@ export function useAppLogic(
       ...(otManagement.tipoOT === 'entrega' ? [] : [{ key: 'sistema', label: 'Sistema / equipo', value: sistema, stepKey: 'datos' as const }]),
       { key: 'fechaInicio', label: 'Fecha de inicio', value: fechaInicio, stepKey: 'datos' },
       { key: 'fechaFin', label: 'Fecha de fin', value: fechaFin, stepKey: 'datos' },
-      { key: 'horasTrabajadas', label: 'Horas trabajadas', value: horasTrabajadas, stepKey: 'datos' },
+      // En OT de entrega las horas no se exigen — es un trámite administrativo (autorizado 2026-07-15).
+      ...(otManagement.tipoOT === 'entrega' ? [] : [{ key: 'horasTrabajadas', label: 'Horas trabajadas', value: horasTrabajadas, stepKey: 'datos' as const }]),
       { key: 'reporteTecnico', label: 'Reporte técnico', value: reporteTecnico, stepKey: 'reporte' },
-      { key: 'aclaracionCliente', label: 'Aclaración del cliente (nombre y cargo)', value: aclaracionCliente, stepKey: 'firmas' },
+      // En OT de entrega el cliente firma el remito, no el reporte — firma y aclaración opcionales.
+      ...(otManagement.tipoOT === 'entrega' ? [] : [{ key: 'aclaracionCliente', label: 'Aclaración del cliente (nombre y cargo)', value: aclaracionCliente, stepKey: 'firmas' as const }]),
       { key: 'aclaracionEspecialista', label: 'Aclaración del especialista', value: aclaracionEspecialista, stepKey: 'firmas' },
       { key: 'engineerSignature', label: 'Firma del especialista', value: engineerSignature, stepKey: 'firmas' },
     ];
@@ -753,6 +755,7 @@ export function useAppLogic(
     patronesSeleccionados,
     columnasSeleccionadas,
     entitySelectors.clienteRequiereTrazabilidad,
+    otManagement.tipoOT,
   );
   const {
     generatePDFBlob: generatePDFBlobFromHook,

@@ -93,6 +93,9 @@ export const usePDFGeneration = (
   patronesSeleccionados: PatronSeleccionado[] = [],
   columnasSeleccionadas: ColumnaSeleccionada[] = [],
   clienteRequiereTrazabilidad: boolean = false,
+  // OT de entrega de materiales: el cliente firma el remito físico, no el reporte —
+  // la firma del cliente deja de ser obligatoria (autorizado 2026-07-15).
+  tipoOT: 'servicio' | 'entrega' = 'servicio',
 ): UsePDFGenerationReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
@@ -741,13 +744,17 @@ export const usePDFGeneration = (
       return;
     }
 
-    const clientSignature = signatureClient || clientPadRef.current?.getSignature();
+    const clientSignature = (signatureClient || clientPadRef.current?.getSignature()) ?? null;
     const engineerSignature = signatureEngineer || engineerPadRef.current?.getSignature();
 
-    if (!engineerSignature || !clientSignature) {
+    // Entrega: la firma del cliente es opcional (firma el remito). La del técnico, siempre.
+    const requiereFirmaCliente = tipoOT !== 'entrega';
+    if (!engineerSignature || (requiereFirmaCliente && !clientSignature)) {
       showAlert({
         title: 'Error',
-        message: 'Se requieren ambas firmas (Técnico y Cliente) para emitir el reporte final.',
+        message: requiereFirmaCliente
+          ? 'Se requieren ambas firmas (Técnico y Cliente) para emitir el reporte final.'
+          : 'Se requiere la firma del Técnico para emitir el reporte final.',
         type: 'error'
       });
       return;
@@ -890,13 +897,16 @@ export const usePDFGeneration = (
       return;
     }
 
-    const clientSig = signatureClient || clientPadRef.current?.getSignature();
+    const clientSig = (signatureClient || clientPadRef.current?.getSignature()) ?? null;
     const engineerSig = signatureEngineer || engineerPadRef.current?.getSignature();
 
-    if (!clientSig || !engineerSig) {
+    // Entrega: la firma del cliente es opcional (firma el remito). La del técnico, siempre.
+    if (!engineerSig || (tipoOT !== 'entrega' && !clientSig)) {
       showAlert({
         title: 'Error',
-        message: 'Se requieren ambas firmas (Cliente y Especialista) antes de confirmar.',
+        message: tipoOT !== 'entrega'
+          ? 'Se requieren ambas firmas (Cliente y Especialista) antes de confirmar.'
+          : 'Se requiere la firma del Especialista antes de confirmar.',
         type: 'error'
       });
       return;

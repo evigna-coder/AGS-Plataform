@@ -264,6 +264,7 @@ const App: React.FC = () => {
             assetProgress={app.assetPreloader.progress}
             assetReady={app.assetPreloader.isReady}
             onConfirmClientAndFinalize={app.confirmClientWithDeliveryChoice}
+            tipoOT={app.otManagement.tipoOT}
           />
         ),
       },
@@ -490,6 +491,7 @@ const App: React.FC = () => {
             assetProgress={app.assetPreloader.progress}
             assetReady={app.assetPreloader.isReady}
             onConfirmClientAndFinalize={app.confirmClientWithDeliveryChoice}
+            tipoOT={app.otManagement.tipoOT}
           />
 
           <ObservationsBillingSection
