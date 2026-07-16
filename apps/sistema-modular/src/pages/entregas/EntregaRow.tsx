@@ -147,16 +147,20 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate }) => {
       </td>
       <td className="px-3 py-2 text-xs">
         <select
-          value={row.disponibilidad ?? ''}
+          value={row.disponibilidad ?? row.disponibilidadSugerida}
           onChange={(e) => void runUpdate({ disponibilidad: (e.target.value || null) as Disponibilidad | null })}
           disabled={saving}
           className="text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50 bg-white"
         >
-          <option value="">—</option>
           {DISPONIBILIDAD_OPCIONES.map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
+        {row.disponibilidad == null && (
+          <div className="text-[9px] text-slate-400 mt-0.5" title="Derivado del stock al aceptar: sin requerimiento = había stock; con requerimiento = a importar">
+            auto
+          </div>
+        )}
       </td>
       <td className="px-3 py-2 text-[10px] whitespace-nowrap">
         <input

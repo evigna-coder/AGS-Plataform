@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchableSelect } from './useSearchableSelect';
 export type { SearchableSelectOption } from './useSearchableSelect';
@@ -18,6 +19,12 @@ interface SearchableSelectProps {
   creatable?: boolean;
   /** Label prefix for the create option */
   createLabel?: string;
+  /**
+   * Abre el dropdown y enfoca el input de búsqueda cuando el token pasa a un
+   * valor truthy o cambia (ej.: al abrir un modal, o al terminar un paso para
+   * cargar el siguiente ítem). Usar un contador para re-enfocar varias veces.
+   */
+  autoFocusToken?: number | boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -33,6 +40,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   size = 'md',
   creatable = false,
   createLabel = 'Crear',
+  autoFocusToken,
 }) => {
   const {
     isOpen,
@@ -52,6 +60,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setHighlightedIndex,
     open,
   } = useSearchableSelect({ value, onChange, options, disabled, creatable, createLabel });
+
+  // Autofocus: al montar (token truthy) o al cambiar el token, abrir + enfocar.
+  useEffect(() => {
+    if (autoFocusToken) open();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocusToken]);
 
   const isSmall = size === 'sm';
   const baseClasses = `w-full border rounded-lg ${isSmall ? 'px-2.5 py-1 text-xs' : 'px-2.5 py-1.5 text-xs'} bg-white text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-700 focus:border-teal-700 transition-colors ${

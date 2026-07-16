@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useDeferredValue } from 'react';
 
 export interface SearchableSelectOption {
   value: string;
@@ -39,7 +39,11 @@ export function useSearchableSelect({
   const selectedOption = options.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : '';
 
-  const searchLower = searchTerm.toLowerCase();
+  // Deferred: el filtrado + render de la lista corre a baja prioridad, así el
+  // input nunca "traga" teclas aunque el término matchee cientos de opciones
+  // (UAT 2026-07-15: delay al escribir en buscadores de artículos).
+  const deferredSearch = useDeferredValue(searchTerm);
+  const searchLower = deferredSearch.toLowerCase();
   const filteredOptions = useMemo(() =>
     searchLower
       ? options.filter(opt =>

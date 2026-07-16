@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
+import { useDebouncedUrlText } from '../../hooks/useDebouncedUrlText';
 import { articulosService } from '../../services/stockService';
 import { marcasService } from '../../services/catalogService';
 import { proveedoresService } from '../../services/personalService';
@@ -25,6 +26,8 @@ export function PlanificacionStockPage() {
   const [proveedores, setProveedores] = useState<Array<{ id: string; nombre: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
+  // Input responsivo: valor local inmediato, URL (y por ende la lista) con debounce.
+  const [textoInput, setTextoInput] = useDebouncedUrlText(filters.texto, v => setFilter('texto', v));
 
   // Build marca lookup for display in rows (avoid per-row service calls)
   const marcaById = useMemo(() => {
@@ -83,8 +86,8 @@ export function PlanificacionStockPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <input
             type="text"
-            value={filters.texto}
-            onChange={e => setFilter('texto', e.target.value)}
+            value={textoInput}
+            onChange={e => setTextoInput(e.target.value)}
             placeholder="Buscar por código o descripción..."
             className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs w-72 focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
@@ -153,9 +156,11 @@ export function PlanificacionStockPage() {
                   <th className={th}>Código</th>
                   <th className={th}>Descripción</th>
                   <th className={th}>Marca</th>
-                  <th className={th} colSpan={5}>
-                    Stock (Disp | Tráns | Reserv | Comprom | ATP)
-                  </th>
+                  <th className={`${th} text-center w-16`}>Disp</th>
+                  <th className={`${th} text-center w-16`}>Tráns</th>
+                  <th className={`${th} text-center w-16`}>Reserv</th>
+                  <th className={`${th} text-center w-20`}>Comprom</th>
+                  <th className={`${th} text-center w-16 border-l border-slate-200`}>ATP</th>
                   <th className={th + ' text-right'}>Acciones</th>
                 </tr>
               </thead>

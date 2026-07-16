@@ -3,6 +3,7 @@ import type { Presupuesto, Cliente, Sistema, CondicionPago, TipoPresupuesto, Mon
 import { TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { BnaTipoCambioHint } from './BnaTipoCambioHint';
 import { getDaysUntilExpiry, getDaysSinceEnvio, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText } from '../../utils/presupuestoHelpers';
 
 interface PresupuestoTotals {
@@ -160,6 +161,15 @@ export const PresupuestoSidebar = ({
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Próximo contacto</label>
             <input type="date" value={proximoContacto} onChange={e => onProximoContactoChange(e.target.value)}
               className="w-full border rounded-lg px-2.5 py-1.5 text-xs bg-white border-slate-200" />
+            <div className="flex gap-1 mt-1">
+              {[7, 15, 30].map(d => (
+                <button key={d} type="button"
+                  onClick={() => { const dt = new Date(); dt.setDate(dt.getDate() + d); onProximoContactoChange(dt.toISOString().split('T')[0]); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-300 transition-colors">
+                  en {d} días
+                </button>
+              ))}
+            </div>
             {daysUntilContacto !== null && (
               <span className={`text-[10px] font-medium mt-0.5 block ${getContactoStatusColor(daysUntilContacto)}`}>
                 {getContactoStatusText(daysUntilContacto)}
@@ -226,6 +236,7 @@ export const PresupuestoSidebar = ({
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Tipo de cambio</label>
             <input type="number" min="0" step="0.01" value={tipoCambio || ''} onChange={(e) => onTipoCambioChange(e.target.value ? Number(e.target.value) : undefined)} placeholder="Ej: 1.0" className="w-full border rounded-lg px-2.5 py-1.5 text-xs bg-white border-slate-200" />
+            <BnaTipoCambioHint current={tipoCambio} onApply={onTipoCambioChange} />
           </div>
           <div>
             <label className="text-[11px] font-medium text-slate-400 mb-0.5 block">Condicion de pago</label>

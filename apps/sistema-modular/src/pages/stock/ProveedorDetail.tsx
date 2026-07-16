@@ -4,6 +4,7 @@ import { proveedoresService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import type { Proveedor } from '@ags/shared';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
@@ -184,7 +185,14 @@ export const ProveedorDetail = () => {
               {editing ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
-                    <Input inputSize="sm" label="Direccion" value={form.direccion} onChange={e => set('direccion', e.target.value)} />
+                    <AddressAutocomplete
+                      label="Direccion"
+                      value={form.direccion}
+                      onChange={e => set('direccion', e.target.value)}
+                      placeholder="Buscar dirección..."
+                      onSelectAddress={res => set('direccion',
+                        res.formattedAddress || (res.street ? `${res.street}${res.number ? ` ${res.number}` : ''}` : form.direccion))}
+                    />
                   </div>
                   <Input inputSize="sm" label="Condiciones de pago" value={form.condicionesPago} onChange={e => set('condicionesPago', e.target.value)} />
                   <div>

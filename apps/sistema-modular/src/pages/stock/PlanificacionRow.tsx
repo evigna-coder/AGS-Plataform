@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { Articulo } from '@ags/shared';
 import { useStockAmplio } from '../../hooks/useStockAmplio';
-import { StockAmplioIndicator } from '../../components/stock/StockAmplioIndicator';
+import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 import { StockAmplioBreakdownDrawer } from '../../components/stock/StockAmplioBreakdownDrawer';
 
 interface Props {
@@ -24,10 +24,7 @@ export function PlanificacionRow({ articulo, hideIfNotComprometido, marcaNombre 
     return null;
   }
 
-  const atpNeto =
-    stockAmplio !== null
-      ? stockAmplio.disponible + stockAmplio.enTransito - stockAmplio.reservado - stockAmplio.comprometido
-      : null;
+  const atpNeto = stockAmplio !== null ? atpNetoFromStockAmplio(stockAmplio) : null;
   const needsReq = atpNeto !== null && atpNeto < 0;
 
   return (
@@ -42,15 +39,36 @@ export function PlanificacionRow({ articulo, hideIfNotComprometido, marcaNombre 
         <td className="px-3 py-2 text-[10px] text-slate-400 whitespace-nowrap">
           {marcaNombre ?? '—'}
         </td>
-        <td className="px-3 py-2" colSpan={5}>
-          <StockAmplioIndicator
-            stockAmplio={stockAmplio}
-            loading={loading}
-            source={source}
-            onShowBreakdown={stockAmplio ? () => setDrawerOpen(true) : undefined}
-          />
-        </td>
+        {stockAmplio === null ? (
+          <td className="px-3 py-2 text-[10px] text-slate-400 text-center" colSpan={5}>
+            {loading ? 'Cargando…' : '—'}
+          </td>
+        ) : (
+          <>
+            <td className="px-3 py-2 text-sm text-slate-700 text-center">{stockAmplio.disponible}</td>
+            <td className="px-3 py-2 text-sm text-slate-700 text-center">{stockAmplio.enTransito}</td>
+            <td className="px-3 py-2 text-sm text-slate-700 text-center">{stockAmplio.reservado}</td>
+            <td className="px-3 py-2 text-sm text-slate-700 text-center">{stockAmplio.comprometido}</td>
+            <td
+              className={`px-3 py-2 text-sm text-center border-l border-slate-100 ${atpNeto !== null && atpNeto < 0 ? 'text-red-600 font-semibold' : 'text-slate-900 font-medium'}`}
+              title={atpNeto !== null && atpNeto < 0 ? 'ATP negativo — requiere importación, crear requerimiento' : 'ATP neto'}
+            >
+              {atpNeto}
+              {source === 'computed' && (
+                <span className="text-[10px] text-slate-400 italic ml-1" title="Calculado en cliente — esperando sync server-side">~</span>
+              )}
+            </td>
+          </>
+        )}
         <td className="px-3 py-2 text-right whitespace-nowrap">
+          {stockAmplio && (
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="text-[10px] font-medium text-teal-700 hover:text-teal-900 px-1.5 py-0.5 rounded hover:bg-teal-50"
+            >
+              Ver detalle
+            </button>
+          )}
           {needsReq && (
             <button
               onClick={() =>

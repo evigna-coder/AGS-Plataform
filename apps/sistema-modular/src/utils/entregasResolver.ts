@@ -45,6 +45,13 @@ export interface EntregaRow {
   precioUnitario: number;
   moneda: 'USD' | 'ARS' | 'EUR' | null;
   disponibilidad: Disponibilidad | null;
+  /**
+   * Default sugerido cuando el item no tiene disponibilidad cargada (UAT 2026-07-15):
+   * sin requerimiento vinculado = hubo stock al aceptar → 'stock';
+   * con requerimiento = hay que comprar/importar → 'a_importar'.
+   * Solo display — se persiste recién cuando el usuario elige explícitamente.
+   */
+  disponibilidadSugerida: Disponibilidad;
   etaDiasEstimados: number | null;
   fechaAceptacion: string | null;
   etaFecha: string | null;
@@ -187,6 +194,7 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         precioUnitario: item.precioUnitario,
         moneda: (item.moneda ?? null) as EntregaRow['moneda'],
         disponibilidad: (item.disponibilidad ?? null) as EntregaRow['disponibilidad'],
+        disponibilidadSugerida: req ? 'a_importar' : 'stock',
         etaDiasEstimados: item.etaDiasEstimados ?? null,
         fechaAceptacion: ppto.fechaAceptacion ?? null,
         etaFecha,

@@ -50,7 +50,8 @@ export const BulkAddStockModal: React.FC<Props> = ({ open, onClose, onCreated, p
             <label className={lbl}>Artículo *</label>
             <SearchableSelect value={h.articuloId} onChange={h.setArticuloId}
               options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
-              placeholder="Buscar artículo..." />
+              placeholder="Buscar artículo..."
+              autoFocusToken={open && !h.articuloId} />
           </div>
         )}
 
@@ -63,6 +64,12 @@ export const BulkAddStockModal: React.FC<Props> = ({ open, onClose, onCreated, p
               {h.requiereLote && <span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">Nº de lote</span>}
               {!h.requiereSerie && !h.requiereLote && <span className="px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">Sin trazabilidad (por cantidad)</span>}
             </div>
+            {h.requiereSerie && (
+              <p className="text-[11px] text-slate-500 -mt-2">
+                Este artículo es serializado: no hay campo cantidad — cargá <span className="font-medium">una fila por unidad</span>, cada
+                una con su número de serie. La cantidad total = filas cargadas.
+              </p>
+            )}
 
             {/* Campos comunes */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-50 border border-slate-100 rounded-lg p-3">

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -17,6 +18,15 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated }) 
   const { usuario, firebaseUser } = useAuth();
   const creadoPor = usuario?.displayName ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
   const h = useStockIntake(open, onClose, onCreated, creadoPor);
+
+  // Al terminar (o cancelar) el wizard de un artículo, devolver el cursor al
+  // buscador para cargar el siguiente sin tocar el mouse (UAT 2026-07-15).
+  const [searchFocusTick, setSearchFocusTick] = useState(0);
+  const draftWasOpen = useRef(false);
+  useEffect(() => {
+    if (draftWasOpen.current && !h.draft && !h.finalizing) setSearchFocusTick(t => t + 1);
+    draftWasOpen.current = !!h.draft;
+  }, [h.draft, h.finalizing]);
 
   return (
     <Modal open={open} onClose={onClose} title="Ingresar stock" maxWidth="xl"
@@ -43,6 +53,7 @@ export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated }) 
           <SearchableSelect value="" onChange={(v) => { const a = h.articulos.find(x => x.id === v); if (a) h.startArticulo(a); }}
             options={h.articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }))}
             disabled={!!h.draft}
+            autoFocusToken={searchFocusTick}
             placeholder="Buscar por código o descripción y elegir..." />
         </div>
 

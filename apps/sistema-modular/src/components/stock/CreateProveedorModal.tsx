@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { proveedoresService } from '../../services/firebaseService';
+import { AddressAutocomplete, AutocompleteResult } from '../AddressAutocomplete';
 
 interface Props {
   open: boolean;
@@ -99,7 +100,20 @@ export const CreateProveedorModal: React.FC<Props> = ({ open, onClose, onCreated
             <Input inputSize="sm" label="Telefono" value={form.telefono} onChange={e => set('telefono', e.target.value)} placeholder="+54 11 ..." />
             <Input inputSize="sm" label="Pais" value={form.pais} onChange={e => set('pais', e.target.value)} placeholder="Argentina, EE.UU..." />
             <div className="col-span-2">
-              <Input inputSize="sm" label="Direccion" value={form.direccion} onChange={e => set('direccion', e.target.value)} placeholder="Direccion completa" />
+              <AddressAutocomplete
+                label="Direccion"
+                value={form.direccion}
+                onChange={e => set('direccion', e.target.value)}
+                placeholder="Buscar dirección (funciona para direcciones del exterior)..."
+                onSelectAddress={(res: AutocompleteResult) => {
+                  setForm(prev => ({
+                    ...prev,
+                    direccion: res.formattedAddress
+                      || (res.street ? `${res.street}${res.number ? ` ${res.number}` : ''}` : prev.direccion),
+                    pais: res.pais || prev.pais,
+                  }));
+                }}
+              />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { BnaTipoCambioHint } from './BnaTipoCambioHint';
 import type { TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, CondicionPago } from '@ags/shared';
 import { TIPO_PRESUPUESTO_LABELS, MONEDA_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/useCreatePresupuestoForm';
@@ -47,6 +48,11 @@ export const PresupuestoFormHeader: React.FC<Props> = ({ form, setForm, condicio
       <div>
         <label className={lbl}>T. Cambio</label>
         <input type="number" min="0" step="0.01" value={form.tipoCambio} onChange={e => setForm(prev => ({ ...prev, tipoCambio: e.target.value }))} className="w-full border border-[#E5E5E5] rounded-md px-2 py-1.5 text-xs text-center" placeholder="1.0" />
+        <BnaTipoCambioHint
+          current={Number(form.tipoCambio) || undefined}
+          onApply={v => setForm(prev => ({ ...prev, tipoCambio: String(v) }))}
+          autoFillIfEmpty
+        />
       </div>
       <div>
         <label className={lbl}>Condicion de pago</label>

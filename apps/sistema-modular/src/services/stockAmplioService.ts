@@ -149,7 +149,7 @@ export async function computeStockAmplio(articuloId: string): Promise<StockAmpli
   // These are SEPARATE from unidades.en_transito — DO NOT deduplicate.
   const ocs = __testState
     ? __testState.ocs.filter(oc => OC_OPEN_STATES.has(oc.estado))
-    : await fetchOpenOCs();
+    : await fetchOpenOCsShared();
 
   let ocEnTransito = 0;
   const ocsBreakdown: StockAmplioBreakdownEntry[] = [];
@@ -214,6 +214,29 @@ async function fetchUnidades(articuloId: string) {
   );
   const snap = await getDocs(q);
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Coalescencia de fetchOpenOCs: la query trae TODAS las OCs abiertas y es idéntica
+ * para cualquier articuloId, pero una lista (Planificación) computa N filas en el
+ * mismo render → N queries duplicadas que bloquean el main thread y tragan teclas
+ * del buscador (UAT 2026-07-15). Micro-TTL de 15s: NO es serviceCache (STKP-04
+ * pide datos vivos) — solo evita repetir la MISMA query dentro de una pasada.
+ */
+const OPEN_OCS_TTL_MS = 15_000;
+let _openOCsShared: { at: number; promise: Promise<OCRecord[]> } | null = null;
+
+function fetchOpenOCsShared(): Promise<OCRecord[]> {
+  const now = Date.now();
+  if (_openOCsShared && now - _openOCsShared.at < OPEN_OCS_TTL_MS) {
+    return _openOCsShared.promise;
+  }
+  const promise = fetchOpenOCs().catch(err => {
+    _openOCsShared = null; // no cachear errores
+    throw err;
+  });
+  _openOCsShared = { at: now, promise };
+  return promise;
 }
 
 async function fetchOpenOCs(): Promise<OCRecord[]> {

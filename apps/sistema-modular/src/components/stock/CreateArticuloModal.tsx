@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -115,6 +115,23 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
   const lbl = "block text-[11px] font-medium text-slate-500 mb-1";
   const selectCls = "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500";
 
+  // Enter avanza al siguiente campo (UAT 2026-07-15) — en el último, guarda.
+  // Excluye textarea (Enter = salto de línea) y SearchableSelect (Enter = elegir opción).
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const handleEnterAdvance = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA' || target.closest('[role="combobox"]')) return;
+    if (target.tagName !== 'INPUT' && target.tagName !== 'SELECT') return;
+    e.preventDefault();
+    const focusables = Array.from(
+      bodyRef.current?.querySelectorAll<HTMLElement>('input, select') ?? [],
+    ).filter(el => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.offsetParent !== null);
+    const idx = focusables.indexOf(target);
+    if (idx >= 0 && idx < focusables.length - 1) focusables[idx + 1].focus();
+    else handleSave();
+  };
+
   return (
     <Modal open={open} onClose={handleClose} title="Nuevo articulo" maxWidth="lg"
       footer={<>
@@ -123,7 +140,7 @@ export const CreateArticuloModal: React.FC<Props> = ({ open, onClose, onCreated 
           {saving ? 'Guardando...' : 'Guardar articulo'}
         </Button>
       </>}>
-      <div className="space-y-5">
+      <div className="space-y-5" ref={bodyRef} onKeyDown={handleEnterAdvance}>
         {/* Informacion general */}
         <div>
           <h4 className="text-xs font-semibold text-slate-700 mb-3">Informacion general</h4>
