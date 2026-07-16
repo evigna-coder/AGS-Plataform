@@ -9,7 +9,8 @@ interface Props {
   isPrint?: boolean;
   /** Datos de la OT que se inyectan automáticamente */
   otNumber?: string;
-  fechaInicio?: string;
+  /** Fecha mostrada en la carátula — es la fecha de FIN del servicio (pedido dirección 2026-07). */
+  fecha?: string;
   sistemaNombre?: string;
   sistemaModelo?: string;
   moduloMarca?: string;
@@ -41,7 +42,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   selection,
   isPrint = false,
   otNumber,
-  fechaInicio,
+  fecha,
   sistemaNombre,
   sistemaModelo,
   moduloMarca,
@@ -118,7 +119,7 @@ export const CatalogCoverView: React.FC<Props> = ({
   type DatoEditable = { label: string; value: string; mono?: boolean; editable: true; fieldId: string };
   type DatoEntry = DatoStatic | DatoEditable;
   const datos: DatoEntry[] = [
-    { label: 'Fecha', value: blankPreviewMode ? '—' : formatFecha(fechaInicio) },
+    { label: 'Fecha', value: blankPreviewMode ? '—' : formatFecha(fecha) },
     { label: 'Modelo', value: modeloValue },
     { label: 'ID', value: blankPreviewMode ? '—' : (agsVisibleId || '—'), mono: true },
     { label: 'N° de Serie', value: blankPreviewMode ? '—' : (numeroSerie || '—'), mono: true },
