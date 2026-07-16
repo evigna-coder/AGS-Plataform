@@ -3,6 +3,7 @@ import type { CierreAdministrativo, OTEstadoAdmin, Part, PatronSeleccionado } fr
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CierreStockSelector } from './CierreStockSelector';
+import { CierreMaterialesBlock } from './CierreMaterialesBlock';
 import { CierrePDFPreview } from './CierrePDFPreview';
 import { CierreFacturacionWizard } from './CierreFacturacionWizard';
 import { CierrePatronesConsumidosSection } from './CierrePatronesConsumidosSection';
@@ -32,6 +33,10 @@ interface Props {
   clienteNombre?: string;
   patronesSeleccionados?: PatronSeleccionado[];
   onPatronesConsumidosConfirmados?: () => void;
+  /** Carga de materiales durante el cierre (UAT 2026-07-15: reporte sin items no tenía salida). */
+  onAddPart?: (prefill?: { codigo: string; descripcion: string }) => void;
+  onUpdatePart?: (id: string, field: keyof Part, value: any) => void;
+  onRemovePart?: (id: string) => void;
 }
 
 export const OTCierreAdminSection: React.FC<Props> = ({
@@ -40,6 +45,7 @@ export const OTCierreAdminSection: React.FC<Props> = ({
   razonSocial, tipoServicio, ingenieroNombre,
   otNumber, budgets, clienteId, clienteNombre,
   patronesSeleccionados, onPatronesConsumidosConfirmados,
+  onAddPart, onUpdatePart, onRemovePart,
 }) => {
   const isClosed = estadoAdmin === 'FINALIZADO';
   const disabled = readOnly || isClosed;
@@ -109,45 +115,16 @@ export const OTCierreAdminSection: React.FC<Props> = ({
         </div>
 
         {/* Partes / Stock */}
-        <div>
-          <span className={lbl}>Materiales / Repuestos ({articulos.length})</span>
-          {articulos.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden mt-1">
-              <table className="w-full">
-                <thead className="bg-white/60">
-                  <tr>
-                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-center">Codigo</th>
-                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-center">Descripcion</th>
-                    <th className="text-[10px] font-medium text-slate-400 py-1.5 px-2 text-center w-12">Cant.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {articulos.map(p => (
-                    <tr key={p.id} className="bg-white/40">
-                      <td className="px-2 py-1 text-xs text-slate-600 font-mono">{p.codigo || '-'}</td>
-                      <td className="px-2 py-1 text-xs text-slate-600">{p.descripcion || '-'}</td>
-                      <td className="px-2 py-1 text-xs text-slate-600 text-center">{p.cantidad}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400 italic mt-1">Sin materiales registrados</p>
-          )}
-          <div className="flex flex-col gap-1.5 mt-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={cierreAdmin.partesConfirmadas} disabled={disabled || articulos.length === 0}
-                onChange={e => onChange('partesConfirmadas', e.target.checked)} className={chk} />
-              <span className="text-xs text-slate-700">Partes confirmadas</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={cierreAdmin.stockDeducido} disabled={disabled}
-                onChange={e => onChange('stockDeducido', e.target.checked)} className={chk} />
-              <span className="text-xs text-slate-700">Stock deducido</span>
-            </label>
-          </div>
-        </div>
+        <CierreMaterialesBlock
+          articulos={articulos}
+          cierreAdmin={cierreAdmin}
+          disabled={disabled}
+          onChange={onChange}
+          onAddPart={onAddPart}
+          onUpdatePart={onUpdatePart}
+          onRemovePart={onRemovePart}
+          tienePresupuestos={!!budgets && budgets.length > 0}
+        />
 
         {/* Notas de cierre */}
         <div>

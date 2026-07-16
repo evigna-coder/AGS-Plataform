@@ -226,6 +226,9 @@ export const OTDetail = () => {
                 budgets={ot.budgets}
                 clienteId={ot.clienteId}
                 clienteNombre={ot.cliente?.razonSocial}
+                onAddPart={ot.addPart}
+                onUpdatePart={ot.updatePart}
+                onRemovePart={ot.removePart}
               />
             )}
           </div>

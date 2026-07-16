@@ -82,6 +82,13 @@ export const EditOTModal: React.FC<Props> = ({ open, otNumber, onClose, onSaved 
               clienteId={h.form.clienteId}
               clienteNombre={h.otOriginal?.razonSocial}
               patronesSeleccionados={h.form.patronesSeleccionados}
+              onAddPart={prefill => h.set('articulos', [...h.form.articulos, {
+                id: `part-${Date.now()}`, codigo: prefill?.codigo || '', descripcion: prefill?.descripcion || '',
+                cantidad: 1, origen: prefill ? 'stock' : '',
+              }])}
+              onUpdatePart={(id, field, value) => h.set('articulos',
+                h.form.articulos.map(p => p.id === id ? { ...p, [field]: value } : p))}
+              onRemovePart={id => h.set('articulos', h.form.articulos.filter(p => p.id !== id))}
             />
           )}
           {/* Historial de estados */}
