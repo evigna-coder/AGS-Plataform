@@ -30,6 +30,7 @@ import { ordenesCompraClienteService } from '../../services/ordenesCompraCliente
 import { presupuestosService } from '../../services/presupuestosService';
 import { articulosService } from '../../services/stockService';
 import { computeStockAmplio } from '../../services/stockAmplioService';
+import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente, Articulo } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
@@ -93,7 +94,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
     for (const item of form.items.filter(i => i.stockArticuloId)) {
       try {
         const s = await computeStockAmplio(item.stockArticuloId!);
-        const atpNeto = s.disponible + s.enTransito - s.reservado - s.comprometido;
+        const atpNeto = atpNetoFromStockAmplio(s);
         if ((item.cantidad || 0) > atpNeto) {
           warnings.push(`${item.descripcion}: cantidad ${item.cantidad}, ATP disponible ${atpNeto}`);
         }

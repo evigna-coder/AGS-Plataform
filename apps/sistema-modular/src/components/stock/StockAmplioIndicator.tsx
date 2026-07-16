@@ -1,4 +1,5 @@
 import type { StockAmplio } from '@ags/shared';
+import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 
 interface Props {
   stockAmplio: StockAmplio | null;
@@ -28,7 +29,7 @@ export function StockAmplioIndicator({
   }
 
   const { disponible, enTransito, reservado, comprometido } = stockAmplio;
-  const atpNeto = disponible + enTransito - reservado - comprometido;
+  const atpNeto = atpNetoFromStockAmplio(stockAmplio);
   const numClass = size === 'sm' ? 'text-xs' : 'text-sm';
   const atpClass = atpNeto < 0 ? 'text-red-600 font-semibold' : 'text-slate-900';
 

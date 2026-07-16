@@ -23,6 +23,19 @@ export function atpFromStockAmplio(sa: StockAmplio): number {
 }
 
 /**
+ * ATP neto = lo prometible a demanda nueva: disponible + enTransito − comprometido.
+ *
+ * `reservado` NO se resta: reservar una unidad le cambia el estado
+ * (disponible → reservado), o sea que ya salió del bucket `disponible`.
+ * Restarla de nuevo la descontaba dos veces (5 físicas con 2 reservadas
+ * mostraba ATP 1 en vez de 3). Fórmula única para toda la app — no
+ * reimplementar inline.
+ */
+export function atpNetoFromStockAmplio(sa: StockAmplio): number {
+  return sa.disponible + sa.enTransito - sa.comprometido;
+}
+
+/**
  * Retorna `true` si un artículo de stock tiene ATP === 0 y por lo tanto requiere importación.
  *
  * ATP (Available To Promise) = disponible + enTransito + reservado + comprometido.

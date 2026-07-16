@@ -18,6 +18,7 @@ import { usuariosService, getAdminSoporteAssignee } from './personalService';
 import { articulosService, unidadesService, reservasService } from './stockService';
 import { requerimientosService } from './importacionesService';
 import { computeStockAmplio } from './stockAmplioService';
+import { atpNetoFromStockAmplio } from './atpHelpers';
 import { computeTotalsByCurrency, recomputeCuotaEstados, cuotasEqual } from '../utils/cuotasFacturacion';
 import { hoyLocalISODate } from '../utils/formatFecha';
 
@@ -278,8 +279,9 @@ export const presupuestosService = {
 
       if (!sa) continue;  // computeStockAmplio failed — skip, don't create bad requerimiento
 
-      // stockProyectado uses the correct 4-bucket formula: disponible + enTransito - reservado - comprometido
-      const stockProyectado = sa.disponible + sa.enTransito - sa.reservado - sa.comprometido;
+      // stockProyectado = ATP neto canónico (reservado NO se resta: ya salió de disponible
+      // por el flip de estado al reservar — restarlo de nuevo inflaba los requerimientos).
+      const stockProyectado = atpNetoFromStockAmplio(sa);
       const stockMinimo = articulo?.stockMinimo ?? 0;
       const qtyResultante = stockProyectado - item.cantidad;
 

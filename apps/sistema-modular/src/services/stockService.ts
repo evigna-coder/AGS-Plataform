@@ -1313,10 +1313,10 @@ export const reservasService = {
       if (!unidadSnap.exists()) {
         throw new Error(`Unidad ${params.unidadId} no encontrada`);
       }
-      const currentEstado = unidadSnap.data().estado;
-      if (currentEstado !== 'reservado') {
+      const currentData = unidadSnap.data();
+      if (currentData.estado !== 'reservado') {
         throw new Error(
-          `Unidad no liberable — estado actual '${currentEstado}' (esperaba 'reservado')`,
+          `Unidad no liberable — estado actual '${currentData.estado}' (esperaba 'reservado')`,
         );
       }
 
@@ -1337,7 +1337,8 @@ export const reservasService = {
         articuloId: params.unidad.articuloId,
         articuloCodigo: params.unidad.articuloCodigo,
         articuloDescripcion: params.unidad.articuloDescripcion,
-        cantidad: 1,
+        // Cantidad real del doc (un lote puede representar N unidades) — leída en-tx.
+        cantidad: currentData.cantidad ?? 1,
         origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
         origenId: params.unidad.ubicacion.referenciaId,
         origenNombre: params.unidad.ubicacion.referenciaNombre,
@@ -1401,7 +1402,8 @@ export const reservasService = {
         articuloId: params.unidad.articuloId,
         articuloCodigo: params.unidad.articuloCodigo,
         articuloDescripcion: params.unidad.articuloDescripcion,
-        cantidad: 1,
+        // Cantidad real del doc (un lote puede representar N unidades) — leída en-tx.
+        cantidad: data.cantidad ?? 1,
         origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
         origenId: params.unidad.ubicacion.referenciaId,
         origenNombre: params.unidad.ubicacion.referenciaNombre,
@@ -1451,7 +1453,7 @@ export const reservasService = {
           motivo: `Entregado al cerrar OT ${params.otNumber}`,
           solicitadoPorNombre: params.solicitadoPorNombre,
         });
-        entregadas++;
+        entregadas += data.cantidad ?? 1;
       } catch (err) {
         console.error(`[entregarPorPresupuesto] unidad ${d.id} no entregada:`, err);
       }

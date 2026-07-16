@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { movimientosService } from '../../services/stockService';
+import { movimientosService, unidadesService } from '../../services/stockService';
 import type { UnidadStock } from '@ags/shared';
 
 interface Props { unidad: UnidadStock; onClose: () => void; onSuccess: () => void; }
@@ -15,11 +15,38 @@ export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
   const [justifError, setJustifError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const cantidadActual = unidad.cantidad ?? 1;
+  const nuevaCantidad = cantidadActual + delta;
+
   const handleSubmit = async () => {
     setJustifError('');
     if (!justificacion.trim()) { setJustifError('La justificacion es obligatoria.'); return; }
     if (delta === 0) { setJustifError('El ajuste no puede ser cero.'); return; }
+    if (unidad.estado !== 'disponible') {
+      setJustifError(`Solo se ajustan unidades disponibles (esta esta '${unidad.estado}'). Para reservas usa liberar/entregar.`);
+      return;
+    }
+    if (unidad.nroSerie && delta > 0) {
+      setJustifError('Articulo serializado: las unidades nuevas se cargan con su n° de serie desde "Cargar stock".');
+      return;
+    }
+    if (nuevaCantidad < 0) {
+      setJustifError(`El ajuste deja la cantidad en negativo (actual: ${cantidadActual}).`);
+      return;
+    }
     setSaving(true);
+    try {
+      // Primero se aplica el ajuste real sobre la unidad; recien despues se
+      // registra el movimiento (antes solo se registraba y el stock no cambiaba).
+      await unidadesService.update(unidad.id, nuevaCantidad === 0
+        ? { cantidad: 0, estado: 'baja', activo: false }
+        : { cantidad: nuevaCantidad });
+    } catch (err) {
+      setJustifError('Error al aplicar el ajuste. Intente nuevamente.');
+      console.error('[AjusteStockModal]', err);
+      setSaving(false);
+      return;
+    }
     try {
       await movimientosService.create({
         tipo: 'ajuste',
@@ -41,7 +68,8 @@ export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
       });
       onSuccess();
     } catch (err) {
-      setJustifError('Error al guardar el ajuste. Intente nuevamente.');
+      // El ajuste YA se aplico; solo fallo el registro del movimiento.
+      setJustifError('El ajuste se aplico, pero fallo el registro del movimiento (revisar historial).');
       console.error('[AjusteStockModal]', err);
     } finally { setSaving(false); }
   };
@@ -65,6 +93,12 @@ export const AjusteStockModal = ({ unidad, onClose, onSuccess }: Props) => {
         <div>
           <label className={LBL}>Ajuste (+ ingreso / - salida)</label>
           <input type="number" value={delta} onChange={e => setDelta(Number(e.target.value))} className={FIELD} />
+          <p className="text-[11px] text-slate-500 mt-1">
+            Cantidad actual: <span className="font-mono">{cantidadActual}</span>
+            {delta !== 0 && (
+              <> → quedara: <span className={`font-mono ${nuevaCantidad < 0 ? 'text-red-500' : 'font-semibold'}`}>{nuevaCantidad}</span>{nuevaCantidad === 0 && ' (la unidad se da de baja)'}</>
+            )}
+          </p>
         </div>
         <div>
           <label className={LBL}>Justificacion obligatoria</label>
