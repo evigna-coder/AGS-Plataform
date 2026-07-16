@@ -234,8 +234,9 @@ export const AdjuntosSection: React.FC<Props> = ({ firebase, otNumber, adjuntos,
                   </div>
                 )}
               </div>
-              {/* Caption + acciones */}
+              {/* Nombre de archivo + caption + acciones */}
               <div className="p-2 space-y-1.5">
+                <p className="text-[10px] text-slate-500 font-medium truncate" title={adj.fileName}>{adj.fileName}</p>
                 {readOnly ? (
                   adj.caption && <p className="text-[11px] text-slate-600">{adj.caption}</p>
                 ) : (
