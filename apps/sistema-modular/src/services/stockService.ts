@@ -1224,6 +1224,8 @@ export const reservasService = {
       const reservaFields = {
         estado: 'reservado' as EstadoUnidad,
         ubicacion: { tipo: 'posicion', referenciaId: posReservas.id, referenciaNombre: posReservas.nombre },
+        // Guardar de dónde salió: liberar() la devuelve a esta posición (UAT 2026-07-16).
+        ubicacionAnterior: data.ubicacion ?? null,
         reservadoParaPresupuestoId: params.presupuestoId,
         reservadoParaPresupuestoNumero: params.presupuestoNumero,
         reservadoParaClienteId: params.clienteId,
@@ -1286,6 +1288,157 @@ export const reservasService = {
   },
 
   /**
+   * Reserva automáticamente stock DISPONIBLE para cubrir lo que un presupuesto
+   * aceptado aún tiene pendiente de un artículo (UAT 2026-07-16: al ingresar la
+   * mercadería comprada para un ppto, el faltante debe reservarse solo).
+   *
+   * Pendiente = cantidad pedida en los items del ppto − (reservadas + entregadas)
+   * de ese artículo para ese ppto. Reserva FIFO desde disponibles, excluyendo
+   * stock en poder de ingenieros (mismo criterio que la aceptación). Best-effort:
+   * cualquier falla deja de reservar pero no rompe el ingreso que la disparó.
+   */
+  async reservarPendientesParaPresupuesto(params: {
+    presupuestoId: string;
+    articuloId: string;
+    solicitadoPorNombre: string;
+  }): Promise<{ reservadas: number }> {
+    const { presupuestosService } = await import('./presupuestosService');
+    const pres = await presupuestosService.getById(params.presupuestoId).catch(() => null);
+    if (!pres || !['aceptado', 'en_ejecucion'].includes(pres.estado as string)) return { reservadas: 0 };
+
+    const necesarias = (pres.items ?? [])
+      .filter(i => i.stockArticuloId === params.articuloId)
+      .reduce((acc, i) => acc + (i.cantidad || 0), 0);
+    if (necesarias <= 0) return { reservadas: 0 };
+
+    const snap = await getDocs(query(
+      collection(db, 'unidades'),
+      where('reservadoParaPresupuestoId', '==', params.presupuestoId),
+      where('articuloId', '==', params.articuloId),
+    ));
+    const cubiertas = snap.docs
+      .map(d => d.data())
+      .filter(u => u.estado === 'reservado' || u.estado === 'entregado')
+      .reduce((acc, u) => acc + (u.cantidad ?? 1), 0);
+    let pendiente = necesarias - cubiertas;
+    if (pendiente <= 0) return { reservadas: 0 };
+
+    let clienteNombre = '';
+    if (pres.clienteId) {
+      try {
+        const { clientesService } = await import('./clientesService');
+        clienteNombre = (await clientesService.getById(pres.clienteId))?.razonSocial ?? '';
+      } catch { /* nombre vacío — la reserva vale igual */ }
+    }
+
+    const disponibles = (await unidadesService.getAll({ articuloId: params.articuloId, estado: 'disponible' }))
+      .filter(u => u.ubicacion?.tipo !== 'ingeniero');
+    let reservadas = 0;
+    for (const u of disponibles) {
+      if (pendiente <= 0) break;
+      const aReservar = Math.min(u.cantidad ?? 1, pendiente);
+      try {
+        await this.reservar({
+          unidadId: u.id,
+          unidad: u,
+          presupuestoId: params.presupuestoId,
+          presupuestoNumero: pres.numero ?? '',
+          clienteId: pres.clienteId ?? '',
+          clienteNombre,
+          solicitadoPorNombre: params.solicitadoPorNombre,
+          cantidad: aReservar,
+        });
+        pendiente -= aReservar;
+        reservadas += aReservar;
+      } catch (err) {
+        console.error(`[reservarPendientesParaPresupuesto] unidad ${u.id}:`, err);
+      }
+    }
+    if (reservadas > 0) {
+      console.log(`[reservarPendientesParaPresupuesto] ${reservadas} u. reservadas para ppto ${pres.numero}`);
+
+      // Aviso a Materiales para la reserva FÍSICA (UAT 2026-07-17): en el circuito
+      // de compra/importación la reserva ocurre recién al ingresar la mercadería,
+      // así que el aviso que aceptarConRequerimientos crea al aceptar nunca existió
+      // para estos items. Dedupe: si ya hay un aviso abierto del ppto, se anexa la línea.
+      try {
+        const { leadsService } = await import('./leadsService');
+        const art = disponibles[0] ?? null;
+        const linea = `• ${art?.articuloCodigo ?? params.articuloId} ${art?.articuloDescripcion ?? ''} — ${reservadas}/${necesarias} u. (ingreso de mercadería)`;
+        const vinculados = (await getDocs(query(
+          collection(db, 'leads'),
+          where('presupuestosIds', 'array-contains', params.presupuestoId),
+        ))).docs.map(d => ({ id: d.id, data: d.data() as Record<string, unknown> }));
+        const previo = vinculados.find(t =>
+          t.data.areaActual === 'materiales' &&
+          t.data.accionPendiente === 'Reservar stock físicamente' &&
+          !['finalizado', 'no_concretado'].includes(t.data.estado as string));
+        if (previo) {
+          await leadsService.update(previo.id, {
+            descripcion: `${(previo.data.descripcion as string) ?? ''}\n${linea}`,
+          } as never);
+        } else {
+          await leadsService.create({
+            clienteId: pres.clienteId ?? null,
+            contactoId: null,
+            razonSocial: clienteNombre || '',
+            contactos: [],
+            contacto: '',
+            email: '',
+            telefono: '',
+            motivoLlamado: 'administracion',
+            motivoContacto: `Reservar stock — Ppto ${pres.numero}`,
+            descripcion: `Reservar físicamente para el presupuesto ${pres.numero}${clienteNombre ? ` (${clienteNombre})` : ''}:\n${linea}`,
+            sistemaId: null,
+            moduloId: null,
+            estado: 'nuevo',
+            postas: [],
+            asignadoA: null,
+            asignadoNombre: null,
+            derivadoPor: null,
+            areaActual: 'materiales',
+            accionPendiente: 'Reservar stock físicamente',
+            adjuntos: [],
+            presupuestosIds: [params.presupuestoId],
+            otIds: [],
+            finalizadoAt: null,
+            prioridad: 'normal',
+            proximoContacto: null,
+            valorEstimado: null,
+          } as never);
+        }
+      } catch (avisoErr) {
+        console.warn('[reservarPendientesParaPresupuesto] aviso a Materiales falló:', avisoErr);
+      }
+
+      // Si con esta reserva el ppto quedó TOTALMENTE cubierto (todos sus items de
+      // stock reservados/entregados), el circuito comercial avanza: el ticket pasa
+      // de Compras a Coordinación de OTs (idempotente si ya estaba ahí).
+      try {
+        const cobertura = await getDocs(query(
+          collection(db, 'unidades'),
+          where('reservadoParaPresupuestoId', '==', params.presupuestoId),
+        ));
+        const porArticulo = new Map<string, number>();
+        cobertura.docs
+          .map(d => d.data())
+          .filter(u => u.estado === 'reservado' || u.estado === 'entregado')
+          .forEach(u => porArticulo.set(u.articuloId, (porArticulo.get(u.articuloId) ?? 0) + (u.cantidad ?? 1)));
+        const completo = (pres.items ?? [])
+          .filter(i => i.stockArticuloId)
+          .every(i => (porArticulo.get(i.stockArticuloId!) ?? 0) >= (i.cantidad || 0));
+        if (completo) {
+          await presupuestosService.derivarTicketACoordinacion(params.presupuestoId);
+          console.log(`[reservarPendientesParaPresupuesto] ppto ${pres.numero} totalmente cubierto → ticket a coordinación`);
+        }
+      } catch (err) {
+        console.warn('[reservarPendientesParaPresupuesto] check de cobertura/coordinación falló:', err);
+      }
+    }
+    return { reservadas };
+  },
+
+  /**
    * Releases a reserved UnidadStock back to disponible.
    * Moves unit back to its original position (or a default depot if unknown).
    * Creates an immutable MovimientoStock of type 'transferencia'.
@@ -1320,13 +1473,19 @@ export const reservasService = {
         );
       }
 
+      // Destino físico: explícito del caller > ubicación previa a la reserva >
+      // quedarse donde está (unidades reservadas antes del campo ubicacionAnterior).
+      // Sin esto, las liberadas quedaban "disponibles" en la posición RESERVAS (UAT 2026-07-16).
+      const destinoFinal = params.destino ?? currentData.ubicacionAnterior ?? null;
+
       const unitPayload = deepCleanForFirestore({
         estado: 'disponible' as EstadoUnidad,
         reservadoParaPresupuestoId: null,
         reservadoParaPresupuestoNumero: null,
         reservadoParaClienteId: null,
         reservadoParaClienteNombre: null,
-        ...(params.destino ? { ubicacion: params.destino } : {}),
+        ubicacionAnterior: null,
+        ...(destinoFinal ? { ubicacion: destinoFinal } : {}),
         ...getUpdateTrace(),
         updatedAt: now.toDate().toISOString(),
       });
@@ -1342,9 +1501,9 @@ export const reservasService = {
         origenTipo: params.unidad.ubicacion.tipo as TipoOrigenDestino,
         origenId: params.unidad.ubicacion.referenciaId,
         origenNombre: params.unidad.ubicacion.referenciaNombre,
-        destinoTipo: (params.destino?.tipo ?? params.unidad.ubicacion.tipo) as TipoOrigenDestino,
-        destinoId: params.destino?.referenciaId ?? params.unidad.ubicacion.referenciaId,
-        destinoNombre: params.destino?.referenciaNombre ?? params.unidad.ubicacion.referenciaNombre,
+        destinoTipo: (destinoFinal?.tipo ?? params.unidad.ubicacion.tipo) as TipoOrigenDestino,
+        destinoId: destinoFinal?.referenciaId ?? params.unidad.ubicacion.referenciaId,
+        destinoNombre: destinoFinal?.referenciaNombre ?? params.unidad.ubicacion.referenciaNombre,
         motivo: params.motivo,
         creadoPor: params.solicitadoPorNombre,
         ...getCreateTrace(),

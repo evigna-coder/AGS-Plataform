@@ -7,6 +7,7 @@ import { PRESUPUESTO_ESTADO_MIGRATION, ESTADO_OC_LEGACY } from '@ags/shared';
 const TIPO_PPTO_TO_MOTIVO: Record<TipoPresupuesto, MotivoLlamado> = {
   servicio: 'soporte',
   partes: 'ventas_insumos',
+  consumibles: 'ventas_insumos',
   mixto: 'ventas_insumos',
   ventas: 'ventas_equipos',
   contrato: 'administracion',
@@ -263,7 +264,7 @@ export const presupuestosService = {
   async _generarRequerimientosAutomaticos(
     presupuestoId: string,
     presupuestoNumero: string,
-    items: Array<{ stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
+    items: Array<{ id?: string | null; stockArticuloId?: string | null; descripcion: string; cantidad: number }>,
   ) {
     // Phase 9 (STKP-05 fix): replaced buggy inline formula (qtyDisponible - qtyReservado + qtyEnTransito)
     // with computeStockAmplio() which correctly sums the 4 buckets without double-counting.
@@ -299,6 +300,7 @@ export const presupuestosService = {
           estado: 'pendiente',
           presupuestoId,
           presupuestoNumero,
+          presupuestoItemId: item.id ?? null, // join key del visor de entregas (UAT 2026-07-16: sin esto la fila no muestra la OC)
           proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
           proveedorSugeridoNombre: null,
           ordenCompraId: null,
@@ -407,6 +409,12 @@ export const presupuestosService = {
     // Convert date strings to Firestore Timestamps, then deep-clean
     const raw = {
       ...data,
+      // Anulación: registrar la fecha del evento (analítica de rechazos por período,
+      // decisión 2026-07-17). Solo si el caller no la pasó explícita. Todos los caminos
+      // que anulan (quick-estado, edit modal, createRevision) pasan por este update().
+      ...(data.estado === 'anulado' && !data.fechaAnulacion
+        ? { fechaAnulacion: new Date().toISOString() }
+        : {}),
       ...getUpdateTrace(),
       updatedAt: Timestamp.now(),
       ...((data as any).fechaEnvio ? { fechaEnvio: fechaEnvioToTimestamp((data as any).fechaEnvio) } : {}),
@@ -993,12 +1001,28 @@ export const presupuestosService = {
       (it: any) => it?.itemRequiereImportacion === true && it?.stockArticuloId,
     );
 
+    // Dedupe contra requerimientos YA existentes del ppto (los crea
+    // _generarRequerimientosAutomaticos al CREAR el presupuesto): sin este filtro,
+    // aceptar duplicaba el req de cada item de importación (UAT 2026-07-16).
+    // Fail-safe: si el check falla, no crear (mejor un req de menos que duplicados).
+    let itemsImportSinReq: any[] = itemsImport;
+    try {
+      const previos = await requerimientosService.getByPresupuesto(presupuestoId);
+      const articulosConReq = new Set(
+        previos.filter(r => r.estado !== 'cancelado').map(r => r.articuloId),
+      );
+      itemsImportSinReq = itemsImport.filter((it: any) => !articulosConReq.has(it.stockArticuloId));
+    } catch (err) {
+      console.error('[aceptarConRequerimientos] check reqs previos (import) falló — se omite crear:', err);
+      itemsImportSinReq = [];
+    }
+
     // ── Paso 2: pre-reservar números de requerimiento (FUERA de tx) ──
     // requerimientosService.getNextNumber hace getDocs sequential — no es seguro dentro de
     // runTransaction (no se pueden anidar reads con writes de otras colecciones de forma
     // arbitraria). Computamos el max una vez y generamos N numeros consecutivos.
     const numerosReservados: string[] = [];
-    if (itemsImport.length > 0) {
+    if (itemsImportSinReq.length > 0) {
       const qReq = query(collection(db, 'requerimientos_compra'), orderBy('numero', 'desc'));
       const snapReq = await getDocs(qReq);
       let maxNum = 0;
@@ -1006,7 +1030,7 @@ export const presupuestosService = {
         const m = d.data().numero?.match(/REQ-(\d+)/);
         if (m) { const n = parseInt(m[1]); if (n > maxNum) maxNum = n; }
       });
-      for (let i = 1; i <= itemsImport.length; i++) {
+      for (let i = 1; i <= itemsImportSinReq.length; i++) {
         numerosReservados.push(`REQ-${String(maxNum + i).padStart(4, '0')}`);
       }
     }
@@ -1014,7 +1038,7 @@ export const presupuestosService = {
     // ── Paso 3: pre-cargar datos de artículos para payload (FUERA de tx) ──
     // Evita reads-during-writes conflict dentro de tx (reads primero, writes después es hard rule).
     const articulosData = new Map<string, any>();
-    for (const item of itemsImport) {
+    for (const item of itemsImportSinReq) {
       const art = await articulosService.getById((item as any).stockArticuloId!).catch(() => null);
       if (art) articulosData.set((item as any).stockArticuloId!, art);
     }
@@ -1034,8 +1058,8 @@ export const presupuestosService = {
       // Idempotencia: si otra tx ya aceptó, salir
       if (pp.estado === 'aceptado') return;
 
-      // Crear requerimientos condicionales (tx.set)
-      itemsImport.forEach((item: any, idx: number) => {
+      // Crear requerimientos condicionales (tx.set) — solo items sin req previo.
+      itemsImportSinReq.forEach((item: any, idx: number) => {
         const reqRef = doc(collection(db, 'requerimientos_compra'));
         newReqIds.push(reqRef.id);
         const articulo = articulosData.get(item.stockArticuloId) || null;
@@ -1127,6 +1151,11 @@ export const presupuestosService = {
       console.log(`[aceptarConRequerimientos] OT vinculada con cierre admin → se omite la reserva de stock (ppto ${pres.numero})`);
     }
 
+    // Faltante total de reserva (unidades pedidas que NO se pudieron reservar):
+    // decide si el ticket comercial va a Compras (hay que comprar/importar) o
+    // directo a Coordinación (todo reservado).
+    let faltanteReservaTotal = 0;
+
     const itemsConStock = (pres.items ?? []).filter(i => i.stockArticuloId);
     if (itemsConStock.length > 0 && !omitirReserva) {
       // Resolver cliente nombre una vez (reservar() lo guarda en cada unidad).
@@ -1160,12 +1189,24 @@ export const presupuestosService = {
 
           // Auto-req: si el stock cae bajo el mínimo y no hay requerimiento previo
           // para este (presupuesto, articulo), crear uno.
-          const existingReqs = await requerimientosService.getAll({
-            presupuestoId,
-            articuloId: item.stockArticuloId!,
-          }).catch(() => []);
+          // OJO (UAT 2026-07-16, duplicados REQ): el getAll con filtros + orderBy
+          // necesitaba un índice compuesto inexistente → tiraba, el catch devolvía []
+          // y se creaba un req duplicado del ya generado al CREAR el ppto. Query
+          // directa con 2 igualdades (sin orderBy, sin índice) y FAIL-SAFE: si el
+          // chequeo falla, NO crear (mejor un req de menos que duplicados).
+          let hayReqPrevio = true;
+          try {
+            const reqSnap = await getDocs(query(
+              collection(db, 'requerimientos_compra'),
+              where('presupuestoId', '==', presupuestoId),
+              where('articuloId', '==', item.stockArticuloId!),
+            ));
+            hayReqPrevio = !reqSnap.empty;
+          } catch (err) {
+            console.error('[aceptarConRequerimientos] check de reqs previos falló — se omite crear para no duplicar:', err);
+          }
 
-          if (existingReqs.length === 0 && qtyResultante < stockMinimo) {
+          if (!hayReqPrevio && qtyResultante < stockMinimo) {
             const qtyReq = Math.max(stockMinimo - qtyResultante, item.cantidad - qtyDisponible);
             await requerimientosService.create({
               articuloId: item.stockArticuloId ?? null,
@@ -1179,6 +1220,7 @@ export const presupuestosService = {
               estado: 'pendiente',
               presupuestoId,
               presupuestoNumero: pres.numero ?? null,
+              presupuestoItemId: item.id ?? null, // join key del visor de entregas
               proveedorSugeridoId: articulo?.proveedorIds?.[0] ?? null,
               proveedorSugeridoNombre: null,
               ordenCompraId: null,
@@ -1216,6 +1258,7 @@ export const presupuestosService = {
           }
 
           const reservado = item.cantidad - restante;
+          faltanteReservaTotal += restante;
           if (reservado > 0) {
             const codigo = articulo?.codigo ?? '—';
             const desc = articulo?.descripcion ?? item.descripcion ?? '';
@@ -1291,7 +1334,124 @@ export const presupuestosService = {
     // borrador a aceptado; sin ticket en ese path se pierde la trazabilidad
     // y la coordinadora no sabe que tiene que armar OT(s). El lookup
     // (presupuestosIds array-contains) sigue siendo idempotente: si el
-    // ticket ya existe (creado al enviar), solo transiciona; no duplica.
+    // ── Ticket del circuito comercial: ¿a dónde va después de aceptar? ────────
+    // Con faltantes de stock (items de importación o reserva incompleta), el paso
+    // siguiente es COMPRAR → área Compras. La coordinación de OTs llega cuando el
+    // ingreso de mercadería deja el ppto totalmente reservado
+    // (reservarPendientesParaPresupuesto → derivarTicketACoordinacion).
+    // Sin faltantes → coordinación directa (comportamiento original).
+    // UAT 2026-07-16: la derivación a compras/comex estaba deferred de v2.0 y el
+    // gate mandaba TODO a coordinación aunque no hubiera nada que coordinar aún.
+    {
+      const hayFaltantes = itemsImport.length > 0 || faltanteReservaTotal > 0;
+      if (hayFaltantes) {
+        await this._derivarTicketACompras(presupuestoId, actor).catch(err =>
+          console.error('[aceptarConRequerimientos] derivación a Compras falló:', err));
+      } else {
+        await this.derivarTicketACoordinacion(presupuestoId, actor);
+      }
+    }
+
+    // Evento de negocio: presupuesto aceptado.
+    logBusinessEvent({
+      eventName: 'presupuesto.aceptado',
+      collection: 'presupuestos',
+      documentId: presupuestoId,
+      entityLabel: pres.numero ? `Pres. ${pres.numero}` : `Pres. ${presupuestoId}`,
+      details: {
+        requerimientosCreados: newReqIds.length,
+        requerimientosIds: newReqIds,
+      },
+    });
+
+    return { requerimientosIds: newReqIds };
+  },
+
+  /**
+   * Deriva el ticket comercial del presupuesto al área COMPRAS (hay faltantes que
+   * comprar/importar antes de coordinar OTs). Auto-asigna al responsable del área
+   * (adminConfig/flujos). Si no existe ticket comercial, crea uno en compras.
+   * El estado del circuito no cambia — solo área + responsable + posta de traza.
+   */
+  async _derivarTicketACompras(presupuestoId: string, actor?: { uid: string; name?: string }): Promise<void> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
+    const existingSnap = await getDocs(
+      query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
+    );
+    const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+    const OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
+    const comercial = existingSnap.docs
+      .map(d => ({ ...(d.data() as Lead), id: d.id }))
+      .filter(t => !TERMINAL.includes(t.estado))
+      .find(t => !OPERATIVAS.includes(t.areaActual as TicketArea));
+
+    const accion = 'Comprar/importar los materiales del presupuesto aceptado';
+    if (comercial) {
+      const posta: Posta = {
+        id: crypto.randomUUID(),
+        fecha: new Date().toISOString(),
+        deUsuarioId: actor?.uid ?? 'system',
+        deUsuarioNombre: actor?.name ?? 'Sistema',
+        aUsuarioId: '',
+        aUsuarioNombre: '',
+        comentario: `Ppto ${pres.numero} aceptado con faltantes de stock — a Compras (comprar/importar antes de coordinar OTs)`,
+        estadoAnterior: comercial.estado,
+        estadoNuevo: comercial.estado,
+      };
+      // derivar() auto-asigna al responsable del área compras y registra la posta.
+      await leadsService.derivar(comercial.id, posta, '', null, 'compras', accion);
+      console.log(`[_derivarTicketACompras] ticket ${comercial.id} → compras (ppto ${pres.numero})`);
+      return;
+    }
+
+    // Sin ticket comercial (aceptado directo sin envío) → crear uno en compras.
+    let razonSocial = '';
+    try {
+      const { clientesService } = await import('./clientesService');
+      razonSocial = (await clientesService.getById((pres.clienteId ?? '').toString()))?.razonSocial ?? '';
+    } catch { /* razón social vacía */ }
+    const ticketId = await leadsService.create({
+      clienteId: pres.clienteId ?? null,
+      contactoId: pres.contactoId ?? null,
+      razonSocial,
+      contactos: [],
+      contacto: '',
+      email: '',
+      telefono: '',
+      motivoLlamado: TIPO_PPTO_TO_MOTIVO[pres.tipo] ?? 'otros',
+      motivoContacto: `Ppto ${pres.numero} aceptado — comprar/importar materiales`,
+      descripcion: `Ppto ${pres.numero} aceptado con faltantes de stock. Comprar/importar los materiales; al ingresar la mercadería el ticket pasa a coordinación.`,
+      sistemaId: pres.sistemaId ?? null,
+      moduloId: null,
+      estado: 'nuevo',
+      postas: [],
+      asignadoA: null,
+      asignadoNombre: null,
+      derivadoPor: actor?.uid ?? null,
+      areaActual: 'compras',
+      accionPendiente: accion,
+      adjuntos: [],
+      presupuestosIds: [presupuestoId],
+      otIds: [],
+      finalizadoAt: null,
+      prioridad: 'normal',
+      proximoContacto: null,
+      valorEstimado: pres.total ?? null,
+    });
+    console.log(`[_derivarTicketACompras] ticket compras creado (sin predecesor): ${ticketId} para ppto ${pres.numero}`);
+  },
+
+  /**
+   * Deriva el ticket comercial del presupuesto a COORDINACIÓN de OTs (estado
+   * `en_coordinacion`, asignado al coordinador de adminConfig). Idempotente:
+   * si el ticket ya está en coordinación o un estado posterior, no hace nada.
+   * Llamado desde la aceptación (sin faltantes) y desde la auto-reserva
+   * post-ingreso cuando el ppto queda totalmente cubierto.
+   */
+  async derivarTicketACoordinacion(presupuestoId: string, actor?: { uid: string; name?: string }): Promise<void> {
+    const pres = await this.getById(presupuestoId);
+    if (!pres) return;
     {
       try {
         const clienteIdStr = (pres.clienteId ?? '').toString().trim();
@@ -1319,9 +1479,15 @@ export const presupuestosService = {
             query(collection(db, 'leads'), where('presupuestosIds', 'array-contains', presupuestoId)),
           );
           const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+          // Los tickets OPERATIVOS (aviso "Reservar físicamente" a materiales, compras por
+          // requerimientos) linkean el mismo ppto pero NO son la oportunidad comercial:
+          // sin este filtro, el gate agarraba el ticket de materiales recién creado y lo
+          // derivaba al coordinador de OTs (UAT 2026-07-16 — Cynthia recibió "reservar stock").
+          const AREAS_OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
           const reusable = existingSnap.docs
             .map(d => ({ ...(d.data() as Lead), id: d.id }))
-            .filter(t => !TERMINAL.includes(t.estado));
+            .filter(t => !TERMINAL.includes(t.estado))
+            .filter(t => !AREAS_OPERATIVAS.includes(t.areaActual as TicketArea));
           // Excluir tickets ya en `en_coordinacion` o estados posteriores
           // (ot_creada/ot_coordinada/ot_realizada/pendiente_facturacion) — significa
           // que el ticket ya pasó por este gate. Idempotency.
@@ -1427,27 +1593,13 @@ export const presupuestosService = {
           }
         }
       } catch (err) {
-        console.error('[aceptarConRequerimientos] auto-ticket coordinación falló:', err);
+        console.error('[derivarTicketACoordinacion] auto-ticket coordinación falló:', err);
         await this._appendPendingAction(presupuestoId, {
           type: 'notificar_coordinador_ot',
           reason: `Ppto ${pres.numero} aceptado; auto-creación de ticket coordinación falló: ${err instanceof Error ? err.message : String(err)}. Reintentar desde /admin/acciones-pendientes.`,
         }).catch(() => {});
       }
     }
-
-    // Evento de negocio: presupuesto aceptado.
-    logBusinessEvent({
-      eventName: 'presupuesto.aceptado',
-      collection: 'presupuestos',
-      documentId: presupuestoId,
-      entityLabel: pres.numero ? `Pres. ${pres.numero}` : `Pres. ${presupuestoId}`,
-      details: {
-        requerimientosCreados: newReqIds.length,
-        requerimientosIds: newReqIds,
-      },
-    });
-
-    return { requerimientosIds: newReqIds };
   },
 
   /**
@@ -1801,6 +1953,76 @@ export const presupuestosService = {
       console.error('[generarAvisoFacturacion] ticket sync failed (non-blocking):', err);
     }
 
+    // ── Item 4 (UAT 2026-07-17): ticket operativo a Administración ────────
+    // La solicitud quedó creada; la encargada de administración necesita un
+    // ticket en su cola para cargar la factura. Auto-asignado al responsable
+    // del área 'administracion' (leadsService.create resuelve responsablePorArea).
+    // Dedupe: si ya hay un aviso abierto del ppto, se anexa la línea a su
+    // descripción en vez de crear otro. Best-effort — nunca rompe la solicitud.
+    try {
+      let clienteNombre = '';
+      if (pres.clienteId) {
+        try {
+          const { clientesService } = await import('./clientesService');
+          clienteNombre = (await clientesService.getById(String(pres.clienteId)))?.razonSocial ?? '';
+        } catch { /* nombre vacío — el ticket vale igual */ }
+      }
+      const montos = Object.keys(resolvedMontoPorMoneda).length > 0 ? resolvedMontoPorMoneda : totalsByCurrency;
+      const montoLabel = Object.entries(montos)
+        .filter(([, v]) => (v ?? 0) > 0)
+        .map(([m, v]) => `${m} ${(v as number).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`)
+        .join(' · ') || '—';
+      const otsLabel = otNumbers.length > 0
+        ? otNumbers.join(', ')
+        : (cuotaTarget ? `anticipo cuota ${cuotaTarget.numero}` : '—');
+      const linea = `• Aviso ${nowIso.slice(0, 10)} — OTs: ${otsLabel} — Monto: ${montoLabel}`;
+
+      const vinculados = (await getDocs(query(
+        collection(db, 'leads'),
+        where('presupuestosIds', 'array-contains', presupuestoId),
+      ))).docs.map(d => ({ id: d.id, data: d.data() as Record<string, unknown> }));
+      const previo = vinculados.find(t =>
+        t.data.areaActual === 'administracion' &&
+        t.data.accionPendiente === 'Cargar factura del aviso' &&
+        !['finalizado', 'no_concretado'].includes(t.data.estado as string));
+      if (previo) {
+        await leadsService.update(previo.id, {
+          descripcion: `${(previo.data.descripcion as string) ?? ''}\n${linea}`,
+        });
+      } else {
+        await leadsService.create({
+          clienteId: pres.clienteId ?? null,
+          contactoId: null,
+          razonSocial: clienteNombre || '',
+          contactos: [],
+          contacto: '',
+          email: '',
+          telefono: '',
+          motivoLlamado: 'administracion',
+          motivoContacto: `Facturar — Ppto ${pres.numero}`,
+          descripcion: `Cargar la factura del aviso a facturación del presupuesto ${pres.numero}${clienteNombre ? ` (${clienteNombre})` : ''}:\n${linea}`,
+          sistemaId: null,
+          moduloId: null,
+          estado: 'nuevo',
+          postas: [],
+          asignadoA: null,
+          asignadoNombre: null,
+          derivadoPor: actor?.uid ?? null,
+          areaActual: 'administracion',
+          accionPendiente: 'Cargar factura del aviso',
+          adjuntos: [],
+          presupuestosIds: [presupuestoId],
+          otIds: [...otNumbers],
+          finalizadoAt: null,
+          prioridad: 'normal',
+          proximoContacto: null,
+          valorEstimado: null,
+        });
+      }
+    } catch (avisoErr) {
+      console.warn('[generarAvisoFacturacion] ticket a Administración falló (non-blocking):', avisoErr);
+    }
+
     // ── Phase 12 BILL-02: recompute remaining cuotas post-tx ─────────────
     // The patched cuota is already in 'solicitada' (done atomically in-tx above).
     // Other cuotas may need recompute (e.g., hito='oc_recibida' just became habilitada
@@ -1879,11 +2101,15 @@ export const presupuestosService = {
     presupuestoId: string,
     actor?: { uid: string; name?: string },
   ): Promise<{ cancelled: number; skipped: number }> {
-    // Leer requerimientos asociados al presupuesto
-    const allReqs = await requerimientosService.getAll({ presupuestoId }).catch(() => [] as RequerimientoCompra[]);
-    const condicionales = allReqs.filter(r => (r as any).condicional === true);
-    const cancellables = condicionales.filter(r => r.estado === 'pendiente' || r.estado === 'aprobado');
-    const skipped = condicionales.length - cancellables.length;
+    // Leer requerimientos asociados al presupuesto.
+    // getByPresupuesto (sin orderBy): el getAll con filtro + orderBy necesitaba un
+    // índice compuesto inexistente → catch devolvía [] y los reqs quedaban huérfanos
+    // al anular/eliminar (UAT 2026-07-16). Además se cancelan TODOS los reqs
+    // pendiente/aprobado del ppto, tengan o no el flag `condicional` — los que se
+    // crean al CREAR el ppto (_generarRequerimientosAutomaticos) no lo llevan.
+    const allReqs = await requerimientosService.getByPresupuesto(presupuestoId).catch(() => [] as RequerimientoCompra[]);
+    const cancellables = allReqs.filter(r => r.estado === 'pendiente' || r.estado === 'aprobado');
+    const skipped = allReqs.length - cancellables.length;
 
     if (cancellables.length === 0) return { cancelled: 0, skipped };
 
@@ -2174,17 +2400,20 @@ export const presupuestosService = {
       console.error('[hardDelete] error finalizando tickets linkeados:', err);
     }
 
-    // Cascada: eliminar los requerimientos condicionales SIN compromiso (pendiente/aprobado)
-    // generados al aceptar este presupuesto. Los en_compra/comprado (ya con OC) se dejan
+    // Cascada: eliminar los requerimientos SIN compromiso (pendiente/aprobado)
+    // generados por este presupuesto — con o sin flag `condicional` (los del alta
+    // del ppto no lo llevan). Los en_compra/comprado (ya con OC) se dejan
     // intactos — son gasto comprometido, el admin los maneja desde la OC.
+    // getByPresupuesto (sin orderBy): el getAll con filtro tiraba por índice
+    // compuesto inexistente y dejaba reqs huérfanos (UAT 2026-07-16).
     try {
-      const reqs = await requerimientosService.getAll({ presupuestoId: id }).catch(() => [] as RequerimientoCompra[]);
-      const eliminables = reqs.filter(r => (r as any).condicional === true && (r.estado === 'pendiente' || r.estado === 'aprobado'));
+      const reqs = await requerimientosService.getByPresupuesto(id).catch(() => [] as RequerimientoCompra[]);
+      const eliminables = reqs.filter(r => r.estado === 'pendiente' || r.estado === 'aprobado');
       for (const r of eliminables) {
         await requerimientosService.delete(r.id).catch(err => console.error(`[hardDelete] eliminar req ${r.id}:`, err));
       }
     } catch (err) {
-      console.error('[hardDelete] eliminar requerimientos condicionales:', err);
+      console.error('[hardDelete] eliminar requerimientos:', err);
     }
 
     // Cascada: liberar las reservas de stock que generó la aceptación del presupuesto.

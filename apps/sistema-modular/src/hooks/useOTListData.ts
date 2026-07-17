@@ -5,6 +5,12 @@ import { sortByField, type SortDir } from '../components/ui/SortableHeader';
 import { resolveEstadoOT } from '../components/ordenes-trabajo/OTStatusBadge';
 import { fechaLocalYMD } from '../utils/formatFecha';
 
+/** WorkOrder + fecha de asignación = la fecha AGENDADA del servicio (fechaServicioAprox,
+ *  la que se setea al asignar en agenda — definición de Esteban, UAT 2026-07-17).
+ *  Se adjunta al cargar el snapshot para que el sort (sortByField) y el filtro por
+ *  tipoFecha la traten como un campo más. Tipo local — no va a @ags/shared. */
+type WorkOrderConAsignacion = WorkOrder & { fechaAsignacion: string };
+
 export interface OTListFilters {
   clienteId: string;
   sistemaId: string;
@@ -40,7 +46,7 @@ export interface GroupedOT {
  * Antes vivía inline en OTList.tsx — ~150 líneas de useState + useMemo + useEffect.
  */
 export function useOTListData(filters: OTListFilters) {
-  const [ordenes, setOrdenes] = useState<WorkOrder[]>([]);
+  const [ordenes, setOrdenes] = useState<WorkOrderConAsignacion[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
   const [tiposServicioList, setTiposServicioList] = useState<TipoServicio[]>([]);
@@ -84,7 +90,9 @@ export function useOTListData(filters: OTListFilters) {
     unsubRef.current?.();
     unsubRef.current = ordenesTrabajoService.subscribe(
       otQueryFilters,
-      (data) => { setOrdenes(data); setLoading(false); },
+      // Adjuntar la fecha de asignación (= agendada) una vez por snapshot: la usan
+      // la columna "Asignada" (sort) y el filtro por tipoFecha.
+      (data) => { setOrdenes(data.map(ot => ({ ...ot, fechaAsignacion: ot.fechaServicioAprox ?? '' }))); setLoading(false); },
       (err) => { console.error('Error OTs:', err); setLoading(false); },
     );
     return () => { unsubRef.current?.(); };
@@ -148,7 +156,7 @@ export function useOTListData(filters: OTListFilters) {
     if (filters.tipoServicio) list = list.filter(ot => ot.tipoServicio === filters.tipoServicio);
     if (filters.ingenieroId) list = list.filter(ot => ot.ingenieroAsignadoId === filters.ingenieroId);
     if (filters.fechaDesde || filters.fechaHasta) {
-      const campo = (filters.tipoFecha || 'createdAt') as keyof WorkOrder;
+      const campo = (filters.tipoFecha || 'createdAt') as keyof WorkOrderConAsignacion;
       // Normalizar el campo a 'YYYY-MM-DD' local: createdAt llega como Timestamp (objeto),
       // comparar el objeto como string descartaba TODO. fechaDesde/Hasta ya son días locales.
       list = list.filter(ot => {

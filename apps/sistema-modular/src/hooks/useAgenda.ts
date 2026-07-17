@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AgendaEntry, AgendaNota, Ingeniero, WorkOrder, ZoomLevel } from '@ags/shared';
-import { ingenierosService, agendaService, agendaNotasService, feriadosService, ordenesTrabajoService } from '../services/firebaseService';
+import { ingenierosService, agendaService, agendaNotasService, feriadosService, ordenesTrabajoService, sistemasService } from '../services/firebaseService';
 import {
   getMonday,
   getVisibleDays,
@@ -25,6 +25,8 @@ export interface UseAgendaReturn {
   entries: AgendaEntry[];
   notas: AgendaNota[];
   pendingOTs: WorkOrder[];
+  /** sistemaId → agsVisibleId (ID de equipo), para mostrarlo en las tarjetas de OT pendiente. */
+  equipoIdBySistema: Map<string, string>;
   feriados: Set<string>;
   loading: boolean;
   // CRUD
@@ -88,6 +90,19 @@ export function useAgenda(): UseAgendaReturn {
     ordenesTrabajoService.getPending()
       .then(setAllCandidateOTs)
       .catch(err => console.error('Error loading pending OTs:', err));
+  }, []);
+
+  // Mapa sistemaId → agsVisibleId para las tarjetas del sidebar (UAT 2026-07-17).
+  // sistemasService.getAll() ya está cacheado (serviceCache), es una carga barata.
+  const [equipoIdBySistema, setEquipoIdBySistema] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    sistemasService.getAll()
+      .then(list => {
+        const m = new Map<string, string>();
+        for (const s of list) if (s.agsVisibleId) m.set(s.id, s.agsVisibleId);
+        setEquipoIdBySistema(m);
+      })
+      .catch(err => console.error('Error cargando sistemas para agenda:', err));
   }, []);
 
   // Derive pending OTs from candidates minus assigned (no Firestore re-read).
@@ -189,7 +204,7 @@ export function useAgenda(): UseAgendaReturn {
   return {
     anchor, zoomLevel, visibleDays,
     setZoomLevel, goToPrev, goToNext, goToToday, goToDate,
-    ingenieros, entries, notas, pendingOTs, feriados, loading,
+    ingenieros, entries, notas, pendingOTs, equipoIdBySistema, feriados, loading,
     createEntry, updateEntry, deleteEntry, upsertNota, deleteNota, toggleFeriado,
   };
 }

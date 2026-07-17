@@ -4,7 +4,10 @@ import { Input } from '../ui/Input';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { CrearLeadModal } from '../leads/CrearLeadModal';
 import { PendientesActivosBanner } from '../pendientes/PendientesActivosBanner';
-import { useCreateOTForm, type OTPrefill } from '../../hooks/useCreateOTForm';
+import {
+  useCreateOTForm, type OTPrefill,
+  TIPO_SERVICIO_ENTREGA_DEFAULT, TIPO_SERVICIO_ENTREGA_SENTINEL,
+} from '../../hooks/useCreateOTForm';
 import { MONEDA_PRESUPUESTO_LABELS, TIPO_LIMITE_CONTRATO_LABELS, type TipoOT } from '@ags/shared';
 
 interface Props {
@@ -64,7 +67,14 @@ export const CreateOTModal: React.FC<Props> = ({ open, onClose, onCreated, prefi
           <label className={lbl}>Tipo de servicio *</label>
           <SearchableSelect value={h.form.tipoServicioId}
             onChange={v => h.set('tipoServicioId', v)}
-            options={h.tiposServicio.map(t => ({ value: t.id, label: t.nombre }))}
+            options={[
+              ...h.tiposServicio.map(t => ({ value: t.id, label: t.nombre })),
+              // Default de OT entrega cuando el catálogo no tiene un tipo "entrega":
+              // opción sintética para que el select muestre el label del sentinel.
+              ...(h.form.tipoServicioId === TIPO_SERVICIO_ENTREGA_SENTINEL
+                ? [{ value: TIPO_SERVICIO_ENTREGA_SENTINEL, label: TIPO_SERVICIO_ENTREGA_DEFAULT }]
+                : []),
+            ]}
             placeholder="Seleccionar tipo..." />
         </div>
 

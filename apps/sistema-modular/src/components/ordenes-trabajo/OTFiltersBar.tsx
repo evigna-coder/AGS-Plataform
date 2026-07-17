@@ -23,6 +23,8 @@ interface FiltersShape {
 
 const TIPO_FECHA_OPTIONS = [
   { value: 'createdAt', label: 'Creación' },
+  // Derivada del estadoHistorial en useOTListData (campo fechaAsignacion adjuntado).
+  { value: 'fechaAsignacion', label: 'Asignación' },
   { value: 'fechaInicio', label: 'Realización' },
   { value: 'fechaCierre', label: 'Finalización' },
 ];
@@ -38,6 +40,9 @@ interface Props {
   sistemas: Sistema[];
   tiposServicioList: TipoServicio[];
   ingenierosList: UsuarioAGS[];
+  /** sistemaId → términos de módulo (modelo/serie de las OTs cargadas), para que
+   *  el filtro de sistema matchee también buscando un módulo (ej. G1314A). */
+  moduloTermsBySistema?: Map<string, string>;
 }
 
 const ESTADO_OPTIONS = [
@@ -51,6 +56,7 @@ const ESTADO_OPTIONS = [
 export const OTFiltersBar: React.FC<Props> = ({
   filters, setFilter, resetFilters,
   clientes, sistemas, tiposServicioList, ingenierosList,
+  moduloTermsBySistema,
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -125,12 +131,23 @@ export const OTFiltersBar: React.FC<Props> = ({
               placeholder="Cliente"
             />
           </div>
-          <div className="min-w-[130px]">
+          <div className="min-w-[170px]">
+            {/* Buscable por nombre de sistema, ID de equipo (agsVisibleId), código
+                interno del cliente y módulo (via linkedCode — UAT 2026-07-17). */}
             <SearchableSelect size="sm"
               value={filters.sistemaId}
               onChange={(value) => setFilter('sistemaId', value)}
-              options={[{ value: '', label: 'Sistema' }, ...sistemas.map(s => ({ value: s.id, label: s.nombre }))]}
-              placeholder="Sistema"
+              options={[{ value: '', label: 'Sistema' }, ...sistemas.map(s => {
+                const idEquipo = s.agsVisibleId || '';
+                const codInterno = s.codigoInternoCliente || '';
+                return {
+                  value: s.id,
+                  label: s.nombre,
+                  linkedCode: [idEquipo, codInterno, moduloTermsBySistema?.get(s.id)].filter(Boolean).join(' '),
+                  subLabel: [idEquipo, codInterno].filter(Boolean).join(' · ') || undefined,
+                };
+              })]}
+              placeholder="Sistema / ID equipo / módulo"
             />
           </div>
           <div className="min-w-[110px]">

@@ -52,6 +52,7 @@ export function useEntregas(): UseEntregasReturn {
       const ocsForResolver = ocs.map((oc: any) => ({
         id: oc.id as string,
         numero: oc.numero as string,
+        estado: (oc.estado ?? null) as string | null,
         items: ((oc.items ?? []) as any[]).map((it: any) => ({
           id: it.id as string,
           requerimientoId: (it.requerimientoId ?? null) as string | null,

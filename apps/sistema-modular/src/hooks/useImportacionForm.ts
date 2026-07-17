@@ -58,7 +58,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
     numeroGuia: '', despachoNumero: '', fechaRecepcion: '', tipoCambio: '' as string, paseEurUsd: '' as string,
     fleteDeclarado: '' as string, seguroDeclarado: '' as string,
     vepNumero: '', vepMonto: '' as string, vepMoneda: 'ARS' as Moneda, vepFechaPago: '',
-    giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '', anticipoPct: '' as string,
+    giroMonto: '' as string, giroMoneda: 'USD' as Moneda, giroFechaEstimada: '', giroPagado: false, anticipoPct: '' as string,
     notas: '',
   });
   const [gastos, setGastos] = useState<GastoImportacion[]>([]);
@@ -98,6 +98,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
             giroMonto: data.giroMonto != null ? String(data.giroMonto) : '',
             giroMoneda: (data.giroMoneda ?? data.items?.[0]?.moneda ?? 'USD') as Moneda,
             giroFechaEstimada: (data.giroFechaEstimada ?? '').slice(0, 10),
+            giroPagado: data.giroPagado === true,
             anticipoPct: data.anticipoPct != null ? String(data.anticipoPct) : '',
             notas: data.notas ?? '',
           });
@@ -226,6 +227,7 @@ export function useImportacionForm(impId: string | null, open: boolean, prefill?
         vepMoneda: form.vepMoneda, vepFechaPago: form.vepFechaPago || null,
         giroMonto: form.giroMonto ? Number(form.giroMonto) : null,
         giroMoneda: form.giroMoneda, giroFechaEstimada: form.giroFechaEstimada || null,
+        giroPagado: form.giroPagado,
         anticipoPct: form.anticipoPct ? Number(form.anticipoPct) : null,
         notas: form.notas || null,
         gastos, items: items.length ? items : null,

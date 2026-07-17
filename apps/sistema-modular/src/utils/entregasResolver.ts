@@ -64,6 +64,8 @@ export interface EntregaRow {
   requerimientoNumero: string | null;
   ocId: string | null;
   ocNumero: string | null;
+  /** Estado de la OC — 'recibida' habilita agrupar la entrega por OC en el visor. */
+  ocEstado: string | null;
   importacionId: string | null;
   importacionNumero: string | null;
   importacionEstado: string | null;
@@ -72,7 +74,7 @@ export interface EntregaRow {
 export interface BuildEntregaRowsInput {
   presupuestos: Array<Pick<Presupuesto, 'id' | 'numero' | 'clienteId' | 'estado' | 'items' | 'fechaAceptacion'>>;
   requerimientos: RequerimientoCompra[];
-  ordenesCompra: Array<{ id: string; numero: string; items: Array<{ id: string; requerimientoId?: string | null }> }>;
+  ordenesCompra: Array<{ id: string; numero: string; estado?: string | null; items: Array<{ id: string; requerimientoId?: string | null }> }>;
   importaciones: Array<Pick<Importacion, 'id' | 'numero' | 'estado' | 'items'>>;
   clienteNombreById: Map<string, string>;
   /** Inyectable para tests; default = new Date() */
@@ -133,16 +135,24 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
 
   // 1) Indexar requerimientos por presupuestoItemId.
   const reqByItemId = new Map<string, RequerimientoCompra>();
+  // Fallback para reqs creados sin presupuestoItemId (auto-generados pre-fix
+  // 2026-07-16): matchear por (presupuestoId, articuloId). Si un ppto tiene dos
+  // items del mismo artículo el match es ambiguo — se usa solo si falla el directo.
+  const reqByPptoArticulo = new Map<string, RequerimientoCompra>();
   for (const req of input.requerimientos) {
-    if (req.presupuestoItemId) reqByItemId.set(req.presupuestoItemId, req);
+    if (req.presupuestoItemId) {
+      reqByItemId.set(req.presupuestoItemId, req);
+    } else if (req.presupuestoId && req.articuloId) {
+      reqByPptoArticulo.set(`${req.presupuestoId}:${req.articuloId}`, req);
+    }
   }
 
-  // 2) Indexar ocItem.requerimientoId → { ocId, ocNumero }.
-  const ocByReqId = new Map<string, { ocId: string; ocNumero: string }>();
+  // 2) Indexar ocItem.requerimientoId → { ocId, ocNumero, ocEstado }.
+  const ocByReqId = new Map<string, { ocId: string; ocNumero: string; ocEstado: string | null }>();
   for (const oc of input.ordenesCompra) {
     for (const ocItem of oc.items) {
       if (ocItem.requerimientoId) {
-        ocByReqId.set(ocItem.requerimientoId, { ocId: oc.id, ocNumero: oc.numero });
+        ocByReqId.set(ocItem.requerimientoId, { ocId: oc.id, ocNumero: oc.numero, ocEstado: oc.estado ?? null });
       }
     }
   }
@@ -170,7 +180,10 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
   for (const ppto of input.presupuestos) {
     const clienteNombre = input.clienteNombreById.get(ppto.clienteId) ?? '—';
     for (const item of (ppto.items ?? [])) {
-      const req = item.id ? reqByItemId.get(item.id) ?? null : null;
+      const req = (item.id ? reqByItemId.get(item.id) : null)
+        ?? ((item as { stockArticuloId?: string | null }).stockArticuloId
+          ? reqByPptoArticulo.get(`${ppto.id}:${(item as { stockArticuloId?: string | null }).stockArticuloId}`) ?? null
+          : null);
       const oc = req ? ocByReqId.get(req.id) ?? null : null;
       const imp = req ? impByReqId.get(req.id) ?? null : null;
 
@@ -207,6 +220,7 @@ export function buildEntregaRows(input: BuildEntregaRowsInput): EntregaRow[] {
         requerimientoNumero: req?.numero ?? null,
         ocId: oc?.ocId ?? null,
         ocNumero: oc?.ocNumero ?? null,
+        ocEstado: oc?.ocEstado ?? null,
         importacionId: imp?.impId ?? null,
         importacionNumero: imp?.impNumero ?? null,
         importacionEstado: imp?.impEstado ?? null,

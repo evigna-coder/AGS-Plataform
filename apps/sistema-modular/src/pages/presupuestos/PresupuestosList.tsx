@@ -1,16 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { presupuestosService, clientesService, usuariosService, facturacionService } from '../../services/firebaseService';
+import { presupuestosService, clientesService, usuariosService, facturacionService, ordenesTrabajoService } from '../../services/firebaseService';
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useAuth } from '../../contexts/AuthContext';
 import { ColAlignIcon } from '../../components/ui/ColAlignIcon';
-import type { Presupuesto, PresupuestoEstado, Cliente, MonedaPresupuesto, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente } from '@ags/shared';
+import type { Presupuesto, PresupuestoEstado, Cliente, UsuarioAGS, SolicitudFacturacion, OrdenCompraCliente, WorkOrder } from '@ags/shared';
 import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { exportPresupuestosExcel, exportPresupuestosPDF, type PresupuestoExportRow } from '../../utils/exports/exportPresupuestos';
 import { exportOCsPendientesExcel, exportOCsPendientesPDF, type OCPendienteExportRow } from '../../utils/exports/exportOCsPendientes';
 import { Button } from '../../components/ui/Button';
+import { MenuButton } from '../../components/ui/MenuButton';
 import { Card } from '../../components/ui/Card';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -30,6 +31,7 @@ import { useTabs } from '../../contexts/TabsContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { getDaysUntilExpiry, getDaysUntilContacto, getExpiryStatusColor, getExpiryStatusText, getContactoStatusColor, getContactoStatusText, isExpired, needsFollowUp, isAnulado } from '../../utils/presupuestoHelpers';
+import { computeOCAdeudada, OC_ADEUDADA_ESTADOS } from '../../utils/analitica/presupuestosMetrics';
 import { hoyLocalISODate } from '../../utils/formatFecha';
 
 const thClass = 'px-3 py-2 text-center text-[11px] font-medium text-slate-400 tracking-wider whitespace-nowrap';
@@ -37,7 +39,7 @@ const ACTIVE_PIPELINE_STATES = ['enviado', 'aceptado', 'en_ejecucion', 'pendient
 
 export const PresupuestosList = () => {
   const confirm = useConfirm();
-  const { hasRole } = useAuth();
+  const { hasRole, usuario } = useAuth();
   const canExport = hasRole('admin', 'admin_soporte');
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -50,6 +52,8 @@ export const PresupuestosList = () => {
   const [showCondiciones, setShowCondiciones] = useState(false);
   const [showPlantillas, setShowPlantillas] = useState(false);
   const [solicitudes, setSolicitudes] = useState<SolicitudFacturacion[]>([]);
+  // OTs cerradas (cierre técnico o posterior) — join para "Pend. OC — trabajo realizado".
+  const [otsCerradas, setOtsCerradas] = useState<WorkOrder[]>([]);
   const [facturaTarget, setFacturaTarget] = useState<Presupuesto | null>(null);
   const [ocTarget, setOcTarget] = useState<Presupuesto | null>(null);
   // Target presupuesto para el nuevo modal de FLOW-02 "Cargar OC" (se activa solo en estado aceptado).
@@ -60,6 +64,24 @@ export const PresupuestosList = () => {
   const floatingPres = useFloatingPresupuesto();
   const { navigateInActiveTab } = useTabs();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass } = useResizableColumns('presupuestos-list');
+
+  // Aviso a facturación 1-click desde la fila (UAT 2026-07-17): agrupa TODAS las
+  // OTs cerradas pendientes del ppto en una solicitud, sin pasar por la OT.
+  const handleQuickAviso = async (p: Presupuesto) => {
+    const ots = p.otsListasParaFacturar ?? [];
+    if (ots.length === 0) { alert('El presupuesto no tiene OTs listas para facturar.'); return; }
+    const detalle = ots.length === 1 ? `la OT ${ots[0]}` : `las OTs ${ots.join(', ')}`;
+    if (!await confirm(`¿Generar el aviso a facturación de ${p.numero} por ${detalle}?`)) return;
+    try {
+      await presupuestosService.generarAvisoFacturacion(
+        p.id, ots, undefined,
+        usuario ? { uid: usuario.id, name: usuario.displayName } : undefined,
+      );
+    } catch (err) {
+      console.error('Error generando aviso a facturación:', err);
+      alert(err instanceof Error ? err.message : 'Error al generar el aviso a facturación');
+    }
+  };
 
   const handleQuickEstado = async (p: Presupuesto, nuevoEstado: PresupuestoEstado) => {
     if (!await confirm(`¿Cambiar ${p.numero} a "${ESTADO_PRESUPUESTO_LABELS[nuevoEstado]}"?`)) return;
@@ -79,6 +101,10 @@ export const PresupuestosList = () => {
     sortField:   { type: 'string' as const,  default: 'createdAt' },
     sortDir:     { type: 'string' as const,  default: 'desc' },
     ocPendiente: { type: 'boolean' as const, default: false },
+    // Subconjunto de ocPendiente con OT cerrada: el trabajo ya se hizo y la OC se debe.
+    ocTrabajoRealizado: { type: 'boolean' as const, default: false },
+    // KPI activo como filtro (click en las tarjetas del dashboard).
+    kpi:         { type: 'string' as const,  default: '' },
   }), []);
   const [filters, setFilter, , resetFilters] = useUrlFilters(FILTER_SCHEMA);
   // Local search state for responsive typing — syncs to URL debounced
@@ -104,6 +130,12 @@ export const PresupuestosList = () => {
       setClientes(clientesData);
       setUsuarios(usrs);
     }).catch(err => console.error('Error cargando datos de referencia:', err));
+
+    // Carga única de OTs cerradas para el badge/filtro "Pend. OC — trabajo realizado"
+    // (UAT 2026-07-17 item 1). Sin subscribe: alcanza el snapshot al montar.
+    ordenesTrabajoService.getCerradas()
+      .then(setOtsCerradas)
+      .catch(err => console.error('Error cargando OTs cerradas:', err));
 
     // Real-time subscription for presupuestos
     setLoading(true);
@@ -156,6 +188,29 @@ export const PresupuestosList = () => {
     return clientes.find(c => c.id === clienteId)?.razonSocial || '—';
   };
 
+  // Sets por presupuesto derivados de las solicitudes de facturación (avisos):
+  // activas (no anuladas), pendientes de facturar y facturadas sin cobro.
+  const solicitudSets = useMemo(() => {
+    const activas = new Set<string>(), pendientes = new Set<string>(), facturadas = new Set<string>();
+    for (const s of solicitudes) {
+      if (s.estado !== 'anulada') activas.add(s.presupuestoId);
+      if (s.estado === 'pendiente') pendientes.add(s.presupuestoId);
+      if (s.estado === 'facturada') facturadas.add(s.presupuestoId);
+    }
+    return { activas, pendientes, facturadas };
+  }, [solicitudes]);
+
+  // OT cerrada lista para facturar pero sin aviso a facturación generado.
+  const faltaAviso = (p: Presupuesto) =>
+    p.estado === 'pendiente_facturacion' && !solicitudSets.activas.has(p.id);
+
+  // Pptos SIN OC del cliente pero CON al menos una OT cerrada: el trabajo ya se
+  // hizo y la OC se debe (UAT 2026-07-17 item 1). Mismo join que la analítica.
+  const trabajoRealizadoIds = useMemo(
+    () => new Set(computeOCAdeudada(presupuestos, otsCerradas, new Date()).rows.map(r => r.presupuesto.id)),
+    [presupuestos, otsCerradas],
+  );
+
   const presupuestosFiltrados = useMemo(() => {
     let result = presupuestos.filter(p => {
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
@@ -164,11 +219,21 @@ export const PresupuestosList = () => {
       if (filters.responsable && p.responsableId !== filters.responsable) return false;
       if (filters.fechaDesde && p.createdAt < filters.fechaDesde) return false;
       if (filters.fechaHasta && p.createdAt > filters.fechaHasta + 'T23:59:59') return false;
-      // OCs pendientes: aceptado SIN OCs cargadas aun (esperando OC del cliente)
+      // OCs pendientes: aceptado o posterior SIN OCs cargadas aun (esperando OC del
+      // cliente). Mismos estados que la analítica (OC_ADEUDADA_ESTADOS) — alinea el
+      // drill-down que navega con ?ocPendiente=true.
       if (filters.ocPendiente) {
-        if (p.estado !== 'aceptado') return false;
+        if (!OC_ADEUDADA_ESTADOS.has(p.estado)) return false;
         if ((p.ordenesCompraIds || []).length > 0) return false;
       }
+      // Solo trabajo realizado: subconjunto sin OC con OT cerrada.
+      if (filters.ocTrabajoRealizado && !trabajoRealizadoIds.has(p.id)) return false;
+      // KPI del dashboard como filtro (UAT 2026-07-17).
+      if (filters.kpi === 'enviados' && p.estado !== 'enviado') return false;
+      if (filters.kpi === 'aceptados' && p.estado !== 'aceptado') return false;
+      if (filters.kpi === 'fact_pendientes' && !solicitudSets.pendientes.has(p.id)) return false;
+      if (filters.kpi === 'pend_cobro' && !solicitudSets.facturadas.has(p.id)) return false;
+      if (filters.kpi === 'pendiente_aviso' && !faltaAviso(p)) return false;
       return true;
     });
     if (debouncedSearch.trim()) {
@@ -195,25 +260,10 @@ export const PresupuestosList = () => {
       result = sortByField(result, filters.sortField, filters.sortDir as SortDir);
     }
     return result;
-  }, [presupuestos, filters, debouncedSearch]);
+  }, [presupuestos, filters, debouncedSearch, solicitudSets, trabajoRealizadoIds]);
 
-  const pipelineByMoneda = useMemo(() => {
-    const map: Record<string, number> = {};
-    presupuestosFiltrados.forEach(p => {
-      if (ACTIVE_PIPELINE_STATES.includes(p.estado)) {
-        const m = p.moneda || 'USD';
-        map[m] = (map[m] || 0) + p.total;
-      }
-    });
-    return map;
-  }, [presupuestosFiltrados]);
-
-  const pipelineText = useMemo(() => {
-    const parts = Object.entries(pipelineByMoneda)
-      .filter(([, v]) => v > 0)
-      .map(([m, v]) => `${MONEDA_SIMBOLO[m as MonedaPresupuesto] || '$'} ${v.toLocaleString('es-AR', { minimumFractionDigits: 0 })}`);
-    return parts.length > 0 ? `Pipeline: ${parts.join(' · ')}` : undefined;
-  }, [pipelineByMoneda]);
+  // (UAT 2026-07-17) El "Pipeline: ..." del subtítulo se unificó con el que ya
+  // muestra la tarjeta Enviados del dashboard — decía lo mismo en dos lugares.
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '—';
@@ -239,7 +289,7 @@ export const PresupuestosList = () => {
     floatingPres.open(newId, loadData);
   };
 
-  const hasFilters = filters.cliente || filters.estado || filters.tipo || filters.responsable || filters.fechaDesde || filters.fechaHasta || filters.ocPendiente;
+  const hasFilters = filters.cliente || filters.estado || filters.tipo || filters.responsable || filters.fechaDesde || filters.fechaHasta || filters.ocPendiente || filters.ocTrabajoRealizado || filters.kpi;
 
   const isInitialLoad = loading && presupuestos.length === 0;
 
@@ -274,21 +324,27 @@ export const PresupuestosList = () => {
     if (f.tipo) parts.push(`tipo=${f.tipo}`);
     if (f.responsable) parts.push(`responsable=${f.responsable}`);
     if (f.ocPendiente) parts.push('OCs pendientes');
+    if (f.ocTrabajoRealizado) parts.push('Pend. OC — trabajo realizado');
     return parts.length > 0 ? parts.join(', ') : 'Sin filtros';
   }
   // ---- End export helpers ----
 
   return (
     <div className="h-full flex flex-col bg-slate-50">
-      <PageHeader title="Presupuestos" count={isInitialLoad ? undefined : presupuestosFiltrados.length} subtitle={pipelineText}
+      <PageHeader title="Presupuestos" count={isInitialLoad ? undefined : presupuestosFiltrados.length}
         actions={
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setShowConceptos(true)}>Conceptos</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowCategorias(true)}>Categorías</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowCondiciones(true)}>Condiciones</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowPlantillas(true)}>Plantillas de textos</Button>
-            <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/tipos-equipo')}>Tipos de equipo</Button>
-            <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/consumibles-por-modulo')}>Consumibles por módulo</Button>
+            {/* UAT 2026-07-17: los 6 accesos de configuración (uso ocasional) colapsados
+                en un solo menú para descargar el header. */}
+            <MenuButton label="Configuración" items={[
+              { label: 'Conceptos de servicio', onClick: () => setShowConceptos(true) },
+              { label: 'Categorías', onClick: () => setShowCategorias(true) },
+              { label: 'Condiciones de pago', onClick: () => setShowCondiciones(true) },
+              { label: 'Plantillas de textos', onClick: () => setShowPlantillas(true) },
+              { label: 'Tipos de equipo', onClick: () => navigateInActiveTab('/presupuestos/tipos-equipo') },
+              { label: 'Consumibles por módulo', onClick: () => navigateInActiveTab('/presupuestos/consumibles-por-modulo') },
+            ]} />
+            <Button size="sm" variant="outline" onClick={() => navigateInActiveTab('/presupuestos/analitica')}>Analítica</Button>
             {canExport && (
               <>
                 <Button size="sm" variant="outline" onClick={() => {
@@ -356,13 +412,28 @@ export const PresupuestosList = () => {
             />
             OCs pendientes
           </label>
+          <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer select-none"
+            title="Presupuestos sin OC del cliente pero con al menos una OT cerrada — el trabajo ya se realizó">
+            <input
+              type="checkbox"
+              checked={filters.ocTrabajoRealizado}
+              onChange={e => setFilter('ocTrabajoRealizado', e.target.checked)}
+              className="rounded border-slate-300 text-red-600 focus:ring-red-500"
+            />
+            Solo trabajo realizado
+          </label>
           {hasFilters && (
             <Button size="sm" variant="ghost" onClick={() => resetFilters()}>Limpiar</Button>
           )}
         </div>
       </PageHeader>
 
-      <PresupuestoDashboard presupuestos={presupuestos} solicitudes={solicitudes} />
+      <PresupuestoDashboard
+        presupuestos={presupuestos}
+        solicitudes={solicitudes}
+        activeKpi={filters.kpi as any}
+        onKpiClick={(k) => setFilter('kpi', filters.kpi === k ? '' : k)}
+      />
 
       <div className="flex-1 min-h-0 px-5 pb-4">
         {isInitialLoad ? (
@@ -460,10 +531,25 @@ export const PresupuestosList = () => {
                         </span>
                       </td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
-                          title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
-                          {ESTADO_PRESUPUESTO_LABELS[p.estado]}
-                        </span>
+                        <div className="flex flex-col items-start gap-0.5">
+                          {faltaAviso(p) ? (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700"
+                              title="OT cerrada lista para facturar, pero todavía no se generó el aviso a facturación — generalo desde el presupuesto (sección Facturación)">
+                              OT cerrada — falta aviso
+                            </span>
+                          ) : (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${ESTADO_PRESUPUESTO_COLORS[p.estado]}`}
+                              title={isAnulado(p) && p.motivoAnulacion ? `Motivo: ${p.motivoAnulacion}` : undefined}>
+                              {ESTADO_PRESUPUESTO_LABELS[p.estado]}
+                            </span>
+                          )}
+                          {trabajoRealizadoIds.has(p.id) && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200"
+                              title="El trabajo ya se realizó (OT cerrada) y el cliente todavía no mandó la orden de compra — reclamar OC">
+                              Pend. OC — trabajo realizado
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className={`px-3 py-2 text-xs text-slate-900 font-medium tabular-nums whitespace-nowrap ${getAlignClass(4)}`}>
                         {sym} {p.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
@@ -519,6 +605,16 @@ export const PresupuestosList = () => {
                                   className="text-[10px] font-medium text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded hover:bg-blue-50">
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                                  </svg>
+                                </button>
+                              )}
+                              {faltaAviso(p) && (p.otsListasParaFacturar?.length ?? 0) > 0 && (
+                                <button onClick={() => handleQuickAviso(p)}
+                                  title={`Generar aviso a facturación — ${(p.otsListasParaFacturar ?? []).length} OT(s) cerrada(s) sin aviso`}
+                                  data-testid={`aviso-facturacion-${p.numero}`}
+                                  className="text-[10px] font-medium text-orange-500 hover:text-orange-700 px-1 py-0.5 rounded hover:bg-orange-50">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                                   </svg>
                                 </button>
                               )}

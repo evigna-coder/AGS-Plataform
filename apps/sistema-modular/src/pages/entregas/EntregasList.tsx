@@ -1,11 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useEntregas } from '../../hooks/useEntregas';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { SortableHeader, sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { EntregasFilters } from './EntregasFilters';
 import { EntregaRowComponent } from './EntregaRow';
+import { EntregaOCGroupRow } from './EntregaOCGroupRow';
 import type { EntregaRow } from '../../utils/entregasResolver';
+
+/** Entrada de render: fila suelta o grupo por OC completa (recibida). */
+type DisplayEntry =
+  | { type: 'row'; row: EntregaRow }
+  | { type: 'group'; ocId: string; rows: EntregaRow[] };
 
 const FILTER_SCHEMA = {
   clienteId: { type: 'string' as const, default: '' },
@@ -61,6 +67,35 @@ export const EntregasList: React.FC = () => {
     setFilter('sortDir', s.dir);
   };
 
+  // Agrupación por OC completa (UAT 2026-07-16): cuando la OC está totalmente
+  // recibida, la entrega se ve como una fila-OC expandible; mientras esté en
+  // curso (o el item no tenga OC), cada artículo sigue como fila suelta.
+  const [expandedOCs, setExpandedOCs] = useState<Set<string>>(new Set());
+  const toggleOC = (ocId: string) => setExpandedOCs(prev => {
+    const next = new Set(prev);
+    if (next.has(ocId)) next.delete(ocId); else next.add(ocId);
+    return next;
+  });
+
+  const display = useMemo((): DisplayEntry[] => {
+    const esAgrupable = (r: EntregaRow) => r.ocId != null && r.ocEstado === 'recibida';
+    const byOc = new Map<string, EntregaRow[]>();
+    for (const r of sorted) {
+      if (!esAgrupable(r)) continue;
+      const arr = byOc.get(r.ocId!);
+      if (arr) arr.push(r); else byOc.set(r.ocId!, [r]);
+    }
+    const out: DisplayEntry[] = [];
+    const emitidas = new Set<string>();
+    for (const r of sorted) {
+      if (!esAgrupable(r)) { out.push({ type: 'row', row: r }); continue; }
+      if (emitidas.has(r.ocId!)) continue;
+      emitidas.add(r.ocId!);
+      out.push({ type: 'group', ocId: r.ocId!, rows: byOc.get(r.ocId!)! });
+    }
+    return out;
+  }, [sorted]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       <PageHeader
@@ -96,12 +131,28 @@ export const EntregasList: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row) => (
+                {display.map((entry) => entry.type === 'row' ? (
                   <EntregaRowComponent
-                    key={`${row.presupuestoId}::${row.itemId}`}
-                    row={row}
-                    onUpdate={(patch) => updateItem(row.presupuestoId, row.itemId, patch)}
+                    key={`${entry.row.presupuestoId}::${entry.row.itemId}`}
+                    row={entry.row}
+                    onUpdate={(patch) => updateItem(entry.row.presupuestoId, entry.row.itemId, patch)}
                   />
+                ) : (
+                  <React.Fragment key={`oc-group-${entry.ocId}`}>
+                    <EntregaOCGroupRow
+                      rows={entry.rows}
+                      expanded={expandedOCs.has(entry.ocId)}
+                      onToggle={() => toggleOC(entry.ocId)}
+                    />
+                    {expandedOCs.has(entry.ocId) && entry.rows.map((row) => (
+                      <EntregaRowComponent
+                        key={`${row.presupuestoId}::${row.itemId}`}
+                        row={row}
+                        onUpdate={(patch) => updateItem(row.presupuestoId, row.itemId, patch)}
+                        nested
+                      />
+                    ))}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

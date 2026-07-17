@@ -50,6 +50,11 @@ export function buildEventos(importaciones: Importacion[]): EventoFlujo[] {
   for (const imp of importaciones) {
     const base = { impId: imp.id, ocNumero: imp.ordenCompraNumero || imp.numero, proveedor: imp.proveedorNombre || '—' };
     const cumplido = RECIBIDO.has(imp.estado);
+    // El VEP se paga para despachar → mercadería recibida implica VEP pagado.
+    // El giro NO: la condición de pago puede vencer meses después de recibir
+    // (UAT 2026-07-16: giro a pagar en agosto desaparecía al ingresar el stock).
+    // Solo lo dan por cumplido el flag explícito `giroPagado` o la cancelación.
+    const giroPagado = imp.giroPagado === true || imp.estado === 'cancelado';
     const vepFecha = toFecha(imp.vepFechaPago);
     const giroFecha = toFecha(imp.giroFechaEstimada);
     const arriboFecha = toFecha(imp.fechaEstimadaArribo);
@@ -57,7 +62,7 @@ export function buildEventos(importaciones: Importacion[]): EventoFlujo[] {
       eventos.push({ id: `${imp.id}-vep`, fecha: vepFecha, tipo: 'vep', monto: imp.vepMonto ?? null, moneda: imp.vepMoneda ?? 'ARS', pagado: cumplido, ...base });
     }
     if (giroFecha) {
-      eventos.push({ id: `${imp.id}-giro`, fecha: giroFecha, tipo: 'giro', monto: imp.giroMonto ?? null, moneda: imp.giroMoneda ?? 'USD', pagado: cumplido, ...base });
+      eventos.push({ id: `${imp.id}-giro`, fecha: giroFecha, tipo: 'giro', monto: imp.giroMonto ?? null, moneda: imp.giroMoneda ?? 'USD', pagado: giroPagado, ...base });
     }
     if (arriboFecha) {
       eventos.push({ id: `${imp.id}-arr`, fecha: arriboFecha, tipo: 'arribo', monto: null, moneda: null, pagado: cumplido, ...base });

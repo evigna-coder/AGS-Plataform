@@ -20,7 +20,7 @@ export const AgendaPage: FC = () => {
   const {
     anchor, zoomLevel, visibleDays,
     goToPrev, goToNext, goToToday, goToDate,
-    ingenieros, entries, pendingOTs, feriados, loading,
+    ingenieros, entries, pendingOTs, equipoIdBySistema, feriados, loading,
     createEntry, updateEntry, deleteEntry, toggleFeriado,
   } = useAgenda();
 
@@ -482,6 +482,7 @@ export const AgendaPage: FC = () => {
           <div className="absolute top-0 right-0 bottom-0 overflow-hidden" style={{ width: sidebarWidth }}>
             <AgendaPendingSidebar
               pendingOTs={pendingOTs}
+              equipoIdBySistema={equipoIdBySistema}
               selectedOTs={selectedPendingOTs}
               onToggleSelect={handleTogglePendingOT}
               onCopyOT={handleCopyPendingOT}

@@ -73,7 +73,9 @@ export const OC_OPEN_STATES = new Set<string>([
  * (terminal/already-handled states — no longer pending).
  * Mirror copy lives in `functions/src/computeStockAmplioAdmin.ts` — keep in sync.
  */
-export const REQ_COMPROMETIDO_EXCL = new Set<string>(['cancelado', 'comprado', 'en_compra']);
+// 'completado' no está en el enum EstadoRequerimiento pero el cierre viejo de
+// importaciones lo escribía — tolerancia para docs existentes (UAT 2026-07-16).
+export const REQ_COMPROMETIDO_EXCL = new Set<string>(['cancelado', 'comprado', 'en_compra', 'completado']);
 
 // ── Test injection hook ───────────────────────────────────────────────────────
 

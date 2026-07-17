@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { requerimientosService } from '../../services/firebaseService';
+import { requerimientosService, proveedoresService } from '../../services/firebaseService';
 import { Button } from '../../components/ui/Button';
 import { sortByField, toggleSort, type SortDir } from '../../components/ui/SortableHeader';
 import { Card } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { CreateRequerimientoModal } from '../../components/stock/CreateRequerimientoModal';
+import { VerRequerimientoModal } from '../../components/stock/VerRequerimientoModal';
 import { OrdenCompraModal } from '../../components/stock/OrdenCompraModal';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useRequerimientoInlineEdit } from '../../hooks/useRequerimientoInlineEdit';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -16,8 +18,13 @@ import type { RequerimientoCompra, EstadoRequerimiento, OrigenRequerimiento, Urg
 import { ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
+// Estados que ya no requieren acción: fuera de la vista por defecto (UAT 2026-07-16:
+// un req ya comprado/ingresado no debe seguir figurando). 'completado' = legacy inválido.
+const ESTADOS_CERRADOS = new Set(['comprado', 'cancelado', 'completado']);
+
 const FILTER_SCHEMA = {
-  estado:      { type: 'string' as const, default: '' },
+  // 'abiertos' (default) = todo lo que requiere acción; 'todos' = sin filtro; o un estado puntual.
+  estado:      { type: 'string' as const, default: 'abiertos' },
   origen:      { type: 'string' as const, default: '' },
   urgencia:    { type: 'string' as const, default: '' },
   // FLOW-03: '' = todos, 'true' = solo condicionales, 'false' = solo firmes
@@ -30,13 +37,36 @@ export const RequerimientosList = () => {
   const confirm = useConfirm();
   const [filters, setFilter] = useUrlFilters(FILTER_SCHEMA);
   const [showCreate, setShowCreate] = useState(false);
+  const [verReq, setVerReq] = useState<RequerimientoCompra | null>(null);
+
+  // Ruta /stock/requerimientos/nuevo (ej. "Crear req." desde Planificación):
+  // abre el modal de creación con el artículo prefilleado y normaliza la URL.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [prefillArticuloId, setPrefillArticuloId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!location.pathname.endsWith('/nuevo')) return;
+    const state = location.state as { prefillArticuloId?: string } | null;
+    setPrefillArticuloId(state?.prefillArticuloId ?? null);
+    setShowCreate(true);
+    navigate('/stock/requerimientos', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
   const [ocModalId, setOcModalId] = useState<string | null>(null);
   const [ocModalOpen, setOcModalOpen] = useState(false);
   const [sortField, setSortField] = useState('fechaSolicitud');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { editingCell, editValue, setEditValue, startEdit, cancelEdit, saveEdit } = useRequerimientoInlineEdit();
+  const { editingCell, editValue, setEditValue, startEdit, cancelEdit, saveEdit, saveProveedorEdit } = useRequerimientoInlineEdit();
+
+  // Proveedores activos para el select inline de "Proveedor sugerido" (UAT 2026-07-16).
+  const [proveedores, setProveedores] = useState<Array<{ id: string; nombre: string }>>([]);
+  useEffect(() => {
+    proveedoresService.getAll(true)
+      .then((ps: Array<{ id: string; nombre: string }>) => setProveedores(ps.map(p => ({ id: p.id, nombre: p.nombre }))))
+      .catch(() => setProveedores([]));
+  }, []);
   const { generarOCs, loading: generandoOC } = useGenerarOC();
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, resetWidths } = useResizableColumns('requerimientos-list');
 
@@ -47,13 +77,14 @@ export const RequerimientosList = () => {
 
   const filtered = useMemo(() => {
     return requerimientos.filter(r => {
+      if (filters.estado === 'abiertos' && ESTADOS_CERRADOS.has(r.estado)) return false;
       if (filters.urgencia && r.urgencia !== filters.urgencia) return false;
       // FLOW-03: filtro por flag condicional
       if (filters.condicional === 'true' && !(r as any).condicional) return false;
       if (filters.condicional === 'false' && (r as any).condicional) return false;
       return true;
     });
-  }, [requerimientos, filters.urgencia, filters.condicional]);
+  }, [requerimientos, filters.estado, filters.urgencia, filters.condicional]);
   const sorted = useMemo(() => sortByField(filtered, sortField, sortDir), [filtered, sortField, sortDir]);
 
   const toggleSelect = (id: string) => {
@@ -72,7 +103,11 @@ export const RequerimientosList = () => {
   useEffect(() => {
     unsubRef.current?.();
     unsubRef.current = requerimientosService.subscribe(
-      { estado: filters.estado || undefined, origen: filters.origen || undefined },
+      // 'abiertos'/'todos' no son estados de Firestore: se suscribe a todo y se filtra en cliente.
+      {
+        estado: filters.estado === 'abiertos' || filters.estado === 'todos' ? undefined : filters.estado || undefined,
+        origen: filters.origen || undefined,
+      },
       (items) => { setRequerimientos(items); setLoading(false); },
       (err) => { console.error('Error cargando requerimientos:', err); setLoading(false); }
     );
@@ -148,7 +183,8 @@ export const RequerimientosList = () => {
         <div className="flex items-center gap-3 flex-wrap">
           <select value={filters.estado} onChange={e => setFilter('estado', e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500">
-            <option value="">Todos los estados</option>
+            <option value="abiertos">Abiertos</option>
+            <option value="todos">Todos los estados</option>
             {(Object.keys(ESTADO_REQUERIMIENTO_LABELS) as EstadoRequerimiento[]).map(k => (
               <option key={k} value={k}>{ESTADO_REQUERIMIENTO_LABELS[k]}</option>
             ))}
@@ -240,6 +276,9 @@ export const RequerimientosList = () => {
                     startEdit={startEdit}
                     cancelEdit={cancelEdit}
                     saveEdit={saveEdit}
+                    proveedores={proveedores}
+                    onSelectProveedor={saveProveedorEdit}
+                    onVer={setVerReq}
                     onAprobar={handleAprobar}
                     onDelete={handleDelete}
                     formatDate={formatDate}
@@ -252,7 +291,14 @@ export const RequerimientosList = () => {
         )}
       </div>
 
-      <CreateRequerimientoModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadData} />
+      <CreateRequerimientoModal
+        open={showCreate}
+        onClose={() => { setShowCreate(false); setPrefillArticuloId(null); }}
+        onCreated={loadData}
+        prefillArticuloId={prefillArticuloId}
+      />
+
+      {verReq && <VerRequerimientoModal req={verReq} onClose={() => setVerReq(null)} />}
 
       <OrdenCompraModal
         open={ocModalOpen}

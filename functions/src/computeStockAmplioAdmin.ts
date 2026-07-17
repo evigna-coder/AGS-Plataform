@@ -23,14 +23,15 @@ const db = admin.firestore();
  *   confirmada, en_transito, recibida_parcial
  * Excluded (2): recibida (already landed as unidades), cancelada (dead)
  *
- * REQ_COMPROMETIDO_EXCL (3 states — NOT counted in comprometido):
- *   cancelado, comprado, en_compra (already handled by another path)
+ * REQ_COMPROMETIDO_EXCL (4 states — NOT counted in comprometido):
+ *   cancelado, comprado, en_compra (already handled by another path),
+ *   completado (legacy: cierre viejo de importaciones lo escribía fuera del enum)
  * ========================================================================= */
 const OC_OPEN_STATES = [
   'borrador', 'pendiente_aprobacion', 'aprobada',
   'enviada_proveedor', 'confirmada', 'en_transito', 'recibida_parcial',
 ];
-const REQ_COMPROMETIDO_EXCL = new Set(['cancelado', 'comprado', 'en_compra']);
+const REQ_COMPROMETIDO_EXCL = new Set(['cancelado', 'comprado', 'en_compra', 'completado']);
 
 interface StockAmplio {
   disponible: number;

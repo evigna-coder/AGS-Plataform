@@ -12,6 +12,8 @@ const ESTADO_BADGE: Record<string, string> = {
 
 interface AgendaPendingSidebarProps {
   pendingOTs: WorkOrder[];
+  /** sistemaId → agsVisibleId (ID de equipo) para mostrar en cada tarjeta. */
+  equipoIdBySistema?: Map<string, string>;
   selectedOTs: Set<string>;
   onToggleSelect?: (otNumber: string) => void;
   onCopyOT?: (ot: WorkOrder) => void;
@@ -19,7 +21,7 @@ interface AgendaPendingSidebarProps {
 }
 
 export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
-  pendingOTs, selectedOTs, onToggleSelect, onCopyOT, width = 256,
+  pendingOTs, equipoIdBySistema, selectedOTs, onToggleSelect, onCopyOT, width = 256,
 }) => {
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('');
@@ -104,6 +106,7 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
           <DraggableOTCard
             key={ot.otNumber}
             ot={ot}
+            equipoAgsId={(ot.sistemaId && equipoIdBySistema?.get(ot.sistemaId)) || ''}
             selected={selectedOTs.has(ot.otNumber)}
             selectionCount={selCount}
             onToggleSelect={onToggleSelect}
@@ -117,6 +120,8 @@ export const AgendaPendingSidebar: FC<AgendaPendingSidebarProps> = ({
 
 interface DraggableOTCardProps {
   ot: WorkOrder;
+  /** agsVisibleId del sistema de la OT ('' si no tiene). */
+  equipoAgsId: string;
   selected: boolean;
   selectionCount: number;
   onToggleSelect?: (otNumber: string) => void;
@@ -124,7 +129,7 @@ interface DraggableOTCardProps {
 }
 
 const DraggableOTCard: FC<DraggableOTCardProps> = ({
-  ot, selected, selectionCount, onToggleSelect, onCopy,
+  ot, equipoAgsId, selected, selectionCount, onToggleSelect, onCopy,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `pending:${ot.otNumber}`,
@@ -182,6 +187,14 @@ const DraggableOTCard: FC<DraggableOTCardProps> = ({
       </div>
       <p className="text-[10px] text-slate-500 truncate mt-0.5 pl-5">{ot.razonSocial}</p>
       {ot.sistema && <p className="text-[10px] text-slate-400 truncate pl-5">{ot.sistema}</p>}
+      {/* Tipo de servicio + ID de equipo (UAT 2026-07-17). Sin '—' si faltan. */}
+      {(ot.tipoServicio || equipoAgsId) && (
+        <p className="text-[10px] font-mono text-slate-400 truncate pl-5">
+          {ot.tipoServicio}
+          {ot.tipoServicio && equipoAgsId ? ' · ' : ''}
+          {equipoAgsId}
+        </p>
+      )}
     </div>
   );
 };

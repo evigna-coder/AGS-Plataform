@@ -241,5 +241,5 @@ export function canFinalizeFromEsquema(
 export {
   buildTemplate100AlCierre,
   buildTemplate30_70,
-  buildTemplate70_30PreEmbarque,
+  buildTemplate50_50,
 } from './cuotasFacturacionTemplates.js';

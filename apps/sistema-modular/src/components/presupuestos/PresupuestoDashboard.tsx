@@ -3,12 +3,19 @@ import type { Presupuesto, SolicitudFacturacion } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { getDaysUntilExpiry, getDaysSinceEnvio } from '../../utils/presupuestoHelpers';
 
+/** Claves de filtro que dispara cada tarjeta KPI (UAT 2026-07-17: KPI = filtro). */
+export type KpiFilter = '' | 'enviados' | 'aceptados' | 'fact_pendientes' | 'pend_cobro' | 'pendiente_aviso';
+
 interface Props {
   presupuestos: Presupuesto[];
   solicitudes: SolicitudFacturacion[];
+  /** KPI activo como filtro de la lista ('' = ninguno). */
+  activeKpi?: KpiFilter;
+  /** Click en una tarjeta/indicador — el padre togglea el filtro. */
+  onKpiClick?: (kpi: KpiFilter) => void;
 }
 
-export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes }) => {
+export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitudes, activeKpi = '', onKpiClick }) => {
   const metrics = useMemo(() => {
     const enviados = presupuestos.filter(p => p.estado === 'enviado');
     const aceptados = presupuestos.filter(p => p.estado === 'aceptado');
@@ -32,6 +39,12 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
     const solicitadoIds = new Set(solicitudes.filter(s => s.estado !== 'anulada').map(s => s.presupuestoId));
     const aceptadosSinFacturar = aceptados.filter(p => !solicitadoIds.has(p.id));
 
+    // OT cerrada lista para facturar pero SIN aviso a facturación generado
+    // (UAT 2026-07-17: el estado dice "pendiente de facturación" pero lo que
+    // falta es el aviso — hay que mostrarlo explícito).
+    const pendientesAviso = presupuestos.filter(p =>
+      p.estado === 'pendiente_facturacion' && !solicitadoIds.has(p.id));
+
     // Solicitudes pendientes de facturación
     const solicitudesPendientes = solicitudes.filter(s => s.estado === 'pendiente');
 
@@ -52,6 +65,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       aceptadosTotal: aceptados.length,
       aceptadosSinOT,
       aceptadosSinFacturar,
+      pendientesAviso,
       solicitudesPendientes,
       facturadosSinCobrar,
       pipeline,
@@ -63,10 +77,19 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       .map(([m, v]) => `${MONEDA_SIMBOLO[m as keyof typeof MONEDA_SIMBOLO] || '$'} ${v.toLocaleString('es-AR', { minimumFractionDigits: 0 })}`)
       .join(' · ');
 
+  const toggle = (kpi: KpiFilter) => onKpiClick?.(kpi);
+  const cardCls = (kpi: KpiFilter) =>
+    `bg-white border rounded-lg px-3 py-2 text-left w-full transition-colors ${
+      activeKpi === kpi
+        ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30'
+        : 'border-slate-200 hover:border-teal-300'
+    }`;
+
   return (
     <div className="grid grid-cols-4 gap-2 px-5 pb-3">
       {/* Enviados */}
-      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+      <button type="button" className={cardCls('enviados')} onClick={() => toggle('enviados')}
+        title="Filtrar la lista por presupuestos enviados">
         <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviados</p>
         <p className="text-lg font-black text-blue-600">{metrics.enviadosTotal}</p>
         <div className="space-y-0.5 mt-1">
@@ -80,10 +103,11 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             <p className="text-[10px] text-slate-400 mt-1">{fmtPipeline(metrics.pipeline)}</p>
           )}
         </div>
-      </div>
+      </button>
 
       {/* Aceptados */}
-      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+      <button type="button" className={cardCls('aceptados')} onClick={() => toggle('aceptados')}
+        title="Filtrar la lista por presupuestos aceptados">
         <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Aceptados</p>
         <p className="text-lg font-black text-emerald-600">{metrics.aceptadosTotal}</p>
         <div className="space-y-0.5 mt-1">
@@ -94,21 +118,37 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             <p className="text-[10px] text-orange-600">{metrics.aceptadosSinFacturar.length} sin facturar</p>
           )}
         </div>
-      </div>
+      </button>
 
-      {/* Facturación pendiente */}
-      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
-        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Fact. pendientes</p>
+      {/* Enviadas a facturación: avisos generados, esperando que Administración
+          cargue la factura (solicitud estado 'pendiente'). */}
+      <button type="button" className={cardCls('fact_pendientes')} onClick={() => toggle('fact_pendientes')}
+        title="Filtrar la lista por presupuestos enviados a facturación (aviso generado, factura sin cargar)">
+        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviadas a facturación</p>
         <p className="text-lg font-black text-amber-600">{metrics.solicitudesPendientes.length}</p>
         {metrics.solicitudesPendientes.length > 0 && (
           <p className="text-[10px] text-slate-400 mt-1">
             {metrics.solicitudesPendientes.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
+            {' '}· esperando factura de Administración
           </p>
         )}
-      </div>
+        {metrics.pendientesAviso.length > 0 && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); toggle('pendiente_aviso'); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggle('pendiente_aviso'); } }}
+            className={`block text-[10px] mt-1 text-orange-600 hover:underline ${activeKpi === 'pendiente_aviso' ? 'font-semibold underline' : ''}`}
+            title="OT cerrada lista para facturar, pero el aviso a facturación no se generó todavía"
+          >
+            ⚠ {metrics.pendientesAviso.length} con OT cerrada sin aviso
+          </span>
+        )}
+      </button>
 
       {/* Cobro pendiente */}
-      <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+      <button type="button" className={cardCls('pend_cobro')} onClick={() => toggle('pend_cobro')}
+        title="Filtrar la lista por presupuestos facturados pendientes de cobro">
         <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pend. cobro</p>
         <p className="text-lg font-black text-purple-600">{metrics.facturadosSinCobrar.length}</p>
         {metrics.facturadosSinCobrar.length > 0 && (
@@ -116,7 +156,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             {metrics.facturadosSinCobrar.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
           </p>
         )}
-      </div>
+      </button>
     </div>
   );
 };

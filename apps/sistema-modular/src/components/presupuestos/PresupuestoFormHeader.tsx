@@ -1,10 +1,11 @@
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { BnaTipoCambioHint } from './BnaTipoCambioHint';
 import type { TipoPresupuesto, MonedaPresupuesto, OrigenPresupuesto, CondicionPago } from '@ags/shared';
-import { TIPO_PRESUPUESTO_LABELS, MONEDA_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
+import { TIPO_PRESUPUESTO_LABELS, TIPOS_PRESUPUESTO_ACTIVOS, MONEDA_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/useCreatePresupuestoForm';
 
-const TIPOS = Object.entries(TIPO_PRESUPUESTO_LABELS) as [TipoPresupuesto, string][];
+// Creación: solo tipos activos (mixto es legado, no seleccionable).
+const TIPOS = TIPOS_PRESUPUESTO_ACTIVOS.map(t => [t, TIPO_PRESUPUESTO_LABELS[t]]) as [TipoPresupuesto, string][];
 const MONEDAS = Object.entries(MONEDA_PRESUPUESTO_LABELS) as [MonedaPresupuesto, string][];
 const ORIGENES = Object.entries(ORIGEN_PRESUPUESTO_LABELS) as [OrigenPresupuesto, string][];
 

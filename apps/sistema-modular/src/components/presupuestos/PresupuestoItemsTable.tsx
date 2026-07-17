@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto, Sistema, ModuloSistema, Articulo } from '@ags/shared';
+import { useRef, useState } from 'react';
+import type { Disponibilidad, PresupuestoItem, CategoriaPresupuesto, ConceptoServicio, MonedaPresupuesto } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { AddItemModal } from './AddItemModal';
 import { PresupuestoAddItemWizard } from './PresupuestoAddItemWizard';
-import { findCategoriaIvaDefaultId } from '../../utils/categoriaIva';
 import { PresupuestoItemRow } from './PresupuestoItemRow';
 import { BulkAplicarDisponibilidadButton } from './BulkAplicarDisponibilidadButton';
 import type { GrupoSistema } from '../../hooks/usePresupuestoSistemas';
@@ -33,13 +31,8 @@ interface PresupuestoItemsTableProps {
   onNotasTecnicasChange: (v: string) => void;
   onCondicionesChange: (v: string) => void;
   calculateItemTaxes: (item: PresupuestoItem) => { iva: number; ganancias: number; iibb: number; totalImpuestos: number };
-  tipoPresupuesto?: string;
-  sistemas?: Sistema[];
-  loadModulos?: (sistemaId: string) => Promise<ModuloSistema[]>;
   itemsByGrupo?: GrupoSistema[];
   getGrupo?: (sistemaId: string | null | undefined) => number;
-  /** Phase 10 — catalog para ArticuloPickerPanel en AddItemModal (partes/mixto/ventas). */
-  articulos?: Articulo[];
 }
 
 const TABLE_HEADER = (
@@ -61,59 +54,20 @@ export const PresupuestoItemsTable = ({
   totals, notasTecnicas, condicionesComerciales,
   onAddItem, onUpdateItem, onRemoveItem,
   onNotasTecnicasChange, onCondicionesChange, calculateItemTaxes,
-  tipoPresupuesto, sistemas, loadModulos, itemsByGrupo, getGrupo, articulos,
+  itemsByGrupo, getGrupo,
 }: PresupuestoItemsTableProps) => {
-  const [showModal, setShowModal] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
-  const [newItem, setNewItem] = useState<Partial<PresupuestoItem>>({
-    descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, descuento: 0,
-    categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), codigoProducto: null, conceptoServicioId: null,
-  });
+  // Loop de teclado: al confirmar el alta en el wizard con Enter, el foco vuelve a este
+  // botón — Enter sobre el botón reabre el wizard y se encadena la carga sin mouse.
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const wizardAddedRef = useRef(false);
   const sym = MONEDA_SIMBOLO[moneda] || '$';
   const fmtMoney = (n: number) => `${sym} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
   const hasGrupos = itemsByGrupo && itemsByGrupo.some(g => g.grupo > 0);
 
-  const handleAdd = () => {
-    if (!newItem.descripcion || !newItem.cantidad || !newItem.precioUnitario) {
-      alert('Complete descripcion, cantidad y precio unitario');
-      return;
-    }
-    const base = (newItem.cantidad || 0) * (newItem.precioUnitario || 0);
-    const subtotal = newItem.descuento ? base * (1 - newItem.descuento / 100) : base;
-    const sistemaId = newItem.sistemaId === '__ALL_SISTEMAS__' ? null : (newItem.sistemaId || null);
-    onAddItem({
-      id: `item-${Date.now()}`,
-      descripcion: newItem.descripcion,
-      cantidad: newItem.cantidad || 1,
-      unidad: newItem.unidad || 'unidad',
-      precioUnitario: newItem.precioUnitario || 0,
-      descuento: newItem.descuento || 0,
-      categoriaPresupuestoId: newItem.categoriaPresupuestoId,
-      factor: newItem.factor ?? null,
-      codigoProducto: newItem.codigoProducto || null,
-      conceptoServicioId: newItem.conceptoServicioId || null,
-      sistemaId,
-      sistemaNombre: newItem.sistemaId === '__ALL_SISTEMAS__' ? 'Todos los sistemas/equipos' : (newItem.sistemaNombre || null),
-      sistemaCodigoInterno: newItem.sistemaCodigoInterno || null,
-      moduloId: newItem.moduloId || null,
-      moduloNombre: newItem.moduloNombre || null,
-      moduloSerie: newItem.moduloSerie || null,
-      moduloMarca: newItem.moduloMarca || null,
-      servicioCode: newItem.servicioCode || null,
-      subItem: newItem.subItem || null,
-      esBonificacion: newItem.esBonificacion || false,
-      grupo: getGrupo ? getGrupo(sistemaId) : null,
-      subtotal,
-      // Phase 16 — entrega fields (from modal auto-default or manual override)
-      disponibilidad: newItem.disponibilidad ?? null,
-      etaDiasEstimados: newItem.etaDiasEstimados ?? null,
-      otNumeroVinculada: null,
-    });
-    setShowModal(false);
-  };
-
-  // Carga rápida desde el wizard (servicio/partes/ventas/mixto): completa el item con defaults.
+  // Alta desde el wizard "Agregar artículo" (servicios + artículos): completa el item con defaults.
   const addFromWizard = (p: Partial<PresupuestoItem>) => {
+    wizardAddedRef.current = true;
     const cantidad = p.cantidad || 1;
     const precioUnitario = p.precioUnitario || 0;
     const descuento = p.descuento || 0;
@@ -142,16 +96,15 @@ export const PresupuestoItemsTable = ({
     });
   };
 
-  // Contrato usa el modal completo (vincula equipos); el resto usa el wizard de carga rápida.
-  const openAdd = () => {
-    if (tipoPresupuesto === 'contrato') openModal();
-    else setShowWizard(true);
-  };
+  const openAdd = () => setShowWizard(true);
 
-  const openModal = () => {
-    setNewItem({ descripcion: '', cantidad: 1, unidad: 'unidad', precioUnitario: 0, descuento: 0,
-      categoriaPresupuestoId: findCategoriaIvaDefaultId(categoriasPresupuesto), codigoProducto: null, conceptoServicioId: null });
-    setShowModal(true);
+  const closeWizard = () => {
+    setShowWizard(false);
+    // Solo al cerrar-con-alta: devolver el foco al botón (rAF: espera al desmontaje del portal).
+    if (wizardAddedRef.current) {
+      wizardAddedRef.current = false;
+      requestAnimationFrame(() => addBtnRef.current?.focus());
+    }
   };
 
   const renderRows = (rowItems: PresupuestoItem[]) =>
@@ -173,14 +126,14 @@ export const PresupuestoItemsTable = ({
                 if (etaDiasEstimados !== null) onUpdateItem(it.id, 'etaDiasEstimados', etaDiasEstimados);
               });
             }} />
-            <Button onClick={openAdd} size="sm">+ Agregar</Button>
+            <Button ref={addBtnRef} onClick={openAdd} size="sm">+ Agregar artículo</Button>
           </div>
         </div>
 
         {items.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-xs text-slate-400">Sin items</p>
-            <Button className="mt-3" onClick={openAdd} size="sm">Agregar primer item</Button>
+            <Button className="mt-3" onClick={openAdd} size="sm">+ Agregar artículo</Button>
           </div>
         ) : (
           <div className="border border-slate-200 rounded-lg overflow-hidden">
@@ -217,22 +170,13 @@ export const PresupuestoItemsTable = ({
           className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none bg-white focus:ring-1 focus:ring-teal-500" />
       </Card>
 
-      {showModal && (
-        <AddItemModal newItem={newItem} setNewItem={setNewItem} categoriasPresupuesto={categoriasPresupuesto}
-          conceptosServicio={conceptosServicio} moneda={moneda} onAdd={handleAdd} onClose={() => setShowModal(false)}
-          tipoPresupuesto={tipoPresupuesto}
-          sistemas={tipoPresupuesto === 'contrato' ? sistemas : undefined}
-          loadModulos={tipoPresupuesto === 'contrato' ? loadModulos : undefined}
-          articulos={articulos} />
-      )}
-
       {showWizard && (
         <PresupuestoAddItemWizard
           conceptosServicio={conceptosServicio}
           categoriasPresupuesto={categoriasPresupuesto}
           moneda={moneda}
           onAdd={addFromWizard}
-          onClose={() => setShowWizard(false)}
+          onClose={closeWizard}
         />
       )}
     </div>

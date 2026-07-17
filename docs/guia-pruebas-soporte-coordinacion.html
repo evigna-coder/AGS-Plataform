@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: #1e293b; font-size: 10.5pt; line-height: 1.4; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2px; }
+  .sub { color: #64748b; font-size: 9pt; margin-bottom: 14px; }
+  h2 { font-size: 11.5pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #0D6E6E; color: #0D6E6E; }
+  .case { border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px 10px; margin: 8px 0; page-break-inside: avoid; }
+  .case-title { font-weight: 600; font-size: 10.5pt; margin-bottom: 5px; }
+  .tag { display: inline-block; font-size: 7.5pt; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+  .tag-foco { background: #e0f2f1; color: #0D6E6E; }
+  .tag-nuevo { background: #ede9fe; color: #5b21b6; }
+  .tag-prod { background: #fef3c7; color: #92400e; }
+  ol.steps { margin: 4px 0 0; padding-left: 0; list-style: none; }
+  ol.steps li { padding: 2px 0 2px 24px; position: relative; }
+  ol.steps li::before { content: "☐"; position: absolute; left: 0; font-size: 12pt; line-height: 1; top: 1px; color: #475569; }
+  .ok { color: #15803d; font-weight: 600; }
+  .alert { color: #b45309; font-weight: 600; }
+  .note { font-size: 8.5pt; color: #64748b; font-style: italic; margin-top: 4px; padding-left: 2px; }
+  .result-line { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #cbd5e1; font-size: 9pt; }
+  .result-line .lbl { color: #64748b; }
+  .intro { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 8px 10px; font-size: 9pt; color: #475569; margin-bottom: 6px; }
+  code { font-family: "JetBrains Mono", Consolas, monospace; font-size: 8.5pt; background: #f1f5f9; padding: 0 3px; border-radius: 3px; }
+  table.hallazgos { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 6px; }
+  table.hallazgos th, table.hallazgos td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; }
+  table.hallazgos th { background: #f1f5f9; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+  table.hallazgos td { height: 22px; }
+</style>
+</head>
+<body>
+  <h1>Guía de pruebas — Soporte y Coordinación (sesión con Fanely)</h1>
+  <div class="sub">AGS sistema-modular + reportes-ot · 17/07/2026 · imprimir y tildar · duración estimada: 2 h</div>
+
+  <div class="intro">
+    Recorre el circuito completo desde la óptica de <b>soporte/coordinación</b>: ticket → presupuesto → coordinación → agenda → técnico → cierre → aviso a facturación.
+    Los bloques 3 y 4 (coordinación y agenda) son el foco <span class="tag tag-foco">FOCO</span> — dedicarles la mitad del tiempo.<br>
+    <span class="tag tag-nuevo">NUEVO</span> = comportamiento de la última tanda: <b>requiere la versión que sale del próximo release</b> (si la PC instalada no lo recibió aún, probarlo en la PC de Esteban).
+    <span class="tag tag-prod">PROD</span> = se prueba en reportes-ot de producción (tablet/celular del técnico).<br>
+    Hallazgos: anotar bloque + paso en la tabla del final, sacar captura y seguir. Usar siempre el cliente <b>PRUEBAS AGS (no facturar)</b>.
+  </div>
+
+  <h2>Bloque 1 · Tickets — la puerta de entrada de soporte</h2>
+  <div class="case">
+    <div class="case-title">1.1 · Alta y derivación entre áreas</div>
+    <ol class="steps">
+      <li>Crear ticket manual (motivo <b>Soporte</b>) para PRUEBAS AGS, sin asignar persona.</li>
+      <li>Verificar que tomó el <b>responsable por área</b> configurado (Admin &gt; Config. de flujos) automáticamente.</li>
+      <li>Derivarlo a otra área (ej. Administración) y de vuelta; revisar que el historial de postas registre cada pase.</li>
+      <li>Con Fanely: revisar juntas la config de responsables por área — ¿los nombres actuales son los correctos?</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ cada derivación asigna sola al responsable del área destino y queda trazada.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">1.2 · Tickets que nacen del campo <span class="tag tag-prod">PROD</span></div>
+    <ol class="steps">
+      <li>En un reporte técnico de prueba, cargar texto en <b>"Acciones a tomar"</b> y finalizar.</li>
+      <li>Verificar en sistema-modular que se creó el ticket interno con ese texto.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ ticket nuevo asignado a Esteban con el detalle de las acciones.</span></div>
+  </div>
+
+  <h2>Bloque 2 · Circuito comercial — a quién le llega cada cosa</h2>
+  <div class="case">
+    <div class="case-title">2.1 · Aceptar SIN faltantes → Coordinación <span class="tag tag-nuevo">NUEVO</span></div>
+    <ol class="steps">
+      <li>Ppto de partes con stock disponible (ej. 1 × PRB-SIMPLE). Enviar → aceptar.</li>
+      <li>Tickets: buscar el ticket del circuito.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ el ticket queda en <b>Coordinación</b> (le llega a Fanely/Cynthia para armar OT);</span> <span class="ok">✅ el aviso "Reservar físicamente" va a <b>Materiales</b> (Esteban), NO a coordinación.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">2.2 · Aceptar CON faltantes → Compras primero <span class="tag tag-nuevo">NUEVO</span></div>
+    <ol class="steps">
+      <li>Ppto de partes con un artículo sin stock (ej. PRB-IMPORT). Enviar → aceptar.</li>
+      <li>Verificar que el ticket va a <b>Compras</b> — a coordinación NO le llega nada todavía.</li>
+      <li>(Opcional, largo) Completar la compra + ingreso de mercadería y verificar que recién ahí el ticket cae en Coordinación.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ coordinación solo recibe presupuestos con la mercadería asegurada.</span> Punto clave para validar con Fanely: ¿le sirve así o quiere visibilidad antes?</div>
+  </div>
+
+  <h2>Bloque 3 · Creación de OTs (coordinación) <span class="tag tag-foco">FOCO</span></h2>
+  <div class="case">
+    <div class="case-title">3.1 · OT desde presupuesto</div>
+    <ol class="steps">
+      <li>Desde el ppto aceptado de 2.1, crear la OT. Verificar prefill: cliente, establecimiento (autoseleccionado si es único) y presupuesto vinculado.</li>
+      <li>Probar el botón <b>"Cargar tipos estándar"</b> en tipos de servicio.</li>
+      <li>Crear un ítem hijo (<code>NNNNN.01</code>) y verificar la relación padre/ítems en el listado.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ nada que cargar dos veces; la OT nace CREADA y aparece en pendientes de agenda.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">3.2 · OT de entrega vs. servicio</div>
+    <ol class="steps">
+      <li>Crear una OT tipo <b>entrega</b> — verificar que NO exige equipo.</li>
+      <li>Crear una OT tipo <b>servicio</b> — verificar que sí pide equipo/sistema.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ la distinción es clara para quien coordina.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">3.3 · Buscar OTs como lo haría soporte <span class="tag tag-nuevo">NUEVO</span></div>
+    <ol class="steps">
+      <li>Listado de OTs: buscar por cliente, N° de OT, y en "Más filtros" usar el selector <b>Sistema / ID equipo / módulo</b>: probar con un nombre ("HPLC"), un ID (ARIxxxx) y un módulo (ej. G1314A) o N° de serie.</li>
+      <li>Probar los filtros de estado (default "Pendientes") y el export CSV.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ Fanely encuentra cualquier OT por lo que recuerde del equipo.</span></div>
+  </div>
+
+  <h2>Bloque 4 · Agenda (el día a día de coordinación) <span class="tag tag-foco">FOCO</span></h2>
+  <div class="case">
+    <div class="case-title">4.1 · Asignar y coordinar</div>
+    <ol class="steps">
+      <li>Arrastrar la OT de 3.1 desde pendientes al día/ingeniero elegido.</li>
+      <li>Verificar en el listado de OTs que pasó a <b>Asignada</b> (y el ticket avanzó solo).</li>
+      <li>Cambiar el estado de la entrada a <b>confirmado</b> → la OT debe pasar a <b>Coordinada</b>.</li>
+      <li>Mover la entrada a otro día y a otro ingeniero; verificar que la OT refleja fecha/responsable.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ agenda y estado de OT nunca quedan desincronizados; los estados solo avanzan, nunca retroceden solos.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">4.2 · Desarmar una coordinación</div>
+    <ol class="steps">
+      <li>Borrar la entrada de agenda de una OT <b>Asignada/Coordinada</b>.</li>
+      <li>Verificar: la OT vuelve a <b>Creada</b>, sin ingeniero ni fecha, y reaparece en pendientes.</li>
+      <li>Probar borrar la entrada de una OT ya avanzada (En curso o más): el estado NO debe retroceder.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ deshacer una coordinación es seguro y no rompe OTs en ejecución.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">4.3 · Herramientas del tablero</div>
+    <ol class="steps">
+      <li>Notas por día/ingeniero: crear, editar, borrar.</li>
+      <li>Marcar un feriado y verificar cómo se ve la semana.</li>
+      <li>Recorrer navegación (semana previa/siguiente, hoy, zoom) con Fanely manejando.</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> anotar TODO lo que a Fanely le resulte incómodo — este es el módulo que más va a usar.</div>
+  </div>
+
+  <h2>Bloque 5 · El técnico ejecuta (reportes-ot) <span class="tag tag-prod">PROD</span></h2>
+  <div class="case">
+    <div class="case-title">5.1 · Servicio con reporte completo</div>
+    <ol class="steps">
+      <li>Abrir la OT coordinada en reportes-ot (tablet o celular), completar informe y firmar (técnico + cliente).</li>
+      <li>Finalizar desde el botón de la sección de firmas.</li>
+      <li>En sistema-modular: la OT debe quedar en <b>Cierre técnico</b> <span class="tag tag-nuevo">NUEVO</span> (fix 17/07 — antes quedaba clavada en Creada/Coordinada).</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ PDF generado, OT en Cierre técnico, ticket avanzado.</span></div>
+  </div>
+  <div class="case">
+    <div class="case-title">5.2 · Entrega de materiales (reporte simplificado)</div>
+    <ol class="steps">
+      <li>Abrir una OT tipo <b>entrega</b>: los campos de módulo vienen "N/A" y el informe precargado.</li>
+      <li>Finalizar <b>sin firma del cliente</b> ("firma en remito").</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ mismo resultado que 5.1 con la mitad de los pasos.</span></div>
+  </div>
+
+  <h2>Bloque 6 · Cierre y facturación (lo que ve administración)</h2>
+  <div class="case">
+    <div class="case-title">6.1 · Cierre administrativo → aviso a facturación <span class="tag tag-nuevo">NUEVO</span></div>
+    <ol class="steps">
+      <li>Cerrar administrativamente la OT de 5.1 (con materiales si aplica).</li>
+      <li>Presupuestos: la fila queda <b>"OT cerrada — falta aviso"</b> (naranja) y el KPI muestra "⚠ N con OT cerrada sin aviso".</li>
+      <li>Click en la campanita naranja de la fila → confirmar el aviso.</li>
+      <li>Verificar la cascada: badge pasa a "Pendiente de facturación", KPI <b>"Enviadas a facturación"</b> suma 1 con el monto.</li>
+      <li>Probar los 4 KPIs como filtros (click filtra la lista, segundo click limpia).</li>
+    </ol>
+    <div class="result-line"><span class="lbl">Esperado:</span> <span class="ok">✅ nadie tiene que "acordarse" de avisar a facturación: la pantalla lo grita.</span></div>
+  </div>
+
+  <h2>Bloque 7 · Cierre de la sesión</h2>
+  <div class="case">
+    <div class="case-title">7.1 · Preguntas para Fanely (10 min, sin sistema)</div>
+    <ol class="steps">
+      <li>¿Qué hace hoy fuera del sistema (papeles, Excel, WhatsApp) que debería estar adentro?</li>
+      <li>De lo visto: ¿qué le ahorraría más tiempo mañana mismo? ¿Qué le sobró?</li>
+      <li>¿Necesita permisos/rol distintos a los que tiene? (revisar su usuario juntos)</li>
+    </ol>
+  </div>
+
+  <h2>Hallazgos</h2>
+  <table class="hallazgos">
+    <tr><th style="width:12%">Bloque·paso</th><th style="width:44%">Qué pasó / qué esperaban</th><th style="width:22%">Captura</th><th style="width:22%">Gravedad (bloquea / molesta / idea)</th></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+  </table>
+</body>
+</html>

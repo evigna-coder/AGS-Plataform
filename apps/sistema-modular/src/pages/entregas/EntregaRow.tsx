@@ -12,6 +12,8 @@ import { previewOrdenCompraPDF } from '../../components/stock/pdf/generateOrdenC
 interface Props {
   row: Row;
   onUpdate: (patch: EntregaItemPatch) => Promise<void>;
+  /** Fila desplegada bajo un grupo de OC completa — fondo diferenciado. */
+  nested?: boolean;
 }
 
 const DISPONIBILIDAD_OPCIONES = Object.entries(DISPONIBILIDAD_LABELS) as [Disponibilidad, string][];
@@ -32,7 +34,7 @@ const formatMoney = (n: number, m: 'USD' | 'ARS' | 'EUR' | null): string => {
   return `${prefix} ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate }) => {
+export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate, nested }) => {
   const [otDraft, setOtDraft] = useState(row.otNumeroVinculada ?? '');
   const [fechaDraft, setFechaDraft] = useState((row.fechaComprometida ?? '').slice(0, 10));
   const [saving, setSaving] = useState(false);
@@ -80,7 +82,7 @@ export const EntregaRowComponent: React.FC<Props> = ({ row, onUpdate }) => {
   };
 
   return (
-    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+    <tr className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${nested ? 'bg-slate-50/60' : ''}`}>
       <td className="px-3 py-2 text-xs font-semibold text-teal-700 truncate max-w-[160px]">
         {row.clienteNombre}
       </td>

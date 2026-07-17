@@ -864,25 +864,35 @@ export interface UsuarioPosta {
 }
 
 // --- Presupuesto: Tipos auxiliares ---
-export type TipoPresupuesto = 'servicio' | 'partes' | 'ventas' | 'contrato' | 'mixto';
+// Taxonomía dirección 2026-07-16 (G. Failen): Servicios / Equipos / Contratos /
+// Consumibles / Partes. El tipo lo define el ÍTEM PRINCIPAL (un GC con CI CO es
+// Equipos; un MP con trampa CP es Servicios) → 'mixto' queda solo como legado,
+// no seleccionable. El valor almacenado 'ventas' se conserva (sin migración de
+// datos) pero se muestra "Equipos".
+export type TipoPresupuesto = 'servicio' | 'ventas' | 'contrato' | 'consumibles' | 'partes' | 'mixto';
 export type MonedaPresupuesto = 'USD' | 'ARS' | 'EUR' | 'MIXTA';
 export type OrigenPresupuesto = 'lead' | 'ot' | 'requerimiento_compra' | 'directo';
 
 export const TIPO_PRESUPUESTO_LABELS: Record<TipoPresupuesto, string> = {
-  servicio: 'Servicio',
+  servicio: 'Servicios',
+  ventas: 'Equipos',
+  contrato: 'Contratos',
+  consumibles: 'Consumibles',
   partes: 'Partes',
-  ventas: 'Ventas',
-  contrato: 'Contrato',
-  mixto: 'Mixto',
+  mixto: 'Mixto (legado)',
 };
 
 export const TIPO_PRESUPUESTO_COLORS: Record<TipoPresupuesto, string> = {
   servicio: 'bg-blue-100 text-blue-800',
-  partes: 'bg-amber-100 text-amber-800',
   ventas: 'bg-green-100 text-green-800',
   contrato: 'bg-purple-100 text-purple-800',
+  consumibles: 'bg-cyan-100 text-cyan-800',
+  partes: 'bg-amber-100 text-amber-800',
   mixto: 'bg-slate-100 text-slate-700',
 };
+
+/** Tipos ofrecidos al crear/editar. 'mixto' excluido — solo se muestra en pptos legados. */
+export const TIPOS_PRESUPUESTO_ACTIVOS: TipoPresupuesto[] = ['servicio', 'ventas', 'contrato', 'consumibles', 'partes'];
 
 export const MONEDA_PRESUPUESTO_LABELS: Record<MonedaPresupuesto, string> = {
   USD: 'Dólares (USD)',
@@ -1453,6 +1463,12 @@ export interface Presupuesto {
   presupuestoOrigenId?: string | null; // ID del presupuesto desde el cual se creó esta revisión
   motivoAnulacion?: string | null; // Razón de anulación (al ser reemplazado por revisión)
   anuladoPorId?: string | null; // ID de la revisión que reemplazó a este presupuesto
+  /**
+   * Timestamp ISO en que el presupuesto pasó a `anulado`. Se setea automáticamente
+   * en presupuestosService.update() (decisión 2026-07-17: habilita métricas de
+   * rechazo por período hacia adelante). Anulados históricos quedan en null.
+   */
+  fechaAnulacion?: string | null;
   // --- OT vinculada ---
   /** @deprecated Mantener para compat: refleja la última OT creada. Usar otsVinculadasNumbers para la lista completa. */
   otVinculadaNumber?: string | null;
@@ -2850,6 +2866,12 @@ export interface UnidadStock {
   reservadoParaPresupuestoNumero?: string | null;
   reservadoParaClienteId?: string | null;
   reservadoParaClienteNombre?: string | null;
+  /**
+   * Ubicación previa a la reserva (UAT 2026-07-16): al reservar, la unidad se mueve
+   * físicamente a RESERVAS; `liberar()` usa este campo para devolverla a su posición
+   * original. Ausente en unidades reservadas antes del campo → quedan en RESERVAS.
+   */
+  ubicacionAnterior?: UbicacionStock | null;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
@@ -3719,6 +3741,12 @@ export interface Importacion {
   giroMonto?: number | null;
   giroMoneda?: 'ARS' | 'USD' | 'EUR' | null;
   giroFechaEstimada?: string | null;
+  /**
+   * Giro efectivamente pagado. Explícito porque recibir la mercadería NO implica
+   * haber pagado el giro (condición diferida: el pago puede vencer meses después
+   * del ingreso a stock). El flujo de fondos solo lo da por cumplido con este flag.
+   */
+  giroPagado?: boolean | null;
   /**
    * % de la mercadería pagado por anticipado (0 = 100% diferido). El giro al exterior
    * (saldo a pagar al proveedor) = valor de factura de la OC × (1 − anticipoPct/100),

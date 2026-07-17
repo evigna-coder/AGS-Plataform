@@ -34,6 +34,12 @@ export interface CreateOTFormState {
   leadId: string;
 }
 
+/** Nombre por defecto del tipo de servicio para OTs de entrega (UAT 2026-07-17). */
+export const TIPO_SERVICIO_ENTREGA_DEFAULT = 'Entrega de insumos';
+/** Sentinel para cuando el catálogo no tiene ningún tipo que matchee "entrega":
+ *  la OT se guarda con el texto TIPO_SERVICIO_ENTREGA_DEFAULT. */
+export const TIPO_SERVICIO_ENTREGA_SENTINEL = '__entrega_insumos__';
+
 const INITIAL_FORM: CreateOTFormState = {
   tipoOT: 'servicio',
   clienteId: '', establecimientoId: '', sistemaId: '', moduloId: '',
@@ -115,6 +121,34 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
     if (prefill.leadId) updates.leadId = prefill.leadId;
     setForm(prev => ({ ...prev, ...updates }));
   }, [open, prefill, prefilled, clientes]);
+
+  // OT de entrega → precargar tipo de servicio "Entrega de insumos" (UAT 2026-07-17).
+  // Guarda el valor que autopusimos NOSOTROS para poder limpiarlo al volver a
+  // 'servicio' sin pisar una elección manual del usuario.
+  const autoTipoServicioRef = useRef('');
+  useEffect(() => {
+    if (!open) return;
+    if (form.tipoOT === 'entrega') {
+      // Preferir el tipo "Entrega de insumos" exacto (decisión Esteban 17/7);
+      // recién si no existe, cualquier tipo que contenga "entrega".
+      const match = tiposServicio.find(t => t.nombre.toLowerCase().includes('entrega de insumos'))
+        ?? tiposServicio.find(t => t.nombre.toLowerCase().includes('entrega'));
+      const target = match ? match.id : TIPO_SERVICIO_ENTREGA_SENTINEL;
+      // Solo precargar si está vacío o si el valor actual es el que autopusimos
+      // (esto último cubre el upgrade sentinel → tipo real cuando carga el catálogo).
+      if (!form.tipoServicioId || form.tipoServicioId === autoTipoServicioRef.current) {
+        autoTipoServicioRef.current = target;
+        if (form.tipoServicioId !== target) set('tipoServicioId', target);
+      }
+    } else {
+      // Volvió a 'servicio': limpiar el default solo si era el autopuesto.
+      if (autoTipoServicioRef.current && form.tipoServicioId === autoTipoServicioRef.current) {
+        set('tipoServicioId', '');
+      }
+      autoTipoServicioRef.current = '';
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form.tipoOT, tiposServicio]);
 
   // Track which clienteId the cascade last ran for, to avoid resetting on
   // establecimientos reload for the SAME client
@@ -243,10 +277,13 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
       ?? sistemas.find(s => s.id === form.sistemaId);
     const modulo = modulos.find(m => m.id === form.moduloId);
     const tipoServ = tiposServicio.find(t => t.id === form.tipoServicioId);
+    // Sentinel de entrega: el catálogo no tiene un tipo "entrega", se guarda el texto default.
+    const tipoServicioNombre = tipoServ?.nombre
+      ?? (form.tipoServicioId === TIPO_SERVICIO_ENTREGA_SENTINEL ? TIPO_SERVICIO_ENTREGA_DEFAULT : '');
     const contacto = contactos.find(c => c.id === form.contactoId);
     const ingeniero = ingenieros.find(u => (u.usuarioId || u.id) === form.ingenieroId);
 
-    if (!cliente || !tipoServ) { alert('Datos incompletos'); return; }
+    if (!cliente || !tipoServicioNombre) { alert('Datos incompletos'); return; }
     // En OT de entrega el equipo es opcional. En OT de servicio sigue siendo obligatorio.
     if (form.tipoOT !== 'entrega') {
       if (!form.sistemaId) { alert('Seleccione un equipo'); return; }
@@ -271,7 +308,7 @@ export function useCreateOTForm(open: boolean, onClose: () => void, onCreated: (
         ] as WorkOrder['estadoHistorial'],
         budgets: form.presupuestoNumero ? [form.presupuestoNumero] : [],
         ordenCompra: form.ordenCompra || '',
-        tipoServicio: tipoServ.nombre,
+        tipoServicio: tipoServicioNombre,
         // Base de facturación: sin cargo / garantía → la OT no va a facturación.
         esFacturable: !(form.motivoFacturacion === 'sin_cargo' || form.motivoFacturacion === 'garantia'),
         tieneContrato: hasContrato,

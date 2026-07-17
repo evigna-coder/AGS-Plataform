@@ -10,14 +10,16 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  /** Recepción desde una OC: precarga proveedor y N° de OC. */
+  preset?: { proveedorId?: string; ocNumero?: string };
 }
 
 const lbl = 'block text-[10px] font-mono font-medium text-slate-500 mb-1 uppercase tracking-wide';
 
-export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
+export const StockIntakeModal: React.FC<Props> = ({ open, onClose, onCreated, preset }) => {
   const { usuario, firebaseUser } = useAuth();
   const creadoPor = usuario?.displayName ?? usuario?.email ?? firebaseUser?.email ?? 'Admin';
-  const h = useStockIntake(open, onClose, onCreated, creadoPor);
+  const h = useStockIntake(open, onClose, onCreated, creadoPor, preset);
 
   // Al terminar (o cancelar) el wizard de un artículo, devolver el cursor al
   // buscador para cargar el siguiente sin tocar el mouse (UAT 2026-07-15).

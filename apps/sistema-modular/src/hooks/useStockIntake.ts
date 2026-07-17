@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   articulosService, unidadesService, movimientosService,
   posicionesStockService, minikitsService, ingenierosService, proveedoresService,
+  ordenesCompraService, requerimientosService,
 } from '../services/firebaseService';
+import { reservasService } from '../services/stockService';
 import type {
   Articulo, CondicionUnidad, Proveedor, PosicionStock, Minikit, Ingeniero,
   TipoOrigenDestino, UnidadStock, MovimientoStock,
@@ -42,7 +44,14 @@ export interface IntakeItem {
 
 let _seq = 0;
 
-export function useStockIntake(open: boolean, onClose: () => void, onCreated: () => void, creadoPor: string = 'Admin') {
+export function useStockIntake(
+  open: boolean,
+  onClose: () => void,
+  onCreated: () => void,
+  creadoPor: string = 'Admin',
+  /** Recepción desde una OC: precarga proveedor y N° de OC (UAT 2026-07-16). */
+  preset?: { proveedorId?: string; ocNumero?: string },
+) {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedorId, setProveedorId] = useState('');
   const [articulos, setArticulos] = useState<Articulo[]>([]);
@@ -76,6 +85,14 @@ export function useStockIntake(open: boolean, onClose: () => void, onCreated: ()
     // reset al cerrar
     setProveedorId(''); setItems([]); setDraft(null); setDraftUbic([]);
     setFinalizing(false); setOcNumero(''); setDespachoNumero(''); setError('');
+  }, [open]);
+
+  // Preset de recepción desde OC: aplicar al abrir.
+  useEffect(() => {
+    if (!open || !preset) return;
+    if (preset.proveedorId) setProveedorId(preset.proveedorId);
+    if (preset.ocNumero) setOcNumero(preset.ocNumero);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // ── Opciones de ubicación para el artículo en curso (reusa lógica de useCreateMovimientoForm) ──
@@ -233,6 +250,77 @@ export function useStockIntake(open: boolean, onClose: () => void, onCreated: ()
         })));
       } catch (movErr) {
         console.warn('[useStockIntake] unidades creadas, falló registro de movimientos:', movErr);
+      }
+
+      // ── Reconciliar la OC referenciada (UAT 2026-07-16): sumar cantidadRecibida
+      // a los items que matcheen por artículo y pasarla a 'recibida' si quedó
+      // completa. Antes cambiar el estado de la OC era solo cosmético — el alta
+      // de stock y la OC no se hablaban. Best-effort: si falla, el ingreso vale.
+      if (oc) {
+        try {
+          const ocs = await ordenesCompraService.getAll().catch(() => [] as any[]);
+          const ocDoc = ocs.find((o: any) => (o.numero || '').trim().toLowerCase() === oc.toLowerCase());
+          if (ocDoc && ocDoc.estado !== 'cancelada') {
+            const recibidoPorArticulo = new Map<string, number>();
+            for (const it of items) {
+              const qty = it.articulo.requiereNumeroSerie ? it.series.length : it.cantidad;
+              recibidoPorArticulo.set(it.articulo.id, (recibidoPorArticulo.get(it.articulo.id) ?? 0) + qty);
+            }
+            let touched = false;
+            const newItems = (ocDoc.items ?? []).map((oi: any) => {
+              if (!oi.articuloId) return oi;
+              const restante = recibidoPorArticulo.get(oi.articuloId) ?? 0;
+              if (restante <= 0) return oi;
+              const pendiente = Math.max((oi.cantidad ?? 0) - (oi.cantidadRecibida ?? 0), 0);
+              const aplicar = Math.min(restante, pendiente);
+              if (aplicar <= 0) return oi;
+              recibidoPorArticulo.set(oi.articuloId, restante - aplicar);
+              touched = true;
+              return { ...oi, cantidadRecibida: (oi.cantidadRecibida ?? 0) + aplicar };
+            });
+            if (touched) {
+              const completa = newItems.every((oi: any) => (oi.cantidadRecibida ?? 0) >= (oi.cantidad ?? 0));
+              await ordenesCompraService.update(ocDoc.id, {
+                items: newItems,
+                ...(completa ? { estado: 'recibida' as const } : {}),
+              });
+              console.log(`[useStockIntake] OC ${ocDoc.numero} reconciliada${completa ? ' → recibida' : ' (parcial)'}`);
+
+              // Cerrar los requerimientos cuyos items de OC quedaron completos.
+              await Promise.all(newItems
+                .filter((oi: any) => oi.requerimientoId && (oi.cantidadRecibida ?? 0) >= (oi.cantidad ?? 0))
+                .map((oi: any) => requerimientosService.update(oi.requerimientoId, { estado: 'comprado' })
+                  .catch((e: unknown) => console.warn(`[useStockIntake] no se pudo cerrar req ${oi.requerimientoId}:`, e))));
+            }
+          }
+        } catch (ocErr) {
+          console.warn('[useStockIntake] ingreso OK, falló la reconciliación de la OC:', ocErr);
+        }
+      }
+
+      // ── Auto-reserva post-ingreso (UAT 2026-07-16): si hay presupuestos aceptados
+      // esperando este artículo (requerimientos vinculados a ppto), reservar lo que
+      // les falta con el stock recién ingresado. El cálculo de pendiente adentro
+      // evita sobre-reservar. Best-effort.
+      try {
+        const articuloIds = [...new Set(items.map(it => it.articulo.id))];
+        for (const articuloId of articuloIds) {
+          const reqsArticulo = await requerimientosService.getByArticulo(articuloId).catch(() => []);
+          const pptoIds = [...new Set(
+            reqsArticulo
+              .filter(r => r.presupuestoId && r.estado !== 'cancelado')
+              .map(r => r.presupuestoId as string),
+          )];
+          for (const pptoId of pptoIds) {
+            await reservasService.reservarPendientesParaPresupuesto({
+              presupuestoId: pptoId,
+              articuloId,
+              solicitadoPorNombre: creadoPor,
+            }).catch(e => console.warn(`[useStockIntake] auto-reserva ppto ${pptoId} falló:`, e));
+          }
+        }
+      } catch (resErr) {
+        console.warn('[useStockIntake] ingreso OK, falló la auto-reserva post-ingreso:', resErr);
       }
 
       onCreated();

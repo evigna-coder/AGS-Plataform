@@ -53,7 +53,10 @@ service cloud.firestore {
     // de campo (superficie congelada) y se prueba en terreno aparte.
     match /reportes/{document=**} {
       allow read: if true;
-      allow write: if signedIn()
+      // Write pleno SOLO staff (auditoría 2026-07-17: `signedIn()` dejaba write total
+      // a cualquier cuenta Google autenticada contra la config pública del bundle).
+      // La firma remota anónima sigue por la rama acotada del diff.
+      allow write: if esStaff()
         || request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['signatureClient', 'signedAt', 'signedFrom']);
     }
@@ -69,6 +72,13 @@ service cloud.firestore {
       match /modulos/{moduloId} {
         allow read, write: if esStaff();
       }
+    }
+
+    // collectionGroup('modulos') — sistema-modular busca sistemas por módulo/serie
+    // (filtro de OTs, UAT 2026-07-17). El match anidado de arriba NO cubre queries
+    // de collection group; sin este match, esa búsqueda muere al deployar estas rules.
+    match /{path=**}/modulos/{moduloId} {
+      allow read: if esStaff();
     }
 
     // ──────────────────────────────────────────────────────────────────────────

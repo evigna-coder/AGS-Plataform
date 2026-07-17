@@ -53,8 +53,16 @@ export function useOrdenCompraForm(ocId: string | null, open: boolean, prefill?:
         setFechaEntregaEstimada(''); setNotas(''); setItems([]); setImportaciones([]);
         if (prefill) {
           if (prefill.proveedorId) {
+            const prov = provData.find(p => p.id === prefill.proveedorId);
             setProveedorId(prefill.proveedorId);
-            setProveedorNombre(provData.find(p => p.id === prefill.proveedorId)?.nombre ?? prefill.proveedorNombre ?? '');
+            setProveedorNombre(prov?.nombre ?? prefill.proveedorNombre ?? '');
+            // Derivar tipo/moneda del proveedor también en el prefill (UAT 2026-07-16:
+            // proveedor internacional prefilleado quedaba como OC nacional).
+            if (prov) {
+              setTipo(prov.tipo === 'internacional' ? 'importacion' : 'nacional');
+              if (prov.moneda) setMoneda(prov.moneda);
+              else if (prov.tipo === 'internacional') setMoneda('USD');
+            }
           }
           if (prefill.items?.length) setItems(prefill.items);
         }

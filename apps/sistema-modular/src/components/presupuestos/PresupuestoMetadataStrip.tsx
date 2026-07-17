@@ -1,14 +1,17 @@
 import React from 'react';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Presupuesto, TipoPresupuesto, MonedaPresupuesto, ContactoCliente, ContactoEstablecimiento, CondicionPago, UsuarioAGS } from '@ags/shared';
-import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
+import { ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, TIPO_PRESUPUESTO_LABELS, TIPOS_PRESUPUESTO_ACTIVOS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import type { PresupuestoFormState } from '../../hooks/usePresupuestoEdit';
 
 const estadoOptions = Object.entries(ESTADO_PRESUPUESTO_LABELS)
   .filter(([value]) => value !== 'anulado')
   .map(([value, label]) => ({ value, label }));
 
-const tipoOptions = Object.entries(TIPO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }));
+// Edición: tipos activos; 'mixto' solo aparece si el ppto ya lo tiene (legado).
+const tipoOptions = TIPOS_PRESUPUESTO_ACTIVOS.map(value => ({ value, label: TIPO_PRESUPUESTO_LABELS[value] }));
+const tipoOptionsCon = (actual: TipoPresupuesto) =>
+  actual === 'mixto' ? [...tipoOptions, { value: 'mixto', label: TIPO_PRESUPUESTO_LABELS.mixto }] : tipoOptions;
 
 const monedaOptions = [
   { value: 'USD', label: 'USD (U$S)' },
@@ -43,7 +46,7 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
         </div>
         <div>
           <label className={lbl}>Tipo</label>
-          <SearchableSelect value={form.tipo} onChange={(v) => setField('tipo', v as TipoPresupuesto)} options={tipoOptions} size="sm" />
+          <SearchableSelect value={form.tipo} onChange={(v) => setField('tipo', v as TipoPresupuesto)} options={tipoOptionsCon(form.tipo)} size="sm" />
         </div>
         <div>
           <label className={lbl}>Moneda</label>
@@ -93,6 +96,15 @@ export const PresupuestoMetadataStrip: React.FC<Props> = ({
           <label className={lbl}>Prox. contacto</label>
           <input type="date" value={form.proximoContacto} onChange={e => setField('proximoContacto', e.target.value)}
             className="w-full border rounded-lg px-2 py-1 text-xs bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500" />
+          <div className="flex gap-1 mt-0.5">
+            {[7, 15, 30].map(d => (
+              <button key={d} type="button" title={`En ${d} días`}
+                onClick={() => { const dt = new Date(); dt.setDate(dt.getDate() + d); setField('proximoContacto', dt.toISOString().split('T')[0]); }}
+                className="text-[10px] px-1 py-0.5 rounded border border-slate-200 text-slate-500 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-300 transition-colors">
+                +{d}d
+              </button>
+            ))}
+          </div>
         </div>
         {form.origenTipo && (
           <div>

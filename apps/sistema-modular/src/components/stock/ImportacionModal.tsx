@@ -285,8 +285,17 @@ export const ImportacionModal: React.FC<Props> = ({ open, impId, onClose, onSave
           <div className="border-t border-slate-200 pt-3">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] font-mono uppercase tracking-wide text-slate-500">Giro al exterior</p>
-              <button type="button" onClick={giroPostVep} disabled={!h.form.vepFechaPago}
-                className="text-[10px] text-teal-600 hover:underline disabled:text-slate-300">30 días post VEP</button>
+              <div className="flex items-center gap-3">
+                {/* Recibir la mercadería NO cierra el giro: se marca acá al pagarlo. */}
+                <label className="flex items-center gap-1.5 text-[10px] text-slate-600 cursor-pointer select-none">
+                  <input type="checkbox" checked={h.form.giroPagado}
+                    onChange={e => h.set('giroPagado', e.target.checked)}
+                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                  Giro pagado
+                </label>
+                <button type="button" onClick={giroPostVep} disabled={!h.form.vepFechaPago}
+                  className="text-[10px] text-teal-600 hover:underline disabled:text-slate-300">30 días post VEP</button>
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-3">
               <div>

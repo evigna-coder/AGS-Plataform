@@ -181,6 +181,21 @@ export const ordenesTrabajoService = {
    * Called from presupuestosService._recomputeAndPersistEsquema instead of getAll()
    * to avoid loading all OTs for each recompute (performance fix W4).
    */
+  /** OTs con servicio realizado (cierre técnico o posterior). Join liviano para el
+   * visor de presupuestos: badge/filtro "Pend. OC — trabajo realizado" (UAT 2026-07-17).
+   * Un solo where por estadoAdmin ('in' de 3 valores) — no requiere índice compuesto. */
+  async getCerradas(): Promise<WorkOrder[]> {
+    const snap = await getDocs(query(
+      collection(db, 'reportes'),
+      where('estadoAdmin', 'in', ['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO']),
+    ));
+    return snap.docs.map(d => ({
+      otNumber: d.id,
+      ...d.data(),
+      updatedAt: d.data().updatedAt || new Date().toISOString(),
+    } as WorkOrder));
+  },
+
   async queryByBudget(presupuestoNumero: string): Promise<WorkOrder[]> {
     const q = query(
       collection(db, 'reportes'),
@@ -941,6 +956,49 @@ export const ordenesTrabajoService = {
       presupuestosPorNumero.flatMap(p => (p?.ordenesCompraIds || [])),
     ));
 
+    // ── Item 10 (UAT 2026-07-17): el ppto avanza a 'pendiente_facturacion' recién
+    // cuando cierra la ÚLTIMA de sus OTs. La OT en curso cuenta como cerrada.
+    // "Todas las OTs del ppto" = otsVinculadasNumbers ∪ otVinculadaNumber ∪ OTs con
+    // budgets array-contains numero (mismo join que la analítica de presupuestos).
+    // Pre-read FUERA de la tx (reads-before-writes, como pptoSnaps). Fail-safe: si el
+    // check falla por error, se avanza el estado como antes (warn) — nunca bloquea.
+    const OT_CERRADA_ADMIN = new Set<string>(['CIERRE_ADMINISTRATIVO', 'FINALIZADO']);
+    const avanzaEstadoPorPpto = new Map<string, boolean>();
+    if (!yaCerrada) {
+      for (const p of presupuestosPorNumero) {
+        if (!p) continue;
+        try {
+          const otsDelPpto = new Set<string>([
+            ...(p.otsVinculadasNumbers ?? []),
+            ...(p.otVinculadaNumber ? [p.otVinculadaNumber] : []),
+            otNumber,
+          ]);
+          const estadoPorOt = new Map<string, string>();
+          for (const o of await this.queryByBudget(String(p.numero))) {
+            otsDelPpto.add(o.otNumber);
+            estadoPorOt.set(o.otNumber, o.estadoAdmin ?? '');
+          }
+          // Vinculadas que no vinieron por budgets (budgets mal cargado en la OT):
+          // read directo por doc id. Una vinculada inexistente no bloquea (jamás cerraría).
+          for (const num of otsDelPpto) {
+            if (num === otNumber || estadoPorOt.has(num)) continue;
+            const s = await getDoc(doc(db, 'reportes', num));
+            if (s.exists()) estadoPorOt.set(num, (s.data()?.estadoAdmin as string) ?? '');
+          }
+          const todasCerradas = [...otsDelPpto]
+            .filter(num => num !== otNumber)
+            .every(num => !estadoPorOt.has(num) || OT_CERRADA_ADMIN.has(estadoPorOt.get(num) as string));
+          avanzaEstadoPorPpto.set(p.id, todasCerradas);
+          if (!todasCerradas) {
+            console.log(`[cerrarAdministrativamente] ppto ${p.numero}: quedan OTs sin cerrar — no avanza a pendiente_facturacion todavía`);
+          }
+        } catch (err) {
+          console.warn(`[cerrarAdministrativamente] check todas-cerradas falló para ppto ${p.numero}; se avanza estado como antes:`, err);
+          avanzaEstadoPorPpto.set(p.id, true);
+        }
+      }
+    }
+
     const subject = `Aviso facturación — OT ${otNumber}`;
     const body = buildAvisoFacturacionBody(ot, presupuestosPorNumero);
     const bodyWithCTA = `${body}\n\n---\nVer en sistema: /facturacion`;
@@ -1047,7 +1105,10 @@ export const ordenesTrabajoService = {
       // espera de que Administración confirme la factura). No se pisa anulado/finalizado.
       for (const [pid, { ref: pRef, current, estado }] of pptoSnaps) {
         const yaListo = current.includes(otNumber);
-        const avanzaEstado = estado === 'aceptado' || estado === 'en_ejecucion';
+        // Item 10: avanzar solo si TODAS las OTs del ppto quedaron cerradas
+        // (check pre-tx; default true = comportamiento previo, fail-safe).
+        const avanzaEstado = (estado === 'aceptado' || estado === 'en_ejecucion')
+          && (avanzaEstadoPorPpto.get(pid) ?? true);
         if (!yaListo || avanzaEstado) {
           tx.update(pRef, deepCleanForFirestore({
             ...(yaListo ? {} : { otsListasParaFacturar: [...current, otNumber] }),
@@ -1086,6 +1147,36 @@ export const ordenesTrabajoService = {
           await presupuestosService.trySyncFinalizacion(presupuestoId);
         } catch (err) {
           console.warn(`[cerrarAdmin.trySync] ppto ${presupuestoId}:`, err);
+        }
+      }
+
+      // ── Item 1 (UAT 2026-07-17): trabajo realizado sin OC del cliente ──────
+      // Si un ppto vinculado NO tiene OC cargada, el trabajo ya se hizo y la OC
+      // se debe: el ticket comercial (no-terminal, excluyendo áreas operativas)
+      // pasa a accionar el reclamo. No se crea ticket nuevo si no existe ninguno.
+      // Best-effort — nunca bloquea el cierre.
+      for (const p of presupuestosPorNumero) {
+        if (!p) continue;
+        if ((p.ordenesCompraIds ?? []).length > 0) continue;
+        try {
+          const tksSnap = await getDocs(query(
+            collection(db, 'leads'),
+            where('presupuestosIds', 'array-contains', p.id),
+          ));
+          const TERMINAL: TicketEstado[] = ['finalizado', 'no_concretado'];
+          const AREAS_OPERATIVAS: TicketArea[] = ['materiales', 'compras'];
+          const comercial = tksSnap.docs
+            .map(d => ({ ...(d.data() as Lead), id: d.id }))
+            .filter(t => !TERMINAL.includes(t.estado))
+            .find(t => !AREAS_OPERATIVAS.includes(t.areaActual as TicketArea));
+          if (comercial) {
+            await leadsService.update(comercial.id, {
+              accionPendiente: 'Reclamar OC del cliente — trabajo realizado',
+            });
+            console.log(`[cerrarAdmin.reclamoOC] ticket ${comercial.id} → reclamar OC (ppto ${p.numero} sin OC, trabajo realizado)`);
+          }
+        } catch (err) {
+          console.warn(`[cerrarAdmin.reclamoOC] ppto ${p.numero}:`, err);
         }
       }
     }

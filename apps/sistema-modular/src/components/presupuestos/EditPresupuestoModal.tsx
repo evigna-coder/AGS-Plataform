@@ -28,11 +28,10 @@ import { usePresupuestoActions } from '../../hooks/usePresupuestoActions';
 import { CreateOTModal } from '../ordenes-trabajo/CreateOTModal';
 import { ordenesCompraClienteService } from '../../services/ordenesCompraClienteService';
 import { presupuestosService } from '../../services/presupuestosService';
-import { articulosService } from '../../services/stockService';
 import { computeStockAmplio } from '../../services/stockAmplioService';
 import { atpNetoFromStockAmplio } from '../../services/atpHelpers';
 import { useAuth } from '../../contexts/AuthContext';
-import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente, Articulo } from '@ags/shared';
+import type { Presupuesto, PresupuestoCuota, OrdenCompraCliente } from '@ags/shared';
 import { MONEDA_SIMBOLO } from '@ags/shared';
 
 interface Props {
@@ -61,8 +60,6 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   // have been auto-generated as a side effect. Auto-gen runs fire-and-forget
   // in the service layer so we refresh a few seconds later to catch up.
   const [requerimientosRefreshKey, setRequerimientosRefreshKey] = useState(0);
-  // Phase 10: articulos catalog for partes/mixto/ventas ArticuloPickerPanel
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
   const {
     form, setField, loading, saving,
     cliente, establecimiento, contactos, categoriasPresupuesto, condicionesPago, conceptosServicio, usuarios,
@@ -87,7 +84,7 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
   // Phase 10: UX-only ATP validation before transitioning to 'aceptado' for non-contrato types.
   // Non-blocking confirm — user can proceed; FLOW-03 creates conditional requirements either way.
   const handleEstadoChangeWithValidation = async (nuevo: Presupuesto['estado']) => {
-    if (nuevo !== 'aceptado' || !['partes', 'mixto', 'ventas'].includes(form.tipo)) {
+    if (nuevo !== 'aceptado' || !['partes', 'consumibles', 'mixto', 'ventas'].includes(form.tipo)) {
       return actions.handleEstadoChange(nuevo);
     }
     const warnings: string[] = [];
@@ -139,14 +136,6 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
       return () => clearTimeout(t);
     }
   }, [saving]);
-
-  // Phase 10: load articulos catalog for non-contrato types that may link items to stock
-  useEffect(() => {
-    if (!open) return;
-    const needsCatalog = form.tipo && ['partes', 'mixto', 'ventas'].includes(form.tipo);
-    if (!needsCatalog) { setArticulos([]); return; }
-    articulosService.getAll().then(setArticulos).catch(() => setArticulos([]));
-  }, [open, form.tipo]);
 
   // FLOW-02: cuando se abre el modal "Cargar OC", resuelve OCs previas del
   // cliente + otros presupuestos `aceptado` sin OC del mismo cliente (N:M).
@@ -312,12 +301,8 @@ export const EditPresupuestoModal: React.FC<Props> = ({ presupuestoId, open, onC
             onNotasTecnicasChange={(v) => setField('notasTecnicas', v)}
             onCondicionesChange={(v) => setField('condicionesComerciales', v)}
             calculateItemTaxes={calculateItemTaxes}
-            tipoPresupuesto={form.tipo}
-            sistemas={clienteSistemas}
-            loadModulos={loadModulosBySistema}
             itemsByGrupo={itemsByGrupo}
             getGrupo={getGrupo}
-            articulos={articulos}
           />
         )}
 

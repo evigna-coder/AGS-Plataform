@@ -217,6 +217,28 @@ export const requerimientosService = {
     })) as RequerimientoCompra[];
   },
 
+  /**
+   * Requerimientos de un artículo, SIN orderBy: una sola igualdad no requiere
+   * índice compuesto (getAll con filtros + orderBy sí, y si el índice falta el
+   * error se traga fácil — ver duplicados UAT 2026-07-16). Orden no garantizado.
+   */
+  async getByArticulo(articuloId: string): Promise<RequerimientoCompra[]> {
+    const snap = await getDocs(query(
+      collection(db, 'requerimientos_compra'),
+      where('articuloId', '==', articuloId),
+    ));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })) as RequerimientoCompra[];
+  },
+
+  /** Requerimientos de un presupuesto, SIN orderBy (sin índice compuesto — ver getByArticulo). */
+  async getByPresupuesto(presupuestoId: string): Promise<RequerimientoCompra[]> {
+    const snap = await getDocs(query(
+      collection(db, 'requerimientos_compra'),
+      where('presupuestoId', '==', presupuestoId),
+    ));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })) as RequerimientoCompra[];
+  },
+
   async getById(id: string): Promise<RequerimientoCompra | null> {
     const snap = await getDoc(doc(db, 'requerimientos_compra', id));
     if (!snap.exists()) return null;

@@ -9,6 +9,7 @@ import { OCInfoSidebar } from '../../components/stock/OCInfoSidebar';
 import { OCItemsTable } from '../../components/stock/OCItemsTable';
 import { OCStatusTransition } from '../../components/stock/OCStatusTransition';
 import { OCImportacionesSection } from '../../components/stock/OCImportacionesSection';
+import { StockIntakeModal } from '../../components/stock/StockIntakeModal';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 
@@ -22,6 +23,7 @@ export const OCDetail = () => {
   const [oc, setOc] = useState<OrdenCompra | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
+  const [showIntake, setShowIntake] = useState(false);
   const [importaciones, setImportaciones] = useState<Importacion[]>([]);
 
   useEffect(() => { if (id) loadOC(); }, [id]);
@@ -94,8 +96,11 @@ export const OCDetail = () => {
                 + Crear Importacion
               </Button>
             )}
+            {canReceive && oc.tipo === 'nacional' && (
+              <Button size="sm" onClick={() => setShowIntake(true)}>Ingresar stock de esta OC</Button>
+            )}
             {canReceive && (
-              <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Registrar recepcion</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowTransition(true)}>Cambiar estado</Button>
             )}
             {canEdit && (
               <Link to={`/stock/ordenes-compra/${oc.id}/editar`}>
@@ -125,6 +130,15 @@ export const OCDetail = () => {
         open={showTransition}
         onClose={() => setShowTransition(false)}
         onUpdated={() => { setShowTransition(false); loadOC(); }}
+      />
+
+      {/* Recepción real de OC nacional: alta de unidades + reconciliación de la OC
+          (cantidadRecibida + estado recibida al completar). UAT 2026-07-16. */}
+      <StockIntakeModal
+        open={showIntake}
+        onClose={() => setShowIntake(false)}
+        onCreated={() => { setShowIntake(false); loadOC(); }}
+        preset={{ proveedorId: oc.proveedorId || undefined, ocNumero: oc.numero }}
       />
 
     </div>

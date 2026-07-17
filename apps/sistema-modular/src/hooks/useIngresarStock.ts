@@ -148,12 +148,14 @@ export function useIngresarStock() {
           });
         }
 
-        // Auto-close linked requerimiento if quantity fulfilled
+        // Auto-close linked requerimiento if quantity fulfilled.
+        // 'comprado' (enum EstadoRequerimiento) — antes escribía 'completado', que no
+        // existe en el enum y dejaba el req contando como comprometido en el ATP.
         if (rec.item.requerimientoId && rec.cantidadReal >= rec.item.cantidadPedida) {
           batch.update(
             docRef('requerimientos_compra', rec.item.requerimientoId),
             deepCleanForFirestore({
-              estado: 'completado',
+              estado: 'comprado',
               updatedAt: Timestamp.now(),
               ...getUpdateTrace(),
             }),
@@ -193,7 +195,70 @@ export function useIngresarStock() {
         }),
       );
 
+      // Reconciliar la OC de origen (UAT 2026-07-16): acumular cantidadRecibida por
+      // item y, si con este embarque la OC queda completa, marcarla 'recibida'.
+      // Sin esto la OC importada quedaba 'embarcada' para siempre y el visor de
+      // entregas no podía agruparla como unidad de entrega.
+      if (imp.ordenCompraId) {
+        try {
+          const { ordenesCompraService } = await import('../services/presupuestosService');
+          const oc = await ordenesCompraService.getById(imp.ordenCompraId);
+          if (oc && oc.estado !== 'cancelada') {
+            const recByItemOC = new Map<string, number>();
+            for (const rec of recepciones) {
+              if (rec.item.itemOCId) {
+                recByItemOC.set(rec.item.itemOCId, (recByItemOC.get(rec.item.itemOCId) ?? 0) + rec.cantidadReal);
+              }
+            }
+            const itemsOC = (oc.items ?? []).map(it => {
+              const recibidoAhora = recByItemOC.get(it.id) ?? 0;
+              if (!recibidoAhora) return it;
+              const previa = it.cantidadRecibida ?? 0;
+              // Tope en lo pedido: un sobrante físico no infla la OC.
+              return { ...it, cantidadRecibida: Math.min(it.cantidad, previa + recibidoAhora) };
+            });
+            const completa = itemsOC.length > 0 && itemsOC.every(it => (it.cantidadRecibida ?? 0) >= it.cantidad);
+            batch.update(
+              docRef('ordenes_compra', oc.id),
+              deepCleanForFirestore({
+                items: itemsOC,
+                ...(completa ? { estado: 'recibida' as const, fechaRecepcion: nowIso } : {}),
+                updatedAt: Timestamp.now(),
+                ...getUpdateTrace(),
+              }),
+            );
+          }
+        } catch (ocErr) {
+          console.warn('[useIngresarStock] no se pudo reconciliar la OC del embarque:', ocErr);
+        }
+      }
+
       await batch.commit();
+
+      // ── Auto-reserva post-ingreso (UAT 2026-07-16): si hay presupuestos aceptados
+      // esperando estos artículos (requerimientos vinculados a ppto), reservar lo
+      // pendiente con el stock recién ingresado. Best-effort — no afecta el ingreso.
+      try {
+        const { reservasService } = await import('../services/stockService');
+        const { requerimientosService } = await import('../services/importacionesService');
+        const artIds = Array.from(new Set(recepciones.map(r => r.item.articuloId).filter(Boolean) as string[]));
+        for (const articuloId of artIds) {
+          const reqsArticulo = await requerimientosService.getByArticulo(articuloId).catch(() => []);
+          const pptoIds = Array.from(new Set(
+            reqsArticulo.filter(r => r.presupuestoId && r.estado !== 'cancelado').map(r => r.presupuestoId as string),
+          ));
+          for (const pptoId of pptoIds) {
+            await reservasService.reservarPendientesParaPresupuesto({
+              presupuestoId: pptoId,
+              articuloId,
+              solicitadoPorNombre: userTrace?.name ?? 'Sistema',
+            }).catch(err => console.warn(`[useIngresarStock] auto-reserva ppto ${pptoId} falló:`, err));
+          }
+        }
+      } catch (resErr) {
+        console.warn('[useIngresarStock] ingreso OK, falló la auto-reserva post-ingreso:', resErr);
+      }
+
       return true;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al ingresar stock');

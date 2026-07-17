@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
-import { ordenesTrabajoService } from '../../services/firebaseService';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { ordenesTrabajoService, modulosService } from '../../services/firebaseService';
+import type { ModuloSistema } from '@ags/shared';
 import { useUrlFilters } from '../../hooks/useUrlFilters';
 import { useOTListData } from '../../hooks/useOTListData';
 import type { WorkOrder, OTEstadoAdmin } from '@ags/shared';
@@ -70,6 +71,33 @@ export const OTList = () => {
   });
 
   const { tableRef, colWidths, colAligns, onResizeStart, onAutoFit, cycleAlign, getAlignClass, isHidden, toggleCol, showAllCols } = useResizableColumns('ot-list-v2');
+
+  // Módulos reales de todos los sistemas (una query collectionGroup, cacheada) —
+  // fuente principal para buscar un sistema por módulo/serie en el filtro
+  // (UAT 2026-07-17: modelo ej. G1314A, N° de serie, descripción).
+  const [modulosAll, setModulosAll] = useState<ModuloSistema[]>([]);
+  useEffect(() => {
+    modulosService.getAllGrouped()
+      .then(setModulosAll)
+      .catch(err => console.warn('[OTList] no se pudieron cargar módulos para el filtro:', err));
+  }, []);
+
+  const moduloTermsBySistema = useMemo(() => {
+    const m = new Map<string, string>();
+    const add = (sistemaId: string | null | undefined, ...parts: (string | null | undefined)[]) => {
+      if (!sistemaId) return;
+      const terms = parts.filter(Boolean).join(' ');
+      if (!terms) return;
+      const prev = m.get(sistemaId);
+      if (!prev) m.set(sistemaId, terms);
+      else if (!prev.includes(terms)) m.set(sistemaId, `${prev} ${terms}`);
+    };
+    // Fuente principal: los módulos del equipo (nombre=modelo, descripción, serie).
+    for (const mod of modulosAll) add(mod.sistemaId, mod.nombre, mod.descripcion, mod.serie);
+    // Complemento: lo denormalizado en las OTs (cubre datos legacy sin módulos cargados).
+    for (const ot of ordenes) add(ot.sistemaId, ot.moduloModelo, ot.moduloDescripcion, ot.moduloSerie);
+    return m;
+  }, [modulosAll, ordenes]);
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
@@ -166,6 +194,7 @@ export const OTList = () => {
           sistemas={sistemas}
           tiposServicioList={tiposServicioList}
           ingenierosList={ingenierosList}
+          moduloTermsBySistema={moduloTermsBySistema}
         />
       </PageHeader>
 

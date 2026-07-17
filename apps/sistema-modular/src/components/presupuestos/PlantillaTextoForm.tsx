@@ -11,7 +11,8 @@ const SECCION_KEYS: SeccionKey[] = [
   'notasTecnicas', 'notasAdministrativas', 'garantia',
   'variacionTipoCambio', 'condicionesComerciales', 'aceptacionPresupuesto',
 ];
-const TIPO_KEYS: TipoPresupuesto[] = ['servicio', 'partes', 'ventas', 'contrato', 'mixto'];
+// Plantillas nuevas: solo tipos activos (mixto legado no aplica a plantillas nuevas).
+const TIPO_KEYS: TipoPresupuesto[] = ['servicio', 'ventas', 'contrato', 'consumibles', 'partes'];
 
 interface FormShape {
   nombre: string;

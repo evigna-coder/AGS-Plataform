@@ -51,6 +51,11 @@ export const OT_DATA_COLUMNS: DataColumn[] = [
     render: (ot) => <span className="text-xs text-slate-500">{ot.problemaFallaInicial || <span className="text-slate-300">—</span>}</span> },
   { idx: 8, label: 'Creada', field: 'createdAt', width: 82,
     render: (ot) => <span className="text-xs text-slate-500">{formatDate(ot.createdAt)}</span> },
+  // idx 13 (nuevo, estable para ocultar/mostrar) aunque renderice acá — UAT 2026-07-17.
+  // Fecha de asignación = la fecha AGENDADA del servicio (fechaServicioAprox, definición
+  // de Esteban). `fechaAsignacion` viene adjuntada en useOTListData para el sort/filtro.
+  { idx: 13, label: 'Asignada', field: 'fechaAsignacion', width: 82,
+    render: (ot) => <span className="text-xs text-slate-500">{formatDate(ot.fechaServicioAprox)}</span> },
   { idx: 9, label: 'F. Serv.', field: 'fechaInicio', width: 82,
     render: (ot) => <span className="text-xs text-slate-500">{formatDate(ot.fechaInicio || ot.fechaServicioAprox)}</span> },
   { idx: 10, label: 'Cambio estado', field: 'estadoAdminFecha', width: 96,

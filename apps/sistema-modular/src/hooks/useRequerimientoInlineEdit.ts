@@ -50,5 +50,27 @@ export function useRequerimientoInlineEdit() {
     }
   }, [editingCell, editValue]);
 
-  return { editingCell, editValue, setEditValue, saving, startEdit, cancelEdit, saveEdit };
+  /**
+   * Guardado del proveedor sugerido desde el SearchableSelect inline (UAT 2026-07-16):
+   * persiste id + nombre juntos. El input de texto viejo guardaba lo tipeado como ID
+   * y nunca seteaba el nombre — la columna seguía mostrando "—".
+   */
+  const saveProveedorEdit = useCallback(async (provId: string, provNombre: string) => {
+    if (!editingCell || editingCell.field !== 'proveedorSugeridoId') return;
+    setSaving(true);
+    try {
+      await requerimientosService.update(editingCell.id, {
+        proveedorSugeridoId: provId || null,
+        proveedorSugeridoNombre: provNombre || null,
+      });
+      setEditingCell(null);
+      setEditValue('');
+    } catch (err) {
+      console.error('[useRequerimientoInlineEdit] saveProveedorEdit:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [editingCell]);
+
+  return { editingCell, editValue, setEditValue, saving, startEdit, cancelEdit, saveEdit, saveProveedorEdit };
 }

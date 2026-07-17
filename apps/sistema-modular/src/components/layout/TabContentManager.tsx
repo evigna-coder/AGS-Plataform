@@ -11,7 +11,7 @@ import { ClientesList, ClienteDetail } from '../../pages/clientes';
 import { EstablecimientosList, EstablecimientoNew, EstablecimientoDetail } from '../../pages/establecimientos';
 import { EquiposList, EquipoDetail, CategoriasEquipo } from '../../pages/equipos';
 import { OTList, OTNew, OTDetail, TiposServicio } from '../../pages/ordenes-trabajo';
-import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio } from '../../pages/presupuestos';
+import { PresupuestosList, PresupuestoNew, PresupuestoDetail, CategoriasPresupuesto, CondicionesPago, ConceptosServicio, AnaliticaPresupuestos } from '../../pages/presupuestos';
 import { TableCatalogPage, TableCatalogEditorPage, MigrateRenameConclusion } from '../../pages/protocol-catalog';
 import { InstrumentosList, InstrumentoEditorPage } from '../../pages/instrumentos';
 import { PatronesList, PatronEditorPage } from '../../pages/patrones';
@@ -101,6 +101,9 @@ function AppRoutes() {
       <Route path="/leads/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><LeadDetail /></ProtectedRoute>} />
       {/* Presupuestos */}
       <Route path="/presupuestos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestosList /></ProtectedRoute>} />
+      {/* Analítica: visible para todos los roles por ahora (decisión 2026-07-17);
+          para restringir a dirección, agregar allowedRoles={['admin']} acá. */}
+      <Route path="/presupuestos/analitica" element={<ProtectedRoute><AnaliticaPresupuestos /></ProtectedRoute>} />
       <Route path="/presupuestos/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestoNew /></ProtectedRoute>} />
       <Route path="/presupuestos/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><PresupuestoDetail /></ProtectedRoute>} />
       <Route path="/presupuestos/categorias" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><CategoriasPresupuesto /></ProtectedRoute>} />
@@ -156,6 +159,7 @@ function AppRoutes() {
       <Route path="/stock/movimientos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><MovimientosPage /></ProtectedRoute>} />
       <Route path="/stock/alertas" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><AlertasStockPage /></ProtectedRoute>} />
       <Route path="/stock/requerimientos" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RequerimientosList /></ProtectedRoute>} />
+      <Route path="/stock/requerimientos/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><RequerimientosList /></ProtectedRoute>} />
       <Route path="/stock/ordenes-compra" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCList /></ProtectedRoute>} />
       <Route path="/stock/ordenes-compra/nuevo" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCEditor /></ProtectedRoute>} />
       <Route path="/stock/ordenes-compra/:id" element={<ProtectedRoute allowedRoles={['admin', 'admin_soporte', 'administracion']}><OCDetail /></ProtectedRoute>} />

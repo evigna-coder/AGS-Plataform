@@ -3,6 +3,7 @@ import type { RequerimientoCompra, UrgenciaRequerimiento } from '@ags/shared';
 import { ESTADO_REQUERIMIENTO_COLORS, ESTADO_REQUERIMIENTO_LABELS, ORIGEN_REQUERIMIENTO_LABELS } from '@ags/shared';
 import type { EditingCell } from '../../hooks/useRequerimientoInlineEdit';
 import { SortableHeader } from '../../components/ui/SortableHeader';
+import { SearchableSelect } from '../../components/ui/SearchableSelect';
 
 const ORIGEN_COLORS: Record<string, string> = {
   manual: 'bg-slate-100 text-slate-600',
@@ -30,6 +31,12 @@ export interface RequerimientoRowProps {
   startEdit: (req: RequerimientoCompra, field: 'cantidad' | 'urgencia' | 'proveedorSugeridoId') => void;
   cancelEdit: () => void;
   saveEdit: () => void;
+  /** Proveedores activos para el select inline de "Proveedor sugerido". */
+  proveedores: Array<{ id: string; nombre: string }>;
+  /** Guarda proveedorSugeridoId + Nombre juntos (selección del SearchableSelect). */
+  onSelectProveedor: (provId: string, provNombre: string) => void;
+  /** Abre el modal de detalle del requerimiento. */
+  onVer: (req: RequerimientoCompra) => void;
   onAprobar: (id: string) => void;
   onDelete: (id: string) => void;
   formatDate: (d?: string | null) => string;
@@ -38,7 +45,8 @@ export interface RequerimientoRowProps {
 
 export const RequerimientoRow = ({
   r, selected, onToggle, editingCell, editValue, setEditValue,
-  startEdit, cancelEdit, saveEdit, onAprobar, onDelete, formatDate, getAlignClass,
+  startEdit, cancelEdit, saveEdit, proveedores, onSelectProveedor,
+  onVer, onAprobar, onDelete, formatDate, getAlignClass,
 }: RequerimientoRowProps) => {
   const isPendiente = r.estado === 'pendiente';
   const isEditingCantidad = editingCell?.id === r.id && editingCell.field === 'cantidad';
@@ -105,11 +113,24 @@ export const RequerimientoRow = ({
           </span>
         ) : null}
       </td>
-      <td className={`px-2 py-2 text-xs text-slate-600 truncate ${getAlignClass(7)}`} title={r.proveedorSugeridoNombre ?? ''} onClick={() => isPendiente && startEdit(r, 'proveedorSugeridoId')}>
+      <td className={`px-2 py-2 text-xs text-slate-600 ${isEditingProveedor ? '' : 'truncate'} ${getAlignClass(7)}`} title={r.proveedorSugeridoNombre ?? ''} onClick={() => isPendiente && !isEditingProveedor && startEdit(r, 'proveedorSugeridoId')}>
         {isEditingProveedor ? (
-          <input type="text" value={editValue} onChange={e => setEditValue(e.target.value)}
-            onBlur={saveEdit} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-            autoFocus placeholder="Nombre proveedor" className="border-b border-teal-400 focus:outline-none bg-transparent text-xs w-full" />
+          <div className="flex items-center gap-1 min-w-[160px]" onClick={e => e.stopPropagation()}>
+            <div className="flex-1">
+              <SearchableSelect
+                value={editValue}
+                onChange={v => {
+                  const p = proveedores.find(x => x.id === v);
+                  onSelectProveedor(v, p?.nombre ?? '');
+                }}
+                options={[{ value: '', label: 'Sin proveedor' }, ...proveedores.map(p => ({ value: p.id, label: p.nombre }))]}
+                size="sm"
+                autoFocusToken
+                placeholder="Buscar proveedor..."
+              />
+            </div>
+            <button onClick={cancelEdit} title="Cancelar" className="text-slate-300 hover:text-slate-500 text-xs shrink-0">✕</button>
+          </div>
         ) : (
           <span className={isPendiente ? 'cursor-pointer hover:text-teal-700' : ''}>
             {r.proveedorSugeridoNombre ?? <span className="text-slate-300">—</span>}
@@ -123,7 +144,7 @@ export const RequerimientoRow = ({
           {r.estado === 'pendiente' && (
             <button onClick={() => onAprobar(r.id)} className="text-xs text-green-600 hover:underline font-medium">Aprobar</button>
           )}
-          <button className="text-xs text-teal-600 hover:underline font-medium">Ver</button>
+          <button onClick={() => onVer(r)} className="text-xs text-teal-600 hover:underline font-medium">Ver</button>
           <button onClick={() => onDelete(r.id)} className="text-xs text-red-500 hover:underline font-medium">Eliminar</button>
         </div>
       </td>

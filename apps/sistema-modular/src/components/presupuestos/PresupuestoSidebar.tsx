@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import type { Presupuesto, Cliente, Sistema, CondicionPago, TipoPresupuesto, MonedaPresupuesto, UsuarioAGS } from '@ags/shared';
-import { TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, MONEDA_SIMBOLO, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
+import { TIPO_PRESUPUESTO_LABELS, TIPO_PRESUPUESTO_COLORS, TIPOS_PRESUPUESTO_ACTIVOS, MONEDA_SIMBOLO, ESTADO_PRESUPUESTO_LABELS, ESTADO_PRESUPUESTO_COLORS, ORIGEN_PRESUPUESTO_LABELS } from '@ags/shared';
 import { Card } from '../ui/Card';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { BnaTipoCambioHint } from './BnaTipoCambioHint';
@@ -16,7 +16,10 @@ interface PresupuestoTotals {
 }
 
 const estadoOptions = Object.entries(ESTADO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }));
-const tipoOptions = Object.entries(TIPO_PRESUPUESTO_LABELS).map(([value, label]) => ({ value, label }));
+// Edición: tipos activos; 'mixto' solo aparece si el ppto ya lo tiene (legado).
+const tipoOptions = TIPOS_PRESUPUESTO_ACTIVOS.map(value => ({ value, label: TIPO_PRESUPUESTO_LABELS[value] }));
+const tipoOptionsCon = (actual: TipoPresupuesto) =>
+  actual === 'mixto' ? [...tipoOptions, { value: 'mixto', label: TIPO_PRESUPUESTO_LABELS.mixto }] : tipoOptions;
 const monedaOptions: { value: MonedaPresupuesto; label: string }[] = [
   { value: 'USD', label: 'USD (U$S)' },
   { value: 'ARS', label: 'ARS ($)' },
@@ -104,7 +107,7 @@ export const PresupuestoSidebar = ({
               {moneda}
             </span>
           </div>
-          <SearchableSelect value={tipo} onChange={(v) => onTipoChange(v as TipoPresupuesto)} options={tipoOptions} placeholder="Tipo..." />
+          <SearchableSelect value={tipo} onChange={(v) => onTipoChange(v as TipoPresupuesto)} options={tipoOptionsCon(tipo)} placeholder="Tipo..." />
           <SearchableSelect value={moneda} onChange={(v) => onMonedaChange(v as MonedaPresupuesto)} options={monedaOptions} placeholder="Moneda..." />
         </div>
       </Card>

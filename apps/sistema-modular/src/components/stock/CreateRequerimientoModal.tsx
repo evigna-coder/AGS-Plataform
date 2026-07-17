@@ -12,6 +12,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  /** Artículo preseleccionado (ej. "Crear req." desde Planificación). */
+  prefillArticuloId?: string | null;
 }
 
 const ORIGEN_OPTIONS: { value: OrigenRequerimiento; label: string }[] = [
@@ -43,7 +45,7 @@ const emptyForm = {
   notas: '',
 };
 
-export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
+export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCreated, prefillArticuloId }) => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [articulos, setArticulos] = useState<Articulo[]>([]);
@@ -54,6 +56,14 @@ export const CreateRequerimientoModal: React.FC<Props> = ({ open, onClose, onCre
     articulosService.getAll({ activoOnly: true }).then(setArticulos).catch(console.error);
     proveedoresService.getAll(true).then(setProveedores).catch(console.error);
   }, [open]);
+
+  // Prefill desde Planificación ("Crear req." de una fila): seleccionar el artículo
+  // cuando la lista ya cargó. Solo si el form está vacío (no pisar elección manual).
+  useEffect(() => {
+    if (!open || !prefillArticuloId || articulos.length === 0 || form.articuloId) return;
+    handleSelectArticulo(prefillArticuloId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefillArticuloId, articulos.length]);
 
   const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
   const handleClose = () => { onClose(); setForm(emptyForm); };

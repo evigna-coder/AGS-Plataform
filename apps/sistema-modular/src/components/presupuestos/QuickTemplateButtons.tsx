@@ -10,7 +10,7 @@ import { Button } from '../ui/Button';
 import {
   buildTemplate100AlCierre,
   buildTemplate30_70,
-  buildTemplate70_30PreEmbarque,
+  buildTemplate50_50,
 } from '../../utils/cuotasFacturacion';
 
 interface Props {
@@ -46,10 +46,10 @@ export const QuickTemplateButtons: React.FC<Props> = ({ monedasActivas, onApply,
       variant="outline"
       size="sm"
       disabled={disabled}
-      onClick={() => onApply(buildTemplate70_30PreEmbarque(monedasActivas))}
-      data-testid="esquema-quick-70-30-pre"
+      onClick={() => onApply(buildTemplate50_50(monedasActivas))}
+      data-testid="esquema-quick-50-50"
     >
-      70/30 pre-embarque
+      50/50 anticipo+entrega
     </Button>
   </div>
 );

@@ -77,20 +77,23 @@ export function buildTemplate30_70(
 }
 
 /**
- * Template: 70% pre-embarque + 30% saldo.
- * Cuota 1: 70% at hito `pre_embarque`.
- * Cuota 2: 30% at hito `todas_ots_cerradas`.
+ * Template: 50% anticipo + 50% saldo.
+ * Cuota 1: 50% at hito `ppto_aceptado`.
+ * Cuota 2: 50% at hito `todas_ots_cerradas`.
+ * Reemplaza al viejo 70/30 pre-embarque (UAT 2026-07-16: los anticipos que se
+ * piden son 30% o 50% — el 70/30 no se usaba). El hito `pre_embarque` sigue
+ * disponible para cuotas armadas a mano.
  */
-export function buildTemplate70_30PreEmbarque(
+export function buildTemplate50_50(
   monedasActivas: MonedaCuota[],
 ): PresupuestoCuotaFacturacion[] {
   return [
     {
       id: newCuotaId(),
       numero: 1,
-      porcentajePorMoneda: mkPorcUniform(monedasActivas, 70),
-      descripcion: '70% pre-embarque',
-      hito: 'pre_embarque',
+      porcentajePorMoneda: mkPorcUniform(monedasActivas, 50),
+      descripcion: 'Anticipo 50%',
+      hito: 'ppto_aceptado',
       estado: 'pendiente',
       solicitudFacturacionId: null,
       montoFacturadoPorMoneda: null,
@@ -98,7 +101,7 @@ export function buildTemplate70_30PreEmbarque(
     {
       id: newCuotaId(),
       numero: 2,
-      porcentajePorMoneda: mkPorcUniform(monedasActivas, 30),
+      porcentajePorMoneda: mkPorcUniform(monedasActivas, 50),
       descripcion: 'Saldo contra entrega',
       hito: 'todas_ots_cerradas',
       estado: 'pendiente',

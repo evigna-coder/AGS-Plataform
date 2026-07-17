@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, doc, getDoc, query, where, Timestamp } from 'firebase/firestore';
 import { updateDoc, deleteDoc, addDoc } from './firebase';
 import type { CategoriaEquipo, CategoriaModulo, Sistema, ModuloSistema } from '@ags/shared';
 import { db, getCreateTrace, getUpdateTrace, deepCleanForFirestore, createBatch, newDocRef, docRef, batchAudit, onSnapshot } from './firebase';
@@ -691,6 +691,27 @@ export const modulosService = {
     const ref = await addDoc(collection(db, 'sistemas', sistemaId, 'modulos'), cleanedData);
     console.log('Modulo creado exitosamente con ID:', ref.id);
     return ref.id;
+  },
+
+  /**
+   * Todos los módulos de TODOS los sistemas en una sola query (collectionGroup).
+   * Usado por filtros que necesitan buscar un sistema por módulo/serie (OTList).
+   * Cacheado (TTL serviceCache). El sistemaId sale del path del doc.
+   */
+  async getAllGrouped(): Promise<ModuloSistema[]> {
+    const cached = getCached<ModuloSistema[]>('modulos_all');
+    if (cached) return cached;
+    const snap = await getDocs(query(collectionGroup(db, 'modulos')));
+    const modulos = snap.docs
+      // Solo los de sistemas/{id}/modulos (por si otra colección anida 'modulos').
+      .filter(d => d.ref.parent.parent?.parent?.id === 'sistemas' || d.ref.path.startsWith('sistemas/'))
+      .map(d => ({
+        ...d.data(),
+        id: d.id,
+        sistemaId: d.ref.parent.parent?.id ?? '',
+      })) as ModuloSistema[];
+    setCache('modulos_all', modulos);
+    return modulos;
   },
 
   // Obtener todos los modulos de un sistema

@@ -106,7 +106,7 @@ export const PresupuestoAddItemWizard: React.FC<Props> = ({ conceptosServicio, c
     if (sel.tipo === 'concepto') {
       onAdd({ ...base, conceptoServicioId: sel.refId || null, itemRequiereImportacion: false });
     } else {
-      // Artículo de stock: disponibilidad automática por ATP (igual que AddItemModal).
+      // Artículo de stock: disponibilidad automática por ATP.
       let disponibilidad: Disponibilidad = 'post_facturacion';
       let etaDiasEstimados: number | null = null;
       try {

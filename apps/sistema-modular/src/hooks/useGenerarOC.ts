@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { ordenesCompraService, requerimientosService, presupuestosService, leadsService } from '../services/firebaseService';
-import type { RequerimientoCompra, ItemOC } from '@ags/shared';
+import { ordenesCompraService, requerimientosService, presupuestosService, leadsService, proveedoresService } from '../services/firebaseService';
+import type { RequerimientoCompra, ItemOC, Proveedor } from '@ags/shared';
 
 export function useGenerarOC() {
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,16 @@ export function useGenerarOC() {
         const isSinProveedor = provId === '__sin_proveedor__';
         const firstReq = reqs[0];
 
+        // Tipo y moneda se derivan del proveedor (UAT 2026-07-16: quedaba
+        // hardcodeado nacional/ARS aunque el proveedor fuera internacional).
+        let prov: Proveedor | null = null;
+        if (!isSinProveedor) {
+          prov = await proveedoresService.getById(provId).catch(() => null);
+        }
+        const esImportacion = prov?.tipo === 'internacional';
+        const tipoOC = esImportacion ? 'importacion' as const : 'nacional' as const;
+        const monedaOC = (prov?.moneda as 'ARS' | 'USD' | 'EUR' | undefined) ?? (esImportacion ? 'USD' : 'ARS');
+
         // Build ItemOC list from requirements
         const items: ItemOC[] = reqs.map(r => ({
           id: crypto.randomUUID(),
@@ -45,10 +55,10 @@ export function useGenerarOC() {
 
         // Create OC as borrador — user will complete prices from OCDetail
         const ocId = await ordenesCompraService.create({
-          tipo: 'nacional',
+          tipo: tipoOC,
           proveedorId: isSinProveedor ? '' : provId,
-          proveedorNombre: isSinProveedor ? 'Sin proveedor asignado' : (firstReq.proveedorSugeridoNombre ?? ''),
-          moneda: 'ARS',
+          proveedorNombre: isSinProveedor ? 'Sin proveedor asignado' : (prov?.nombre ?? firstReq.proveedorSugeridoNombre ?? ''),
+          moneda: monedaOC,
           proformaNumero: null,
           fechaProforma: null,
           condicionesPago: null,
