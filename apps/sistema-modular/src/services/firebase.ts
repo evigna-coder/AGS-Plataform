@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeFirestore, getFirestore, memoryLocalCache, enableNetwork, collection, addDoc as _addDoc, doc, writeBatch as _writeBatch, runTransaction as _runTransaction, Timestamp, getDocs, getDoc, updateDoc as _updateDoc, setDoc as _setDoc, deleteDoc as _deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import type { Firestore, Firestore as FirestoreType } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getStorage, uploadBytes as _uploadBytes, deleteObject as _deleteObject } from 'firebase/storage';
 import type { AuditAction } from '@ags/shared';
 import { getCurrentUserTrace } from './currentUser';
 
@@ -180,6 +180,21 @@ export const runTransaction: typeof _runTransaction = (async (...args: any[]) =>
   scheduleUnstick();
   return r;
 }) as typeof _runTransaction;
+
+// Los writes a STORAGE también necesitan el unstick (mismo bug de router que
+// los writes a Firestore). Flujos con subidas grandes (ej. anexar documento al
+// PDF del reporte) quedaban fuera del wrap al importar de 'firebase/storage'.
+export const uploadBytes: typeof _uploadBytes = (async (...args: any[]) => {
+  const r = await (_uploadBytes as any)(...args);
+  scheduleUnstick();
+  return r;
+}) as typeof _uploadBytes;
+
+export const deleteObject: typeof _deleteObject = (async (...args: any[]) => {
+  const r = await (_deleteObject as any)(...args);
+  scheduleUnstick();
+  return r;
+}) as typeof _deleteObject;
 
 // Expone Firebase a window en dev para scripts de migración (consola del browser).
 // No se incluye en builds de producción. Usa las wrapped (también disparan flash).

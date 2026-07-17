@@ -15,9 +15,11 @@
  * archivo fuente se sube aparte. Ambos paths quedan registrados en el doc del
  * reporte (`documentosAdicionales[]`).
  */
-import { ref, getDownloadURL, getBytes, uploadBytes } from 'firebase/storage';
+import { ref, getDownloadURL, getBytes } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
-import { storage } from './firebase';
+// uploadBytes wrapeado: dispara el unstick del keyboard router post-write
+// (convención del repo: writes desde './firebase', nunca del SDK directo).
+import { storage, uploadBytes } from './firebase';
 import { ordenesTrabajoService } from './otService';
 import { getCurrentUserTrace } from './currentUser';
 import type { DocumentoAdicionalReporte } from '@ags/shared';
