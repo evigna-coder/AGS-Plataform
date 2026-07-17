@@ -933,6 +933,11 @@ export const usePDFGeneration = (
         signatureClient: clientSig,
         signatureEngineer: engineerSig,
         status: 'FINALIZADO',
+        // UAT 2026-07-17: este camino (botón de la sección de firmas) no avanzaba
+        // estadoAdmin — solo handleFinalSubmit lo hacía. La OT quedaba en CREADA/
+        // COORDINADA con el reporte FINALIZADO y el cierre admin no la levantaba.
+        estadoAdmin: 'CIERRE_TECNICO',
+        estadoAdminFecha: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
