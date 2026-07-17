@@ -734,6 +734,52 @@ export const usePDFGeneration = (
     }
   };
 
+  /**
+   * Sube el/los PDF a Storage y persiste `pdfUrl` en el doc del reporte, con
+   * reintento. Devuelve true si el PDF quedó en la nube; false si tras los
+   * reintentos NO se pudo subir — el caller es dueño del mensaje al técnico.
+   *
+   * UAT 2026-07-17: antes este fallo se tragaba con un console.warn y el
+   * técnico veía "Éxito" — el reporte quedaba FINALIZADO sin `pdfUrl`, y el
+   * cierre administrativo (sistema-modular) no encontraba el PDF ni podía
+   * anexarle documentos. Se recupera re-finalizando con buena conexión.
+   */
+  const uploadPdfsWithRetry = async (result: GeneratedPDFs): Promise<boolean> => {
+    const ATTEMPTS = 2; // uploadReportBlob ya corta cada intento a los 90s
+    for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+      try {
+        setGenerationStep(attempt === 1 ? 'Subiendo a la nube…' : 'Subiendo a la nube (reintento)…');
+        const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
+        const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
+
+        if (result.protocolBlob && result.protocolFilename) {
+          const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
+          storageData.protocolPdfUrl = protocolPdfUrl;
+          console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
+        }
+
+        await firebase.saveReport(otNumber, storageData);
+        console.log('✅ PDF(s) subido(s) a Storage');
+        return true;
+      } catch (uploadErr) {
+        console.warn(`⚠️ No se pudo subir PDF a Storage (intento ${attempt}/${ATTEMPTS}):`, uploadErr);
+        if (attempt < ATTEMPTS) await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    return false;
+  };
+
+  // Mensaje único para ambos flujos de finalización cuando el upload falló.
+  const alertPdfNoSubido = () => {
+    showAlert({
+      title: 'PDF no subido a la nube',
+      message: 'El reporte quedó finalizado y el PDF se generó, pero NO se pudo subir a la nube por un problema de conexión. ' +
+        'Hasta que se suba, el PDF no va a estar disponible en el sistema (cierre administrativo). ' +
+        'Cuando tengas mejor señal, volvé a entrar a esta OT y tocá Finalizar de nuevo para reintentar la subida.',
+      type: 'warning'
+    });
+  };
+
   // Finalizar y entregar PDF (descarga por defecto; email opcional via delivery)
   const handleFinalSubmit = async (delivery: DeliveryFn = defaultDelivery) => {
     // Algunos call-sites pasan handler directo a onClick (ej. MobileMenu),
@@ -827,6 +873,7 @@ export const usePDFGeneration = (
 
     // ── Etapa B: generar el/los PDF y subirlos a Storage ──
     let result: GeneratedPDFs;
+    let pdfSubido = false;
     try {
       // Forzar ciclo off→on para que React re-monte con datos frescos
       // (evita servir un PDF cacheado si ya estaba en preview mode)
@@ -845,23 +892,8 @@ export const usePDFGeneration = (
       result = await generatePDFs();
       setPdfBlob(result.reportBlob);
 
-      // Subir PDF(s) a Firebase Storage
-      setGenerationStep('Subiendo a la nube…');
-      try {
-        const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
-        const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
-
-        if (result.protocolBlob && result.protocolFilename) {
-          const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
-          storageData.protocolPdfUrl = protocolPdfUrl;
-          console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
-        }
-
-        await firebase.saveReport(otNumber, storageData);
-        console.log('✅ PDF(s) subido(s) a Storage');
-      } catch (uploadErr) {
-        console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
-      }
+      // Subir PDF(s) a Firebase Storage (con reintento; si falla se avisa al final)
+      pdfSubido = await uploadPdfsWithRetry(result);
     } catch (pdfError) {
       setIsGenerating(false);
       setGenerationStep('');
@@ -885,6 +917,10 @@ export const usePDFGeneration = (
       setIsGenerating(false);
       setGenerationStep('');
     }
+
+    // El PDF ya se entregó (descarga/mail); recién ahora avisar si no quedó
+    // en la nube, para que el mensaje no lo pise el flujo de entrega.
+    if (!pdfSubido) alertPdfNoSubido();
   };
 
   // Confirmar firma del cliente, finalizar reporte y entregar PDF
@@ -1001,34 +1037,23 @@ export const usePDFGeneration = (
         const result = await generatePDFs();
         setPdfBlob(result.reportBlob);
 
-        // Subir PDF(s) a Firebase Storage
-        setGenerationStep('Subiendo a la nube…');
-        try {
-          const pdfUrl = await firebase.uploadReportBlob(otNumber, result.reportBlob, result.reportFilename);
-          const storageData: Record<string, string> = { pdfUrl, pdfGeneratedAt: new Date().toISOString() };
-
-          if (result.protocolBlob && result.protocolFilename) {
-            const protocolPdfUrl = await firebase.uploadReportBlob(otNumber, result.protocolBlob, result.protocolFilename);
-            storageData.protocolPdfUrl = protocolPdfUrl;
-            console.log('✅ Protocolo PDF subido a Storage:', protocolPdfUrl);
-          }
-
-          await firebase.saveReport(otNumber, storageData);
-          console.log('✅ PDF(s) subido(s) a Storage');
-        } catch (uploadErr) {
-          console.warn('⚠️ No se pudo subir PDF a Storage:', uploadErr);
-        }
+        // Subir PDF(s) a Firebase Storage (con reintento)
+        const pdfSubido = await uploadPdfsWithRetry(result);
 
         // Entregar: descarga (default) o email (via delivery callback)
         await delivery(result, { setStep: setGenerationStep });
 
         console.log("PDF(s) generado(s) exitosamente");
 
-        showAlert({
-          title: 'Éxito',
-          message: 'Reporte finalizado y PDF generado correctamente.',
-          type: 'success'
-        });
+        if (pdfSubido) {
+          showAlert({
+            title: 'Éxito',
+            message: 'Reporte finalizado y PDF generado correctamente.',
+            type: 'success'
+          });
+        } else {
+          alertPdfNoSubido();
+        }
       } catch (pdfErr) {
         console.error("Error generando PDF:", pdfErr);
         console.error("Detalles del error:", pdfErr.message, pdfErr.stack);
