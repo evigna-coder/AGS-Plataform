@@ -19,6 +19,13 @@ interface SearchableSelectProps {
   size?: 'sm' | 'md';
   creatable?: boolean;
   createLabel?: string;
+  /**
+   * Renderiza el listado pegado al input (absolute dentro del contenedor) en vez
+   * de portalearlo al body. Usar dentro de modales/overlays fixed: en mobile, con
+   * el teclado abierto, iOS desfasa el viewport visual y un dropdown portaleado
+   * "flota" lejos del input. Requiere que el contenedor padre no clipee (o scrollee).
+   */
+  inline?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -33,6 +40,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   size = 'md',
   creatable = false,
   createLabel = 'Crear',
+  inline = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,7 +130,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || inline) return;
     updateDropdownPos();
     const vv = window.visualViewport;
     window.addEventListener('scroll', updateDropdownPos, true);
@@ -135,7 +143,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       vv?.removeEventListener('resize', updateDropdownPos);
       vv?.removeEventListener('scroll', updateDropdownPos);
     };
-  }, [isOpen, updateDropdownPos]);
+  }, [isOpen, inline, updateDropdownPos]);
 
   useEffect(() => {
     if (highlightedIndex >= 0 && listRef.current) {
@@ -228,7 +236,32 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         </span>
       </div>
 
-      {isOpen && !disabled && createPortal(
+      {isOpen && !disabled && (inline ? (
+        <ul ref={listRef}
+          className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto" role="listbox">
+          {allOptions.length === 0 ? (
+            <li className="px-2.5 py-1.5 text-xs text-slate-400 italic">{emptyMessage}</li>
+          ) : (
+            allOptions.map((option, index) => {
+              const isCreate = option.value.startsWith('__create__:');
+              return (
+                <li key={option.value} onClick={() => handleSelect(option.value)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  className={`px-2.5 py-1.5 text-xs cursor-pointer transition-colors ${
+                    isCreate
+                      ? highlightedIndex === index ? 'bg-teal-100 text-teal-800 font-medium' : 'text-teal-600 font-medium border-t border-slate-100'
+                      : option.value === value ? 'bg-teal-50 text-teal-700 font-medium'
+                      : highlightedIndex === index ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                  role="option" aria-selected={option.value === value}>
+                  {isCreate && <span className="mr-1">+</span>}
+                  {option.label}
+                </li>
+              );
+            })
+          )}
+        </ul>
+      ) : createPortal(
         <ul ref={listRef}
           style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
           className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto" role="listbox">
@@ -255,7 +288,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           )}
         </ul>,
         document.body
-      )}
+      ))}
 
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>

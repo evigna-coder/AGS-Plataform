@@ -28,6 +28,7 @@ export default function OTDetailPage() {
   const form = useOTForm(otNumber);
   const [tab, setTab] = useState<Tab>('detalle');
   const [solicitarOpen, setSolicitarOpen] = useState(false);
+  const [accionesOpen, setAccionesOpen] = useState(false);
   const ot = form.ot as MisOTDoc & { problemaFallaInicial?: string; pdfUrl?: string | null } | null;
   const { sistema, modulos } = useSistemaContext(ot?.sistemaId);
 
@@ -77,18 +78,14 @@ export default function OTDetailPage() {
         {tab === 'firmas' && <OTFirmasTab form={form} ot={ot} />}
       </div>
 
-      {/* Botonera sticky — mobile: targets ≥44px con primario a ancho completo;
-          desktop: botones compactos alineados a la derecha */}
-      <div
-        className="shrink-0 sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-8px_20px_rgba(30,41,59,0.08)] px-4 py-3 md:py-2"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-      >
-        <div className="flex gap-2.5 max-w-5xl mx-auto w-full md:justify-end">
+      {/* Acciones — desktop: barra inferior compacta */}
+      <div className="hidden md:block shrink-0 sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-8px_20px_rgba(30,41,59,0.08)] px-4 py-2">
+        <div className="flex gap-2.5 max-w-5xl mx-auto w-full justify-end">
           {!form.readOnly && (
             <button
               onClick={() => form.save()}
               disabled={form.saving}
-              className="min-h-[48px] md:min-h-[38px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 disabled:opacity-50"
+              className="min-h-[38px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 disabled:opacity-50"
             >
               {form.saving ? 'Guardando…' : 'Guardar'}
             </button>
@@ -97,18 +94,60 @@ export default function OTDetailPage() {
             href={reporteHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-h-[48px] md:min-h-[38px] px-4 rounded-xl border-[1.5px] border-teal-700 bg-white text-sm font-semibold text-teal-700 inline-flex items-center justify-center"
+            className="min-h-[38px] px-4 rounded-xl border-[1.5px] border-teal-700 bg-white text-sm font-semibold text-teal-700 inline-flex items-center justify-center"
           >
             {form.readOnly && ot?.pdfUrl ? 'Ver PDF' : 'Reporte'}
           </a>
           <button
             onClick={() => setSolicitarOpen(true)}
             disabled={!ot}
-            className="flex-1 md:flex-none min-h-[48px] md:min-h-[38px] px-4 md:px-6 rounded-xl bg-teal-700 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+            className="min-h-[38px] px-6 rounded-xl bg-teal-700 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
           >
             Solicitar presupuesto
           </button>
         </div>
+      </div>
+
+      {/* Acciones — mobile: pestaña colapsada en el borde derecho, no roba alto */}
+      <div className="md:hidden fixed right-0 bottom-28 z-30 flex items-center">
+        {accionesOpen && (
+          <div className="bg-white border border-slate-200 rounded-l-2xl shadow-xl p-2.5 space-y-2 w-52">
+            <button
+              onClick={() => { setSolicitarOpen(true); setAccionesOpen(false); }}
+              disabled={!ot}
+              className="w-full min-h-[44px] px-3 rounded-xl bg-teal-700 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Solicitar presupuesto
+            </button>
+            <a
+              href={reporteHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setAccionesOpen(false)}
+              className="w-full min-h-[44px] px-3 rounded-xl border-[1.5px] border-teal-700 bg-white text-sm font-semibold text-teal-700 inline-flex items-center justify-center"
+            >
+              {form.readOnly && ot?.pdfUrl ? 'Ver PDF' : 'Reporte'}
+            </a>
+            {!form.readOnly && (
+              <button
+                onClick={() => form.save()}
+                disabled={form.saving}
+                className="w-full min-h-[44px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 disabled:opacity-50"
+              >
+                {form.saving ? 'Guardando…' : 'Guardar'}
+              </button>
+            )}
+          </div>
+        )}
+        <button
+          onClick={() => setAccionesOpen(v => !v)}
+          aria-label={accionesOpen ? 'Ocultar acciones' : 'Mostrar acciones'}
+          className="bg-teal-700 text-white rounded-l-xl py-5 px-1 shadow-lg border border-teal-800 border-r-0"
+        >
+          <svg className={`w-4 h-4 transition-transform ${accionesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
       </div>
 
       {ot && (

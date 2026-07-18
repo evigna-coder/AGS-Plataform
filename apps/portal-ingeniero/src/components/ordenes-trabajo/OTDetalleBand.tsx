@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { WorkOrder } from '@ags/shared';
 import { OT_ESTADO_LABELS } from '@ags/shared';
 
@@ -11,7 +12,13 @@ function fmtFecha(f?: string): { big: string; small: string } | null {
   return { big, small };
 }
 
-/** Banda teal del detalle de OT (mockup mix A+B). */
+const NAV_LINK_CLS = 'font-mono text-[11px] uppercase tracking-widest opacity-80 py-1 hover:opacity-100';
+
+/**
+ * Banda teal del detalle de OT. Mobile: compacta (una línea por dato, todo
+ * truncado) para no robarle alto al contenido. Desktop (md+): una sola línea
+ * OT + tipo | cliente | fecha + estado.
+ */
 export default function OTDetalleBand({ ot, otNumber, onBack }: {
   ot: WorkOrder | null;
   otNumber: string;
@@ -24,58 +31,56 @@ export default function OTDetalleBand({ ot, otNumber, onBack }: {
   const contactoLinea = [ot?.contacto, ot?.sector, [ot?.direccion, ot?.localidad].filter(Boolean).join(', ')]
     .filter(Boolean).join(' · ');
 
-  // Mobile: layout apilado del mockup. Desktop (md+): banda de una línea —
-  // OT + tipo | cliente | estado + fecha — sin el eyebrow ni el bloque separado.
-  return (
-    <div className="shrink-0 bg-gradient-to-br from-teal-700 to-teal-900 text-white px-4 pt-3 pb-4 sm:px-5 md:pt-2 md:pb-3">
-      <div className="max-w-5xl mx-auto w-full">
-        <button
-          onClick={onBack}
-          className="font-mono text-[11px] uppercase tracking-widest opacity-80 py-1.5 md:py-0.5 hover:opacity-100"
-        >
-          ← Mis OT
-        </button>
-        <div className="md:flex md:items-center md:justify-between md:gap-8">
-          <div className="flex justify-between items-start gap-3 md:block md:shrink-0">
-            <div className="min-w-0">
-              <div className="mt-1 md:mt-0">
-                <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.2em] opacity-75 mb-1 md:hidden">
-                  Orden de trabajo
-                </span>
-                <h1 className="font-serif text-[26px] md:text-[22px] font-medium leading-none">OT {otNumber}</h1>
-              </div>
-              {ot?.tipoServicio && <p className="text-[13.5px] md:text-xs opacity-90 mt-1.5 md:mt-1">{ot.tipoServicio}</p>}
-            </div>
-            <div className="text-right pt-1 shrink-0 md:hidden">
-              <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/15 border border-white/35">
-                {estadoLabel}
-              </span>
-              {fecha && (
-                <div className="font-mono text-[15px] font-semibold mt-3">
-                  <span className="block text-[9px] uppercase tracking-widest opacity-75 font-semibold mb-0.5">{fecha.small}</span>
-                  {fecha.big}
-                </div>
-              )}
-            </div>
-          </div>
+  const estadoChip = (
+    <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/15 border border-white/35 shrink-0">
+      {estadoLabel}
+    </span>
+  );
 
+  return (
+    <div className="shrink-0 bg-gradient-to-br from-teal-700 to-teal-900 text-white px-4 pt-1.5 pb-2.5 sm:px-5">
+      <div className="max-w-5xl mx-auto w-full">
+        <div className="flex items-center gap-5">
+          <button onClick={onBack} className={NAV_LINK_CLS}>← Mis OT</button>
+          <Link to="/agenda" className={NAV_LINK_CLS}>Agenda</Link>
+        </div>
+
+        {/* Mobile: compacto, una línea por dato */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between gap-3 mt-0.5">
+            <h1 className="font-serif text-xl font-medium leading-none truncate">OT {otNumber}</h1>
+            {estadoChip}
+          </div>
+          <p className="text-xs opacity-90 mt-1 truncate">
+            {[ot?.tipoServicio, fecha ? `${fecha.small} ${fecha.big}` : null].filter(Boolean).join(' · ') || '—'}
+          </p>
           {ot?.razonSocial && (
-            <div className="mt-3.5 pt-3 border-t border-white/20 md:mt-0 md:pt-0 md:border-t-0 md:flex-1 md:min-w-0">
-              <p className="font-serif text-lg md:text-base font-medium leading-tight md:truncate">{ot.razonSocial}</p>
-              {contactoLinea && <p className="text-xs opacity-80 mt-1 md:mt-0.5 md:truncate">{contactoLinea}</p>}
+            <p className="text-[11px] opacity-75 mt-0.5 truncate">
+              {[ot.razonSocial, contactoLinea].filter(Boolean).join(' — ')}
+            </p>
+          )}
+        </div>
+
+        {/* Desktop: una sola línea */}
+        <div className="hidden md:flex items-center justify-between gap-8">
+          <div className="shrink-0">
+            <h1 className="font-serif text-[22px] font-medium leading-none">OT {otNumber}</h1>
+            {ot?.tipoServicio && <p className="text-xs opacity-90 mt-1">{ot.tipoServicio}</p>}
+          </div>
+          {ot?.razonSocial && (
+            <div className="flex-1 min-w-0">
+              <p className="font-serif text-base font-medium leading-tight truncate">{ot.razonSocial}</p>
+              {contactoLinea && <p className="text-xs opacity-80 mt-0.5 truncate">{contactoLinea}</p>}
             </div>
           )}
-
-          <div className="hidden md:flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             {fecha && (
               <span className="font-mono text-sm font-semibold">
                 <span className="uppercase text-[9px] tracking-widest opacity-75 mr-1.5">{fecha.small}</span>
                 {fecha.big}
               </span>
             )}
-            <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/15 border border-white/35">
-              {estadoLabel}
-            </span>
+            {estadoChip}
           </div>
         </div>
       </div>

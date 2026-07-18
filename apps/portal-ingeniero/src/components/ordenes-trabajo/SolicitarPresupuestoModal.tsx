@@ -139,6 +139,7 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
                       emptyMessage="Sin resultados en stock"
                       creatable
                       createLabel="Usar N° de parte"
+                      inline
                     />
                   </div>
                   <input
