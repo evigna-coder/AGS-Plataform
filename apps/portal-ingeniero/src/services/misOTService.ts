@@ -269,8 +269,10 @@ export const misOTService = {
    *  b) crea el presupuesto en borrador (tipo 'partes', origen OT) con las partes
    *     declaradas como items sin precio — ventas los completa,
    *  c) agrega el número a budgets[] de la OT (colección `reportes`, canónica),
-   *  d) crea ticket al área ventas — leadsService.create auto-asigna al responsable
-   *     configurado en adminConfig/flujos → responsablePorArea.ventas.
+   *  d) crea ticket al área COMPRAS — el responsable de compras (Miguel Barrios)
+   *     es quien envía los presupuestos de partes y genera las OC; ventas se ocupa
+   *     de equipos y ventas de mayor magnitud. leadsService.create auto-asigna al
+   *     responsable configurado en adminConfig/flujos → responsablePorArea.compras.
    */
   async solicitarPresupuesto(
     ot: MisOTDoc,
@@ -347,7 +349,7 @@ export const misOTService = {
       postas: [],
       asignadoA: null,
       derivadoPor: null,
-      areaActual: 'ventas',
+      areaActual: 'compras',
       accionPendiente: 'Completar y enviar presupuesto',
       descripcion: `Presupuesto ${numero} creado en borrador desde el portal de ingenieros.\n`
         + `OT: ${ot.otNumber} (${ot.tipoServicio || 'servicio'})\n`
