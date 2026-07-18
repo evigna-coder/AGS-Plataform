@@ -79,53 +79,65 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
 
   const toggle = (kpi: KpiFilter) => onKpiClick?.(kpi);
   const cardCls = (kpi: KpiFilter) =>
-    `bg-white border rounded-lg px-3 py-2 text-left w-full transition-colors ${
+    `bg-white border rounded-lg px-3 py-1.5 text-left w-full transition-colors ${
       activeKpi === kpi
         ? 'border-teal-500 ring-1 ring-teal-500 bg-teal-50/30'
         : 'border-slate-200 hover:border-teal-300'
     }`;
 
+  // Compactas (UAT 2026-07-18): label y número en una línea; el detalle solo
+  // aparece cuando hay contenido — con ceros la fila queda de una sola línea.
   return (
-    <div className="grid grid-cols-4 gap-2 px-5 pb-3">
+    <div className="grid grid-cols-4 gap-2 px-5 pb-3 items-start">
       {/* Enviados */}
       <button type="button" className={cardCls('enviados')} onClick={() => toggle('enviados')}
         title="Filtrar la lista por presupuestos enviados">
-        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviados</p>
-        <p className="text-lg font-black text-blue-600">{metrics.enviadosTotal}</p>
-        <div className="space-y-0.5 mt-1">
-          {metrics.enviadosSinRespuesta.length > 0 && (
-            <p className="text-[10px] text-amber-600">{metrics.enviadosSinRespuesta.length} sin respuesta (&gt;7d)</p>
-          )}
-          {metrics.enviadosVencidos.length > 0 && (
-            <p className="text-[10px] text-red-600">{metrics.enviadosVencidos.length} vencidos</p>
-          )}
-          {fmtPipeline(metrics.pipeline) && (
-            <p className="text-[10px] text-slate-400 mt-1">{fmtPipeline(metrics.pipeline)}</p>
-          )}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviados</p>
+          <p className="text-base font-black text-blue-600 leading-none">{metrics.enviadosTotal}</p>
         </div>
+        {(metrics.enviadosSinRespuesta.length > 0 || metrics.enviadosVencidos.length > 0 || fmtPipeline(metrics.pipeline)) && (
+          <div className="space-y-0.5 mt-1">
+            {metrics.enviadosSinRespuesta.length > 0 && (
+              <p className="text-[10px] text-amber-600">{metrics.enviadosSinRespuesta.length} sin respuesta (&gt;7d)</p>
+            )}
+            {metrics.enviadosVencidos.length > 0 && (
+              <p className="text-[10px] text-red-600">{metrics.enviadosVencidos.length} vencidos</p>
+            )}
+            {fmtPipeline(metrics.pipeline) && (
+              <p className="text-[10px] text-slate-400">{fmtPipeline(metrics.pipeline)}</p>
+            )}
+          </div>
+        )}
       </button>
 
       {/* Aceptados */}
       <button type="button" className={cardCls('aceptados')} onClick={() => toggle('aceptados')}
         title="Filtrar la lista por presupuestos aceptados">
-        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Aceptados</p>
-        <p className="text-lg font-black text-emerald-600">{metrics.aceptadosTotal}</p>
-        <div className="space-y-0.5 mt-1">
-          {metrics.aceptadosSinOT.length > 0 && (
-            <p className="text-[10px] text-amber-600">{metrics.aceptadosSinOT.length} sin OT creada</p>
-          )}
-          {metrics.aceptadosSinFacturar.length > 0 && (
-            <p className="text-[10px] text-orange-600">{metrics.aceptadosSinFacturar.length} sin facturar</p>
-          )}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Aceptados</p>
+          <p className="text-base font-black text-emerald-600 leading-none">{metrics.aceptadosTotal}</p>
         </div>
+        {(metrics.aceptadosSinOT.length > 0 || metrics.aceptadosSinFacturar.length > 0) && (
+          <div className="space-y-0.5 mt-1">
+            {metrics.aceptadosSinOT.length > 0 && (
+              <p className="text-[10px] text-amber-600">{metrics.aceptadosSinOT.length} sin OT creada</p>
+            )}
+            {metrics.aceptadosSinFacturar.length > 0 && (
+              <p className="text-[10px] text-orange-600">{metrics.aceptadosSinFacturar.length} sin facturar</p>
+            )}
+          </div>
+        )}
       </button>
 
       {/* Enviadas a facturación: avisos generados, esperando que Administración
           cargue la factura (solicitud estado 'pendiente'). */}
       <button type="button" className={cardCls('fact_pendientes')} onClick={() => toggle('fact_pendientes')}
         title="Filtrar la lista por presupuestos enviados a facturación (aviso generado, factura sin cargar)">
-        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviadas a facturación</p>
-        <p className="text-lg font-black text-amber-600">{metrics.solicitudesPendientes.length}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Enviadas a facturación</p>
+          <p className="text-base font-black text-amber-600 leading-none">{metrics.solicitudesPendientes.length}</p>
+        </div>
         {metrics.solicitudesPendientes.length > 0 && (
           <p className="text-[10px] text-slate-400 mt-1">
             {metrics.solicitudesPendientes.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
@@ -138,7 +150,7 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
             tabIndex={0}
             onClick={(e) => { e.stopPropagation(); toggle('pendiente_aviso'); }}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggle('pendiente_aviso'); } }}
-            className={`block text-[10px] mt-1 text-orange-600 hover:underline ${activeKpi === 'pendiente_aviso' ? 'font-semibold underline' : ''}`}
+            className={`block text-[10px] mt-0.5 text-orange-600 hover:underline ${activeKpi === 'pendiente_aviso' ? 'font-semibold underline' : ''}`}
             title="OT cerrada lista para facturar, pero el aviso a facturación no se generó todavía"
           >
             ⚠ {metrics.pendientesAviso.length} con OT cerrada sin aviso
@@ -149,8 +161,10 @@ export const PresupuestoDashboard: React.FC<Props> = ({ presupuestos, solicitude
       {/* Cobro pendiente */}
       <button type="button" className={cardCls('pend_cobro')} onClick={() => toggle('pend_cobro')}
         title="Filtrar la lista por presupuestos facturados pendientes de cobro">
-        <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pend. cobro</p>
-        <p className="text-lg font-black text-purple-600">{metrics.facturadosSinCobrar.length}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-wide">Pend. cobro</p>
+          <p className="text-base font-black text-purple-600 leading-none">{metrics.facturadosSinCobrar.length}</p>
+        </div>
         {metrics.facturadosSinCobrar.length > 0 && (
           <p className="text-[10px] text-slate-400 mt-1">
             {metrics.facturadosSinCobrar.reduce((s, x) => s + x.montoTotal, 0).toLocaleString('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}

@@ -212,7 +212,16 @@ export const PresupuestosList = () => {
   );
 
   const presupuestosFiltrados = useMemo(() => {
+    // Vista básica (sin estado/KPI/filtros de OC elegidos): ocultar los que ya no
+    // requieren acción comercial — finalizados y los enviados a facturación (aviso
+    // generado, en manos de Administración). Se ven eligiendo el estado en el
+    // filtro o clickeando los KPIs (UAT 2026-07-18).
+    const vistaBasica = !filters.estado && !filters.kpi && !filters.ocPendiente && !filters.ocTrabajoRealizado;
     let result = presupuestos.filter(p => {
+      if (vistaBasica) {
+        if (p.estado === 'finalizado') return false;
+        if (p.estado === 'pendiente_facturacion' && solicitudSets.activas.has(p.id)) return false;
+      }
       if (filters.cliente && p.clienteId !== filters.cliente) return false;
       if (filters.estado && p.estado !== filters.estado) return false;
       if (filters.tipo && p.tipo !== filters.tipo) return false;
@@ -520,9 +529,9 @@ export const PresupuestosList = () => {
                     <tr key={p.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${getRowStyle(p)}`}
                       onClick={() => floatingPres.open(p.id, loadData)}>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(0)}`}>
-                        <span className="font-semibold text-teal-600 text-xs">{p.numero}</span>
+                        <span className="font-semibold text-teal-600 text-[10px]">{p.numero}</span>
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-700 truncate max-w-[140px] ${getAlignClass(1)}`} title={getClienteNombre(p.clienteId)}>
+                      <td className={`px-3 py-2 text-[10px] text-slate-700 truncate max-w-[140px] ${getAlignClass(1)}`} title={getClienteNombre(p.clienteId)}>
                         {getClienteNombre(p.clienteId)}
                       </td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(2)}`}>
@@ -531,7 +540,9 @@ export const PresupuestosList = () => {
                         </span>
                       </td>
                       <td className={`px-3 py-2 whitespace-nowrap ${getAlignClass(3)}`}>
-                        <div className="flex flex-col items-start gap-0.5">
+                        {/* Una sola línea: badge de estado + chip compacto "OC ⚠" (UAT 2026-07-18 —
+                            el segundo badge apilado duplicaba el alto de la fila). */}
+                        <div className="inline-flex items-center gap-1">
                           {faltaAviso(p) ? (
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700"
                               title="OT cerrada lista para facturar, pero todavía no se generó el aviso a facturación — generalo desde el presupuesto (sección Facturación)">
@@ -544,17 +555,17 @@ export const PresupuestosList = () => {
                             </span>
                           )}
                           {trabajoRealizadoIds.has(p.id) && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200"
-                              title="El trabajo ya se realizó (OT cerrada) y el cliente todavía no mandó la orden de compra — reclamar OC">
-                              Pend. OC — trabajo realizado
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 cursor-help"
+                              title="Pend. OC — trabajo realizado: el trabajo ya se hizo (OT cerrada) y el cliente todavía no mandó la orden de compra. Reclamar OC.">
+                              OC ⚠
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-900 font-medium tabular-nums whitespace-nowrap ${getAlignClass(4)}`}>
+                      <td className={`px-3 py-2 text-[10px] text-slate-900 font-medium tabular-nums whitespace-nowrap ${getAlignClass(4)}`}>
                         {sym} {p.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className={`px-3 py-2 text-xs text-slate-500 truncate max-w-[90px] whitespace-nowrap ${getAlignClass(5)}`} title={p.responsableNombre || ''}>
+                      <td className={`px-3 py-2 text-[10px] text-slate-500 truncate max-w-[90px] whitespace-nowrap ${getAlignClass(5)}`} title={p.responsableNombre || ''}>
                         {p.responsableNombre || '—'}
                       </td>
                       <td className={`px-3 py-2 text-[10px] text-slate-500 whitespace-nowrap ${getAlignClass(6)}`}>{formatDate(p.createdAt)}</td>

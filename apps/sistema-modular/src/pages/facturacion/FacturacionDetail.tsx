@@ -6,6 +6,7 @@ import type { SolicitudFacturacion } from '@ags/shared';
 import { SOLICITUD_FACTURACION_ESTADO_LABELS, SOLICITUD_FACTURACION_ESTADO_COLORS, MONEDA_SIMBOLO } from '@ags/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { SolicitudDocumentosCard } from '../../components/facturacion/SolicitudDocumentosCard';
 import { useNavigateBack } from '../../hooks/useNavigateBack';
 import { useDeclareParent } from '../../hooks/useDeclareParent';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -191,6 +192,9 @@ export const FacturacionDetail = () => {
           <div><p className={lbl}>Monto total</p><p className="text-sm font-bold text-teal-700">{fmtMoney(solicitud.montoTotal)}</p></div>
         </div>
       </Card>
+
+      {/* Accesos a los documentos que se adjuntan a la factura (ppto, OC, reportes OT) */}
+      <SolicitudDocumentosCard solicitud={solicitud} />
 
       {/* Admin quick-actions (Marcar enviada / facturada) */}
       {canAdminAction && (solicitud.estado === 'pendiente' || solicitud.estado === 'enviada') && (
