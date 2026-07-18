@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Sistema } from '@ags/shared';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { misOTService, type MisOTDoc, type ParteSolicitada } from '../../services/misOTService';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import {
+  misOTService,
+  type MisOTDoc,
+  type ParteSolicitada,
+  type ArticuloStockOption,
+} from '../../services/misOTService';
 
 interface Props {
   open: boolean;
@@ -13,21 +19,35 @@ interface Props {
 
 type Step = 'confirm' | 'working' | 'done' | 'error';
 
-interface ParteRow { numeroParte: string; cantidad: string }
+interface ParteRow {
+  /** id del artículo si vino del stock; null = número de parte tipeado a mano. */
+  articuloId: string | null;
+  numeroParte: string;
+  descripcion: string;
+  cantidad: string;
+}
 
-const ROW_VACIA: ParteRow = { numeroParte: '', cantidad: '1' };
+const ROW_VACIA: ParteRow = { articuloId: null, numeroParte: '', descripcion: '', cantidad: '1' };
 
 /**
  * Flujo "Solicitar presupuesto" desde una OT:
- * el ingeniero declara número de parte + cantidad (van como items sin precio
- * al presupuesto) → confirma → número atómico + presupuesto borrador + ticket
- * a ventas → muestra el número PRE-XXXX.RR bien visible.
+ * el ingeniero busca la parte en el stock (o tipea el número si no está) +
+ * cantidad → van como items sin precio al presupuesto, con descripción ya
+ * cargada → confirma → número atómico + presupuesto borrador + ticket a
+ * ventas → muestra el número PRE-XXXX.RR bien visible.
  */
 export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }: Props) {
   const [step, setStep] = useState<Step>('confirm');
   const [numero, setNumero] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [partes, setPartes] = useState<ParteRow[]>([{ ...ROW_VACIA }]);
+  const [articulos, setArticulos] = useState<ArticuloStockOption[]>([]);
+
+  useEffect(() => {
+    if (!open || articulos.length > 0) return;
+    misOTService.getArticulosStock().then(setArticulos).catch(err =>
+      console.error('[SolicitarPresupuesto] articulos load failed:', err));
+  }, [open, articulos.length]);
 
   const reset = () => { setStep('confirm'); setNumero(''); setErrorMsg(''); setPartes([{ ...ROW_VACIA }]); };
   const handleClose = () => { if (step !== 'working') { onClose(); reset(); } };
@@ -35,10 +55,24 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
   const setParte = (idx: number, patch: Partial<ParteRow>) =>
     setPartes(prev => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
 
-  // Válido: toda fila con número de parte necesita cantidad ≥ 1; al menos una parte declarada.
+  // El buscador devuelve el id del artículo elegido, o el texto tipeado (creatable).
+  const handleParteChange = (idx: number, value: string) => {
+    const art = articulos.find(a => a.id === value);
+    if (art) setParte(idx, { articuloId: art.id, numeroParte: art.codigo, descripcion: art.descripcion });
+    else setParte(idx, { articuloId: null, numeroParte: value.trim(), descripcion: '' });
+  };
+
+  const articuloOptions = articulos.map(a => ({ value: a.id, label: `${a.codigo} — ${a.descripcion}` }));
+
+  // Válido: toda fila con parte necesita cantidad ≥ 1; al menos una parte declarada.
   const partesLimpias: ParteSolicitada[] = partes
     .filter(p => p.numeroParte.trim())
-    .map(p => ({ numeroParte: p.numeroParte.trim(), cantidad: parseInt(p.cantidad, 10) || 0 }));
+    .map(p => ({
+      numeroParte: p.numeroParte.trim(),
+      cantidad: parseInt(p.cantidad, 10) || 0,
+      descripcion: p.descripcion || null,
+      stockArticuloId: p.articuloId,
+    }));
   const partesValidas = partesLimpias.length > 0 && partesLimpias.every(p => p.cantidad >= 1);
 
   async function handleConfirm() {
@@ -89,40 +123,51 @@ export default function SolicitarPresupuestoModal({ open, onClose, ot, sistema }
 
           <div className="space-y-1.5">
             <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Partes solicitadas</p>
-            {partes.map((p, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                <input
-                  className={`${inputCls} flex-1 min-w-0 font-mono`}
-                  placeholder="N° de parte (ej: G1312-60067)"
-                  value={p.numeroParte}
-                  onChange={e => setParte(idx, { numeroParte: e.target.value })}
-                  autoFocus={idx === 0}
-                />
-                <input
-                  className={`${inputCls} w-16 text-center`}
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  placeholder="Cant."
-                  value={p.cantidad}
-                  onChange={e => setParte(idx, { cantidad: e.target.value })}
-                />
-                {partes.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setPartes(prev => prev.filter((_, i) => i !== idx))}
-                    className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none"
-                    aria-label="Quitar parte"
-                  >×</button>
-                )}
-              </div>
-            ))}
+            {partes.map((p, idx) => {
+              // Fila con texto libre: opción sintética para que el select la muestre.
+              const rowOptions = !p.articuloId && p.numeroParte
+                ? [...articuloOptions, { value: p.numeroParte, label: `${p.numeroParte} (no está en stock)` }]
+                : articuloOptions;
+              return (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <div className="flex-1 min-w-0">
+                    <SearchableSelect
+                      value={p.articuloId ?? p.numeroParte}
+                      onChange={v => handleParteChange(idx, v)}
+                      options={rowOptions}
+                      placeholder="Buscar por código o descripción…"
+                      emptyMessage="Sin resultados en stock"
+                      creatable
+                      createLabel="Usar N° de parte"
+                    />
+                  </div>
+                  <input
+                    className={`${inputCls} w-16 text-center`}
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    placeholder="Cant."
+                    value={p.cantidad}
+                    onChange={e => setParte(idx, { cantidad: e.target.value })}
+                  />
+                  {partes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setPartes(prev => prev.filter((_, i) => i !== idx))}
+                      className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none"
+                      aria-label="Quitar parte"
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
             <button
               type="button"
               onClick={() => setPartes(prev => [...prev, { ...ROW_VACIA }])}
               className="text-teal-700 hover:text-teal-800 text-xs font-medium"
             >+ Agregar otra parte</button>
             <p className="text-[11px] text-slate-400">
+              Elegí del stock (queda código + descripción) o tipeá el N° de parte si no está.
               Van al presupuesto como items sin precio; ventas los completa.
             </p>
           </div>

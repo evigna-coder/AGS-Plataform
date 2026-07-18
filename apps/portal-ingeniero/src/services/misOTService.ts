@@ -37,6 +37,17 @@ export type MisOTDoc = WorkOrder & { id: string };
 export interface ParteSolicitada {
   numeroParte: string;
   cantidad: number;
+  /** Descripción del artículo cuando se eligió del stock (texto libre: null). */
+  descripcion?: string | null;
+  /** FK → articulos cuando la parte se seleccionó del catálogo de stock. */
+  stockArticuloId?: string | null;
+}
+
+/** Opción del buscador de artículos de stock en "Solicitar presupuesto". */
+export interface ArticuloStockOption {
+  id: string;
+  codigo: string;
+  descripcion: string;
 }
 
 function parseReporte(id: string, data: Record<string, unknown>): MisOTDoc {
@@ -211,6 +222,17 @@ export const misOTService = {
     return data.lotes?.find(l => l.certificadoUrl)?.certificadoUrl ?? null;
   },
 
+  /** Catálogo de artículos activos (colección `articulos`) para el buscador de partes. */
+  async getArticulosStock(): Promise<ArticuloStockOption[]> {
+    const snap = await getDocs(query(collection(db, 'articulos'), where('activo', '==', true)));
+    const items = snap.docs.map(d => {
+      const data = d.data() as { codigo?: string; descripcion?: string };
+      return { id: d.id, codigo: data.codigo ?? '', descripcion: data.descripcion ?? '' };
+    });
+    items.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    return items;
+  },
+
   /**
    * Número de presupuesto atómico. MISMO mecanismo y MISMO doc counter que
    * sistema-modular (presupuestosService.getNextPresupuestoNumber): transacción
@@ -260,11 +282,12 @@ export const misOTService = {
     const items = partes.map(p => ({
       id: crypto.randomUUID(),
       codigoProducto: p.numeroParte,
-      descripcion: p.numeroParte,
+      descripcion: p.descripcion || p.numeroParte,
       cantidad: p.cantidad,
       unidad: 'unidad',
       precioUnitario: 0,
       subtotal: 0,
+      stockArticuloId: p.stockArticuloId ?? null,
       sistemaId: ot.sistemaId ?? null,
       sistemaNombre: sistema?.nombre || ot.sistema || null,
     }));
@@ -305,7 +328,8 @@ export const misOTService = {
 
     const equipoLabel = [sistema?.nombre || ot.sistema, sistema?.agsVisibleId].filter(Boolean).join(' · ');
     const partesTexto = partes.length > 0
-      ? `Partes solicitadas:\n${partes.map(p => `  · ${p.numeroParte} × ${p.cantidad}`).join('\n')}\n`
+      ? `Partes solicitadas:\n${partes.map(p =>
+          `  · ${p.numeroParte}${p.descripcion ? ` (${p.descripcion})` : ''} × ${p.cantidad}`).join('\n')}\n`
       : '';
     await leadsService.create({
       clienteId: ot.clienteId ?? null,
