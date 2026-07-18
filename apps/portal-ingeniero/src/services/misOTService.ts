@@ -266,7 +266,7 @@ export const misOTService = {
   /**
    * Flujo "Solicitar presupuesto" desde una OT:
    *  a) toma número atómico (counter compartido con sistema-modular),
-   *  b) crea el presupuesto en borrador (tipo servicio, origen OT) con las partes
+   *  b) crea el presupuesto en borrador (tipo 'partes', origen OT) con las partes
    *     declaradas como items sin precio — ventas los completa,
    *  c) agrega el número a budgets[] de la OT (colección `reportes`, canónica),
    *  d) crea ticket al área ventas — leadsService.create auto-asigna al responsable
@@ -292,9 +292,10 @@ export const misOTService = {
       sistemaNombre: sistema?.nombre || ot.sistema || null,
     }));
 
+    // El IST siempre solicita partes — el presupuesto nace tipo 'partes'.
     const payload = deepCleanForFirestore({
       numero,
-      tipo: 'servicio',
+      tipo: 'partes',
       moneda: 'USD',
       clienteId: ot.clienteId ?? null,
       establecimientoId: ot.establecimientoId ?? sistema?.establecimientoId ?? null,
