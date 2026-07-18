@@ -64,11 +64,33 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   }, [isOpen]);
 
+  // Mientras se tipea, la primera coincidencia queda resaltada: Enter la toma
+  // directo, sin obligar a bajar con las flechas.
+  useEffect(() => {
+    if (isOpen && searchTerm.trim()) setHighlightedIndex(0);
+  }, [isOpen, searchTerm]);
+
+  // Al cerrar tocando afuera con texto tipeado: si hay coincidencia exacta
+  // (label completo o código antes del " — ") se selecciona sola; si no la hay
+  // y el select es creatable, el texto queda como valor libre.
+  const commitPendingRef = useRef<() => void>(() => {});
+  commitPendingRef.current = () => {
+    const t = searchTerm.trim().toLowerCase();
+    if (!t) return;
+    const exact = filteredOptions.find(o => {
+      const l = o.label.toLowerCase();
+      return l === t || l.startsWith(`${t} — `);
+    });
+    if (exact) onChange(exact.value);
+    else if (creatable) onChange(searchTerm.trim());
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       if (containerRef.current && !containerRef.current.contains(target) &&
           listRef.current && !listRef.current.contains(target)) {
+        commitPendingRef.current();
         setIsOpen(false);
       }
     };
@@ -84,22 +106,34 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   }, [isOpen]);
 
+  // Coordenadas de DOCUMENTO (absolute + scroll offset), no de viewport (fixed):
+  // en mobile, con el teclado abierto, los elementos fixed quedan desfasados
+  // del viewport visual y el dropdown "flota" lejos del input.
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const updateDropdownPos = useCallback(() => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      setDropdownPos({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
     }
   }, []);
 
   useEffect(() => {
     if (!isOpen) return;
     updateDropdownPos();
+    const vv = window.visualViewport;
     window.addEventListener('scroll', updateDropdownPos, true);
     window.addEventListener('resize', updateDropdownPos);
+    vv?.addEventListener('resize', updateDropdownPos);
+    vv?.addEventListener('scroll', updateDropdownPos);
     return () => {
       window.removeEventListener('scroll', updateDropdownPos, true);
       window.removeEventListener('resize', updateDropdownPos);
+      vv?.removeEventListener('resize', updateDropdownPos);
+      vv?.removeEventListener('scroll', updateDropdownPos);
     };
   }, [isOpen, updateDropdownPos]);
 
@@ -196,7 +230,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
       {isOpen && !disabled && createPortal(
         <ul ref={listRef}
-          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+          style={{ position: 'absolute', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
           className="z-[100] bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-auto" role="listbox">
           {allOptions.length === 0 ? (
             <li className="px-2.5 py-1.5 text-xs text-slate-400 italic">{emptyMessage}</li>
