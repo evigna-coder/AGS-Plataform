@@ -23,21 +23,35 @@ function dayLabel(dayStr: string): string {
 export default function OTListPage() {
   const { usuario } = useAuth();
   const [range, setRange] = useState<MisOTRange>('hoy');
-  const { groupedByDay, loading } = useMisOTList(range);
+  const { groupedByDay, loading, isAdmin, showMine, verTodas, toggleShowMine } = useMisOTList(range);
   const inicial = (usuario?.displayName || usuario?.email || '?').trim().charAt(0).toUpperCase();
   const fechaHoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' });
 
   return (
     <div className="h-full flex flex-col">
       {/* Banda teal */}
-      <div className="shrink-0 bg-gradient-to-br from-teal-700 to-teal-900 text-white px-4 pt-3 pb-5 sm:px-5">
+      <div className="shrink-0 bg-gradient-to-br from-teal-700 to-teal-900 text-white px-4 pt-3 pb-5 sm:px-5 md:pt-2.5 md:pb-3">
         <div className="flex items-center justify-between gap-3.5 max-w-5xl mx-auto w-full">
-          <div>
-            <h1 className="font-serif text-[28px] font-medium leading-none">Mis OT</h1>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-75 mt-1.5 capitalize">{fechaHoy}</p>
+          <div className="md:flex md:items-baseline md:gap-3">
+            <h1 className="font-serif text-[28px] md:text-[22px] font-medium leading-none">{verTodas ? 'Todas las OT' : 'Mis OT'}</h1>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-75 mt-1.5 md:mt-0 capitalize">{fechaHoy}</p>
           </div>
-          <div className="w-11 h-11 shrink-0 rounded-full bg-white/15 border border-white/35 flex items-center justify-center font-serif text-[19px]">
-            {inicial}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {isAdmin && (
+              <button
+                onClick={toggleShowMine}
+                className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                  showMine
+                    ? 'bg-white text-teal-800 border-white'
+                    : 'bg-white/10 text-white border-white/40 hover:bg-white/20'
+                }`}
+              >
+                Mis OTs
+              </button>
+            )}
+            <div className="w-11 h-11 md:w-8 md:h-8 shrink-0 rounded-full bg-white/15 border border-white/35 flex items-center justify-center font-serif text-[19px] md:text-[14px]">
+              {inicial}
+            </div>
           </div>
         </div>
       </div>
@@ -69,10 +83,10 @@ export default function OTListPage() {
           ) : groupedByDay.length === 0 ? (
             <EmptyState message={
               range === 'hoy'
-                ? 'No tenés OTs para hoy'
+                ? (verTodas ? 'No hay OTs para hoy' : 'No tenés OTs para hoy')
                 : range === 'semana'
                   ? 'Sin OTs esta semana'
-                  : 'No hay próximas OTs asignadas'
+                  : (verTodas ? 'No hay OTs activas' : 'No hay próximas OTs asignadas')
             } />
           ) : (
             <div className="space-y-6">
@@ -85,7 +99,7 @@ export default function OTListPage() {
                     </p>
                     <div className="space-y-3">
                       {items.map(item => (
-                        <MisOTCard key={item.ot.otNumber} item={item} isToday={isToday} />
+                        <MisOTCard key={item.ot.otNumber} item={item} isToday={isToday} showEngineer={verTodas} />
                       ))}
                     </div>
                   </div>

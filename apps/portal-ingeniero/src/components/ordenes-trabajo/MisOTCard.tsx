@@ -5,9 +5,10 @@ import type { MisOTListItem } from '../../hooks/useMisOTList';
 /**
  * Card de OT en "Mis OT" (mockup mix A+B): franja horaria grande mono,
  * número de OT, tipo de servicio en serif, cliente, chip de estado y
- * ⚠ si el equipo tiene tareas pendientes.
+ * ⚠ si el equipo tiene tareas pendientes. Con showEngineer (vista admin
+ * "todas las OT") muestra además el ingeniero asignado.
  */
-export default function MisOTCard({ item, isToday }: { item: MisOTListItem; isToday: boolean }) {
+export default function MisOTCard({ item, isToday, showEngineer }: { item: MisOTListItem; isToday: boolean; showEngineer?: boolean }) {
   const { ot, franja, pendientesCount } = item;
   const estadoLabel = ot.estadoAdmin ? OT_ESTADO_LABELS[ot.estadoAdmin] : 'Borrador';
   const fechaDia = ot.fechaServicioAprox
@@ -17,7 +18,7 @@ export default function MisOTCard({ item, isToday }: { item: MisOTListItem; isTo
   return (
     <Link
       to={`/ordenes-trabajo/${ot.otNumber}`}
-      className="flex items-stretch gap-3.5 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 min-h-[44px] hover:border-teal-600 hover:shadow-[0_0_0_3px_#E6F2F1] transition-shadow"
+      className="flex items-stretch gap-3.5 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 md:py-2.5 min-h-[44px] hover:border-teal-600 hover:shadow-[0_0_0_3px_#E6F2F1] transition-shadow"
     >
       <div className="shrink-0 w-[62px] pt-0.5">
         <span className="font-mono text-[19px] font-semibold text-teal-900 leading-none">
@@ -29,16 +30,21 @@ export default function MisOTCard({ item, isToday }: { item: MisOTListItem; isTo
       </div>
       <div className="flex-1 min-w-0">
         <span className="font-mono text-[11px] font-semibold text-teal-900 tracking-wide">OT {ot.otNumber}</span>
-        <p className="font-serif text-lg font-medium leading-tight mt-0.5 text-slate-900">
+        <p className="font-serif text-lg md:text-base font-medium leading-tight mt-0.5 text-slate-900">
           {ot.tipoServicio || 'Servicio'}
         </p>
         <p className="text-[12.5px] text-slate-500 mt-1 truncate">
           {[ot.razonSocial, ot.sistema].filter(Boolean).join(' — ') || '—'}
         </p>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
           <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-teal-50 text-teal-900 border border-teal-700/25">
             {estadoLabel}
           </span>
+          {showEngineer && (
+            <span className="inline-block text-[10px] font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+              {ot.ingenieroAsignadoNombre || 'Sin asignar'}
+            </span>
+          )}
         </div>
       </div>
       <div className="shrink-0 flex flex-col items-end justify-between gap-2">

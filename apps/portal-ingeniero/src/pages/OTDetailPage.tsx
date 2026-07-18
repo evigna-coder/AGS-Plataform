@@ -42,21 +42,23 @@ export default function OTDetailPage() {
     <div className="h-full flex flex-col">
       <OTDetalleBand ot={ot} otNumber={otNumber || ''} onBack={goBack} />
 
-      {/* Tab bar */}
-      <div className="shrink-0 bg-white border-b border-slate-100 flex">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 min-h-[44px] ${
-              tab === t.id
-                ? 'border-teal-600 text-teal-700'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Tab bar — mobile: 4 tabs a ancho completo; desktop: alineados a la izquierda */}
+      <div className="shrink-0 bg-white border-b border-slate-100">
+        <div className="flex max-w-5xl mx-auto w-full md:px-4">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 md:flex-none md:px-6 py-2.5 md:py-2 text-xs font-medium transition-colors border-b-2 min-h-[44px] md:min-h-0 ${
+                tab === t.id
+                  ? 'border-teal-600 text-teal-700'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
@@ -75,35 +77,38 @@ export default function OTDetailPage() {
         {tab === 'firmas' && <OTFirmasTab form={form} ot={ot} />}
       </div>
 
-      {/* Botonera sticky (targets ≥44px) */}
+      {/* Botonera sticky — mobile: targets ≥44px con primario a ancho completo;
+          desktop: botones compactos alineados a la derecha */}
       <div
-        className="shrink-0 sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-8px_20px_rgba(30,41,59,0.08)] px-4 py-3 flex gap-2.5"
+        className="shrink-0 sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-8px_20px_rgba(30,41,59,0.08)] px-4 py-3 md:py-2"
         style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >
-        {!form.readOnly && (
-          <button
-            onClick={() => form.save()}
-            disabled={form.saving}
-            className="min-h-[48px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 disabled:opacity-50"
+        <div className="flex gap-2.5 max-w-5xl mx-auto w-full md:justify-end">
+          {!form.readOnly && (
+            <button
+              onClick={() => form.save()}
+              disabled={form.saving}
+              className="min-h-[48px] md:min-h-[38px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 disabled:opacity-50"
+            >
+              {form.saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          )}
+          <a
+            href={reporteHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-[48px] md:min-h-[38px] px-4 rounded-xl border-[1.5px] border-teal-700 bg-white text-sm font-semibold text-teal-700 inline-flex items-center justify-center"
           >
-            {form.saving ? 'Guardando…' : 'Guardar'}
+            {form.readOnly && ot?.pdfUrl ? 'Ver PDF' : 'Reporte'}
+          </a>
+          <button
+            onClick={() => setSolicitarOpen(true)}
+            disabled={!ot}
+            className="flex-1 md:flex-none min-h-[48px] md:min-h-[38px] px-4 md:px-6 rounded-xl bg-teal-700 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+          >
+            Solicitar presupuesto
           </button>
-        )}
-        <a
-          href={reporteHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="min-h-[48px] px-4 rounded-xl border-[1.5px] border-teal-700 bg-white text-sm font-semibold text-teal-700 inline-flex items-center justify-center"
-        >
-          {form.readOnly && ot?.pdfUrl ? 'Ver PDF' : 'Reporte'}
-        </a>
-        <button
-          onClick={() => setSolicitarOpen(true)}
-          disabled={!ot}
-          className="flex-1 min-h-[48px] px-4 rounded-xl bg-teal-700 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
-        >
-          Solicitar presupuesto
-        </button>
+        </div>
       </div>
 
       {ot && (

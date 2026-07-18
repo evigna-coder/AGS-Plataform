@@ -31,9 +31,14 @@ export interface MisOTListItem {
  * "Mis OT": OTs de `reportes` asignadas al ingeniero actual en estados no
  * terminales, ordenadas por fechaServicioAprox. Se enriquecen con la franja
  * horaria de agendaEntries y el conteo de tareas pendientes del equipo.
+ * Admin ('admin' | 'admin_ing_soporte') ve TODAS las OTs activas por defecto,
+ * con toggle "Mis OTs" — mismo criterio que la agenda.
  */
 export function useMisOTList(range: MisOTRange) {
-  const { usuario } = useAuth();
+  const { usuario, hasRole } = useAuth();
+  const isAdmin = hasRole('admin', 'admin_ing_soporte');
+  const [showMine, setShowMine] = useState(false);
+  const verTodas = isAdmin && !showMine;
   const { ingenieroDocId, loaded: ingLoaded } = useIngenieroDocId(usuario?.id, usuario?.email);
   const [ots, setOts] = useState<MisOTDoc[]>([]);
   const [agenda, setAgenda] = useState<AgendaEntry[]>([]);
@@ -43,26 +48,26 @@ export function useMisOTList(range: MisOTRange) {
   const today = useMemo(() => new Date(), []);
   const todayStr = formatDate(today);
 
-  // OTs asignadas (realtime)
+  // OTs (realtime): las asignadas al ingeniero, o todas las activas si es admin
   useEffect(() => {
     if (!usuario?.id || !ingLoaded) return;
     setLoading(true);
+    const onData = (data: MisOTDoc[]) => { setOts(data); setLoading(false); };
+    const onErr = () => setLoading(false);
+    if (verTodas) return misOTService.subscribeTodasLasOTs(onData, onErr);
     const ids = [usuario.id, ingenieroDocId].filter((x): x is string => !!x);
-    const unsub = misOTService.subscribeMisOTs(ids, data => {
-      setOts(data);
-      setLoading(false);
-    }, () => setLoading(false));
-    return unsub;
-  }, [usuario?.id, ingenieroDocId, ingLoaded]);
+    return misOTService.subscribeMisOTs(ids, onData, onErr);
+  }, [usuario?.id, ingenieroDocId, ingLoaded, verTodas]);
 
   // Agenda: franjas horarias de las visitas (hoy → +60 días)
   useEffect(() => {
     if (!usuario?.id || !ingLoaded) return;
     const ids = [usuario.id, ingenieroDocId].filter((x): x is string => !!x);
-    if (ids.length === 0) return;
-    const unsub = agendaService.subscribeToRange(todayStr, formatDate(addDays(today, 60)), ids, setAgenda);
+    if (!verTodas && ids.length === 0) return;
+    const unsub = agendaService.subscribeToRange(
+      todayStr, formatDate(addDays(today, 60)), verTodas ? null : ids, setAgenda);
     return unsub;
-  }, [usuario?.id, ingenieroDocId, ingLoaded, todayStr, today]);
+  }, [usuario?.id, ingenieroDocId, ingLoaded, todayStr, today, verTodas]);
 
   // Tareas pendientes por equipo (one-shot por cambio de lista)
   useEffect(() => {
@@ -111,5 +116,9 @@ export function useMisOTList(range: MisOTRange) {
 
   const total = groupedByDay.reduce((s, g) => s + g.items.length, 0);
 
-  return { groupedByDay, total, loading };
+  return {
+    groupedByDay, total, loading,
+    isAdmin, showMine, verTodas,
+    toggleShowMine: () => setShowMine(v => !v),
+  };
 }

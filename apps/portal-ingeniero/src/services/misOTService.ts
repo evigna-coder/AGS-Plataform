@@ -29,8 +29,15 @@ import { getCreateTrace } from './currentUser';
 
 /** Estados administrativos terminales — una OT en estos estados no aparece en "Mis OT". */
 const ESTADOS_ADMIN_TERMINALES: OTEstadoAdmin[] = ['CIERRE_TECNICO', 'CIERRE_ADMINISTRATIVO', 'FINALIZADO'];
+const ESTADOS_ADMIN_ACTIVOS: OTEstadoAdmin[] = ['CREADA', 'ASIGNADA', 'COORDINADA', 'EN_CURSO'];
 
 export type MisOTDoc = WorkOrder & { id: string };
+
+/** Parte declarada por el ingeniero al solicitar un presupuesto desde una OT. */
+export interface ParteSolicitada {
+  numeroParte: string;
+  cantidad: number;
+}
 
 function parseReporte(id: string, data: Record<string, unknown>): MisOTDoc {
   return {
@@ -75,6 +82,29 @@ export const misOTService = {
       callback(ots);
     }, err => {
       console.error('[misOTService] reportes subscription error:', err);
+      onError?.(err);
+    });
+  },
+
+  /**
+   * Vista admin de "Mis OT": TODAS las OTs activas, de todos los ingenieros.
+   * Filtra por estadoAdmin no-terminal en la query (acota el volumen — no baja
+   * el histórico completo de `reportes`). OTs legacy sin estadoAdmin quedan
+   * afuera de esta vista; siguen visibles para su ingeniero asignado.
+   */
+  subscribeTodasLasOTs(
+    callback: (ots: MisOTDoc[]) => void,
+    onError?: (err: Error) => void,
+  ): () => void {
+    const q = query(collection(db, 'reportes'), where('estadoAdmin', 'in', ESTADOS_ADMIN_ACTIVOS));
+    return onSnapshot(q, snap => {
+      const ots = snap.docs
+        .map(d => parseReporte(d.id, d.data() as Record<string, unknown>))
+        .filter(ot => ot.status !== 'FINALIZADO');
+      ots.sort((a, b) => (a.fechaServicioAprox || '9999').localeCompare(b.fechaServicioAprox || '9999'));
+      callback(ots);
+    }, err => {
+      console.error('[misOTService] reportes (todas) subscription error:', err);
       onError?.(err);
     });
   },
@@ -214,13 +244,30 @@ export const misOTService = {
   /**
    * Flujo "Solicitar presupuesto" desde una OT:
    *  a) toma número atómico (counter compartido con sistema-modular),
-   *  b) crea el presupuesto en borrador (tipo servicio, origen OT, items vacíos),
+   *  b) crea el presupuesto en borrador (tipo servicio, origen OT) con las partes
+   *     declaradas como items sin precio — ventas los completa,
    *  c) agrega el número a budgets[] de la OT (colección `reportes`, canónica),
    *  d) crea ticket al área ventas — leadsService.create auto-asigna al responsable
    *     configurado en adminConfig/flujos → responsablePorArea.ventas.
    */
-  async solicitarPresupuesto(ot: MisOTDoc, sistema: Sistema | null): Promise<{ presupuestoId: string; numero: string }> {
+  async solicitarPresupuesto(
+    ot: MisOTDoc,
+    sistema: Sistema | null,
+    partes: ParteSolicitada[] = [],
+  ): Promise<{ presupuestoId: string; numero: string }> {
     const numero = await this.getNextPresupuestoNumber();
+
+    const items = partes.map(p => ({
+      id: crypto.randomUUID(),
+      codigoProducto: p.numeroParte,
+      descripcion: p.numeroParte,
+      cantidad: p.cantidad,
+      unidad: 'unidad',
+      precioUnitario: 0,
+      subtotal: 0,
+      sistemaId: ot.sistemaId ?? null,
+      sistemaNombre: sistema?.nombre || ot.sistema || null,
+    }));
 
     const payload = deepCleanForFirestore({
       numero,
@@ -234,7 +281,7 @@ export const misOTService = {
       origenId: ot.otNumber,
       origenRef: `OT-${ot.otNumber}`,
       estado: 'borrador',
-      items: [],
+      items,
       subtotal: 0,
       total: 0,
       ordenesCompraIds: [],
@@ -257,6 +304,9 @@ export const misOTService = {
     }, { merge: true });
 
     const equipoLabel = [sistema?.nombre || ot.sistema, sistema?.agsVisibleId].filter(Boolean).join(' · ');
+    const partesTexto = partes.length > 0
+      ? `Partes solicitadas:\n${partes.map(p => `  · ${p.numeroParte} × ${p.cantidad}`).join('\n')}\n`
+      : '';
     await leadsService.create({
       clienteId: ot.clienteId ?? null,
       contactoId: null,
@@ -278,7 +328,8 @@ export const misOTService = {
         + `OT: ${ot.otNumber} (${ot.tipoServicio || 'servicio'})\n`
         + `Cliente: ${ot.razonSocial || '—'}\n`
         + `Equipo: ${equipoLabel || '—'}\n`
-        + `Completar items y enviar al cliente.`,
+        + partesTexto
+        + `Completar precios y enviar al cliente.`,
       presupuestosIds: [presRef.id],
       otIds: [ot.otNumber],
       source: 'portal',

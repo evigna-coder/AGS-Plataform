@@ -20,8 +20,10 @@ export default function AgendaEntryCard({ entry, showEngineer }: Props) {
     cancelado: 'border-l-red-400',
   };
 
-  return (
-    <div className={`bg-white rounded-xl border border-slate-200 border-l-4 ${borderColor[entry.estadoAgenda] ?? 'border-l-slate-400'} p-3 space-y-1.5`}>
+  // Con OT vinculada, TODA la card navega al detalle (tap target mobile).
+  const cardCls = `block bg-white rounded-xl border border-slate-200 border-l-4 ${borderColor[entry.estadoAgenda] ?? 'border-l-slate-400'} p-3 space-y-1.5`;
+  const inner = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-medium text-slate-400">
           {QUARTER_LABELS[entry.quarterStart]} – {QUARTER_LABELS[entry.quarterEnd]}
@@ -40,12 +42,7 @@ export default function AgendaEntryCard({ entry, showEngineer }: Props) {
       <div>
         {entry.otNumber ? (
           <>
-            <Link
-              to={`/ordenes-trabajo/${entry.otNumber}`}
-              className="text-xs font-semibold text-teal-600 hover:underline"
-            >
-              OT {entry.otNumber}
-            </Link>
+            <span className="text-xs font-semibold text-teal-600">OT {entry.otNumber}</span>
             {entry.clienteNombre && (
               <p className="text-xs text-slate-800 font-medium mt-0.5">{entry.clienteNombre}</p>
             )}
@@ -81,6 +78,14 @@ export default function AgendaEntryCard({ entry, showEngineer }: Props) {
       {entry.notas && (
         <p className="text-[11px] text-slate-500 italic line-clamp-2">{entry.notas}</p>
       )}
-    </div>
+    </>
+  );
+
+  return entry.otNumber ? (
+    <Link to={`/ordenes-trabajo/${entry.otNumber}`} className={`${cardCls} hover:border-teal-400 active:bg-teal-50/50 transition-colors`}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cardCls}>{inner}</div>
   );
 }
